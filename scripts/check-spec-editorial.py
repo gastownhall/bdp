@@ -21,19 +21,32 @@ CANONICAL = (
     "docs/cli-design/bdp-cli.md",
 )
 ENTRY_POINTS = ("README.md", "specs/README.md", "docs/spec-review/README.md")
-EDITORIAL_TOOLING = {".github/workflows/ci.yml", "scripts/check-spec-editorial.py"}
+EDITORIAL_TOOLING = {
+    ".github/workflows/ci.yml", "scripts/check-spec-editorial.py",
+    "scripts/check-spec-editorial-test.py", "scripts/spec-schema-fragments.mjs",
+    "scripts/spec-schema-fragments.node-test.mjs",
+}
+CORE_BUNDLES = {
+    "specs/profiles/core/bdp-v0.1.schema.json",
+    "packages/protocol/schemas/bdp-v0.1.schema.json",
+}
+CORE_OWNERSHIP = "x-bdp-core-definitions"
 EDITORIAL_FILES = {
     *ENTRY_POINTS,
-    "docs/design/bdp-v0.1-current-source-map.md",
-    "docs/design/bdp-v0.1-decision-register.md",
+    "CONTEXT.md", "package.json", *CORE_BUNDLES,
+    "specs/profiles/core/bdp-v0.1.schema.md",
+    "docs/cli-design/overview/examples/csv-failure.sh",
+    "docs/cli-design/overview/examples/csv-review.sh",
 }
 EDITORIAL_PREFIXES = (
     "specs/profiles/core/",
     "specs/profiles/write/",
     "specs/profiles/types/",
+    "specs/profiles/transfer/",
     "specs/types/type-system/",
     "specs/history/",
     "docs/spec-review/",
+    "docs/cli-design/", "docs/design/", "docs/releases/", "specs/openapi/",
 )
 # Retired protocol modules have exact paths. CLI companions may legitimately
 # share a filename (for example events.md) without being a retired protocol.
@@ -78,6 +91,7 @@ def editorial_change(base, head):
         return False
     for path in paths:
         found = False
+        bodies = {}
         for revision in (base, head):
             entry = subprocess.check_output([
                 "git", "--literal-pathspecs", "ls-tree", "-z", revision, "--", path
@@ -95,9 +109,77 @@ def editorial_change(base, head):
                 body.decode("utf-8")
             except UnicodeDecodeError:
                 return False
+            bodies[revision] = body.decode("utf-8")
         if not found:
             raise ValueError(f"cannot inspect changed path {path!r}")
+        # These are narrowly checked specification distributions/tool wiring,
+        # not a path exemption for arbitrary schema or dependency changes.
+        if path == "package.json" or path in CORE_BUNDLES:
+            if base not in bodies or head not in bodies:
+                return False
+            try:
+                before = strict_json(bodies[base], preserve_numbers=True)
+                after = strict_json(bodies[head], preserve_numbers=True)
+                if path == "package.json":
+                    if not editorial_package_change(before, after):
+                        return False
+                elif not editorial_core_change(before, after):
+                    return False
+            except (ValueError, TypeError, KeyError):
+                return False
+    # Both distributions must exist and agree. The required specification job
+    # separately checks their definitions against visible Core fragments.
+    if CORE_BUNDLES.intersection(paths):
+        bundles = [strict_json(subprocess.check_output(
+            ["git", "show", f"{head}:{path}"], cwd=ROOT).decode("utf-8"),
+            preserve_numbers=True) for path in sorted(CORE_BUNDLES)]
+        if bundles[0] != bundles[1]:
+            return False
     return True
+
+
+def editorial_package_change(before, after):
+    before = dict(before)
+    after = dict(after)
+    old_scripts = dict(before.pop("scripts"))
+    new_scripts = dict(after.pop("scripts"))
+    old = old_scripts.pop("test:markdown")
+    new = new_scripts.pop("test:markdown")
+    return (before == after and old_scripts == new_scripts
+            and new in (old, old + " scripts/spec-schema-fragments.node-test.mjs"))
+
+
+def editorial_core_change(before, after):
+    before = dict(before)
+    after = dict(after)
+    old_owned = before.pop(CORE_OWNERSHIP, [])
+    new_owned = after.pop(CORE_OWNERSHIP)
+    if not isinstance(old_owned, list) or not isinstance(new_owned, list):
+        return False
+    if not all(isinstance(name, str) for name in old_owned + new_owned):
+        return False
+    if len(set(new_owned)) != len(new_owned) or not set(old_owned) <= set(new_owned):
+        return False
+    old_defs = dict(before.pop("$defs"))
+    new_defs = dict(after.pop("$defs"))
+    if not set(new_owned) <= new_defs.keys():
+        return False
+    for name in new_owned:
+        old_defs.pop(name, None)
+        new_defs.pop(name)
+    # The already reviewed optional-Events correction is the sole non-Core
+    # exception in this baseline. Any other Write schema edit needs alignment.
+    old_write = old_defs.get("writeDiscovery")
+    new_write = new_defs.get("writeDiscovery")
+    if isinstance(old_write, dict) and isinstance(new_write, dict):
+        expected = dict(old_write)
+        required = expected.get("required")
+        if isinstance(required, list) and "events" in required:
+            expected["required"] = [name for name in required if name != "events"]
+            if new_write == expected:
+                old_defs.pop("writeDiscovery")
+                new_defs.pop("writeDiscovery")
+    return before == after and old_defs == new_defs
 
 
 def parse_document(text):
@@ -232,7 +314,7 @@ def anchors(text):
     return found
 
 
-def strict_json(text):
+def strict_json(text, preserve_numbers=False):
     def unique_object(pairs):
         result = {}
         for key, value in pairs:
@@ -244,8 +326,10 @@ def strict_json(text):
     def invalid_constant(value):
         raise ValueError(f"non-JSON numeric constant {value}")
 
+    numbers = {"parse_int": lambda token: ("number", token),
+               "parse_float": lambda token: ("number", token)} if preserve_numbers else {}
     return json.loads(text, object_pairs_hook=unique_object,
-                      parse_constant=invalid_constant)
+                      parse_constant=invalid_constant, **numbers)
 
 
 def check_documents():

@@ -277,12 +277,12 @@ log merely because they use Write.
 The Event signatures are events [RESOURCE], link events RESOURCE with
 --from retained|now or mutually exclusive --after TOKEN, optional --follow,
 --representation postimage|delta and --page-size N. [D1/D2 are answered](event-decisions-20261022.md):
-postimages required, deltas optional; declared observation coverage with bounded
+within advertised Events, postimages are required and deltas optional; declared observation coverage with bounded
 replay and explicit gaps. The paired [Event CLI](events.md) and
 [native source](../../specs/profiles/core/core.md#optional-events) define postimage default,
 finite JSON/polling, cursor/coverage and the six mutation-name delta vocabulary.
 No predicate language, masks, wire provenance suppression or changes command is
-added. Unknown required Event semantics stop delivery. When Events is advertised,
+added. Within advertised Events, unknown required semantics stop delivery. When Events is advertised,
 [final batch publication](../../specs/profiles/write/write.md#final-atomic-publication)
 emits facts for final Resource transitions. Write always preserves atomic final
 state, allocation, keys, outcomes and at most one new revision per affected

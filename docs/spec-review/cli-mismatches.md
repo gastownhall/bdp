@@ -14,14 +14,14 @@ implementation limitations; runtime conformance follows the complete human pass.
 
 | ID | Disposition |
 | --- | --- |
-| CLI-01 | **Corrected.** Core and Write permit absent Events. CLI command availability checks advertisement; complete postimages, facts, coverage and replay remain required within supported Events. Ordinary Write durability/atomicity is unconditional. Active discovery, Events, batch and walkthrough summaries agree. |
-| CLI-02 | **Corrected.** Type definitions are ordinary Bead records. The main CLI describes real persisted definitions, Refines and instances; the five-step acceptance plan is not an unsaved-instance API or a semantic limitation. |
-| CLI-03 | **Corrected.** Removed generic admission of `--source-revision` / `--target-revision`. Endpoint pins use `@N` / `@=TOKEN`; separately named product operations retain their own boundaries. |
-| CLI-04 | **Deferred by Donna.** HTTP CLI flags have received no design pass. Main and companions consistently mark `--head` and condition flags unselected. Core HTTP semantics remain unchanged. |
-| CLI-05 | **Corrected.** Link Events describes that Link's lifecycle; Bead Events keeps its lifecycle and incident-Link population. |
-| CLI-06 | **Reconciled to Donna's current bare-token direction.** `--if-revision TOKEN` sends the exact opaque token unchanged, including numeric-looking tokens and literal leading `=`. No ordinal guard shorthand is selected. Reference suffixes and the separate historical-content adapter are not silently reinterpreted. |
-| CLI-07 | **Corrected boundary; full design deferred.** No Type inventory endpoint/population is invented. The future Type and packaging specifications will own it. Removed the completed navigation TODO. |
-| CLI-08 | **Corrected active reader paths.** Current companions point to canonical clauses; projection and schema-authority summaries match the assembled corpus. Historical receipts retain attribution with current supersession notes where needed. |
+| CLI-01 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`.** Core and Write permit absent Events. CLI command availability checks advertisement; complete postimages, facts, coverage and replay remain required within supported Events. Ordinary Write durability/atomicity is unconditional. Active discovery, Events, batch and walkthrough summaries agree. |
+| CLI-02 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`.** Type definitions are ordinary Bead records. The main CLI describes real persisted definitions, Refines and instances; the five-step acceptance plan is not an unsaved-instance API or a semantic limitation. |
+| CLI-03 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`.** Removed generic admission of `--source-revision` / `--target-revision`. Endpoint pins use `@N` / `@=TOKEN`; separately named product operations retain their own boundaries. |
+| CLI-04 | **Deferred 2026-11-01: HTTP CLI controls need Donna's design pass; owner Trish.** HTTP CLI flags have received no design pass. Main and companions consistently mark `--head` and condition flags unselected. Core HTTP semantics remain unchanged. |
+| CLI-05 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`.** Link Events describes that Link's lifecycle; Bead Events keeps its lifecycle and incident-Link population. |
+| CLI-06 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad` to Donna's current bare-token direction.** `--if-revision TOKEN` sends the exact opaque token unchanged, including numeric-looking tokens and literal leading `=`. No ordinal guard shorthand is selected. Reference suffixes and the separate historical-content adapter are not silently reinterpreted. |
+| CLI-07 | **Boundary resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`; full inventory design deferred 2026-11-01 to Types and packaging; owner Trish.** No Type inventory endpoint/population is invented. The future Type and packaging specifications will own it. Removed the completed navigation TODO. |
+| CLI-08 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`.** Current companions point to canonical clauses; projection and schema-authority summaries match the assembled corpus. Historical receipts retain attribution with current supersession notes where needed. |
 
 The guard investigation found two real stages: earlier literal token flags, then
 a recorded human request for uniform `N` / `=TOKEN` arguments. The original audit
@@ -84,9 +84,9 @@ creation and authoring-format contributions are already merged source inputs:
 [#328](https://github.com/gastownhall/bdp/pull/328).
 There is no need to merge those historical PRs again to obtain their text.
 In particular, #317's merged bootstrap does not adopt its provisional native
-binding. Open [#175](https://github.com/gastownhall/bdp/pull/175) is older JSONPath
+binding. Archived [#175](https://github.com/gastownhall/bdp/pull/175) is older JSONPath
 exploration, not missing selected work that overrides the current AST direction.
-These are source dispositions, not proof of installed CLI conformance. No PR was closed or merged on partial-incorporation evidence.
+These are source dispositions, not proof of installed CLI conformance. #175 was deliberately archived after its complete seven-file research/attribution/residual comparison; its branch remains preserved. No implementation was merged or protocol binding adopted by that closure.
 
 Donna authorized disposition during harvesting. The first bounded review checked
 three open candidates against exact current heads and their saved full scopes:

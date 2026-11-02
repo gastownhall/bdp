@@ -39,6 +39,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.22.1
+      - name: Check specification versus implementation change boundaries
+        run: python3 -B scripts/check-spec-editorial-test.py
+      - name: Check the two retained CLI shell examples without executing them
+        run: bash -n docs/cli-design/overview/examples/csv-failure.sh docs/cli-design/overview/examples/csv-review.sh
       - name: Check embedded schema extraction and distribution parity
         run: |
           node --test scripts/spec-schema-fragments.node-test.mjs
@@ -130,7 +134,7 @@ jobs:
           test "$SPEC_RESULT" = success
           if [ "$EDITORIAL" = true ]; then
             test "$IMPLEMENTATION_RESULT" = skipped
-            echo "Specification editorial checks passed. Implementation qualification was not run."
+            echo "Specification baseline checks passed. Implementation qualification was not run; historical OpenAPI regeneration remains deferred."
           else
             test "$IMPLEMENTATION_RESULT" = success
             echo "Specification and implementation checks passed."

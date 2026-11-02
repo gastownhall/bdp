@@ -18,7 +18,10 @@ Reference implementation and conformance-test alignment follow the complete spec
 
 ## Supporting material
 
+The two BDP v0 schema copies, [specs source](profiles/core/bdp-v0.schema.json) and [protocol-package mirror](../packages/protocol/schemas/bdp-v0.schema.json), are historical pins retained for the reference implementation's existing evidence; they do not define the current canonical specification.
+
 - [Common JSON schema](profiles/core/bdp-v0.1.schema.json) and [Types schema](profiles/types/types-v1.schema.json) are machine-readable companions. Unused historical helper definitions do not add operations to the canonical prose. Their alignment is checked explicitly as the specification is reviewed.
+- The [existing OpenAPI catalog](openapi/README.md) is historical for this baseline; canonical regeneration and implementation alignment are deferred.
 - The CLI is a client specification, not another protocol profile. Its proposed encodings remain proposals unless expressly selected.
 - [Historical source](history/pre-canonical-20261101/README.md) preserves the inputs to this consolidation and their immutable original revisions.
 - [Query design context](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md), [Issue/Dependency domain draft](types/issue/issue.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
