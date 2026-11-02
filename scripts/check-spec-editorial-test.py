@@ -236,6 +236,13 @@ class ClassificationTests(unittest.TestCase):
         self.write(path, updated)
         self.assertTrue(self.classify())
 
+    def test_removing_source_map_cannot_enable_foreign_definition_edits(self):
+        updated = self.profile_adoption()
+        del updated[editorial.PROFILE_SOURCES]
+        updated["$defs"]["otherProfile"]["const"] = 2
+        self.write_bundles(updated)
+        self.assertFalse(self.classify())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -51,8 +51,10 @@ Core, Write and Events jointly own the shared bundle's named definitions; the
 ownership/source inventories account for every fragment. Types and id-root keep
 separate IDs and reference contexts. Initial ownership migration preserves all
 previous definitions; removal, rename or silent cross-profile duplication fails.
-Ownership moves require the explicit `--migrate-ownership` command, which also
-refuses semantic changes during that move; ordinary edits use `--write`.
+Ownership moves and new definitions require the explicit `--migrate-ownership`
+command. Make that mechanical addition or move while all existing definitions
+retain their values; apply ordinary value edits afterward with `--write`. This
+two-step procedure never requires hand-editing the JSON distributions.
 Unused inherited helpers do not add operations. JSON Schema cannot express every
 semantic obligation in the prose.
 

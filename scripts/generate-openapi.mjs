@@ -229,6 +229,17 @@ export function parseOperationTables(markdown, sourceFile) {
           "Invalid Problem codes",
         );
         assert(
+          !row.alias || !row.methods.includes("post"),
+          "Alias redirect cannot be a POST operation",
+        );
+        assert(
+          !Object.hasOwn(row, "forbiddenHeaders") ||
+            (Array.isArray(row.forbiddenHeaders) &&
+              row.forbiddenHeaders.every((name) => typeof name === "string" && name.length) &&
+              new Set(row.forbiddenHeaders).size === row.forbiddenHeaders.length),
+          "Invalid forbidden-header inventory",
+        );
+        assert(
           !row.event || (sourceFile.endsWith("/events/events.md") && row.optional),
           "Events requires explicit optional support and owning profile",
         );
@@ -603,7 +614,6 @@ export function pathItem(row) {
           if (!op["x-bdp-applicable-problem-codes"].includes("capability-not-supported"))
             op["x-bdp-applicable-problem-codes"].push("capability-not-supported");
         }
-        op["x-bdp-forbidden-response-headers"] = ["ETag", "Location"];
       }
       if (post || row.forbiddenHeaders)
         op["x-bdp-forbidden-response-headers"] = [

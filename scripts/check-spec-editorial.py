@@ -282,13 +282,15 @@ def editorial_core_change(before, after):
     if len(set(new_owned)) != len(new_owned) or not set(old_owned) <= set(new_owned):
         return False
     old_defs = dict(before.pop("$defs"))
-    if source_map is not None:
-        prior_core = set(CORE_BASELINE_DEFINITIONS)
-        for source in ("specs/profiles/core/core.md", "specs/profiles/events/events.md"):
-            prior_core.update(old_sources.get(source, []))
-        assigned_core = set(source_map["specs/profiles/core/core.md"] + source_map["specs/profiles/events/events.md"])
-        if any(name in old_defs and name not in prior_core for name in assigned_core):
-            return False
+    if not isinstance(old_sources, dict):
+        return False
+    prior_core = set(CORE_BASELINE_DEFINITIONS)
+    for source in ("specs/profiles/core/core.md", "specs/profiles/events/events.md"):
+        prior_core.update(old_sources.get(source, []))
+    assigned_core = (set(new_owned) if source_map is None else set(
+        source_map["specs/profiles/core/core.md"] + source_map["specs/profiles/events/events.md"]))
+    if any(name in old_defs and name not in prior_core for name in assigned_core):
+        return False
     new_defs = dict(after.pop("$defs"))
     if not set(new_owned) <= new_defs.keys():
         return False

@@ -797,3 +797,22 @@ test("landing discovery metadata is body-independent and generation fingerprints
   ])
     assert.match(catalog["x-bdp-navigation"].sourceFingerprints[path], /^[0-9a-f]{64}$/);
 });
+
+test("alias POST and malformed forbidden-header inventories cannot weaken HTTP rules", () => {
+  const text = readFileSync(resolve(root, "specs/profiles/write/write.md"), "utf8");
+  const block = text.match(
+    /<!-- bdp-operation:start createBead -->[\s\S]*?<!-- bdp-operation:end createBead -->/,
+  )[0];
+  for (const extra of [
+    "| alias | `true` |",
+    '| forbiddenHeaders | `"ETag"` |',
+    '| forbiddenHeaders | `["ETag","ETag"]` |',
+    "| forbiddenHeaders | `null` |",
+  ])
+    assert.throws(() =>
+      parseOperationTables(
+        block.replace("### Operation: createBead", `### Operation: createBead\n${extra}`),
+        "specs/profiles/write/write.md",
+      ),
+    );
+});

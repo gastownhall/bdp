@@ -34,7 +34,7 @@ response does not invent a JSON body.
 Optional `optional` states the exact support condition; absence means required
 Core. `kind` and `collection` carry point-subject/item metadata. Boolean fields
 `history`, `versions`, `projection`, `aggregate`, `alias`, `landing`, and `event`
-select the corresponding shared Core/Events HTTP rules. `forbiddenHeaders` lists
+select the corresponding shared Core/Events HTTP rules. `forbiddenHeaders` is a unique array of header-name strings listing
 response headers this operation cannot acquire. Unknown or duplicate fields fail.
 Events families must live in Events and state optional advertisement explicitly.
 These fields select documented rules; they cannot waive authorization or admission.
@@ -46,7 +46,8 @@ Meaning | Parsed schema`. Location is `query` or `header`; Required is `yes` or
 `no`. JSON Schema is an inline JSON value, normally a primitive constraint or a
 reference to a visible schema definition. Meaning is prose; an em dash means
 empty. Parsed schema is an optional JSON reference for a JSON-encoded query value;
-an em dash means none. Duplicate location/name pairs fail. Schema constraints
+an em dash means none. Duplicate location/name pairs fail.
+
 Operation-table `$ref` values resolve from the generated catalog base
 `specs/openapi/`, not from the profile Markdown file. Schema fragments retain
 their separate bundle reference context. Constraints remain on the serialized parameter unless explicitly identified as
