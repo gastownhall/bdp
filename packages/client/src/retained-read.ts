@@ -1,24 +1,23 @@
 import {
-  type Reference,
-  parseRetainedCollection,
-  type RetainedCollection,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   parseLinkHeader,
+  parseRetainedCollection,
   parseRetainedDiscovery,
+  parseRetainedProblem,
   parseRetainedProperties,
   parseRetainedResource,
-  parseRetainedProblem,
   parseRetainedWriteInput,
   parseRetainedWriteResult,
-  type RetainedDiscovery,
-  type RetainedJsonObject,
-  type RetainedResourceKind,
   RETAINED_V01_MEDIA_TYPE,
   RETAINED_V01_SPECIFICATION,
   RETAINED_WRITE_OPERATIONS,
+  type Reference,
+  type RetainedCollection,
+  type RetainedDiscovery,
+  type RetainedJsonObject,
+  type RetainedResourceKind,
 } from "@bdp/protocol";
-import { RetainedWriteBinding, type PreparedRetainedWrite } from "./retained-write.js";
 import {
   type RetainedHttpContext,
   type RetainedHttpResponse,
@@ -26,6 +25,7 @@ import {
   type RetainedTransportCallOptions,
   RetainedTransportError,
 } from "./retained-transport.js";
+import { type PreparedRetainedWrite, RetainedWriteBinding } from "./retained-write.js";
 
 export interface RetainedClientOptions {
   readonly transport: RetainedTransport;
@@ -44,6 +44,10 @@ export interface RetainedPointReadOptions extends RetainedTransportCallOptions {
   readonly expectedKind?: RetainedResourceKind;
   readonly scope?: string;
   readonly method?: "GET" | "HEAD";
+  /** Explicit CLI adapter selection; the existing current-only SDK stays closed. */
+  readonly allowExactRevision?: true;
+  /** Verify and follow at most one native alias; default never follows redirects. */
+  readonly followAlias?: true;
 }
 export type RetainedCollectionFilters = Readonly<
   Partial<Record<"type" | "source" | "target" | "endpoint" | "selector", string>>
@@ -67,6 +71,8 @@ export interface RetainedPointValue {
   readonly scope: string;
   readonly resourceKind: RetainedResourceKind;
   readonly representation: "resource" | "properties";
+  /** Present after a verified one-step alias resolution. */
+  readonly subject?: string;
   /** Absent for successful HEAD/304, never replaced with an empty record. */
   readonly body?: RetainedJsonObject;
 }
@@ -289,12 +295,13 @@ export class RetainedClient {
     readonly bead: string;
     readonly scope: string;
     readonly direction?: "inbound" | "outbound" | "both";
+    readonly filters?: RetainedCollectionFilters;
     readonly limit?: number;
     readonly signal?: AbortSignal;
   }): Promise<RetainedReply<RetainedPageValue>> {
     if (
       Object.keys(options).some(
-        (name) => !["scope", "bead", "direction", "limit", "signal"].includes(name),
+        (name) => !["scope", "bead", "direction", "filters", "limit", "signal"].includes(name),
       )
     )
       throw new RetainedClientError("unsupported-feature");
@@ -308,6 +315,14 @@ export class RetainedClient {
     if (options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit < 1))
       throw new RetainedClientError("invalid-input");
     const url = new URL(bead);
+    for (const [name, value] of Object.entries(options.filters ?? {})) {
+      if (
+        !["type", "source", "target", "endpoint", "selector"].includes(name) ||
+        typeof value !== "string"
+      )
+        throw new RetainedClientError("invalid-input");
+      url.searchParams.set(name, value);
+    }
     url.searchParams.set("view", "links");
     if (options.direction !== undefined) url.searchParams.set("direction", options.direction);
     if (options.limit !== undefined) url.searchParams.set("limit", String(options.limit));
@@ -390,9 +405,28 @@ export class RetainedClient {
   read(options: RetainedPointReadOptions): Promise<RetainedReply<RetainedPointValue>> {
     // Snapshot once before the first await. This is an already-resolved native
     // intent, not a second CLI Reference/ordinal grammar.
-    const { reference, view, expectedKind, scope, method = "GET", signal, ...controls } = options;
-    if (typeof reference !== "string") throw new RetainedClientError("unsupported-feature");
-    const resource = parseCanonicalHttpUrl(reference);
+    const {
+      reference,
+      view,
+      expectedKind,
+      scope,
+      method = "GET",
+      signal,
+      allowExactRevision,
+      followAlias,
+      ...controls
+    } = options;
+    if (typeof reference !== "string" && allowExactRevision !== true)
+      throw new RetainedClientError("unsupported-feature");
+    if (
+      (allowExactRevision !== undefined && allowExactRevision !== true) ||
+      (followAlias !== undefined && followAlias !== true)
+    )
+      throw new RetainedClientError("invalid-input");
+    let resource = parseCanonicalHttpUrl(typeof reference === "string" ? reference : reference.uri);
+    const revision = typeof reference === "string" ? undefined : reference.revision;
+    if (revision !== undefined && (typeof revision !== "string" || revision.length === 0))
+      throw new RetainedClientError("invalid-input");
     if (
       resource.includes("?") ||
       (view !== undefined && view !== "properties") ||
@@ -404,12 +438,52 @@ export class RetainedClient {
       if (!["ifMatch", "ifNoneMatch", "ifModifiedSince", "ifUnmodifiedSince"].includes(name))
         throw new RetainedClientError("unsupported-feature");
     const selectedScope = scope === undefined ? undefined : parseCanonicalScope(scope);
-    const url = view === undefined ? resource : `${resource}?view=properties`;
+    const readUrl = (): string => {
+      const target = new URL(resource);
+      if (revision !== undefined) target.searchParams.set("revision", revision);
+      if (view !== undefined) target.searchParams.set("view", view);
+      return target.href;
+    };
+    const url = readUrl();
+    const originalResource = resource;
     return this.#run(signal, async (active) => {
-      const response = await this.#transport[method === "HEAD" ? "head" : "get"](url, {
-        ...controls,
-        signal: active,
-      });
+      let response: Awaited<ReturnType<RetainedTransport["resolveAlias"]>>;
+      try {
+        response = await this.#transport[method === "HEAD" ? "head" : "get"](url, {
+          ...controls,
+          signal: active,
+        });
+      } catch (error) {
+        if (
+          followAlias !== true ||
+          !(error instanceof RetainedTransportError) ||
+          error.code !== "redirect" ||
+          error.httpStatus !== 307 ||
+          method !== "GET"
+        )
+          throw error;
+        response = await this.#transport.resolveAlias(url, { ...controls, signal: active });
+      }
+      let aliased = false;
+      if (response.kind === "alias-redirect") {
+        if (
+          response.headers["bdp-resource-kind"] !== undefined ||
+          response.headers["bdp-collection-kind"] !== undefined
+        )
+          return invalid();
+        privateNoStore(response);
+        const location = parseCanonicalHttpUrl(response.headers.location);
+        if (
+          (selectedScope !== undefined && !location.startsWith(selectedScope)) ||
+          location.includes("?")
+        )
+          return invalid();
+        resource = location;
+        aliased = true;
+        // A second redirect is rejected by ordinary GET. No chain, credential
+        // transfer, inventory lookup or path-derived owner is inferred.
+        response = await this.#transport.get(readUrl(), { ...controls, signal: active });
+      }
       this.#check(active);
       const refused = failure(response, method === "HEAD");
       if (refused) return refused;
@@ -437,12 +511,21 @@ export class RetainedClient {
         originalBytes = nativeBody(response);
         body =
           view === "properties" ? parseRetainedProperties(text) : parseRetainedResource(text, kind);
-        if (view === undefined && (body.id !== resource || body.links !== undefined))
+        if (
+          view === undefined &&
+          (body.id !== resource ||
+            body.links !== undefined ||
+            (revision !== undefined && body.revision !== revision))
+        )
           return invalid();
       }
       const discovery = await this.#discovery(description(response), selectedScope, active);
       if (discovery.kind !== "success") return discovery;
-      if (!resource.startsWith(discovery.value.scope)) return invalid();
+      if (
+        !resource.startsWith(discovery.value.scope) ||
+        (aliased && !originalResource.startsWith(discovery.value.scope))
+      )
+        return invalid();
       return Object.freeze({
         kind: "success",
         http: context(response),
@@ -452,6 +535,7 @@ export class RetainedClient {
           scope: discovery.value.scope,
           resourceKind: kind,
           representation: view === "properties" ? "properties" : "resource",
+          ...(aliased ? { subject: resource } : {}),
           ...(body === undefined ? {} : { body }),
         }),
       });

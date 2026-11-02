@@ -31,11 +31,13 @@ command package with its own Type-design dependency.
 
 CLI profile selection is separate from the protocol's Core/Write capabilities,
 transport, backend graph mode, output format and domain command packages.
-The selected profiles are `canonical` and `compat`. The built-in default is
-`compat`; a saved default persists across invocations until changed or cleared.
-Clearing it restores `compat`. An explicit invocation override wins for that call
+The selected profiles are `canonical` and `compat`. The shared product default is
+`compat`; the BDP reference executable defaults to `canonical`.
+A saved `cli.profile` persists across invocations until changed or cleared.
+Clearing it restores that executable's built-in default. An explicit invocation override wins for that call
 and does not modify the saved default. Saved and effective profiles must be
-inspectable. Exact selector and configuration spellings remain deferred.
+inspectable. `--cli-profile canonical|compat` selects the invocation profile;
+`cli.profile` selects it in the startup JSON configuration file.
 
 Select the profile and register its admitted commands and flags before
 command-specific parsing. Hiding a flag from help or accepting it before a late
@@ -313,6 +315,18 @@ such as Memory, will describe their equivalent canonical CLI commands. The
 mapping from those canonical commands to BDP is defined here.
 
 ### Common flags and reference syntax
+
+The reference executable generates help and parsing from one command tree. Its
+help follows the product's grouped layout; this does not import the product's
+global flag inventory. The only imported product global is `--actor ACTOR`,
+registered on commands that admit per-version provenance: Bead create/update and
+Link create/update/delete. It lowers to
+`revisionProvenance.actor:{"id":ACTOR,"basis":"writer-supplied"}`.
+Conflicting explicit actor provenance refuses; no actor is silently overwritten.
+It supplies attribution, never authentication, credential selection or authority.
+Alias commands and Bead deletion do not admit this flag. It alone is not an
+update. In member emission it remains that member's ordinary provenance input,
+not a new batch-wide or wire-level global field.
 
 <a id="scope-selection"></a>
 

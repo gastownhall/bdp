@@ -30,6 +30,8 @@
     "evidence:generate": "vitest run --config vitest.evidence.config.ts",
     "evidence:verify": "node scripts/read-cohort-evidence.mjs",
     "test": "vitest run --reporter=verbose",
+    "test:cli": "pnpm build && pnpm test:cli:built",
+    "test:cli:built": "node --test scripts/canonical-cli.node-test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
     "smoke:development": "node scripts/smoke-development.mjs"
   },
