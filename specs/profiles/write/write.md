@@ -414,7 +414,9 @@ The following behavior is selected for the historical-update extension to
 `updateBead`, from the [approved historical Update decisions](https://github.com/gastownhall/beads/issues/7719).
 This is an optional discoverable capability, not a mandatory widening of Write.
 The body-free terminal-version model and narrow authorized terminal read are
-selected. Exact source-admission granularity remains explicitly open in the [current carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
+selected. Source admission requires the exact complete editable content actually
+consumed, with an independently authorized current protected baseline, as
+[recorded in the crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
 No provider may claim complete support from partial structural carriers or
 internal retention alone. The initial extension applies to Beads; it adds no
 historical Link recovery, new `revert` operation, import or generic graph rollback.
@@ -614,9 +616,20 @@ failure keep their existing predicates, statuses and disclosure gates. Temporary
 I/O is a service failure. An authorized token naming a terminal version is not a
 live content source and fails ordinary validation; do not choose its last live
 predecessor automatically. The error never gains a foreign source URI, body,
-retention window or undocumented selector detail. Exact source permission and
-completeness granularity remains the explicit open question in the crosswalk;
-providers may not silently assume a weaker projection policy.
+retention window or undocumented selector detail. Source acquisition MUST be
+explicitly authorized for the exact complete editable content consumed by this
+operation. Permission to write the current target or read the terminal alone
+does not establish that source permission. Apply ordinary nondisclosure gates;
+a refusal MUST NOT reveal inaccessible historical content or its existence.
+
+The provider MUST faithfully acquire every historical editable value that the
+selected writer consumes, including authoritative absence where that affects
+composition. It need not acquire unused historical owned-Link captures or old
+protected structure. It MUST NOT guess missing editable values, substitute a
+different revision, use current values as an unannounced source fallback, or
+truncate the consumed source to obtain success. This operation-local source
+acquisition does not constitute a successful partial History Resource read.
+The independently authorized current protected baseline remains mandatory.
 
 ### Historical editable content and current structural authority
 
@@ -5270,9 +5283,10 @@ in [Optional rooted creation](#optional-rooted-allocation-version-1) remain bind
 ## Historical-update1 feature schema resource
 
 These visible fragments own the feature resource above. They do not add members
-to common base schemas. Full-History composition and source-admission permission scope
-remain separate receiving decisions, so structural validation alone cannot advertise the
-complete extension. The operation member form records offline intent; when
+to common base schemas. Full-History composition remains a separate receiving
+decision. Source authorization, consumed-content completeness and the independent
+current baseline are semantic duties; structural validation alone cannot
+advertise the complete extension. The operation member form records offline intent; when
 `atomicBatch:false`, that form does not promise executable batch composition.
 
 <!-- bdp-schema:start historicalUpdateCapabilityV1 bundle=historical-update -->
