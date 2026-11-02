@@ -579,13 +579,13 @@ export function createTransactionHttpHandler(
       // Aliases have their own conditioned authority path, not a canonical
       // ReadRequest or a member of the current Resource/collection subset.
       const parsed = requestFromUrl(url, scope);
-      // Preserve the old early unknown-token label on every excluded route.
+      if (isReadProblem(parsed) && parsed.status === 400) return problem(parsed);
+      // Preserve the early unknown-token label on excluded valid routes and parser 404s.
       if (
         !transactionMinimumHeaders(request.headers) &&
         (isReadProblem(parsed) || currentReadMinimumKind(parsed) === "strict")
       )
         return developmentGap("minimum-position");
-      if (isReadProblem(parsed) && parsed.status === 400) return problem(parsed);
       if (isReadProblem(parsed) || !isCurrentTransactionMinimumRead(parsed, scope))
         return developmentGap("minimum-position-route");
     }

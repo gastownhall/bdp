@@ -35,7 +35,7 @@ predicates; it does not change the meanings of the simpler forms.
    Type families, parallel Links, cycles, Graph and a related-content query.
 2. [CLI grammar and command matrix](query-language.md): generic field flags,
    Boolean filters, explicit bindings, any/all, through/where and file inputs.
-3. [Logical semantics](../../specs/profiles/core/query.md): collections, values,
+3. [Logical semantics](../../specs/profiles/core/core.md#logical-resource-selection-and-graph-queries): collections, values,
    edition equality, pins, traversal, quantifiers and completeness.
 4. [Native protocol](../../specs/profiles/core/read-operations.md): capability,
    dispatch, masks, sort, Resource/count/graph results and continuation.

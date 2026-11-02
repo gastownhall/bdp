@@ -1,0 +1,74 @@
+{
+  "format": "bdp-type-markdown-0.1",
+  "mode": "authoring",
+  "instanceKind": "link",
+  "definition": {
+    "type": {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/link-type",
+      "revision": "link-type-2"
+    },
+    "properties": {
+      "description": "A reviewed relationship with a whole endpoint-pair contract.",
+      "version": "0.1.0",
+      "abstract": false,
+      "x-editor": { "state": "draft", "identityAssigned": false },
+      "propertiesSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://schemas.example/reviewed-reference.json",
+        "type": "object",
+        "properties": { "annotation": { "$ref": "shared-fields.json#/$defs/annotation" } },
+        "additionalProperties": false
+      },
+      "schemaResources": {
+        "https://schemas.example/shared-fields.json": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "$id": "https://schemas.example/shared-fields.json",
+          "$defs": { "annotation": { "type": "string", "minLength": 1 } }
+        }
+      },
+      "propertyAccess": { "/annotation": "writable" },
+      "linkConstraints": {
+        "sourceMax": 4,
+        "targetMax": 8,
+        "unique": false,
+        "acyclic": true,
+        "allowSelf": false,
+        "typeConstraints": [
+          {
+            "source": {
+              "resourceKind": "bead",
+              "scope": "same",
+              "types": {
+                "anyOf": [{ "uri": "https://types.example/work-item", "revision": "work-2" }]
+              }
+            },
+            "target": {
+              "resourceKind": "bead",
+              "scope": "either",
+              "types": { "anyOf": ["https://types.example/note"] }
+            }
+          },
+          {
+            "source": {
+              "resourceKind": "bead",
+              "scope": "same",
+              "types": { "anyOf": ["https://types.example/note"] }
+            },
+            "target": { "resourceKind": "resource" }
+          }
+        ]
+      }
+    },
+    "metadata": { "review": { "status": "draft" } }
+  },
+  "refines": [
+    {
+      "type": {
+        "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+        "revision": "refines-2"
+      },
+      "target": { "uri": "https://types.example/reference", "revision": "reference-1" },
+      "properties": {}
+    }
+  ]
+}

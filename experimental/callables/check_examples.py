@@ -45,8 +45,9 @@ for path in [root/'experimental/callables.md',root/'experimental/packs.md',root/
   target=raw.split('#')[0]
   assert (path.parent/target).exists(),(str(path),raw)
   if '#' in raw and target.endswith('.md'):
-   anchor=raw.split('#',1)[1];heads=[]
-   for line in (path.parent/target).read_text().splitlines():
+   anchor=raw.split('#',1)[1];target_body=(path.parent/target).read_text()
+   heads=re.findall(r'<a\s+id=[\"\x27]([^\"\x27]+)[\"\x27][^>]*>',target_body)
+   for line in target_body.splitlines():
     if re.match(r'^#{1,6} ',line):
      title=re.sub(r'^#{1,6} ','',line).strip().lower();title=re.sub(r'[^\w\- ]','',title);heads.append(title.replace(' ','-'))
    assert anchor in heads,(str(path),raw,heads[:10])

@@ -842,29 +842,129 @@
       "expect": "reject-semantic"
     },
     {
-      "id": "point-projection-without-list",
+      "id": "projection-support-000",
       "kind": "pointProjectionCapability",
       "value": {
-        "current": true,
-        "exact": false
+        "current": false,
+        "exact": false,
+        "list": false
+      },
+      "expect": "reject-schema"
+    },
+    {
+      "id": "projection-support-001",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": false,
+        "exact": false,
+        "list": true
       },
       "expect": "accept"
     },
     {
-      "id": "point-projection-with-exact",
+      "id": "projection-support-010",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": false,
+        "exact": true,
+        "list": false
+      },
+      "expect": "accept"
+    },
+    {
+      "id": "projection-support-011",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": false,
+        "exact": true,
+        "list": true
+      },
+      "expect": "accept"
+    },
+    {
+      "id": "projection-support-100",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": true,
+        "exact": false,
+        "list": false
+      },
+      "expect": "accept"
+    },
+    {
+      "id": "projection-support-101",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": true,
+        "exact": false,
+        "list": true
+      },
+      "expect": "accept"
+    },
+    {
+      "id": "projection-support-110",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": true,
+        "exact": true,
+        "list": false
+      },
+      "expect": "accept"
+    },
+    {
+      "id": "projection-support-111",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": true,
+        "exact": true,
+        "list": true
+      },
+      "expect": "accept"
+    },
+    {
+      "id": "projection-missing-current",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "exact": true,
+        "list": true
+      },
+      "expect": "reject-schema"
+    },
+    {
+      "id": "projection-missing-exact",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": true,
+        "list": true
+      },
+      "expect": "reject-schema"
+    },
+    {
+      "id": "projection-missing-list",
       "kind": "pointProjectionCapability",
       "value": {
         "current": true,
         "exact": true
       },
-      "expect": "accept"
+      "expect": "reject-schema"
     },
     {
-      "id": "point-projection-no-unknown-members",
+      "id": "projection-nonboolean-list",
       "kind": "pointProjectionCapability",
       "value": {
         "current": true,
         "exact": false,
+        "list": "true"
+      },
+      "expect": "reject-schema"
+    },
+    {
+      "id": "projection-no-unknown-members",
+      "kind": "pointProjectionCapability",
+      "value": {
+        "current": true,
+        "exact": false,
+        "list": false,
         "operation": "https://work.example/acme/query"
       },
       "expect": "reject-schema"

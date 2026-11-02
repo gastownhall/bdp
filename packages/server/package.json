@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "!dist/retained-v01/private-process*"
   ],
   "exports": {
     ".": {
@@ -15,6 +16,10 @@
     "./development": {
       "types": "./dist/development.d.ts",
       "default": "./dist/development.js"
+    },
+    "./reference": {
+      "types": "./dist/reference.d.ts",
+      "default": "./dist/reference.js"
     }
   },
   "dependencies": {

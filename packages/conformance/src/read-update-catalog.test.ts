@@ -1,11 +1,13 @@
+import {
+  readHistoricalCitation692dCatalog,
+  readHistoricalCitation692dSource,
+  isHistoricalCitation692dProtocolSource as isProtocolSpecificationSource,
+} from "../test-support/historical-citation-source.js";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import {
-  isProtocolSpecificationSource,
-  readSpecificationSource,
-} from "../test-support/spec-source.js";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 import {
   loadExecutableScenarioManifestJson,
   loadScenarioCatalogJson,
@@ -25,13 +27,16 @@ const READ_CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MATRICES_DIRECTORY = "packages/conformance/matrices";
 
 describe("draft Read+Update catalog", () => {
-  const catalog = loadScenarioCatalogJson(readText(CATALOG_PATH), "read-update-v1.json");
+  const catalog = loadScenarioCatalogJson(
+    readHistoricalCitation692dCatalog(CATALOG_PATH),
+    "read-update-v1.json",
+  );
   const ids = catalog.scenarios.map(({ id }) => id);
 
-  it("strictly parses and binds every citation to the current specification text", () => {
+  it("strictly parses and binds every citation to historical cutline 692d", () => {
     expect(catalog.catalogVersion).toBe(1);
     expect(catalog.scenarios.length).toBeGreaterThan(0);
-    validateCatalogCitations(catalog, (source) => readText(source), "read-update-v1.json");
+    validateCatalogCitations(catalog, readHistoricalCitation692dSource, "read-update-v1.json");
   });
 
   it("scopes every row to the Read+Update profile with the profile's id prefix", () => {
@@ -46,7 +51,7 @@ describe("draft Read+Update catalog", () => {
   });
 
   it("mirrors the declared Read discovery retirement exactly", () => {
-    const spec = readText("docs/specs/bdp.md");
+    const spec = readHistoricalCitation692dSource("docs/specs/bdp.md");
     const section =
       spec
         .split("#### Read+Update conformance rows")[1]
@@ -134,7 +139,7 @@ describe("draft Read+Update catalog", () => {
   });
 
   it("mirrors the specification's Read+Update conformance rows exactly and in order", () => {
-    const specification = readText("docs/specs/bdp.md");
+    const specification = readHistoricalCitation692dSource("docs/specs/bdp.md");
     const start = specification.indexOf("\n#### Read+Update conformance rows\n");
     expect(start).toBeGreaterThan(0);
     const section = specification.slice(start + 1);

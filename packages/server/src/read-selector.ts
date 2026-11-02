@@ -1,7 +1,6 @@
-import type { BeadRecord, LinkRecord } from "@bdp/protocol";
-
-/** Complete response-shaped Resources accepted by the Read Selector evaluator. */
-export type ReadSelectorCandidate = BeadRecord | LinkRecord;
+/** Structural candidate evaluator shared by old and retained carriers. Callers
+ * validate complete Resource shape; only the common stored selection fields are visible. */
+export type ReadSelectorCandidate = object;
 
 /** Explicit operational bounds. The caller, not this module, owns their defaults. */
 export interface ReadSelectorLimits {

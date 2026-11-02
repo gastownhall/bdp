@@ -1,5 +1,9 @@
 # Event decisions accepted October 22, 2026
 
+> Historical decision receipt. Donna's current ruling makes Events optional for
+> Core and Write. The postimage/delta/coverage choices below apply when Events is
+> advertised; they do not require every Scope to supply an Event log.
+
 Donna answered the two existing Event questions in Sybil's chat: **“Yes to 1”**
 and **“Yes to 2.”** These are accepted design choices, not implementation approval.
 

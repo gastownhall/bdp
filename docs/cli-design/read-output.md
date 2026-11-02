@@ -1,7 +1,7 @@
 # Canonical CLI: read output descriptors
 
 This ordinary-read subset uses Cleo's schema version 2 contract, with the [read
-commands](reads-and-paging.md) and [protocol delivery rules](../../specs/profiles/core/read-delivery.md).
+commands](reads-and-paging.md) and [protocol delivery rules](../../specs/profiles/core/core.md#collections-and-pagination).
 The [candidate schema](read-framing.schema.json) covers only these read descriptors;
 it is neither a replacement for Cleo's full registry nor a protocol schema/runtime
 export. It checks framing and primary protected shape for bound v0.1 invocations;

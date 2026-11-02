@@ -1,0 +1,62 @@
+{
+  "status": "AUTHORED_LOCAL_DESCRIPTOR_MAPPING_NOT_EXECUTED",
+  "context": "Each sections string follows an ordinary authoring-mode Bead-Type Definition with exact intrinsic BeadType2 affiliation. The expectedDescriptor is the complete local properties object for that fragment; no default or inherited content is inserted.",
+  "cases": [
+    { "name": "all optional descriptor sections absent", "sections": "", "expectedDescriptor": {} },
+    {
+      "name": "explicit true schema",
+      "sections": "## Properties schema\n\nSchema value: true\n",
+      "expectedDescriptor": { "propertiesSchema": true }
+    },
+    {
+      "name": "explicit false schema",
+      "sections": "## Properties schema\n\nSchema value: false\n",
+      "expectedDescriptor": { "propertiesSchema": false }
+    },
+    {
+      "name": "explicit empty schema",
+      "sections": "## Properties schema\n\nSchema value: {}\n",
+      "expectedDescriptor": { "propertiesSchema": {} }
+    },
+    {
+      "name": "false and empty text remain values",
+      "sections": "## Descriptor\n\n| Field | Value (JSON) |\n| --- | --- |\n| description | \"\" |\n| abstract | false |\n",
+      "expectedDescriptor": { "description": "", "abstract": false }
+    },
+    {
+      "name": "present empty schema resource map",
+      "sections": "## Schema resources\n\n| Retrieval URI | Source |\n| --- | --- |\n",
+      "expectedDescriptor": { "schemaResources": {} }
+    },
+    {
+      "name": "present empty access map",
+      "sections": "## Property access\n\n| Pointer | Access |\n| --- | --- |\n",
+      "expectedDescriptor": { "propertyAccess": {} }
+    },
+    {
+      "name": "present empty participation",
+      "sections": "## Incoming\n\n| Selector | Min | Max |\n| --- | --- | --- |\n",
+      "expectedDescriptor": { "incoming": [] }
+    },
+    {
+      "name": "present empty ownership",
+      "sections": "## Owns outgoing\n\n| Selector |\n| --- |\n",
+      "expectedDescriptor": { "ownsOutgoing": [] }
+    },
+    {
+      "name": "positive wildcard ownership",
+      "sections": "## Selectors\n\n| Name | Match | Type URI | Revision (JSON) |\n| --- | --- | --- | --- |\n| all | any | — | — |\n\n## Owns outgoing\n\n| Selector |\n| --- |\n| all |\n",
+      "expectedDescriptor": { "ownsOutgoing": [{ "any": true }] }
+    },
+    {
+      "name": "participation duplicates remain conjunctive declarations",
+      "sections": "## Selectors\n\n| Name | Match | Type URI | Revision (JSON) |\n| --- | --- | --- | --- |\n| all | any | — | — |\n\n## Incoming\n\n| Selector | Min | Max |\n| --- | --- | --- |\n| all | 0 | — |\n| all | 0 | — |\n",
+      "expectedDescriptor": {
+        "incoming": [
+          { "linkTypes": { "any": true }, "min": 0 },
+          { "linkTypes": { "any": true }, "min": 0 }
+        ]
+      }
+    }
+  ]
+}

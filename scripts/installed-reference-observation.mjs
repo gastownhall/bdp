@@ -23,6 +23,7 @@ export async function launchInstalledReference(entry, configuration) {
   let stdout = "",
     stderr = "";
   let startupCode;
+  let startupFailure;
   child.stdout.on("data", (b) => {
     stdout += b;
     if (stdout.length > 65536) child.kill("SIGKILL");
@@ -34,6 +35,7 @@ export async function launchInstalledReference(entry, configuration) {
   const exited = new Promise((resolve) =>
     child.once("exit", (code, signal) => resolve({ code, signal })),
   );
+  const closed = new Promise((resolve) => child.once("close", resolve));
   const bounded = async (promise) => {
     let timer;
     try {
@@ -77,13 +79,12 @@ export async function launchInstalledReference(entry, configuration) {
           }
           resolve(message);
         });
-        void exited.then(() =>
-          reject(
-            Error(
-              `installed child exited: ${stderr}${startupCode === undefined ? "" : ` (startup code ${startupCode})`}`,
-            ),
-          ),
-        );
+        void exited.then(() => {
+          startupFailure = Error(
+            `installed child exited: ${stderr}${startupCode === undefined ? "" : ` (startup code ${startupCode})`}`,
+          );
+          reject(startupFailure);
+        });
         child.send({ configuration });
       }),
     );
@@ -109,7 +110,20 @@ export async function launchInstalledReference(entry, configuration) {
     };
   } catch (error) {
     child.kill("SIGKILL");
-    await bounded(exited);
+    await bounded(Promise.all([exited, closed]));
+    if (error instanceof Error) {
+      // Preserve current two-field diagnostic categories and legacy wording,
+      // after close has drained both pipes. No raw output is added to metadata.
+      if (error === startupFailure && startupCode !== undefined)
+        error.message = `installed child exited: installed reference qualification failed (startup code ${startupCode})`;
+      Object.defineProperty(error, "qualificationProcess", {
+        value: Object.freeze({
+          stdoutEOF: child.stdout.readableEnded,
+          stderrEOF: child.stderr.readableEnded,
+        }),
+        enumerable: false,
+      });
+    }
     throw error;
   }
 }

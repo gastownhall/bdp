@@ -1,19 +1,21 @@
+import { historicalArtifactSchema } from "../test-support/historical-artifact-source.js";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => JSON.parse(readFileSync(new URL(p, root), "utf8"));
-const schema = read("specs/profiles/core/bdp-v0.1.schema.json");
+const schema = JSON.parse(historicalArtifactSchema().toString("utf8"));
 const old = read("specs/profiles/core/bdp-v0.schema.json");
 const paper = read("fixtures/type-definition-read/candidate.json");
 const discovery = read("fixtures/read-delivery/candidate.json").finite.find(
   (x: { id: string }) => x.id === "scope-descriptor",
 ).value.data;
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });
 ajv.addSchema(schema);
 ajv.addSchema(old);
@@ -23,7 +25,7 @@ function valid(name: string, value: unknown, bundle = schema): boolean {
   return Boolean(validate(value));
 }
 
-describe("shared exact-definition read artifact, without lookup/CLI execution", () => {
+describe("historical accepted exact-definition carriers, without current lookup qualification", () => {
   it("strictly compiles the seven ported helpers and all candidate definitions offline", () => {
     for (const name of Object.keys(schema.$defs))
       expect(ajv.getSchema(`${schema.$id}#/$defs/${name}`)).toBeDefined();
@@ -178,4 +180,18 @@ describe("shared exact-definition read artifact, without lookup/CLI execution", 
     expect(paper.semanticCases).toHaveLength(6);
     // No service, authentication, bounds, retention or closure-traversal execution is asserted.
   });
+});
+
+it("does not qualify historical missing-metadata definitions under current Core", () => {
+  const current = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
+  addFormats(current, { mode: "full" });
+  const bundle = read("specs/profiles/core/bdp-v0.1.schema.json");
+  current.addSchema(bundle);
+  const validate = current.getSchema(`${bundle.$id}#/$defs/typeDefinitionReadResult`)!;
+  expect(validate(paper.response)).toBe(false);
+  expect(
+    validate.errors?.some(
+      (error) => error.keyword === "required" && error.params.missingProperty === "metadata",
+    ),
+  ).toBe(true);
 });

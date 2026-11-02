@@ -1,3 +1,4 @@
+import { readHistoricalCitation692dSource } from "../../conformance/test-support/historical-citation-source.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 import { readSpecificationSource } from "../../conformance/test-support/spec-source.js";
@@ -704,7 +705,7 @@ describe("draft HTTP and retained-handle illustrations (not runtime conformance)
     expect(() => check(row)).toThrow();
   });
   it("requires applicable HTTP conditionals in the CORS allow-list", () => {
-    const cors = read("docs/specs/bdp.md")
+    const cors = readHistoricalCitation692dSource("docs/specs/bdp.md")
       .split("### HTTP consistency, caching, and CORS fields")[1]
       ?.split("### Conditional reads and HEAD")[0]
       ?.replace(/\s+/g, " ");

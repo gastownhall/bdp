@@ -11,7 +11,7 @@ It does not claim that the entire Type wire surface already has a public CLI ver
 
 A typed-affiliation interpreter has an exact `{uri,revision}` and an explicit
 interpreting Scope. Discover that Scope's version 1 type-definition-read operation
-and make [the selected lookup](../../specs/profiles/core/type-definition-read.md).
+and make [the selected lookup](../../specs/profiles/core/core.md#optional-exact-type-definition-lookup).
 Preserve the URI/revision and the resulting definition/origin wrapper. The Scope
 is the interpretation context, not a claim it owns the referenced definition.
 

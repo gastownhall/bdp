@@ -4,6 +4,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
 import { BDP_V0_SCHEMA_ID, isReadDiscovery } from "./index.js";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const addFormats = formatsPlugin.default;
 
@@ -13,7 +14,7 @@ const legacyText = read("specs/profiles/core/bdp-v0.schema.json");
 const candidateText = read("specs/profiles/core/bdp-v0.1.schema.json");
 const candidate = JSON.parse(candidateText);
 const cases = JSON.parse(read("fixtures/contract-binding/candidate.json"));
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv);
 ajv.addSchema(candidate);
 const validate = (name: string, value: unknown) => {
@@ -31,10 +32,7 @@ describe("staged contract artifact binding, without a runtime upgrade", () => {
     expect(manifest.exports["./schemas/bdp-v0.1.schema.json"]).toEqual({
       default: "./schemas/bdp-v0.1.schema.json",
     });
-    for (const path of [
-      "specs/profiles/core/contract-binding.md",
-      "docs/cli-design/contract-binding.md",
-    ]) {
+    for (const path of ["specs/profiles/core/core.md", "specs/profiles/write/write.md"]) {
       const text = read(path);
       expect(text).toContain(cases.binding.specification);
       expect(text).toContain(cases.binding.jsonMediaType);

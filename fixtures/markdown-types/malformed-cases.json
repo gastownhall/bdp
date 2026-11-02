@@ -1,0 +1,91 @@
+{
+  "status": "AUTHORED_DIAGNOSTIC_CASES_NOT_CONVERTER_RESULTS",
+  "cases": [
+    {
+      "file": "malformed/link-owns-outgoing.md",
+      "code": "E_TYPE_FIELD",
+      "location": "Owns outgoing",
+      "reason": "Link-Type descriptors prohibit the Bead-only ownership member, including an explicitly empty one."
+    },
+    {
+      "file": "malformed/unpinned-parent.md",
+      "code": "E_TYPE_REFERENCE",
+      "location": "Refines / parent / target",
+      "reason": "A direct declaration requires the exact parent revision; a URI-only parent is not a selected default request."
+    },
+    {
+      "file": "malformed/schema-null.md",
+      "code": "E_TYPE_SCHEMA",
+      "location": "Properties schema",
+      "reason": "Null is not an omitted object-or-Boolean properties schema."
+    },
+    {
+      "file": "malformed/recorded-declaration-without-revision.md",
+      "code": "E_TYPE_REFERENCE",
+      "location": "Refines / captured / revision",
+      "reason": "Recorded mode must retain an actual declaration Link revision; labels and row numbers cannot supply one."
+    },
+    {
+      "file": "malformed/reserved-descriptor-field.md",
+      "code": "E_TYPE_FIELD",
+      "location": "Descriptor / describes",
+      "reason": "Definition category follows its metatype affiliation; describes is a prohibited descriptor field."
+    }
+  ],
+  "additional_authored_counterexamples": [
+    {
+      "location": "Definition / type",
+      "value": { "uri": "https://types.example/metatype", "revision": 2 },
+      "code": "E_TYPE_REFERENCE",
+      "reason": "A numeric value is not an opaque string revision token."
+    },
+    {
+      "location": "Definition / type",
+      "value": { "id": "https://types.example/metatype", "revision": "2" },
+      "code": "E_TYPE_REFERENCE",
+      "reason": "Whole References use uri, never id in place of uri."
+    },
+    {
+      "location": "Descriptor / version",
+      "value": "work-2",
+      "code": "E_TYPE_FIELD",
+      "reason": "An opaque Resource revision is not necessarily a SemVer author label."
+    },
+    {
+      "location": "Incoming / first row",
+      "value": { "linkTypes": { "any": true }, "min": 3, "max": 2 },
+      "code": "E_TYPE_CONSTRAINT",
+      "reason": "Participation minimum cannot exceed maximum."
+    },
+    {
+      "location": "Owns outgoing / duplicate expanded selectors",
+      "value": [{ "any": true }, { "any": true }],
+      "code": "E_TYPE_SELECTOR",
+      "reason": "Different editorial names cannot bypass the current uniqueItems ownership rule."
+    },
+    {
+      "location": "Link constraints / pairUnique",
+      "value": true,
+      "code": "E_TYPE_CONSTRAINT",
+      "reason": "The obsolete field is refused rather than silently translated to unique."
+    },
+    {
+      "location": "Endpoint pairs / resource target",
+      "value": { "resourceKind": "resource", "scope": "either" },
+      "code": "E_TYPE_CONSTRAINT",
+      "reason": "The opaque resource arm contains only resourceKind; scope/types are not allowed."
+    },
+    {
+      "location": "Refines / recorded source",
+      "value": "https://types.example/another-owner",
+      "code": "E_TYPE_REFERENCE",
+      "reason": "A captured declaration's source identity must be the containing definition; a pin is not an ownership witness."
+    },
+    {
+      "location": "Properties schema / supplied file binding",
+      "value": "Markdown: missing-properties.md",
+      "code": "E_TYPE_SCHEMA",
+      "reason": "A missing supplied document is not permission to fetch it or substitute an empty schema."
+    }
+  ]
+}

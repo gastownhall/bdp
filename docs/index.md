@@ -1,12 +1,13 @@
 ---
 layout: default
-title: Bead Protocol
+title: Beads Protocol
 ---
 
-BDP is an HTTP-based protocol for interacting with beads and the links between
-beads. It defines the uniform mechanism for reading, creating, updating,
-linking, and deleting beads independent of the type of the bead (e.g. Issue,
-Task, Bug) or link (e.g. Dependency, Parent-Child, Assigned-To).
+Beads Protocol (BDP) is an HTTP-based protocol for interacting with beads and
+the links between beads. It defines the uniform mechanism for reading,
+creating, updating, linking, and deleting beads independent of the type of the
+bead (e.g. Issue, Task, Bug) or link (e.g. Dependency, Parent-Child,
+Assigned-To).
 
 Beads and links are nominally typed and have a schema for their JSON-valued
 properties, but the operations on a bead are consistent across all bead and
@@ -36,10 +37,22 @@ tokens that survive copying, syncing, and storage changes — and **federation**
 ## Reference implementation
 
 A Node/TypeScript reference stack lives in the same repository: a generic
-client (`bdp`), a deterministic test server (`bdptest`), and a server that
-adapts the `bd` CLI (`bdpbd`), with a black-box conformance suite and a sealed
-evidence artifact. See
-[STATUS.md](https://github.com/gastownhall/bdp/blob/main/STATUS.md).
+client (`bdp`) and a deterministic test server (`bdptest`).
+
+## Conformance
+
+Conformance has two halves:
+
+- [`specs/conformance.md`](https://github.com/gastownhall/bdp/blob/main/specs/conformance.md)
+  — the normative catalog of executable scenarios.
+- [`packages/conformance`](https://github.com/gastownhall/bdp/tree/main/packages/conformance)
+  — the black-box suite that runs them, with its catalog, fixtures and
+  matrices.
+
+[STATUS.md](https://github.com/gastownhall/bdp/blob/main/STATUS.md) records
+which profiles are specified versus validated, and the sealed evidence behind
+each claim. The specification remains a draft: a scenario in the catalog is not
+an implementation claim.
 
 ---
 

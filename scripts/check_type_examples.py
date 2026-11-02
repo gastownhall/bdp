@@ -1,4 +1,4 @@
-"""Validate review artifacts only; this is not a BDP Type-profile implementation."""
+"""Validate historical review artifacts only; no current BDP Type qualification."""
 from copy import deepcopy
 import hashlib
 import json
@@ -596,7 +596,10 @@ for name, block in zip((issue_name, dependency_name), inline_schemas):
 # registration, generic closure admission or authorization behavior is implemented.
 read_cases = json.loads((HERE / "exact-definition-read-cases.json").read_text())
 read_schema = json.loads((HERE / "exact-definition-read.schema.json").read_text())
-common_bytes = (ROOT / read_cases["commonSource"]["path"]).read_bytes()
+# Preserve the named historical subject; the live path now contains the canonical
+# working draft. The closed frozen mirror is not a current-schema fallback.
+assert read_cases["commonSource"]["path"] == "specs/profiles/core/bdp-v0.1.schema.json"
+common_bytes = (ROOT / "packages/protocol/test-support/historical-artifact-692d/bdp-v0.1.schema.json").read_bytes()
 assert hashlib.sha256(common_bytes).hexdigest() == read_cases["commonSource"]["sha256"], "exact-read common source drift"
 common_schema = json.loads(common_bytes)
 read_registry = Registry(retrieve=unavailable).with_resources(
@@ -660,7 +663,7 @@ assert not read_validators["success"].is_valid({**unknown_origin, "originScope":
 assert read_cases["recordSource"]["path"] == read_cases["intrinsicSource"]["path"] == "definitions.json"
 assert (read_cases["recordSource"]["id"], read_cases["recordSource"]["revision"]) == pin_of(read_cases["queryCases"][0]["query"])
 assert len(read_cases["semanticCases"]) == 6  # Unexecuted provider expectations, not six PASS claims.
-read_text = (HERE / "exact-definition-read.md").read_text()
+read_text = (ROOT / "specs/history/pre-canonical-20261101/profiles/types/exact-definition-read.md").read_text()
 read_inline = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", read_text, re.S)]
 assert read_inline[0]["capabilities"][read_cases["capability"]]["1"] == read_cases["advertisementDetail"]
 assert read_inline[1] == read_cases["unknownVersionProblem"]
@@ -736,7 +739,7 @@ new_task.update(revision="task-newer", ownedLinks={})
 records[(new_task["id"], new_task["revision"])] = new_task
 assert fixture_exact_walk(records, read_cases["closureCases"][1]["root"]) == {
     pin_of(ref) for ref in read_cases["closureCases"][1]["expectedExactDefinitions"]}
-print(f"PASS: exact-read common-source digest; {len(read_cases['queryCases'])} query cases; "
+print(f"PASS (historical artifacts only): exact-read common-source digest; {len(read_cases['queryCases'])} query cases; "
       f"task + {len(read_cases['intrinsicReads'])} complete example wrappers; "
       f"{read_copy_refusals} altered-copy controls refused for exact reasons; "
       f"{len(read_cases['closureCases'])} exact-pair fixture walks; "

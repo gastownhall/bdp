@@ -10,7 +10,7 @@ import {
   planProfileExecution,
   type ServedProfileConfigurationInput,
 } from "../test-support/profile-contract-plan.js";
-import { readProtocolSpecification } from "../test-support/spec-source.js";
+import { readHistoricalCitation692dSource } from "../test-support/historical-citation-source.js";
 import { loadScenarioCatalogJson } from "./catalog.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
 
@@ -49,7 +49,7 @@ const inspect = (profile: ProtocolProfile, load = read, files?: readonly string[
   inspectProfileContractSourcesForTest(profile, false, load, files);
 
 // The on-disk catalogs, not a mirrored ID list, remain the requirement authority.
-describe("canonical cumulative profile contracts", () => {
+describe("historical cumulative profile contracts", () => {
   it.each(["read", "read-update", "transactional"] as const)(
     "derives %s obligations including companions, excluding diagnostics and optional History",
     (profile) => {
@@ -244,7 +244,7 @@ describe("canonical cumulative profile contracts", () => {
         ],
       },
     ]);
-    const spec = readProtocolSpecification();
+    const spec = readHistoricalCitation692dSource("docs/specs/bdp.md");
     expect(spec.replace(/\s+/g, " ")).toContain(clause);
     for (const profile of ["read-update", "transactional"] as const) {
       const selection = loadProfileContractSelection(profile);
@@ -363,7 +363,7 @@ describe("canonical cumulative profile contracts", () => {
       "read-update.http.request-too-large",
     ])
       expect(ids).toContain(id);
-    const spec = readProtocolSpecification();
+    const spec = readHistoricalCitation692dSource("docs/specs/bdp.md");
     expect(spec).toContain("| `sequence` | `POST` | `200` envelope");
     expect(spec).toContain("its envelope, its member records, its declaration order, its separate");
     expect(

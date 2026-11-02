@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/id-root-v1.schema.json",
+  "title": "Draft fixed id-root1 Write supplement",
+  "description": "Separate feature-owned carriers. Common v0/v0.1 schemas and mirrors remain unchanged. Admission and replay semantics require the paired paper.",
+  "$defs": {
+    "idRootCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false
+    },
+    "idRootCapabilityAdvertisement": {
+      "description": "A capabilities map which includes fixed id-root1. Unknown versions may coexist but never authorize version1.",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityAdvertisements"
+        }
+      ],
+      "properties": {
+        "https://github.com/gastownhall/bdp/capabilities/id-root": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityVersionAdvertisements"
+            }
+          ],
+          "required": ["1"],
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/idRootCapabilityV1"
+            }
+          }
+        }
+      },
+      "required": ["https://github.com/gastownhall/bdp/capabilities/id-root"]
+    },
+    "idRoot": {
+      "description": "Canonical nonempty local path prefix without a trailing slash. Lexical checks do not establish valid UTF-8, ownership, availability, bounds or safe allocation.",
+      "minLength": 1,
+      "pattern": "^(?!@)(?![^/]*:)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~!$&'()*+,;=:@-]|%[0-9A-F]{2})+(?:/(?:[A-Za-z0-9._~!$&'()*+,;=:@-]|%[0-9A-F]{2})+)*$",
+      "type": "string",
+      "not": {
+        "pattern": "%(?:00|01|02|03|04|05|06|07|08|09|0A|0B|0C|0D|0E|0F|10|11|12|13|14|15|16|17|18|19|1A|1B|1C|1D|1E|1F|2D|2E|2F|30|31|32|33|34|35|36|37|38|39|41|42|43|44|45|46|47|48|49|4A|4B|4C|4D|4E|4F|50|51|52|53|54|55|56|57|58|59|5A|5C|5F|61|62|63|64|65|66|67|68|69|6A|6B|6C|6D|6E|6F|70|71|72|73|74|75|76|77|78|79|7A|7E|7F)"
+      }
+    },
+    "idRootCreateSelection": {
+      "description": "Presence-only prefix at an already dispatched create target; not complete request/value validation.",
+      "type": "object",
+      "properties": {
+        "idRoot": true
+      },
+      "required": ["idRoot"]
+    },
+    "idRootBatchSelection": {
+      "description": "Prefix at the already selected atomic-batch1 target. Only declared create positions select id-root1, not nested data or unknown operation names.",
+      "type": "object",
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "operations": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "enum": ["createBead", "createLink"]
+              },
+              "idRoot": true
+            },
+            "required": ["operation", "idRoot"]
+          }
+        }
+      },
+      "required": ["capabilityVersion", "operations"]
+    },
+    "idRootCreateBeadMembers": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createBeadMembers"
+        }
+      ],
+      "not": {
+        "required": ["id", "idRoot"],
+        "properties": {
+          "id": true,
+          "idRoot": true
+        }
+      },
+      "properties": {
+        "idRoot": {
+          "$ref": "#/$defs/idRoot"
+        }
+      }
+    },
+    "idRootCreateBeadRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/idRootCreateBeadMembers"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "idRoot": {
+          "$ref": "#/$defs/idRoot"
+        }
+      },
+      "required": ["idRoot"]
+    },
+    "idRootCreateBeadOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/idRootCreateBeadMembers"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/localName"
+        },
+        "operation": {
+          "const": "createBead"
+        }
+      },
+      "required": ["operation"]
+    },
+    "idRootCreateLinkMembers": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createLinkMembers"
+        }
+      ],
+      "not": {
+        "required": ["id", "idRoot"],
+        "properties": {
+          "id": true,
+          "idRoot": true
+        }
+      },
+      "properties": {
+        "idRoot": {
+          "$ref": "#/$defs/idRoot"
+        }
+      }
+    },
+    "idRootCreateLinkRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/idRootCreateLinkMembers"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "idRoot": {
+          "$ref": "#/$defs/idRoot"
+        },
+        "source": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableInputReference"
+        },
+        "target": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableInputReference"
+        }
+      },
+      "required": ["idRoot"]
+    },
+    "idRootCreateLinkOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/idRootCreateLinkMembers"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/localName"
+        },
+        "operation": {
+          "const": "createLink"
+        }
+      },
+      "required": ["operation"]
+    },
+    "idRootBatchOperation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/idRootCreateBeadOperation"
+        },
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateBeadOperation"
+        },
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteBeadOperation"
+        },
+        {
+          "$ref": "#/$defs/idRootCreateLinkOperation"
+        },
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateLinkOperation"
+        },
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteLinkOperation"
+        }
+      ]
+    },
+    "idRootBatchRequest": {
+      "description": "Feature-owned composition of fixed id-root1 and atomic-batch1. This does not modify or validate as the old closed base batchRequest.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/idRootBatchOperation"
+          },
+          "contains": {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "enum": ["createBead", "createLink"]
+              },
+              "idRoot": true
+            },
+            "required": ["operation", "idRoot"]
+          }
+        }
+      },
+      "required": ["capabilityVersion", "operations"]
+    },
+    "idRootCapabilityProblem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/id-root"
+        },
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri"
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^(?:/idRoot|/operations/(?:0|[1-9][0-9]*)/idRoot)$"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "status": {
+          "const": 422
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        }
+      },
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion", "pointer"]
+    },
+    "idRootCreateResult": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/mutationResult"
+    },
+    "idRootBatchResult": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResult"
+    },
+    "idRootCreateProblem": {
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+        },
+        {
+          "$ref": "#/$defs/idRootCapabilityProblem"
+        }
+      ]
+    },
+    "idRootBatchProblem": {
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchProblem"
+        },
+        {
+          "$ref": "#/$defs/idRootCapabilityProblem"
+        }
+      ]
+    }
+  },
+  "x-bdp-schema-definitions": [
+    "idRoot",
+    "idRootBatchOperation",
+    "idRootBatchProblem",
+    "idRootBatchRequest",
+    "idRootBatchResult",
+    "idRootBatchSelection",
+    "idRootCapabilityAdvertisement",
+    "idRootCapabilityProblem",
+    "idRootCapabilityV1",
+    "idRootCreateBeadMembers",
+    "idRootCreateBeadOperation",
+    "idRootCreateBeadRequest",
+    "idRootCreateLinkMembers",
+    "idRootCreateLinkOperation",
+    "idRootCreateLinkRequest",
+    "idRootCreateProblem",
+    "idRootCreateResult",
+    "idRootCreateSelection"
+  ],
+  "x-bdp-schema-sources": {
+    "specs/profiles/write/write.md": [
+      "idRoot",
+      "idRootBatchOperation",
+      "idRootBatchProblem",
+      "idRootBatchRequest",
+      "idRootBatchResult",
+      "idRootBatchSelection",
+      "idRootCapabilityAdvertisement",
+      "idRootCapabilityProblem",
+      "idRootCapabilityV1",
+      "idRootCreateBeadMembers",
+      "idRootCreateBeadOperation",
+      "idRootCreateBeadRequest",
+      "idRootCreateLinkMembers",
+      "idRootCreateLinkOperation",
+      "idRootCreateLinkRequest",
+      "idRootCreateProblem",
+      "idRootCreateResult",
+      "idRootCreateSelection"
+    ]
+  }
+}

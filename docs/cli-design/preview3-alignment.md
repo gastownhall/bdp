@@ -17,7 +17,7 @@ and BDP integration; Iris import; Sybil canonical CLI semantics and source revie
 | CLI | Lowering / boundary |
 | --- | --- |
 | `show ID@N` | Resolve stable store-local ordinal, then ordinary exact `revision=TOKEN` |
-| `show ID@=TOKEN` / `show ID --revision TOKEN` | Exact historical GET; token options remain literal |
+| `show ID@=TOKEN` | Exact historical GET; no standalone canonical `--revision` flag |
 | `show ID@current` | Current Resource read; no fabricated historical token |
 | `update ID --if-revision TOKEN` | Unpinned write target plus exact expectedRevision guard |
 | `create --type T` / `update ID --type T` | Set affiliation; omitted update Type preserves it |
@@ -27,7 +27,7 @@ and BDP integration; Iris import; Sybil canonical CLI semantics and source revie
 | `link create --from SOURCE --to TARGET` | Same unique endpoint bindings |
 | `link list [A [B]]` | One current Link population; direction/applicability compiled before pagination |
 | `link list --from A --to B` | Existing structural source=A AND target=B URI predicates |
-| Generic `--source-revision` / `--target-revision` | Exact endpoint token; product typed operations below |
+| Endpoint `REF@N` / `REF@=TOKEN` | Shared Reference pins; no generic `--source-revision` / `--target-revision` flags |
 | `--if-source-revision` | Existing product source guard; no new generic wire guard |
 | Product historical `--from-revision` | Selected retained-content edit/recovery; not an endpoint spelling |
 
@@ -102,12 +102,12 @@ is rewritten and the protocol imposes no mandatory token/ID length.
 with --id, use the shared import-root grammar, and keep the default flat rather than
 source-derived. Native Issue root allocation uses the authoritative Issue writer
 wrapper and the same lifetime collision boundary. Product root validation/allocation
-happens in its authoritative adapter. The unchanged generic create wire has id, not idRoot. A remote CLI may send
-an explicit allocated candidate as id, but cannot infer reservation from a GET,
-print a future allocation claim, or silently retry a conflicting/unknown decision
-with a new idempotency key. Without a suitable allocation adapter, refuse --id-root;
-offline emission requires an explicit ID or ordinary server allocation with id
-omitted. Do not add a fictitious field to batch version1.
+happens at the service under selected [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1).
+Generic create sends `idRoot`; the service appends an opaque segment and reserves
+the complete identity with the Resource and retained outcome. No GET can reserve
+an ID and no retry may switch to a fresh key after an uncertain result. Offline
+emission preserves the root without allocating. Rooted batch creates require the
+explicit id-root1/atomic-batch1 composition; unextended batch1 stays unchanged.
 
 ## Type and rendering boundaries
 

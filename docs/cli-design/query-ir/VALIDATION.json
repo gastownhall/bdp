@@ -21,15 +21,15 @@
   "artifacts": [
     {
       "path": "specs/profiles/core/query.md",
-      "sha256": "550643b47a97b23918baf30e82341e3bcc506ba7dac7b882d01767803445df26"
+      "sha256": "45b74378021a5591ff5914f07c94fff4c41fce35bce985591eb99ae153046f30"
     },
     {
       "path": "specs/profiles/core/read-operations.md",
-      "sha256": "4bf1ec21b7eb72edd424b245dd2a07642149ff931da0766166084d80bd9be6e6"
+      "sha256": "f97b776866a2ac52ddef8764df6a6b6fe24f5c5c86c33f70504f2e673e78d276"
     },
     {
       "path": "docs/cli-design/query-language.md",
-      "sha256": "295d3e1e38fb942bb34601850cd0bc1865ebadd4abf01e590e8bbb7f4443e3d6"
+      "sha256": "ed2c0950748eee1402690511741c679c6eb6acb940b5cded34ec3fbf4a11d733"
     },
     {
       "path": "docs/cli-design/read-review.md",
@@ -37,7 +37,7 @@
     },
     {
       "path": "specs/profiles/core/resource-projection.md",
-      "sha256": "b7b951242419f1d22c7213a04de3591ce7754f89b9e10c3f5f80952bb2bd5a26"
+      "sha256": "934d607e30f48813de6a1ff0b863add9e515c948d70ec9013bb62e683bcb4e9e"
     },
     {
       "path": "docs/cli-design/query-ir.md",
@@ -45,11 +45,11 @@
     },
     {
       "path": "docs/cli-design/reads-and-paging.md",
-      "sha256": "d272aaa4313ac7de6acc1691eb1944aae08b719c9da3b9542dc00d0ab35b3ef5"
+      "sha256": "2e8c800192b7abf3a254c3ecc7ab4d9b9997f6994749284625d405c99a586de2"
     },
     {
       "path": "docs/cli-design/read-output.md",
-      "sha256": "fad615260cb9f08721a90f3715171e403a456305a17fbe39e688475595d0baa0"
+      "sha256": "9d2397d6ad7f6ccd363137284dae6d69b851fc87b36d345a680f1105d183d6d5"
     },
     {
       "path": "docs/cli-design/overview/02-explore-graph.md",
@@ -61,7 +61,7 @@
     },
     {
       "path": "docs/cli-design/query-ir/INCORPORATION.md",
-      "sha256": "8150ba7a2e94f23880fd30b206d2575e8e3838c09c84429d2bd7a6428bbb75d9"
+      "sha256": "9cfa4bae3cb6a0becdf4a0cf3cd92151651df551314891426308fe7e0f672862"
     },
     {
       "path": "docs/cli-design/query-ir/review/README.md",

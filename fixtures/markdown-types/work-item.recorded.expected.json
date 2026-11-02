@@ -1,0 +1,39 @@
+{
+  "format": "bdp-type-markdown-0.1",
+  "mode": "recorded",
+  "instanceKind": "bead",
+  "record": {
+    "id": "https://types.example/work-item",
+    "revision": "work-2",
+    "type": {
+      "uri": "https://github.com/gastownhall/bdp/types/type-system/bead-type",
+      "revision": "bead-type-2"
+    },
+    "properties": {
+      "description": "Recorded exact definition; the local properties schema is absent.",
+      "version": "1.0.0",
+      "abstract": false,
+      "x-preserved": { "empty": "", "false": false, "zero": 0, "null": null },
+      "propertyAccess": {},
+      "incoming": [],
+      "ownsOutgoing": []
+    },
+    "metadata": { "review": "captured" },
+    "ownedLinks": {
+      "https://github.com/gastownhall/bdp/types/type-system/refines": [
+        {
+          "id": "https://types.example/work-item-refines-base",
+          "revision": "declaration-2",
+          "type": {
+            "uri": "https://github.com/gastownhall/bdp/types/type-system/refines",
+            "revision": "refines-2"
+          },
+          "source": "https://types.example/work-item",
+          "target": { "uri": "https://types.example/base-work-item", "revision": "base-1" },
+          "properties": { "evidence": "Retained authored declaration." },
+          "metadata": {}
+        }
+      ]
+    }
+  }
+}

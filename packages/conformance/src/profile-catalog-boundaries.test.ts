@@ -1,14 +1,19 @@
 import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  isProtocolSpecificationSource,
-  readSpecificationSource,
-} from "../test-support/spec-source.js";
+  isHistoricalCitation692dProtocolSource as isProtocolSpecificationSource,
+  readHistoricalCitation692dSource,
+  readHistoricalCitation692dCatalog,
+} from "../test-support/historical-citation-source.js";
+import { readSpecificationSource } from "../test-support/spec-source.js";
 import { loadScenarioCatalogJson, validateCatalogCitations } from "./index.js";
 import { markdownAnchors, markdownSection } from "./markdown.js";
 
 const root = new URL("../../../", import.meta.url);
-const read = (source: string) => readSpecificationSource(source);
+const read = (source: string) =>
+  source.startsWith("packages/conformance/")
+    ? readSpecificationSource(source)
+    : readHistoricalCitation692dSource(source);
 const spec = read("docs/specs/bdp.md");
 const rank = { read: 1, "read-update": 2, transactional: 3 };
 
@@ -87,7 +92,7 @@ function assertSourceProfileCitation(
   // Reject other spellings too: URL resolution must not let ./specs/ bypass this gate.
   if (source === "docs/design/requirements.md") return;
   if (!isProtocolSpecificationSource(source))
-    throw new Error(`Not a current protocol source: ${source}`);
+    throw new Error(`Not a historical cutline protocol source: ${source}`);
   if (
     source !== "docs/specs/bdp.md" &&
     !markdownAnchors(read(source)).some((entry) => entry.anchor === anchor)
@@ -148,7 +153,7 @@ const catalogs = [
   "packages/conformance/development/read-update-catalog-v1.json",
 ];
 
-describe("catalog citations respect cumulative profile boundaries", () => {
+describe("historical692d catalog citations respect their original cumulative profile boundaries", () => {
   it("owns Transactional end matter and rejects its use by Read", () => {
     expect(owners.get("#transactional-conformance-rows")?.profile).toBe(3);
     expect(() => assertProfileCitation("#transactional-conformance-rows", "read")).toThrow(
@@ -295,7 +300,7 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(owners.get("#readupdate-discovery")?.profile).toBe(2);
     expect(owners.get("#discovery-profile-membership")?.profile).toBe(3);
   });
-  it("checks direct authoritative citations for physical and cumulative ownership", () => {
+  it("checks direct historical citations for physical and cumulative ownership", () => {
     const core = "specs/profiles/core/core.md";
     const write = "specs/profiles/write/write.md";
     const shared = "specs/conformance.md";
@@ -324,7 +329,7 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(() => assertSourceProfileCitation(write, "#types", "read")).toThrow("does not own");
     expect(() =>
       assertSourceProfileCitation("specs/profiles/types/types.md", "#types", "read"),
-    ).toThrow("Not a current protocol source");
+    ).toThrow("Not a historical cutline protocol source");
   });
   it("rejects alternate spellings instead of bypassing source ownership", () => {
     for (const source of [
@@ -334,11 +339,15 @@ describe("catalog citations respect cumulative profile boundaries", () => {
       "docs/../specs/profiles/write/write.md",
     ])
       expect(() => assertSourceProfileCitation(source, "#batch-operation-target", "read")).toThrow(
-        "Not a current protocol source",
+        "Not a historical cutline protocol source",
       );
   });
   it.each(catalogs)("audits every requirement in %s", (name) => {
-    const catalog = loadScenarioCatalogJson(read(name));
+    const catalog = loadScenarioCatalogJson(
+      name.startsWith("packages/conformance/catalog/")
+        ? readHistoricalCitation692dCatalog(name)
+        : read(name),
+    );
     validateCatalogCitations(catalog, read);
     for (const scenario of catalog.scenarios) {
       // A valid excerpt repeated in place of another obligation is still lost

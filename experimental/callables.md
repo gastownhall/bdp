@@ -217,7 +217,7 @@ This section specifies the **scope of a future explicit callable extension**, no
 
 ### Resource identity and operational mounts
 
-A callable is an ordinary Bead at its canonical URI. The service-owned `bdp/` namespace remains reserved from ordinary Bead allocation. A mount such as `<scope>/bdp/operations/recall` binds a protocol operation address to a selected callable/context; it does not create a second Resource identity. Standalone callables need no Pack. Mount creation/lifecycle, route collisions and binding retention still need design.
+A callable is an ordinary Bead at its canonical URI. Core protects the service's advertised protocol navigation addresses from ordinary Bead allocation; it does not mandate a universal literal `bdp/` prefix. An illustrative mount such as `<scope>/bdp/operations/recall` binds a protocol operation address to a selected callable/context; it does not create a second Resource identity. Standalone callables need no Pack. Mount creation/lifecycle, route collisions and binding retention still need design.
 
 Existing BDP [aliases](../specs/profiles/core/core.md#alias-resolution) define GET/HEAD redirect resolution, not POST forwarding. Existing [operation URLs](../specs/profiles/write/retained-write.md#eight-ordinary-targets-one-scope-and-complete-outcomes) are discovered, not a universally mandated path suffix. Do not silently widen either contract to implement callable mounts.
 

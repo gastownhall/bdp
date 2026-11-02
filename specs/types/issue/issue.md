@@ -432,7 +432,7 @@ are in the companion audit.
 
 Machine-readable artifact: [Issue properties schema](issue.properties.schema.json).
 The block below mirrors that review artifact apart from document annotations;
-[the artifact check](../../profiles/types/README.md#validation-limits-and-reproduction) prevents drift.
+[the artifact check](../../history/pre-canonical-20261101/profiles/types/README.md#validation-limits-and-reproduction) prevents drift.
 
 This is a **core fragment**, not a complete installable Issue definition or proof
 of native write admissibility. It records common structural checks without

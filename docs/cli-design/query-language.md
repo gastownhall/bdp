@@ -1,10 +1,31 @@
 # Canonical read CLI and query language
 
 **Complete surface candidate, October 26, 2026.** This is a review draft, not an
-installed command reference. The [query contract](../../specs/profiles/core/query.md)
+installed command reference. The [query contract](../../specs/profiles/core/core.md#logical-resource-selection-and-graph-queries)
 records the selected meanings. The exact flag grammar, keywords, and lowering
 rules below are author proposals that make those meanings implementable. They
 need parser tests and adoption before a client can advertise them.
+
+**October 28 implementation direction:** human expression syntax is deferred.
+The immediate Beads bootstrap entry is `bd query --ast JSON`, with `--ast @FILE`
+and `--ast -` for file and stdin input. It accepts the logical AST directly,
+without a new text parser. Exactly one source is allowed; legacy expression
+arguments and selection/result flags cannot be mixed into it. Without `--ast`,
+the existing Issue query language keeps its compatibility path. The flag grammar
+below remains a later surface candidate rather than installed behavior.
+
+The bootstrap reuses canonical CLI JSON framing; `--omit envelope` requests the
+native result/evaluation value. Native projection belongs in the AST and must
+refuse while unsupported. Direct CLI and configured BDP POST call one shared
+execution path. Qualification of either front door requires actual execution
+evidence; schema acceptance or this description does not establish it.
+
+For shared diagnostics, the CLI normalizes that bare AST to the virtual request
+`{"query": AST}`. Diagnostic and traversal JSON Pointers such as
+`/query/selection` address this normalized envelope, not the literal CLI argument
+or file bytes. HTTP uses the same envelope as its actual request body. This
+convention preserves one AST and evaluator rather than introducing CLI-relative
+pointer rules.
 
 The [portable AST](query-ir.md) carries the request to the service. The
 [native binding](../../specs/profiles/core/read-operations.md) defines the
@@ -376,7 +397,7 @@ Values are JSON literals, field reads, Resource bindings, endpoint navigation,
 and `id()`/`rev()`. Comparisons are typed; there is no implicit number/string
 conversion. `present(b.status)` tests physical presence. Arrays and objects may
 be literal comparison data; there is no expression that builds an output record.
-The [semantic contract](../../specs/profiles/core/query.md#predicates-and-values)
+The [semantic contract](../../specs/profiles/core/core.md#predicates-and-values)
 defines missing/null comparison and ordering. In particular, an absent field is
 not an empty string and does not equal null. Resource equality compares identity
 and selected revision; use `id(a) = id(b)` to ignore revision deliberately.

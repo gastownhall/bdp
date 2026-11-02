@@ -1330,7 +1330,7 @@ bd memory remember --update csv-encoding --body 'Use UTF-8 without a byte-order 
 bd memory remember 'Use UTF-8 without a byte-order mark.' --key csv-encoding
 
 # Guard a body edit with the exact revision token previously observed.
-bd memory remember 'Use UTF-8.' --update csv-encoding --if-revision =saved-r3
+bd memory remember 'Use UTF-8.' --update csv-encoding --if-revision saved-r3
 
 # Read the body explicitly from a file.
 bd memory remember --key csv-guide --title 'CSV interoperability guide' --body-file guide.md
@@ -1564,7 +1564,7 @@ for an observational preview, which never reserves a later successful deletion.
 bd memory forget scratch-note
 
 # Delete only if the observed exact revision is still current.
-bd memory forget scratch-note --if-revision =saved-r3
+bd memory forget scratch-note --if-revision saved-r3
 
 ```
 
@@ -2877,7 +2877,7 @@ The source is evidence for the existing command contracts, not proof that the
 four nested spellings are implemented or that this whole v0.2 model is qualified.
 
 The canonical reference uses the settled `@N`/`@=TOKEN` selection and
-`N`/`=TOKEN` guard notation. Preview 3 may retain its existing compatibility
+bare exact-token `--if-revision TOKEN` guard notation. Preview 3 may retain its existing compatibility
 flags; the aliases must share those options and the selected guard resolver,
 not fork them. Follow the current guard-alignment source when implementing.
 The inspected forget handler accepts an omitted guard even though older help

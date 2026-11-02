@@ -20,7 +20,7 @@ const documents = [
 ];
 
 describe("single specification authority and physical layout", () => {
-  it("preserves every legacy protocol anchor at its owning authoritative document", () => {
+  it("preserves every legacy protocol anchor at its explicit historical/current navigation target", () => {
     for (const [anchor, source] of Object.entries(map.anchors)) {
       expect(source.startsWith("specs/")).toBe(true);
       expect(
@@ -48,7 +48,7 @@ describe("single specification authority and physical layout", () => {
   });
 
   it("keeps the historical Read+Update alias with its heading in Write", () => {
-    const source = "specs/profiles/write/write.md";
+    const source = "specs/history/pre-canonical-20261101/profiles/write/write.md";
     const alias = markdownAnchors(read(source)).find(
       (entry) => entry.anchor === "#part-ii--readupdate",
     );
@@ -63,12 +63,15 @@ describe("single specification authority and physical layout", () => {
     expect(() => readSpecificationSource("file:///etc/hosts")).toThrow(
       "escapes the repository root",
     );
-    expect(readSpecificationSource("specs/profiles/core/core.md")).toContain("Part II — Read");
+    expect(readSpecificationSource("specs/profiles/core/core.md")).toContain(
+      "## Resource reads and views",
+    );
   });
 
   it("leaves navigation rather than competing requirements at the former monolith", () => {
     const legacy = read("docs/specs/bdp.md");
     expect(legacy).toContain("non-normative navigation only");
+    expect(readSpecificationSource("docs/specs/bdp.md")).toBe(legacy);
     expect(legacy).not.toMatch(/\b(?:MUST|SHALL|SHOULD|REQUIRED)\b/);
     expect(existsSync(new URL("schemas/bdp-v0.schema.json", root))).toBe(false);
   });

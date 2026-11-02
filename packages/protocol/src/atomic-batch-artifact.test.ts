@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const addFormats = formatsPlugin.default;
 
@@ -10,7 +11,7 @@ const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 const schema = JSON.parse(read("specs/profiles/core/bdp-v0.1.schema.json"));
 const legacy = JSON.parse(read("specs/profiles/core/bdp-v0.schema.json"));
 const cases = JSON.parse(read("fixtures/atomic-batch/candidate.json"));
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });
 ajv.addSchema(schema);
 ajv.addSchema(legacy);

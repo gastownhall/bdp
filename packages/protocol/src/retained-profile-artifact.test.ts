@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { describe, expect, it } from "vitest";
+import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const addFormats = formatsPlugin.default;
 
@@ -11,7 +12,7 @@ const schema = read("specs/profiles/core/bdp-v0.1.schema.json");
 const old = read("specs/profiles/core/bdp-v0.schema.json");
 const framing = read("docs/cli-design/read-framing.schema.json");
 const paper = read("fixtures/retained-profile/candidate.json");
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });
 for (const s of [schema, old, framing]) ajv.addSchema(s);
 function valid(name: string, value: unknown, bundle = schema): boolean {
@@ -35,13 +36,16 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
       expect(ajv.getSchema(`${schema.$id}#/$defs/${name}`)).toBeDefined();
   });
 
-  it("admits minimal Core without a Type inventory and requires actual Event navigation", () => {
+  it("admits minimal Core without a Type inventory and checks optional Event navigation", () => {
     expect(valid("coreDiscovery", paper.core)).toBe(true);
     expect(paper.core).not.toHaveProperty("types");
     expect(paper.core).not.toHaveProperty("operations");
     const absent = { ...paper.core };
     delete absent.events;
-    expect(valid("coreDiscovery", absent)).toBe(false);
+    expect(valid("coreDiscovery", absent)).toBe(true);
+    const writeWithoutEvents = { ...paper.write };
+    delete writeWithoutEvents.events;
+    expect(valid("writeDiscovery", writeWithoutEvents)).toBe(true);
     expect(valid("coreDiscovery", { ...paper.core, events: "relative" })).toBe(false);
     // A navigation member is not evidence that D1/D2 or provider obligations are satisfied.
   });

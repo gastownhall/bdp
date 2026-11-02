@@ -1,3 +1,4 @@
+import { observeCanonicalReference } from "./canonical-reference-observation.mjs";
 import { observeInstalledReference } from "./installed-reference-observation.mjs";
 import { createRequire } from "node:module";
 import { assertServerExports, isolatedWorkspace } from "./smoke-safety.mjs";
@@ -132,6 +133,11 @@ async function installPackedWorkspace() {
     // Intentional package-surface tripwire: adding or removing a shipped server
     // module is a deliberate reviewed change, not an incidental build artifact.
     const expectedServerOutput = new Set([
+      "reference.js",
+      "reference.js.map",
+      "reference.d.ts",
+      "reference.d.ts.map",
+      "retained-v01",
       "installed-payload.d.ts",
       "installed-payload.d.ts.map",
       "installed-payload.js",
@@ -402,6 +408,31 @@ async function installPackedWorkspace() {
         `packed server output mismatch; missing=[${missing.join(", ")}], unexpected=[${unexpected.join(", ")}]`,
       );
     }
+    const retainedOutput = await readdir(path.join(installedServerRoot, "dist", "retained-v01"));
+    const retainedModules = [
+      "alias-contract",
+      "alias-witness",
+      "collections",
+      "contract",
+      "events",
+      "http",
+      "link-contract",
+      "object-edits",
+      "recovery",
+      "reference-comparison",
+      "reference-input",
+      "store",
+    ];
+    const expectedRetained = retainedModules.flatMap((name) =>
+      [".js", ".js.map", ".d.ts", ".d.ts.map"].map((suffix) => name + suffix),
+    );
+    if (
+      retainedOutput.length !== expectedRetained.length ||
+      retainedOutput.some((name) => !expectedRetained.includes(name))
+    )
+      throw new Error(
+        "packed canonical reference implementation differs from its closed reviewed module set",
+      );
     const installedServerFiles = await readdir(installedServerRoot, { recursive: true });
     if (installedServerFiles.some((entry) => entry.split(path.sep).includes("test-support")))
       throw new Error("packed server must not contain test-support files");
@@ -520,6 +551,10 @@ async function installPackedWorkspace() {
     }
 
     for (const specifier of [
+      "@bdp/server/retained-v01/http",
+      "@bdp/server/dist/retained-v01/http.js",
+      "@bdp/server/retained-v01/store",
+      "@bdp/server/dist/retained-v01/store.js",
       "@bdp/conformance/transactional-observation",
       "@bdp/conformance/dist/transactional-observation.js",
       "@bdp/server/development-composition",
@@ -590,6 +625,7 @@ async function installPackedWorkspace() {
         return path.join(installRoot, "node_modules", ".bin", executable);
       },
       temporaryRoot,
+      installRoot,
       installedReferenceEntry: path.join(
         installedServerRoot,
         "dist",
@@ -1094,6 +1130,14 @@ try {
     }
     console.log(`${executable}: public profile admission fails closed before bind`);
   }
+
+  const canonicalObservation = await observeCanonicalReference(
+    installed.installRoot,
+    installed.temporaryRoot,
+  );
+  console.log(
+    JSON.stringify({ event: "installed.canonical-reference.observed", ...canonicalObservation }),
+  );
 
   const installedObservation = await observeInstalledReference(
     installed.installedReferenceEntry,

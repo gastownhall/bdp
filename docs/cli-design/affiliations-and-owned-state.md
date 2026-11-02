@@ -1,6 +1,6 @@
 # Canonical CLI: Type affiliations and owned state
 
-Selected CLI-first #279 subset, paired with [common Core/Write rules](../../specs/profiles/core/affiliations.md)
+Selected CLI-first #279 subset, paired with [common Core/Write rules](../../specs/profiles/core/core.md#owned-links)
 and the [v0.1 binding](contract-binding.md). This is design source, not implemented
 CLI support. It composes with [Scope/default resolution](scope-and-references.md).
 Types lifecycle/definition-authoring commands remain deferred; the inventory is
@@ -19,7 +19,7 @@ Type, while update can omit it to preserve the complete existing affiliation.
 | `bdp update item --set-property title=new` | `bead:"item"`, properties patch, no `type` |
 | `bdp update item --type Task` | `bead:"item"`, `type:"https://work.example/acme/Task"` |
 | `bdp update item --type Task@=r2` | `bead:"item"`, `type:{uri:"https://work.example/acme/Task",revision:"r2"}` |
-| `bdp link update rel --type Blocks@=r2 --if-revision =link-r7` | `link:"rel"`, exact `type`, `expectedRevision:"link-r7"` |
+| `bdp link update rel --type Blocks@=r2 --if-revision link-r7` | `link:"rel"`, exact `type`, `expectedRevision:"link-r7"` |
 
 Examples assume command Scope `https://work.example/acme/`. The singleton operation
 URL supplies its discriminator; a batch member includes `operation:"updateBead"`
@@ -37,7 +37,7 @@ raw @; use a quoted bracketed selector such as
 `--type '[https://work.example/acme/Task]@=r2'` for an exact pin.
 Bare Type/endpoint input is unpinned; `@current` refuses as a durable pin.
 Historical read selection and `--if-revision` guards are distinct from the Type
-definition pin. Guards use `N` or `=TOKEN`; no standalone canonical `--revision`,
+definition pin. Guards take bare exact tokens unchanged, including numeric-looking tokens; no standalone canonical `--revision`,
 `--type-revision` or `json:` Reference escape is added. Offline emission refuses
 unresolved local ordinals; it neither queries history nor invents a future/staged
 revision.
@@ -53,7 +53,7 @@ optional guards, property-access policy, final validation and retry rules remain
 
 > **Cleo — Type and revision flags:** `--type` sets an affiliation on writes.
 > Historical reads and exact Type pins use shared Reference selectors;
-> `--if-revision` guards use `N` or `=TOKEN`. The wire has no separate
+> `--if-revision TOKEN` guards preserve their literal exact tokens. The wire has no separate
 > `typeRevision`. This sidebar records the shared design;
 > it is not a request to interrupt your work.
 
@@ -104,7 +104,7 @@ reports the former owner's final revision, and an
 owned no-op reports its unchanged revision. The inherited result-level
 `source`/`sourceRevision` pair is not an alternative v0.1 spelling. The CLI never
 infers owners from the final Type alone. See
-[complete owner results](../../specs/profiles/write/link-updates.md#complete-owner-revision-context).
+[complete owner results](../../specs/profiles/write/write.md#complete-owner-revision-context).
 
 `link update --from REF` and `--to REF` replace whole endpoints while preserving
 Link identity. Omission preserves the complete prior Reference and pin; an
@@ -117,7 +117,19 @@ express coordinated repairs under the ordinary final-graph rules.
 
 The paired [Event source](events.md) now covers Type-only facts with required
 postimages and optional deltas under the [accepted D1/D2 minimum](event-decisions-20261022.md).
-Selected [final batch publication](../../specs/profiles/core/publication.md) uses one
+Selected [final batch publication](../../specs/profiles/write/write.md#final-atomic-publication) uses one
 final Resource/owner outcome and at most one new revision. Batch `ownerRevisions`
 entries report final published owner context, with membership compared
 initially/finally. Omitted pins remain unchanged. Actual Types integration/qualification remain gates.
+
+## Service-side default selection
+
+An ordinary `create --type memory` sends the absolute unpinned Type URI. Under
+Types the service selects its registered eligible exact default during admission,
+validates and stores that exact affiliation, and returns it in the original
+postimage. The client performs no definition lookup or guessed pinning first. An
+explicit exact Type Reference remains exact; retained-key recovery returns the
+original allocation and Type decision even after the default changes. Core-only
+carriers do not acquire Types interpretation merely by carrying the Reference.
+Local `TYPE@N` still needs an authoritative ordinal adapter; no wire number or
+versions-page counting is introduced. Public definition commands remain deferred.

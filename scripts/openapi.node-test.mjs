@@ -2,22 +2,30 @@
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import {
+  commandGroups,
+  deferredSignatures,
   generateArtifacts,
+  idRootSchemaFile,
   media,
   operations,
+  parseComposition,
+  parseOperationTables,
+  pathItem,
   root,
   schemaFile,
+  transportSignatures,
   validateToolingBinding,
 } from "./generate-openapi.mjs";
 
 const load = (path) => JSON.parse(readFileSync(resolve(root, path), "utf8"));
 const catalog = load("specs/openapi/bdp-v0.1.openapi.json");
-const tooling = load("specs/openapi/bdp-v0.1.tooling.openapi.json");
+const tooling = load("fixtures/openapi/generated.openapi.json");
 const canonical = load(schemaFile);
+const allocation = load(idRootSchemaFile);
 const bindings = load("fixtures/openapi/bindings.json").bindings;
 const exchanges = load("fixtures/openapi/exchanges.json");
 const rows = operations();
@@ -86,7 +94,10 @@ test("catalog is reusable signatures; tooling paths are reserved fixtures only",
 
 test("every schema reference resolves without rewriting or staging imports", () => {
   const selected = new Set();
-  for (const document of [catalog, tooling])
+  for (const [document, sourcePath] of [
+    [catalog, "specs/openapi/bdp-v0.1.openapi.json"],
+    [tooling, "fixtures/openapi/generated.openapi.json"],
+  ])
     visit(document, (object) => {
       if (!object.$ref) return;
       if (object.$ref.startsWith("#/")) {
@@ -94,10 +105,20 @@ test("every schema reference resolves without rewriting or staging imports", () 
         return;
       }
       const [file, fragment] = object.$ref.split("#");
-      assert.equal(file, "../profiles/core/bdp-v0.1.schema.json");
+      const resolved = resolve(root, dirname(sourcePath), file);
+      const resources = new Map([
+        [resolve(root, schemaFile), canonical],
+        [resolve(root, idRootSchemaFile), allocation],
+        [
+          resolve(root, "specs/profiles/types/types-v1.schema.json"),
+          load("specs/profiles/types/types-v1.schema.json"),
+        ],
+      ]);
+      const schemaDocument = resources.get(resolved);
+      assert(schemaDocument, `Unexpected external schema ${file}`);
       assert(fragment.startsWith("/$defs/"));
       const name = fragment.slice("/$defs/".length);
-      assert(canonical.$defs[name], name);
+      assert(schemaDocument.$defs[name], name);
       assert(
         !/^(sequence|transactional|receipt|mutationReceipt|snapshot|changefeed|eventPage$|event$|readDiscovery$|readUpdateDiscovery$)/.test(
           name,
@@ -130,7 +151,8 @@ test("exact closed eight Write directory, singleton requests, media and operatio
   assert.deepEqual(actual, names);
   for (const name of names) {
     const op = catalog.components.pathItems[name].post;
-    assert.equal(op.requestBody.content[media].schema.$ref.endsWith(`/${name}Request`), true);
+    const schema = op.requestBody.content[media].schema;
+    assert.equal((schema.oneOf?.[0] || schema).$ref.endsWith(`/${name}Request`), true);
     assert(
       op.parameters.some((p) => p.in === "header" && p.name === "Idempotency-Key" && p.required),
     );
@@ -139,9 +161,9 @@ test("exact closed eight Write directory, singleton requests, media and operatio
   }
   assert.equal(canonical.$defs.batchRequest.properties.capabilityVersion.const, "1");
   assert.equal(
-    catalog.components.pathItems.atomicBatch.post.requestBody.content[media].schema.$ref.endsWith(
-      "/batchRequest",
-    ),
+    catalog.components.pathItems.atomicBatch.post.requestBody.content[
+      media
+    ].schema.oneOf[0].$ref.endsWith("/batchRequest"),
     true,
   );
 });
@@ -166,9 +188,21 @@ test("bodyless HTTP branches and HEAD cannot be swallowed by default Problems", 
       for (const [status, response] of Object.entries(op.responses)) {
         if (status === "406" || status === "412") assert(!response.headers?.["BDP-Resource-Kind"]);
         for (const type of Object.keys(response.content || {}))
-          assert([media, "application/problem+json"].includes(type));
+          assert(
+            [
+              media,
+              "application/problem+json",
+              ...(op["x-bdp-feature-selection"] ? ["application/vnd.bdp.v0.1.types.v1+json"] : []),
+            ].includes(type),
+          );
       }
-      for (const type of Object.keys(op.requestBody?.content || {})) assert.equal(type, media);
+      for (const type of Object.keys(op.requestBody?.content || {}))
+        assert(
+          [
+            media,
+            ...(op["x-bdp-feature-selection"] ? ["application/vnd.bdp.v0.1.types.v1+json"] : []),
+          ].includes(type),
+        );
     }
   for (const op of Object.values(catalog.components.pathItems.exactDefinition))
     assert.deepEqual(op["x-bdp-forbidden-response-headers"], [
@@ -210,6 +244,8 @@ test("positive fixture bodies use canonical shapes; whole References reject id k
   // Format assertions belong to the existing full-format schema suite. This check
   // validates only the selected authored fixture body shapes, not OAS or a server.
   const ajv = new Ajv2020({ strict: true, validateFormats: false, allErrors: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-definitions", schemaType: "array", valid: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-sources", schemaType: "object", valid: true });
   ajv.addSchema(canonical);
   const schemaFor = (name) => ({ $ref: `${canonical.$id}#/$defs/${name}` });
   const validate = (name, body, label) => {
@@ -453,6 +489,8 @@ test("projection without fields selects full schema; Events gain no Resource kin
   const row = rows.find((item) => item.id === full.request.binding);
   assert.equal(responseDefinition(row, full.request), "currentBeadCollection");
   const ajv = new Ajv2020({ strict: true, validateFormats: false });
+  ajv.addKeyword({ keyword: "x-bdp-schema-definitions", schemaType: "array", valid: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-sources", schemaType: "object", valid: true });
   ajv.addSchema(canonical);
   const validate = ajv.compile({ $ref: `${canonical.$id}#/$defs/currentBeadCollection` });
   const incomplete = structuredClone(full.response.body);
@@ -555,14 +593,226 @@ test("cache metadata and landing request-media note retain their actual conditio
 });
 
 test("Link read and point projection CLI references select their actual correspondence", () => {
-  const line = (id) => catalog.components.pathItems[id].get["x-bdp-cli"].line;
-  assert.equal(line("linkProperties"), 1435);
-  assert.equal(line("historicalLink"), 1434);
-  for (const id of [
-    "projectedBead",
-    "projectedLink",
-    "projectedHistoricalBead",
-    "projectedHistoricalLink",
+  for (const [id, command] of [
+    ["linkProperties", "bd link show"],
+    ["historicalLink", "bd link show"],
+    ["projectedBead", "bd show"],
+    ["projectedLink", "bd link show"],
+    ["projectedHistoricalBead", "bd show"],
+    ["projectedHistoricalLink", "bd link show"],
+  ]) {
+    const cite = catalog.components.pathItems[id].get["x-bdp-cli"];
+    assert.equal(
+      readFileSync(resolve(root, cite.file), "utf8").split(/\r?\n/)[cite.line - 1],
+      `#### \`${command}\``,
+    );
+  }
+});
+
+test("command-first map assigns every wire case once without adding public verbs", () => {
+  assert.equal(commandGroups.length, 19);
+  assert.equal(new Set(commandGroups.map((group) => group.command)).size, 19);
+  const signatures = [
+    ...commandGroups.flatMap((group) => group.signatures),
+    ...transportSignatures,
+    ...deferredSignatures,
+  ];
+  assert.deepEqual([...signatures].sort(), rows.map((row) => row.id).sort());
+  assert.equal(new Set(signatures).size, 35);
+  assert.deepEqual(deferredSignatures, ["exactDefinition"]);
+  assert.deepEqual(catalog["x-bdp-cli-surface"].commands, commandGroups);
+  assert.equal(commandGroups.find((group) => group.command === "bd show").signatures.length, 6);
+  assert(
+    commandGroups.find((group) => group.command === "bd events").signatures.includes("scopeEvents"),
+  );
+  assert(!commandGroups.some((group) => /projected|historical|Definition/.test(group.command)));
+});
+
+test("rooted creation uses three existing routes and disjoint feature schema arms", () => {
+  const expected = {
+    createBead: "idRootCreateBeadRequest",
+    createLink: "idRootCreateLinkRequest",
+    atomicBatch: "idRootBatchRequest",
+  };
+  const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: false });
+  ajv.addKeyword({ keyword: "x-bdp-schema-definitions", schemaType: "array", valid: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-sources", schemaType: "object", valid: true });
+  ajv.addSchema(canonical);
+  ajv.addSchema(allocation);
+  for (const row of rows) {
+    if (!row.methods.includes("post")) continue;
+    const op = catalog.components.pathItems[row.id].post;
+    const selected = op["x-bdp-request-selection"];
+    if (!expected[row.id]) {
+      assert(!selected);
+      continue;
+    }
+    assert.equal(selected.capability, "https://github.com/gastownhall/bdp/capabilities/id-root");
+    assert.equal(selected.version, "1");
+    assert.equal(op.requestBody.content[media].schema.oneOf.length, 2);
+    assert(op.requestBody.content[media].schema.oneOf[1].$ref.endsWith(`/${expected[row.id]}`));
+    const validate = ajv.getSchema(`${allocation.$id}#/$defs/${expected[row.id]}`);
+    const create = { idRoot: "notes", type: "https://example.test/acme/memory" };
+    const body =
+      row.id === "atomicBatch"
+        ? { capabilityVersion: "1", operations: [{ operation: "createBead", ...create }] }
+        : row.id === "createLink"
+          ? { ...create, source: "a", target: "b" }
+          : create;
+    assert(validate(body), JSON.stringify(validate.errors));
+    const base = ajv.getSchema(`${canonical.$id}#/$defs/${row.request}`);
+    assert(!base(body), "Old closed grammar must reject selected rooted carrier");
+    assert.equal(
+      op.responses["200"].content[media].schema.$ref,
+      `../profiles/core/bdp-v0.1.schema.json#/$defs/${row.response}`,
+    );
+  }
+  assert.equal(rows.length, 35);
+  assert.equal(
+    rows.reduce((count, row) => count + row.methods.length, 0),
+    61,
+  );
+});
+
+test("visible operation authoring rejects hidden, malformed, duplicate and contradictory bindings", () => {
+  const text = readFileSync(resolve(root, "specs/profiles/core/core.md"), "utf8");
+  const block = text.match(
+    /<!-- bdp-operation:start currentBead -->[\s\S]*?<!-- bdp-operation:end currentBead -->/,
+  )[0];
+  const parse = (source) => parseOperationTables(source, "specs/profiles/core/core.md");
+  assert.equal(parse(block)[0].id, "currentBead");
+  assert.deepEqual(parse(`~~~markdown\n${block}\n~~~`), []);
+  assert.throws(() => parse(`<!-- Donna:\n${block}\n-->`), /Unmatched|Unclosed/);
+  for (const bad of [
+    `${block}\n${block}`,
+    block.replace("bdp-operation:end currentBead", "bdp-operation:end wrong"),
+    block.replace("<!-- bdp-operation:end currentBead -->", ""),
+    block.replace("| methods |", "| unknownField |"),
+    block.replace('`["get","head"]`', '`["get","get"]`'),
+    block.replace(
+      '| continuation | `"none"` |',
+      '| continuation | `"none"` |\n| history | `"false"` |',
+    ),
+    block.replace('| continuation | `"none"` |', '| continuation | `"none"` |\n| event | `true` |'),
+    block.replace(
+      '| continuation | `"none"` |',
+      '| continuation | `"none"` |\n| request | `"createBeadRequest"` |',
+    ),
   ])
-    assert.equal(line(id), 469);
+    assert.throws(() => parse(bad));
+});
+
+test("all Events signatures are explicitly optional and owned by the Events profile", () => {
+  const events = rows.filter((row) => row.event);
+  assert.equal(events.length, 3);
+  for (const row of events) {
+    assert.equal(row.sources[0].file, "specs/profiles/events/events.md");
+    assert.match(row.optional, /optional for Core and Write/);
+    assert.match(catalog.components.pathItems[row.id].get["x-bdp-support"], /optional/);
+  }
+  assert(!canonical.$defs.coreDiscovery.required.includes("events"));
+  assert(!canonical.$defs.writeDiscovery.required.includes("events"));
+});
+
+test("Types1 uses an explicit rejectable subtype only on its selected ordinary operations", () => {
+  const typed = "application/vnd.bdp.v0.1.types.v1+json";
+  for (const id of [
+    "currentBead",
+    "currentLink",
+    "beadInventory",
+    "historicalBead",
+    "incidentLinks",
+    "projectedBead",
+    "createBead",
+    "updateLink",
+    "atomicBatch",
+  ]) {
+    for (const [method, op] of Object.entries(catalog.components.pathItems[id])) {
+      assert.equal(op["x-bdp-feature-selection"].media, typed);
+      assert.match(op["x-bdp-feature-selection"].selection, /No base\/wildcard fallback/);
+      if (method !== "head") assert(op.responses["200"].content[typed], id);
+      if (method === "post")
+        assert.deepEqual(op.requestBody.content[typed], op.requestBody.content[media]);
+      assert(!op.responses.default.content?.[typed], "Problems keep their own media");
+    }
+  }
+  for (const id of [
+    "discovery",
+    "scopeEvents",
+    "beadEvents",
+    "exactDefinition",
+    "writeDirectory",
+    "aliasResolve",
+    "beadVersions",
+  ])
+    for (const op of Object.values(catalog.components.pathItems[id])) {
+      assert(!op["x-bdp-feature-selection"], id);
+      assert(!op.responses["200"]?.content?.[typed], id);
+    }
+  assert.match(
+    catalog.components.pathItems.currentBead.get.responses["200"].content[typed].schema.allOf[1]
+      .$ref,
+    /types-v1.schema.json/,
+  );
+});
+
+test("feature composition source cannot be captured from examples, comments or duplicate blocks", () => {
+  const text = readFileSync(resolve(root, "specs/profiles/types/types.md"), "utf8");
+  const block = text.match(
+    /^<!-- bdp-composition:start types1 -->[\s\S]*?^<!-- bdp-composition:end types1 -->$/m,
+  )[0];
+  const real = parseComposition(block);
+  assert.equal(real.media, "application/vnd.bdp.v0.1.types.v1+json");
+  assert.deepEqual(parseComposition(`   ~~~markdown\n${block}\n   ~~~\n${block}`), real);
+  for (const bad of [
+    `~~~markdown\n${block}\n~~~`,
+    `<!-- Donna:\n${block}\n-->`,
+    `${block}\n${block}`,
+    block.replace("bdp-composition:end types1", "bdp-composition:end other"),
+    block.replace("| media |", "| unknown |"),
+    block.replace("### Composition: types1", "Ignored prose"),
+    block.replace("| version |", "| id |"),
+    block.replace('`"1"`', "`1`"),
+  ])
+    assert.throws(() => parseComposition(bad));
+});
+
+test("additional POST header restrictions cannot discard invariant operation-target guards", () => {
+  const create = rows.find((row) => row.id === "createBead");
+  const op = pathItem({ ...create, forbiddenHeaders: ["X-Private", "ETag"] }).post;
+  assert.deepEqual(op["x-bdp-forbidden-response-headers"], ["ETag", "Location", "X-Private"]);
+});
+
+test("landing discovery metadata is body-independent and generation fingerprints actual inputs", () => {
+  for (const method of ["get", "head"]) {
+    const op = catalog.components.pathItems.scopeLanding[method];
+    assert(!op.responses["304"].content);
+    assert.match(op.responses["304"].headers.Link.description, /Scope discovery navigation/);
+  }
+  for (const path of [
+    "docs/cli-design/bdp-cli.md",
+    "specs/profiles/types/types-v1.schema.json",
+    "scripts/generate-openapi.mjs",
+    "fixtures/openapi/bindings.json",
+  ])
+    assert.match(catalog["x-bdp-navigation"].sourceFingerprints[path], /^[0-9a-f]{64}$/);
+});
+
+test("alias POST and malformed forbidden-header inventories cannot weaken HTTP rules", () => {
+  const text = readFileSync(resolve(root, "specs/profiles/write/write.md"), "utf8");
+  const block = text.match(
+    /<!-- bdp-operation:start createBead -->[\s\S]*?<!-- bdp-operation:end createBead -->/,
+  )[0];
+  for (const extra of [
+    "| alias | `true` |",
+    '| forbiddenHeaders | `"ETag"` |',
+    '| forbiddenHeaders | `["ETag","ETag"]` |',
+    "| forbiddenHeaders | `null` |",
+  ])
+    assert.throws(() =>
+      parseOperationTables(
+        block.replace("### Operation: createBead", `### Operation: createBead\n${extra}`),
+        "specs/profiles/write/write.md",
+      ),
+    );
 });
