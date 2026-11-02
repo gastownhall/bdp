@@ -1,0 +1,39 @@
+# Historical citation cutline 692d (test inputs only)
+
+These four exact source snapshots come from commit
+`692d801231c78e12b456d8c5213bdf137a6b534d`, immediately before the selected
+Core/history extraction. They preserve the source subject of the six unchanged
+cumulative-profile catalogs, including the namespace amendment already composed
+at that cut. This is **historical citation cutline 692d**, not a claim that the
+whole commit is a pure/released v0 specification, current v0.1 authority, or
+provider/runtime conformance evidence.
+
+`../historical-citation-source.ts` verifies the exact four snapshot byte counts
+and SHA-256 values and the exact six catalog byte counts/digests before returning
+text. Only the historical Write source is stored as one JSON string in
+`specs/profiles/write/write.md.json`; the closed `specs/profiles/write/write.md`
+source row decodes that string back to the original UTF-8 bytes before the same
+length/SHA checks and source return. This preserves its exact final blank line
+without adding a blank line at EOF to the storage fixture. Object/array/null/
+non-string storage is refused, as are decoded byte changes. The other three
+snapshots remain raw and byte-identical. The storage filename is not a new
+citation source, and there is no raw-Write fallback or generic codec selection.
+
+It uses the existing protocol marker/link composition only for the
+original `docs/specs/bdp.md` citation alias. Original source names, section masks,
+anchors, cumulative profile tags and all 569 catalog quotations remain intact.
+No network, Git, current-source or history-directory fallback exists.
+
+Only explicit frozen-catalog citation/profile-ownership audits use this view.
+The ordinary current-source loader and protocol-source allowlist remain
+unchanged; the development diagnostic catalog and current negative controls do
+not inherit this subject. Actual schema/fixture/driver/report/evidence bytes and
+their original qualification meanings remain unchanged. New retained-profile
+qualification needs its own selected input and actual evidence.
+
+Immutable source locations:
+
+- https://github.com/gastownhall/bdp/blob/692d801231c78e12b456d8c5213bdf137a6b534d/specs/profiles/core/core.md
+- https://github.com/gastownhall/bdp/blob/692d801231c78e12b456d8c5213bdf137a6b534d/specs/profiles/write/write.md
+- https://github.com/gastownhall/bdp/blob/692d801231c78e12b456d8c5213bdf137a6b534d/specs/conformance.md
+- https://github.com/gastownhall/bdp/blob/692d801231c78e12b456d8c5213bdf137a6b534d/docs/design/requirements.md

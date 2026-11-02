@@ -1,3 +1,4 @@
+import { historicalWriteSketch } from "../test-support/historical-artifact-source.js";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
@@ -193,8 +194,8 @@ describe("v0.1 affiliation artifact, without claiming stateful or CLI execution"
     // Passing refusal records the pending Event gap, not an accepted omission.
   });
 
-  it("retargets the illustrative common operation fields while preserving its staging boundary", () => {
-    const text = read("specs/profiles/write/write.md");
+  it("retargets the historical illustrative common operation fields while preserving its staging boundary", () => {
+    const text = historicalWriteSketch();
     const block = [...text.matchAll(/```json\n([\s\S]*?)\n```/g)]
       .map((match) => JSON.parse(match[1] ?? "null"))
       .find((value) => value.title === "BDP batch operation");

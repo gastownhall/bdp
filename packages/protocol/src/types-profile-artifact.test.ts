@@ -1,3 +1,4 @@
+import { historicalArtifactSchema } from "../test-support/historical-artifact-source.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -26,6 +27,17 @@ ajv.addSchema(feature);
 function valid(name: string, value: unknown, schema = feature): boolean {
   const validate = ajv.getSchema(`${schema.$id}#/$defs/${name}`);
   if (!validate) throw new Error(`missing artifact definition ${name}`);
+  return Boolean(validate(value));
+}
+
+const historicalCommon = JSON.parse(historicalArtifactSchema().toString("utf8"));
+const historical = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
+formatsPlugin.default(historical, { mode: "full" });
+historical.addSchema(historicalCommon);
+historical.addSchema(feature);
+function validPublication(name: string, value: unknown, schema = feature): boolean {
+  const validate = historical.getSchema(`${schema.$id}#/$defs/${name}`);
+  if (!validate) throw new Error(`missing historical publication definition ${name}`);
   return Boolean(validate(value));
 }
 
@@ -153,58 +165,65 @@ describe("selected Types source artifacts, without provider or CLI execution", (
     },
   );
 
-  it("requires exact affiliations on full Beads, Links, owned and incident Link records", () => {
+  it("historical publication1: requires exact affiliations on full Beads, Links, owned and incident Link records", () => {
     const bead = publication.definitions[1];
     const link = publication.declarations[0];
-    expect(valid("beadRecord", bead)).toBe(true);
-    expect(valid("linkRecord", link)).toBe(true);
+    expect(validPublication("beadRecord", bead)).toBe(true);
+    expect(validPublication("linkRecord", link)).toBe(true);
     // URI-only affiliation is ordinary carried Core data, not a Types output.
     const unpinned = { ...link, type: link.type.uri };
-    expect(valid("linkRecord", unpinned, common)).toBe(true);
-    expect(valid("linkRecord", unpinned)).toBe(false);
-    expect(valid("beadRecord", { ...bead, type: bead.type.uri })).toBe(false);
+    expect(validPublication("linkRecord", unpinned, common)).toBe(true);
+    expect(validPublication("linkRecord", unpinned)).toBe(false);
+    expect(validPublication("beadRecord", { ...bead, type: bead.type.uri })).toBe(false);
     for (const [name, record] of [
       ["beadRecord", bead],
       ["linkRecord", link],
     ] as const) {
       const absent = { ...record };
       delete absent.type;
-      expect(valid(name, absent, common)).toBe(false);
-      expect(valid(name, absent)).toBe(false);
+      expect(validPublication(name, absent, common)).toBe(false);
+      expect(validPublication(name, absent)).toBe(false);
     }
-    expect(valid("beadRecord", { ...bead, originScope: "https://receiver.example.test/" })).toBe(
-      false,
-    );
     expect(
-      valid("beadRecord", {
+      validPublication("beadRecord", { ...bead, originScope: "https://receiver.example.test/" }),
+    ).toBe(false);
+    expect(
+      validPublication("beadRecord", {
         ...bead,
         ownedLinks: { [link.type.uri]: [unpinned] },
       }),
     ).toBe(false);
-    expect(valid("beadRecord", { ...bead, links: { items: [link], next: null } })).toBe(true);
-    expect(valid("beadRecord", { ...bead, links: { items: [unpinned], next: null } })).toBe(false);
+    expect(validPublication("beadRecord", { ...bead, links: { items: [link], next: null } })).toBe(
+      true,
+    );
+    expect(
+      validPublication("beadRecord", { ...bead, links: { items: [unpinned], next: null } }),
+    ).toBe(false);
   });
 
-  it("keeps Bead family pages exact, complete and closed", () => {
+  it("historical publication1: keeps Bead family pages exact, complete and closed", () => {
     const bead = publication.definitions[1];
     const page = { items: [bead], next: null };
-    expect(valid("beadCollection", page)).toBe(true);
-    expect(valid("beadCollection", { items: [], next: null })).toBe(true);
+    expect(validPublication("beadCollection", page)).toBe(true);
+    expect(validPublication("beadCollection", { items: [], next: null })).toBe(true);
     expect(
-      valid("beadCollection", { ...page, next: "https://example.test/page?cursor=next" }),
+      validPublication("beadCollection", {
+        ...page,
+        next: "https://example.test/page?cursor=next",
+      }),
     ).toBe(true);
     const unpinned = { ...bead, type: bead.type.uri };
-    expect(valid("beadCollection", { ...page, items: [unpinned] }, common)).toBe(true);
-    expect(valid("beadCollection", { ...page, items: [unpinned] })).toBe(false);
+    expect(validPublication("beadCollection", { ...page, items: [unpinned] }, common)).toBe(true);
+    expect(validPublication("beadCollection", { ...page, items: [unpinned] })).toBe(false);
     const absent = { ...bead };
     delete absent.type;
-    expect(valid("beadCollection", { ...page, items: [absent] })).toBe(false);
-    expect(valid("beadCollection", { items: [bead] })).toBe(false);
-    expect(valid("beadCollection", { next: null })).toBe(false);
-    expect(valid("beadCollection", { ...page, inventedMember: true })).toBe(false);
+    expect(validPublication("beadCollection", { ...page, items: [absent] })).toBe(false);
+    expect(validPublication("beadCollection", { items: [bead] })).toBe(false);
+    expect(validPublication("beadCollection", { next: null })).toBe(false);
+    expect(validPublication("beadCollection", { ...page, inventedMember: true })).toBe(false);
   });
 
-  it("binds publication bytes and exact metatype pins without inventing an origin", () => {
+  it("historical publication1: binds publication bytes and exact metatype pins without inventing an origin", () => {
     const digest = createHash("sha256")
       .update(readFileSync(new URL(publicationPath, root)))
       .digest("hex");
@@ -222,7 +241,7 @@ describe("selected Types source artifacts, without provider or CLI execution", (
         uri: namespace + (name === "refines" ? "link-type" : "bead-type"),
         revision: name === "refines" ? "link-type-1" : "bead-type-1",
       });
-      expect(valid("beadRecord", record)).toBe(true);
+      expect(validPublication("beadRecord", record)).toBe(true);
       expect(record).not.toHaveProperty("originScope");
     }
     expect(publication.definitions[0].properties.abstract).toBe(true);
@@ -230,7 +249,7 @@ describe("selected Types source artifacts, without provider or CLI execution", (
     expect(publication.definitions[3].ownedLinks).toEqual({});
   });
 
-  it("publishes the exact captured Refines records with distinct source/owner editions", () => {
+  it("historical publication1: publishes the exact captured Refines records with distinct source/owner editions", () => {
     const refines = { uri: `${namespace}refines`, revision: "refines-1" };
     for (const [index, name] of ["bead-type", "link-type"].entries()) {
       const owner = publication.definitions[index + 1];
@@ -244,7 +263,16 @@ describe("selected Types source artifacts, without provider or CLI execution", (
         properties: {},
       });
       expect(owner.ownedLinks).toEqual({ [refines.uri]: [link] });
-      expect(valid("linkRecord", link)).toBe(true);
+      expect(validPublication("linkRecord", link)).toBe(true);
     }
   });
+});
+
+it("keeps literal old publication bytes distinct from current full-record metadata requirements", () => {
+  for (const record of [...publication.definitions, ...publication.declarations]) {
+    const kind = Object.hasOwn(record, "source") ? "link" : "bead";
+    expect(validPublication(`${kind}Record`, record)).toBe(true);
+    expect(valid(`${kind}Record`, record)).toBe(false);
+    expect(record).not.toHaveProperty("metadata");
+  }
 });

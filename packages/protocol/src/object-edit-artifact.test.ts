@@ -1,3 +1,4 @@
+import { historicalWriteSketch } from "../test-support/historical-artifact-source.js";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
@@ -119,8 +120,8 @@ describe("ordinary object-edit input artifact, without provider or CLI execution
     expect(replacement.operation).not.toHaveProperty("propertiesChange");
   });
 
-  it("keeps the illustrative common grammar aligned with replacements and conflicts", () => {
-    const block = [...read("specs/profiles/write/write.md").matchAll(/```json\n([\s\S]*?)\n```/g)]
+  it("keeps the historical illustrative common grammar aligned with replacements and conflicts", () => {
+    const block = [...historicalWriteSketch().matchAll(/```json\n([\s\S]*?)\n```/g)]
       .map((match) => JSON.parse(match[1] ?? "null"))
       .find((value) => value.title === "BDP batch operation");
     const sketch = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));

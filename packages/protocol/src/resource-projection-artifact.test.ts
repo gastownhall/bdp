@@ -152,7 +152,7 @@ describe("Resource projection artifacts without provider execution", () => {
       expect(valid(`current${kind}Record`, withoutProperties)).toBe(false);
       const withoutMetadata = clone(record);
       delete withoutMetadata.metadata;
-      expect(valid(`${kind.toLowerCase()}Record`, withoutMetadata)).toBe(true);
+      expect(valid(`${kind.toLowerCase()}Record`, withoutMetadata)).toBe(false);
       expect(valid(`current${kind}Record`, withoutMetadata)).toBe(false);
       expect(valid(`projected${kind}Record`, withoutProperties)).toBe(true);
       expect(valid(`projected${kind}Record`, withoutMetadata)).toBe(true);

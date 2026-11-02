@@ -1,3 +1,7 @@
+import {
+  readHistoricalCitation692dCatalog,
+  readHistoricalCitation692dSource,
+} from "../test-support/historical-citation-source.js";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,7 +58,10 @@ const RETIREMENTS: Readonly<Record<string, readonly string[]>> = {
 };
 
 describe("draft Transactional catalog", () => {
-  const catalog = loadScenarioCatalogJson(readText(CATALOG_PATH), "transactional-v1.json");
+  const catalog = loadScenarioCatalogJson(
+    readHistoricalCitation692dCatalog(CATALOG_PATH),
+    "transactional-v1.json",
+  );
   const readUpdateCatalog = loadScenarioCatalogJson(
     readText(READ_UPDATE_CATALOG_PATH),
     "read-update-v1.json",
@@ -62,10 +69,10 @@ describe("draft Transactional catalog", () => {
   const readCatalog = loadScenarioCatalogJson(readText(READ_CATALOG_PATH), "read-v1.json");
   const ids = catalog.scenarios.map(({ id }) => id);
 
-  it("strictly parses and binds every citation to the current specification text", () => {
+  it("strictly parses and binds every citation to historical cutline 692d", () => {
     expect(catalog.catalogVersion).toBe(1);
     expect(catalog.scenarios.length).toBe(133);
-    validateCatalogCitations(catalog, (source) => readText(source), "transactional-v1.json");
+    validateCatalogCitations(catalog, readHistoricalCitation692dSource, "transactional-v1.json");
   });
 
   it("keeps the ruled T62/T65, HTTP-gap and changefeed reconnect objects in lockstep with the maintained packet rows", () => {

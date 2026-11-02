@@ -1,3 +1,4 @@
+import { historicalArtifactSchema } from "../test-support/historical-artifact-source.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -7,8 +8,10 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 // Literal acceptance oracles, not a CLI compiler, transport, service or replay test.
 const root = new URL("../../../", import.meta.url);
-const schemaBytes = readFileSync(new URL("specs/profiles/core/bdp-v0.1.schema.json", root));
-const schema = JSON.parse(schemaBytes.toString());
+const schemaBytes = historicalArtifactSchema();
+const schema = JSON.parse(
+  readFileSync(new URL("specs/profiles/core/bdp-v0.1.schema.json", root), "utf8"),
+);
 const table = JSON.parse(readFileSync(new URL("fixtures/client-handoff/cases.json", root), "utf8"));
 const ajv = withBdpSourceAnnotations(
   new Ajv2020({ strict: true, allErrors: true, useDefaults: false }),
@@ -22,7 +25,7 @@ function valid(name: string, value: unknown) {
 }
 
 describe("client handoff authored artifact correspondence; no consumer execution", () => {
-  it("pins actual unchanged accepted schema and unique finite case identities", () => {
+  it("pins the historical accepted schema while checking carriers against current grammar", () => {
     expect(table.acceptedReceiver).toBe("e23aec722763e967d3bde08caf96657069b39ead");
     expect(createHash("sha256").update(schemaBytes).digest("hex")).toBe(table.schemaSha256);
     expect(schema.$id).toBe(table.schemaId);
