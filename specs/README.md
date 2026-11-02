@@ -1,11 +1,12 @@
 # Beads Protocol specification
 
-The editorial review corpus contains three protocol documents and the shared client specification. Read them in this order:
+The editorial review corpus contains three selected protocol documents, the proposed Transfer profile and the shared client specification. Read them in this order:
 
 1. [Core](profiles/core/core.md) — common Resources, identity, reads, authorization, HTTP and Events.
 2. [Write](profiles/write/write.md) — mutations, retries, final effects and optional atomic batches.
 3. [Types](profiles/types/types.md) — optional Type definitions, interpretation, conformance and constraints.
-4. [CLI](../docs/cli-design/bdp-cli.md) — shared command behavior, output and protocol correspondence. The [mismatch audit](../docs/spec-review/cli-mismatches.md) records its current reconciliation work.
+4. [Transfer — proposed](profiles/transfer/transfer.md) — complete retained-data packages and original-state admission; [remaining design work](../docs/spec-review/transfer-review.md) is explicit.
+5. [CLI](../docs/cli-design/bdp-cli.md) — shared command behavior, output and protocol correspondence. The [mismatch audit](../docs/spec-review/cli-mismatches.md) records its current reconciliation work.
 
 Each document states its current rules directly. No retained-profile wrapper, amendment list, source map or historical document is required to reconstruct a rule. Core works without Write or Types. Write and Types add their stated responsibilities without changing Core identity or read meanings.
 

@@ -134,8 +134,11 @@ a separate CLI mapping, and a separately justified native-recovery adjunct where
 needed. Same-Scope identity preservation comes first; DNS-neutral identity remains
 Donna's next design discussion. Optional Events does not justify a mandatory
 import Event/head. Cross-Scope mapping, federation and resumable bulk recovery are
-separate capabilities. The draft is being prepared independently for integration into the same editorial
-corpus; it is not an adopted capability or an implementation campaign.
+separate capabilities. The [Transfer proposal](../../specs/profiles/transfer/transfer.md) is now received
+into this same editorial corpus, with its proposed commands inline in the
+[canonical CLI](../cli-design/bdp-cli.md#proposed-transfer-commands) and
+[remaining mappings](transfer-review.md) explicit. It is not an adopted capability
+or an implementation campaign.
 
 Events factoring remains a separate editorial/design discussion. The existing
 contract already composes Events optionally with Core or Write. A separately

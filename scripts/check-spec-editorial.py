@@ -17,6 +17,7 @@ CANONICAL = (
     "specs/profiles/core/core.md",
     "specs/profiles/write/write.md",
     "specs/profiles/types/types.md",
+    "specs/profiles/transfer/transfer.md",
     "docs/cli-design/bdp-cli.md",
 )
 ENTRY_POINTS = ("README.md", "specs/README.md", "docs/spec-review/README.md")

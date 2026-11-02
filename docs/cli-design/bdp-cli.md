@@ -2706,6 +2706,107 @@ or tokens. The proposal also covers bodyless responses and metadata output.
 They are omitted from the reviewed `show` entry for this pass. See
 [HTTP read details](reads-and-paging.md#existing-exact-reads-and-http-controls).
 
+### Proposed Transfer commands
+
+Review draft 1. This is the command mapping for the proposed
+[Transfer profile](../../specs/profiles/transfer/transfer.md), integrated into this
+single CLI document. It is not selected command grammar.
+
+This is a proposed command mapping within Donna's canonical CLI review corpus. It selects no shipped flag, registration, default flip, renderer implementation or new server endpoint. Semantic requirements below follow the Transfer proposal and recovered human outcomes; proposed syntax and descriptor additions need the ordinary CLI/schema correspondence review. Legacy compatibility stays separate.
+
+#### 1. Four independent selections
+
+| Selection | Meaning |
+| --- | --- |
+| CLI profile canonical/compat | Which command/flag grammar is registered before parsing. Keep the selected persistent default/one-invocation override rules; never infer protocol capability from the CLI profile name. |
+| Data family transfer/legacy | Which payload contract is produced or accepted. A legacy export cannot acquire a manifest and become Transfer without explicit family selection. |
+| JSON/JSONL encoding | Serialization of one selected Transfer package; both have identical logical contents. This does not select a weaker completeness mode. |
+| Presentation of operation result | Human detail or schema-2 JSON/JSONL for an import result/diagnostic. This is not the input package's encoding and does not modify its Resource bodies. |
+
+Do not overload one switch to mean all four. Do not select formats based on redirection, TTY, extension or a failed parse. An unsupported format/descriptor/profile combination refuses before dispatch. No fallback from native Transfer to legacy, from Types-required to Core-only, or from atomic to partial import.
+
+#### 2. Proposed command grammar
+
+The following spellings are a concrete review proposal, not a claim that the existing CLI implements them. Integration may reuse the receiving CLI's already selected equivalent spellings. The semantic distinctions in section 1 must survive.
+
+    bd export --format transfer --output-format json|jsonl [--output FILE]
+    bd import --format transfer --input-format json|jsonl FILE|-
+              [--mode upsert|insert-only] [--force] [--dry-run]
+              [--output-format default|detail|json|jsonl]
+
+New Transfer selection is explicit during the compatibility transition. This draft does not change the existing legacy export/import default. Under explicit Transfer selection, proposed export encoding default is JSONL; both encodings remain required. Exact flag registration/default must be recorded by the CLI owner before adoption. Import requires an explicit input encoding in this first grammar; extensions are advisory, not a decoder-selection authority. A future auto encoding choice would need a bounded unambiguous rule within the already selected Transfer family, not speculative fallback into legacy.
+
+For import the default mode is upsert. Insert-only rejects every destination lifetime-allocation collision. Force is explicit whole incoming Resource conflict resolution under upsert; reject force plus insert-only as conflicting arguments. Force cannot bypass kind/address/Types/erasure/authorization/ownership/nonreuse constraints. There is no automatic force after conflict and no field-wise merge.
+
+There is no Transfer ID-root/prefix/remapping option in the first same-Scope identity-preserving contract. If the product exposes an ID prefix for legacy conversion, it remains a separate explicit compatibility behavior. Neither Write's optional rooted fresh allocation nor a human short ID authorizes relocation of an original canonical identity.
+
+Import into a fresh target is the first delivery gate, not a different interpretation of upsert or removal of later populated modes. A target lacking a selected mode must refuse it; it cannot silently require an empty target while advertising general upsert. Exact Type registration/setup occurs separately before import, under its owning contract. No --install-types, --skip-validation or packet-supplied schema execution is introduced.
+
+#### 3. Export payload versus CLI envelopes
+
+Transfer export emits an artifact in the selected package grammar, not a List/Query result, page stream or rendered Resource collection. Stdout in payload-emission mode contains only package bytes; diagnostics/progress go to stderr. A generic schema-2 read envelope must not be inserted around or between package records. This uses the canonical CLI distinction between emission and framed operation results; a dedicated transfer-package descriptor/adapter still needs owner registration and schema review, not reuse of the six ordinary-read descriptor schemas by assertion.
+
+When writing FILE, stage in a newly owned temporary file, validate completion, then publish to the requested destination using the supported safe file-publication policy. Do not overwrite a preexisting unrelated file without the CLI's explicit selected replacement policy. Rename/flush details must state their actual filesystem durability limits. An export failure must not leave a file that claims successful completion. A stdout failure may leave a prefix with no completion and nonzero status; never append an error Resource or a second success object to repair it.
+
+No selected Transfer command accepts --include, --omit POINTER, field selectors, raw --omit envelope, partial history filters, seed IDs or graph queries that would project away required facts. Reject such inputs before dispatch. The first complete-profile command does not invent selection semantics. List/Query remains the appropriate representation/projection path. A later selected limited transfer profile must advertise its own honest coverage; it must not inherit all-retained status.
+
+Native IDs, complete References/revisions, properties, metadata, revisionProvenance and recorded owned state in package bytes are never shortened for human display. Do not substitute a local sequence number, display Type label, alias or path with a kind segment stripped.
+
+#### 4. Import input freezing, preview and commit
+
+Accept one input file or one stdin stream. Read with declared raw/decoded/record bounds into protected owned staging while preserving exact values. Reject multiple stdin consumers or attempts to reread stdin for an automatic retry. An import request freezes package/contract/Scope/mode/force/guard meaning and one invocation key before mutation dispatch. Keep recovery material private and stable; do not log secret-bearing package bytes or publish retry keys.
+
+Dry-run performs supported complete structural, inventory, prerequisite, authorization and current-target checks and reports a plan. It performs no graph publication, identity reservation, Type installation/registration, successful mutation-key claim or lease activation. A dry-run result states that it is observational and which checks require commit-time revalidation. If it cannot validate an essential property, report it as unvalidated/unsupported and do not call the preview a guaranteed successful import. A later non-dry-run operation is distinct new work with its own frozen invocation/key and current checks.
+
+No incremental per-line/chunked commit, --best-effort or automatic non-atomic fallback is selected. Oversized atomic packages refuse truthfully. Protected staging may be disk-backed; do not imply the whole upload requires an open DB transaction or resident memory. Partial native validation must not be advertised as a full dry run.
+
+#### 5. Import results and output controls
+
+Use Cleo's actual schema-2 common invocation/result framing once the new Transfer result descriptor is registered. The envelope identifies the real selected bdp_spec independently from Transfer capability/version and executable version. Do not invent a new result_kind literal without updating the owning registry/schema. A proposed adapter can carry the complete compound native Transfer result under the existing mutation descriptor only after that descriptor explicitly admits it; the current CRUD schema alone is not proof.
+
+Default/detail gives a brief acknowledgement with the same common row helpers where applicable, plus package identity, admitted/unchanged counts, selected mode and any conflict/unknown-result diagnosis. It does not print one successful line per parsed incoming record as if each had independently committed. JSON carries one complete result/Problem under the selected descriptor. JSONL result delivery is one complete compound import outcome plus its terminal framing, not a stream of committed per-Resource mutations. Only the actual original terminal result may say committed.
+
+Result masks do not rewrite native dispositions or remove recovery/control fields. No table presentation is newly admitted for this compound mutation. Progress, bounded escaped warnings, loss notices and diagnostics use stderr; stdout stays valid for the selected output mode. Before contract binding, schema-2 diagnosis has bdp_spec:null and must not forge a native BDP Problem. A local package diagnostic has origin cli; a genuine remote BDP Problem remains unchanged with origin bdp.
+
+Preserve three distinct outcomes: known committed success; known atomic refusal; unknown original mutation disposition. A known successful import followed by rendering/file/pipe failure is output failure with its known operation outcome, not rollback or an invented unknown outcome. Unknown disposition retains the same frozen invocation/key and private recovery path/argv. No auto new-key retry, relaxed mode, changed file, encoding or selected contract.
+
+#### 6. Status mapping
+
+Use the actual canonical CLI diagnosis/status policy at the selected PR337 baseline; do not renumber shipped compatibility exits through this draft.
+
+| Status | Transfer mapping |
+| --- | --- |
+| 0 | Complete export; successful committed import including proved no-op; successful clearly labeled dry-run. |
+| 2 | Local syntax/value/encoding-selection conflicts, malformed input or incompatible flags, according to the actual diagnostic origin. |
+| 3 | Diagnosed missing target/revision only; not every missing Type or integrity refusal. |
+| 4 | Diagnosed Resource revision mismatch only; not every HTTP409, retained-address corruption or divergence. |
+| 5 | Diagnosed unsupported required capability, format family, selected mode or operation. |
+| 130 | Interrupted delivery under the existing CLI rule, with original mutation disposition/recovery preserved. |
+| 1 | Other failure, access denial, integrity/completeness/conflict failure not assigned a more precise category, output failure or unknown import outcome. |
+
+New package-specific local codes and native Transfer Problems need the owner registry/schema correspondence (profile G6); this draft does not add them to closed Core enums by implication. Preserve precise native diagnoses. Do not leak denied identities, hidden conflicts or raw sensitive fields through warnings.
+
+#### 7. Legacy compatibility is separate
+
+Legacy 1.3→graph conversion remains limited to an empty destination where selected. Native populated upsert/force semantics must not silently change legacy collision, loss or atomicity behavior. The selected legacy policy fails by default on unsupported/lossy input. A separately selected ignore-unknown-fields escape applies only to genuine unknown fields, with bounded escaped field names/counts on stderr; it does not excuse recognized incomplete projections, unsupported known fields, malformed content or collisions.
+
+Legacy dependencies, comments/labels and memory key mapping need their own actual conversion model and owner correspondence; this Transfer draft does not remap them by reusing a Resource title or inventing comment associations. Do not confuse compatibility conversion with native identity-preserving restore. No rm/reset/reinit/user-workspace action is part of import syntax or this specification.
+
+#### 8. CLI correspondence cases (not executed)
+
+- Explicit transfer JSON/JSONL produces identical logical packages; redirected stdout does not choose a format or add a schema-2 wrapper to package bytes.
+- Field masks, force+insert-only, multiple stdin consumers, unsupported modes and remapping requests refuse before mutation.
+- A late invalid package leaves no imported prefix and no fake success terminal; a broken stdout export remains detectably incomplete.
+- Import JSON/JSONL input encoding and operation-result output encoding are independent. No header guessing falls into a legacy decoder.
+- Dry-run success is observational; target change before commit is detected under fresh guards.
+- Unknown import outcome retains frozen bytes/key/argv; changed input or force intent cannot be presented as the same invocation.
+- Committed import plus renderer failure preserves known success in machine diagnosis; no claimed rollback.
+- Profile canonical/compat selection precedes parser dispatch and does not imply Transfer, Types, History or Events support.
+
+#### 9. Integration decisions
+
+No new human decision is needed for default upsert, explicit whole-Resource force, package atomicity, preregistered Types, both encodings or selector refusal for a complete backup. The CLI owner should reconcile exact family/encoding flag names, explicit-new-family transition/default and descriptor/result registration with the actual registry. Scope identity, original admission proofs and protected recovery payloads follow the genuine protocol gaps G1–G6, not client-side emulation.
+
 ### Implementation correspondence
 
 The reference above describes the proposed CLI. At Beads candidate

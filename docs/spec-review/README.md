@@ -1,17 +1,23 @@
 # Canonical specification editing
 
-This is the working Core/Write/Types/CLI review, starting from main commit `692d801231c78e12b456d8c5213bdf137a6b534d`.
+This is the working Core/Write/Types/Transfer/CLI review, starting from main commit `692d801231c78e12b456d8c5213bdf137a6b534d`.
 
 ## Open these files
 
 1. [Core](../../specs/profiles/core/core.md)
 2. [Write](../../specs/profiles/write/write.md)
 3. [Types](../../specs/profiles/types/types.md)
-4. [CLI](../cli-design/bdp-cli.md)
+4. [Transfer — proposed](../../specs/profiles/transfer/transfer.md)
+5. [CLI](../cli-design/bdp-cli.md)
 
 The [CLI mismatch audit](cli-mismatches.md) is the first-pass reconciliation list. The CLI remains a client contract: it does not add protocol capabilities through command examples.
 
 These are the specification text, not a guide to reconstructing it. Each rule belongs in its canonical document. Shared Resource, Reference, authorization, read and Event rules belong in Core; mutations and atomic write effects belong in Write; optional definition interpretation and Type constraints belong in Types.
+
+Transfer is a new proposal, with its [correspondence and remaining mappings](transfer-review.md)
+explicitly recorded. Its proposed command mapping is inline in the canonical CLI.
+Events remains optional and currently documented in Core; a separate Events
+document is a recommendation, with no clause or wire-profile move adopted.
 
 ## Donna's review loop
 
@@ -25,7 +31,7 @@ One writer owns a file at a time. When Donna takes the editorial pen, agents sto
 
 The first assembly consolidates the selected draft rules and removes the need to apply later amendments mentally. It does not reopen settled decisions or turn proposed transports, lifecycle commands or experimental extensions into requirements. Historical source is preserved in [the archive](../../specs/history/pre-canonical-20261101/README.md). It is provenance, not another current authority.
 
-Review Core, then Write, then Types, then CLI; also review their boundaries together. Approval of the complete pass produces one exact specification-baseline commit. Only then do the reference implementation and conformance tests enter their alignment pass. Implementation gaps and editorial questions remain explicit rather than quietly changing the intended contract.
+Review Core, then Write, then Types, then the proposed Transfer profile, then CLI; also review their boundaries together. Approval of the complete pass produces one exact specification-baseline commit. Only then do the reference implementation and conformance tests enter their alignment pass. Implementation gaps and editorial questions remain explicit rather than quietly changing the intended contract.
 
 ## Embedded Core schemas
 
