@@ -1,10 +1,11 @@
 # Beads Protocol specification
 
-The canonical editorial specification consists of three documents. Read them in this order:
+The editorial review corpus contains three protocol documents and the shared client specification. Read them in this order:
 
 1. [Core](profiles/core/core.md) — common Resources, identity, reads, authorization, HTTP and Events.
 2. [Write](profiles/write/write.md) — mutations, retries, final effects and optional atomic batches.
 3. [Types](profiles/types/types.md) — optional Type definitions, interpretation, conformance and constraints.
+4. [CLI](../docs/cli-design/bdp-cli.md) — shared command behavior, output and protocol correspondence. The [mismatch audit](../docs/spec-review/cli-mismatches.md) records its current reconciliation work.
 
 Each document states its current rules directly. No retained-profile wrapper, amendment list, source map or historical document is required to reconstruct a rule. Core works without Write or Types. Write and Types add their stated responsibilities without changing Core identity or read meanings.
 
@@ -17,7 +18,7 @@ Reference implementation and conformance-test alignment follow the complete spec
 ## Supporting material
 
 - [Common JSON schema](profiles/core/bdp-v0.1.schema.json) and [Types schema](profiles/types/types-v1.schema.json) are machine-readable companions. Unused historical helper definitions do not add operations to the canonical prose. Their alignment is checked explicitly as the specification is reviewed.
-- [CLI design](../docs/cli-design/bdp-cli.md) is the separate client specification. Its proposed encodings remain proposals unless expressly selected.
+- The CLI is a client specification, not another protocol profile. Its proposed encodings remain proposals unless expressly selected.
 - [Historical source](history/pre-canonical-20261101/README.md) preserves the inputs to this consolidation and their immutable original revisions.
 - [Query design context](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md), [Issue/Dependency domain draft](types/issue/issue.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
 

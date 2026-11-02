@@ -17,6 +17,7 @@ CANONICAL = (
     "specs/profiles/core/core.md",
     "specs/profiles/write/write.md",
     "specs/profiles/types/types.md",
+    "docs/cli-design/bdp-cli.md",
 )
 ENTRY_POINTS = ("README.md", "specs/README.md", "docs/spec-review/README.md")
 EDITORIAL_TOOLING = {".github/workflows/ci.yml", "scripts/check-spec-editorial.py"}
@@ -33,13 +34,23 @@ EDITORIAL_PREFIXES = (
     "specs/history/",
     "docs/spec-review/",
 )
+# Retired protocol modules have exact paths. CLI companions may legitimately
+# share a filename (for example events.md) without being a retired protocol.
 SUPERSEDED = {
-    "retained-core.md", "retained-write.md", "contract-binding.md",
-    "affiliations.md", "read-delivery.md", "resource-projection.md",
-    "publication.md", "events.md", "type-definition-read.md",
-    "object-edits.md", "link-updates.md", "atomic-batch.md", "id-root.md",
-    "types-binding.md", "exact-definition-read.md", "intrinsic-publication.md",
-    "intrinsic-publication-2.md", "type-system.md",
+    *("specs/profiles/core/" + name for name in (
+        "retained-core.md", "contract-binding.md", "affiliations.md",
+        "read-delivery.md", "resource-projection.md", "publication.md",
+        "events.md", "type-definition-read.md",
+    )),
+    *("specs/profiles/write/" + name for name in (
+        "retained-write.md", "object-edits.md", "link-updates.md",
+        "atomic-batch.md", "id-root.md",
+    )),
+    *("specs/profiles/types/" + name for name in (
+        "types-binding.md", "exact-definition-read.md",
+        "intrinsic-publication.md", "intrinsic-publication-2.md",
+    )),
+    "specs/types/type-system/type-system.md",
 }
 LINK = re.compile(r"!?\[[^\]\n]*\]\((<?[^\s)]+>?)(?:\s+\"[^\"]*\")?\)")
 REFERENCE = re.compile(r"\[([^\]\n]+)\]\[([^\]\n]*)\]")
@@ -275,7 +286,7 @@ def check_documents():
             if not target.exists():
                 failures.append(f"{relative}: missing link target: {address}")
                 continue
-            if relative in CANONICAL and target.name in SUPERSEDED:
+            if relative in CANONICAL and target.relative_to(ROOT).as_posix() in SUPERSEDED:
                 failures.append(f"{relative}: links to superseded rule module: {address}")
             if url.fragment and target.suffix == ".md":
                 try:
