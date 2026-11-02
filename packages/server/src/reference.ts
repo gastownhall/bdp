@@ -12,6 +12,8 @@ export interface ReferenceServiceOptions {
   readonly directory: string;
   readonly create: boolean;
   readonly instance: string;
+  /** Fresh explicit batch-enabled format6; default preserves ordinary format5. */
+  readonly atomicBatch?: boolean;
   /** Canonical externally routed Scope. The returned listener is loopback-only. */
   readonly scope: string;
   /** Every configured principal has complete Scope access; no partial disclosure model. */
@@ -39,13 +41,16 @@ export function referenceNavigation(scope: string): PrivateNavigation {
 }
 /** No global installation, implicit provisioning, legacy admission or Type activation.
  * Route the explicit canonical Scope to listenUrl through the deployment's proxy.
- * Events/History/Types/projection/batch are deliberately unadvertised and refused.
+ * Events/History/Types/projection remain unadvertised. Selected six-CRUD batch1
+ * is advertised with finite bounds only for an explicitly batch-enabled store.
  */
 export async function startReferenceService(options: ReferenceServiceOptions) {
   if (
     Object.keys(options).some(
-      (name) => !["directory", "create", "instance", "scope", "credentials"].includes(name),
+      (name) =>
+        !["directory", "create", "instance", "scope", "credentials", "atomicBatch"].includes(name),
     ) ||
+    (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean") ||
     !Array.isArray(options.credentials) ||
     options.credentials.some(
       (credential) =>
@@ -67,6 +72,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     credentials: options.credentials,
     navigation,
     referenceCore: true,
+    ...(options.atomicBatch === undefined ? {} : { atomicBatch: options.atomicBatch }),
   });
   return Object.freeze({
     specification: RETAINED_SPEC,
