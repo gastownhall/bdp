@@ -101,7 +101,12 @@ export function parseHistoricalUpdateView(text: string): HistoricalUpdateView {
 export function parseHistoricalUpdateTerminalView(text: string): HistoricalUpdateTerminalView {
   const value = parseRetainedObject(text);
   validate("historicalUpdateTerminalView", value);
-  parseCanonicalHttpUrl((value.terminal as RetainedJsonObject).id, "terminal identity");
+  const terminal = value.terminal as RetainedJsonObject;
+  parseCanonicalHttpUrl(terminal.id, "terminal identity");
+  if (terminal.revision === terminal.previousRevision)
+    throw new ProtocolArtifactValidationError(
+      "terminal version must differ from its live predecessor",
+    );
   return value as HistoricalUpdateTerminalView;
 }
 export function parseHistoricalUpdateProblem(text: string, status: number): RetainedJsonObject {

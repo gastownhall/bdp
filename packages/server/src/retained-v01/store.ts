@@ -774,7 +774,13 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       const selected = historicalVersion(id, input.fromRevision);
       if (selected === undefined)
         return refusal(problem("revision-unknown", 404, "after-state-change"));
-      if (selected.resource === undefined) return refusal(problem("validation-failed", 422));
+      if (selected.resource === undefined)
+        return refusal({
+          ...problem("validation-failed", 422),
+          diagnostics: [
+            { message: "Historical Update source must identify a retained live version" },
+          ],
+        });
       source = selected.resource as unknown as RetainedBead;
     }
     if (exceedsEditLimits([input.propertiesChange ?? [], input.metadataChange ?? []]))

@@ -603,9 +603,14 @@ export class RetainedClient {
       if (response.headers["bdp-resource-kind"] !== "bead") return invalid();
       privateNoStore(response);
       const text = this.#document(response, HISTORICAL_UPDATE_MEDIA);
-      const value = terminal
-        ? parseHistoricalUpdateTerminalView(text)
-        : parseHistoricalUpdateView(text);
+      let value: HistoricalUpdateView | HistoricalUpdateTerminalView;
+      try {
+        value = terminal
+          ? parseHistoricalUpdateTerminalView(text)
+          : parseHistoricalUpdateView(text);
+      } catch {
+        return invalid();
+      }
       const subject = (terminal ? value.terminal : value.resource) as RetainedJsonObject;
       if (subject.id !== uri) return invalid();
       const discovery = await this.#discovery(description(response), selectedScope, signal);

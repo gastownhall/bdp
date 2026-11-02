@@ -4,6 +4,11 @@ import { request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
+import {
+  RetainedClient,
+  createRetainedFetchTransport,
+  createHistoricalUpdateFetchTransport,
+} from "@bdp/client";
 import { startReferenceService } from "../../../packages/server/src/reference.js";
 const scope = "https://canonical.invalid/work/";
 const token = "C".repeat(32);
@@ -200,4 +205,77 @@ it("advertises only selected capability and refuses unsupported composition/carr
   expect(write.status).toBe(422);
   expect(JSON.parse(write.text).pointer).toBe("/fromRevision");
   expect((await f.wire(first.id)).status).toBe(200);
+});
+
+it("delivers a terminal-version source refusal through actual HTTP and SDK as a known validation Problem", async () => {
+  const f = await fixture();
+  const first = await f.node("terminal-source");
+  expect((await f.post("deleteBead", { bead: first.id }, "delete-source")).status).toBe(200);
+  const terminalRead = await f.wire(`${first.id}?view=terminal`, "GET", undefined, {
+    accept: feature,
+  });
+  const terminal = JSON.parse(terminalRead.text).terminal;
+  const fetchImplementation: typeof fetch = async (input, init) => {
+    const body =
+      init?.body === undefined
+        ? undefined
+        : JSON.parse(new TextDecoder().decode(init.body as Uint8Array));
+    const reply = await f.wire(
+      String(input),
+      init?.method ?? "GET",
+      body,
+      Object.fromEntries(new Headers(init?.headers)),
+    );
+    const headers = Object.fromEntries(
+      Object.entries(reply.headers).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+    const response = new Response(
+      reply.status === 204 || init?.method === "HEAD" ? null : reply.text,
+      { status: reply.status, headers },
+    );
+    Object.defineProperty(response, "url", { value: String(input) });
+    return response;
+  };
+  const options = {
+    limits: {
+      requestBodyBytes: 65536,
+      responseBodyBytes: 65536,
+      responseTimeoutMs: 1000,
+      cleanupTimeoutMs: 10,
+    },
+    allowTarget: () => true,
+    fetchImplementation,
+  };
+  const client = new RetainedClient({
+    transport: createRetainedFetchTransport(options),
+    historicalUpdateTransport: createHistoricalUpdateFetchTransport(options),
+    maximumDocumentBytes: 65536,
+    maximumRequestBodyBytes: 65536,
+    operationTimeoutMs: 1000,
+  });
+  const bound = await client.bindWrite(scope);
+  if (bound.kind !== "success") throw Error("Write binding unavailable");
+  const prepared = bound.value.prepareHistoricalUpdate(
+    JSON.stringify({
+      bead: first.id,
+      fromRevision: terminal.revision,
+      expectedRevision: terminal.revision,
+    }),
+    "terminal-is-not-content",
+  );
+  const reply = await client.submit(prepared);
+  expect(reply).toMatchObject({
+    kind: "problem",
+    http: { status: 422 },
+    problem: {
+      code: "validation-failed",
+      diagnostics: [{ message: "Historical Update source must identify a retained live version" }],
+    },
+  });
+  if (reply.kind !== "problem") throw Error("missing known source refusal");
+  expect(reply.nativeBody).toEqual(new TextEncoder().encode(JSON.stringify(reply.problem)));
+  expect((await f.wire(first.id)).status).toBe(404);
+  expect(await client.submit(prepared)).toEqual(reply);
 });

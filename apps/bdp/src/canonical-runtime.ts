@@ -318,12 +318,20 @@ export async function runCanonicalInvocation(
       return reply.value;
     };
     if (mutation && retry === undefined && initial !== undefined && /^https?:\/\//.test(initial)) {
-      if (selectedScope !== undefined) {
+      // A selected historical mutation may name a deleted canonical identity.
+      // Verify its configured owning Scope through bindWrite, without requiring
+      // a successful current Resource read as an existence prerequisite.
+      if (
+        selectedScope !== undefined ||
+        (historicalSource !== undefined &&
+          config.scope?.url !== undefined &&
+          initial.startsWith(scope))
+      ) {
         if (!initial.startsWith(scope))
           return refuse(
             "scope_binding_conflict",
             2,
-            "absolute mutation contradicts its explicit owning Scope",
+            "absolute mutation contradicts its selected owning Scope",
           );
       } else {
         const read = consume(

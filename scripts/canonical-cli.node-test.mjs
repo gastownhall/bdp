@@ -846,7 +846,7 @@ test("historical source Update undeletes same ID through emitted CLI and durable
     const unknown = await cli(
       [
         "update",
-        "a",
+        first.id,
         "--from_revision",
         `=${first.revision}`,
         "--if-revision",
@@ -883,6 +883,23 @@ test("historical source Update undeletes same ID through emitted CLI and durable
       fromRevision: first.revision,
       previousRevision: terminal.revision,
     });
+    const noop = success(
+      await cli(
+        [
+          "update",
+          "a",
+          "--from-revision",
+          `=${first.revision}`,
+          "--if-revision",
+          recovered.result.resource.revision,
+          ...json,
+        ],
+        directory,
+        scope,
+      ),
+      "mutation",
+    ).data;
+    assert.deepEqual(noop, { ...recovered, result: { ...recovered.result, changed: false } });
     const base = success(await cli(["show", "a", ...json], directory, scope), "resource");
     assert.deepEqual(base.data, recovered.result.resource);
     assert.equal(base.data.historicalUpdate, undefined);

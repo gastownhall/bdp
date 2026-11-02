@@ -97,6 +97,11 @@ it("admits only the body-free terminal view and feature read refusal", async () 
   expect(parseHistoricalUpdateTerminalView(JSON.stringify({ terminal }))).toEqual({ terminal });
   expect(() =>
     parseHistoricalUpdateTerminalView(
+      JSON.stringify({ terminal: { ...terminal, revision: terminal.previousRevision } }),
+    ),
+  ).toThrow();
+  expect(() =>
+    parseHistoricalUpdateTerminalView(
       JSON.stringify({ terminal: { ...terminal, properties: {} } }),
     ),
   ).toThrow();

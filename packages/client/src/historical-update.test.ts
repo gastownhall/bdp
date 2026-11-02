@@ -209,3 +209,43 @@ it("does not admit the pointer-free read capability refusal as a singleton Write
     ),
   ).rejects.toMatchObject({ code: "invalid-response", submission: "unknown" });
 });
+
+it("refuses a last-live token masquerading as terminal D through the actual feature read transport", async () => {
+  const description = "https://navigation.example/terminal-owner";
+  const options = {
+    limits,
+    allowTarget: () => true,
+    fetchImplementation: async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const payload =
+        url === description
+          ? { ...discovery, capabilities: { [capability]: { "1": { atomicBatch: false } } } }
+          : { terminal: { id, revision: "R7", state: "deleted", previousRevision: "R7" } };
+      const r = new Response(JSON.stringify(payload), {
+        headers: {
+          "content-type": url === description ? base : feature,
+          "cache-control": "private, no-store",
+          ...(url === description
+            ? {}
+            : {
+                "bdp-resource-kind": "bead",
+                link: `<${description}>; rel="service-desc"; type="${base}"`,
+              }),
+        },
+      });
+      Object.defineProperty(r, "url", { value: url });
+      return r;
+    },
+  };
+  const c = new RetainedClient({
+    transport: createRetainedFetchTransport(options),
+    historicalUpdateTransport: createHistoricalUpdateFetchTransport(options),
+    maximumDocumentBytes: 65536,
+    maximumRequestBodyBytes: 65536,
+    operationTimeoutMs: 1000,
+  });
+  await expect(c.readHistoricalUpdate(id, { terminal: true, scope })).rejects.toMatchObject({
+    code: "invalid-response",
+    submission: "not-submitted",
+  });
+});
