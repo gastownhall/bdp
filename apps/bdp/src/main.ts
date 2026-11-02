@@ -51,6 +51,19 @@ function diagnostic(level: "error" | "info", event: string, message: string): vo
   process.stderr.write(`${JSON.stringify({ level, event, executable, message })}\n`);
 }
 
+/** Fixed shared startup-contract diagnostics; no authored value is accepted. */
+class BootstrapConfigUsageError extends Error {
+  constructor(reason: "missing" | "empty" | "duplicate") {
+    super(
+      {
+        missing: "--config requires a path",
+        empty: "--config requires a non-empty path",
+        duplicate: "--config may be given only once",
+      }[reason],
+    );
+  }
+}
+
 /** Bootstrap registration policy using the declared option arities. No
  * command-specific parsing or network activity occurs until the profile is known. */
 export async function runBdp(args: readonly string[]): Promise<number> {
@@ -84,8 +97,10 @@ export async function runBdp(args: readonly string[]): Promise<number> {
       const value =
         at >= 0 ? argument.slice(at + 1) : arities.get(name) ? args[++index] : undefined;
       if (name === "--config") {
-        if (configSeen || value === undefined || value.length === 0)
-          throw new Error("invalid bootstrap option");
+        if (value === undefined || (at < 0 && value.startsWith("--")))
+          throw new BootstrapConfigUsageError("missing");
+        if (value.length === 0) throw new BootstrapConfigUsageError("empty");
+        if (configSeen) throw new BootstrapConfigUsageError("duplicate");
         configSeen = true;
         configFile = value;
       }
@@ -165,7 +180,15 @@ export async function runBdp(args: readonly string[]): Promise<number> {
     if (error instanceof CommanderError && error.exitCode === 0) return 0;
     // A typo may contain a credential. No argv, option value, file contents or
     // library exception text is copied to the diagnostic channel.
-    diagnostic("error", "cli.usage", "invalid command or configuration; use --help for usage");
+    // Commander stops at the first rejected option: count that refusal, not
+    // every remaining token. The shared --config errors are fixed strings.
+    const message =
+      error instanceof BootstrapConfigUsageError
+        ? `${error.message}; use --help for usage`
+        : error instanceof CommanderError && error.code === "commander.unknownOption"
+          ? "1 unsupported argument(s); use --help for usage"
+          : "invalid command or configuration; use --help for usage";
+    diagnostic("error", "cli.usage", message);
     return 2;
   }
 }

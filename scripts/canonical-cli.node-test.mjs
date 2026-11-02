@@ -82,6 +82,31 @@ test("canonical is default; help and excluded product globals use the actual pro
   try {
     const rootHelp = await cli(["--help"], directory);
     assert.equal(rootHelp.code, 0);
+    assert.match(rootHelp.stdout, /^Usage: bdp/);
+    assert.equal(rootHelp.stderr, "");
+    for (const [args, message] of [
+      [["--secret-token"], "1 unsupported argument(s); use --help for usage"],
+      [["--secret-token", "--another-secret"], "1 unsupported argument(s); use --help for usage"],
+      [["--config="], "--config requires a non-empty path; use --help for usage"],
+      [["--config", ""], "--config requires a non-empty path; use --help for usage"],
+      [["--config"], "--config requires a path; use --help for usage"],
+      [["--config", "--help"], "--config requires a path; use --help for usage"],
+      [
+        ["--config", "private-first", "--config=private-second"],
+        "--config may be given only once; use --help for usage",
+      ],
+    ]) {
+      const refused = await cli(args, directory);
+      assert.equal(refused.code, 2);
+      assert.equal(refused.stdout, "");
+      assert.deepEqual(JSON.parse(refused.stderr), {
+        level: "error",
+        event: "cli.usage",
+        executable: "bdp",
+        message,
+      });
+      assert.doesNotMatch(refused.stderr, /secret-token/);
+    }
     assert.match(rootHelp.stdout, /Read Commands:/);
     assert.match(rootHelp.stdout, /Write Commands:/);
     const createHelp = await cli(["create", "--help"], directory);
@@ -112,6 +137,7 @@ test("canonical is default; help and excluded product globals use the actual pro
     const config = path.join(directory, "config.json");
     await writeFile(config, JSON.stringify({ cli: { profile: "compat" } }));
     const compat = await cli(["--config", config, "--help"], directory);
+    assert.match(compat.stdout, /^Usage: bdp/);
     assert.doesNotMatch(compat.stdout, /Write Commands:/);
     const override = await cli(
       ["--config", config, "--cli-profile", "canonical", "--help"],

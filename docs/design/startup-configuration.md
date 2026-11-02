@@ -512,7 +512,10 @@ copied straight into a log line by the parse error that rejects it.
 
 The same rule covers the command line: an unsupported argument is reported by
 **count**, never echoed. Errors from `--config` itself are fixed strings that
-contain no user input, so they are surfaced verbatim.
+contain no user input, so they are surfaced verbatim. The Commander-based CLI
+parser stops at the first rejected option and reports that one refusal; its count
+is not an inventory of unparsed trailing arguments. Other command or configuration
+errors keep the generic sanitized diagnostic.
 
 ## Tests
 

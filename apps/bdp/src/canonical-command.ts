@@ -61,7 +61,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       .configureOutput({ writeOut: output, writeErr: error })
       .configureHelp({
         formatHelp(cmd, helper) {
-          const lines = [cmd.description(), "", "Usage:", `  ${helper.commandUsage(cmd)}`, ""];
+          const lines = [`Usage: ${helper.commandUsage(cmd)}`, "", cmd.description(), ""];
           const children = helper.visibleCommands(cmd);
           for (const group of new Set(
             children.map((child) => groups.get(child) ?? "Available Commands"),
