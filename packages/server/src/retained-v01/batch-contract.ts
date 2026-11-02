@@ -270,7 +270,9 @@ export function compareBatch(
     const comparison = compareCapturedReferences(
       member.invocation,
       (locator) => (priorCreated.has(locator) ? undefined : lookup(locator)),
-      prior,
+      // The global retained witness remains frozen, but this member's direct
+      // working-graph identity must not inherit an earlier pre-creation miss.
+      prior?.filter((witness) => !priorCreated.has(witness.locator)),
       Object.keys(member.handles).filter((field) => field !== "link") as ReferenceSlot[],
     );
     if (member.operation.startsWith("create")) {

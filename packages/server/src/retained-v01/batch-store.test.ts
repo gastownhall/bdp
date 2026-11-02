@@ -257,6 +257,60 @@ describe("atomic batch durable whole outcomes and final publication", () => {
       ),
     ).toBe("identity-taken");
   });
+  it.each(["bead-subject", "link-endpoint"])(
+    "retains failed pre-creation alias %s comparisons across later direct slots and reopen",
+    (mode) => {
+      const { store, config } = setup();
+      const first =
+        mode === "bead-subject"
+          ? { operation: "updateBead", bead: "aliases/new", properties: {} }
+          : {
+              operation: "createLink",
+              id: "must-not-allocate",
+              type,
+              source: "aliases/new",
+              target: "urn:external:target",
+            };
+      const later =
+        mode === "bead-subject"
+          ? { operation: "updateBead", bead: "aliases/new", properties: { staged: true } }
+          : {
+              operation: "createLink",
+              id: "later-link",
+              type,
+              source: "aliases/new",
+              target: "urn:external:target",
+            };
+      const input = batch([first, { operation: "createBead", id: "aliases/new", type }, later]);
+      const failure = store.batch("p", input);
+      expect(failure.status).toBe(404);
+      expect(code(failure)).toBe("resource-not-found");
+      expect(store.read(scope + "aliases/new")).toBeUndefined();
+      expect(store.read(scope + "must-not-allocate")).toBeUndefined();
+      expect(store.batch("p", input)).toEqual(failure);
+      // A later committed identity cannot reinterpret either the recorded miss or
+      // the same request's later explicit-creation comparison slots.
+      expect(
+        store.create(
+          "p",
+          prepareCreate(scope, JSON.stringify({ id: "aliases/new", type }), "later"),
+        ).status,
+      ).toBe(200);
+      store.close();
+      const reopened = openPrivateRetainedStore({ ...config, create: false });
+      cleanups.push(() => reopened.close());
+      expect(reopened.batch("p", input)).toEqual(failure);
+      expect(JSON.parse(reopened.read(scope + "aliases/new")!).properties).toEqual({});
+      expect(reopened.read(scope + "must-not-allocate")).toBeUndefined();
+      expect(reopened.read(scope + "later-link")).toBeUndefined();
+      const changed = batch([
+        first,
+        { operation: "createBead", id: "aliases/new", type },
+        { ...later, properties: { changed: true } },
+      ]);
+      expect(code(reopened.batch("p", changed))).toBe("idempotency-conflict");
+    },
+  );
   it("uses preceding explicit canonical creation IDs inside the alias namespace", () => {
     const { store } = setup();
     const outcome = store.batch(
