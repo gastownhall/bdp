@@ -13,7 +13,7 @@ import {
   RetainedFixtureGap,
   serialized,
 } from "./contract.js";
-import { createRetainedCollections, inventoryRoute } from "./collections.js";
+import { createRetainedCollections, inventoryRoute, REFERENCE_READ_LIMITS } from "./collections.js";
 import { parseEventSelection } from "./events.js";
 import { prepareLink } from "./link-contract.js";
 import { prepareAlias } from "./alias-contract.js";
@@ -197,6 +197,11 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       const raw = request.url ?? "";
       if (!host || !raw.startsWith("/") || raw.startsWith("//"))
         throw new RetainedRequestError("malformed-request", 400);
+      if (
+        options.referenceCore === true &&
+        Buffer.byteLength(raw) > REFERENCE_READ_LIMITS.request.targetBytes
+      )
+        throw new RetainedRequestError("request-too-large", 413);
       const url = new URL(raw, `http://${host}`);
       if (url.pathname + url.search !== raw || url.hash)
         throw new RetainedRequestError("malformed-request", 400);
@@ -300,7 +305,9 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             beads: navigation.beads,
             links: navigation.links,
             aliases: navigation.aliases,
-            ...(options.referenceCore === true ? {} : { events: navigation.events }),
+            ...(options.referenceCore === true
+              ? { limits: REFERENCE_READ_LIMITS }
+              : { events: navigation.events }),
             operations: navigation.operations,
           }),
         );
@@ -408,9 +415,15 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       }
     }
   }
-  const server = createServer((request, response) => {
-    void handle(request, response);
-  });
+  // The selected reference must be able to read every identity whose complete
+  // record fits the existing262144-byte store bound. The private fixture keeps
+  // its original Node default; this is a finite product transport policy.
+  const server = createServer(
+    options.referenceCore === true ? { maxHeaderSize: 1024 * 1024 } : {},
+    (request, response) => {
+      void handle(request, response);
+    },
+  );
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;
   try {

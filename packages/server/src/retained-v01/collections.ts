@@ -12,7 +12,13 @@ import {
 } from "./contract.js";
 import { inputReferenceUri } from "./reference-input.js";
 
-const selectorLimits = Object.freeze({ bytes: 8192, depth: 64, nodes: 1024 });
+export const REFERENCE_READ_LIMITS = Object.freeze({
+  page: Object.freeze({ defaultItems: 100, maximumItems: 1000 }),
+  request: Object.freeze({ targetBytes: 512 * 1024, bodyBytes: 65536 }),
+  selector: Object.freeze({ bytes: 8192, depth: 64, nodes: 1024 }),
+  retention: Object.freeze({ maximumSnapshotLifetime: "PT5M" }),
+});
+const selectorLimits = REFERENCE_READ_LIMITS.selector;
 const ordinary = [
   "type",
   "conformsTo",
@@ -46,8 +52,8 @@ export function createRetainedCollections(
   const paging = createContextualReadPagination<JsonObject>({
     scope: navigation.scope,
     resizable: true,
-    defaultPageItems: 100,
-    maxPageItems: 1000,
+    defaultPageItems: REFERENCE_READ_LIMITS.page.defaultItems,
+    maxPageItems: REFERENCE_READ_LIMITS.page.maximumItems,
     cursorTtlMs: 300000,
     retainedStateCapacity: 100000,
     maxRetainedCursorPositionsPerSnapshot: 10000,
@@ -95,7 +101,8 @@ export function createRetainedCollections(
         if (!/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
           throw new RetainedRequestError("invalid-parameter", 400);
         limit = Number(raw);
-        if (limit > 1000) throw new RetainedRequestError("limit-exceeded", 413);
+        if (limit > REFERENCE_READ_LIMITS.page.maximumItems)
+          throw new RetainedRequestError("limit-exceeded", 413);
       }
       const filters: Record<string, string> = {};
       for (const name of ["type", "source", "target", "endpoint"])
@@ -161,10 +168,23 @@ export function createRetainedCollections(
         items.sort((a, b) =>
           String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0,
         );
+        const continuationBase = new URL(url.pathname + url.search, navigation.scope);
+        if (items.length > (limit ?? REFERENCE_READ_LIMITS.page.defaultItems)) {
+          // Issue only a continuation that remains inside the target bound after
+          // ordinary limit resizing. Form serialization can expand a raw query.
+          const largestNext = new URL(continuationBase);
+          largestNext.searchParams.set("cursor", "x".repeat(39));
+          largestNext.searchParams.set("limit", String(REFERENCE_READ_LIMITS.page.maximumItems));
+          if (
+            Buffer.byteLength(largestNext.pathname + largestNext.search) >
+            REFERENCE_READ_LIMITS.request.targetBytes
+          )
+            throw new RetainedRequestError("request-too-large", 413);
+        }
         const page = paging.firstPage({
           ...identity,
           items,
-          continuationUrl: new URL(url.pathname + url.search, navigation.scope).href,
+          continuationUrl: continuationBase.href,
           ...(limit === undefined ? {} : { limit }),
         });
         unissuedFirstPages.add(page);

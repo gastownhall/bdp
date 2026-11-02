@@ -26,7 +26,7 @@ const service = await startReferenceService({
 // On shutdown: await service.close().
 ```
 
-Supply a32–256-character URL-safe secret token; no credential is generated or
+The reference Scope URL has a4096-byte configuration bound. Supply a32–256-character URL-safe secret token; no credential is generated or
 installed implicitly. Every configured principal has complete access to this
 Scope. The listener binds an ephemeral loopback port; advertised canonical HTTPS
 navigation is independent of that private transport address. This module does
@@ -58,3 +58,12 @@ The original `BdpClient`, legacy adapter/CLI startup and historical conformance
 catalogs keep their own contracts and evidence. They are not interchangeable with
 this API. See the [alignment plan](spec-review/reference-alignment.md) for current
 verification limits and [historical accounting](spec-review/historical-alignment.md).
+
+The service advertises its100-item default/1000-item maximum page,8192-byte
+Selector bound,512KiB request-target and64KiB mutation-body bounds, and five-minute
+maximum snapshot lifetime. Framing allows1MiB so committed Resource identities
+remain readable; complete records/results retain their existing262144-byte bound.
+An inventory observation scans at most32MiB of serialized records before JSON
+materialization and retains at most32MiB/one million JSON positions across active
+snapshots. Genuine hard observation limits give413; temporary retained-capacity
+pressure gives503. No partial inventory is presented as exhaustion.

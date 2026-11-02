@@ -188,3 +188,25 @@ The [review disposition](reference-review.md) records every finding, explicit
 policy-version reasoning and remaining closure/installed/full-CI duties. The pin
 refresh was applied only after the independent decision and a hash comparison of
 all14 guarded inputs. There is no readiness or merge claim at this point.
+
+## Coupled transport repair
+
+A further independent wire test demonstrated18000-byte identity creation200
+followed by default read431 from Node’s implicit header limit. The new reference
+composition now has a finite1MiB HTTP framing envelope,512KiB advertised/enforced
+request target, unchanged64KiB mutation body and unchanged262144-byte store
+representation/result bound. Its private-fixture transport and all test/run budgets
+stay unchanged. Public Scope configuration is bounded before provisioning.
+Before issuing a first cursor, the authority checks the largest form-serialized
+next at the maximum permitted limit, so a valid resize cannot cross the target
+bound. This prevents accepting a read and then issuing an unusable continuation.
+The selected transport policy is durably captured; old private/unqualified policy
+stores are refused rather than migrated or silently reinterpreted.
+
+Transport/collection qualification passes20 tests; the original long-ID431 and
+initial tuple typecheck failure remain logged. Corrected typecheck and normal
+build pass. Actual pack/install/smoke passes (including the canonical native
+client/service witness, exact pins, aliases, expiry after reopen and durable
+original response replay). Package private-process exclusion and closed module/
+export inventories passed against the installed tarballs. Final whole-suite/
+required hosted qualification and focused review closure remain mandatory.

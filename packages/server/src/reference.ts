@@ -19,6 +19,8 @@ export interface ReferenceServiceOptions {
 }
 export function referenceNavigation(scope: string): PrivateNavigation {
   const selected = parseCanonicalScope(scope);
+  if (Buffer.byteLength(selected) > 4096)
+    throw new TypeError("reference Scope URL exceeds its4096-byte configuration bound");
   const control = selected + "bdp";
   return Object.freeze({
     scope: selected,

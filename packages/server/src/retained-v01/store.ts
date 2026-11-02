@@ -192,7 +192,14 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     navigation,
     policy: EVENT_POLICY,
     ...(options.referenceCore === true
-      ? { referenceCore: { events: false, namespace: "bdp" } }
+      ? {
+          referenceCore: {
+            events: false,
+            namespace: "bdp",
+            targetBytes: 512 * 1024,
+            headerBytes: 1024 * 1024,
+          },
+        }
       : {}),
   });
   try {
@@ -831,7 +838,14 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           selection: { representation: "postimage" },
           policy: EVENT_POLICY,
           ...(options.referenceCore === true
-            ? { referenceCore: { events: false, namespace: "bdp" } }
+            ? {
+                referenceCore: {
+                  events: false,
+                  namespace: "bdp",
+                  targetBytes: 512 * 1024,
+                  headerBytes: 1024 * 1024,
+                },
+              }
             : {}),
           coverage: { start: boundary(0), retainedFrom: boundary(0), through: boundary(through) },
           events: selected.map((row) => ({ ...JSON.parse(String(row.body)), source })),

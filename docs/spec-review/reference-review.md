@@ -29,3 +29,12 @@ The review repair passes111 tests across5 affected files plus typecheck. Origina
 failures and the initial reservation implementation remain in Git/log history.
 A focused closure review, actual installed smoke and complete final qualification
 are still pending; no blocker is silently waived here.
+
+The subsequent transport witness confirmed a separate18000-byte identity
+creation200/read431 mismatch. The reference-only finite HTTP envelope and
+advertised/enforced request bounds are now coupled to committed record sizes;
+a prospective native next is checked after form serialization at maximum page
+size.20 transport/collection tests, typecheck and normal build pass. Actual packed
+smoke passes, including the new service/client page/alias/pin/reopen/original-replay
+witness and all existing public export/lifecycle/refusal controls. Full final
+suite, hosted required real-bd CI and focused closure review remain pending.

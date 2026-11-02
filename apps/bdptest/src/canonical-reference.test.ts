@@ -325,3 +325,73 @@ it("bounds a large SQLite scan before materialization and preserves readable com
   expect(point.status).toBe(200);
   expect(JSON.parse(point.text).properties.blob).toBe(blob);
 }, 30000);
+
+it("serves a long canonical identity that ordinary Write already admitted", async () => {
+  const f = await fixture();
+  const id = "a".repeat(18000);
+  const created = await f.post(
+    "createBead",
+    { id, type: "https://types.invalid/ordinary", properties: { value: true } },
+    "long-identity",
+  );
+  expect(created.status).toBe(200);
+  const full = await f.wire(scope + id);
+  expect(full.status).toBe(200);
+  expect(JSON.parse(full.text).id).toBe(scope + id);
+  const head = await f.wire(scope + id + "?view=properties", "HEAD");
+  expect(head.status).toBe(200);
+  expect(head.text).toBe("");
+});
+
+it("refuses a first page whose encoded native next would exceed its advertised target bound", async () => {
+  const f = await fixture();
+  await f.node("a");
+  await f.node("b");
+  const local = "!".repeat(60000),
+    external = "urn:large:" + "!".repeat(60000),
+    type = "https://types.invalid/" + "!".repeat(60000);
+  expect(
+    (await f.post("createBead", { id: local, type: "https://types.invalid/T" }, "long-local"))
+      .status,
+  ).toBe(200);
+  for (const id of ["one", "two"]) {
+    expect(
+      (
+        await f.post(
+          "createLink",
+          { id, type: "https://types.invalid/T", source: "a", target: "b" },
+          "base-" + id,
+        )
+      ).status,
+    ).toBe(200);
+    for (const [field, value] of [
+      ["source", scope + local],
+      ["target", external],
+      ["type", type],
+    ] as const)
+      expect(
+        (await f.post("updateLink", { link: id, [field]: value }, "update-" + id + "-" + field))
+          .status,
+      ).toBe(200);
+  }
+  const first =
+    scope +
+    "bdp/links?type=" +
+    type +
+    "&source=" +
+    scope +
+    local +
+    "&target=" +
+    external +
+    "&endpoint=" +
+    external +
+    "&limit=1";
+  expect(Buffer.byteLength(new URL(first).pathname + new URL(first).search)).toBeLessThan(
+    512 * 1024,
+  );
+  const reply = await f.wire(first);
+  expect(reply.status).toBe(413);
+  expect(JSON.parse(reply.text)).toMatchObject({ code: "request-too-large", retry: "never" });
+  expect(reply.headers["bdp-collection-kind"]).toBeUndefined();
+  expect((await f.wire(scope + "one")).status).toBe(200);
+}, 30000);
