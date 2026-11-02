@@ -997,8 +997,13 @@ deletion D it may guard the actual deletion token D, never a substituted last-li
 R7. Omitting the guard keeps ordinary behavior. A live equal-result update returns
 the entire original envelope/context without a new revision/Event. Deleted-to-live
 recovery creates one new live revision under the same identity and restores no
-Link. Ordinary deleted reads remain unchanged. Unsupported extension or ordinal
-mapping refuses before dispatch rather than dropping historical intent.
+Link. Ordinary deleted reads remain unchanged. The authorized narrow HTTP/SDK
+terminal view (`GET canonical-bead?view=terminal` with the selected feature Accept)
+supplies the actual D when a caller wants a recovery guard; a current live guard
+comes from ordinary GET. This read does not require the full History capability.
+No new canonical CLI terminal command or `versions` fallback is inferred here.
+Unsupported extension or ordinal mapping refuses before dispatch rather than
+dropping historical intent.
 
 
 ##### Results
@@ -1037,6 +1042,8 @@ same-key recovery information; it is not permission to submit a fresh write.
 ```sh
 # Copy exact retained editable content R1 while guarding actual current R7.
 bd update note-1 --from-revision =saved-r1 --if-revision saved-r7
+# Recover the same deleted Bead, guarding genuine terminal D obtained separately.
+bd update note-1 --from-revision =saved-r1 --if-revision deletion-D
 
 # Set one property while requiring the current revision.
 bd update note-1 --set-property title=Reviewed --if-revision saved-r7

@@ -413,8 +413,8 @@ recorded endpoints, pins and affiliations.
 The following behavior is selected for the historical-update extension to
 `updateBead`, from the [approved historical Update decisions](https://github.com/gastownhall/beads/issues/7719).
 This is an optional discoverable capability, not a mandatory widening of Write.
-The terminal model/navigation and source-admission granularity remain explicitly
-open in the [current carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
+The body-free terminal-version model and narrow authorized terminal read are
+selected. Exact source-admission granularity remains explicitly open in the [current carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
 No provider may claim complete support from partial structural carriers or
 internal retention alone. The initial extension applies to Beads; it adds no
 historical Link recovery, new `revert` operation, import or generic graph rollback.
@@ -488,10 +488,100 @@ Feature read success negotiates before conditional success and preserves `Vary:
 Accept`, HEAD bodylessness and representation-variant validator meaning. A base
 validator is not proof of the feature wrapper bytes. The existing current Scope
 navigation/kind and nondisclosure rules apply; a wrapper is not another identity.
-Terminal read model and navigation remain the separate open selection below.
+The narrow terminal binding below is independently selected; no full History
+implementation or historical content read is implied.
 Combined Types-required/projection/History/batch selection requires an explicit
 supported binding; these feature carriers never silently drop another selected
 meaning or claim its capability.
+
+### Body-free terminal versions and narrow authorized read
+
+For a Scope implementing historical-update1, an effectful Bead deletion commits
+one genuine fresh body-free terminal version D in that identity's committed-state
+lineage. Its direct predecessor is the actual final live published version R7.
+D is not an alias, a deletion timestamp, an allocated replacement identity, a
+copy of R7's token or an invented last-live wrapper. D and R7 MUST remain distinct
+under the ordinary same-identity revision-safety rule. Repeated deletion does not
+mint another D. A later genuine recovery R8 has actual predecessor D, and a later
+deletion produces a different terminal version. Retained older live and terminal
+versions remain subject to the applicable retention, erasure and disclosure rules.
+
+This explicitly amends the unextended no-deleted-edition rule for this optional
+capability. A base-media delete still returns its unchanged ordinary result with
+`deleted.resource.revision` identifying R7. A feature-enabled provider records D
+atomically even when that ordinary delete came from a base client; the result does
+not silently rename R7 or acquire an undeclared terminal member. Base current GET
+continues to return the ordinary deleted-object refusal. A new full deleted Bead
+body is never fabricated.
+
+A selected historical Update guards the actual committed current state: R7 while
+live or D while deleted. The optional `expectedRevision` remains a literal opaque
+token; it does not need another guard flag or ordinal grammar. The selected feature
+request/media gives this committed-state interpretation. An ordinary Update without
+`fromRevision` does not acquire recovery semantics and still refuses a deleted
+target. After another recovery R8 or deletion D2, an earlier expected D mismatches.
+Source R1 remains an independently selected live version and never supplies D.
+
+The terminal version uses the closed `historicalUpdateTerminalVersion` shape:
+`{id,revision,state:"deleted",previousRevision,revisionProvenance?}`.
+Its canonical Bead id binds both revisions to this identity. `previousRevision`
+is the actual direct live predecessor R7, not an inference from an enumeration.
+It contains no Type, properties, metadata, endpoints, owned-Link payload or native
+ordinal. Any recorded revision provenance describes the actual deletion operation
+under existing truthful-absence and actor rules; it is not copied from R7 or R1.
+No broader provenance field or native terminal wrapper is introduced.
+
+`GET canonical-bead?view=terminal` with an Accept selecting only
+`application/vnd.bdp.v0.1.historical-update.v1+json` returns the closed
+`{terminal:TERMINAL_VERSION}` wrapper for the actual current deletion version.
+`HEAD` performs the same authorization/current-state/conditional decision with
+no body. Exactly one `view=terminal` is admitted; additional or repeated query
+members are `invalid-parameter`. This initial read does not add a revision selector,
+versions listing or an exact historical content/terminal retrieval operation.
+A canonical target with no current terminal, including a live Bead, receives the
+uniform `resource-not-found`; current live guards come from ordinary GET instead.
+An alias query retains the existing uniform404 and gains no terminal forwarding.
+
+Current permission to disclose the whole terminal and its metadata is required
+before successful disclosure or conditional success. Source access alone grants
+neither that permission nor recovery authority. Undisclosable/unknown subjects
+retain uniform404; permission denial is not pruning or unavailable evidence.
+Positive erasure/pruning and temporary storage failure use their actual existing
+Problems without a fabricated terminal. A read neither recovers the subject nor
+guarantees that a subsequent expected-D guard will still match.
+
+Terminal success uses private/no-store, selected feature media, actual owning
+Scope navigation and `BDP-Resource-Kind: bead` from native subject facts; it has
+no collection-kind marker. Negotiation precedes conditional success; HEAD and
+variant-sensitive validator/Vary rules apply. Unsupported feature reads use the
+feature-local capability Problem without a request-body pointer. The terminal
+version may be compared as a guard, but its JSON wrapper is not a base Bead or a
+successful ordinary current Resource representation.
+
+This initial version selects no joint full-History binding. A provider MUST NOT
+advertise `historicalResolution` for a historical-update-enabled Scope until a
+separately reviewed binding accounts coherently for terminal versions, exact
+success unions, rows/windows/lineage, authorization, provenance and HTTP relations.
+No use of `revision-unrepresentable` as an escape hatch establishes that missing
+composition. Internal exact-source retention and this narrow terminal read do not
+qualify any part of the complete History capability. Unsupported composition must
+be refused explicitly rather than relabelled as implemented.
+
+Where Events is independently advertised, deletion and recovery must represent
+actual live-to-deleted and deleted-to-live presence transitions with final-state
+postimages and complete owner effects, not a fake live predecessor or a patch
+against R1. Base deletion results/facts retain their selected final-live meaning;
+D is the terminal-version evidence, not a renaming of that field. A concrete
+feature/Events binding must account for D and predecessor correlation before an
+advertised implementation claims that composition. The initial reference's private
+fact encoding is not a public Events advertisement. An unadvertised private log
+may retain D/previousR7 under an explicitly feature-aware recovery verifier.
+
+Deletion and recovery preserve existing ownership/incident admission and atomic
+publication. This feature requires no new owned-Link representation, terminal
+owned snapshot, duplicated graph capture or broader ownership redesign. Required
+last-current facts may reuse an existing authoritative retained record or native
+state; no second full snapshot is mandated merely to store body-free D.
 
 ### Exact source, current predecessor and independent guard
 
@@ -512,6 +602,21 @@ live token R7 MUST NOT be substituted for a genuine deletion-state revision D.
 Omission follows ordinary optional-guard semantics; recovery introduces no
 mandatory guard. Ordinary nondisclosure/refusal precedence still governs these
 checks rather than exposing a new source/current-state oracle.
+
+Exact-source refusal uses existing substantiated vocabulary. A syntactically
+valid token with no retained same-subject state or disposition is
+`revision-unknown` (not-found/404/after-state-change), not proof of pruning or a
+foreign subject. Positive known missing reconstruction is `revision-unretained`
+(conflict/409/after-state-change) with its required bounded `missing` diagnosis;
+never invent missing locations or a complete inventory from absent evidence.
+Positive erasure/pruning, reorganization, non-participation and representation
+failure keep their existing predicates, statuses and disclosure gates. Temporary
+I/O is a service failure. An authorized token naming a terminal version is not a
+live content source and fails ordinary validation; do not choose its last live
+predecessor automatically. The error never gains a foreign source URI, body,
+retention window or undocumented selector detail. Exact source permission and
+completeness granularity remains the explicit open question in the crosswalk;
+providers may not silently assume a weaker projection policy.
 
 ### Historical editable content and current structural authority
 
@@ -692,7 +797,9 @@ The Resource postimage contains the actual id, affiliation, revision, properties
 metadata, recorded provenance when present, applicable owned state and Link
 endpoints. It is the complete original transition, not a later GET or projected
 success. The deleted identity records the final live edition's exact affiliation
-and revision. Deletion mints no deleted edition or new revision. Result identity,
+and revision. Unextended deletion mints no deleted edition or new revision.
+Historical-update1 commits its separately represented terminal version as specified
+above without changing this base result. Result identity,
 kind, revision and operation MUST agree. A replay returns the same original state,
 subject to current disclosure and lawful erasure, even after later edits/deletion.
 
@@ -1093,7 +1200,8 @@ operation; a provider MUST NOT advertise a capability it cannot implement.
 
 Compare the final working graph with the committed baseline. Each final changed
 live Resource/owner gets at most one new revision; each new surviving Resource
-gets one creation revision. Existing deleted Resources get no new revision:
+gets one creation revision. In the unextended batch contract, existing deleted
+Resources get no new revision:
 their final live published version is the pre-batch version even if staged edits
 preceded deletion. Nothing publishes an intermediate version, Event or provenance.
 
@@ -1322,9 +1430,11 @@ authoritative result does not promise that another replica immediately observes
 it, or add read-your-writes checkpoints, a public epoch or hot-tier absence shortcut.
 
 Nonatomic sequence, public mutation receipts, replica synchronization, historical
-Update/recovery extensions, parameterized/richer batch encodings, native Query,
-set writes and public Type registration/lifecycle operations are not selected
-by this text. Existing historical contracts retain their own meanings. Structural
+Link recovery, unselected historical-update feature compositions,
+parameterized/richer batch encodings, native Query, set writes and public Type
+registration/lifecycle operations are not selected by this text. Historical Bead
+Update and recovery are the separately selected optional capability above; they
+are not mandatory ordinary Write duties. Existing historical contracts retain their own meanings. Structural
 schema examples and source publication do not establish provider, CLI, transaction,
 concurrency, crash/retry or consumer qualification.
 
@@ -5160,8 +5270,8 @@ in [Optional rooted creation](#optional-rooted-allocation-version-1) remain bind
 ## Historical-update1 feature schema resource
 
 These visible fragments own the feature resource above. They do not add members
-to common base schemas. Terminal carriers and source-admission permission scope
-remain receiving decisions, so structural validation alone cannot advertise the
+to common base schemas. Full-History composition and source-admission permission scope
+remain separate receiving decisions, so structural validation alone cannot advertise the
 complete extension. The operation member form records offline intent; when
 `atomicBatch:false`, that form does not promise executable batch composition.
 
@@ -5602,8 +5712,128 @@ Value: object
     },
     {
       "$ref": "#/$defs/historicalUpdateCapabilityProblem"
+    },
+    {
+      "$ref": "#/$defs/historicalUpdateReadCapabilityProblem"
     }
   ]
 }
 ```
 <!-- bdp-schema:end historicalUpdateProblem bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateTerminalVersion bundle=historical-update -->
+### Schema: "historicalUpdateTerminalVersion"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","revision","state","previousRevision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | — |
+| "previousRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+| "revision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenance" | no | — | — |
+| "state" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "state": {
+      "const": "deleted"
+    }
+  }
+}
+```
+<!-- bdp-schema:end historicalUpdateTerminalVersion bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateTerminalView bundle=historical-update -->
+### Schema: "historicalUpdateTerminalView"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["terminal"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "terminal" | ref "#/$defs/historicalUpdateTerminalVersion" | yes | — | — |
+<!-- bdp-schema:end historicalUpdateTerminalView bundle=historical-update -->
+
+<!-- bdp-schema:start historicalUpdateReadCapabilityProblem bundle=historical-update -->
+### Schema: "historicalUpdateReadCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","capability","capabilityVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | — |
+| "capabilityVersion" | schema | yes | — | — |
+| "code" | schema | yes | — | — |
+| "detail" | text | no | — | — |
+| "instance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri" | no | — | — |
+| "retry" | schema | yes | — | — |
+| "status" | schema | yes | — | — |
+| "title" | text | no | — | — |
+| "type" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/historical-update"
+    },
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end historicalUpdateReadCapabilityProblem bundle=historical-update -->

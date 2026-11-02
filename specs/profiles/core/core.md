@@ -412,9 +412,14 @@ this contract. Other graph constraints require their own supported semantics.
 
 A Resource revision is an opaque token for one version of that Resource.
 Clients compare revisions only for equality and must not derive meaning from
-their spelling. A revision covers its complete Type affiliation, properties and
-metadata and, for an owning Bead, its captured owned-Link state, and for a Link its
-complete source and target References, including pins. HTTP entity tags may represent revisions.
+their spelling. A live Resource edition's revision covers its complete Type
+affiliation, properties and metadata and, for an owning Bead, its captured owned-Link
+state, and for a Link its complete source and target References, including pins.
+The optional [historical-update terminal version](../write/write.md#body-free-terminal-versions-and-narrow-authorized-read)
+records a committed deletion state and its actual predecessor without a live
+Resource payload. It is a real version in that Bead identity's committed-state
+lineage; unextended deletion retains its existing no-deleted-edition rule.
+HTTP entity tags may represent revisions under their actual selected representation.
 
 JSON values compare by kind and content: null equals null, booleans and strings
 compare their values, arrays compare ordered elements, and objects compare the
@@ -1167,7 +1172,10 @@ The last three fields are an all-or-none group, independently of actor presence.
 `{ "state": "undetermined" }`; a present agent identity is nonempty, while an
 intentionally empty message is valid. Absence, uncertainty and a recorded value
 are distinct; never fabricate legacy metadata. Sources, source completeness,
-Activity records and terminal deletion versions are not introduced here.
+Activity records are not introduced here. Body-free terminal deletion versions
+belong only to the separately selected historical-update extension; they do not
+silently extend this unextended History carrier or its complete-Resource success
+union.
 
 ### Historical authorization
 
@@ -1240,14 +1248,23 @@ must be established separately under the current authority; a source R1 and D
 alone do not establish them. Retention or erasure of necessary evidence cannot
 be bypassed by substituting R7 or another retained body.
 
-The [terminal/carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling)
-records the concrete binding still requiring selection. This semantic requirement
-does not amend unextended History's complete-Resource success arm, infer full
-History from internal retained-source storage, or add undeclared base fields.
-A selected terminal/History extension must define explicit closed unions,
-request selection, independent disclosure and erasure behavior before support
-is advertised. Enumeration, if selected, must bind observed current-state evidence
-to its own snapshot without promising that a later guard still matches.
+The selected [narrow terminal read](../write/write.md#body-free-terminal-versions-and-narrow-authorized-read)
+uses explicit feature media and `view=terminal` on the canonical Bead. It returns
+only the actual current body-free terminal version, after independent current
+permission, while ordinary deleted GET remains unchanged. The terminal D is a
+committed version and can be the independent expected-current guard; the retained
+live source R1 cannot substitute for it. A later recovery/change makes an earlier
+expected-D guard stale.
+
+Joint full-History composition remains explicitly unselected in the
+[carrier crosswalk](../../../docs/design/historical-update-crosswalk.md#carrier-selection-requiring-a-concrete-ruling).
+Do not co-advertise complete History for a feature Scope without a reviewed
+binding for terminal exact reads, rows/windows/lineage, provenance, permissions,
+erasure and HTTP relations. In particular, do not use a speculative
+`revision-unrepresentable` fallback as proof that the composition conforms.
+The initial narrow read neither requires shipping full History nor qualifies it.
+Future enumeration must bind observed state to its own snapshot without promising
+that a later guard will still match; it must not infer ancestry from page order.
 
 ### Historical diagnoses and missing state
 
@@ -1460,8 +1477,11 @@ Core reads, retained versions and Events describe published Resource state, neve
 intermediate staging. When Write publishes one atomic decision, each surviving
 Resource has at most one final new revision and at most one lifecycle fact, exactly
 when its final revision-covered state differs from its committed baseline. A
-surviving creation has one creation revision; a deletion invents no new revision.
-Core does not require mutations or atomic-batch support.
+surviving creation has one creation revision. Unextended deletion invents no new
+revision; the separately selected historical-update capability records its one
+body-free terminal version without changing the base final-live deletion identity.
+A recovery publishes one new live version from the actual terminal predecessor.
+Core does not require mutations, historical Update or atomic-batch support.
 
 Revision-covered state comprises complete affiliation, properties, metadata,
 applicable captured owned state and, for a Link, complete source/target References.
