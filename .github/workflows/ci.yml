@@ -14,7 +14,41 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      editorial: ${{ steps.scope.outputs.editorial }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        name: Classify the complete change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          editorial=$(python3 -B scripts/check-spec-editorial.py --classify "$BASE_SHA" "$HEAD_SHA")
+          echo "editorial=$editorial" >> "$GITHUB_OUTPUT"
+          echo "Specification editorial change: $editorial"
+
+  specification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.22.1
+      - name: Check embedded schema extraction and distribution parity
+        run: |
+          node --test scripts/spec-schema-fragments.node-test.mjs
+          node scripts/spec-schema-fragments.mjs --check
+      - name: Check canonical documents, local links and JSON examples
+        run: python3 -B scripts/check-spec-editorial.py
+
+  implementation:
+    needs: changes
+    if: needs.changes.outputs.editorial != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -79,3 +113,25 @@ jobs:
         # (the gate could not inspect the claim — missing or stale build) both
         # fail the job; a claim that cannot be checked is not a passing state.
         run: pnpm evidence:verify || test $? -eq 2
+
+  verify:
+    if: always()
+    needs: [changes, specification, implementation]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the checks required for this change
+        env:
+          SCOPE_RESULT: ${{ needs.changes.result }}
+          EDITORIAL: ${{ needs.changes.outputs.editorial }}
+          SPEC_RESULT: ${{ needs.specification.result }}
+          IMPLEMENTATION_RESULT: ${{ needs.implementation.result }}
+        run: |
+          test "$SCOPE_RESULT" = success
+          test "$SPEC_RESULT" = success
+          if [ "$EDITORIAL" = true ]; then
+            test "$IMPLEMENTATION_RESULT" = skipped
+            echo "Specification editorial checks passed. Implementation qualification was not run."
+          else
+            test "$IMPLEMENTATION_RESULT" = success
+            echo "Specification and implementation checks passed."
+          fi

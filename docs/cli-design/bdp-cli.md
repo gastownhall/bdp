@@ -1,18 +1,31 @@
-# Canonical BDP CLI: retained candidate
+---
+status: editorial-draft
+intended-status: normative-client-specification
+version: "0.1"
+---
 
-This is the finite retained CLI entry, composed from the reviewed paired modules,
-not the older private C1 paper or a shipping-client claim. It uses `bdp` as the
-executable name with the requested `bd <verb>` / `bd link <verb>` hierarchy.
-[Retained profiles](retained-profiles.md), [Core](../../specs/profiles/core/retained-core.md)
-and [Write](../../specs/profiles/write/retained-write.md) define the matching protocol.
-The [completion map](../design/bdp-v0.1-retained-cutline.md) identifies actual gates.
-There are no domain conveniences, public request/receipt/snapshot/changes/sequence
-commands, or new Type verbs. `serve` is reserved and undetailed.
-The [Preview3 alignment](preview3-alignment.md) records the settled shared CLI delta,
-product extensions and exact lowering limits. It changes CLI source, not the wire
-contract or an implementation/release pin. The separate
-[Memory CLI companion](memory-cli.md) defines an optional domain command package,
-with a task walkthrough and its own explicit Type-design dependency.
+# Beads Protocol — CLI
+
+This is the canonical CLI document in Donna's Core → Write → Types → CLI review
+corpus. It defines shared client behavior and its protocol correspondence; it is
+not a statement that an installed executable implements the draft.
+
+[Core](../../specs/profiles/core/core.md),
+[Write](../../specs/profiles/write/write.md) and
+[Types](../../specs/profiles/types/types.md) define the protocol contracts.
+CLI syntax, output framing and local convenience policy do not themselves add a
+wire operation, capability or Type lifecycle. The
+[CLI mismatch audit](../spec-review/cli-mismatches.md) identifies differences still
+to reconcile in this document and its companion design material. It records review
+work, not an amendment that readers must apply to reconstruct the protocol.
+
+This draft uses `bdp` as the executable name with the requested
+`bd <verb>` / `bd link <verb>` command hierarchy. Existing `bd` examples preserve
+that hierarchy. There are no domain conveniences, public request/receipt/snapshot/
+changes/sequence commands, or selected new Type verbs. `serve` is reserved and
+undetailed. [Preview3 alignment](preview3-alignment.md) records shared CLI choices
+and product extensions; the [Memory companion](memory-cli.md) is a separate domain
+command package with its own Type-design dependency.
 
 ## Overview authoring sections
 
@@ -146,7 +159,7 @@ same command/Scope/contract/capabilities/operands/input/key and original operati
 binding; no new semantic options/default resolution or changed files. Credentials
 are obtained currently, not saved in reusable artifacts. Journaling precedes first
 transmission. Capability/guard/conflict/unknown-result diagnoses never authorize a
-fresh key automatically. [Write durability](../../specs/profiles/write/retained-write.md#standalone-key-foundation-independent-of-sequence-and-replication)
+fresh key automatically. [Write durability](../../specs/profiles/write/write.md#idempotency-and-recovery)
 is the authority contract; retry-file is private client recovery, not a public API.
 
 `--dry-run-mode batch` emits a member on ordinary CRUD commands and the complete
@@ -237,12 +250,12 @@ Required Event signatures are events [RESOURCE], link events RESOURCE with
 --representation postimage|delta and --page-size N. [D1/D2 are answered](event-decisions-20261022.md):
 postimages required, deltas optional; declared observation coverage with bounded
 replay and explicit gaps. The paired [Event CLI](events.md) and
-[native source](../../specs/profiles/core/events.md) define postimage default,
+[native source](../../specs/profiles/core/core.md#optional-events) define postimage default,
 finite JSON/polling, cursor/coverage and the six mutation-name delta vocabulary.
 No predicate language, masks, wire provenance suppression or changes command is
 added. Required unknown semantics stop progress. Actual Types/source integration
 and implementation qualification remain gates.
-[Final batch publication](../../specs/profiles/core/publication.md) emits facts for
+[Final batch publication](../../specs/profiles/write/write.md#final-atomic-publication) emits facts for
 final Resource transitions, with at most one new revision per affected Resource;
 input mappings and unique final outcomes replace per-member postimages.
 
@@ -308,7 +321,7 @@ Deleting a Bead or Link does not make its ID available for reuse. A generated
 ID is its actual identity, not a shortened display name.
 
 `--id ID` sends `id`; `--id-root ROOT` sends `idRoot` under the selected
-[id-root allocation capability](../../specs/profiles/write/id-root.md). The service
+[id-root allocation capability](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1). The service
 chooses and reserves the complete ID atomically. Emission preserves the root and
 reserves nothing; absent support refuses without client allocation or fallback.
 
@@ -397,7 +410,7 @@ See the [URL revision example](#show-examples).
 The [Types companion](types-cli.md) presents the ordinary operations together;
 its [first local sequence](types-first-sequence.md) separates real metatype/definition
 work from the explicitly temporary instance-creation placeholder. The selected
-[Types1 binding](../../specs/profiles/types/types-binding.md) requires rejectable
+[Types1 binding](../../specs/profiles/types/types.md#12-types1-capability-and-rejectable-selection) requires rejectable
 feature selection when an operation depends on Types semantics; no new user version
 flag or Type lifecycle command is implied.
 
@@ -466,7 +479,7 @@ are applied first, followed by omissions, using the original field paths.
 A Resource's ID, Type, revision and Link endpoints remain available as context.
 Field selection changes represented fields, not which records are selected.
 For Resource point reads and ordinary List, these flags select the independent
-[native projection capability](../../specs/profiles/core/resource-projection.md):
+[native projection capability](../../specs/profiles/core/core.md#optional-resource-projection):
 `projectionVersion=1` plus encoded `fields`. Unsupported support refuses.
 Properties-only masks apply locally to that native view. Other native views do
 not acquire this capability through display controls.
@@ -532,7 +545,7 @@ Scope, operands, Type, guard, inputs or key. It reuses the saved operation bindi
 and frozen bytes; it does not reread input files or resolve a new Type default.
 Credentials are obtained for the current attempt. An uncertain outcome stays
 uncertain until same-key recovery establishes its disposition. A failed render
-does not undo a known successful write. See [Write durability](../../specs/profiles/write/retained-write.md#standalone-key-foundation-independent-of-sequence-and-replication).
+does not undo a known successful write. See [Write durability](../../specs/profiles/write/write.md#idempotency-and-recovery).
 
 MODE is `batch` or `bdp`. Member mode emits one compact JSON object and a newline;
 batch-only references use `batch-ref::NAME` in admitted operand positions. The
@@ -570,7 +583,7 @@ result-level `source`/`sourceRevision` pair is not an
 alternative v0.1 spelling. Endpoint fields inside the Link record retain their
 ordinary meanings. Batch Link rows use the same complete context and include
 each owner's unique final Resource outcome. See the
-[complete result rules](../../specs/profiles/write/link-updates.md#complete-owner-revision-context).
+[complete result rules](../../specs/profiles/write/write.md#ordinary-results).
 
 <a id="collection-paging"></a>
 
@@ -1541,7 +1554,7 @@ Reference floats that endpoint and deliberately removes an earlier pin; a pinned
 Reference supplies the selected exact edition. Duplicate bindings refuse even
 when equal. Identity, Resource kind and owning Scope of the Link stay fixed.
 Ordinary endpoint kind, Scope/external-endpoint policy, exact Reference resolution
-and Type constraints still apply. See [endpoint corrections](../../specs/profiles/write/link-updates.md).
+and Type constraints still apply. See [endpoint corrections](../../specs/profiles/write/write.md#object-edits-and-endpoint-corrections).
 
 Endpoint and Type corrections can affect the initial and final source owners.
 The provider admits and publishes the Link and all induced owner effects
@@ -2474,7 +2487,7 @@ The selected version must be implemented by the compiler and advertised by the
 authority for execution. Every native request states the exact version; no
 provider-driven version choice, automatic downgrade or reinterpretation is
 allowed. Transaction-scoped List and Query are advertised independently.
-Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/id-root.md) separately selects rooted creation. Named List/Query selection and set targets belong
+Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1) separately selects rooted creation. Named List/Query selection and set targets belong
 to the explicitly proposed version-2 grammar. Unsupported selection refuses;
 there is no downgrade, client-side preselection, independent-write fallback or
 automatic chunking.
@@ -2559,7 +2572,7 @@ JSONL output carries its complete compound result as one item.
 
 Member emission writes one compact JSON object and a newline. Batch emission
 writes one complete versioned native wrapper. Neither is a successful mutation
-result. See the [retained wire result contract](../../specs/profiles/write/atomic-batch.md#final-results-not-intermediate-postimages)
+result. See the [retained wire result contract](../../specs/profiles/write/write.md#atomic-batch-results-and-recovery)
 and [new selection examples](overview/06-batch.md).
 
 ##### Errors and exit status

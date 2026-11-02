@@ -5,25 +5,30 @@
   "description": "Staged JSON Schema2020-12 artifact for the v0.1 selected-contract binding. Version and optional capability discovery are explicit; remaining inherited profile, Type, Event and advanced grammar is not an adoption or retention commitment. Complete retained-surface composition is required before advertising v0.1. The separate v0 artifact remains unchanged for held runtime/evidence.",
   "$defs": {
     "absoluteHttpUrl": {
-      "type": "string",
+      "description": "Absolute HTTP(S) URL used for canonical in-Scope identities and discovered navigation. Equality, canonical path spelling, ownership and non-reuse are additionally governed by the Scope rules.",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "type": "string"
     },
     "absoluteUri": {
-      "type": "string",
+      "description": "Absolute URI carried for an opaque out-of-Scope Link endpoint or other explicitly URI-valued context. This syntax supplies no existence, kind, access or immutability guarantee.",
       "format": "uri",
-      "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:"
+      "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:",
+      "type": "string"
     },
     "bdpVersion": {
-      "const": "0.1"
+      "const": "0.1",
+      "description": "Exact protocol-version discriminator. Version 0.1 selects this complete draft contract rather than an executable, a Git revision or a capability range."
     },
     "protocolProfile": {
       "enum": ["read", "read-update", "transactional"]
     },
     "retryDisposition": {
+      "description": "Protocol retry guidance. A refusal does not authorize changing semantic intent or minting a fresh execution key to evade durable no-reexecution.",
       "enum": ["never", "after-state-change", "after-delay"]
     },
     "readProblemCode": {
+      "description": "Closed vocabulary of Core read diagnoses, including bounded History missing-state failures. HTTP disclosure and precedence rules still govern which diagnosis can be exposed.",
       "enum": [
         "malformed-request",
         "invalid-parameter",
@@ -46,33 +51,9 @@
       ]
     },
     "readProblem": {
+      "description": "Core Problem Details carrier. Type/code/status/retry combinations and History-specific fields are constrained together; schema validity alone does not prove the original request was authorized.",
       "title": "BDP Read Problem Details",
       "type": "object",
-      "required": ["type", "code", "retry"],
-      "properties": {
-        "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "title": {
-          "type": "string"
-        },
-        "status": {
-          "type": "integer",
-          "enum": [400, 401, 403, 404, 409, 410, 413, 429, 503]
-        },
-        "detail": {
-          "type": "string"
-        },
-        "instance": {
-          "$ref": "#/$defs/absoluteUri"
-        },
-        "code": {
-          "$ref": "#/$defs/readProblemCode"
-        },
-        "retry": {
-          "$ref": "#/$defs/retryDisposition"
-        }
-      },
       "allOf": [
         {
           "if": {
@@ -588,7 +569,39 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/readProblemCode",
+          "description": "Stable machine-readable Problem diagnosis, interpreted with type and retry."
+        },
+        "detail": {
+          "type": "string",
+          "description": "Human-readable detail that obeys authorization and non-disclosure."
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri",
+          "description": "Optional URI identifying this failure occurrence."
+        },
+        "retry": {
+          "$ref": "#/$defs/retryDisposition",
+          "description": "Required retry disposition for this exact diagnosis; it does not authorize changing intent."
+        },
+        "status": {
+          "type": "integer",
+          "enum": [400, 401, 403, 404, 409, 410, 413, 429, 503],
+          "description": "HTTP status associated with this Problem; protocol decision order remains binding."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short human-readable Problem summary."
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute stable Problem-type identity URI for this diagnosis, consistent with code/status/retry."
+        }
+      },
+      "required": ["type", "code", "retry"]
     },
     "typeIdArray": {
       "type": "array",
@@ -764,35 +777,31 @@
       "additionalProperties": false
     },
     "properties": {
+      "description": "Application-authored object state. A URI-valued property does not create a Link, and the Core carrier imposes no Type-specific property schema.",
       "type": "object",
       "additionalProperties": true
     },
     "metadata": {
+      "description": "Common mutable object state independent of Type-specific properties. A complete read always includes it; the empty object records no metadata members.",
       "type": "object",
       "additionalProperties": true
     },
     "beadRecord": {
+      "description": "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance or captured owned-Link state. Included incident links are a separately selected current aggregate.",
       "type": "object",
-      "required": ["id", "type", "revision", "properties"],
+      "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "type": {
-          "$ref": "#/$defs/typeReference"
-        },
-        "revision": {
-          "type": "string",
-          "minLength": 1
-        },
-        "properties": {
-          "$ref": "#/$defs/properties"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute canonical immutable Resource identity URL."
         },
         "links": {
-          "$ref": "#/$defs/linkCollection"
+          "$ref": "#/$defs/linkCollection",
+          "description": "Separately selected current incident-Link aggregate. It is not captured owned state or an exact historical graph."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Common mutable object content, independent of Type-specific properties."
         },
         "ownedLinks": {
           "type": "object",
@@ -804,47 +813,72 @@
             "items": {
               "$ref": "#/$defs/linkRecord"
             }
-          }
+          },
+          "description": "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input."
         },
-        "revisionProvenance": {
-          "$ref": "#/$defs/revisionProvenance"
-        }
-      },
-      "additionalProperties": false
-    },
-    "linkRecord": {
-      "type": "object",
-      "required": ["id", "type", "revision", "source", "target", "properties"],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "type": {
-          "$ref": "#/$defs/typeReference"
+        "properties": {
+          "$ref": "#/$defs/properties",
+          "description": "Application-authored object content selected by the containing representation."
         },
         "revision": {
           "type": "string",
-          "minLength": 1
-        },
-        "source": {
-          "$ref": "#/$defs/reference"
-        },
-        "target": {
-          "$ref": "#/$defs/reference"
-        },
-        "properties": {
-          "$ref": "#/$defs/properties"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
         },
         "revisionProvenance": {
-          "$ref": "#/$defs/revisionProvenance"
+          "$ref": "#/$defs/revisionProvenance",
+          "description": "Immutable carried attribution for this concrete version; it authenticates no principal."
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference",
+          "description": "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition."
         }
       },
-      "additionalProperties": false
+      "required": ["id", "type", "revision", "properties", "metadata"]
+    },
+    "linkRecord": {
+      "description": "Complete directed Link representation. Source and target are whole References; Link identity remains independent of their tuple. Current-state admission requires at least one live in-Scope Bead endpoint. Retained records and facts preserve their recorded endpoints without revalidating them against today’s live state.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute canonical immutable Resource identity URL."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Common mutable object content, independent of Type-specific properties."
+        },
+        "properties": {
+          "$ref": "#/$defs/properties",
+          "description": "Application-authored object content selected by the containing representation."
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenance",
+          "description": "Immutable carried attribution for this concrete version; it authenticates no principal."
+        },
+        "source": {
+          "$ref": "#/$defs/reference",
+          "description": "Whole source Reference of this directed Link, preserving any exact revision pin."
+        },
+        "target": {
+          "$ref": "#/$defs/reference",
+          "description": "Whole target Reference of a Link, preserving any exact revision pin."
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference",
+          "description": "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition."
+        }
+      },
+      "required": ["id", "type", "revision", "source", "target", "properties", "metadata"]
     },
     "currentLinkRecord": {
+      "description": "Current Link read carrier, including common metadata. This helper adds no identity, mutation or traversal behavior.",
       "allOf": [
         {
           "$ref": "#/$defs/linkRecord"
@@ -861,6 +895,7 @@
       ]
     },
     "currentLinkCollection": {
+      "description": "Current Link inventory page whose items use current Link carriers. An empty page is not proof of exhaustion when next is nonnull.",
       "allOf": [
         {
           "$ref": "#/$defs/linkCollection"
@@ -879,6 +914,7 @@
       ]
     },
     "currentBeadRecord": {
+      "description": "Current Bead read carrier. Common metadata is present and any included incident or owned Links use complete current Link carriers; this helper adds no read operation.",
       "allOf": [
         {
           "$ref": "#/$defs/beadRecord"
@@ -907,6 +943,7 @@
       ]
     },
     "currentBeadCollection": {
+      "description": "Current Bead inventory page whose items use current Bead carriers. Its continuation retains the admitted selection and authorization context.",
       "allOf": [
         {
           "$ref": "#/$defs/beadCollection"
@@ -925,14 +962,16 @@
       ]
     },
     "beadCollection": {
+      "description": "One finite page of complete Bead records and an absolute continuation URL or explicit null on observed exhaustion. Items do not acquire a separate href/value wrapper.",
       "type": "object",
-      "required": ["items", "next"],
+      "additionalProperties": false,
       "properties": {
         "items": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/beadRecord"
-          }
+          },
+          "description": "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation."
         },
         "next": {
           "oneOf": [
@@ -942,20 +981,23 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted."
         }
       },
-      "additionalProperties": false
+      "required": ["items", "next"]
     },
     "linkCollection": {
+      "description": "One finite page of complete Link records and an absolute continuation URL or explicit null. Parallel Link identities remain distinct.",
       "type": "object",
-      "required": ["items", "next"],
+      "additionalProperties": false,
       "properties": {
         "items": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/linkRecord"
-          }
+          },
+          "description": "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation."
         },
         "next": {
           "oneOf": [
@@ -965,18 +1007,21 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted."
         }
       },
-      "additionalProperties": false
+      "required": ["items", "next"]
     },
     "positiveInteger": {
-      "type": "integer",
-      "minimum": 1
+      "description": "Positive integral JSON number used for a declared bound or count. Implementations must preserve the specified numeric value rather than rely on a language-specific integer class.",
+      "minimum": 1,
+      "type": "integer"
     },
     "iso8601Duration": {
-      "type": "string",
-      "pattern": "^P(?!$)"
+      "description": "ISO 8601 duration string used for advertised lifetimes. The containing contract determines the promised interval and forbids silently shortening issued obligations.",
+      "pattern": "^P(?!$)",
+      "type": "string"
     },
     "advertisedLimits": {
       "type": "object",
@@ -1102,20 +1147,24 @@
       "additionalProperties": false
     },
     "maximumEndpointMultiplicityPolicy": {
+      "description": "Native Scope constraint over stored in-Scope Link incidence. It names the Link family, endpoint role and positive maximum; it does not inspect a foreign authority’s Link table.",
       "type": "object",
-      "required": ["linkConformsTo", "endpoint", "max"],
+      "additionalProperties": false,
       "properties": {
-        "linkConformsTo": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "endpoint": {
-          "enum": ["source", "target"]
+          "enum": ["source", "target"],
+          "description": "Endpoint role to which the native incidence maximum applies."
+        },
+        "linkConformsTo": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Nominal Link-Type family constrained by this native policy."
         },
         "max": {
-          "$ref": "#/$defs/positiveInteger"
+          "$ref": "#/$defs/positiveInteger",
+          "description": "Positive maximum for the explicitly selected Scope policy."
         }
       },
-      "additionalProperties": false
+      "required": ["linkConformsTo", "endpoint", "max"]
     },
     "readDiscovery": {
       "type": "object",
@@ -1164,6 +1213,7 @@
       "additionalProperties": false
     },
     "reference": {
+      "description": "A floating absolute URI or an exact URI-and-revision pair. The containing field determines whether only HTTP(S) identities are admissible; a pin is never merged with another Reference.",
       "oneOf": [
         {
           "$ref": "#/$defs/absoluteUri"
@@ -1174,18 +1224,21 @@
       ]
     },
     "pinnedReference": {
+      "description": "Complete exact Reference. Both URI and nonempty opaque revision are mandatory, with no undeclared members. Its revision denotes recorded content, not an implicit current selector.",
       "type": "object",
-      "required": ["uri", "revision"],
+      "additionalProperties": false,
       "properties": {
-        "uri": {
-          "$ref": "#/$defs/absoluteUri"
-        },
         "revision": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
+        },
+        "uri": {
+          "$ref": "#/$defs/absoluteUri",
+          "description": "Complete target identity carried by this Reference. Relative paths and partial Reference objects are not admitted."
         }
       },
-      "additionalProperties": false
+      "required": ["uri", "revision"]
     },
     "ownedLinkDeclaration": {
       "type": "object",
@@ -1291,8 +1344,9 @@
       "minLength": 1
     },
     "jsonPointer": {
-      "type": "string",
-      "pattern": "^(/([^/~]|~[01])*)*$"
+      "description": "JSON Pointer carrier. Pointer evaluation, escaping and projection restrictions are defined by the selected operation; a syntactically valid pointer alone grants no access.",
+      "pattern": "^(/([^/~]|~[01])*)*$",
+      "type": "string"
     },
     "propertyChange": {
       "type": "array",
@@ -1922,24 +1976,29 @@
       "enum": ["created", "updated", "deleted"]
     },
     "resourceKind": {
+      "description": "The two protocol Resource kinds. Kind is immutable and established by the resolved Resource, never inferred from its URL path.",
       "enum": ["bead", "link"]
     },
     "resourceIdentity": {
+      "description": "Complete identity, Type affiliation and concrete revision recorded for a Resource, including a deletion fact. It is not a live Resource postimage and carries no mutable properties.",
       "type": "object",
-      "required": ["id", "type", "revision"],
+      "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "type": {
-          "$ref": "#/$defs/typeReference"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute canonical immutable Resource identity URL."
         },
         "revision": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource version."
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference",
+          "description": "Complete recorded Type affiliation, preserving any revision pin."
         }
       },
-      "additionalProperties": false
+      "required": ["id", "type", "revision"]
     },
     "deletedIdentity": {
       "type": "object",
@@ -2962,16 +3021,19 @@
       "additionalProperties": false
     },
     "wireToken": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9_-]{1,256}$"
+      "description": "Nonempty opaque token whose scope and meaning are determined by its containing cursor, fact or correlation field. Tokens from different namespaces are not interchangeable.",
+      "pattern": "^[A-Za-z0-9_-]{1,256}$",
+      "type": "string"
     },
     "revision": {
-      "type": "string",
-      "minLength": 1
+      "description": "Nonempty opaque Resource-version token. Clients compare it for exact equality and cannot infer order, time, allocation or a special current value from its spelling.",
+      "minLength": 1,
+      "type": "string"
     },
     "dateTime": {
-      "type": "string",
-      "format": "date-time"
+      "description": "RFC 3339 date-time carrier. Emission uses a valid calendar and clock, uppercase T and Z; the prose governs accepted spellings and precision.",
+      "format": "date-time",
+      "type": "string"
     },
     "typedLinkReference": {
       "type": "object",
@@ -3357,8 +3419,9 @@
       "additionalProperties": false
     },
     "selector": {
-      "type": "string",
-      "minLength": 1
+      "description": "Nonempty ordinary bounded Selector string. Its candidate-local grammar, limits and admitted operators are defined by Selection; it never silently becomes the structured Query AST.",
+      "minLength": 1,
+      "type": "string"
     },
     "cardinality": {
       "type": "object",
@@ -5312,16 +5375,19 @@
       "additionalProperties": false
     },
     "historyCapability": {
+      "description": "History version-1 advertisement. It commits to the complete exact-read and retained-versions contract, not merely an event timeline or a current-record lookup.",
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "version": {
-          "const": 1
+          "const": 1,
+          "description": "Exact selected feature version. No version ordering or implicit upgrade is defined."
         }
       },
-      "required": ["version"],
-      "additionalProperties": false
+      "required": ["version"]
     },
     "contextString": {
+      "description": "Explicit immutable context value: present carries a nonempty string, absent records known absence, and undetermined records unavailable knowledge. No state authenticates an agent.",
       "oneOf": [
         {
           "type": "object",
@@ -5350,6 +5416,7 @@
       ]
     },
     "contextMessage": {
+      "description": "Explicit immutable message context: present carries a string, including an empty message; absent and undetermined distinguish known absence from unavailable knowledge.",
       "oneOf": [
         {
           "type": "object",
@@ -5377,6 +5444,7 @@
       ]
     },
     "contextTime": {
+      "description": "Explicit immutable commit-time context: present carries a date-time and undetermined records unavailable knowledge. There is no absent time arm. This envelope is not a timestamp string or a revision-order proof.",
       "oneOf": [
         {
           "type": "object",
@@ -5404,6 +5472,7 @@
       ]
     },
     "historyMissingItem": {
+      "description": "One unavailable component needed for an exact response: the subject record, a selected property path, or captured owned-Link state. The bounded diagnosis preserves known location without substituting current content.",
       "oneOf": [
         {
           "type": "object",
@@ -5452,21 +5521,8 @@
       ]
     },
     "historyMissing": {
+      "description": "Bounded missing-state diagnosis for revision-unretained. Complete states whether the item list is exhaustive; it cannot falsely certify reconstruction or erase undisclosed dependencies.",
       "type": "object",
-      "properties": {
-        "complete": {
-          "type": "boolean"
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/historyMissingItem"
-          },
-          "maxItems": 64,
-          "uniqueItems": true
-        }
-      },
-      "required": ["complete", "items"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -5487,55 +5543,51 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "complete": {
+          "type": "boolean",
+          "description": "Whether the stated bounded information is exhaustive under the containing contract."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/historyMissingItem"
+          },
+          "maxItems": 64,
+          "uniqueItems": true,
+          "description": "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation."
+        }
+      },
+      "required": ["complete", "items"]
     },
     "historyVersionRow": {
+      "description": "One retained Resource-version summary. Revision, lineage and body completeness describe actual retained version state; deletion is not represented as a synthetic version row.",
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "revision": {
-          "$ref": "#/$defs/revision"
+        "body": {
+          "enum": ["complete", "incomplete"],
+          "description": "Whether the row’s retained version can currently produce its complete recorded representation, including required owned state."
         },
         "lineage": {
-          "enum": ["current", "replaced"]
+          "enum": ["current", "replaced"],
+          "description": "Whether the row belongs to the current or a replaced retained lineage; this is not a revision-order comparison."
         },
-        "body": {
-          "enum": ["complete", "incomplete"]
+        "revision": {
+          "$ref": "#/$defs/revision",
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
         },
         "revisionProvenance": {
-          "$ref": "#/$defs/revisionProvenance"
+          "$ref": "#/$defs/revisionProvenance",
+          "description": "Immutable carried attribution for this concrete version; it authenticates no principal."
         }
       },
-      "required": ["revision", "lineage", "body"],
-      "additionalProperties": false
+      "required": ["revision", "lineage", "body"]
     },
     "historyWindow": {
+      "description": "Known retained-version window and completeness. Null endpoints describe an empty or unavailable window under the participation rules; tokens are not ordered arithmetically.",
       "type": "object",
-      "properties": {
-        "newest": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/revision"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "oldest": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/revision"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "complete": {
-          "type": "boolean"
-        }
-      },
-      "required": ["newest", "oldest", "complete"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -5562,41 +5614,40 @@
             }
           }
         }
-      ]
-    },
-    "historyVersionsPage": {
-      "type": "object",
+      ],
       "properties": {
-        "subject": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+        "complete": {
+          "type": "boolean",
+          "description": "Whether the stated bounded information is exhaustive under the containing contract."
         },
-        "population": {
-          "const": "all-retained"
-        },
-        "participation": {
-          "enum": ["tracked", "not-tracked", "undetermined"]
-        },
-        "window": {
-          "$ref": "#/$defs/historyWindow"
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/historyVersionRow"
-          }
-        },
-        "next": {
+        "newest": {
           "anyOf": [
             {
-              "$ref": "#/$defs/absoluteHttpUrl"
+              "$ref": "#/$defs/revision"
             },
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Newest known retained revision or explicit null under the stated window rules."
+        },
+        "oldest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Oldest known retained revision or explicit null under the stated window rules."
         }
       },
-      "required": ["subject", "population", "participation", "window", "items", "next"],
+      "required": ["newest", "oldest", "complete"]
+    },
+    "historyVersionsPage": {
+      "description": "Finite all-retained History page. Subject, participation, window, items and next remain explicit, and nonparticipating/undetermined subjects do not acquire invented rows.",
+      "type": "object",
       "additionalProperties": false,
       "allOf": [
         {
@@ -5631,9 +5682,47 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/historyVersionRow"
+          },
+          "description": "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation."
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted."
+        },
+        "participation": {
+          "enum": ["tracked", "not-tracked", "undetermined"],
+          "description": "Whether this subject is tracked, not tracked or cannot be determined under the History contract."
+        },
+        "population": {
+          "const": "all-retained",
+          "description": "Explicit retained population selector; it does not assert current live membership."
+        },
+        "subject": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Canonical Resource identity to which this retained page or Resource-scoped observation applies."
+        },
+        "window": {
+          "$ref": "#/$defs/historyWindow",
+          "description": "Known retained-history boundaries and completeness, never a synthetic history."
+        }
+      },
+      "required": ["subject", "population", "participation", "window", "items", "next"]
     },
     "historicalBeadRecord": {
+      "description": "Complete exact Bead representation. Current incident-Link aggregates are excluded; captured owned-Link state comes from that recorded version.",
       "allOf": [
         {
           "$ref": "#/$defs/beadRecord"
@@ -5647,7 +5736,8 @@
       ]
     },
     "historicalLinkRecord": {
-      "$ref": "#/$defs/linkRecord"
+      "$ref": "#/$defs/linkRecord",
+      "description": "Complete exact Link representation retaining its recorded whole source/target and Type References. Current defaults or pins cannot replace them."
     },
     "revisionAllocationUnsafeProblem": {
       "allOf": [
@@ -5665,42 +5755,50 @@
       ]
     },
     "revisionActor": {
+      "description": "Recorded principal and explicit attribution basis. Writer-supplied and unknown describe how the value was carried; neither asserts authentication.",
       "type": "object",
-      "required": ["id", "basis"],
+      "additionalProperties": false,
       "properties": {
         "basis": {
           "type": "string",
-          "enum": ["writer-supplied", "unknown"]
+          "enum": ["writer-supplied", "unknown"],
+          "description": "How the principal value was carried: writer-supplied or unknown. Neither means authenticated."
         },
         "id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Opaque recorded principal identifier, such as agent:planner. It is not a Resource URL or an authentication assertion."
         }
       },
-      "additionalProperties": false
+      "required": ["id", "basis"]
     },
     "revisionProvenance": {
-      "type": "object",
-      "minProperties": 1,
-      "properties": {
-        "actor": {
-          "$ref": "#/$defs/revisionActor"
-        },
-        "committedAt": {
-          "$ref": "#/$defs/contextTime"
-        },
-        "agent": {
-          "$ref": "#/$defs/contextString"
-        },
-        "message": {
-          "$ref": "#/$defs/contextMessage"
-        }
-      },
-      "additionalProperties": false,
       "dependentRequired": {
         "committedAt": ["agent", "message"],
         "agent": ["committedAt", "message"],
         "message": ["committedAt", "agent"]
+      },
+      "description": "Optional per-version attribution envelope. Actor attribution is independent of the optional complete committedAt/agent/message tuple; omission does not invent an actor or context.",
+      "minProperties": 1,
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/revisionActor",
+          "description": "Carried principal attribution and explicit basis, independent of the optional History context tuple."
+        },
+        "agent": {
+          "$ref": "#/$defs/contextString",
+          "description": "Immutable carried agent label, not an authentication result."
+        },
+        "committedAt": {
+          "$ref": "#/$defs/contextTime",
+          "description": "Immutable recorded commit-time context, present with agent and message as one complete tuple."
+        },
+        "message": {
+          "$ref": "#/$defs/contextMessage",
+          "description": "Immutable carried change message, present with committedAt and agent."
+        }
       }
     },
     "revisionProvenanceInput": {
@@ -5728,6 +5826,7 @@
       "additionalProperties": false
     },
     "capabilityAdvertisements": {
+      "description": "Map from absolute capability identity URI to explicitly supported versions. Unknown optional capabilities can be ignored without changing known base behavior; advertisement is neither request selection nor permission.",
       "type": "object",
       "propertyNames": {
         "$ref": "#/$defs/absoluteUri"
@@ -5749,22 +5848,8 @@
                 }
               }
             }
-          ]
-        },
-        "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/capabilityVersionAdvertisements"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "1": {
-                  "$ref": "#/$defs/typeDefinitionReadCapabilityV1"
-                }
-              }
-            }
-          ]
+          ],
+          "description": "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1."
         },
         "https://github.com/gastownhall/bdp/capabilities/resource-projection": {
           "allOf": [
@@ -5779,13 +5864,31 @@
                 }
               }
             }
-          ]
+          ],
+          "description": "Supported projection versions and their point/exact/inventory support flags."
+        },
+        "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/typeDefinitionReadCapabilityV1"
+                }
+              }
+            }
+          ],
+          "description": "Supported exact-definition lookup versions and their independently advertised operation navigation."
         }
       }
     },
     "capabilityVersionAdvertisements": {
-      "type": "object",
+      "description": "Map from exact nonempty version string to that version’s detail object. Versions are opaque, unordered and have no implicit compatibility range.",
       "minProperties": 1,
+      "type": "object",
       "propertyNames": {
         "type": "string",
         "minLength": 1
@@ -5795,7 +5898,7 @@
       }
     },
     "typeReference": {
-      "description": "A Type affiliation: an absolute HTTP(S) nominal Type identity, optionally pinned to an exact opaque definition revision. Local paths and creation bindings are not admitted. Types-profile stored/output affiliations require the pinned form; Core alone does not interpret definitions.",
+      "description": "A nominal Type affiliation: an absolute HTTP(S) Type identity or an exact pinned Type Reference. Carrying it does not activate Types interpretation.",
       "oneOf": [
         {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -5806,7 +5909,7 @@
       ]
     },
     "pinnedTypeReference": {
-      "description": "The common closed pinned Reference shape, restricted to the admitted absolute HTTP(S) Type identity domain. This does not impose Link endpoint or source-pin semantics.",
+      "description": "Exact Type affiliation using an absolute HTTP(S) Type identity and a nonempty opaque revision. Both members travel together.",
       "allOf": [
         {
           "$ref": "#/$defs/pinnedReference"
@@ -6067,44 +6170,53 @@
       ]
     },
     "typeDefinitionReadSelection": {
+      "description": "Preliminary exact-definition-lookup discriminator. A selected request must satisfy the complete version-1 query shape and advertised lookup contract.",
       "type": "object",
-      "required": ["capabilityVersion"],
+      "additionalProperties": true,
       "properties": {
         "capabilityVersion": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade."
         }
       },
-      "additionalProperties": true
+      "required": ["capabilityVersion"]
     },
     "typeDefinitionReadQueryV1": {
+      "description": "Complete decoded exact-definition request: explicit version and a pinned Type Reference. It is a GET query carrier, not a new Resource write or installation command.",
       "type": "object",
-      "required": ["capabilityVersion", "uri", "revision"],
+      "additionalProperties": false,
       "properties": {
         "capabilityVersion": {
-          "const": "1"
-        },
-        "uri": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "const": "1",
+          "description": "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade."
         },
         "revision": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
+        },
+        "uri": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Complete target identity carried by this Reference. Relative paths and partial Reference objects are not admitted."
         }
       },
-      "additionalProperties": false
+      "required": ["capabilityVersion", "uri", "revision"]
     },
     "typeDefinitionReadCapabilityV1": {
+      "description": "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds.",
       "type": "object",
-      "required": ["operation"],
+      "additionalProperties": false,
       "properties": {
         "operation": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Advertised absolute exact-definition lookup operation URL. It grants no permission and does not change the definition’s owner."
         }
       },
-      "additionalProperties": false
+      "required": ["operation"]
     },
     "exactTypeDefinitionRecord": {
+      "description": "Whole exact Type-definition Bead with recorded owned closure and pinned Type affiliations. Serving a global definition never transfers ownership to the responder.",
       "allOf": [
         {
           "$ref": "#/$defs/beadRecord"
@@ -6136,20 +6248,68 @@
       ]
     },
     "typeDefinitionReadResult": {
+      "description": "Closed whole-record lookup wrapper. Optional originScope reports known owning context; the responder is not implicitly the definition owner.",
       "type": "object",
-      "required": ["definition"],
+      "additionalProperties": false,
       "properties": {
         "definition": {
-          "$ref": "#/$defs/exactTypeDefinitionRecord"
+          "$ref": "#/$defs/exactTypeDefinitionRecord",
+          "description": "One complete exact Type-definition Bead including its required recorded owned closure."
         },
         "originScope": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Recorded owning-Scope context when known. The responding lookup service does not thereby become owner."
         }
       },
-      "additionalProperties": false
+      "required": ["definition"]
     },
     "typeDefinitionReadCapabilityProblem": {
+      "description": "Problem carrier for unsupported exact-definition capability/version selection. It supplies no installation or application-History claim.",
       "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/type-definition-read",
+          "description": "Exact capability identity associated with this refusal. It does not advertise that capability as supported."
+        },
+        "capabilityVersion": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade."
+        },
+        "code": {
+          "const": "capability-not-supported",
+          "description": "Stable machine-readable Problem diagnosis, interpreted with type and retry."
+        },
+        "detail": {
+          "type": "string",
+          "description": "Human-readable detail that obeys authorization and non-disclosure."
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri",
+          "description": "Optional URI identifying this failure occurrence."
+        },
+        "parameter": {
+          "const": "capabilityVersion",
+          "description": "Request parameter associated with the capability-selection diagnosis; its permitted literal is constrained here."
+        },
+        "retry": {
+          "const": "after-state-change",
+          "description": "Required retry disposition for this exact diagnosis; it does not authorize changing intent."
+        },
+        "status": {
+          "const": 422,
+          "description": "HTTP status associated with this Problem; protocol decision order remains binding."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short human-readable Problem summary."
+        },
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request",
+          "description": "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition."
+        }
+      },
       "required": [
         "type",
         "status",
@@ -6158,43 +6318,10 @@
         "capability",
         "capabilityVersion",
         "parameter"
-      ],
-      "properties": {
-        "type": {
-          "const": "https://github.com/gastownhall/bdp/problems/request"
-        },
-        "status": {
-          "const": 422
-        },
-        "code": {
-          "const": "capability-not-supported"
-        },
-        "retry": {
-          "const": "after-state-change"
-        },
-        "capability": {
-          "const": "https://github.com/gastownhall/bdp/capabilities/type-definition-read"
-        },
-        "capabilityVersion": {
-          "type": "string",
-          "minLength": 1
-        },
-        "parameter": {
-          "const": "capabilityVersion"
-        },
-        "title": {
-          "type": "string"
-        },
-        "detail": {
-          "type": "string"
-        },
-        "instance": {
-          "$ref": "#/$defs/absoluteUri"
-        }
-      },
-      "additionalProperties": false
+      ]
     },
     "typeDefinitionReadProblem": {
+      "description": "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content or silently truncates the owned capture.",
       "oneOf": [
         {
           "allOf": [
@@ -6230,7 +6357,9 @@
       ]
     },
     "coreAdvertisedLimits": {
+      "description": "Optional grouped Core read bounds. Omission means a bound is not pre-advertised, never infinite capacity or permission for silent truncation.",
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "page": {
           "type": "object",
@@ -6242,7 +6371,8 @@
               "$ref": "#/$defs/positiveInteger"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Positive default and maximum Resource-record page sizes, when declared."
         },
         "request": {
           "type": "object",
@@ -6254,7 +6384,8 @@
               "$ref": "#/$defs/positiveInteger"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Positive encoded request-target and representation-body byte limits, when declared."
         },
         "resource": {
           "type": "object",
@@ -6266,7 +6397,18 @@
               "$ref": "#/$defs/positiveInteger"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Positive complete-representation and properties-only UTF-8 byte bounds, when declared."
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Declared pagination snapshot lifetime; this group does not advertise Event or replica retention."
         },
         "selector": {
           "type": "object",
@@ -6281,19 +6423,10 @@
               "$ref": "#/$defs/positiveInteger"
             }
           },
-          "additionalProperties": false
-        },
-        "retention": {
-          "type": "object",
-          "properties": {
-            "maximumSnapshotLifetime": {
-              "$ref": "#/$defs/iso8601Duration"
-            }
-          },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Optional positive bounds on decoded Selector bytes, parsed depth and parsed node count."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "writeAdvertisedLimits": {
       "type": "object",
@@ -6392,41 +6525,21 @@
       "additionalProperties": false
     },
     "coreDiscovery": {
+      "description": "Closed Core discovery object. Inventory URLs navigate collections rather than reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised.",
       "type": "object",
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "events"],
+      "additionalProperties": false,
       "properties": {
+        "aliases": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding."
+        },
         "bdpVersion": {
-          "$ref": "#/$defs/bdpVersion"
-        },
-        "profile": {
-          "const": "core"
-        },
-        "scope": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/bdpVersion",
+          "description": "Exact complete protocol discriminator, not a nearest-version negotiation."
         },
         "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "aliases": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "order": {
-          "enum": ["canonical-uri"]
-        },
-        "limits": {
-          "$ref": "#/$defs/coreAdvertisedLimits"
-        },
-        "maximumEndpointMultiplicity": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
-          }
-        },
-        "historicalResolution": {
-          "$ref": "#/$defs/historyCapability"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute Bead inventory URL. It is navigation, not a Resource-ID base or required path prefix."
         },
         "capabilities": {
           "allOf": [
@@ -6444,26 +6557,50 @@
                 }
               }
             }
-          ]
+          ],
+          "description": "Independently versioned feature advertisements. Support does not select an invocation or grant permission."
         },
         "events": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support."
+        },
+        "historicalResolution": {
+          "$ref": "#/$defs/historyCapability",
+          "description": "Explicit History support advertisement; omission carries no History obligation."
+        },
+        "limits": {
+          "$ref": "#/$defs/coreAdvertisedLimits",
+          "description": "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data."
+        },
+        "links": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute Link inventory URL; it reserves no Link Resource-ID prefix."
+        },
+        "maximumEndpointMultiplicity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
+          },
+          "description": "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state."
+        },
+        "order": {
+          "enum": ["canonical-uri"],
+          "description": "Advertised stable collection order. Omission uses canonical-uri under Core."
+        },
+        "profile": {
+          "const": "core",
+          "description": "Base Core/Write profile discriminator, independent of optional capabilities."
+        },
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation."
         }
       },
-      "additionalProperties": false
+      "required": ["bdpVersion", "profile", "scope", "beads", "links"]
     },
     "writeDiscovery": {
       "type": "object",
-      "required": [
-        "bdpVersion",
-        "profile",
-        "scope",
-        "beads",
-        "links",
-        "events",
-        "operations",
-        "aliases"
-      ],
+      "required": ["bdpVersion", "profile", "scope", "beads", "links", "operations", "aliases"],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -6562,23 +6699,8 @@
       "additionalProperties": false
     },
     "retainedEventQuery": {
+      "description": "Decoded finite Event query. From and after are mutually exclusive; selection, cursor binding and raw HTTP duplicate-parameter refusal remain semantic rules.",
       "type": "object",
-      "required": [],
-      "properties": {
-        "from": {
-          "enum": ["retained", "now"]
-        },
-        "after": {
-          "$ref": "#/$defs/wireToken"
-        },
-        "representation": {
-          "enum": ["postimage", "delta"]
-        },
-        "limit": {
-          "type": "integer",
-          "minimum": 1
-        }
-      },
       "additionalProperties": false,
       "not": {
         "required": ["from", "after"],
@@ -6587,42 +6709,68 @@
           "from": true,
           "after": true
         }
-      }
-    },
-    "retainedEventSelection": {
-      "type": "object",
-      "required": ["representation"],
+      },
       "properties": {
+        "after": {
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque issued resume cursor, bound to its original source, selection and context."
+        },
+        "from": {
+          "enum": ["retained", "now"],
+          "description": "Initial Event boundary selection, retained or now; mutually exclusive with after."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Positive admitted per-page bound. It does not permit partial facts or false exhaustion."
+        },
         "representation": {
-          "enum": ["postimage", "delta"]
+          "enum": ["postimage", "delta"],
+          "description": "Explicit Event representation, postimage or delta."
         }
       },
-      "additionalProperties": false
+      "required": []
+    },
+    "retainedEventSelection": {
+      "description": "Complete selected Event representation echoed by a finite traversal. A continuation cannot silently switch postimage and delta semantics.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "representation": {
+          "enum": ["postimage", "delta"],
+          "description": "Explicit Event representation, postimage or delta."
+        }
+      },
+      "required": ["representation"]
     },
     "retainedEventPolicy": {
+      "description": "Truthful observation mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional.",
       "type": "object",
-      "required": [
-        "observation",
-        "description",
-        "minimumRetentionSeconds",
-        "minimumCursorLifetimeSeconds",
-        "representations"
-      ],
+      "additionalProperties": false,
       "properties": {
-        "observation": {
-          "enum": ["committed", "observed"]
-        },
         "description": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Human-readable explanation of the advertised mechanism or limitation."
         },
-        "minimumRetentionSeconds": {
+        "maximumPageSize": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "Optional positive Event-page bound without permission to split or truncate a fact."
         },
         "minimumCursorLifetimeSeconds": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "Positive minimum lifetime preserving issued cursor context and its captured range."
+        },
+        "minimumRetentionSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Positive minimum retention promise for admitted Event facts."
+        },
+        "observation": {
+          "enum": ["committed", "observed"],
+          "description": "Truthful observation mode: committed or observed, with its complete coverage obligations."
         },
         "representations": {
           "type": "array",
@@ -6633,61 +6781,41 @@
           },
           "contains": {
             "const": "postimage"
-          }
-        },
-        "maximumPageSize": {
-          "type": "integer",
-          "minimum": 1
+          },
+          "description": "Supported Event representations, necessarily including postimage."
         }
       },
-      "additionalProperties": false
+      "required": [
+        "observation",
+        "description",
+        "minimumRetentionSeconds",
+        "minimumCursorLifetimeSeconds",
+        "representations"
+      ]
     },
     "retainedEventCoverage": {
+      "description": "Opaque start, retained replay floor and captured upper boundary for the observation regime. These fields never imply a cross-source global position.",
       "type": "object",
-      "required": ["start", "retainedFrom", "through"],
+      "additionalProperties": false,
       "properties": {
-        "start": {
-          "$ref": "#/$defs/wireToken"
-        },
         "retainedFrom": {
-          "$ref": "#/$defs/wireToken"
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque current replay floor under the retention promises."
+        },
+        "start": {
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque boundary where the described observation regime begins."
         },
         "through": {
-          "$ref": "#/$defs/wireToken"
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque fixed upper boundary captured for this finite traversal."
         }
       },
-      "additionalProperties": false
+      "required": ["start", "retainedFrom", "through"]
     },
     "retainedEventCommon": {
+      "description": "Shared immutable fact envelope. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations.",
       "type": "object",
-      "required": ["id", "source", "time", "origin", "revision"],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/wireToken"
-        },
-        "source": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "time": {
-          "$ref": "#/$defs/dateTime"
-        },
-        "origin": {
-          "enum": ["write", "observation"]
-        },
-        "transaction": {
-          "$ref": "#/$defs/wireToken"
-        },
-        "previousRevision": {
-          "$ref": "#/$defs/revision"
-        },
-        "revision": {
-          "$ref": "#/$defs/revision"
-        },
-        "annotations": {
-          "type": "object",
-          "additionalProperties": true
-        }
-      },
       "allOf": [
         {
           "if": {
@@ -6707,9 +6835,46 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Explicit extension annotations. Unsupported required meaning cannot silently become known meaning."
+        },
+        "id": {
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque immutable fact identity scoped to this Event source; it is not a Resource ID or resume cursor."
+        },
+        "origin": {
+          "enum": ["write", "observation"],
+          "description": "Whether this fact came from Write’s own committed transition or truthful external observation."
+        },
+        "previousRevision": {
+          "$ref": "#/$defs/revision",
+          "description": "Actual known observed predecessor; omission never invents intermediate revisions."
+        },
+        "revision": {
+          "$ref": "#/$defs/revision",
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute URL of the observation source that emitted this fact."
+        },
+        "time": {
+          "$ref": "#/$defs/dateTime",
+          "description": "Recorded Event time, not a global ordering or an authentication proof."
+        },
+        "transaction": {
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque commit correlation for Write-origin facts. It is neither a receipt nor a public replica-log position."
+        }
+      },
+      "required": ["id", "source", "time", "origin", "revision"]
     },
     "retainedEventDeleted": {
+      "description": "Deleted Resource identity and recorded affiliation/revision context. Write-origin deletion uses its actual final-live context; observation-origin disappearance uses the last complete observed sample and does not claim an unseen final backend edition. This is not a live postimage or permission to reuse identity.",
       "oneOf": [
         {
           "type": "object",
@@ -6746,6 +6911,7 @@
       ]
     },
     "retainedPostimageEffect": {
+      "description": "One published create, update or deletion effect expressed using the mutation vocabulary. Live effects contain complete final postimages, not transient staging state.",
       "oneOf": [
         {
           "type": "object",
@@ -6916,6 +7082,7 @@
       ]
     },
     "retainedDeltaEffect": {
+      "description": "One realized create, update or deletion effect in optional delta form. It records actual admitted changes and never becomes a command to execute again.",
       "oneOf": [
         {
           "type": "object",
@@ -7183,8 +7350,9 @@
       ]
     },
     "retainedEventDerived": {
+      "description": "Realized owned-Link state for the published Bead revision. Null and an object retain their explicit meanings; omitted state is not fabricated.",
       "type": "object",
-      "required": ["ownedLinks"],
+      "additionalProperties": false,
       "properties": {
         "ownedLinks": {
           "oneOf": [
@@ -7203,12 +7371,14 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input."
         }
       },
-      "additionalProperties": false
+      "required": ["ownedLinks"]
     },
     "retainedPostimageEvent": {
+      "description": "Complete Event carrying a postimage effect. The Event’s source, representation, revision and envelope must agree with its page and actual published transition.",
       "type": "object",
       "allOf": [
         {
@@ -7283,18 +7453,21 @@
           }
         }
       ],
-      "required": ["representation", "effect"],
+      "unevaluatedProperties": false,
       "properties": {
-        "representation": {
-          "const": "postimage"
-        },
         "effect": {
-          "$ref": "#/$defs/retainedPostimageEffect"
+          "$ref": "#/$defs/retainedPostimageEffect",
+          "description": "Exactly one realized published mutation effect. It records final state or admitted change and is never an executable write request."
+        },
+        "representation": {
+          "const": "postimage",
+          "description": "Explicit Event representation, postimage or delta."
         }
       },
-      "unevaluatedProperties": false
+      "required": ["representation", "effect"]
     },
     "retainedDeltaEvent": {
+      "description": "Complete Event carrying a realized delta effect. A supplied previous revision denotes the actual observed predecessor, not an invented immediate mutation.",
       "type": "object",
       "allOf": [
         {
@@ -7485,24 +7658,29 @@
           }
         }
       ],
-      "required": ["representation", "effect"],
+      "unevaluatedProperties": false,
       "properties": {
-        "representation": {
-          "const": "delta"
+        "derived": {
+          "$ref": "#/$defs/retainedEventDerived",
+          "description": "Recorded derived owned-Link state accompanying this published Bead revision, when required by the effect."
         },
         "effect": {
-          "$ref": "#/$defs/retainedDeltaEffect"
+          "$ref": "#/$defs/retainedDeltaEffect",
+          "description": "Exactly one realized published mutation effect. It records final state or admitted change and is never an executable write request."
         },
-        "derived": {
-          "$ref": "#/$defs/retainedEventDerived"
+        "representation": {
+          "const": "delta",
+          "description": "Explicit Event representation, postimage or delta."
         },
         "revisionProvenance": {
-          "$ref": "#/$defs/revisionProvenance"
+          "$ref": "#/$defs/revisionProvenance",
+          "description": "Immutable carried attribution for this concrete version; it authenticates no principal."
         }
       },
-      "unevaluatedProperties": false
+      "required": ["representation", "effect"]
     },
     "retainedEvent": {
+      "description": "Union of the supported complete postimage and delta Event shapes. Schema acceptance does not prove truthful coverage, retention or atomic production.",
       "oneOf": [
         {
           "$ref": "#/$defs/retainedPostimageEvent"
@@ -7513,44 +7691,8 @@
       ]
     },
     "retainedEventPage": {
+      "description": "Finite Event page with selected representation, truthful policy and coverage, ordered facts, a resume cursor and explicit continuation. Null next means the captured interval is exhausted.",
       "type": "object",
-      "required": ["source", "selection", "policy", "coverage", "events", "cursor", "next"],
-      "properties": {
-        "source": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "subject": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "selection": {
-          "$ref": "#/$defs/retainedEventSelection"
-        },
-        "policy": {
-          "$ref": "#/$defs/retainedEventPolicy"
-        },
-        "coverage": {
-          "$ref": "#/$defs/retainedEventCoverage"
-        },
-        "events": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/retainedEvent"
-          }
-        },
-        "cursor": {
-          "$ref": "#/$defs/wireToken"
-        },
-        "next": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/absoluteHttpUrl"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
       "additionalProperties": false,
       "allOf": [
         {
@@ -7618,9 +7760,55 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "coverage": {
+          "$ref": "#/$defs/retainedEventCoverage",
+          "description": "Actual observation boundaries, not a fabricated complete mutation history."
+        },
+        "cursor": {
+          "$ref": "#/$defs/wireToken",
+          "description": "Opaque resume token covering the facts/scanned positions claimed by this page."
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/retainedEvent"
+          },
+          "description": "Required ordered array of the facts delivered in this finite page. An empty array alone does not establish exhaustion or uninterrupted coverage."
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted."
+        },
+        "policy": {
+          "$ref": "#/$defs/retainedEventPolicy",
+          "description": "Truthful observation mechanism and durable retention/cursor promises."
+        },
+        "selection": {
+          "$ref": "#/$defs/retainedEventSelection",
+          "description": "Complete admitted traversal/representation selection echoed by the response."
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute URL of this observation source; each delivered fact must agree with it."
+        },
+        "subject": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Canonical Resource identity to which this retained page or Resource-scoped observation applies."
+        }
+      },
+      "required": ["source", "selection", "policy", "coverage", "events", "cursor", "next"]
     },
     "retainedEventProblem": {
+      "description": "Event-read Problem carrier. It retains Core authentication, disclosure, bounds and cursor diagnosis rules; failure never certifies consumer progress.",
       "allOf": [
         {
           "$ref": "#/$defs/readProblem"
@@ -7828,19 +8016,9 @@
       }
     },
     "resourceProjectionCapabilityV1": {
+      "description": "Version-1 projection support flags for current, exact and inventory reads. At least one form is supported; each true flag commits to its complete representation semantics.",
       "type": "object",
-      "required": ["current", "exact", "list"],
-      "properties": {
-        "current": {
-          "type": "boolean"
-        },
-        "exact": {
-          "type": "boolean"
-        },
-        "list": {
-          "type": "boolean"
-        }
-      },
+      "additionalProperties": false,
       "anyOf": [
         {
           "required": ["current"],
@@ -7867,26 +8045,26 @@
           }
         }
       ],
-      "additionalProperties": false
-    },
-    "resourceProjectionMask": {
-      "type": "object",
       "properties": {
-        "include": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/$defs/jsonPointer"
-          }
+        "current": {
+          "type": "boolean",
+          "description": "Whether this capability supports current point reads."
         },
-        "omit": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/$defs/jsonPointer"
-          }
+        "exact": {
+          "type": "boolean",
+          "description": "Whether this capability supports exact retained point reads."
+        },
+        "list": {
+          "type": "boolean",
+          "description": "Whether this capability supports inventory pages."
         }
       },
+      "required": ["current", "exact", "list"]
+    },
+    "resourceProjectionMask": {
+      "description": "Nonempty include/omit JSON Pointer mask. Mask syntax does not allow partial mutation, implicit admission changes or a forged full record.",
+      "type": "object",
+      "additionalProperties": false,
       "anyOf": [
         {
           "required": ["include"],
@@ -7901,98 +8079,122 @@
           }
         }
       ],
-      "additionalProperties": false
-    },
-    "resourceProjectionSelection": {
-      "type": "object",
-      "required": ["projectionVersion"],
       "properties": {
-        "projectionVersion": {
-          "type": "string",
-          "minLength": 1
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/jsonPointer"
+          },
+          "description": "Nonempty paths whose selected content enters the projection."
+        },
+        "omit": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/jsonPointer"
+          },
+          "description": "Nonempty paths removed after include selection; identity carrier rules still apply."
         }
       }
     },
-    "resourceProjectionPointQueryV1": {
+    "resourceProjectionSelection": {
+      "description": "Projection-version admission discriminator. It is only a preliminary selector; complete decoded point or inventory parameters have their own closed shapes.",
       "type": "object",
-      "required": ["projectionVersion"],
       "properties": {
         "projectionVersion": {
-          "const": "1"
-        },
-        "fields": {
-          "$ref": "#/$defs/resourceProjectionMask"
-        },
-        "revision": {
-          "$ref": "#/$defs/revision"
+          "type": "string",
+          "minLength": 1,
+          "description": "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1."
         }
       },
-      "additionalProperties": false
+      "required": ["projectionVersion"]
+    },
+    "resourceProjectionPointQueryV1": {
+      "description": "Complete decoded version-1 point projection query, optionally selecting an exact revision. Unsupported projection must refuse rather than return an unlabelled full representation.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "$ref": "#/$defs/resourceProjectionMask",
+          "description": "Explicit content projection mask, evaluated under the shared include/omit rules."
+        },
+        "projectionVersion": {
+          "const": "1",
+          "description": "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1."
+        },
+        "revision": {
+          "$ref": "#/$defs/revision",
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
+        }
+      },
+      "required": ["projectionVersion"]
     },
     "resourceProjectionInventoryQueryV1": {
+      "description": "Complete decoded version-1 inventory projection query. Continuations preserve the admitted mask, selection, ordering and read context.",
       "type": "object",
-      "required": ["projectionVersion"],
+      "additionalProperties": false,
       "properties": {
-        "projectionVersion": {
-          "const": "1"
-        },
-        "fields": {
-          "$ref": "#/$defs/resourceProjectionMask"
-        },
-        "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "conformsTo": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Explicit nominal Type-family inventory filter. It selects membership and is not a projected Resource property."
         },
-        "source": {
+        "cursor": {
           "type": "string",
           "minLength": 1,
-          "description": "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison."
-        },
-        "target": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison."
+          "description": "Opaque issued inventory continuation token preserving the selected mask, filters, order and authorization context."
         },
         "endpoint": {
           "type": "string",
           "minLength": 1,
-          "description": "Raw native structural filter: canonical local Bead ID or absolute URI. Apply existing local-ID/URI validation and normalize local references before comparison."
+          "description": "Decoded incident-endpoint filter string, selecting Links at either end under the ordinary inventory rules."
+        },
+        "fields": {
+          "$ref": "#/$defs/resourceProjectionMask",
+          "description": "Explicit content projection mask, evaluated under the shared include/omit rules."
+        },
+        "limit": {
+          "$ref": "#/$defs/positiveInteger",
+          "description": "Positive admitted Resource-record page bound; continuation and exhaustion obey the ordinary inventory rules."
+        },
+        "projectionVersion": {
+          "const": "1",
+          "description": "Explicit projection version selector. Missing or unsupported selection cannot be treated as version 1."
         },
         "selector": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Nonempty decoded ordinary Selector string, using its bounded candidate-local grammar rather than the structured Query AST."
         },
-        "cursor": {
+        "source": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Decoded source-endpoint filter string under the ordinary Link inventory rules; it is not a Link record member."
         },
-        "limit": {
-          "$ref": "#/$defs/positiveInteger"
-        }
-      },
-      "additionalProperties": false
-    },
-    "projectedBeadRecord": {
-      "type": "object",
-      "required": ["id", "type", "revision"],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Decoded target-endpoint filter string under the ordinary Link inventory rules; it is not a Link record member."
         },
         "type": {
-          "$ref": "#/$defs/typeReference"
-        },
-        "revision": {
-          "type": "string",
-          "minLength": 1
-        },
-        "properties": {
-          "$ref": "#/$defs/properties"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Exact nominal Type-identity inventory filter. This is not a returned Resource affiliation or a version pin."
+        }
+      },
+      "required": ["projectionVersion"]
+    },
+    "projectedBeadRecord": {
+      "description": "Explicitly projected Bead representation. Identity, Type affiliation and revision stay mandatory; selected content may be omitted only under the projection contract.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute canonical immutable Resource identity URL."
         },
         "metadata": {
-          "$ref": "#/$defs/metadata"
+          "$ref": "#/$defs/metadata",
+          "description": "Common mutable object content, independent of Type-specific properties."
         },
         "ownedLinks": {
           "type": "object",
@@ -8004,23 +8206,40 @@
             "items": {
               "$ref": "#/$defs/linkRecord"
             }
-          }
+          },
+          "description": "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input."
+        },
+        "properties": {
+          "$ref": "#/$defs/properties",
+          "description": "Application-authored object content selected by the containing representation."
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
         },
         "revisionProvenance": {
-          "$ref": "#/$defs/revisionProvenance"
+          "$ref": "#/$defs/revisionProvenance",
+          "description": "Immutable carried attribution for this concrete version; it authenticates no principal."
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference",
+          "description": "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition."
         }
       },
-      "additionalProperties": false
+      "required": ["id", "type", "revision"]
     },
     "projectedBeadCollection": {
+      "description": "Finite page of explicitly projected Bead carriers. Projection changes representation, not membership or exhaustion.",
       "type": "object",
-      "required": ["items", "next"],
+      "additionalProperties": false,
       "properties": {
         "items": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/projectedBeadRecord"
-          }
+          },
+          "description": "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation."
         },
         "next": {
           "oneOf": [
@@ -8030,52 +8249,64 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted."
         }
       },
-      "additionalProperties": false
+      "required": ["items", "next"]
     },
     "projectedLinkRecord": {
+      "description": "Explicitly projected Link representation. Identity, Type affiliation and revision stay mandatory and endpoint rules follow the selected projection mask.",
       "type": "object",
-      "required": ["id", "type", "revision", "source", "target"],
+      "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute canonical immutable Resource identity URL."
         },
-        "type": {
-          "$ref": "#/$defs/typeReference"
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Common mutable object content, independent of Type-specific properties."
+        },
+        "properties": {
+          "$ref": "#/$defs/properties",
+          "description": "Application-authored object content selected by the containing representation."
         },
         "revision": {
           "type": "string",
-          "minLength": 1
-        },
-        "source": {
-          "$ref": "#/$defs/reference"
-        },
-        "target": {
-          "$ref": "#/$defs/reference"
-        },
-        "properties": {
-          "$ref": "#/$defs/properties"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
+          "minLength": 1,
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
         },
         "revisionProvenance": {
-          "$ref": "#/$defs/revisionProvenance"
+          "$ref": "#/$defs/revisionProvenance",
+          "description": "Immutable carried attribution for this concrete version; it authenticates no principal."
+        },
+        "source": {
+          "$ref": "#/$defs/reference",
+          "description": "Whole source Reference of this directed Link, preserving any exact revision pin."
+        },
+        "target": {
+          "$ref": "#/$defs/reference",
+          "description": "Whole target Reference of a Link, preserving any exact revision pin."
+        },
+        "type": {
+          "$ref": "#/$defs/typeReference",
+          "description": "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition."
         }
       },
-      "additionalProperties": false
+      "required": ["id", "type", "revision", "source", "target"]
     },
     "projectedLinkCollection": {
+      "description": "Finite page of explicitly projected Link carriers. Projection does not merge parallel Links or alter endpoint identity.",
       "type": "object",
-      "required": ["items", "next"],
+      "additionalProperties": false,
       "properties": {
         "items": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/projectedLinkRecord"
-          }
+          },
+          "description": "Finite ordered members of this page or bounded diagnosis. Meaning and completeness follow the containing operation."
         },
         "next": {
           "oneOf": [
@@ -8085,47 +8316,59 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Absolute continuation URL, or explicit null only when the admitted finite traversal is exhausted."
         }
       },
-      "additionalProperties": false
+      "required": ["items", "next"]
     },
     "resourceProjectionCapabilityProblem": {
+      "description": "Problem carrier for unsupported projection capability or version selection. Unsupported meaning cannot silently downgrade.",
       "type": "object",
-      "required": ["type", "code", "retry", "status", "capability", "capabilityVersion"],
+      "additionalProperties": false,
       "properties": {
-        "type": {
-          "const": "https://github.com/gastownhall/bdp/problems/request"
-        },
-        "code": {
-          "const": "capability-not-supported"
-        },
-        "retry": {
-          "const": "after-state-change"
-        },
-        "status": {
-          "const": 422
-        },
         "capability": {
-          "const": "https://github.com/gastownhall/bdp/capabilities/resource-projection"
+          "const": "https://github.com/gastownhall/bdp/capabilities/resource-projection",
+          "description": "Exact capability identity associated with this refusal. It does not advertise that capability as supported."
         },
         "capabilityVersion": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Exact nonempty capability version selected by this request or diagnosed by this Problem. It has no implicit ordering or upgrade."
         },
-        "title": {
-          "type": "string"
+        "code": {
+          "const": "capability-not-supported",
+          "description": "Stable machine-readable Problem diagnosis, interpreted with type and retry."
         },
         "detail": {
-          "type": "string"
+          "type": "string",
+          "description": "Human-readable detail that obeys authorization and non-disclosure."
         },
         "instance": {
-          "$ref": "#/$defs/absoluteUri"
+          "$ref": "#/$defs/absoluteUri",
+          "description": "Optional URI identifying this failure occurrence."
+        },
+        "retry": {
+          "const": "after-state-change",
+          "description": "Required retry disposition for this exact diagnosis; it does not authorize changing intent."
+        },
+        "status": {
+          "const": 422,
+          "description": "HTTP status associated with this Problem; protocol decision order remains binding."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short human-readable Problem summary."
+        },
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request",
+          "description": "Complete nominal Type affiliation, preserving an exact revision pin when present. Core carries it without fetching a definition."
         }
       },
-      "additionalProperties": false
+      "required": ["type", "code", "retry", "status", "capability", "capabilityVersion"]
     },
     "resourceProjectionProblem": {
+      "description": "Problem carrier for admitted projection reads, retaining ordinary read and History diagnoses.",
       "oneOf": [
         {
           "$ref": "#/$defs/readProblem"
@@ -8134,6 +8377,93 @@
           "$ref": "#/$defs/resourceProjectionCapabilityProblem"
         }
       ]
+    },
+    "countResult": {
+      "description": "Exact nonnegative integral count of the complete admitted authorized selection. A cutoff or partial scan cannot be reported as a successful count.",
+      "minimum": 0,
+      "type": "integer"
     }
-  }
+  },
+  "x-bdp-core-definitions": [
+    "absoluteHttpUrl",
+    "absoluteUri",
+    "bdpVersion",
+    "beadCollection",
+    "beadRecord",
+    "capabilityAdvertisements",
+    "capabilityVersionAdvertisements",
+    "contextMessage",
+    "contextString",
+    "contextTime",
+    "coreAdvertisedLimits",
+    "coreDiscovery",
+    "countResult",
+    "currentBeadCollection",
+    "currentBeadRecord",
+    "currentLinkCollection",
+    "currentLinkRecord",
+    "dateTime",
+    "exactTypeDefinitionRecord",
+    "historicalBeadRecord",
+    "historicalLinkRecord",
+    "historyCapability",
+    "historyMissing",
+    "historyMissingItem",
+    "historyVersionRow",
+    "historyVersionsPage",
+    "historyWindow",
+    "iso8601Duration",
+    "jsonPointer",
+    "linkCollection",
+    "linkRecord",
+    "maximumEndpointMultiplicityPolicy",
+    "metadata",
+    "pinnedReference",
+    "pinnedTypeReference",
+    "positiveInteger",
+    "projectedBeadCollection",
+    "projectedBeadRecord",
+    "projectedLinkCollection",
+    "projectedLinkRecord",
+    "properties",
+    "readProblem",
+    "readProblemCode",
+    "reference",
+    "resourceIdentity",
+    "resourceKind",
+    "resourceProjectionCapabilityProblem",
+    "resourceProjectionCapabilityV1",
+    "resourceProjectionInventoryQueryV1",
+    "resourceProjectionMask",
+    "resourceProjectionPointQueryV1",
+    "resourceProjectionProblem",
+    "resourceProjectionSelection",
+    "retainedDeltaEffect",
+    "retainedDeltaEvent",
+    "retainedEvent",
+    "retainedEventCommon",
+    "retainedEventCoverage",
+    "retainedEventDeleted",
+    "retainedEventDerived",
+    "retainedEventPage",
+    "retainedEventPolicy",
+    "retainedEventProblem",
+    "retainedEventQuery",
+    "retainedEventSelection",
+    "retainedPostimageEffect",
+    "retainedPostimageEvent",
+    "retryDisposition",
+    "revision",
+    "revisionActor",
+    "revisionProvenance",
+    "selector",
+    "typeDefinitionReadCapabilityProblem",
+    "typeDefinitionReadCapabilityV1",
+    "typeDefinitionReadProblem",
+    "typeDefinitionReadQueryV1",
+    "typeDefinitionReadResult",
+    "typeDefinitionReadSelection",
+    "typeReference",
+    "wireToken"
+  ]
 }
