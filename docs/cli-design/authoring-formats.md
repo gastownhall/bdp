@@ -1,3 +1,5 @@
+> The current BDP OpenAPI authoring notation is [the profile appendix format](../../specs/formats/markdown-openapi.md). References to the imported OpenAPI0.4 experiment below are historical design context, not the current API source.
+
 # Human-readable schema and operation tables
 
 New paired BDP sections use the table conventions developed in the Memory

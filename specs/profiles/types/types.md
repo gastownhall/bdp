@@ -2364,3 +2364,315 @@ mentioning an acceptance workflow.
 Existing exact meanings and native invariants remain intact at these boundaries.
 No unselected feature is required merely to read an ordinary definition Bead, and
 no implementation shortcut may weaken the selected interpretation it advertises.
+
+## Schemas
+
+The following markdown-json-schema/0.6 fragments project the existing Types1
+feature schema. They retain its distinct schema identity and reference context;
+shared names do not replace the Core definitions. Intrinsic Type descriptors and
+their schemas remain linked from the normative sections above.
+
+<!-- bdp-schema:start typesCapabilityV1 bundle=types -->
+### Schema: "typesCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+<!-- bdp-schema:end typesCapabilityV1 bundle=types -->
+
+<!-- bdp-schema:start discovery bundle=types -->
+### Schema: "discovery"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/retainedDiscovery"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "https://github.com/gastownhall/bdp/capabilities/types": {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/typesCapabilityV1"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "https://github.com/gastownhall/bdp/capabilities/types": {
+                "type": "object",
+                "properties": {
+                  "1": {}
+                },
+                "required": [
+                  "1"
+                ]
+              }
+            },
+            "required": [
+              "https://github.com/gastownhall/bdp/capabilities/types"
+            ]
+          }
+        },
+        "required": [
+          "capabilities"
+        ]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
+                "type": "object",
+                "properties": {
+                  "1": {
+                    "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeDefinitionReadCapabilityV1"
+                  }
+                },
+                "required": [
+                  "1"
+                ]
+              }
+            },
+            "required": [
+              "https://github.com/gastownhall/bdp/capabilities/type-definition-read"
+            ]
+          }
+        },
+        "required": [
+          "capabilities"
+        ]
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end discovery bundle=types -->
+
+<!-- bdp-schema:start typesDiscovery bundle=types -->
+### Schema: "typesDiscovery"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/discovery"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "https://github.com/gastownhall/bdp/capabilities/types": {
+              "type": "object",
+              "properties": {
+                "1": {}
+              },
+              "required": [
+                "1"
+              ]
+            }
+          },
+          "required": [
+            "https://github.com/gastownhall/bdp/capabilities/types"
+          ]
+        }
+      },
+      "required": [
+        "capabilities"
+      ]
+    }
+  ]
+}
+```
+<!-- bdp-schema:end typesDiscovery bundle=types -->
+
+<!-- bdp-schema:start linkRecord bundle=types -->
+### Schema: "linkRecord"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkRecord"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference"
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end linkRecord bundle=types -->
+
+<!-- bdp-schema:start beadRecord bundle=types -->
+### Schema: "beadRecord"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/beadRecord"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference"
+        },
+        "ownedLinks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/linkRecord"
+            }
+          }
+        },
+        "links": {
+          "$ref": "#/$defs/linkCollection"
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end beadRecord bundle=types -->
+
+<!-- bdp-schema:start beadCollection bundle=types -->
+### Schema: "beadCollection"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/beadCollection"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/beadRecord"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end beadCollection bundle=types -->
+
+<!-- bdp-schema:start linkCollection bundle=types -->
+### Schema: "linkCollection"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkCollection"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/linkRecord"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end linkCollection bundle=types -->
+
+## OpenAPI
+
+Types1 composes the existing Core/Write operations; it defines no separate Type
+inventory, registration, installation, activation or deletion HTTP endpoint.
+Its [feature schema](types-v1.schema.json) constrains advertised discovery and
+Resource carriers without replacing the common bundle identity. The explicitly
+selected Types media and admission obligations above apply to those same
+operations; a base catalog row does not claim that a provider implements Types.
+The generated catalog links this composition, rather than fabricating routes.
+
+<!-- bdp-composition:start types1 -->
+### Composition: types1
+
+| Field | JSON value |
+| --- | --- |
+| id | `"types1"` |
+| media | `"application/vnd.bdp.v0.1.types.v1+json"` |
+| capability | `"https://github.com/gastownhall/bdp/capabilities/types"` |
+| version | `"1"` |
+| operations | `["currentBead","beadProperties","beadInventory","historicalBead","projectedBead","projectedHistoricalBead","projectedBeadInventory","currentLink","linkProperties","linkInventory","historicalLink","projectedLink","projectedHistoricalLink","projectedLinkInventory","incidentLinks","beadAggregate","createBead","updateBead","deleteBead","createLink","updateLink","deleteLink","atomicBatch"]` |
+| responseSchemas | `{"currentBead":"beadRecord","historicalBead":"beadRecord","beadInventory":"beadCollection","currentLink":"linkRecord","historicalLink":"linkRecord","linkInventory":"linkCollection","incidentLinks":"linkCollection"}` |
+| selection | `"Require the Types subtype alone in Accept; mutations also select it in Content-Type. No base/wildcard fallback or fresh-key downgrade. Admission, exact affiliation including owned records, projection, final graph and retained recovery remain normative prose obligations. Discovery, Events and exact-definition wrappers retain the common binding; no new endpoint is introduced."` |
+<!-- bdp-composition:end types1 -->
+
+Full ordinary Resource/inventory outputs additionally use the Types feature
+schemas. Properties, projections and mutation/batch results keep their operation
+shape; their represented affiliations, captured records and semantic admission
+still satisfy Types1. This composition does not claim that a common result schema
+alone proves those cross-value obligations. History versions metadata is not
+relabelled here as a full ordinary Resource representation.

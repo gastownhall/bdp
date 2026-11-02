@@ -1,6 +1,6 @@
 # Optional Events: CLI and mutation correspondence
 
-Paired with [Core Events](../../specs/profiles/core/core.md#optional-events) and the [accepted
+Paired with [Core Events](../../specs/profiles/events/events.md#contract-and-advertisement) and the [accepted
 decisions](event-decisions-20261022.md). This is concrete draft source, not an
 implemented client. Postimage default and finite-JSON polling are author choices
 within the advertised contract. Events is optional for both Core and Write.
@@ -117,7 +117,7 @@ Delta spans those two known records without inventing skipped r2/r3. If confirme
 absence follows r4, an observation-origin deletion reports r4's last-observed
 identity/affiliation/endpoints, not an unknown backend-final version or an
 authoritative delete receipt. Missing required prior context or unconfirmed
-absence uses the explicit gap/refusal path. See the [native interpretation](../../specs/profiles/core/core.md#advertised-source-truthful-coverage)
+absence uses the explicit gap/refusal path. See the [native interpretation](../../specs/profiles/events/events.md#advertised-source-truthful-coverage)
 and the nonempty [observed examples](../../fixtures/retained-events/candidate.json).
 
 ## Derived owners and incident Links

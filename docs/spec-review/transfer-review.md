@@ -68,7 +68,7 @@ The insert-only rule rejects existing lifetime allocation collisions, while same
 
 ## Events recommendation
 
-Recommend its own independently optional Events profile. Core owns shared values/identity and its discovery hook; the Events profile owns source/coverage/carriers/paging/replay/retention; Write and Transfer state conditional effects. Preserve the exact current clauses during any owner-approved move. This separates observer replay from retained History and from import execution without weakening mandatory facts on an advertising Scope. Cost: another cross-profile version/publication dependency and careful preservation of links/contract identity. No Event clauses were moved and no new import operation is assigned.
+Recommend its own independently optional Events profile. Core owns shared values/identity and its discovery hook; the Events profile owns source/coverage/carriers/paging/replay/retention; Write and Transfer state conditional effects. Preserve the exact current clauses during any owner-approved move. This separates observer replay from retained History and from import execution without weakening mandatory facts on an advertising Scope. Cost: another cross-profile version/publication dependency and careful preservation of links/contract identity. Donna subsequently approved the clause move: [Events](../../specs/profiles/events/events.md) now owns that contract. The source coordinates above are the original receiving snapshot, not current line citations. No new import operation is assigned.
 
 ## Handoff gaps
 

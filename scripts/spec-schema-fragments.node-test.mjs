@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import test from "node:test";
 import { readFileSync } from "node:fs";
+import test from "node:test";
 import {
-  extractSchemaFragments,
   checkFragments,
+  collectProfileFragments,
+  extractSchemaFragments,
   prepareBundle,
+  prepareProfileBundle,
   serializeSchemaJSON,
 } from "./spec-schema-fragments.mjs";
 
@@ -34,7 +36,7 @@ test("fenced examples cannot create authoring fragments", () => {
 
 test("bad boundary and ownership shapes fail closed", () => {
   for (const input of [
-    fragment() + "\n" + fragment(),
+    `${fragment()}\n${fragment()}`,
     fragment().replace("bdp-schema:end example", "bdp-schema:end wrong"),
     fragment().replace("<!-- bdp-schema:end example -->", ""),
     fragment().replace("Value: object", fragment("nested")),
@@ -120,13 +122,58 @@ test("a bad second copy is rejected before output preparation can be published",
   assert.equal(writes, 0);
 });
 
-test("actual Core fragments match both distributed bundles", () => {
-  const definitions = extractSchemaFragments(
-    readFileSync(new URL("../specs/profiles/core/core.md", import.meta.url), "utf8"),
+test("actual profile fragments match both distributions and distinct feature resources", () => {
+  for (const [bundleName, paths] of [
+    [
+      "common",
+      [
+        "../specs/profiles/core/bdp-v0.1.schema.json",
+        "../packages/protocol/schemas/bdp-v0.1.schema.json",
+      ],
+    ],
+    ["id-root", ["../specs/profiles/write/id-root-v1.schema.json"]],
+    ["types", ["../specs/profiles/types/types-v1.schema.json"]],
+  ]) {
+    const { definitions, sources } = collectProfileFragments(bundleName);
+    for (const path of paths) {
+      const bundle = JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
+      checkFragments(definitions, bundle);
+      assert.deepEqual(bundle["x-bdp-schema-sources"], sources);
+    }
+  }
+});
+
+test("bundle qualification preserves colliding names and rejects cross-profile duplicates", () => {
+  const common = fragment("beadRecord");
+  const types = fragment("beadRecord").replaceAll("beadRecord -->", "beadRecord bundle=types -->");
+  assert.deepEqual(Object.keys(extractSchemaFragments(`${common}\n${types}`)), ["beadRecord"]);
+  assert.deepEqual(Object.keys(extractSchemaFragments(`${common}\n${types}`, "types")), [
+    "beadRecord",
+  ]);
+  assert.throws(
+    () => collectProfileFragments("common", () => fragment("duplicate")),
+    /Duplicate profile/,
   );
-  for (const path of [
-    "../specs/profiles/core/bdp-v0.1.schema.json",
-    "../packages/protocol/schemas/bdp-v0.1.schema.json",
-  ])
-    checkFragments(definitions, JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")));
+  assert.throws(() => collectProfileFragments("common", () => "# No schemas"), /No common/);
+  assert.throws(() => collectProfileFragments("unknown"), /Unknown/);
+});
+
+test("ownership moves require explicit migration and cannot hide schema drift or removal", () => {
+  const definitions = { one: { type: "string" } };
+  const oldSources = { "old.md": ["one"] };
+  const sources = { "new.md": ["one"] };
+  const bundle = {
+    $defs: definitions,
+    "x-bdp-schema-definitions": ["one"],
+    "x-bdp-schema-sources": oldSources,
+  };
+  assert.throws(() => prepareProfileBundle(definitions, sources, bundle), /explicit --migrate/);
+  const moved = JSON.parse(prepareProfileBundle(definitions, sources, bundle, true));
+  assert.deepEqual(moved.$defs, definitions);
+  assert.deepEqual(moved["x-bdp-schema-sources"], sources);
+  assert.throws(
+    () => prepareProfileBundle({ one: { type: "number" } }, sources, bundle, true),
+    /Adoption changes/,
+  );
+  assert.throws(() => prepareProfileBundle({}, {}, bundle, true), /Removed/);
 });

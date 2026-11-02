@@ -207,15 +207,12 @@ Malformed JSON/duplicates/Unicode, unsupported required contract/family, bound e
 
 Every refused new package has no committed Resource/history/allocation effects. Durable admitted failure/retry bookkeeping follows Write and is not a successfully imported prefix. Once an original outcome is unknown or committed, reporting a new validation error on a changed retry must not erase that uncertainty/success. Staging cleanup is owned, bounded and protected; incomplete cleanup is reported honestly rather than relabeled rollback.
 
-## 8. Events factoring recommendation (not a clause move)
+## 8. Composition with Events
 
-Recommend an independently optional **Events profile** owning Event carriers, discovered source/projection operations, observation versus committed coverage, ordering, cursor/retention promises and replay authorization. Core retains common Resource/value semantics and the discovery hook that advertises support. Write and Transfer reference the complete Events contract conditionally when enabled. This is a proposed editorial factoring; current PR337 Core owns the Event clauses until Trish/Donna adopt a move.
-
-History is retained state and exact resolution, not an observer Event log. Import must preserve actual History without replaying old observer Events as new local commits. Source Event cursor tokens do not become destination cursors. Retained source Event facts/order/coverage or outstanding replay promises, where part of the actual retained recovery obligation, require an explicit adjunct/continuity mapping; preserving their bytes inertly does not advertise a functioning destination replay source. Unknown mapping refuses the corresponding complete recovery claim. Initialization may establish an honest observation baseline without fake creates for every imported old Resource; coverage cannot imply observation of pre-initialization transitions. Copying an Event does not execute it, authenticate its actor or activate a lease.
-
-For an existing destination advertising Events, actual newly committed current Resource/owner changes require exactly the truthful local final transitions required by the selected Write/Events composition, atomically with effects and outcome. A refusal, rollback, semantic no-op, historical-only admission, alias-only change or allocation-only admission must not manufacture Resource lifecycle facts. Retained-only changes are still effectful import bookkeeping where applicable, but not fictitious current create/update operations. A force switch with changed current state emits its actual local transition, not every incoming historical transition.
-
-Tradeoff: extracting Events makes opt-in obligations and implementation independence clearer, but creates another cross-profile publication dependency. Keep the existing exact carriers/rules and links during extraction; do not redesign Events or change optionality through a move. If Scope-wide erasure/recovery needs retained Event data for controlled-copy cleanup, preserve that data/obligation in the applicable recovery adjunct; this does not make public Event observation mandatory for Transfer. The conditional import transition/baseline rule needs correspondence review (G5), not a mandatory new import Event operation.
+[Events](../events/events.md) is a separate optional observation profile. Transfer
+does not require Events support, and importing retained records is not Event replay.
+An eventual native Transfer binding must state its conditional Event production
+rules before adoption; this proposed profile does not invent those rules.
 
 ## 9. Review decisions and unresolved mappings
 
@@ -251,3 +248,14 @@ No new vote is requested on both encodings, Resource-first bodies, all-retained 
 ## 11. Correspondence sources
 
 The companion [Transfer review notes](../../../docs/spec-review/transfer-review.md) pins the selected source paths and relevant clause ranges, records stale proposal mismatches and separates settled outcomes from new draft choices. CLI mapping is in [the canonical CLI's proposed Transfer section](../../../docs/cli-design/bdp-cli.md#proposed-transfer-commands). Examples in the older Resource comparison demonstrate shape only; they lack the required retained families and are not complete packages under this draft. Nothing here claims an implementation, review council, executed acceptance test, adoption or promotion.
+
+## Schemas
+
+This profile remains proposed. Its retained family schemas and native wire binding
+are unresolved; examples above are not a complete import/export validation schema.
+
+## OpenAPI
+
+No native Transfer HTTP capability, operation, media binding, admission error set
+or result schema is selected by this proposal. No Transfer routes are emitted in
+the current OpenAPI catalog. Final selection remains an explicit design decision.

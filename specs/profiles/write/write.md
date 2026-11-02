@@ -16,7 +16,7 @@ carrying.
 This is the current version 0.1 editorial draft. It defines protocol obligations,
 not evidence that a particular provider implements them. The requirement-language,
 JSON value model, common records, References, authorization and HTTP rules are
-those of Core. The three protocol texts are Core, Write and Types. Schema artifacts
+those of Core. Core, Write, Types and optional [Events](../events/events.md) own their respective protocol clauses. Schema artifacts
 are mechanical companions: structural validity does not establish admission,
 authorization, atomicity, retention or conformance.
 
@@ -967,7 +967,7 @@ A Write Scope without Events still owes every atomic Resource, owner, allocation
 revision and durable key/outcome obligation in this document. It does not owe an
 Event fact log solely by implementing Write; optional History is a separate promise.
 
-When Events is advertised, Write MUST durably produce Core's required Event facts
+When Events is advertised, Write MUST durably produce the [Events profile's required facts](../events/events.md)
 together with its effects and terminal decision. The remainder of this subsection
 applies to that advertised support. Crash/retry cannot lose facts or mint duplicate transitions.
 Failure/rollback/no-op produces none; aliases and allocation-only outcomes produce
@@ -1152,3 +1152,3832 @@ set writes and public Type registration/lifecycle operations are not selected
 by this text. Existing historical contracts retain their own meanings. Structural
 schema examples and source publication do not establish provider, CLI, transaction,
 concurrency, crash/retry or consumer qualification.
+
+## Schemas
+
+These visible markdown-json-schema/0.6 fragments own the selected Write definitions
+in the shared bundle. Shared Resource carriers are defined by Core and Events.
+The id-root fragments retain their separate schema resource and reference context.
+
+<!-- bdp-schema:start aliasResult -->
+### Schema: "aliasResult"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| title | "BDP Read+Update alias result" |
+| type | "object" |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/aliasResultMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end aliasResult -->
+
+<!-- bdp-schema:start aliasResultMembers -->
+### Schema: "aliasResultMembers"
+
+Value: object
+
+Required order: ["outcome","alias"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "alias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "outcome" | ref "#/$defs/mutationOutcome" | yes | — | — |
+| "target" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "deleted"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "properties": {
+          "target": false
+        }
+      },
+      "else": {
+        "required": [
+          "target"
+        ]
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end aliasResultMembers -->
+
+<!-- bdp-schema:start atomicBatchCapabilityProblem -->
+### Schema: "atomicBatchCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","capability","capabilityVersion","pointer"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | — |
+| "capabilityVersion" | schema | yes | — | — |
+| "code" | schema | yes | — | — |
+| "detail" | text | no | — | — |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | — |
+| "pointer" | schema | yes | — | — |
+| "retry" | schema | yes | — | — |
+| "status" | schema | yes | — | — |
+| "title" | text | no | — | — |
+| "type" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/atomic-batch"
+    },
+    "capabilityVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "pointer": {
+      "const": "/capabilityVersion"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchCapabilityProblem -->
+
+<!-- bdp-schema:start atomicBatchCapabilityV1 -->
+### Schema: "atomicBatchCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["operation","operations"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "maximumOperations" | schema | no | — | — |
+| "maximumResultBytes" | schema | no | — | — |
+| "operation" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "operations" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "maximumOperations": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maximumResultBytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/atomicBatchOperationName"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchCapabilityV1 -->
+
+<!-- bdp-schema:start atomicBatchOperationName -->
+### Schema: "atomicBatchOperationName"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| enum | ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink"] |
+<!-- bdp-schema:end atomicBatchOperationName -->
+
+<!-- bdp-schema:start atomicBatchOperationProblem -->
+### Schema: "atomicBatchOperationProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","operation","pointer"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "code" | schema | yes | — | — |
+| "detail" | text | no | — | — |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | — |
+| "operation" | ref "#/$defs/atomicBatchOperationName" | yes | — | — |
+| "pointer" | schema | yes | — | — |
+| "retry" | schema | yes | — | — |
+| "status" | schema | yes | — | — |
+| "title" | text | no | — | — |
+| "type" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "code": {
+      "const": "operation-not-supported"
+    },
+    "pointer": {
+      "type": "string",
+      "pattern": "^/operations/(0|[1-9][0-9]*)/operation$"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchOperationProblem -->
+
+<!-- bdp-schema:start atomicBatchProblem -->
+### Schema: "atomicBatchProblem"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Existing ordinary Write Problems or the two feature-specific refusal forms; no public receipt failure carrier." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/readUpdateProblem"
+    },
+    {
+      "$ref": "#/$defs/atomicBatchCapabilityProblem"
+    },
+    {
+      "$ref": "#/$defs/atomicBatchOperationProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end atomicBatchProblem -->
+
+<!-- bdp-schema:start atomicBatchResourceResult -->
+### Schema: "atomicBatchResourceResult"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","resourceKind","outcome","changed"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "changed" | boolean | yes | — | — |
+| "deleted" | ref "#/$defs/deletedIdentity" | no | — | — |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "outcome" | schema | yes | — | — |
+| "ownerRevisions" | ref "#/$defs/ownerRevisions" | no | — | — |
+| "resource" | schema | no | — | — |
+| "resourceKind" | ref "#/$defs/resourceKind" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "required": [
+        "resource"
+      ],
+      "properties": {
+        "resource": true,
+        "outcome": {
+          "enum": [
+            "created",
+            "updated"
+          ]
+        },
+        "changed": {
+          "const": true
+        },
+        "deleted": false
+      },
+      "type": "object"
+    },
+    {
+      "required": [
+        "resource"
+      ],
+      "properties": {
+        "resource": true,
+        "outcome": {
+          "const": "unchanged"
+        },
+        "changed": {
+          "const": false
+        },
+        "deleted": false
+      },
+      "type": "object"
+    },
+    {
+      "required": [
+        "deleted"
+      ],
+      "properties": {
+        "deleted": true,
+        "outcome": {
+          "const": "deleted"
+        },
+        "changed": {
+          "const": true
+        },
+        "resource": false
+      },
+      "type": "object"
+    },
+    {
+      "properties": {
+        "outcome": {
+          "const": "allocated"
+        },
+        "changed": {
+          "const": true
+        },
+        "resource": false,
+        "deleted": false,
+        "ownerRevisions": false
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "resourceKind"
+        ],
+        "properties": {
+          "resourceKind": {
+            "const": "bead"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "resource": {
+            "$ref": "#/$defs/beadRecord"
+          },
+          "deleted": {
+            "type": "object",
+            "properties": {
+              "resourceKind": {
+                "const": "bead"
+              }
+            }
+          },
+          "ownerRevisions": false
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "resourceKind"
+        ],
+        "properties": {
+          "resourceKind": {
+            "const": "link"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "resource": {
+            "$ref": "#/$defs/linkRecord"
+          },
+          "deleted": {
+            "type": "object",
+            "properties": {
+              "resourceKind": {
+                "const": "link"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "created",
+        "updated",
+        "unchanged",
+        "deleted",
+        "allocated"
+      ]
+    },
+    "resource": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/beadRecord"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "links": false
+              }
+            }
+          ]
+        },
+        {
+          "$ref": "#/$defs/linkRecord"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchResourceResult -->
+
+<!-- bdp-schema:start atomicBatchResult -->
+### Schema: "atomicBatchResult"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["capabilityVersion","changed","results","resources"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+| "changed" | boolean | yes | — | — |
+| "resources" | schema | yes | — | — |
+| "results" | schema | yes | — | — |
+| "transaction" | ref "#/$defs/revision" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "changed"
+        ],
+        "properties": {
+          "changed": {
+            "const": false
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "transaction": false,
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "changed": {
+                  "const": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "transaction"
+        ],
+        "properties": {
+          "transaction": true,
+          "resources": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "required": [
+                "changed"
+              ],
+              "properties": {
+                "changed": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "type": "object"
+      }
+    }
+  ],
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/atomicBatchResourceResult"
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/atomicBatchResultEntry"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchResult -->
+
+<!-- bdp-schema:start atomicBatchResultEntry -->
+### Schema: "atomicBatchResultEntry"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["operationIndex","operation","id"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "operation" | ref "#/$defs/atomicBatchOperationName" | yes | — | — |
+| "operationIndex" | schema | yes | — | — |
+| "operationName" | ref "#/$defs/localName" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation": {
+            "enum": [
+              "updateBead",
+              "deleteBead",
+              "updateLink",
+              "deleteLink"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "operationName": false
+        }
+      }
+    }
+  ],
+  "properties": {
+    "operationIndex": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchResultEntry -->
+
+<!-- bdp-schema:start atomicBatchSelection -->
+### Schema: "atomicBatchSelection"
+
+Value: object
+
+Other fields: allowed
+
+Required order: ["capabilityVersion"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Prefix selection only, not admission as a complete request. Unknown well-formed versions refuse without interpreting their body." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end atomicBatchSelection -->
+
+<!-- bdp-schema:start batchOperation -->
+### Schema: "batchOperation"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/createBeadOperation"
+    },
+    {
+      "$ref": "#/$defs/updateBeadOperation"
+    },
+    {
+      "$ref": "#/$defs/deleteBeadOperation"
+    },
+    {
+      "$ref": "#/$defs/createLinkOperation"
+    },
+    {
+      "$ref": "#/$defs/updateLinkOperation"
+    },
+    {
+      "$ref": "#/$defs/deleteLinkOperation"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end batchOperation -->
+
+<!-- bdp-schema:start batchRequest -->
+### Schema: "batchRequest"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["capabilityVersion","operations"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| title | "BDP optional atomic batch version 1 request" |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+| "operations" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/batchOperation"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end batchRequest -->
+
+<!-- bdp-schema:start createBeadMembers -->
+### Schema: "createBeadMembers"
+
+Value: object
+
+Required order: ["type"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/durableResourceReference" | no | — | — |
+| "metadata" | ref "#/$defs/metadata" | no | — | — |
+| "properties" | ref "#/$defs/properties" | no | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
+| "type" | ref "#/$defs/typeReference" | yes | — | — |
+<!-- bdp-schema:end createBeadMembers -->
+
+<!-- bdp-schema:start createBeadOperation -->
+### Schema: "createBeadOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "name" | ref "#/$defs/localName" | no | — | — |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/createBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "createBead"
+    }
+  }
+}
+```
+<!-- bdp-schema:end createBeadOperation -->
+
+<!-- bdp-schema:start createBeadRequest -->
+### Schema: "createBeadRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/createBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end createBeadRequest -->
+
+<!-- bdp-schema:start createLinkMembers -->
+### Schema: "createLinkMembers"
+
+Value: object
+
+Required order: ["type","source","target"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/durableResourceReference" | no | — | — |
+| "metadata" | ref "#/$defs/metadata" | no | — | — |
+| "properties" | ref "#/$defs/properties" | no | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
+| "source" | ref "#/$defs/inputReference" | yes | — | — |
+| "target" | ref "#/$defs/inputReference" | yes | — | — |
+| "type" | ref "#/$defs/typeReference" | yes | — | — |
+<!-- bdp-schema:end createLinkMembers -->
+
+<!-- bdp-schema:start createLinkOperation -->
+### Schema: "createLinkOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "name" | ref "#/$defs/localName" | no | — | — |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/createLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "createLink"
+    }
+  }
+}
+```
+<!-- bdp-schema:end createLinkOperation -->
+
+<!-- bdp-schema:start createLinkRequest -->
+### Schema: "createLinkRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "source" | ref "#/$defs/durableInputReference" | no | — | — |
+| "target" | ref "#/$defs/durableInputReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/createLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end createLinkRequest -->
+
+<!-- bdp-schema:start deleteAliasMembers -->
+### Schema: "deleteAliasMembers"
+
+Value: object
+
+Required order: ["alias"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "alias" | ref "#/$defs/durableResourceReference" | yes | — | — |
+<!-- bdp-schema:end deleteAliasMembers -->
+
+<!-- bdp-schema:start deleteAliasRequest -->
+### Schema: "deleteAliasRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteAliasMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end deleteAliasRequest -->
+
+<!-- bdp-schema:start deleteBeadMembers -->
+### Schema: "deleteBeadMembers"
+
+Value: object
+
+Required order: ["bead"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "#/$defs/resourceReference" | yes | — | — |
+| "expectedRevision" | ref "#/$defs/expectedRevision" | no | — | — |
+<!-- bdp-schema:end deleteBeadMembers -->
+
+<!-- bdp-schema:start deleteBeadOperation -->
+### Schema: "deleteBeadOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "deleteBead"
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteBeadOperation -->
+
+<!-- bdp-schema:start deleteBeadRequest -->
+### Schema: "deleteBeadRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "#/$defs/durableResourceReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end deleteBeadRequest -->
+
+<!-- bdp-schema:start deleteLinkMembers -->
+### Schema: "deleteLinkMembers"
+
+Value: object
+
+Required order: ["link"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "expectedRevision" | ref "#/$defs/expectedRevision" | no | — | — |
+| "link" | ref "#/$defs/resourceReference" | yes | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
+<!-- bdp-schema:end deleteLinkMembers -->
+
+<!-- bdp-schema:start deleteLinkOperation -->
+### Schema: "deleteLinkOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "deleteLink"
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteLinkOperation -->
+
+<!-- bdp-schema:start deleteLinkRequest -->
+### Schema: "deleteLinkRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "link" | ref "#/$defs/durableResourceReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end deleteLinkRequest -->
+
+<!-- bdp-schema:start deletedIdentity -->
+### Schema: "deletedIdentity"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["resourceKind","resource"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "resource" | ref "#/$defs/resourceIdentity" | yes | — | — |
+| "resourceKind" | ref "#/$defs/resourceKind" | yes | — | — |
+<!-- bdp-schema:end deletedIdentity -->
+
+<!-- bdp-schema:start durableInputPinnedReference -->
+### Schema: "durableInputPinnedReference"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["uri","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "revision" | schema | yes | — | — |
+| "uri" | ref "#/$defs/durableResourceReference" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end durableInputPinnedReference -->
+
+<!-- bdp-schema:start durableInputReference -->
+### Schema: "durableInputReference"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/durableResourceReference"
+    },
+    {
+      "$ref": "#/$defs/durableInputPinnedReference"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end durableInputReference -->
+
+<!-- bdp-schema:start durableResourceReference -->
+### Schema: "durableResourceReference"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| minLength | 1 |
+| pattern | "^[^@]" |
+| type | "string" |
+<!-- bdp-schema:end durableResourceReference -->
+
+<!-- bdp-schema:start expectedRevision -->
+### Schema: "expectedRevision"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| minLength | 1 |
+| type | "string" |
+<!-- bdp-schema:end expectedRevision -->
+
+<!-- bdp-schema:start inputPinnedReference -->
+### Schema: "inputPinnedReference"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["uri","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "revision" | schema | yes | — | — |
+| "uri" | ref "#/$defs/resourceReference" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end inputPinnedReference -->
+
+<!-- bdp-schema:start inputReference -->
+### Schema: "inputReference"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/resourceReference"
+    },
+    {
+      "$ref": "#/$defs/inputPinnedReference"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end inputReference -->
+
+<!-- bdp-schema:start localBindingReference -->
+### Schema: "localBindingReference"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| pattern | "^@[A-Za-z][A-Za-z0-9_-]*$" |
+| type | "string" |
+<!-- bdp-schema:end localBindingReference -->
+
+<!-- bdp-schema:start localName -->
+### Schema: "localName"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| pattern | "^[A-Za-z][A-Za-z0-9_-]*$" |
+| type | "string" |
+<!-- bdp-schema:end localName -->
+
+<!-- bdp-schema:start mutationOutcome -->
+### Schema: "mutationOutcome"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| enum | ["created","updated","deleted"] |
+<!-- bdp-schema:end mutationOutcome -->
+
+<!-- bdp-schema:start mutationResult -->
+### Schema: "mutationResult"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| title | "BDP Read+Update mutation result" |
+| type | "object" |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/mutationResultMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end mutationResult -->
+
+<!-- bdp-schema:start mutationResultMembers -->
+### Schema: "mutationResultMembers"
+
+Value: object
+
+Required order: ["outcome","changed"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "changed" | boolean | yes | — | — |
+| "deleted" | ref "#/$defs/deletedIdentity" | no | — | — |
+| "outcome" | ref "#/$defs/mutationOutcome" | yes | — | — |
+| "ownerRevisions" | ref "#/$defs/ownerRevisions" | no | — | — |
+| "resource" | schema | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "deleted"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "deleted"
+        ],
+        "properties": {
+          "deleted": {
+            "$ref": "#/$defs/deletedIdentity"
+          },
+          "resource": false
+        }
+      },
+      "else": {
+        "required": [
+          "resource"
+        ],
+        "properties": {
+          "resource": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/beadRecord"
+              },
+              {
+                "$ref": "#/$defs/linkRecord"
+              }
+            ]
+          },
+          "deleted": false
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "resource"
+        ],
+        "properties": {
+          "resource": {
+            "$ref": "#/$defs/beadRecord"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "ownerRevisions": false
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "deleted"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "object",
+            "required": [
+              "resourceKind"
+            ],
+            "properties": {
+              "resourceKind": {
+                "const": "bead"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "ownerRevisions": false
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "outcome"
+        ],
+        "properties": {
+          "outcome": {
+            "enum": [
+              "created",
+              "deleted"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "changed": {
+            "const": true
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "resource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/beadRecord"
+        },
+        {
+          "$ref": "#/$defs/linkRecord"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end mutationResultMembers -->
+
+<!-- bdp-schema:start ordinaryUpdateChange -->
+### Schema: "ordinaryUpdateChange"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "An ordinary update input may supply no patch operations; a supplied array member is still required." |
+| type | "array" |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "$ref": "#/$defs/propertyChange/items"
+  }
+}
+```
+<!-- bdp-schema:end ordinaryUpdateChange -->
+
+<!-- bdp-schema:start ownerRevision -->
+### Schema: "ownerRevision"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "revision" | ref "#/$defs/revision" | yes | — | — |
+<!-- bdp-schema:end ownerRevision -->
+
+<!-- bdp-schema:start ownerRevisions -->
+### Schema: "ownerRevisions"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| maxItems | 2 |
+| minItems | 1 |
+| type | "array" |
+| uniqueItems | true |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "$ref": "#/$defs/ownerRevision"
+  }
+}
+```
+<!-- bdp-schema:end ownerRevisions -->
+
+<!-- bdp-schema:start propertyChange -->
+### Schema: "propertyChange"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| minItems | 1 |
+| type | "array" |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "op",
+          "path",
+          "value"
+        ],
+        "properties": {
+          "op": {
+            "enum": [
+              "add",
+              "replace"
+            ]
+          },
+          "path": {
+            "$ref": "#/$defs/jsonPointer"
+          },
+          "value": true
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "op",
+          "path"
+        ],
+        "properties": {
+          "op": {
+            "const": "remove"
+          },
+          "path": {
+            "$ref": "#/$defs/jsonPointer"
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  }
+}
+```
+<!-- bdp-schema:end propertyChange -->
+
+<!-- bdp-schema:start putAliasMembers -->
+### Schema: "putAliasMembers"
+
+Value: object
+
+Required order: ["alias","target"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "alias" | ref "#/$defs/durableResourceReference" | yes | — | — |
+| "target" | ref "#/$defs/resourceReference" | yes | — | — |
+<!-- bdp-schema:end putAliasMembers -->
+
+<!-- bdp-schema:start putAliasRequest -->
+### Schema: "putAliasRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "target" | ref "#/$defs/durableResourceReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/putAliasMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end putAliasRequest -->
+
+<!-- bdp-schema:start readUpdateProblem -->
+### Schema: "readUpdateProblem"
+
+Value: object
+
+Required order: ["type","code","retry"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| title | "BDP Read+Update Problem Details" |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "code" | ref "#/$defs/readUpdateProblemCode" | yes | — | — |
+| "detail" | text | no | — | — |
+| "diagnostics" | ref "#/$defs/validationDiagnostics" | no | — | — |
+| "diagnosticsTruncated" | boolean | no | — | — |
+| "instance" | ref "#/$defs/absoluteUri" | no | — | — |
+| "retry" | ref "#/$defs/retryDisposition" | yes | — | — |
+| "retryAfter" | schema | no | — | — |
+| "status" | schema | no | — | — |
+| "title" | text | no | — | — |
+| "type" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "$ref": "#/$defs/readProblemCode"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/readProblem"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "unsupported-media-type"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/request"
+          },
+          "status": {
+            "const": 415
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "binding-unavailable"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/request"
+          },
+          "status": {
+            "const": 400
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "validation-failed"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/validation"
+          },
+          "status": {
+            "const": 422
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "type-not-installed"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/validation"
+          },
+          "status": {
+            "const": 422
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "identity-taken"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "alias-path-taken"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-mismatch"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "incident-links-exist"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "aggregate-constraint-violation"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "idempotency-conflict"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "idempotency-in-progress"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-delay"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "idempotency-expired"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/gone"
+          },
+          "status": {
+            "const": 410
+          },
+          "retry": {
+            "const": "never"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-allocation-unsafe"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/conflict"
+          },
+          "status": {
+            "const": 409
+          },
+          "retry": {
+            "const": "after-state-change"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "validation-failed"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "required": [
+          "diagnostics"
+        ],
+        "properties": {
+          "diagnostics": {
+            "$ref": "#/$defs/validationDiagnostics"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "code": {
+              "const": "validation-failed"
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "diagnostics": false,
+          "diagnosticsTruncated": false
+        }
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "code": {
+              "const": "resource-pruned"
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "archivedAt": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "retry": {
+            "const": "after-delay"
+          }
+        },
+        "required": [
+          "retry"
+        ]
+      },
+      "else": {
+        "properties": {
+          "retryAfter": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
+            "const": "revision-allocation-unsafe"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "missing": false,
+          "window": false,
+          "resource": false,
+          "properties": false,
+          "ownedLinks": false,
+          "pointer": false,
+          "identity": false,
+          "revision": false,
+          "revisionProvenance": false
+        }
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "code": {
+              "const": "revision-unretained"
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "missing": false
+        }
+      }
+    }
+  ],
+  "properties": {
+    "retryAfter": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "type": "integer",
+      "enum": [
+        400,
+        401,
+        403,
+        404,
+        409,
+        410,
+        413,
+        415,
+        422,
+        429,
+        503
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end readUpdateProblem -->
+
+<!-- bdp-schema:start readUpdateProblemCode -->
+### Schema: "readUpdateProblemCode"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","unsupported-media-type","binding-unavailable","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"] |
+<!-- bdp-schema:end readUpdateProblemCode -->
+
+<!-- bdp-schema:start resourceReference -->
+### Schema: "resourceReference"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/durableResourceReference"
+    },
+    {
+      "$ref": "#/$defs/localBindingReference"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end resourceReference -->
+
+<!-- bdp-schema:start retainedDiscovery -->
+### Schema: "retainedDiscovery"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| title | "Selected retained Core or Write discovery" |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/coreDiscovery"
+    },
+    {
+      "$ref": "#/$defs/writeDiscovery"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedDiscovery -->
+
+<!-- bdp-schema:start revisionProvenanceInput -->
+### Schema: "revisionProvenanceInput"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: []
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "actor" | ref "#/$defs/revisionActor" | no | — | — |
+| "agent" | schema | no | — | — |
+| "message" | schema | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "agent": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "message": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end revisionProvenanceInput -->
+
+<!-- bdp-schema:start updateBeadMembers -->
+### Schema: "updateBeadMembers"
+
+Value: object
+
+Required order: ["bead"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "#/$defs/resourceReference" | yes | — | — |
+| "expectedRevision" | ref "#/$defs/expectedRevision" | no | — | — |
+| "metadata" | ref "#/$defs/metadata" | no | — | — |
+| "metadataChange" | ref "#/$defs/ordinaryUpdateChange" | no | — | — |
+| "properties" | ref "#/$defs/properties" | no | — | — |
+| "propertiesChange" | ref "#/$defs/ordinaryUpdateChange" | no | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
+| "type" | ref "#/$defs/typeReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": true
+      }
+    },
+    {
+      "required": [
+        "propertiesChange"
+      ],
+      "properties": {
+        "propertiesChange": true
+      }
+    },
+    {
+      "required": [
+        "metadataChange"
+      ],
+      "properties": {
+        "metadataChange": true
+      }
+    },
+    {
+      "required": [
+        "properties"
+      ],
+      "properties": {
+        "properties": true
+      }
+    },
+    {
+      "required": [
+        "metadata"
+      ],
+      "properties": {
+        "metadata": true
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "not": {
+        "required": [
+          "properties",
+          "propertiesChange"
+        ],
+        "properties": {
+          "properties": true,
+          "propertiesChange": true
+        }
+      }
+    },
+    {
+      "not": {
+        "required": [
+          "metadata",
+          "metadataChange"
+        ],
+        "properties": {
+          "metadata": true,
+          "metadataChange": true
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end updateBeadMembers -->
+
+<!-- bdp-schema:start updateBeadOperation -->
+### Schema: "updateBeadOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/updateBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "updateBead"
+    }
+  }
+}
+```
+<!-- bdp-schema:end updateBeadOperation -->
+
+<!-- bdp-schema:start updateBeadRequest -->
+### Schema: "updateBeadRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "#/$defs/durableResourceReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/updateBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end updateBeadRequest -->
+
+<!-- bdp-schema:start updateLinkMembers -->
+### Schema: "updateLinkMembers"
+
+Value: object
+
+Required order: ["link"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "expectedRevision" | ref "#/$defs/expectedRevision" | no | — | — |
+| "link" | ref "#/$defs/resourceReference" | yes | — | — |
+| "metadata" | ref "#/$defs/metadata" | no | — | — |
+| "metadataChange" | ref "#/$defs/ordinaryUpdateChange" | no | — | — |
+| "properties" | ref "#/$defs/properties" | no | — | — |
+| "propertiesChange" | ref "#/$defs/ordinaryUpdateChange" | no | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
+| "source" | ref "#/$defs/inputReference" | no | — | — |
+| "target" | ref "#/$defs/inputReference" | no | — | — |
+| "type" | ref "#/$defs/typeReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": true
+      }
+    },
+    {
+      "required": [
+        "propertiesChange"
+      ],
+      "properties": {
+        "propertiesChange": true
+      }
+    },
+    {
+      "required": [
+        "metadataChange"
+      ],
+      "properties": {
+        "metadataChange": true
+      }
+    },
+    {
+      "required": [
+        "properties"
+      ],
+      "properties": {
+        "properties": true
+      }
+    },
+    {
+      "required": [
+        "metadata"
+      ],
+      "properties": {
+        "metadata": true
+      }
+    },
+    {
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": true
+      }
+    },
+    {
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": true
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "not": {
+        "required": [
+          "properties",
+          "propertiesChange"
+        ],
+        "properties": {
+          "properties": true,
+          "propertiesChange": true
+        }
+      }
+    },
+    {
+      "not": {
+        "required": [
+          "metadata",
+          "metadataChange"
+        ],
+        "properties": {
+          "metadata": true,
+          "metadataChange": true
+        }
+      }
+    }
+  ]
+}
+```
+<!-- bdp-schema:end updateLinkMembers -->
+
+<!-- bdp-schema:start updateLinkOperation -->
+### Schema: "updateLinkOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/updateLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "updateLink"
+    }
+  }
+}
+```
+<!-- bdp-schema:end updateLinkOperation -->
+
+<!-- bdp-schema:start updateLinkRequest -->
+### Schema: "updateLinkRequest"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "link" | ref "#/$defs/durableResourceReference" | no | — | — |
+| "source" | ref "#/$defs/durableInputReference" | no | — | — |
+| "target" | ref "#/$defs/durableInputReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/updateLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end updateLinkRequest -->
+
+<!-- bdp-schema:start validationDiagnostic -->
+### Schema: "validationDiagnostic"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["message"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| dependentRequired | {"type":["schemaLocation"],"schemaLocation":["type"]} |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "document" | schema | no | — | — |
+| "instanceLocation" | ref "#/$defs/jsonPointer" | no | — | — |
+| "message" | schema | yes | — | — |
+| "schemaLocation" | ref "#/$defs/absoluteUri" | no | — | — |
+| "type" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "document": {
+      "enum": [
+        "properties",
+        "metadata"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+```
+<!-- bdp-schema:end validationDiagnostic -->
+
+<!-- bdp-schema:start validationDiagnostics -->
+### Schema: "validationDiagnostics"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| minItems | 1 |
+| type | "array" |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "$ref": "#/$defs/validationDiagnostic"
+  }
+}
+```
+<!-- bdp-schema:end validationDiagnostics -->
+
+<!-- bdp-schema:start writeAdvertisedLimits -->
+### Schema: "writeAdvertisedLimits"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "page" | schema | no | — | — |
+| "patch" | schema | no | — | — |
+| "request" | schema | no | — | — |
+| "resource" | schema | no | — | — |
+| "retention" | schema | no | — | — |
+| "selector" | schema | no | — | — |
+| "validation" | schema | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "page": {
+      "type": "object",
+      "properties": {
+        "defaultItems": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "maximumItems": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "patch": {
+      "type": "object",
+      "properties": {
+        "operations": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "pathBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "pathDepth": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "targetBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "bodyBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "representationBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "propertiesBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "idempotency": {
+          "$ref": "#/$defs/iso8601Duration"
+        },
+        "maximumSnapshotLifetime": {
+          "$ref": "#/$defs/iso8601Duration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "selector": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "depth": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "nodes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "diagnostics": {
+          "$ref": "#/$defs/positiveInteger"
+        },
+        "diagnosticBytes": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
+<!-- bdp-schema:end writeAdvertisedLimits -->
+
+<!-- bdp-schema:start writeDiscovery -->
+### Schema: "writeDiscovery"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["bdpVersion","profile","scope","beads","links","operations","aliases"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
+| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
+| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
+| "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
+| "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
+| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
+| "operations" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "order" | schema | no | — | — |
+| "profile" | schema | yes | — | — |
+| "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "order": {
+      "enum": [
+        "canonical-uri"
+      ]
+    },
+    "profile": {
+      "const": "write"
+    }
+  }
+}
+```
+<!-- bdp-schema:end writeDiscovery -->
+
+<!-- bdp-schema:start writeOperationDirectory -->
+### Schema: "writeOperationDirectory"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink","putAlias","deleteAlias"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "createBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "createLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "deleteAlias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "deleteBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "deleteLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "putAlias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "updateBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "updateLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+<!-- bdp-schema:end writeOperationDirectory -->
+
+<!-- bdp-schema:start idRootCapabilityV1 bundle=id-root -->
+### Schema: "idRootCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+<!-- bdp-schema:end idRootCapabilityV1 bundle=id-root -->
+
+<!-- bdp-schema:start idRootCapabilityAdvertisement bundle=id-root -->
+### Schema: "idRootCapabilityAdvertisement"
+
+Value: object
+
+Required order: ["https://github.com/gastownhall/bdp/capabilities/id-root"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A capabilities map which includes fixed id-root1. Unknown versions may coexist but never authorize version1." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "https://github.com/gastownhall/bdp/capabilities/id-root" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityAdvertisements"
+    }
+  ],
+  "properties": {
+    "https://github.com/gastownhall/bdp/capabilities/id-root": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityVersionAdvertisements"
+        }
+      ],
+      "required": [
+        "1"
+      ],
+      "properties": {
+        "1": {
+          "$ref": "#/$defs/idRootCapabilityV1"
+        }
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootCapabilityAdvertisement bundle=id-root -->
+
+<!-- bdp-schema:start idRoot bundle=id-root -->
+### Schema: "idRoot"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Canonical nonempty local path prefix without a trailing slash. Lexical checks do not establish valid UTF-8, ownership, availability, bounds or safe allocation." |
+| minLength | 1 |
+| pattern | "^(?!@)(?![^/]*:)(?!.*(?:^\|/)\\\\.{1,2}(?:/\|$))(?:[A-Za-z0-9._~!$&'()*+,;=:@-]\|%[0-9A-F]{2})+(?:/(?:[A-Za-z0-9._~!$&'()*+,;=:@-]\|%[0-9A-F]{2})+)*$" |
+| type | "string" |
+
+#### Advanced
+
+```json-schema
+{
+  "not": {
+    "pattern": "%(?:00|01|02|03|04|05|06|07|08|09|0A|0B|0C|0D|0E|0F|10|11|12|13|14|15|16|17|18|19|1A|1B|1C|1D|1E|1F|2D|2E|2F|30|31|32|33|34|35|36|37|38|39|41|42|43|44|45|46|47|48|49|4A|4B|4C|4D|4E|4F|50|51|52|53|54|55|56|57|58|59|5A|5C|5F|61|62|63|64|65|66|67|68|69|6A|6B|6C|6D|6E|6F|70|71|72|73|74|75|76|77|78|79|7A|7E|7F)"
+  }
+}
+```
+<!-- bdp-schema:end idRoot bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateSelection bundle=id-root -->
+### Schema: "idRootCreateSelection"
+
+Value: object
+
+Required order: ["idRoot"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Presence-only prefix at an already dispatched create target; not complete request/value validation." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "idRoot" | true | yes | — | — |
+<!-- bdp-schema:end idRootCreateSelection bundle=id-root -->
+
+<!-- bdp-schema:start idRootBatchSelection bundle=id-root -->
+### Schema: "idRootBatchSelection"
+
+Value: object
+
+Required order: ["capabilityVersion","operations"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Prefix at the already selected atomic-batch1 target. Only declared create positions select id-root1, not nested data or unknown operation names." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+| "operations" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "operations": {
+      "type": "array",
+      "contains": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "enum": [
+              "createBead",
+              "createLink"
+            ]
+          },
+          "idRoot": true
+        },
+        "required": [
+          "operation",
+          "idRoot"
+        ]
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootBatchSelection bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateBeadMembers bundle=id-root -->
+### Schema: "idRootCreateBeadMembers"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "idRoot" | ref "#/$defs/idRoot" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createBeadMembers"
+    }
+  ],
+  "not": {
+    "required": [
+      "id",
+      "idRoot"
+    ],
+    "properties": {
+      "id": true,
+      "idRoot": true
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootCreateBeadMembers bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateBeadRequest bundle=id-root -->
+### Schema: "idRootCreateBeadRequest"
+
+Value: object
+
+Required order: ["idRoot"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "idRoot" | ref "#/$defs/idRoot" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/idRootCreateBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end idRootCreateBeadRequest bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateBeadOperation bundle=id-root -->
+### Schema: "idRootCreateBeadOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "name" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/localName" | no | — | — |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/idRootCreateBeadMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "createBead"
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootCreateBeadOperation bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateLinkMembers bundle=id-root -->
+### Schema: "idRootCreateLinkMembers"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "idRoot" | ref "#/$defs/idRoot" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createLinkMembers"
+    }
+  ],
+  "not": {
+    "required": [
+      "id",
+      "idRoot"
+    ],
+    "properties": {
+      "id": true,
+      "idRoot": true
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootCreateLinkMembers bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateLinkRequest bundle=id-root -->
+### Schema: "idRootCreateLinkRequest"
+
+Value: object
+
+Required order: ["idRoot"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "idRoot" | ref "#/$defs/idRoot" | yes | — | — |
+| "source" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableInputReference" | no | — | — |
+| "target" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableInputReference" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/idRootCreateLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false
+}
+```
+<!-- bdp-schema:end idRootCreateLinkRequest bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateLinkOperation bundle=id-root -->
+### Schema: "idRootCreateLinkOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "name" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/localName" | no | — | — |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/idRootCreateLinkMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "createLink"
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootCreateLinkOperation bundle=id-root -->
+
+<!-- bdp-schema:start idRootBatchOperation bundle=id-root -->
+### Schema: "idRootBatchOperation"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/idRootCreateBeadOperation"
+    },
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateBeadOperation"
+    },
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteBeadOperation"
+    },
+    {
+      "$ref": "#/$defs/idRootCreateLinkOperation"
+    },
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateLinkOperation"
+    },
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteLinkOperation"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end idRootBatchOperation bundle=id-root -->
+
+<!-- bdp-schema:start idRootBatchRequest bundle=id-root -->
+### Schema: "idRootBatchRequest"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["capabilityVersion","operations"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Feature-owned composition of fixed id-root1 and atomic-batch1. This does not modify or validate as the old closed base batchRequest." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+| "operations" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/idRootBatchOperation"
+      },
+      "contains": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "enum": [
+              "createBead",
+              "createLink"
+            ]
+          },
+          "idRoot": true
+        },
+        "required": [
+          "operation",
+          "idRoot"
+        ]
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootBatchRequest bundle=id-root -->
+
+<!-- bdp-schema:start idRootCapabilityProblem bundle=id-root -->
+### Schema: "idRootCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","capability","capabilityVersion","pointer"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | — |
+| "capabilityVersion" | schema | yes | — | — |
+| "code" | schema | yes | — | — |
+| "detail" | text | no | — | — |
+| "instance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri" | no | — | — |
+| "pointer" | schema | yes | — | — |
+| "retry" | schema | yes | — | — |
+| "status" | schema | yes | — | — |
+| "title" | text | no | — | — |
+| "type" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/id-root"
+    },
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "pointer": {
+      "type": "string",
+      "pattern": "^(?:/idRoot|/operations/(?:0|[1-9][0-9]*)/idRoot)$"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end idRootCapabilityProblem bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateResult bundle=id-root -->
+### Schema: "idRootCreateResult"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| $ref | "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/mutationResult" |
+<!-- bdp-schema:end idRootCreateResult bundle=id-root -->
+
+<!-- bdp-schema:start idRootBatchResult bundle=id-root -->
+### Schema: "idRootBatchResult"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| $ref | "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResult" |
+<!-- bdp-schema:end idRootBatchResult bundle=id-root -->
+
+<!-- bdp-schema:start idRootCreateProblem bundle=id-root -->
+### Schema: "idRootCreateProblem"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+    },
+    {
+      "$ref": "#/$defs/idRootCapabilityProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end idRootCreateProblem bundle=id-root -->
+
+<!-- bdp-schema:start idRootBatchProblem bundle=id-root -->
+### Schema: "idRootBatchProblem"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchProblem"
+    },
+    {
+      "$ref": "#/$defs/idRootCapabilityProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end idRootBatchProblem bundle=id-root -->
+
+## OpenAPI
+
+The following visible operation tables are the authoring source for the generated
+[OpenAPI catalog](../../openapi/README.md), using the
+[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Targets are
+navigated URLs, not prescribed deployment paths. Shared media, authorization,
+conditional HTTP, bodyless HEAD/status and Problem rules remain defined by Core.
+Schema names resolve in the shared bundle; optional feature compositions retain
+their distinct schema resources. Generation does not qualify an implementation.
+
+<!-- bdp-operation:start writeDirectory -->
+### Operation: writeDirectory
+
+| Field | JSON value |
+| --- | --- |
+| id | `"writeDirectory"` |
+| navigation | `{"role":"discovery-member","member":"operations"}` |
+| response | `"writeOperationDirectory"` |
+| methods | `["get","head"]` |
+| problem | `"readProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end writeDirectory -->
+
+<!-- bdp-operation:start createBead -->
+### Operation: createBead
+
+| Field | JSON value |
+| --- | --- |
+| id | `"createBead"` |
+| navigation | `{"role":"write-directory-member","member":"createBead"}` |
+| methods | `["post"]` |
+| request | `"createBeadRequest"` |
+| response | `"mutationResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end createBead -->
+
+<!-- bdp-operation:start updateBead -->
+### Operation: updateBead
+
+| Field | JSON value |
+| --- | --- |
+| id | `"updateBead"` |
+| navigation | `{"role":"write-directory-member","member":"updateBead"}` |
+| methods | `["post"]` |
+| request | `"updateBeadRequest"` |
+| response | `"mutationResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end updateBead -->
+
+<!-- bdp-operation:start deleteBead -->
+### Operation: deleteBead
+
+| Field | JSON value |
+| --- | --- |
+| id | `"deleteBead"` |
+| navigation | `{"role":"write-directory-member","member":"deleteBead"}` |
+| methods | `["post"]` |
+| request | `"deleteBeadRequest"` |
+| response | `"mutationResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end deleteBead -->
+
+<!-- bdp-operation:start createLink -->
+### Operation: createLink
+
+| Field | JSON value |
+| --- | --- |
+| id | `"createLink"` |
+| navigation | `{"role":"write-directory-member","member":"createLink"}` |
+| methods | `["post"]` |
+| request | `"createLinkRequest"` |
+| response | `"mutationResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end createLink -->
+
+<!-- bdp-operation:start updateLink -->
+### Operation: updateLink
+
+| Field | JSON value |
+| --- | --- |
+| id | `"updateLink"` |
+| navigation | `{"role":"write-directory-member","member":"updateLink"}` |
+| methods | `["post"]` |
+| request | `"updateLinkRequest"` |
+| response | `"mutationResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end updateLink -->
+
+<!-- bdp-operation:start deleteLink -->
+### Operation: deleteLink
+
+| Field | JSON value |
+| --- | --- |
+| id | `"deleteLink"` |
+| navigation | `{"role":"write-directory-member","member":"deleteLink"}` |
+| methods | `["post"]` |
+| request | `"deleteLinkRequest"` |
+| response | `"mutationResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end deleteLink -->
+
+<!-- bdp-operation:start putAlias -->
+### Operation: putAlias
+
+| Field | JSON value |
+| --- | --- |
+| id | `"putAlias"` |
+| navigation | `{"role":"write-directory-member","member":"putAlias"}` |
+| methods | `["post"]` |
+| request | `"putAliasRequest"` |
+| response | `"aliasResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end putAlias -->
+
+<!-- bdp-operation:start deleteAlias -->
+### Operation: deleteAlias
+
+| Field | JSON value |
+| --- | --- |
+| id | `"deleteAlias"` |
+| navigation | `{"role":"write-directory-member","member":"deleteAlias"}` |
+| methods | `["post"]` |
+| request | `"deleteAliasRequest"` |
+| response | `"aliasResult"` |
+| problem | `"readUpdateProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| continuation | `"none"` |
+| optional | `"Write profile"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end deleteAlias -->
+
+<!-- bdp-operation:start atomicBatch -->
+### Operation: atomicBatch
+
+| Field | JSON value |
+| --- | --- |
+| id | `"atomicBatch"` |
+| navigation | `{"role":"capability-operation","capability":"https://github.com/gastownhall/bdp/capabilities/atomic-batch","version":"1"}` |
+| methods | `["post"]` |
+| request | `"batchRequest"` |
+| response | `"atomicBatchResult"` |
+| problem | `"atomicBatchProblem"` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","capability-not-supported","operation-not-supported"]` |
+| continuation | `"none"` |
+| optional | `"Write plus atomic-batch1"` |
+
+| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
+| --- | --- | --- | --- | --- | --- |
+<!-- bdp-operation:end atomicBatch -->
+
+### Optional id-root1 composition
+
+The createBead, createLink and atomicBatch signatures keep the same URLs, media
+and results when id-root1 is explicitly selected. Their request schemas compose
+the base arm with idRootCreateBeadRequest, idRootCreateLinkRequest and
+idRootBatchRequest respectively from the id-root schema resource. The feature
+Problem schemas are idRootCreateProblem and idRootBatchProblem. Presence of
+`idRoot` selects this feature; absence keeps the base contract. Clients do not
+allocate IDs or invent a separate endpoint. The admission and composition rules
+in [Optional rooted creation](#optional-rooted-allocation-version-1) remain binding.

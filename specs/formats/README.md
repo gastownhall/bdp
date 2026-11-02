@@ -5,8 +5,8 @@ These draft format specifications originate in the Memory experiment. BDP keeps 
 | Format | Edition | Boundary |
 | --- | --- | --- |
 | [Markdown schema tables for JSON Schema](markdown-json-schema.md) | 0.6 draft | Table-first notation with exact schema constraints, bundle/reference preservation and a bounded offline codec. |
-| [Preserved JSON Schema notation](markdown-json-schema-v0.5.md) | 0.5 | Original import retained for the OpenAPI0.4 companion and historical comparisons. |
-| [Markdown API tables for OpenAPI](markdown-openapi.md) | 0.4 | A restricted OpenAPI 3.1.2 projection using the companion schema notation. |
+| [Preserved JSON Schema notation](markdown-json-schema-v0.5.md) | 0.5 | Original import retained for historical comparisons. |
+| [Markdown API tables for OpenAPI](markdown-openapi.md) | 0.5 draft | Visible BDP operation tables projected to an OpenAPI 3.1.1 discovered-URL catalog. |
 | [Bead and Link Type definitions](markdown-type-definitions.md) | 0.1 draft | Descriptor fields, sibling property schemas and owned exact Refines declarations; authoring intent and recorded state stay distinct. |
 | [Markdown Bead/Link authoring bundles](../../experimental/formats/markdown-bead-bundles.md) | 0.1 | Nascent experiment; identity binding, revision pins and edit/delete mechanics remain open. |
 
@@ -14,7 +14,7 @@ These draft format specifications originate in the Memory experiment. BDP keeps 
 
 The proposed schema0.6 edition extends the imported notation against the actual BDP bundle: general named schemas, arbitrary names, constraints/maps, references, composition, conditionals and evaluated closure. Its bounded offline codec projects the complete unchanged schema resource; it neither fetches references nor implements BDP admission. The [Read](../profiles/core/read-contracts.md) and [Write](../profiles/write/write-contracts.md) contract indexes identify selected roots without promoting inherited helpers. The Type-definition notation composes that schema language with the existing descriptor and owned declarations, rather than defining another property-schema grammar.
 
-Schema0.5 remains unchanged at its edition-specific path. OpenAPI0.4 continues to use that exact companion version; it does not silently acquire0.6 support. No Type-format parser, provider, public lifecycle command or instance-bundle converter is delivered by these drafts.
+Schema0.5 remains unchanged at its edition-specific path. The BDP OpenAPI0.5 appendix notation uses explicit JSON Schema references; it replaces the old static-path experiment rather than upgrading its historical receipts. No Type-format parser, provider, public lifecycle command or instance-bundle converter is delivered by these drafts.
 
 Historical comparisons and stress receipts in the imported documents remain bound to their original versions and source commits. In particular, their references to old BDP profiles, sequence operations, SSE or the absence of an OpenAPI catalog describe that experiment, not current BDP. Future grammar revisions need their own evidence; the original receipts cannot qualify them.
 

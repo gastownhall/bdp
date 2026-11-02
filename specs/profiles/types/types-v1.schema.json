@@ -6,8 +6,8 @@
   "$defs": {
     "typesCapabilityV1": {
       "type": "object",
-      "properties": {},
-      "additionalProperties": false
+      "additionalProperties": false,
+      "properties": {}
     },
     "discovery": {
       "allOf": [
@@ -180,5 +180,25 @@
         }
       ]
     }
+  },
+  "x-bdp-schema-definitions": [
+    "beadCollection",
+    "beadRecord",
+    "discovery",
+    "linkCollection",
+    "linkRecord",
+    "typesCapabilityV1",
+    "typesDiscovery"
+  ],
+  "x-bdp-schema-sources": {
+    "specs/profiles/types/types.md": [
+      "beadCollection",
+      "beadRecord",
+      "discovery",
+      "linkCollection",
+      "linkRecord",
+      "typesCapabilityV1",
+      "typesDiscovery"
+    ]
   }
 }

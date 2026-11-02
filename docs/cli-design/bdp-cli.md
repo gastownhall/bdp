@@ -279,7 +279,7 @@ The Event signatures are events [RESOURCE], link events RESOURCE with
 --representation postimage|delta and --page-size N. [D1/D2 are answered](event-decisions-20261022.md):
 within advertised Events, postimages are required and deltas optional; declared observation coverage with bounded
 replay and explicit gaps. The paired [Event CLI](events.md) and
-[native source](../../specs/profiles/core/core.md#optional-events) define postimage default,
+[native source](../../specs/profiles/events/events.md#contract-and-advertisement) define postimage default,
 finite JSON/polling, cursor/coverage and the six mutation-name delta vocabulary.
 No predicate language, masks, wire provenance suppression or changes command is
 added. Within advertised Events, unknown required semantics stop delivery. When Events is advertised,

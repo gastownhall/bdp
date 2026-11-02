@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CANONICAL = (
     "specs/profiles/core/core.md",
     "specs/profiles/write/write.md",
+    "specs/profiles/events/events.md",
     "specs/profiles/types/types.md",
     "specs/profiles/transfer/transfer.md",
     "docs/cli-design/bdp-cli.md",
@@ -25,15 +26,25 @@ EDITORIAL_TOOLING = {
     ".github/workflows/ci.yml", "scripts/check-spec-editorial.py",
     "scripts/check-spec-editorial-test.py", "scripts/spec-schema-fragments.mjs",
     "scripts/spec-schema-fragments.node-test.mjs",
+    "scripts/generate-openapi.mjs", "scripts/openapi.node-test.mjs",
+    "scripts/generate-markdown-contracts.mjs", "scripts/markdown-contracts.node-test.mjs",
+    "scripts/markdown-schema.node-test.mjs",
 }
 CORE_BUNDLES = {
     "specs/profiles/core/bdp-v0.1.schema.json",
     "packages/protocol/schemas/bdp-v0.1.schema.json",
 }
 CORE_OWNERSHIP = "x-bdp-core-definitions"
+PROFILE_OWNERSHIP = "x-bdp-schema-definitions"
+PROFILE_SOURCES = "x-bdp-schema-sources"
+FEATURE_BUNDLES = {"specs/profiles/write/id-root-v1.schema.json", "specs/profiles/types/types-v1.schema.json"}
+GENERATED_SPEC_FILES = {
+    "specs/openapi/bdp-v0.1.openapi.json", "specs/openapi/bdp-v0.1.tooling.openapi.json",
+    "fixtures/openapi/generated.openapi.json", "fixtures/markdown-contracts/selected.json",
+}
 EDITORIAL_FILES = {
     *ENTRY_POINTS,
-    "CONTEXT.md", "package.json", *CORE_BUNDLES,
+    "CONTEXT.md", "package.json", *CORE_BUNDLES, *FEATURE_BUNDLES, *GENERATED_SPEC_FILES,
     "specs/profiles/core/bdp-v0.1.schema.md",
     "docs/cli-design/overview/examples/csv-failure.sh",
     "docs/cli-design/overview/examples/csv-review.sh",
@@ -43,6 +54,7 @@ EDITORIAL_PREFIXES = (
     "specs/profiles/write/",
     "specs/profiles/types/",
     "specs/profiles/transfer/",
+    "specs/profiles/events/", "specs/formats/",
     "specs/types/type-system/",
     "specs/history/",
     "docs/spec-review/",
@@ -114,7 +126,7 @@ def editorial_change(base, head):
             raise ValueError(f"cannot inspect changed path {path!r}")
         # These are narrowly checked specification distributions/tool wiring,
         # not a path exemption for arbitrary schema or dependency changes.
-        if path == "package.json" or path in CORE_BUNDLES:
+        if path == "package.json" or path in CORE_BUNDLES or path in FEATURE_BUNDLES:
             if base not in bodies or head not in bodies:
                 return False
             try:
@@ -122,6 +134,11 @@ def editorial_change(base, head):
                 after = strict_json(bodies[head], preserve_numbers=True)
                 if path == "package.json":
                     if not editorial_package_change(before, after):
+                        return False
+                elif path in FEATURE_BUNDLES:
+                    before = {k: v for k, v in before.items() if k not in (PROFILE_OWNERSHIP, PROFILE_SOURCES)}
+                    after = {k: v for k, v in after.items() if k not in (PROFILE_OWNERSHIP, PROFILE_SOURCES)}
+                    if before != after:
                         return False
                 elif not editorial_core_change(before, after):
                     return False
@@ -152,8 +169,19 @@ def editorial_package_change(before, after):
 def editorial_core_change(before, after):
     before = dict(before)
     after = dict(after)
-    old_owned = before.pop(CORE_OWNERSHIP, [])
-    new_owned = after.pop(CORE_OWNERSHIP)
+    old_owned = before.pop(PROFILE_OWNERSHIP, before.pop(CORE_OWNERSHIP, []))
+    new_owned = after.pop(PROFILE_OWNERSHIP, after.pop(CORE_OWNERSHIP, None))
+    before.pop(PROFILE_SOURCES, None)
+    source_map = after.pop(PROFILE_SOURCES, None)
+    write_owned = set()
+    if source_map is not None:
+        allowed = {"specs/profiles/core/core.md", "specs/profiles/events/events.md", "specs/profiles/write/write.md"}
+        if not isinstance(source_map, dict) or set(source_map) != allowed:
+            return False
+        assigned = [name for names in source_map.values() for name in names]
+        if sorted(assigned) != sorted(new_owned or []):
+            return False
+        write_owned = set(source_map["specs/profiles/write/write.md"])
     if not isinstance(old_owned, list) or not isinstance(new_owned, list):
         return False
     if not all(isinstance(name, str) for name in old_owned + new_owned):
@@ -165,6 +193,13 @@ def editorial_core_change(before, after):
     if not set(new_owned) <= new_defs.keys():
         return False
     for name in new_owned:
+        if name in write_owned:
+            # Physical authoring adoption cannot silently change Write semantics.
+            # Its separately reviewed optional-Events correction is handled below.
+            if name != "writeDiscovery" and old_defs.get(name) != new_defs[name]:
+                return False
+            if name == "writeDiscovery" and old_defs.get(name) != new_defs[name]:
+                continue
         old_defs.pop(name, None)
         new_defs.pop(name)
     # The already reviewed optional-Events correction is the sole non-Core
@@ -201,9 +236,10 @@ def parse_document(text):
             else:
                 body.append(line)
             continue
-        marker = re.fullmatch(r"<!-- bdp-schema:(start|end) ([A-Za-z][A-Za-z0-9]*) -->", line)
+        marker = re.fullmatch(r"<!-- bdp-schema:(start|end) ([A-Za-z][A-Za-z0-9]*)(?: bundle=([a-z][a-z-]*))? -->", line)
         if comment is None and marker:
-            action, name = marker.groups()
+            action, name, bundle = marker.groups()
+            name = (bundle or "common") + ":" + name
             if action == "start":
                 if schema_fragment is not None:
                     raise ValueError(f"nested schema fragment at line {number}")

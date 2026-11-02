@@ -165,6 +165,53 @@ class ClassificationTests(unittest.TestCase):
         path.symlink_to("../../packages/server/src/index.ts")
         self.assertFalse(self.classify())
 
+    def profile_adoption(self):
+        updated = copy.deepcopy(self.bundle)
+        updated[editorial.PROFILE_OWNERSHIP] = ["coreRecord", "otherProfile"]
+        updated[editorial.PROFILE_SOURCES] = {
+            "specs/profiles/core/core.md": ["coreRecord"],
+            "specs/profiles/events/events.md": [],
+            "specs/profiles/write/write.md": ["otherProfile"],
+        }
+        return updated
+
+    def test_exact_cross_profile_authoring_adoption_is_specification_only(self):
+        self.write_bundles(self.profile_adoption())
+        self.assertTrue(self.classify())
+
+    def test_cross_profile_adoption_cannot_smuggle_write_semantics(self):
+        updated = self.profile_adoption()
+        updated["$defs"]["otherProfile"]["const"] = 1
+        self.write_bundles(updated)
+        self.assertFalse(self.classify())
+
+    def test_profile_source_inventory_cannot_omit_or_duplicate_a_definition(self):
+        updated = self.profile_adoption()
+        updated[editorial.PROFILE_SOURCES]["specs/profiles/events/events.md"] = ["coreRecord"]
+        self.write_bundles(updated)
+        self.assertFalse(self.classify())
+
+    def test_distinct_feature_schema_adoption_preserves_existing_meaning(self):
+        path = "specs/profiles/types/types-v1.schema.json"
+        original = {"$id": "https://example.invalid/types", "$defs": {"beadRecord": {"type": "object"}}}
+        self.write(path, original)
+        self.base = self.commit()
+        updated = copy.deepcopy(original)
+        updated[editorial.PROFILE_OWNERSHIP] = ["beadRecord"]
+        updated[editorial.PROFILE_SOURCES] = {"specs/profiles/types/types.md": ["beadRecord"]}
+        self.write(path, updated)
+        self.assertTrue(self.classify())
+
+    def test_distinct_feature_schema_semantic_change_requires_implementation(self):
+        path = "specs/profiles/types/types-v1.schema.json"
+        original = {"$id": "https://example.invalid/types", "$defs": {"beadRecord": {"type": "object"}}}
+        self.write(path, original)
+        self.base = self.commit()
+        updated = copy.deepcopy(original)
+        updated["$defs"]["beadRecord"]["type"] = "string"
+        self.write(path, updated)
+        self.assertFalse(self.classify())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
