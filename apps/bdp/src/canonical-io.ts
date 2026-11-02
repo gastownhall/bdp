@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, rename, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import type { Writable } from "node:stream";
 import type { CanonicalInputReader } from "./canonical-input.js";
 
 /** Acquisition, rather than just the decoded value, is bounded. */
@@ -23,7 +24,7 @@ export async function readBoundedFile(path: string, maximum: number): Promise<Ui
   }
 }
 
-export function canonicalInputReader(): CanonicalInputReader {
+export function canonicalInputReader(signal?: AbortSignal): CanonicalInputReader {
   let consumed = false;
   return {
     readFile: readBoundedFile,
@@ -32,13 +33,20 @@ export function canonicalInputReader(): CanonicalInputReader {
       consumed = true;
       const chunks: Uint8Array[] = [];
       let length = 0;
-      for await (const chunk of process.stdin) {
-        const bytes = typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Uint8Array);
-        length += bytes.byteLength;
-        if (length > maximum) throw new Error("stdin exceeds input bound");
-        chunks.push(bytes);
+      signal?.throwIfAborted();
+      const interrupt = () => process.stdin.destroy(signal?.reason);
+      signal?.addEventListener("abort", interrupt, { once: true });
+      try {
+        for await (const chunk of process.stdin) {
+          const bytes = typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Uint8Array);
+          length += bytes.byteLength;
+          if (length > maximum) throw new Error("stdin exceeds input bound");
+          chunks.push(bytes);
+        }
+        return Buffer.concat(chunks);
+      } finally {
+        signal?.removeEventListener("abort", interrupt);
       }
-      return Buffer.concat(chunks);
     },
   };
 }
@@ -74,4 +82,52 @@ export async function saveCanonicalJournal(value: unknown): Promise<string> {
     await unlink(temporary).catch(() => undefined);
     throw error;
   }
+}
+
+export class CanonicalOutputError extends Error {
+  constructor() {
+    super("BDP output failed");
+  }
+}
+/** Await the write callback, which settles only after queued bytes drain. Keep
+ * an error listener through the error event following a failed callback. */
+export function writeCanonicalOutput(
+  stream: Writable,
+  text: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const interrupt = () => {
+      signal?.removeEventListener("abort", interrupt);
+      // A consumer that stops draining must not make Ctrl-C wait forever.
+      stream.destroy();
+      reject(signal?.reason);
+    };
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    signal?.addEventListener("abort", interrupt, { once: true });
+    const failed = () => {
+      signal?.removeEventListener("abort", interrupt);
+      stream.removeListener("error", failed);
+      reject(new CanonicalOutputError());
+    };
+    stream.once("error", failed);
+    try {
+      stream.write(text, (error) => {
+        if (error) {
+          reject(new CanonicalOutputError());
+          return;
+        }
+        signal?.removeEventListener("abort", interrupt);
+        stream.removeListener("error", failed);
+        resolve();
+      });
+    } catch {
+      signal?.removeEventListener("abort", interrupt);
+      stream.removeListener("error", failed);
+      reject(new CanonicalOutputError());
+    }
+  });
 }

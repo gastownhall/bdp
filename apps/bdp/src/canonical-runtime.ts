@@ -24,7 +24,12 @@ import {
   compileCanonicalInput,
   parseCanonicalReference,
 } from "./canonical-input.js";
-import { canonicalInputReader, readBoundedFile, saveCanonicalJournal } from "./canonical-io.js";
+import {
+  CanonicalOutputError,
+  canonicalInputReader,
+  readBoundedFile,
+  saveCanonicalJournal,
+} from "./canonical-io.js";
 import { type CanonicalOutput, httpContext, renderCanonicalOutput } from "./canonical-output.js";
 import {
   CanonicalProjectionError,
@@ -113,7 +118,11 @@ function credentialBoundary(config: CanonicalCliConfig, scope: string | null): s
 export async function runCanonicalInvocation(
   invocation: CanonicalInvocation,
   config: CanonicalCliConfig,
-  io: { readonly stdout: (text: string) => void; readonly stderr: (text: string) => void },
+  io: {
+    readonly stdout: (text: string, signal?: AbortSignal) => void | Promise<void>;
+    readonly stderr: (text: string) => void | Promise<void>;
+    readonly signal?: AbortSignal;
+  },
 ): Promise<number> {
   const options = invocation.options;
   const command = [...invocation.command];
@@ -140,15 +149,17 @@ export async function runCanonicalInvocation(
   let pendingRecovery: string | undefined;
   let submitted = false;
   let known: CanonicalOutput | undefined;
-  const output = (value: CanonicalOutput): void => {
+  let stream: { raw: boolean; returned: number; next?: string | null } | undefined;
+  const call = io.signal === undefined ? {} : { signal: io.signal };
+  const output = async (value: CanonicalOutput): Promise<void> => {
     const rendered = renderCanonicalOutput(value, options, scope);
-    io.stdout(rendered);
+    await io.stdout(rendered, value.outcome === "success" ? io.signal : undefined);
     const raw = Array.isArray(options.omit) && options.omit.includes("envelope");
     if (
       value.outcome !== "success" &&
       (raw || (options.outputFormat !== "json" && options.outputFormat !== "jsonl"))
     )
-      io.stderr(
+      await io.stderr(
         `${JSON.stringify({ error: value.error, ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }) })}\n`,
       );
   };
@@ -202,7 +213,7 @@ export async function runCanonicalInvocation(
         2,
         "supply a Scope or configure scope.url / BDP_SCOPE_URL",
       );
-    const reader = canonicalInputReader();
+    const reader = canonicalInputReader(io.signal);
     const dryRun = stringOption(options, "dryRunMode");
     if (dryRun !== undefined && !mutation)
       return refuse("invalid_arguments", 2, "emission requires a mutation");
@@ -218,7 +229,7 @@ export async function runCanonicalInvocation(
       });
       if (compiled.batchMemberText === undefined)
         return refuse("invalid_value", 2, "this command cannot be a batch member");
-      io.stdout(`${compiled.batchMemberText}\n`);
+      await io.stdout(`${compiled.batchMemberText}\n`, io.signal);
       return 0;
     }
 
@@ -305,6 +316,7 @@ export async function runCanonicalInvocation(
       } else {
         const read = consume(
           await client.read({
+            ...call,
             reference: initial,
             expectedKind: link ? "link" : "bead",
             followAlias: true,
@@ -314,7 +326,7 @@ export async function runCanonicalInvocation(
       }
     }
     if (command[0] === "scope") {
-      const reply = await client.inspectScope(scope);
+      const reply = await client.inspectScope(scope, call);
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
       known = {
@@ -329,7 +341,7 @@ export async function runCanonicalInvocation(
       const operand = invocation.positionals[0];
       if (!operand) return refuse("invalid_arguments", 2, "alias name required");
       const reference = parseCanonicalReference(operand, scope, { mutationSubject: true });
-      const reply = await client.resolveAlias(referenceUri(reference), scope);
+      const reply = await client.resolveAlias(referenceUri(reference), scope, call);
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
       known = {
@@ -459,11 +471,13 @@ export async function runCanonicalInvocation(
       }
       let latest: RetainedReply<RetainedPageValue> | undefined;
       do {
-        const size = limit === 0 ? pageSize : Math.min(pageSize, limit - items.length);
+        const returned = stream?.returned ?? items.length;
+        const size = limit === 0 ? pageSize : Math.min(pageSize, limit - returned);
         if (next !== undefined && next !== null) {
           // Change only the per-fetch limit, retaining the opaque cursor and selection.
           const page = resizePage(next, size);
           latest = await client.readPage({
+            ...call,
             url: page,
             scope,
             collectionKind: kind,
@@ -477,25 +491,57 @@ export async function runCanonicalInvocation(
                 ? "outbound"
                 : "both";
           latest = await client.incident({
+            ...call,
             scope,
             bead: incidentSubject,
             direction,
             filters,
             limit: size,
           });
-        } else latest = await client.list({ scope, kind, filters, limit: size });
+        } else latest = await client.list({ ...call, scope, kind, filters, limit: size });
         const value = consume(latest),
           page = value.page;
         if (page === undefined || page.items.length > size)
           return refuse("invalid_value", 1, "provider exceeded the requested page budget");
-        items.push(...page.items);
+        if (format === "jsonl") {
+          if (stream === undefined) {
+            stream = {
+              raw: Array.isArray(options.omit) && options.omit.includes("envelope"),
+              returned: 0,
+            };
+            if (!stream.raw)
+              await io.stdout(
+                `${JSON.stringify({ record_type: "header", schema_version: 2, bdp_spec: specification, result_kind: "resource_collection", context: httpContext(latest.http, subject ?? scope, kind) })}\n`,
+                io.signal,
+              );
+          }
+          // While inside a page there is no resumable native boundary.
+          delete stream.next;
+          for (const item of page.items) {
+            io.signal?.throwIfAborted();
+            await io.stdout(
+              `${JSON.stringify(stream.raw ? item : { record_type: "item", data: item })}\n`,
+              io.signal,
+            );
+            stream.returned++;
+          }
+          stream.next = page.next;
+        } else items.push(...page.items);
         next = page.next;
         if (next === null) stop = "exhausted";
-        else if (limit > 0 && items.length >= limit) stop = "limit";
+        else if (limit > 0 && (stream?.returned ?? items.length) >= limit) stop = "limit";
         else stop = "page";
         if (stop !== "page" || !unpaged) break;
       } while (next !== null);
       if (latest?.kind !== "success") throw latest;
+      if (stream !== undefined) {
+        if (!stream.raw)
+          await io.stdout(
+            `${JSON.stringify({ record_type: "terminal", outcome: "success", completion: { returned: stream.returned, exhausted: next === null, stop_reason: stop }, continuation: next })}\n`,
+            io.signal,
+          );
+        return 0;
+      }
       known = {
         schema_version: 2,
         bdp_spec: specification,
@@ -543,6 +589,7 @@ export async function runCanonicalInvocation(
       if (!raw) return refuse("invalid_arguments", 2, "Resource operand required");
       const ref = initialRef ?? parseCanonicalReference(raw, scope);
       const reply = await client.read({
+        ...call,
         reference: ref,
         allowExactRevision: true,
         followAlias: true,
@@ -599,11 +646,12 @@ export async function runCanonicalInvocation(
         });
         if (!RETAINED_WRITE_OPERATIONS.includes(compiled.operation))
           return refuse("unsupported_capability", 5, "unsupported mutation");
-        const binding = consume(await client.bindWrite(scope));
+        const binding = consume(await client.bindWrite(scope, call));
         if (dryRun === "bdp") {
           const preview = binding.prepare(compiled.operation, compiled.bodyText, "preview");
-          io.stdout(
+          await io.stdout(
             `${JSON.stringify({ method: preview.method, url: preview.url, headers: { accept: preview.headers.accept, "content-type": preview.headers["content-type"] }, body: json(preview.bodyText) })}\n`,
+            io.signal,
           );
           return 0;
         }
@@ -623,7 +671,7 @@ export async function runCanonicalInvocation(
       }
       submitted = true;
       specification = prepared.specification;
-      const reply = await client.submit(prepared);
+      const reply = await client.submit(prepared, call);
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
       known = {
@@ -635,7 +683,7 @@ export async function runCanonicalInvocation(
         data,
       };
     }
-    if (known) output(known);
+    if (known) await output(known);
     return 0;
   } catch (error) {
     let status = 1,
@@ -680,6 +728,18 @@ export async function runCanonicalInvocation(
       code = "write_outcome_unknown";
       message = "Write disposition is unknown; recover the saved invocation with the same key";
     }
+    if (io.signal?.aborted && !(error instanceof CanonicalOutputError)) {
+      status = 130;
+      if (!unknown) {
+        code = "interrupted";
+        message = "BDP delivery interrupted";
+      }
+    }
+    if (error instanceof CanonicalOutputError) {
+      status = 1;
+      code = "output_failed";
+      message = "BDP output failed";
+    }
     const failure: CanonicalOutput = {
       schema_version: 2,
       bdp_spec: specification,
@@ -702,9 +762,27 @@ export async function runCanonicalInvocation(
         : { origin: "cli", problem: { code, message } },
     };
     try {
-      output(failure);
+      if (stream !== undefined) {
+        const terminal = {
+          record_type: "terminal",
+          outcome: "failure",
+          completion: {
+            returned: stream.returned,
+            exhausted: stream.next === undefined ? null : stream.next === null,
+            stop_reason: "error",
+          },
+          ...(stream.next === undefined ? {} : { continuation: stream.next }),
+          error: failure.error,
+        };
+        if (stream.raw) await io.stderr(`${JSON.stringify(terminal)}\n`);
+        else await io.stdout(`${JSON.stringify(terminal)}\n`);
+      } else await output(failure);
     } catch {
-      io.stderr("BDP output failed\n");
+      await Promise.resolve(
+        io.stderr(
+          `${JSON.stringify({ error: { origin: "cli", problem: { code: "output_failed", message: "BDP output failed" } }, context: failure.context })}\n`,
+        ),
+      ).catch(() => undefined);
     }
     return status;
   }

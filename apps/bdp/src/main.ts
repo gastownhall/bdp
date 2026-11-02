@@ -24,7 +24,7 @@ import {
 import type { ReadProblem } from "@bdp/protocol";
 import { type Command, CommanderError } from "commander";
 import { createCanonicalCommand } from "./canonical-command.js";
-import { readBoundedFile } from "./canonical-io.js";
+import { readBoundedFile, writeCanonicalOutput } from "./canonical-io.js";
 import { runCanonicalInvocation } from "./canonical-runtime.js";
 
 const executable = "bdp";
@@ -145,14 +145,18 @@ export async function runBdp(args: readonly string[]): Promise<number> {
             : {}),
         };
         const config = loadCanonicalCliConfig({ configFile, env, readFile });
-        status = await runCanonicalInvocation(invocation, config, {
-          stdout: (text) => {
-            process.stdout.write(text);
-          },
-          stderr: (text) => {
-            process.stderr.write(text);
-          },
-        });
+        const interruption = new AbortController();
+        const interrupt = () => interruption.abort();
+        process.on("SIGINT", interrupt);
+        try {
+          status = await runCanonicalInvocation(invocation, config, {
+            signal: interruption.signal,
+            stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
+            stderr: (text) => writeCanonicalOutput(process.stderr, text),
+          });
+        } finally {
+          process.removeListener("SIGINT", interrupt);
+        }
       },
     });
     await tree.parseAsync([...args], { from: "user" });

@@ -15,7 +15,7 @@ const binary = path.join(root, "apps/bdp/dist/main.js");
 const specification = "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json";
 const json = ["--output-format", "json"];
 const token = "canonical-cli-test-secret-00000000000000000000";
-async function cli(args, directory, scope, extras = {}) {
+async function cli(args, directory, scope, extras = {}, controls = {}) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key]) => !key.startsWith("BDP_") && key !== "XDG_STATE_HOME",
@@ -40,6 +40,7 @@ async function cli(args, directory, scope, extras = {}) {
     }, 15_000);
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
+      controls.onStdout?.(stdout);
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
@@ -49,6 +50,7 @@ async function cli(args, directory, scope, extras = {}) {
       clearTimeout(timer);
       resolve({ code, signal, stdout, stderr });
     });
+    controls.onSpawn?.(child);
     child.stdin.end();
   });
 }
@@ -446,6 +448,269 @@ test("canonical CRUD, native pages, exact wire inputs, previews and same-key rec
     assert.ok((await readdir(path.join(directory, "bdp", "retry"))).length > 0);
   } finally {
     await reference?.close();
+    await close(proxy);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("delivery streams pages and settles interruption and closed stdout", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "bdp-cli-delivery-"));
+  let reference, intercept;
+  const proxy = createServer((incoming, outgoing) => {
+    const listener = new URL(reference.listenUrl);
+    const forward = request(
+      {
+        hostname: listener.hostname,
+        port: listener.port,
+        path: incoming.url,
+        method: incoming.method,
+        headers: incoming.headers,
+      },
+      (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => {
+          const release = () => {
+            outgoing.writeHead(response.statusCode, response.headers);
+            outgoing.end(Buffer.concat(chunks));
+          };
+          if (!intercept?.(incoming, release)) release();
+        });
+      },
+    );
+    forward.on("error", () => outgoing.destroy());
+    incoming.pipe(forward);
+  });
+  const port = await listen(proxy),
+    scope = `http://127.0.0.1:${port}/work/`;
+  try {
+    reference = await startReferenceService({
+      directory: path.join(directory, "store"),
+      create: true,
+      instance: "cli-delivery",
+      scope,
+      credentials: [{ token, principal: "operator" }],
+    });
+    for (const id of ["a", "b"])
+      success(
+        await cli(
+          ["create", "--id", id, "--type", "https://types.invalid/Note", ...json],
+          directory,
+          scope,
+        ),
+        "mutation",
+      );
+    await t.test("JSONL delivers a full first page while the next response is held", async () => {
+      let releaseNext, resolveHeld, resolveItem;
+      const held = new Promise((resolve) => {
+        resolveHeld = resolve;
+      });
+      const item = new Promise((resolve) => {
+        resolveItem = resolve;
+      });
+      intercept = (incoming, release) => {
+        if (incoming.url.includes("cursor=")) {
+          releaseNext = release;
+          resolveHeld();
+          return true;
+        }
+        return false;
+      };
+      const running = cli(
+        ["list", "--page-size", "1", "--output-format", "jsonl"],
+        directory,
+        scope,
+        {},
+        {
+          onStdout: (stdout) => {
+            if (stdout.includes('"record_type":"item"')) resolveItem();
+          },
+        },
+      );
+      let timer, observationError;
+      try {
+        await held;
+        await Promise.race([
+          item,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("first JSONL page was buffered behind next response")),
+              1000,
+            );
+          }),
+        ]);
+      } catch (error) {
+        observationError = error;
+      } finally {
+        clearTimeout(timer);
+        intercept = undefined;
+        releaseNext?.();
+      }
+      const result = await running;
+      if (observationError) throw observationError;
+      assert.equal(result.code, 0, result.stderr);
+    });
+    await t.test(
+      "SIGINT on the next fetch preserves the last delivered native boundary",
+      async () => {
+        let child, releaseNext;
+        intercept = (incoming, release) => {
+          if (incoming.url.includes("cursor=")) {
+            releaseNext = release;
+            child.kill("SIGINT");
+            return true;
+          }
+          return false;
+        };
+        let result;
+        try {
+          result = await cli(
+            ["list", "--page-size", "1", "--output-format", "jsonl"],
+            directory,
+            scope,
+            {},
+            {
+              onSpawn: (process) => {
+                child = process;
+              },
+            },
+          );
+        } finally {
+          intercept = undefined;
+          releaseNext?.();
+        }
+        assert.equal(result.code, 130, result.stderr);
+        assert.equal(result.signal, null);
+        const records = result.stdout.trim().split("\n").map(JSON.parse);
+        assert.equal(records[0].record_type, "header");
+        assert.equal(records.filter((record) => record.record_type === "item").length, 1);
+        const terminal = records.at(-1);
+        assert.equal(terminal.outcome, "failure");
+        assert.equal(terminal.error.problem.code, "interrupted");
+        assert.deepEqual(terminal.completion, {
+          returned: 1,
+          exhausted: false,
+          stop_reason: "error",
+        });
+        assert.equal(typeof terminal.continuation, "string");
+        const resumed = success(
+          await cli(
+            ["list", "--continue", terminal.continuation, "--page-size", "1", ...json],
+            directory,
+            scope,
+          ),
+          "resource_collection",
+        );
+        assert.notEqual(resumed.data.items[0].id, records[1].data.id);
+      },
+    );
+    await t.test("SIGINT after committed POST yields130 and same-key recovery", async () => {
+      let child, releaseWrite;
+      intercept = (incoming, release) => {
+        if (incoming.method === "POST") {
+          releaseWrite = release;
+          child.kill("SIGINT");
+          return true;
+        }
+        return false;
+      };
+      let result;
+      try {
+        result = await cli(
+          ["create", "--id", "interrupted", "--type", "https://types.invalid/Note", ...json],
+          directory,
+          scope,
+          {},
+          {
+            onSpawn: (process) => {
+              child = process;
+            },
+          },
+        );
+      } finally {
+        intercept = undefined;
+        releaseWrite?.();
+      }
+      assert.equal(result.signal, null);
+      assert.equal(result.code, 130, result.stderr);
+      const failure = JSON.parse(result.stdout);
+      assert.equal(failure.outcome, "unknown");
+      const retry = success(
+        await cli(
+          ["create", "--retry-file", failure.context.recovery.file, ...json],
+          directory,
+          scope,
+        ),
+        "mutation",
+      );
+      assert.equal(retry.data.resource.id, `${scope}interrupted`);
+    });
+    await t.test("SIGINT can stop a backpressured output writer", async () => {
+      const input = path.join(directory, "large.json");
+      await writeFile(input, JSON.stringify({ body: "x".repeat(50_000) }));
+      for (let index = 0; index < 10; index++) {
+        success(
+          await cli(
+            [
+              "create",
+              "--id",
+              `large${index}`,
+              "--type",
+              "https://types.invalid/Note",
+              "--properties",
+              `@${input}`,
+              ...json,
+            ],
+            directory,
+            scope,
+          ),
+          "mutation",
+        );
+      }
+      const result = await cli(
+        ["list", "--unpaged", ...json],
+        directory,
+        scope,
+        {},
+        {
+          onSpawn: (child) => {
+            child.stdout.pause();
+            child.stdout.once("readable", () => child.kill("SIGINT"));
+            child.once("exit", () => child.stdout.resume());
+          },
+        },
+      );
+      assert.equal(result.signal, null);
+      assert.equal(result.code, 130, result.stderr);
+      assert.doesNotMatch(result.stderr, /Unhandled|unhandled|node:events/);
+    });
+    await t.test(
+      "closed stdout reports known committed outcome without an uncaught EPIPE",
+      async () => {
+        const result = await cli(
+          ["create", "--id", "closed-output", "--type", "https://types.invalid/Note", ...json],
+          directory,
+          scope,
+          {},
+          { onSpawn: (child) => child.stdout.destroy() },
+        );
+        assert.equal(result.code, 1);
+        assert.equal(result.signal, null);
+        assert.doesNotMatch(result.stderr, /Unhandled|unhandled|node:events|stack/);
+        const diagnostic = JSON.parse(result.stderr);
+        assert.equal(diagnostic.error.problem.code, "output_failed");
+        assert.equal(diagnostic.context.operation_outcome, "success");
+        assert.equal(
+          success(await cli(["show", "closed-output", ...json], directory, scope), "resource").data
+            .id,
+          `${scope}closed-output`,
+        );
+      },
+    );
+  } finally {
+    intercept = undefined;
+    await reference?.close();
+    proxy.closeAllConnections();
     await close(proxy);
     await rm(directory, { recursive: true, force: true });
   }
