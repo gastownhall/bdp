@@ -91,11 +91,12 @@ manifest entry executes through the existing built Node command with explicit
 additional files; the repeated emitted CLI invocation is retained from the
 successful trial. Its control fails if a new Node/current entry is missing.
 The provider-kit Node control is included after the ordinary merge of main
-`b9eaf3d8`; that added control was not part of the frozen trial timing. Perf
-controls must be added by actual path when their source is integrated; do not
-import nonexistent files. Preserve the selector/perf workflows' own CI control
-steps when those changes land, without dispatching the selector. Rerun the
-complete Node/current inventory control before promotion is published.
+`b9eaf3d8`. Reviewed selector `efa45aa0` and perf `ca12a784` are also ordinarily
+merged. The selector's own controls remain in specification CI; perf's own
+controls run immediately after baseline build, and its actual Node entry is
+also in the complete current-Node command. No selector dispatch or result reuse
+is adopted. These added controls were not part of the frozen trial timing; the
+combined subject requires fresh normal hosted receiving before publication.
 
 ## Activation and fail-closed aggregation
 

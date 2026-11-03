@@ -1390,6 +1390,12 @@
       "reason": "Shadow impact selector and metadata controls; no target execution or semantic-closure claim."
     },
     {
+      "path": "scripts/ci-regression-groups.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
+    },
+    {
       "path": "scripts/current-provider-kit.node-test.mjs",
       "runner": "node",
       "lane": "current",
@@ -1444,6 +1450,12 @@
       "reason": "Actual packed custody and owned-installation cleanup on success and observation failure; requires built workspace."
     },
     {
+      "path": "scripts/perf/reference-trends.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Actual reference performance-runner lifecycle, functional measurement and cancellation controls; not artifact consistency or arbitrary-provider conformance."
+    },
+    {
       "path": "scripts/read-cohort-evidence.test.mjs",
       "runner": "vitest",
       "lane": "legacy",
@@ -1478,12 +1490,6 @@
       "runner": "node",
       "lane": "artifact",
       "reason": "Offline shadow routing safety controls."
-    },
-    {
-      "path": "scripts/ci-regression-groups.node-test.mjs",
-      "runner": "node",
-      "lane": "artifact",
-      "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
     }
   ]
 }
