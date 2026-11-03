@@ -19,7 +19,7 @@ in the existing CLI document.
 
 Start with **Core**, not a retained-profile wrapper or an amendment map. The documents state the current draft rules in place. Types is optional; carrying a Type affiliation does not by itself require a descriptor engine.
 
-The [editing routine](docs/spec-review/README.md) explains the VS Code comment/process/push loop. PR337 established the current working draft in main at `0bf00889b247491412703e02c1f2ce2b10fa3ff9`. Donna’s editorial review continues through small subsequent PRs. The reference client/service/tests align against that exact baseline in the single dependent [PR338](https://github.com/gastownhall/bdp/pull/338); its implementation checks and independent review remain separate from spec checks.
+The [editing routine](docs/spec-review/README.md) explains the VS Code comment/process/push loop. PR337 established the canonical draft; subsequent main changes deliver the canonical CLI, opt-in six-CRUD atomic batch and historical-source Update. Donna’s editorial review continues through small PRs. The [decision receipt map](docs/plans/decision-implementation-map.md) distinguishes landed source and qualification from remaining implementation and deferred design; implementation checks remain separate from specification-artifact checks.
 
 [Stabilization plan](docs/plans/bdp-stabilization.md) · [Specification status and supporting schemas](specs/README.md) · [CLI design](docs/cli-design/bdp-cli.md) · [Historical inputs](specs/history/pre-canonical-20261101/README.md)
 
@@ -32,6 +32,6 @@ The current draft reference API is [documented here](docs/reference-service.md):
 `BdpClient`, `bdptest` and adapter conformance evidence retain their original
 contracts; their historical seals do not qualify the new composition.
 
-See [implementation status](STATUS.md), [reference-service milestones](docs/design/bdp-reference-service-milestones.md) and the [conformance evidence guide](packages/conformance/matrices/README.md).
+See [packed smoke routes](docs/test-smoke-routes.md), [shadow test routing](docs/test-routing-shadow.md), [implementation status](STATUS.md), [reference-service milestones](docs/design/bdp-reference-service-milestones.md) and the [conformance evidence guide](packages/conformance/matrices/README.md).
 
 License: MIT. Copyright 2026 Gas City Inc.

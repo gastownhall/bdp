@@ -538,6 +538,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/conformance/src/json-pointer-verifier.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Pure pointer/equality verifier mechanics shared by current and legacy runners; no provider-conformance claim."
+    },
+    {
       "path": "packages/conformance/src/numeric-model-catalog.test.ts",
       "runner": "vitest",
       "lane": "legacy",
@@ -1418,6 +1424,12 @@
       "runner": "node",
       "lane": "artifact",
       "reason": "Offline artifact/generator controls; no provider qualification."
+    },
+    {
+      "path": "scripts/packed-workspace.node-test.mjs",
+      "lane": "current",
+      "runner": "node",
+      "reason": "Actual packed custody and owned-installation cleanup on success and observation failure; requires built workspace."
     },
     {
       "path": "scripts/read-cohort-evidence.test.mjs",
