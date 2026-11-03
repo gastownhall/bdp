@@ -4,12 +4,12 @@ Use this disposable local workstation while reading Core, Write and the CLI
 mapping. It installs the actual workspace tarballs and starts a fresh, privileged
 reference Scope on loopback only. It does not use Beads, a global executable, an
 existing store or historical admission grants. It is a review aid, not full
-provider conformance. [Delivery320](https://github.com/gastownhall/bdp/issues/320)
+provider conformance. [Delivery #320](https://github.com/gastownhall/bdp/issues/320)
 and the [stabilization plan](../plans/bdp-stabilization.md) retain the remaining work.
 
 ## Start and stop
 
-In your own checkout, use Node24.22.1 and pnpm11.20.0:
+In your own checkout, use Node 24.22.1 and pnpm 11.20.0:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -19,7 +19,7 @@ pnpm review:lab
 
 Do not build a checkout while another process is using its dist files. The lab
 records source commit/tree, dirty status, lock/tarball hashes, actual tool versions
-and installed CLI/server entry hashes. Dirty source is labeled; version0.0.0 alone
+and installed CLI/server entry hashes. Dirty source is labeled; version 0.0.0 alone
 is not an input identity. This is not complete transitive-build attestation.
 Packing requires the existing built artifacts and pnpm run context; package
 installation may need network/cache access. No release or global install occurs.
@@ -38,21 +38,21 @@ The generated launcher is a **private argv/stdin relay**, not the installed CLI
 entry itself. The foreground owner spawns that fixed installed entry, owns its
 process group, and returns its stdout/stderr bytes and exit code. There is no
 shell parsing, remote administrative endpoint or arbitrary executable selection.
-The Unix socket is0600 under the0700 temporary root. Input is bounded to64KiB
-argv and64KiB stdin,128arguments; at most four relay peers and one CLI invocation
+The Unix socket is 0600 under the 0700 temporary root. Input is bounded to 64 KiB
+argv and 64 KiB stdin, 128 arguments; at most four relay peers and one CLI invocation
 are admitted. Busy/invalid/remote-target requests refuse rather than queue.
-Each CLI child is bounded to65seconds; relay waits are70seconds. Its shutdown
-uses500ms per TERM/KILL/reap phase. Those phase budgets total1500ms within the outer worker’s
-unchanged3000ms stop budget. The worker must acknowledge completed child/listener
-cleanup before installation removal; the owner cannot spend the same grace
+Each CLI child is bounded to 65 seconds; relay waits are 70 seconds. Its shutdown
+uses 500 ms per TERM/KILL/reap phase. Those phase budgets total 1500 ms within the outer worker’s
+unchanged 3000 ms stop budget. Signal controls require worker acknowledgement of
+completed child/listener cleanup before installation removal; the owner cannot spend the same grace
 period concurrently with its own child’s escalation/reaping. The existing
-child custodian bounds each output stream to1MiB, and the lab producer applies
-a combined1MiB bound before retaining raw stdout/stderr. Overflow stops the lab
-and fails; partial output is never returned as a successful complete invocation. These are workstation
-limits, not protocol support limits. Use `@-`/`--file -` for piped stdin; the relay
+child custodian bounds each output stream to 1 MiB, and the lab producer applies
+a combined 1 MiB bound before retaining raw stdout/stderr. Overflow stops the lab
+and fails; partial output is never returned as a successful complete invocation.
+These are workstation limits, not protocol support limits. Use `@-`/`--file -` for piped stdin; the relay
 buffers it within the bound, so interactive input is delivered on EOF.
 
-Credentials are random and private to this whole-Scope fixture. The config is0600;
+Credentials are random and private to this whole-Scope fixture. The config is 0600;
 retry files remain under its private state directory. Never print/share that
 config or enable shell tracing around it. The launcher carries no token on argv.
 The lab rejects configuration/profile overrides, nonlocal target URLs and retry
@@ -100,7 +100,7 @@ Save a's initial revision as R1 and the issued `data.next` unchanged as NEXT.
 "$NODE" "$BDP" delete b --output-format json
 ```
 
-The stale guard fails with revision-mismatch and exit4. Repeating Edited is a
+The stale guard fails with revision-mismatch and exit 4. Repeating Edited is a
 no-op preserving the Resource. Plain delete is a read preview; apply requires
 `--force`. JSONL requires its terminal success record to claim complete delivery.
 Property masks render the native properties view; they are not Resource projection.
@@ -128,9 +128,10 @@ Location without following it; show alias follows the supported public read.
 
 The lab uses installed `startReferenceService`, not the legacy
 `startInstalledReferenceCandidate`. It selects optional historicalUpdate on a
-fresh format7 store; batch is not also selected. The API’s default ordinary
-composition is format5, and its separate batch-enabled format6 cannot be combined
-with historicalUpdate. This workstation starts no second batch lab. Save the actual current a revision as R7, then:
+fresh format 7 store; batch is not also selected. The API’s default ordinary
+composition is format 5, and its separate batch-enabled format 6 cannot be combined
+with historicalUpdate. This workstation starts no second batch lab. Save the
+actual current a revision as R7, then:
 
 ```sh
 "$NODE" "$BDP" delete a --force --if-revision "$R7" --output-format json
