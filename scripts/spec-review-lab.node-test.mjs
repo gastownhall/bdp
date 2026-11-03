@@ -80,6 +80,9 @@ test("workstation argv policy refuses remote/config/recovery escapes and oversiz
     ["x".repeat(65536)],
   ])
     assert.throws(() => admitInvocation(args, scope, state));
+  const relativeJournal = path.relative(process.cwd(), path.join(state, "journal.json"));
+  assert.throws(() => admitInvocation(["update", "--retry-file", relativeJournal], scope, state));
+  assert.throws(() => admitInvocation(["update", `--retry-file=${relativeJournal}`], scope, state));
   admitInvocation(["show", `${scope}a`], scope, state);
   admitInvocation(
     ["create", "--type", "https://types.invalid/Note", "--properties", "@-"],

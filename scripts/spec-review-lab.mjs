@@ -38,7 +38,7 @@ export function admitInvocation(args, scope, state) {
     const equals = arg.startsWith("--") ? arg.indexOf("=") : -1;
     const value = equals < 0 ? arg : arg.slice(equals + 1);
     const flag = equals < 0 ? args[i - 1] : name;
-    if (flag === "--retry-file" && !path.resolve(value).startsWith(state + path.sep))
+    if (flag === "--retry-file" && (!path.isAbsolute(value) || !value.startsWith(state + path.sep)))
       throw new Error("Use an owned lab recovery file");
     const url = value.startsWith("[") ? value.slice(1).split("]", 1)[0] : value;
     if (
