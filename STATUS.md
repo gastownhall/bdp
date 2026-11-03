@@ -1,5 +1,48 @@
 # BDP implementation status
 
+## Current canonical delivery
+
+This status distinguishes current source and scoped evidence from the historical
+cumulative profiles below. Canonical [specifications](specs/README.md) own meaning;
+[the stabilization plan](docs/plans/bdp-stabilization.md) owns execution and the
+[decision map](docs/plans/decision-implementation-map.md) records remaining work.
+
+The current receiving baseline is main
+[`aad0a7ba`](https://github.com/gastownhall/bdp/commit/aad0a7baeece14ff9d10cf3ac8393a0fc5c372d0),
+after experimental Callable/Package publication331, six-CRUD atomic batch339,
+canonical CLI341 and historical Update343. Historical Update's independent
+[incoming](https://github.com/gastownhall/bdp/actions/runs/41550342729) and
+[actual-main](https://github.com/gastownhall/bdp/actions/runs/41552851795) runs passed
+233 files/10,370 tests with one existing skip, nine actual CLI cases, preflight,
+packed smoke and evidence gates. These are scoped engineering results, not an
+arbitrary-provider conformance certificate or a count of normative obligations.
+
+| Surface | Delivered source and current limits |
+| --- | --- |
+| Canonical reference/SDK/CLI | Ordinary Core/Write composition and explicit configuration; see the [actual API](docs/reference-service.md). Alias, page, guard/no-op, durable original-result and retry evidence retain their stated scopes. |
+| Atomic batch1 | Fresh explicit format6; six CRUD operations share one atomic result. Richer batch2, full Query/Types and historical-update composition are not implied. |
+| Historical Update1 | Fresh explicit format7; exact consumed source, independently guarded current baseline, genuine terminal version and same-ID undelete. Initial batch composition refuses. Append-only whole-Scope reference coverage does not qualify pruning/erasure or partial disclosure. |
+| Default reference storage | Format5 remains the default. Optional compositions do not migrate an existing store or rewrite a consumer pin. |
+| Types | Current specification/schema artifacts and readable notation are distinct from a runtime Types1 implementation. Descriptor-document adoption is tracked by327/346; a Type parser/compiler is separately deferred. |
+| Callable and Package | Published draft/experimental for review. Publication does not adopt their unresolved semantics or implement them. Both follow Core/Write/Types before deeper Memory/Issues work. |
+| Testing and CI | Three categories remain separate: artifact consistency, portable interoperability and reference correctness/reliability, with separate performance trends. The existing full CI remains authoritative; additive routing/verifier work344/345 does not cut over gates. |
+
+The [packed smoke routes](docs/test-smoke-routes.md) preserve installation custody,
+actual executables and cleanup. A portable current requirement-to-case map, thin
+provider provisioning/lifecycle adapter, missing-required/not-run semantics,
+qualified CI selection and cold five-minute target/ten-minute maximum remain
+explicit engineering gates. Scheduled reference performance reporting starts with
+repeatable trends; no numeric regression threshold is claimed yet.
+
+## Historical cumulative-profile implementation and evidence
+
+The material below is retained at its original sources and meanings. Its uses of
+“current”, “profile” and cohort counts refer to those historical compositions.
+It does not describe the canonical reference above, reinterpret old receipts, or
+qualify the new contract by ancestry. Historical guarded startup remains intact
+until its deliberate retirement is implemented and reviewed.
+
+
 The specification remains a draft. Runtime claims require the evidence gates below.
 
 | Surface | Specified | Validated |
