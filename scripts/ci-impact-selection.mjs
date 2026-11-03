@@ -21,7 +21,8 @@ const familyPaths = {
     "packages/server/src/retained-v01/store.test.ts",
     "packages/server/src/retained-v01/recovery.ts",
     "packages/server/src/retained-v01/historical-update.test.ts",
-    "packages/server/src/retained-v01/batch-store.ts",
+    "packages/server/src/retained-v01/batch-contract.ts",
+    "packages/server/src/retained-v01/batch-evaluate.ts",
     "packages/server/src/retained-v01/batch-store.test.ts",
     "packages/server/src/retained-v01/batch-recovery.ts",
     "packages/server/src/recovery-store.ts",
@@ -52,7 +53,12 @@ const familyPaths = {
     "apps/bdp/src/canonical-io.ts",
   ]),
 };
+// Internal script inventory seam; every listed owner must exist before selection.
+export const ownerPaths = Object.freeze([
+  ...new Set(Object.values(familyPaths).flatMap((paths) => [...paths])),
+]);
 const broadPrefixes = [
+  "docs/",
   "packages/protocol/",
   "packages/conformance/",
   "packages/config/",
@@ -79,7 +85,7 @@ function pathValue(path) {
 function changeValue(change) {
   assert(change && typeof change === "object" && !Array.isArray(change), "Invalid change record");
   assert(
-    typeof change.status === "string" && /^(?:[MADTUXB]|[RC](?:100|[1-9]?\d))$/.test(change.status),
+    typeof change.status === "string" && /^(?:[MADTUXB]|[RC](?:0\d{2}|100))$/.test(change.status),
     "Unknown change status",
   );
   const moved = /^[RC]/.test(change.status);
@@ -133,6 +139,7 @@ export function selectImpact({ event, base = null, head = null, changes, manifes
   sourcePaths.forEach(pathValue);
   validateManifest(manifest, sourcePaths.filter(isTestPath).sort());
   const known = new Set(sourcePaths);
+  for (const path of ownerPaths) assert(known.has(path), `Stale owner path: ${path}`);
   const tests = new Map(manifest.tests.map((entry) => [entry.path, entry]));
   const required = new Set();
   const reasons = new Set();
@@ -176,7 +183,7 @@ export function selectImpact({ event, base = null, head = null, changes, manifes
         classified = true;
       }
     }
-    if (rootDocuments.has(path) || (path.startsWith("docs/") && path.endsWith(".md"))) {
+    if (rootDocuments.has(path)) {
       reasons.add(`documentation path; baseline retained: ${path}`);
       classified = true;
     }
@@ -184,6 +191,7 @@ export function selectImpact({ event, base = null, head = null, changes, manifes
   }
   return {
     status: "SHADOW_ONLY",
+    event,
     changes: changes
       .map((change) => ({
         status: change.status,
@@ -205,8 +213,10 @@ export function selectImpact({ event, base = null, head = null, changes, manifes
 }
 
 export function describeInputs({
+  event,
   source,
   base,
+  mergeBase = null,
   head,
   toolchain,
   selectorBytes,
@@ -215,11 +225,30 @@ export function describeInputs({
   lockBytes,
   packageBytes,
 }) {
+  assert(["pull-request", "main", "manual"].includes(event), "Unknown selection event");
   assert(validCommit(source), "Missing source commit");
   assert(
     (base === null && head === null) || (validCommit(base) && validCommit(head)),
     "Incomplete base/head comparison",
   );
+  assert(
+    event === "pull-request"
+      ? validCommit(mergeBase) && validCommit(base) && validCommit(head)
+      : mergeBase === null,
+    "Invalid comparison merge base",
+  );
+  for (const [name, bytes] of Object.entries({
+    selectorBytes,
+    manifestBytes,
+    lockBytes,
+    packageBytes,
+  }))
+    assert(Buffer.isBuffer(bytes) || typeof bytes === "string", `Invalid digest input: ${name}`);
+  assert(
+    Array.isArray(sourcePaths) && new Set(sourcePaths).size === sourcePaths.length,
+    "Invalid source inventory",
+  );
+  sourcePaths.forEach(pathValue);
   assert(
     toolchain &&
       ["actualNode", "expectedNode", "packageManager"].every(
@@ -228,8 +257,11 @@ export function describeInputs({
     "Missing toolchain metadata",
   );
   return {
+    event,
     source,
     base,
+    targetBase: base,
+    mergeBase,
     head,
     toolchain: {
       actualNode: toolchain.actualNode,
@@ -271,9 +303,14 @@ if (
   const commit = (ref) =>
     git("rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`).trim();
   const source = commit("HEAD");
+  const event = options["--event"] ?? "manual";
+  assert(["pull-request", "main", "manual"].includes(event), "Unknown selection event");
   assert(Boolean(options["--base"]) === Boolean(options["--head"]), "Supply both base and head");
   const base = options["--base"] ? commit(options["--base"]) : null;
   const head = options["--head"] ? commit(options["--head"]) : null;
+  const mergeBase =
+    event === "pull-request" && base !== null ? git("merge-base", "--", base, head).trim() : null;
+  const comparisonBase = event === "pull-request" ? mergeBase : base;
   const sourcePaths = git("ls-files", "--cached", "--others", "--exclude-standard", "-z")
     .split("\0")
     .filter(Boolean)
@@ -284,9 +321,11 @@ if (
   const changes =
     base === null
       ? []
-      : parseNameStatus(git("diff", "--name-status", "-z", "--find-renames", base, head, "--"));
+      : parseNameStatus(
+          git("diff", "--name-status", "-z", "--find-renames", comparisonBase, head, "--"),
+        );
   const selection = selectImpact({
-    event: options["--event"] ?? "manual",
+    event,
     base,
     head,
     changes,
@@ -294,8 +333,10 @@ if (
     sourcePaths,
   });
   const inputs = describeInputs({
+    event,
     source,
     base,
+    mergeBase,
     head,
     toolchain: {
       actualNode: process.versions.node,
@@ -310,7 +351,7 @@ if (
   });
   console.log(
     JSON.stringify(
-      { ...selection, inputs, workingTreeDirty: git("status", "--porcelain").length > 0 },
+      { ...selection, inputs, workingTreeDirty: git("status", "--porcelain=v1", "-z").length > 0 },
       null,
       2,
     ),
