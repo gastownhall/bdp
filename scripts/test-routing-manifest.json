@@ -1,0 +1,1459 @@
+{
+  "status": "SHADOW_ONLY",
+  "candidateBase": "c1a89eb0c2fe207ee56d80345a863d2e184c1d1f",
+  "scope": "Explicit source-file routing, not complete requirement coverage, performance or provider qualification. Legacy includes historical and conservatively retained mixed-purpose tests. Shared entries execute in both current and legacy routes.",
+  "tests": [
+    {
+      "path": "apps/bdp/src/canonical-command.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/canonical-input.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/canonical-output.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/canonical-projection.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/canonical-runtime.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/main.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdpbd/src/read-matrix.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdpbd/src/server-composition.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdpbd/test-support/matrix-lifecycle.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/atomic-batch-reference.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/canonical-reference.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/development-contracts.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/development-disconnect.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/development-discovery.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/development-matrix.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/development-server.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/historical-update-reference.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/installed-read-fixture.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/installed-read-oracles.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/installed-reference-closure.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/installed-reference-import.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/installed-reference-startup.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/installed-reference.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/installed-schema-cohort.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/owned-wildcard.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/properties-provenance.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/read-matrix.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/read-update-artifact-execution.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/read-update-exact-client.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/read-update-guarded-overlap-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/read-update-matrix.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/retained-v01-aliases-reference.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/retained-v01-links-reference.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/retained-v01-point-read.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/retained-v01-reference.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdptest/src/server-composition.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-alias-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-binding.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-changefeed-refusal-context-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-collection-minimum-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-depth-key-order-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-direct-refusal-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-discovery-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-event-missing-context-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-event-sse-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-fresh-depth-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-guarded-batch-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-matrix.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-minimum-current-resource-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-minimum-receiving-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-principal-key-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-receipt-missing-context-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-same-key-overlap-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-schema-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-selector-admission-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-sequence-depth-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-sequence-refusal-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-set-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-snapshot-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "apps/bdptest/src/transactional-sse-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/adapter-bd/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/adapter-in-memory/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/bd-domain/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/bd-domain/src/ready-output.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/historical-update.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/client/src/history-session.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/history.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/read-session.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/read-update-read.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/read-update-transport.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/read-update.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/retained-read.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/client/src/retained-write.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/client/test-support/successor-read.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/test-support/testing.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/config/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/artifact-bundle.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/catalog.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/cohort-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/cohort-verification.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/conditional-header.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/cumulative-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/development-read-update.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/executable-manifest.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/historical-citation-source.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/history-catalog.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/http-executor.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/numeric-model-catalog.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/observed-binding-assertion.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/owned-wildcard-catalog.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/profile-catalog-boundaries.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/profile-contract-plan.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/raw-http-scenario-target.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/read-update-artifact-set.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/read-update-catalog.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/report.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/runner.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/schema-read-projection.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/schema-validator.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/spec-layout.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/transactional-catalog.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/transactional-cumulative.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/transactional-digest-vectors.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/src/transactional-observation.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/test-support/bd-workspace.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/conformance/test-support/testing.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/affiliation-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/atomic-batch-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/client-handoff-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/contract-binding.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/historical-update-values.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/protocol/src/history-wire.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/id-root-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/json-admission-budget.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "packages/protocol/src/json-admission.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "packages/protocol/src/json-values.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "packages/protocol/src/link-header.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "packages/protocol/src/link-update-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/markdown-type-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/numeric-model.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "packages/protocol/src/object-edit-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/owned-wildcard.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/read-delivery-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/read-update-numeric-schema.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/read-update-preflight.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/read-update-values.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/read-update-wire.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/read-values.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/reference-domain.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/resource-projection-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/retained-event-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/retained-profile-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/retained-read-values.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/protocol/src/schema-bundle.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/schema-formats.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/schema-isolation.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/schema-source-annotations.test.ts",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "packages/protocol/src/transaction-discovery-values.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/transactional-http-contracts.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/transactional-wire.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/type-conformance.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/type-definition-read-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/protocol/src/types-profile-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/alias-evaluator.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/authority-read.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/development-retention.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/http-handler.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/index.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-contract-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-contains.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-content.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-decimal.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-dynamic.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-evaluator.corpus.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-evaluator.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-graph.corpus.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-graph.integrity.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-graph.policy.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-graph.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-pattern-properties.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-pattern.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-recursion.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-unevaluated.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-uri.security.test.ts",
+      "lane": "legacy",
+      "runner": "vitest",
+      "reason": "Private installed-schema interpreter and configured-authority compatibility; separate from public canonical reference qualification."
+    },
+    {
+      "path": "packages/server/src/installed-schema-uri.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-uri.transition.test.ts",
+      "lane": "legacy",
+      "runner": "vitest",
+      "reason": "Private installed-schema interpreter and configured-authority compatibility; separate from public canonical reference qualification."
+    },
+    {
+      "path": "packages/server/src/member-executor.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/member-identity.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/node-http-listener.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-conformance-capability.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-http.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-pagination-public.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-pagination.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-request.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-selector.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-sequence-lifecycle.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/read-update-runtime-limits.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/recovery-store.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/resource-evaluator.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/retained-disclosure.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/retained-v01/alias-contract.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/alias-store.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/alias-witness.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/batch-store.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/batch.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/collections.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/contract.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/historical-update.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/link-contract.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/link-store.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/object-edits.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/reference-comparison.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/retained-v01/store.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "packages/server/src/semantic-identity.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/sequence-executor.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-authorization.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-changefeed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-consistency.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-dependencies.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-discovery.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-event-sse.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-events.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-http.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-installed-contracts.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-installed.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-materialization.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-owned.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-read.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-receipt-pages.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-recovery.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-runtime-configuration.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-runtime.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-schema-http.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-sequence-alias.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-sequence.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-service.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-set.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-snapshot-http.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-snapshot.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-sse.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-store.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/transaction-submission.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/test-support/testing.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/bd-baseline.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/canonical-cli.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "scripts/check-spec-editorial-test.py",
+      "runner": "python",
+      "lane": "artifact",
+      "reason": "Offline complete-diff editorial-classifier controls."
+    },
+    {
+      "path": "scripts/demo-history.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/demo-read.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/dependency-boundary-rules.test.mjs",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "scripts/e2e-ready.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/markdown-contracts.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline artifact/generator controls; no provider qualification."
+    },
+    {
+      "path": "scripts/markdown-schema.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline artifact/generator controls; no provider qualification."
+    },
+    {
+      "path": "scripts/openapi.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline artifact/generator controls; no provider qualification."
+    },
+    {
+      "path": "scripts/read-cohort-evidence.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/read-harness-bindings.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/read-update-runtime-limits.test.mjs",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/smoke-safety.test.mjs",
+      "runner": "vitest",
+      "lane": "shared",
+      "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "scripts/spec-schema-fragments.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline artifact/generator controls; no provider qualification."
+    },
+    {
+      "path": "scripts/test-routing.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline shadow routing safety controls."
+    }
+  ]
+}

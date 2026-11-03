@@ -1,6 +1,6 @@
 # Third-party schema notices
 
-The standard JSON Schema 2020-12 resources embedded in `definitions.json` come from the published [JSON Schema specification](https://json-schema.org/draft/2020-12), as distributed by `jsonschema-specifications` 2025.9.1. Their original identifiers and schema content are retained; JSON whitespace may differ. They are included to make the illustrative definition graphs self-contained. They do not turn this draft into an adopted protocol or a qualified implementation.
+The standard JSON Schema 2020-12 resources embedded in the legacy `definitions.json` artifact, `intrinsic-1.json` and `intrinsic-2.json`, and reproduced as standalone documentation companions in `descriptors/schema-resources/*.schema.json` come from the published [JSON Schema specification](https://json-schema.org/draft/2020-12), as distributed by `jsonschema-specifications` 2025.9.1. Their original identifiers and schema content are retained; JSON whitespace may differ. They are included to make the illustrative definition graphs self-contained. They do not turn this draft into an adopted protocol or a qualified implementation.
 
 The specification repository offers BSD 3-clause or Academic Free License 3.0 terms. This distribution uses the BSD option; the upstream notice is reproduced below. The packaging project's MIT notice is also retained.
 

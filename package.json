@@ -33,7 +33,11 @@
     "test:cli": "pnpm build && pnpm test:cli:built",
     "test:cli:built": "node --test scripts/canonical-cli.node-test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
-    "smoke:development": "node scripts/smoke-development.mjs"
+    "smoke:development": "node scripts/smoke-development.mjs",
+    "test:routing:shadow": "node scripts/test-routing.mjs --check && node --test scripts/test-routing.node-test.mjs",
+    "test:current:shadow": "node scripts/run-test-route.mjs current",
+    "test:legacy:shadow": "node scripts/run-test-route.mjs legacy",
+    "test:artifacts:shadow": "node scripts/run-test-route.mjs artifact"
   },
   "devDependencies": {
     "@babel/parser": "8.0.4",

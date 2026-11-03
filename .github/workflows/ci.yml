@@ -43,6 +43,8 @@ jobs:
         with:
           version: 11.20.0
       - run: pnpm install --frozen-lockfile
+      - name: Check shadow test-file accounting without running target suites
+        run: pnpm test:routing:shadow
       - name: Check current OpenAPI and Markdown projections
         run: |
           node scripts/generate-openapi.mjs --check
