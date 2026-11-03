@@ -18,6 +18,14 @@ The notation describes value shape. Authorization, discovery, exact request sele
 | deleteAlias | [deleteAliasRequest](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUFsaWFzUmVxdWVzdCI) | [aliasResult](../core/bdp-v0.1.schema.md#schema-def-ImFsaWFzUmVzdWx0Ig) | [readUpdateProblem](../core/bdp-v0.1.schema.md#schema-def-InJlYWRVcGRhdGVQcm9ibGVtIg) | Write profile |
 | atomicBatch | [batchRequest](../core/bdp-v0.1.schema.md#schema-def-ImJhdGNoUmVxdWVzdCI) | [atomicBatchResult](../core/bdp-v0.1.schema.md#schema-def-ImF0b21pY0JhdGNoUmVzdWx0Ig) | [atomicBatchProblem](../core/bdp-v0.1.schema.md#schema-def-ImF0b21pY0JhdGNoUHJvYmxlbSI) | Write plus atomic-batch1 |
 
+## Independently selected historical Update
+
+These optional historical-update1 methods retain their independent feature schema resource and explicit feature media. They are not common-bundle roots or a full History/Events advertisement. The [selected HTTP binding](write.md#selected-historical-update-http-signatures) owns current/terminal selection and the unchanged ordinary-media behavior. No new public CLI read verb is implied.
+
+| Feature operation | Request | Success | Problem | Selection |
+| --- | --- | --- | --- | --- |
+| historicalUpdateBead | [historicalUpdateRequest](historical-update-v1.schema.json#/$defs/historicalUpdateRequest) | [historicalUpdateResult](historical-update-v1.schema.json#/$defs/historicalUpdateResult) | [historicalUpdateProblem](historical-update-v1.schema.json#/$defs/historicalUpdateProblem) | Write plus historical-update1; application/vnd.bdp.v0.1.historical-update.v1+json |
+
 ## Independently selected rooted allocation
 
 The optional [id-root1 composition](write.md#optional-rooted-allocation-version-1) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.

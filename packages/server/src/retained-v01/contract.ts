@@ -1,5 +1,7 @@
 /** Private retained Bead CRUD fixture. No public profile admission. */
 import {
+  HISTORICAL_UPDATE_CAPABILITY,
+  HISTORICAL_UPDATE_MEDIA,
   admitJsonNumbers,
   assertCanonicalPathSegments,
   decodeJsonDocument,
@@ -139,7 +141,7 @@ export function problem(code: string, status: number, retry = "never"): JsonObje
         code === "incident-links-exist" ||
         code === "alias-path-taken"
       ? "conflict"
-      : code === "resource-not-found"
+      : code === "resource-not-found" || code === "revision-unknown"
         ? "not-found"
         : code === "unauthenticated"
           ? "authentication"
@@ -471,6 +473,7 @@ export interface PreparedUpdate {
   readonly propertiesChange?: ObjectChange;
   readonly metadataChange?: ObjectChange;
   readonly expectedRevision?: string;
+  readonly fromRevision?: string;
   readonly provenance?: RevisionProvenanceInput;
   readonly refusal?: JsonObject;
 }
@@ -480,6 +483,17 @@ export function assertPreparedUpdate(scope: string, value: PreparedUpdate): void
     throw new TypeError("foreign or forged prepared invocation");
 }
 export function prepareUpdate(scope: string, text: string, key: string): PreparedUpdate {
+  return prepareSelectedUpdate(scope, text, key, false);
+}
+export function prepareHistoricalUpdate(scope: string, text: string, key: string): PreparedUpdate {
+  return prepareSelectedUpdate(scope, text, key, true);
+}
+function prepareSelectedUpdate(
+  scope: string,
+  text: string,
+  key: string,
+  historical: boolean,
+): PreparedUpdate {
   if (!/^[A-Za-z0-9_-]{1,256}$/.test(key)) throw new RetainedRequestError("malformed-request", 400);
   let input: Record<string, LosslessJsonValue>;
   try {
@@ -493,12 +507,19 @@ export function prepareUpdate(scope: string, text: string, key: string): Prepare
       "metadataChange",
       "expectedRevision",
       "revisionProvenance",
+      ...(historical ? ["fromRevision"] : []),
     ]);
     nonempty(input.bead);
+    if (historical) nonempty(input.fromRevision);
     if (
-      !["type", "properties", "metadata", "propertiesChange", "metadataChange"].some((name) =>
-        Object.hasOwn(input, name),
-      )
+      ![
+        "type",
+        "properties",
+        "metadata",
+        "propertiesChange",
+        "metadataChange",
+        ...(historical ? ["fromRevision"] : []),
+      ].some((name) => Object.hasOwn(input, name))
     )
       throw new TypeError("update requires mutation input");
     if (input.type !== undefined) typeReference(input.type);
@@ -522,8 +543,8 @@ export function prepareUpdate(scope: string, text: string, key: string): Prepare
     encodeSemanticValue({
       format: "retained-v01-update-1",
       specification: RETAINED_SPEC,
-      media: RETAINED_MEDIA,
-      capabilities: {},
+      media: historical ? HISTORICAL_UPDATE_MEDIA : RETAINED_MEDIA,
+      capabilities: historical ? { [HISTORICAL_UPDATE_CAPABILITY]: "1" } : {},
       operation: "updateBead",
       input: { ...normalized, ...references } as SemanticValue,
     });
@@ -540,6 +561,7 @@ export function prepareUpdate(scope: string, text: string, key: string): Prepare
       key,
       identity,
       bead,
+      ...(historical ? { fromRevision: input.fromRevision as string } : {}),
       refusal: snapshotJsonValue({
         ...problem("validation-failed", 422),
         diagnostics: admitted.diagnostics,
@@ -553,6 +575,7 @@ export function prepareUpdate(scope: string, text: string, key: string): Prepare
       key,
       identity,
       bead,
+      ...(historical ? { fromRevision: value.fromRevision as string } : {}),
       ...(value.type === undefined ? {} : { type: value.type as TypeReference }),
       ...(value.properties === undefined ? {} : { properties: value.properties as JsonObject }),
       ...(value.metadata === undefined ? {} : { metadata: value.metadata as JsonObject }),

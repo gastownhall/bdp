@@ -1,4 +1,15 @@
 import {
+  HISTORICAL_UPDATE_MEDIA,
+  parseHistoricalUpdateProblem,
+  parseHistoricalUpdateRequest,
+  parseHistoricalUpdateResult,
+  parseHistoricalUpdateView,
+  parseHistoricalUpdateTerminalView,
+  readHistoricalUpdateCapability,
+  parseRetainedWriteDiscovery,
+  stringifyJsonValue,
+  type HistoricalUpdateView,
+  type HistoricalUpdateTerminalView,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   parseLinkHeader,
@@ -29,6 +40,8 @@ import { type PreparedRetainedWrite, RetainedWriteBinding } from "./retained-wri
 
 export interface RetainedClientOptions {
   readonly transport: RetainedTransport;
+  /** Explicitly selected feature transport; base navigation keeps base media. */
+  readonly historicalUpdateTransport?: RetainedTransport;
   readonly maximumDocumentBytes: number;
   readonly maximumRequestBodyBytes: number;
   /** One deadline across navigation and delivery, separate from each exchange. */
@@ -114,6 +127,7 @@ const invalid = (): never => {
  */
 export class RetainedClient {
   readonly #transport: RetainedTransport;
+  readonly #historicalUpdateTransport: RetainedTransport | undefined;
   readonly #documentBytes: number;
   readonly #requestBytes: number;
   readonly #timeout: number;
@@ -127,6 +141,17 @@ export class RetainedClient {
       probeScope: transport.probeScope.bind(transport),
       resolveAlias: transport.resolveAlias.bind(transport),
     });
+    const historical = options.historicalUpdateTransport;
+    this.#historicalUpdateTransport =
+      historical === undefined
+        ? undefined
+        : Object.freeze({
+            get: historical.get.bind(historical),
+            head: historical.head.bind(historical),
+            post: historical.post.bind(historical),
+            probeScope: historical.probeScope.bind(historical),
+            resolveAlias: historical.resolveAlias.bind(historical),
+          });
     this.#documentBytes = options.maximumDocumentBytes;
     this.#requestBytes = options.maximumRequestBodyBytes;
     this.#timeout = options.operationTimeoutMs;
@@ -542,6 +567,67 @@ export class RetainedClient {
     });
   }
 
+  /** Explicit current feature view. Terminal reads supply only the current
+   * body-free terminal version; this does not select full History. */
+  readHistoricalUpdate(
+    reference: string,
+    options: {
+      readonly terminal?: boolean;
+      readonly scope?: string;
+      readonly signal?: AbortSignal;
+    } = {},
+  ): Promise<RetainedReply<HistoricalUpdateView | HistoricalUpdateTerminalView>> {
+    if (
+      Object.keys(options).some((key) => !["terminal", "scope", "signal"].includes(key)) ||
+      (options.terminal !== undefined && typeof options.terminal !== "boolean")
+    )
+      throw new RetainedClientError("unsupported-feature");
+    const uri = parseCanonicalHttpUrl(reference);
+    if (new URL(uri).search || new URL(uri).hash) throw new RetainedClientError("invalid-input");
+    const selectedScope =
+      options.scope === undefined ? undefined : parseCanonicalScope(options.scope);
+    const transport = this.#historicalUpdateTransport;
+    if (transport === undefined) throw new RetainedClientError("unsupported-feature");
+    const terminal = options.terminal === true;
+    return this.#run(options.signal, async (signal) => {
+      const response = await transport.get(uri + (terminal ? "?view=terminal" : ""), { signal });
+      this.#check(signal);
+      const refused = failure(response, false, true);
+      if (
+        refused?.kind === "problem" &&
+        refused.problem.code === "capability-not-supported" &&
+        refused.problem.pointer !== undefined
+      )
+        return invalid();
+      if (refused) return refused;
+      if (response.headers["bdp-resource-kind"] !== "bead") return invalid();
+      privateNoStore(response);
+      const text = this.#document(response, HISTORICAL_UPDATE_MEDIA);
+      let value: HistoricalUpdateView | HistoricalUpdateTerminalView;
+      try {
+        value = terminal
+          ? parseHistoricalUpdateTerminalView(text)
+          : parseHistoricalUpdateView(text);
+      } catch {
+        return invalid();
+      }
+      const subject = (terminal ? value.terminal : value.resource) as RetainedJsonObject;
+      if (subject.id !== uri) return invalid();
+      const discovery = await this.#discovery(description(response), selectedScope, signal);
+      if (discovery.kind !== "success") return discovery;
+      if (!uri.startsWith(discovery.value.scope) || discovery.value.profile !== "write")
+        return invalid();
+      const writeDiscovery = parseRetainedWriteDiscovery(stringifyJsonValue(discovery.value));
+      if (readHistoricalUpdateCapability(writeDiscovery) === undefined) return invalid();
+      return Object.freeze({
+        kind: "success",
+        value,
+        http: context(response),
+        nativeBody: nativeBody(response),
+      });
+    });
+  }
+
   submit(
     prepared: PreparedRetainedWrite,
     call: RetainedClientCallOptions = {},
@@ -555,12 +641,15 @@ export class RetainedClient {
       throw new RetainedClientError("unsupported-feature");
     const { specification, scope, operation, url, method, bodyText, headers } = prepared;
     const savedHeaders = { ...headers };
+    const historical = savedHeaders.accept === HISTORICAL_UPDATE_MEDIA;
+    const selectedMedia = historical ? HISTORICAL_UPDATE_MEDIA : RETAINED_V01_MEDIA_TYPE;
     if (
       specification !== RETAINED_V01_SPECIFICATION ||
       method !== "POST" ||
       !RETAINED_WRITE_OPERATIONS.includes(operation) ||
-      savedHeaders.accept !== RETAINED_V01_MEDIA_TYPE ||
-      savedHeaders["content-type"] !== RETAINED_V01_MEDIA_TYPE ||
+      savedHeaders.accept !== selectedMedia ||
+      savedHeaders["content-type"] !== selectedMedia ||
+      (historical && operation !== "updateBead") ||
       Object.keys(savedHeaders).sort().join(",") !== "accept,content-type,idempotency-key" ||
       typeof savedHeaders["idempotency-key"] !== "string" ||
       !/^[A-Za-z0-9_-]{1,256}$/.test(savedHeaders["idempotency-key"])
@@ -574,26 +663,49 @@ export class RetainedClient {
       new TextEncoder().encode(bodyText).byteLength > this.#requestBytes
     )
       throw new RetainedClientError("invalid-input");
-    parseRetainedWriteInput(operation, bodyText);
+    const input = historical
+      ? parseHistoricalUpdateRequest(bodyText)
+      : parseRetainedWriteInput(operation, bodyText);
+    const transport = historical ? this.#historicalUpdateTransport : this.#transport;
+    if (transport === undefined) throw new RetainedClientError("unsupported-feature");
     const callerSignal = signalOnly(call);
     return this.#run(callerSignal, async (signal, markSubmitted) => {
       markSubmitted();
-      const response = await this.#transport.post(url, {
+      const response = await transport.post(url, {
         signal,
         bodyText,
         idempotencyKey: savedHeaders["idempotency-key"],
       });
       try {
-        const refused = failure(response);
+        const refused = failure(response, false, historical);
+        if (
+          historical &&
+          refused?.kind === "problem" &&
+          refused.problem.code === "capability-not-supported" &&
+          refused.problem.pointer !== "/fromRevision"
+        )
+          return invalid();
         if (refused) return refused;
         privateNoStore(response);
-        const value = parseRetainedWriteResult(operation, this.#document(response));
+        const value = historical
+          ? parseHistoricalUpdateResult(this.#document(response, selectedMedia))
+          : parseRetainedWriteResult(operation, this.#document(response));
+        const result = historical ? (value.result as RetainedJsonObject) : value;
+        if (historical && result.changed === true) {
+          const evidence = value.historicalUpdate as RetainedJsonObject;
+          if (
+            evidence.fromRevision !== input.fromRevision ||
+            (input.expectedRevision !== undefined &&
+              evidence.previousRevision !== input.expectedRevision)
+          )
+            return invalid();
+        }
         const identity =
-          value.resource !== undefined
-            ? (value.resource as RetainedJsonObject).id
-            : value.deleted === undefined
+          result.resource !== undefined
+            ? (result.resource as RetainedJsonObject).id
+            : result.deleted === undefined
               ? undefined
-              : ((value.deleted as RetainedJsonObject).resource as RetainedJsonObject).id;
+              : ((result.deleted as RetainedJsonObject).resource as RetainedJsonObject).id;
         if (typeof identity === "string" && !identity.startsWith(selected)) return invalid();
         return Object.freeze({
           kind: "success",
@@ -626,12 +738,15 @@ export class RetainedClient {
       nativeBody: nativeBody(response),
     });
   }
-  #document(response: RetainedHttpResponse): string {
+  #document(
+    response: RetainedHttpResponse,
+    selectedMedia: string = RETAINED_V01_MEDIA_TYPE,
+  ): string {
     if (
       response.status !== 200 ||
       response.kind !== "json" ||
       typeof response.bodyText !== "string" ||
-      media(response.contentType) !== RETAINED_V01_MEDIA_TYPE ||
+      media(response.contentType) !== selectedMedia ||
       new TextEncoder().encode(response.bodyText).byteLength > this.#documentBytes
     )
       return invalid();
@@ -721,6 +836,7 @@ function failure(
     readonly bodyBytes?: Uint8Array;
   },
   head = false,
+  historical = false,
 ): Exclude<RetainedReply<never>, { kind: "success" }> | undefined {
   if (response.status < 400) return undefined;
   if (response.kind === "empty" && (head || [405, 406, 412, 500].includes(response.status)))
@@ -734,7 +850,9 @@ function failure(
   privateNoStore(response);
   return Object.freeze({
     kind: "problem",
-    problem: parseRetainedProblem(response.bodyText, response.status),
+    problem: historical
+      ? parseHistoricalUpdateProblem(response.bodyText, response.status)
+      : parseRetainedProblem(response.bodyText, response.status),
     http: context(response),
     nativeBody: nativeBody(response),
   });

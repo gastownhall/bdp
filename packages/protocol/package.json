@@ -16,6 +16,9 @@
     "./schemas/bdp-v0.schema.json": {
       "default": "./schemas/bdp-v0.schema.json"
     },
+    "./schemas/historical-update-v1.schema.json": {
+      "default": "./schemas/historical-update-v1.schema.json"
+    },
     "./schemas/bdp-v0.1.schema.json": {
       "default": "./schemas/bdp-v0.1.schema.json"
     }

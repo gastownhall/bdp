@@ -140,7 +140,7 @@ substitutes for ordinary flags.
 | versions REF; link versions REF | Optional complete History versions page, below |
 | create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton; product allocation adapter may admit --id-root |
 | link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
-| update REF [--type REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateBead; at least one mutation input |
+| update REF [--type REF] [OBJECT-EDITS] [--from-revision REV] [--if-revision TOKEN] | updateBead; source-only historical Update requires its selected extension |
 | link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; whole endpoint corrections preserve Link identity |
 | delete REF --force [--if-revision TOKEN] | deleteBead apply |
 | link delete REF --force [--if-revision TOKEN] | deleteLink apply |
@@ -190,6 +190,8 @@ is the authority contract; retry-file is private client recovery, not a public A
 
 `--dry-run-mode batch` emits a member on ordinary CRUD commands and the complete
 native wrapper on `bd batch`, without execution, allocation or an admission claim.
+The initial CLI refuses historical `--from-revision` with batch emission; it does
+not produce a member for an unsupported historical-update/batch composition.
 Local ordinals and allocator-only --id-root cannot be silently resolved by the
 offline compiler; use exact tokens and explicit IDs, or receive an explicit refusal.
 Create `--batch-bind` is a batch-member emission label; ordinary execution refuses
@@ -388,12 +390,21 @@ ordinary token content: `--if-revision =saved-r1` means the literal token
 `"=saved-r1"`; it is not an escape. No local-number guard shorthand is selected.
 Shell quoting does not distinguish numeric tokens from ordinals.
 
-The separately specified historical-content adapter's `--from-revision REV`
-retains its own `N` / `=TOKEN` proposal: `3` means local revision number 3 and
-`=saved-r1` means the exact token `saved-r1`. It is not an ordinary BDP update
-field or permission to infer guard syntax. That adapter must establish an
-authoritative ordinal mapping and refuse absent support; page counting is never
-such a mapping. Reference selectors retain `@N` / `@=TOKEN` independently.
+Bead historical Update uses `--from-revision REV` with the existing adapter's
+`N` / `=TOKEN` grammar: `3` means local revision number 3 and `=saved-r1` means
+the exact token `saved-r1`. `--from_revision` is the same option's compatibility
+spelling, not a second source selector. The resolved exact source token lowers
+to `fromRevision` under the
+[selected historical-update binding](../../specs/profiles/write/write.md#historical-base-bead-update-and-recovery).
+The explicitly selected extension binding does not establish a provider
+implementation or full History support.
+An ordinal requires an actual authoritative adapter mapping and refuses absent
+support; page counting is never such a mapping. Explicit exact-token delivery
+requires no invented ordinal mapping. Reference selectors retain `@N` / `@=TOKEN`
+independently. No Link historical recovery is introduced.
+The initial historical-update CLI refuses `--from-revision` combined with
+`--dry-run-mode batch` before dispatch and emits no member. An offline operation
+schema alone does not establish CLI or provider batch-composition support.
 
 A write guard checks the current target; it does not select content to read.
 For example, a historical edit might copy content from revision 3 while
@@ -401,6 +412,20 @@ requiring the current target to retain a particular exact revision token. Those 
 choices. Each historical-edit command defines which content it copies.
 
 <a id="reference-syntax"></a>
+
+#### Historical-update feature reads
+
+The selected SDK/HTTP feature reads use feature Accept on the existing canonical
+Bead URL: no query for the live wrapper, or exactly one `view=terminal` for the
+current body-free terminal wrapper. They require no full History support. No
+public `bd show` terminal flag or new read verb is selected. A caller may acquire
+D through the authorized terminal SDK/HTTP read, then pass it literally to
+`bd update --from-revision =SOURCE --if-revision D`. Source and guard remain
+independent; terminal visibility does not grant source permission.
+
+The historical Update POST uses the discovered `updateBead` URL with both feature
+Content-Type and Accept, and required `fromRevision`. Base media does not acquire
+this input/output grammar. See the [HTTP signatures](../../specs/profiles/write/write.md#selected-historical-update-http-signatures).
 
 #### ID and revision syntax
 
@@ -916,7 +941,8 @@ Update one Bead, changing its Type, properties or metadata in one atomic operati
 ##### Usage
 
 ```text
-bd update REF [--type TYPE] [--scope SCOPE] [--if-revision TOKEN]
+bd update REF [--type TYPE] [--scope SCOPE]
+    [--from-revision REV] [--if-revision TOKEN]
     [--properties JSON | --replace-properties JSON | --patch-properties JSON
        | [--set-property KEY=VALUE]... [--unset-property KEY]...]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
@@ -950,7 +976,8 @@ bd update --retry-file FILE
 | `--unset-property KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
 | `--set-metadata KEY=VALUE` | No keyed edit | Set a literal top-level key. Repeatable; see [object inputs](#object-inputs). |
 | `--unset-metadata KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
-| `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
+| `--from-revision REV` | No historical source | Select exact retained same-Bead editable content, then apply explicit edits; alias `--from_revision`. See [write revisions](#write-revision-flags). |
+| `--if-revision TOKEN` | No guard | Require the exact opaque actual-current token, independently of the historical source. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
@@ -961,9 +988,11 @@ bd update --retry-file FILE
 ##### Behavior
 
 The target must be an unpinned Bead; select a guard with `--if-revision`, not a
-revision suffix on `REF`. Supply at least one Type or object mutation input.
-An admitted empty patch is allowed; a guard or provenance alone is not an update.
-Properties and metadata choose their editing modes independently.
+revision suffix on `REF`. Supply at least one Type/object edit or a historical
+source under its selected extension. Source-only historical Update is valid.
+Without that selector, ordinary edit-member rules remain unchanged. An admitted
+empty patch is allowed; a guard or provenance alone is not an update. Properties
+and metadata choose their editing modes independently.
 
 Omitting Type preserves its exact existing affiliation. Explicit Type input
 replaces that whole Reference; under Types, an unpinned input resolves once at
@@ -973,8 +1002,27 @@ and policy checks. A changed Type pin is an effect even with no property changes
 The provider recomputes any Type-owned Link state atomically. The client does not
 expand a Type change into separate Link updates.
 
-`--from-revision` belongs to a separately specified historical-content adapter;
-ordinary update has no generic field for it.
+A historical source contributes only the same Bead's retained live editable
+properties/common metadata; explicit edits apply afterward. It does not implicitly
+copy Type, protected/initialization facts, owned Links or old operation provenance.
+An explicit `--type` remains an ordinary separately validated edit. Current Type,
+protected fields, domain fences and graph constraints govern the final candidate.
+The source and any required last-current recovery baseline must be exact,
+authorized and available through commit; no latest/nearest/default-last-live or
+client read/replace fallback is permitted.
+
+For current live R7 and source R1, `--if-revision` guards R7 independently. After
+deletion D it may guard the actual deletion token D, never a substituted last-live
+R7. Omitting the guard keeps ordinary behavior. A live equal-result update returns
+the entire original envelope/context without a new revision/Event. Deleted-to-live
+recovery creates one new live revision under the same identity and restores no
+Link. Ordinary deleted reads remain unchanged. The authorized narrow HTTP/SDK
+terminal view (`GET canonical-bead?view=terminal` with the selected feature Accept)
+supplies the actual D when a caller wants a recovery guard; a current live guard
+comes from ordinary GET. This read does not require the full History capability.
+No new canonical CLI terminal command or `versions` fallback is inferred here.
+Unsupported extension or ordinal mapping refuses before dispatch rather than
+dropping historical intent.
 
 
 ##### Results
@@ -1003,13 +1051,19 @@ same-key recovery information; it is not permission to submit a fresh write.
 | --type TYPE | Set the whole `type` Reference; omission remains omission. |
 | --replace-properties / --replace-metadata | Set distinct `properties` / `metadata` replacement members, not root patches. |
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
+| --from-revision REV | Resolve the admitted `N` / `=TOKEN` source to exact `fromRevision`; freeze source and feature intent in the ordinary request/journal. No guard is inferred. |
 | --if-revision TOKEN | Set `expectedRevision` to the exact flag value without ordinal lookup or prefix removal. |
 | --revision-provenance JSON | Set admitted `revisionProvenance` input. |
-| --dry-run-mode batch | Emit a member with `operation:"updateBead"` and the same inputs. |
+| --dry-run-mode batch | Emit an ordinary `operation:"updateBead"` member; the initial CLI refuses combination with `--from-revision` before dispatch and emits no member. |
 
 ##### Examples
 
 ```sh
+# Copy exact retained editable content R1 while guarding actual current R7.
+bd update note-1 --from-revision =saved-r1 --if-revision saved-r7
+# Recover the same deleted Bead, guarding genuine terminal D obtained separately.
+bd update note-1 --from-revision =saved-r1 --if-revision deletion-D
+
 # Set one property while requiring the current revision.
 bd update note-1 --set-property title=Reviewed --if-revision saved-r7
 

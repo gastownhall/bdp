@@ -243,7 +243,7 @@ guide; the pinned citation still selects `guide-h`, whose title remains reviewed
 Omitting the guard makes an ordinary unguarded write; it does not imply an
 automatic concurrency check.
 
-> **Product conveniences: historical content as input**
+> **Optional Bead historical Update: content as input**
 >
 > A product with the historical-content adapter can offer `--from-revision` to
 > use a retained same-identity state as the base of a new edit. For example, an
@@ -254,9 +254,13 @@ automatic concurrency check.
 > under that adapter's contract. It does not rewrite history or revive the old
 > Type. The source acquisition, guard, composition and write must be performed by
 > the authoritative adapter as specified; a historical GET followed by replacement
-> is not an equivalent substitute. Ordinary portable Write currently has no
-> `fromRevision` request member. This example requires that separately specified
-> capability and is outside the main story's state trace.
+> is not an equivalent substitute. The optional
+> [historical-update extension](../../../specs/profiles/write/write.md#historical-base-bead-update-and-recovery)
+> selects the feature-owned `fromRevision` request; ordinary base Write is unchanged.
+> Numeric7 requires an authoritative ordinal adapter; exact-token input uses
+> `=TOKEN`. A live equal result would instead preserve the whole original envelope
+> as an ordinary no-op. This example requires selected provider support and stays
+> outside the main story's state trace.
 
 The main story ends with the approved guide at `guide-i`, its unchanged body and
 metadata, and the two new citation Links. `csv-context` and `csv-checks` remain

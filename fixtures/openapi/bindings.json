@@ -176,6 +176,21 @@
       "pathItem": "atomicBatch",
       "path": "/fixture/atomicBatch",
       "url": "https://bdp-tooling.invalid/fixture/atomicBatch"
+    },
+    {
+      "pathItem": "historicalUpdateBead",
+      "path": "/fixture/historicalUpdateBead",
+      "url": "https://bdp-tooling.invalid/fixture/historicalUpdateBead"
+    },
+    {
+      "pathItem": "historicalUpdateCurrent",
+      "path": "/fixture/historicalUpdateCurrent",
+      "url": "https://bdp-tooling.invalid/fixture/historicalUpdateCurrent"
+    },
+    {
+      "pathItem": "historicalUpdateTerminal",
+      "path": "/fixture/historicalUpdateTerminal",
+      "url": "https://bdp-tooling.invalid/fixture/historicalUpdateTerminal?view=terminal"
     }
   ]
 }

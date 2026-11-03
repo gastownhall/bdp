@@ -271,5 +271,42 @@
       "deleteAlias",
       "atomicBatch"
     ]
-  }
+  },
+  "features": [
+    {
+      "source": "specs/profiles/write/historical-update-v1.schema.json",
+      "sourceSHA256": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
+      "definitions": [
+        "historicalUpdateCapabilityProblem",
+        "historicalUpdateContext",
+        "historicalUpdateProblem",
+        "historicalUpdateReadCapabilityProblem",
+        "historicalUpdateRequest",
+        "historicalUpdateResult",
+        "historicalUpdateTerminalVersion",
+        "historicalUpdateTerminalView",
+        "historicalUpdateView"
+      ],
+      "externalReferences": [
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/currentBeadRecord",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/mutationResult",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/ordinaryUpdateChange",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenance",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput",
+        "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/typeReference"
+      ],
+      "operations": {
+        "read": ["historicalUpdateCurrent", "historicalUpdateTerminal"],
+        "write": ["historicalUpdateBead"]
+      }
+    }
+  ]
 }

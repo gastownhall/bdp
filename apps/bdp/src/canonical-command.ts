@@ -184,12 +184,18 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       const ancestors = new Set<Command>();
       for (let current: Command | null = command; current; current = current.parent)
         ancestors.add(current);
+      if (options.from_revision !== undefined) {
+        if (options.fromRevision !== undefined)
+          command.error("historical source may only be specified once");
+        options.fromRevision = options.from_revision;
+        delete options.from_revision;
+      }
       const explicit = new Set(
         registered
           .filter(
             ({ owner, name }) => ancestors.has(owner) && owner.getOptionValueSource(name) === "cli",
           )
-          .map(({ name }) => name),
+          .map(({ name }) => (name === "from_revision" ? "fromRevision" : name)),
       );
       const args = command.processedArgs as string[];
       if (options.cliProfile !== undefined && options.cliProfile !== settings.profile)
@@ -388,6 +394,10 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
         flag(command, ["--batch-bind <name>", "Name this creation in batch-member emission."]);
       } else
         flag(command, ["--if-revision <token>", "Guard with this exact opaque token, unchanged."]);
+      if (!isLink && operation === "update") {
+        flag(command, ["--from-revision <revision>", "Source editable content from N or =TOKEN."]);
+        flag(command, ["--from_revision <revision>", "Alias for --from-revision."]);
+      }
       if (isLink && operation !== "delete") {
         flag(command, ["--from <ref>", "Set the complete source Reference."]);
         flag(command, ["--to <ref>", "Set the complete target Reference."]);
@@ -428,6 +438,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
               "type",
               "from",
               "to",
+              ...(!isLink ? ["fromRevision"] : []),
               ...editFlags.map(([syntax]) => new Option(syntax).attributeName()),
             ].some((name) => explicit.has(name)),
             "update requires a mutation input",

@@ -4,8 +4,10 @@ The specification baseline is PR337/main0bf00889. Reference implementation
 qualification is recorded in [PR338](https://github.com/gastownhall/bdp/pull/338);
 source/build success alone is not a completed conformance claim. This API selects
 ordinary Core and the eight singleton Write operations. Events,
-Types, History, projection, Transfer and batch are unadvertised and explicitly
-unsupported. Ordinary Type-definition Beads remain generic Bead records.
+Types, full History, projection and Transfer are unadvertised and explicitly
+unsupported. Batch and historical Update are separate opt-in compositions below;
+neither is selected by default. Ordinary Type-definition Beads remain generic
+Bead records.
 
 Use repository-pinned Node24.22.1 and pnpm11.20.0, install with the frozen lockfile,
 and build normally. The entry is `@bdp/server/reference`; it does not change the
@@ -110,3 +112,60 @@ implementations. Current-contract wire assertions and reference regressions need
 separate subjects from installed legacy/private profile matrices. Existing matrix
 assertions remain intact until each has an explicit replacement or retained lane;
 this increment removes no test or CI gate and adds no testing framework.
+
+## Optional historical Update and same-ID recovery
+
+For a fresh store, `historicalUpdate: true` selects the optional version1
+historical-update capability. It retains body-free deletion versions and exact
+editable content sources. Reopening requires the same explicit option and captured
+configuration. This fresh format7 composition does not migrate formats5/6 or
+open an old private store by guessing its format number.
+
+An explicitly batch-enabled fresh store uses `atomicBatch: true` and format6.
+The initial reference refuses `atomicBatch: true` together with
+`historicalUpdate: true` before provisioning. Default ordinary stores retain
+format5. These are reference storage choices, not protocol identities or a
+requirement on Beads storage.
+
+`update --from-revision` selects a historical editable content base, then applies
+explicit edits. The source revision, actual current predecessor and optional
+current guard are independent. Current Type and protected state remain
+authoritative. Deleted-to-live recovery creates a fresh live version under the
+same identity; it never revives deleted Links or upserts an unknown identity.
+The exact complete editable source content consumed must be authorized and
+available; unused historical owned-Link structure is not required. A live no-op
+preserves its entire old record and historical context.
+
+The canonical executable accepts `--from-revision =TOKEN` and the product alias
+`--from_revision`. Numeric ordinals require an authoritative product adapter;
+this reference has no ordinal mapping and refuses them before dispatch. The
+initial CLI refuses historical `--dry-run-mode batch` rather than emitting an
+unsupported executable composition. Request preview and frozen same-key retry
+remain supported. Human rendering shows the Resource; JSON output carries the
+explicit historical result/context wrapper.
+
+Create the SDK client with both ordinary and historical-update transports.
+`readHistoricalUpdate(absoluteBeadUri, {terminal: true, scope})` obtains the
+current authorized deletion version D; the same method without `terminal`
+selects the live feature view and its retained source/predecessor context.
+Ordinary GET remains404 while deleted. A terminal version is not a live content
+source. Use the genuine D as an independent current guard when recovering from
+an earlier live source R1; the result has a new live revision R8 and context
+identifying source R1 and actual predecessor D.
+
+The capability uses explicit feature media for requests/results/views. Ordinary
+Resource representations stay closed and unchanged. A lost response remains
+unknown until the saved invocation is retried with the same body, headers and
+key; the executable journal preserves those values across restart.
+
+This reference is append-only and provides no source-pruning, administrative
+erasure, partial-disclosure policy, full History or Events interface. Its current
+principals have whole-Scope access. Retained-index corruption is an invariant
+failure, not invented evidence that historical content was lawfully pruned.
+Tests of unknown sources, rollback, reopen and corruption do not qualify a
+pruning/erasure lifecycle or the unselected full History/Events composition.
+
+The [inventory disposition index](plans/inventory-dispositions-20261102.md)
+retains historical requirements and remaining test work. Current qualification
+receipts must identify the actual source/build/configuration; this API document
+alone is not conformance evidence.

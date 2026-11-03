@@ -166,8 +166,9 @@ export function renderCanonicalOutput(
   }
   if (output.result_kind === "mutation") {
     const data = record(output.data);
-    if (data.resource !== undefined)
-      return `Success\n${resourceRows([data.resource], scope, options.long === true)}`;
+    const result = data.result === undefined ? data : record(data.result);
+    if (result.resource !== undefined)
+      return `Success\n${resourceRows([result.resource], scope, options.long === true)}`;
   }
   return output.data === undefined ? "" : `${JSON.stringify(output.data, null, 2)}\n`;
 }

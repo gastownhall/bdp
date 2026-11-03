@@ -59,17 +59,20 @@ Different stores can number the same portable revision differently.
 Resolve an admitted ordinal to the exact full token before transport, persistence
 or a stored Reference. `--if-revision TOKEN` instead takes an exact opaque token
 unchanged, including numeric-looking tokens and literal leading `=`. There is no
-ordinal guard shorthand. The separately specified historical-content
-`--from-revision` adapter retains its own `N` / `=TOKEN` proposal; it does not
-define guard syntax. There is no standalone
+ordinal guard shorthand. Bead historical Update's `--from-revision` adapter uses
+its separate `N` / `=TOKEN` source grammar; it does not define guard syntax.
+The resolved exact token selects the optional
+[historical-update extension](../../specs/profiles/write/write.md#historical-base-bead-update-and-recovery),
+not an implicit current-state guard. Link historical recovery is not selected. There is no standalone
 canonical `--revision`, `--type-revision` or `json:` Reference escape.
 Type and endpoint pins use the shared Reference suffixes, including the quoted
 bracketed absolute-URL form. `@current` is not an authored durable pin.
 Canonical Link creation has no `--source-revision` / `--target-revision` flags;
 use the shared `@N` / `@=TOKEN` endpoint suffixes. The separate [Beads typed endpoint-flag operations](preview3-alignment.md#product-endpoint-pin-operations)
 are product adapter intents; exact @=current/@=unpinned still name literal tokens.
-Point mutation subjects stay unpinned. A separately specified historical-content
-adapter copies retained content; it is not a new generic BDP write field.
+Point mutation subjects stay unpinned. The Bead historical-content adapter lowers
+to the selected feature-owned `fromRevision` field; it does not widen ordinary
+base Write or permit historical Link recovery.
 Offline emission requires exact tokens and refuses unresolved ordinals. Native
 Reference objects remain unchanged; no ordinal wire field or token-generation
 change is implied. The [alignment map](preview3-alignment.md) records adapter limits.

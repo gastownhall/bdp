@@ -10,6 +10,8 @@ import {
   deferredSignatures,
   generateArtifacts,
   idRootSchemaFile,
+  historicalSchemaFile,
+  historicalMedia,
   media,
   operations,
   parseComposition,
@@ -26,6 +28,7 @@ const catalog = load("specs/openapi/bdp-v0.1.openapi.json");
 const tooling = load("fixtures/openapi/generated.openapi.json");
 const canonical = load(schemaFile);
 const allocation = load(idRootSchemaFile);
+const historical = load(historicalSchemaFile);
 const bindings = load("fixtures/openapi/bindings.json").bindings;
 const exchanges = load("fixtures/openapi/exchanges.json");
 const rows = operations();
@@ -109,6 +112,7 @@ test("every schema reference resolves without rewriting or staging imports", () 
       const resources = new Map([
         [resolve(root, schemaFile), canonical],
         [resolve(root, idRootSchemaFile), allocation],
+        [resolve(root, historicalSchemaFile), historical],
         [
           resolve(root, "specs/profiles/types/types-v1.schema.json"),
           load("specs/profiles/types/types-v1.schema.json"),
@@ -192,7 +196,7 @@ test("bodyless HTTP branches and HEAD cannot be swallowed by default Problems", 
             [
               media,
               "application/problem+json",
-              ...(op["x-bdp-feature-selection"] ? ["application/vnd.bdp.v0.1.types.v1+json"] : []),
+              ...(op["x-bdp-feature-selection"] ? [op["x-bdp-feature-selection"].media] : []),
             ].includes(type),
           );
       }
@@ -200,7 +204,7 @@ test("bodyless HTTP branches and HEAD cannot be swallowed by default Problems", 
         assert(
           [
             media,
-            ...(op["x-bdp-feature-selection"] ? ["application/vnd.bdp.v0.1.types.v1+json"] : []),
+            ...(op["x-bdp-feature-selection"] ? [op["x-bdp-feature-selection"].media] : []),
           ].includes(type),
         );
     }
@@ -618,8 +622,12 @@ test("command-first map assigns every wire case once without adding public verbs
     ...deferredSignatures,
   ];
   assert.deepEqual([...signatures].sort(), rows.map((row) => row.id).sort());
-  assert.equal(new Set(signatures).size, 35);
-  assert.deepEqual(deferredSignatures, ["exactDefinition"]);
+  assert.equal(new Set(signatures).size, 38);
+  assert.deepEqual(deferredSignatures, [
+    "exactDefinition",
+    "historicalUpdateCurrent",
+    "historicalUpdateTerminal",
+  ]);
   assert.deepEqual(catalog["x-bdp-cli-surface"].commands, commandGroups);
   assert.equal(commandGroups.find((group) => group.command === "bd show").signatures.length, 6);
   assert(
@@ -667,10 +675,10 @@ test("rooted creation uses three existing routes and disjoint feature schema arm
       `../profiles/core/bdp-v0.1.schema.json#/$defs/${row.response}`,
     );
   }
-  assert.equal(rows.length, 35);
+  assert.equal(rows.length, 38);
   assert.equal(
     rows.reduce((count, row) => count + row.methods.length, 0),
-    61,
+    66,
   );
 });
 
@@ -815,4 +823,188 @@ test("alias POST and malformed forbidden-header inventories cannot weaken HTTP r
         "specs/profiles/write/write.md",
       ),
     );
+});
+
+test("historical feature catalogs five explicitly selected methods without widening base or CLI", () => {
+  const expected = {
+    historicalUpdateBead: ["post"],
+    historicalUpdateCurrent: ["get", "head"],
+    historicalUpdateTerminal: ["get", "head"],
+  };
+  for (const [id, selectedMethods] of Object.entries(expected)) {
+    const item = catalog.components.pathItems[id];
+    assert.deepEqual(Object.keys(item), selectedMethods);
+    for (const [method, op] of Object.entries(item)) {
+      assert.equal(op["x-bdp-feature-selection"].media, historicalMedia);
+      assert.equal(
+        op["x-bdp-feature-selection"].capability,
+        "https://github.com/gastownhall/bdp/capabilities/historical-update",
+      );
+      assert.equal(op["x-bdp-feature-selection"].version, "1");
+      assert.equal(op["x-bdp-request-media"].accept, historicalMedia);
+      assert(!op.responses["200"].headers["BDP-History-Lineage"]);
+      assert(!op.responses["200"].headers["BDP-Collection-Kind"]);
+      if (method === "post") {
+        assert.equal(op["x-bdp-navigation"].member, "updateBead");
+        assert.equal(op["x-bdp-request-media"].contentType, historicalMedia);
+        assert.deepEqual(Object.keys(op.requestBody.content), [historicalMedia]);
+        assert(
+          op.requestBody.content[historicalMedia].schema.$ref.endsWith("/historicalUpdateRequest"),
+        );
+        assert(op.parameters.some((p) => p.name === "Idempotency-Key" && p.required));
+        assert.deepEqual(op["x-bdp-forbidden-response-headers"], ["ETag", "Location"]);
+        assert.match(op.responses["415"].description, /before admission/);
+        assert.equal(
+          op.responses["415"].content["application/problem+json"].schema.$ref,
+          "../profiles/core/bdp-v0.1.schema.json#/$defs/readUpdateProblem",
+        );
+      } else {
+        assert.equal(op.responses["200"].headers["BDP-Resource-Kind"].schema.const, "bead");
+        assert(!op["x-bdp-request-media"].contentType);
+        for (const status of ["200", "304"]) {
+          assert.equal(op.responses[status].headers.Vary["x-bdp-required"], true);
+          assert.match(op.responses[status].headers.Vary.description, /MUST include Accept/);
+        }
+        assert.equal(
+          op.parameters.filter((p) => p.in === "query").length,
+          id.endsWith("Terminal") ? 1 : 0,
+        );
+      }
+      if (method === "head")
+        for (const response of Object.values(op.responses)) assert(!response.content);
+      else assert.deepEqual(Object.keys(op.responses["200"].content), [historicalMedia]);
+    }
+  }
+  assert.deepEqual(catalog.components.pathItems.updateBead.post["x-bdp-request-media"], {
+    accept: media,
+    contentType: media,
+  });
+  assert.equal(
+    catalog.components.pathItems.updateBead.post.requestBody.content[media].schema.$ref,
+    "../profiles/core/bdp-v0.1.schema.json#/$defs/updateBeadRequest",
+  );
+  assert(!Object.hasOwn(canonical.$defs.updateBeadRequest.properties, "fromRevision"));
+  assert(
+    commandGroups
+      .find((g) => g.command === "bd update")
+      .signatures.includes("historicalUpdateBead"),
+  );
+  assert(
+    !commandGroups
+      .find((g) => g.command === "bd show")
+      .signatures.some((id) => id.startsWith("historicalUpdate")),
+  );
+});
+
+test("historical external schema graph stays exact and every feature root compiles strictly", () => {
+  assert.deepEqual(historical, load("packages/protocol/schemas/historical-update-v1.schema.json"));
+  const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: false });
+  ajv.addKeyword({ keyword: "x-bdp-schema-definitions", schemaType: "array", valid: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-sources", schemaType: "object", valid: true });
+  ajv.addSchema(canonical);
+  ajv.addSchema(historical);
+  for (const name of Object.keys(historical.$defs))
+    assert(ajv.getSchema(`${historical.$id}#/$defs/${name}`), name);
+  const source = ajv.getSchema(`${historical.$id}#/$defs/historicalUpdateRequest`);
+  assert(source({ bead: "a", fromRevision: "r1" }));
+  assert(!source({ bead: "a" }));
+  assert(
+    !source({
+      bead: "a",
+      fromRevision: "r1",
+      historicalUpdate: { fromRevision: "spoof", previousRevision: "spoof" },
+    }),
+  );
+  const terminal = ajv.getSchema(`${historical.$id}#/$defs/historicalUpdateTerminalView`);
+  const value = {
+    terminal: {
+      id: "https://example.test/s/a",
+      revision: "D",
+      state: "deleted",
+      previousRevision: "r7",
+    },
+  };
+  assert(terminal(value));
+  assert(!terminal({ terminal: { ...value.terminal, properties: {} } }));
+});
+
+test("historical authoring refuses wrong media, target, methods, queries and imported feature flags", () => {
+  const original = rows.find((row) => row.id === "historicalUpdateBead");
+  for (const edit of [
+    { navigation: { ...original.navigation, member: "deleteBead" } },
+    { navigation: { ...original.navigation, feature: { ...original.navigation.feature, media } } },
+    {
+      navigation: {
+        ...original.navigation,
+        feature: { ...original.navigation.feature, version: "2" },
+      },
+    },
+    {
+      navigation: {
+        ...original.navigation,
+        feature: { ...original.navigation.feature, schema: schemaFile },
+      },
+    },
+    { navigation: { ...original.navigation, hiddenEndpoint: "/invented" } },
+    { request: "updateBeadRequest" },
+    { response: "mutationResult" },
+    { methods: ["get", "head"] },
+    { history: true },
+    { event: true },
+    { parameters: [{ name: "revision", in: "query", required: true, schema: { type: "string" } }] },
+  ])
+    assert.throws(() => pathItem({ ...original, ...edit }));
+  const terminal = rows.find((row) => row.id === "historicalUpdateTerminal");
+  assert.throws(() => pathItem({ ...terminal, parameters: [] }));
+  assert.throws(() =>
+    pathItem({ ...terminal, parameters: [...terminal.parameters, ...terminal.parameters] }),
+  );
+  assert.throws(() =>
+    pathItem({
+      ...terminal,
+      parameters: [{ ...terminal.parameters[0], schema: { const: "events" } }],
+    }),
+  );
+  const base = rows.find((row) => row.id === "currentBead");
+  assert.throws(() =>
+    pathItem({ ...base, navigation: { ...base.navigation, feature: original.navigation.feature } }),
+  );
+});
+
+test("historical catalog Problems preserve read versus singleton mutation capability carriers", () => {
+  const ajv = new Ajv2020({ strict: true, validateFormats: false });
+  ajv.addKeyword({ keyword: "x-bdp-schema-definitions", schemaType: "array", valid: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-sources", schemaType: "object", valid: true });
+  ajv.addSchema(canonical);
+  ajv.addSchema(historical);
+  const plain = {
+    type: "https://github.com/gastownhall/bdp/problems/request",
+    code: "capability-not-supported",
+    status: 422,
+    retry: "after-state-change",
+    capability: "https://github.com/gastownhall/bdp/capabilities/historical-update",
+    capabilityVersion: "1",
+  };
+  for (const id of [
+    "historicalUpdateBead",
+    "historicalUpdateCurrent",
+    "historicalUpdateTerminal",
+  ]) {
+    const method = id.endsWith("Bead") ? "post" : "get";
+    const schema = structuredClone(
+      catalog.components.pathItems[id][method].responses.default.content["application/problem+json"]
+        .schema,
+    );
+    visit(schema, (obj) => {
+      if (obj.$ref?.startsWith("../profiles/write/historical-update-v1.schema.json"))
+        obj.$ref = obj.$ref.replace(
+          "../profiles/write/historical-update-v1.schema.json",
+          historical.$id,
+        );
+    });
+    const validate = ajv.compile(schema);
+    assert.equal(validate(plain), method !== "post");
+    assert.equal(validate({ ...plain, pointer: "/fromRevision" }), method === "post");
+    assert(!validate({ ...plain, pointer: "/operations/0/fromRevision" }));
+  }
 });

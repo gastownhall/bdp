@@ -663,3 +663,19 @@ export {
   type TransactionalDiscovery,
   type TransactionalOperationDirectory,
 } from "./transaction-discovery-values.js";
+export {
+  HISTORICAL_UPDATE_CAPABILITY,
+  HISTORICAL_UPDATE_MEDIA,
+  HISTORICAL_UPDATE_SCHEMA,
+  type HistoricalUpdateCapability,
+  type HistoricalUpdateContext,
+  type HistoricalUpdateResult,
+  type HistoricalUpdateView,
+  type HistoricalUpdateTerminalView,
+  readHistoricalUpdateCapability,
+  parseHistoricalUpdateRequest,
+  parseHistoricalUpdateProblem,
+  parseHistoricalUpdateResult,
+  parseHistoricalUpdateView,
+  parseHistoricalUpdateTerminalView,
+} from "./historical-update-values.js";

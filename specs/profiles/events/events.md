@@ -293,7 +293,12 @@ postimage effects contain their complete `resource`; deletion contains `deleted`
 The closed deletion context is `{resourceKind:"bead", resource:{id,type,revision}}`
 or `{resourceKind:"link", resource:{id,type,revision}, source, target}`. Its
 `resource` is the closed identity object and its Link endpoints are complete
-References; there are no properties or new deletion revision.
+References; there are no properties or new deletion revision in this unextended
+Event carrier. The optional [historical-update capability](../write/write.md#body-free-terminal-versions-and-narrow-authorized-read)
+commits a separate body-free terminal version while preserving this base fact's
+final-live revision meaning. It selects no implicit combined Events binding.
+A provider must establish a coherent terminal/predecessor/presence correlation
+before claiming that composition; private feature-aware logs do not advertise it.
 Delta create carries allocated `id`, type, complete objects and Link endpoints.
 Delta update identifies `bead` or `link` and carries changed fields; delete uses
 that target plus deleted context. These are facts, never accepted write commands.

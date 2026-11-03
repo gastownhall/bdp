@@ -13,6 +13,7 @@ export const profileSources = {
     "specs/profiles/write/write.md",
   ],
   "id-root": ["specs/profiles/write/write.md"],
+  "historical-update": ["specs/profiles/write/write.md"],
   types: ["specs/profiles/types/types.md"],
 };
 const bundlePaths = [
@@ -207,6 +208,13 @@ function main() {
   const configs = [
     ["common", bundlePaths],
     ["id-root", ["specs/profiles/write/id-root-v1.schema.json"]],
+    [
+      "historical-update",
+      [
+        "specs/profiles/write/historical-update-v1.schema.json",
+        "packages/protocol/schemas/historical-update-v1.schema.json",
+      ],
+    ],
     ["types", ["specs/profiles/types/types-v1.schema.json"]],
   ];
   const outputs = [];

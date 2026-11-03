@@ -9,6 +9,7 @@ import {
   materializeBead,
   prepareCreate,
   prepareUpdate,
+  prepareHistoricalUpdate,
   prepareDelete,
   problem,
   RetainedRequestError,
@@ -430,4 +431,48 @@ describe("numeric diagnostic completeness", () => {
     expect(diagnostics[0]).not.toHaveProperty("instanceLocation");
     expect(Buffer.byteLength(JSON.stringify(diagnostics))).toBeLessThanOrEqual(4096);
   });
+});
+
+it("admits source-only historical Update through the explicitly selected carrier", () => {
+  const source = "source + /@=";
+  const input = JSON.stringify({
+    bead: "a",
+    fromRevision: source,
+    expectedRevision: "current + /@=",
+  });
+  expect(() => prepareUpdate(scope, input, "key")).toThrow(RetainedRequestError);
+  const prepared = prepareHistoricalUpdate(scope, input, "key");
+  expect(prepared).toMatchObject({
+    bead: `${scope}a`,
+    fromRevision: source,
+    expectedRevision: "current + /@=",
+  });
+  expect(
+    prepareHistoricalUpdate(
+      scope,
+      JSON.stringify({
+        bead: `${scope}a`,
+        fromRevision: source,
+        expectedRevision: "current + /@=",
+      }),
+      "key",
+    ).identity,
+  ).toBe(prepared.identity);
+  expect(
+    prepareHistoricalUpdate(
+      scope,
+      JSON.stringify({ bead: "a", fromRevision: "other", expectedRevision: "current + /@=" }),
+      "key",
+    ).identity,
+  ).not.toBe(prepared.identity);
+  expect(() =>
+    prepareHistoricalUpdate(scope, JSON.stringify({ bead: "a", properties: {} }), "key"),
+  ).toThrow(RetainedRequestError);
+  expect(() =>
+    prepareHistoricalUpdate(
+      scope,
+      JSON.stringify({ bead: "a", fromRevision: source, properties: {}, propertiesChange: [] }),
+      "key",
+    ),
+  ).toThrow(RetainedRequestError);
 });

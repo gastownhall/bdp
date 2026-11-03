@@ -14,6 +14,10 @@ export interface ReferenceServiceOptions {
   readonly instance: string;
   /** Fresh explicit batch-enabled format6; default preserves ordinary format5. */
   readonly atomicBatch?: boolean;
+  /** Fresh explicit historical-update1 store; no implicit format migration.
+   * This reference retains every version; pruning/erasure administration and
+   * their qualification are outside this append-only composition. */
+  readonly historicalUpdate?: boolean;
   /** Canonical externally routed Scope. The returned listener is loopback-only. */
   readonly scope: string;
   /** Every configured principal has complete Scope access; no partial disclosure model. */
@@ -48,9 +52,19 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
   if (
     Object.keys(options).some(
       (name) =>
-        !["directory", "create", "instance", "scope", "credentials", "atomicBatch"].includes(name),
+        ![
+          "directory",
+          "create",
+          "instance",
+          "scope",
+          "credentials",
+          "atomicBatch",
+          "historicalUpdate",
+        ].includes(name),
     ) ||
     (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean") ||
+    (options.historicalUpdate !== undefined && typeof options.historicalUpdate !== "boolean") ||
+    (options.atomicBatch === true && options.historicalUpdate === true) ||
     !Array.isArray(options.credentials) ||
     options.credentials.some(
       (credential) =>
@@ -73,6 +87,9 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     navigation,
     referenceCore: true,
     ...(options.atomicBatch === undefined ? {} : { atomicBatch: options.atomicBatch }),
+    ...(options.historicalUpdate === undefined
+      ? {}
+      : { historicalUpdate: options.historicalUpdate }),
   });
   return Object.freeze({
     specification: RETAINED_SPEC,

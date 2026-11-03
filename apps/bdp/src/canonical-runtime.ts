@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  createHistoricalUpdateFetchTransport,
   createRetainedFetchTransport,
   type PreparedRetainedWrite,
   RetainedClient,
@@ -21,6 +22,8 @@ import {
 import type { CanonicalInvocation } from "./canonical-command.js";
 import {
   CanonicalInputError,
+  CanonicalUnsupportedInputError,
+  parseHistoricalSourceSelector,
   compileCanonicalInput,
   parseCanonicalReference,
 } from "./canonical-input.js";
@@ -218,6 +221,8 @@ export async function runCanonicalInvocation(
         2,
         "supply a Scope or configure scope.url / BDP_SCOPE_URL",
       );
+    const historicalSource = stringOption(options, "fromRevision");
+    if (historicalSource !== undefined) parseHistoricalSourceSelector(historicalSource);
     const reader = canonicalInputReader(io.signal);
     const dryRun = stringOption(options, "dryRunMode");
     if (dryRun !== undefined && !mutation)
@@ -286,21 +291,23 @@ export async function runCanonicalInvocation(
     const origin = new URL(anchor).origin;
     const credentialScope =
       savedJournal === undefined ? (config.scope?.url ?? null) : savedJournal.credentialScope;
-    const transport = createRetainedFetchTransport({
+    const transportOptions = {
       limits: {
         requestBodyBytes: MAX_INPUT_BYTES,
         responseBodyBytes: MAX_BYTES,
         responseTimeoutMs: 30_000,
         cleanupTimeoutMs: 1_000,
       },
-      allowTarget: (target) => new URL(target).origin === origin,
-      credentialForTarget: (target) =>
+      allowTarget: (target: string) => new URL(target).origin === origin,
+      credentialForTarget: (target: string) =>
         credentialScope !== null && target.startsWith(credentialScope)
           ? config.auth.token
           : undefined,
-    });
+    };
+    const transport = createRetainedFetchTransport(transportOptions);
     const client = new RetainedClient({
       transport,
+      historicalUpdateTransport: createHistoricalUpdateFetchTransport(transportOptions),
       maximumDocumentBytes: MAX_BYTES,
       maximumRequestBodyBytes: MAX_INPUT_BYTES,
       operationTimeoutMs: 60_000,
@@ -311,12 +318,20 @@ export async function runCanonicalInvocation(
       return reply.value;
     };
     if (mutation && retry === undefined && initial !== undefined && /^https?:\/\//.test(initial)) {
-      if (selectedScope !== undefined) {
+      // A selected historical mutation may name a deleted canonical identity.
+      // Verify its configured owning Scope through bindWrite, without requiring
+      // a successful current Resource read as an existence prerequisite.
+      if (
+        selectedScope !== undefined ||
+        (historicalSource !== undefined &&
+          config.scope?.url !== undefined &&
+          initial.startsWith(scope))
+      ) {
         if (!initial.startsWith(scope))
           return refuse(
             "scope_binding_conflict",
             2,
-            "absolute mutation contradicts its explicit owning Scope",
+            "absolute mutation contradicts its selected owning Scope",
           );
       } else {
         const read = consume(
@@ -652,19 +667,22 @@ export async function runCanonicalInvocation(
         if (!RETAINED_WRITE_OPERATIONS.includes(compiled.operation))
           return refuse("unsupported_capability", 5, "unsupported mutation");
         const binding = consume(await client.bindWrite(scope, call));
+        const historical = options.fromRevision !== undefined;
+        if (historical && !binding.historicalUpdateSupported)
+          return refuse("unsupported_capability", 5, "historical-update1 is not advertised");
+        const prepare = (key: string): PreparedRetainedWrite =>
+          historical
+            ? binding.prepareHistoricalUpdate(compiled.bodyText, key)
+            : binding.prepare(compiled.operation, compiled.bodyText, key);
         if (dryRun === "bdp") {
-          const preview = binding.prepare(compiled.operation, compiled.bodyText, "preview");
+          const preview = prepare("preview");
           await io.stdout(
             `${JSON.stringify({ method: preview.method, url: preview.url, headers: { accept: preview.headers.accept, "content-type": preview.headers["content-type"] }, body: json(preview.bodyText) })}\n`,
             io.signal,
           );
           return 0;
         }
-        prepared = binding.prepare(
-          compiled.operation,
-          compiled.bodyText,
-          stringOption(options, "idempotencyKey") ?? randomUUID(),
-        );
+        prepared = prepare(stringOption(options, "idempotencyKey") ?? randomUUID());
         pendingRecovery = await saveCanonicalJournal({
           version: 1,
           profile: "canonical",
@@ -699,6 +717,10 @@ export async function runCanonicalInvocation(
     if (error instanceof CliError) {
       status = error.status;
       code = error.code;
+      message = error.message;
+    } else if (error instanceof CanonicalUnsupportedInputError) {
+      status = 5;
+      code = "unsupported_capability";
       message = error.message;
     } else if (error instanceof CanonicalInputError || error instanceof CanonicalProjectionError) {
       status = 2;

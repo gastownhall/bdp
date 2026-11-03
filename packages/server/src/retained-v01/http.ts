@@ -2,6 +2,7 @@
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { HISTORICAL_UPDATE_CAPABILITY, HISTORICAL_UPDATE_MEDIA } from "@bdp/protocol";
 import { prepareAlias } from "./alias-contract.js";
 import {
   BATCH_CAPABILITY,
@@ -16,6 +17,7 @@ import {
   prepareCreate,
   prepareDelete,
   prepareUpdate,
+  prepareHistoricalUpdate,
   problem,
   RETAINED_MEDIA,
   RetainedFixtureGap,
@@ -49,8 +51,8 @@ function one(request: IncomingMessage, name: string): string | undefined {
   if (values.length > 1) throw new RetainedRequestError("malformed-request", 400);
   return values[0];
 }
-function accepts(value: string | undefined): boolean {
-  if (value === undefined) return true;
+function accepts(value: string | undefined, selected = RETAINED_MEDIA, explicit = false): boolean {
+  if (value === undefined) return !explicit;
   let rank = -1;
   let quality = 0;
   for (const part of value.split(",")) {
@@ -60,7 +62,15 @@ function accepts(value: string | undefined): boolean {
       .split(";")
       .map((p) => p.trim());
     const specificity =
-      media === RETAINED_MEDIA ? 2 : media === "application/*" ? 1 : media === "*/*" ? 0 : -1;
+      media === selected
+        ? 2
+        : explicit
+          ? -1
+          : media === "application/*"
+            ? 1
+            : media === "*/*"
+              ? 0
+              : -1;
     if (specificity < 0) continue;
     const weights = parameters.filter((p) => p.startsWith("q="));
     const raw = weights[0]?.slice(2) ?? "1";
@@ -115,7 +125,9 @@ function conditionalRead(
     ...headers,
     "cache-control": "private, no-store",
     ...fixtureHeaders(response),
-    ...(status === 304 ? { "content-type": RETAINED_MEDIA } : { "content-length": "0" }),
+    ...(status === 304
+      ? { "content-type": headers["content-type"] ?? RETAINED_MEDIA }
+      : { "content-length": "0" }),
   });
   response.end();
   return true;
@@ -241,9 +253,17 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
           empty(response, 405, "POST");
           return;
         }
-        if (one(request, "content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== RETAINED_MEDIA)
+        const selected = one(request, "content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+        const historical = route === "updateBead" && selected === HISTORICAL_UPDATE_MEDIA;
+        if (selected !== RETAINED_MEDIA && !historical)
           throw new RetainedRequestError("unsupported-media-type", 415);
-        if (!accepts(request.headers.accept)) {
+        if (
+          !accepts(
+            request.headers.accept,
+            historical ? HISTORICAL_UPDATE_MEDIA : RETAINED_MEDIA,
+            historical,
+          )
+        ) {
           empty(response, 406);
           return;
         }
@@ -256,13 +276,28 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             : route === "createBead"
               ? store.create(principal, prepareCreate(navigation.scope, text, key))
               : route === "updateBead"
-                ? store.update(principal, prepareUpdate(navigation.scope, text, key))
+                ? store.update(
+                    principal,
+                    (historical ? prepareHistoricalUpdate : prepareUpdate)(
+                      navigation.scope,
+                      text,
+                      key,
+                    ),
+                  )
                 : route === "deleteBead"
                   ? store.deleteBead(principal, prepareDelete(navigation.scope, text, key))
                   : route === "putAlias" || route === "deleteAlias"
                     ? store[route](principal, prepareAlias(navigation.scope, route, text, key))
                     : store[route](principal, prepareLink(navigation.scope, route, text, key));
-        if (!response.destroyed) json(response, result.status, result.text);
+        if (!response.destroyed)
+          json(
+            response,
+            result.status,
+            result.text,
+            historical && result.status === 200
+              ? { "content-type": HISTORICAL_UPDATE_MEDIA, vary: "Accept" }
+              : {},
+          );
         return;
       }
       if (method !== "GET" && method !== "HEAD") {
@@ -303,10 +338,25 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
           return;
         }
       }
-      if (!accepts(request.headers.accept)) {
+      const historicalRead =
+        route === undefined &&
+        resource !== undefined &&
+        inventory === undefined &&
+        !scopeEventRoute &&
+        accepts(request.headers.accept, HISTORICAL_UPDATE_MEDIA, true) &&
+        !accepts(request.headers.accept);
+      if (!historicalRead && !accepts(request.headers.accept)) {
         empty(response, 406);
         return;
       }
+      if (
+        historicalRead &&
+        url.search &&
+        (url.searchParams.get("view") !== "terminal" ||
+          url.searchParams.getAll("view").length !== 1 ||
+          [...url.searchParams.keys()].some((name) => name !== "view"))
+      )
+        throw new RetainedRequestError("invalid-parameter", 400);
       if (route === "description") {
         json(
           response,
@@ -321,6 +371,13 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             ...(options.referenceCore === true
               ? {
                   limits: REFERENCE_READ_LIMITS,
+                  ...(store.historicalUpdateEnabled
+                    ? {
+                        capabilities: {
+                          [HISTORICAL_UPDATE_CAPABILITY]: { "1": { atomicBatch: false } },
+                        },
+                      }
+                    : {}),
                   ...(store.atomicBatchEnabled
                     ? {
                         capabilities: {
@@ -404,6 +461,45 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       }
       if (resource === undefined)
         throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
+      if (historicalRead) {
+        const terminalRead = url.searchParams.get("view") === "terminal";
+        if (
+          url.search &&
+          (!terminalRead ||
+            url.searchParams.getAll("view").length !== 1 ||
+            [...url.searchParams.keys()].some((name) => name !== "view"))
+        )
+          throw new RetainedRequestError("invalid-parameter", 400);
+        if (!store.historicalUpdateEnabled) {
+          json(
+            response,
+            422,
+            serialized({
+              ...problem("capability-not-supported", 422, "after-state-change"),
+              capability: HISTORICAL_UPDATE_CAPABILITY,
+              capabilityVersion: "1",
+            }),
+          );
+          return;
+        }
+        const version = store.readHistoricalVersion(resource);
+        if (
+          version === undefined ||
+          (terminalRead ? version.terminal === undefined : version.resource === undefined)
+        )
+          throw new RetainedRequestError("resource-not-found", 404, "after-state-change");
+        const body = serialized(version);
+        const headers = {
+          "content-type": HISTORICAL_UPDATE_MEDIA,
+          vary: "Accept",
+          "bdp-resource-kind": "bead",
+          etag: `"historical-${createHash("sha256").update(body).digest("hex")}"`,
+          link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
+        };
+        if (conditionalRead(request, response, headers)) return;
+        json(response, 200, body, headers);
+        return;
+      }
       // This bounded source increment implements current full/properties reads.
       // History/aggregate selection remains an explicit private fixture gap.
       if (url.searchParams.has("revision") || url.searchParams.has("include")) {
@@ -427,6 +523,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       const etag = `"${current.revision}"`;
       const headers = {
         etag,
+        vary: "Accept",
         "bdp-resource-kind": record.kind,
         link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
       };
