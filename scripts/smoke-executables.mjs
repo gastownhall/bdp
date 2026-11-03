@@ -1,8 +1,8 @@
-import { withPackedWorkspace } from "./packed-workspace.mjs";
+import { withPackedWorkspace, withPackedChild } from "./packed-workspace.mjs";
 import { observeCanonicalReference } from "./canonical-reference-observation.mjs";
 import { observeInstalledReference } from "./installed-reference-observation.mjs";
 import { isolatedWorkspace } from "./smoke-safety.mjs";
-import { spawn } from "node:child_process";
+
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -46,133 +46,54 @@ function parseDiagnostics(stderr, executable) {
     });
 }
 
-function run(executable, entry, argument, extraEnv = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(entry, [argument], {
-      cwd: workspaceRoot,
-      env: { ...hermeticEnv, ...extraEnv },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error(`${executable} ${argument} timed out`));
-    }, 5_000);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      resolve({ code, stdout, stderr });
-    });
+function run(signal, _executable, entry, argument, extraEnv = {}) {
+  return withPackedChild(signal, entry, [argument], {
+    cwd: workspaceRoot,
+    env: { ...hermeticEnv, ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"],
+    timeoutMs: 5_000,
   });
 }
 
-function runLifecycle(executable, entry, sendShutdownSignal, extraEnv = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(entry, [], {
+function lifecycle(signal, entry, args, shutdown, extraEnv = {}) {
+  let stderr = "",
+    sent = false,
+    child;
+  return withPackedChild(
+    signal,
+    entry,
+    args,
+    {
       cwd: workspaceRoot,
       env: { ...hermeticEnv, ...extraEnv },
       stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    let shutdownSent = false;
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error(`${executable} lifecycle timed out`));
-    }, 5_000);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-      if (sendShutdownSignal && !shutdownSent && stderr.includes('"event":"lifecycle.started"')) {
-        shutdownSent = true;
-        child.kill("SIGTERM");
-      }
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      resolve({ code, stdout, stderr });
-    });
-  });
+      timeoutMs: 5_000,
+      onStderr(chunk) {
+        stderr += chunk;
+        if (shutdown && !sent && stderr.includes('"event":"lifecycle.started"')) {
+          sent = true;
+          child.kill("SIGTERM");
+        }
+      },
+    },
+    (record) => {
+      child = record.child;
+      return record.result;
+    },
+  );
 }
-
-function runLifecycleWithConfig(executable, entry, configFile) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(entry, ["--config", configFile], {
-      cwd: workspaceRoot,
-      env: hermeticEnv,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    let shutdownSent = false;
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error(`${executable} --config lifecycle timed out`));
-    }, 5_000);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-      if (!shutdownSent && stderr.includes('"event":"lifecycle.started"')) {
-        shutdownSent = true;
-        child.kill("SIGTERM");
-      }
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      resolve({ code, stdout, stderr });
-    });
-  });
+function runLifecycle(signal, _executable, entry, sendShutdownSignal, extraEnv = {}) {
+  return lifecycle(signal, entry, [], sendShutdownSignal, extraEnv);
 }
-
-function runServe(executable, entry, extraEnv = {}, args = ["--serve"]) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(entry, args, {
-      cwd: workspaceRoot,
-      env: { ...hermeticEnv, ...extraEnv },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error(`${executable} --serve did not fail closed before binding`));
-    }, 5_000);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      resolve({ code, stdout, stderr });
-    });
+function runLifecycleWithConfig(signal, _executable, entry, configFile) {
+  return lifecycle(signal, entry, ["--config", configFile], true);
+}
+function runServe(signal, _executable, entry, extraEnv = {}, args = ["--serve"]) {
+  return withPackedChild(signal, entry, args, {
+    cwd: workspaceRoot,
+    env: { ...hermeticEnv, ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"],
+    timeoutMs: 5_000,
   });
 }
 
@@ -210,12 +131,14 @@ async function probeFreePort() {
   return port;
 }
 
-async function fetchWithRetry(url, attempts = 20, delayMs = 50) {
+async function fetchWithRetry(url, signal, attempts = 20, delayMs = 50) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    signal.throwIfAborted();
     try {
-      return await fetch(url);
+      return await fetch(url, { signal });
     } catch (error) {
+      signal.throwIfAborted();
       lastError = error;
       await new Promise((settle) => setTimeout(settle, delayMs));
     }
@@ -223,71 +146,58 @@ async function fetchWithRetry(url, attempts = 20, delayMs = 50) {
   throw lastError ?? new Error(`no response from ${url}`);
 }
 
-function runAdmittedReadSmoke(executable, entry, port, workspace) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(entry, ["--serve"], {
+function runAdmittedReadSmoke(signal, executable, entry, port, workspace) {
+  let stderr = "",
+    resolveStarted;
+  const started = new Promise((resolve) => {
+    resolveStarted = resolve;
+  });
+  return withPackedChild(
+    signal,
+    entry,
+    ["--serve"],
+    {
       cwd: workspaceRoot,
       env: {
         ...hermeticEnv,
         BDP_SERVER_ADVERTISED_PROFILE: "read",
         BDP_SERVER_PORT: String(port),
-        // The bind transport can be plain HTTP behind a proxy while the public
-        // canonical Scope remains HTTPS and uses a different authority.
         BDP_SCOPE_URL: "https://public.example/local-test/",
-        // Never the repository: pointing bd at the working tree would let a
-        // smoke run mutate the repo it is meant to be testing. The caller
-        // provides an isolated path (operator-supplied or freshly minted).
         ...(executable === "bdpbd" ? { BDP_BD_WORKSPACE: workspace } : {}),
       },
       stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stderr = "";
-    let probing = false;
-    let finished = false;
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      finish(new Error(`${executable} admitted Read smoke timed out`));
-    }, 5_000);
-    const finish = (error, result) => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timeout);
-      if (error) reject(error);
-      else resolve(result);
-    };
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", async (chunk) => {
-      stderr += chunk;
-      if (!stderr.includes('"event":"server.started"') || probing || finished) return;
-      probing = true;
-      try {
-        // server.started precedes the listener accepting, so a single shot can
-        // lose a startup race. e2e-ready retries for exactly this reason; the
-        // outer timeout stays authoritative.
-        const response = await fetchWithRetry(`http://127.0.0.1:${port}/local-test/bdp.json`);
-        const discovery = await response.json();
-        if (
-          response.status !== 200 ||
-          discovery.profile !== "read" ||
-          discovery.scope !== "https://public.example/local-test/"
-        ) {
-          throw new Error(`${executable} admitted Read discovery was not a Read document`);
-        }
-        child.kill("SIGTERM");
-      } catch (error) {
-        child.kill("SIGKILL");
-        finish(error);
-      }
-    });
-    child.on("error", (error) => finish(error));
-    child.on("close", (code) => {
-      if (code !== 0 || !stderr.includes('"event":"server.stopped"')) {
-        finish(new Error(`${executable} admitted Read smoke did not stop cleanly`));
-      } else {
-        finish(undefined, { code, stderr });
-      }
-    });
-  });
+      timeoutMs: 5_000,
+      onStderr(chunk) {
+        stderr += chunk;
+        if (stderr.includes('"event":"server.started"')) resolveStarted();
+      },
+    },
+    async (record, childSignal) => {
+      // A failed/closed child also settles readiness; cleanup then aborts any probe.
+      await Promise.race([
+        started,
+        record.result.then(() => {
+          throw new Error(`${executable} admitted Read smoke exited before ready`);
+        }),
+      ]);
+      const response = await fetchWithRetry(
+        `http://127.0.0.1:${port}/local-test/bdp.json`,
+        childSignal,
+      );
+      const discovery = await response.json();
+      if (
+        response.status !== 200 ||
+        discovery.profile !== "read" ||
+        discovery.scope !== "https://public.example/local-test/"
+      )
+        throw new Error(`${executable} admitted Read discovery was not a Read document`);
+      record.child.kill("SIGTERM");
+      const result = await record.result;
+      if (result.code !== 0 || !stderr.includes('"event":"server.stopped"'))
+        throw new Error(`${executable} admitted Read smoke did not stop cleanly`);
+      return { code: result.code, stderr };
+    },
+  );
 }
 
 function fail(executable, reason) {
@@ -300,16 +210,18 @@ function startupConfigFor(diagnostics) {
   return diagnostics.find((entry) => entry.event === "startup.config")?.config;
 }
 
-await withPackedWorkspace(async (installed) => {
+await withPackedWorkspace(async (installed, signal) => {
+  signal.throwIfAborted();
   for (const executable of executables) {
+    signal.throwIfAborted();
     const entry = installed.entry(executable);
-    const help = await run(executable, entry, "--help");
+    const help = await run(signal, executable, entry, "--help");
     if (help.code !== 0 || !help.stdout.startsWith(`Usage: ${executable}`) || help.stderr !== "") {
       throw new Error(`${executable} --help failed`);
     }
 
     const expectedVersion = await installed.version(executable);
-    const version = await run(executable, entry, "--version");
+    const version = await run(signal, executable, entry, "--version");
     if (
       version.code !== 0 ||
       version.stdout.trim() !== `${executable} ${expectedVersion}` ||
@@ -318,7 +230,7 @@ await withPackedWorkspace(async (installed) => {
       throw new Error(`${executable} --version failed`);
     }
 
-    const usageError = await run(executable, entry, "--secret-token");
+    const usageError = await run(signal, executable, entry, "--secret-token");
     const diagnostics = parseDiagnostics(usageError.stderr, executable);
     if (
       usageError.code !== 2 ||
@@ -335,7 +247,7 @@ await withPackedWorkspace(async (installed) => {
     }
 
     // The flag error itself is fixed text, so it is safe to surface verbatim.
-    const flagError = await run(executable, entry, "--config=");
+    const flagError = await run(signal, executable, entry, "--config=");
     const flagDiagnostics = parseDiagnostics(flagError.stderr, executable);
     if (
       flagError.code !== 2 ||
@@ -351,8 +263,10 @@ await withPackedWorkspace(async (installed) => {
   // executable's role, so its startup.config diagnostic proves both that the
   // shared contract compiled through unchanged and that role scoping keeps
   // unrelated sections out of the emitted config.
+  signal.throwIfAborted();
   for (const executable of executables) {
     const lifecycle = await runLifecycle(
+      signal,
       executable,
       installed.entry(executable),
       executable !== "bdp",
@@ -397,7 +311,7 @@ await withPackedWorkspace(async (installed) => {
   // the packed tarball. Both server executables read the same
   // server.advertisedProfile, and each server has its own additional
   // section-specific mapping.
-  const bdptestMapped = await runLifecycle("bdptest", installed.entry("bdptest"), true, {
+  const bdptestMapped = await runLifecycle(signal, "bdptest", installed.entry("bdptest"), true, {
     BDP_SERVER_ADVERTISED_PROFILE: "read-update",
     BDP_BDPTEST_FIXTURE: "smoke-fixture",
   });
@@ -410,7 +324,7 @@ await withPackedWorkspace(async (installed) => {
   }
   console.log("bdptest: server.advertisedProfile and bdptest.fixture round-trip through tarball");
 
-  const bdpbdMapped = await runLifecycle("bdpbd", installed.entry("bdpbd"), true, {
+  const bdpbdMapped = await runLifecycle(signal, "bdpbd", installed.entry("bdpbd"), true, {
     BDP_SERVER_ADVERTISED_PROFILE: "read-update",
     BDP_BD_EXECUTABLE: "/opt/bd/smoke",
   });
@@ -428,8 +342,10 @@ await withPackedWorkspace(async (installed) => {
     lifecycleConfig,
     `${JSON.stringify({ server: { advertisedProfile: "read" } })}\n`,
   );
+  signal.throwIfAborted();
   for (const executable of ["bdptest", "bdpbd"]) {
     const lifecycle = await runLifecycleWithConfig(
+      signal,
       executable,
       installed.entry(executable),
       lifecycleConfig,
@@ -460,8 +376,9 @@ await withPackedWorkspace(async (installed) => {
     refusedServeConfig,
     `${JSON.stringify({ server: { advertisedProfile: "read-update" } })}\n`,
   );
+  signal.throwIfAborted();
   for (const executable of ["bdptest", "bdpbd"]) {
-    const refusal = await runServe(executable, installed.entry(executable), {}, [
+    const refusal = await runServe(signal, executable, installed.entry(executable), {}, [
       "--serve",
       "--config",
       refusedServeConfig,
@@ -484,13 +401,14 @@ await withPackedWorkspace(async (installed) => {
   // implementation capability. Cumulative profiles and an unset profile still
   // exit before listen; the Read token admits exactly when the installed
   // payload carries evidence, and the admitted path is then proved live below.
+  signal.throwIfAborted();
   for (const executable of ["bdptest", "bdpbd"]) {
     const refusedProfiles = [undefined, "read-update", "transactional"];
     if (!installed.hasReadConformanceEvidence(executable)) refusedProfiles.push("read");
     for (const advertisedProfile of refusedProfiles) {
       const env =
         advertisedProfile === undefined ? {} : { BDP_SERVER_ADVERTISED_PROFILE: advertisedProfile };
-      const refusal = await runServe(executable, installed.entry(executable), env);
+      const refusal = await runServe(signal, executable, installed.entry(executable), env);
       const diagnostics = parseDiagnostics(refusal.stderr, executable);
       const finding = diagnostics.find((entry) => entry.event === "startup.profile_refused");
       const expectedMessage =
@@ -514,6 +432,7 @@ await withPackedWorkspace(async (installed) => {
     }
     if (installed.hasReadConformanceEvidence(executable)) {
       await runAdmittedReadSmoke(
+        signal,
         executable,
         installed.entry(executable),
         // An ephemeral port per run: a fixed number turns any colliding
@@ -527,26 +446,30 @@ await withPackedWorkspace(async (installed) => {
   }
 
   if (!legacyOnly) {
+    signal.throwIfAborted();
     const canonicalObservation = await observeCanonicalReference(
       installed.installRoot,
       installed.temporaryRoot,
     );
+    signal.throwIfAborted();
     console.log(
       JSON.stringify({ event: "installed.canonical-reference.observed", ...canonicalObservation }),
     );
   }
 
+  signal.throwIfAborted();
   const installedObservation = await observeInstalledReference(
     installed.installedReferenceEntry,
     installed.temporaryRoot,
   );
+  signal.throwIfAborted();
   console.log(JSON.stringify({ event: "installed.reference.observed", ...installedObservation }));
 
   // Role isolation: an invalid value in a section this role does not read
   // must not block startup. `--version` short-circuits before loadStartupConfig
   // and would therefore never exercise the configuration path — use the normal
   // bdp lifecycle so isolation is actually observed.
-  const bdpIsolated = await runLifecycle("bdp", installed.entry("bdp"), false, {
+  const bdpIsolated = await runLifecycle(signal, "bdp", installed.entry("bdp"), false, {
     BDP_BDPTEST_FIXTURE: "bad name",
     BDP_SERVER_ADVERTISED_PROFILE: "not-a-profile",
   });

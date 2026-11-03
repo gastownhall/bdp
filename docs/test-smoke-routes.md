@@ -27,13 +27,20 @@ observations consume that exact installation before its owned directory is
 removed. A result from another build or installation is not reused.
 
 Both normal and failed observations remove the installation. Pack/npm children
-and the installed CLI driver use the existing process-group supervisor. Parent
+and all installed executable/CLI child helpers use the existing process-group supervisor. Parent
 SIGINT/SIGTERM abort the owned work, await group termination and remove the
-installation; interrupted commands remain unsuccessful with exit 130/143.
+installation. In-process SDK/private observations are awaited through their
+own cleanup before cancellation propagates; they are not raced against removal.
+A clean interrupt exits 130/143; an owned group/removal cleanup failure exits 1
+with both causes.
 Cleanup failures stay failures, including both the original and cleanup causes.
 The actual cleanup tests cover success, observation failure, and parent-only
-SIGINT/SIGTERM while a real packed CLI driver is live, checking group disappearance
-and installation removal. The packed driver confines its case fixtures to the owned root; interruption controls stop an observed real CLI child before signaling the parent, so they cover an active case rather than only driver startup. These process-group controls run on POSIX hosts.
+SIGINT/SIGTERM while a real packed CLI driver is live, checking group disappearance, ordered group-terminated then installation-removed
+diagnostics, and installation removal. Additional controls interrupt both legacy
+and default routes with a real installed executable held active, and force a
+real filesystem cleanup refusal to distinguish it from a clean interrupt. A real
+child-timeout control checks group settlement while the installation still exists,
+then verifies its removal. The packed driver confines its case fixtures to the owned root; interruption controls stop an observed real CLI child before signaling the parent, so they cover an active case rather than only driver startup. These process-group controls run on POSIX hosts.
 
 ## Actual CLI evidence
 

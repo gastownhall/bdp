@@ -10,6 +10,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+const cleanupFailures = new WeakSet();
+
 /** Preserve both an operation failure and a later cleanup failure. */
 async function cleanAfter(operation, cleanup) {
   let value,
@@ -24,29 +26,36 @@ async function cleanAfter(operation, cleanup) {
   try {
     await cleanup();
   } catch (cleanupError) {
-    if (failed)
-      throw new AggregateError([failure, cleanupError], "Operation and cleanup failed", {
-        cause: failure,
-      });
-    throw cleanupError;
+    const error = failed
+      ? new AggregateError([failure, cleanupError], "Operation and cleanup failed", {
+          cause: failure,
+        })
+      : cleanupError;
+    cleanupFailures.add(error);
+    throw error;
   }
   if (failed) throw failure;
   return value;
 }
 
-async function spawnWithOutput(command, args, cwd, signal) {
+/** One actual child group, its asynchronous observer and their complete settlement. */
+export async function withPackedChild(
+  signal,
+  command,
+  args,
+  options,
+  observe = (record) => record.result,
+) {
   signal.throwIfAborted();
-  const record = spawnChild(command, args, {
-    cwd,
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe"],
-    timeoutMs: 30_000,
-  });
-  let interrupt;
+  const active = new AbortController();
+  const childSignal = AbortSignal.any([signal, active.signal]);
+  const record = spawnChild(command, args, options);
+  void record.result.catch((error) => active.abort(error));
+  console.log(JSON.stringify({ event: "packed-child.started", pid: record.child.pid, command }));
+  let interrupt, observing;
   const aborted = new Promise((_, reject) => {
     interrupt = () => {
       reject(signal.reason);
-      // The awaited cleanup below observes the same idempotent termination promise.
       void terminateChild(record).catch(() => undefined);
     };
   });
@@ -54,16 +63,40 @@ async function spawnWithOutput(command, args, cwd, signal) {
   if (signal.aborted) interrupt();
   return cleanAfter(
     async () => {
-      const result = await Promise.race([record.result, aborted]);
+      observing = Promise.resolve().then(() => observe(record, childSignal));
+      const result = await Promise.race([observing, aborted]);
       signal.throwIfAborted();
-      const { code, signal: childSignal, stdout, stderr } = result;
-      if (code !== 0 || childSignal !== null)
-        throw new Error(`${command} exited ${code ?? childSignal}: ${stderr || stdout}`);
-      return { stdout, stderr };
+      return result;
     },
     async () => {
       signal.removeEventListener("abort", interrupt);
-      await terminateChild(record);
+      active.abort(new Error("Packed child observation settled"));
+      // An aborted fetch/observer must settle too: no work outlives its installation.
+      await cleanAfter(
+        () => terminateChild(record),
+        () => observing?.catch(() => undefined),
+      );
+      console.log(JSON.stringify({ event: "packed-child.terminated", pid: record.child.pid }));
+    },
+  );
+}
+
+async function spawnWithOutput(command, args, cwd, signal) {
+  return withPackedChild(
+    signal,
+    command,
+    args,
+    {
+      cwd,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeoutMs: 30_000,
+    },
+    async (record) => {
+      const { code, signal: childSignal, stdout, stderr } = await record.result;
+      if (code !== 0 || childSignal !== null)
+        throw new Error(`${command} exited ${code ?? childSignal}: ${stderr || stdout}`);
+      return { stdout, stderr };
     },
   );
 }
@@ -667,6 +700,7 @@ async function installPackedWorkspace(signal) {
 /** Own signals, subprocess lifetime and installation cleanup through observation. */
 export async function withPackedWorkspace(observe) {
   const lifetime = new AbortController();
+  let cleanupFailed = false;
   const interrupt = (name) => {
     if (lifetime.signal.aborted) return;
     const exitCode = name === "SIGINT" ? 130 : 143;
@@ -674,7 +708,7 @@ export async function withPackedWorkspace(observe) {
     // Rejected top-level await otherwise overwrites exitCode with1. Preserve the
     // interrupt status without exiting before asynchronous owned cleanup finishes.
     process.once("exit", () => {
-      process.exitCode = exitCode;
+      process.exitCode = cleanupFailed ? 1 : exitCode;
     });
     lifetime.abort(new Error(`Packed workspace interrupted by ${name}`));
   };
@@ -686,6 +720,12 @@ export async function withPackedWorkspace(observe) {
     await assertBuildOutput();
     lifetime.signal.throwIfAborted();
     const installed = await installPackedWorkspace(lifetime.signal);
+    console.log(
+      JSON.stringify({
+        event: "packed-workspace.installed",
+        temporaryRoot: installed.temporaryRoot,
+      }),
+    );
     const result = await cleanAfter(
       async () => {
         lifetime.signal.throwIfAborted();
@@ -693,10 +733,22 @@ export async function withPackedWorkspace(observe) {
         lifetime.signal.throwIfAborted();
         return result;
       },
-      () => rm(installed.temporaryRoot, { recursive: true, force: true }),
+      async () => {
+        await rm(installed.temporaryRoot, { recursive: true, force: true });
+        console.log(
+          JSON.stringify({
+            event: "packed-workspace.removed",
+            temporaryRoot: installed.temporaryRoot,
+          }),
+        );
+      },
     );
     lifetime.signal.throwIfAborted();
     return result;
+  } catch (error) {
+    cleanupFailed = cleanupFailures.has(error);
+    if (cleanupFailed) process.exitCode = 1;
+    throw error;
   } finally {
     process.off("SIGINT", onInt);
     process.off("SIGTERM", onTerm);
