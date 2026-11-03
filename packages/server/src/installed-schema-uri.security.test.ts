@@ -125,6 +125,11 @@ describe("index3 URI security and compatibility boundaries", () => {
   it("does not equate AJV's raw registration keys with the graph's canonical resource map", () => {
     const lower = new Ajv2020({ strict: true });
     lower.addSchema({ $id: "https://schema.test/a?X=%2f", type: "integer" });
+    // Unlike 3.1.5, even an identically spelled raw reference now normalizes to
+    // uppercase escapes before lookup. Do not silently rewrite registration.
+    expect(() => lower.compile({ $ref: "https://schema.test/a?X=%2f" })).toThrow(
+      "can't resolve reference",
+    );
     expect(() => lower.compile({ $ref: "https://schema.test/a?X=%2F" })).toThrow(
       "can't resolve reference",
     );

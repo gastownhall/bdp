@@ -37,9 +37,15 @@ references before resolving them.
 
 AJV and the graph have different registration machinery. AJV keeps supplied
 schema registration keys; a lowercase-query `$id` is not automatically
-re-registered under the graph's canonical uppercase-query identity. Focused
-controls keep that refusal visible and prove ordinary local `$defs` references
-and validation still work. No schema-registration rewrite is hidden here.
+re-registered under the graph's canonical uppercase-query identity. In particular,
+an identically spelled lowercase-query `$id`/`$ref` pair validated with 3.1.5 but
+now fails reference lookup: AJV retains the raw registration key while 3.1.9
+normalizes the lookup URI. An explicitly uppercase-query registration accepts
+either reference spelling. No query-bearing `$id` was found in the shipped
+protocol/spec schema, catalog and matrix JSON scan; arbitrary external artifacts
+are not thereby qualified. Focused controls keep this compatibility refusal
+visible and prove ordinary local `$defs` references and validation still work.
+No schema-registration rewrite is hidden here.
 
 The wrapper retains conservative pre-normalization admission and fail-closed
 checks of the original `fast-uri/lib/schemes.js` registry. Missing or altered
