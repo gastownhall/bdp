@@ -49,6 +49,8 @@ jobs:
         run: pnpm test:routing:shadow
       - name: Check shadow impact selector controls without running target suites
         run: node --test scripts/ci-impact-selection.node-test.mjs
+      - name: Check authored CLI flags against parser registration
+        run: node --test scripts/cli-spec-correspondence.node-test.mjs
       - name: Check current OpenAPI and Markdown projections
         run: |
           node scripts/generate-openapi.mjs --check
