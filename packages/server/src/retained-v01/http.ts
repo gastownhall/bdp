@@ -3,6 +3,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { HISTORICAL_UPDATE_CAPABILITY, HISTORICAL_UPDATE_MEDIA } from "@bdp/protocol";
+import { conditionalReadStatus } from "../read-http.js";
 import { prepareAlias } from "./alias-contract.js";
 import {
   BATCH_CAPABILITY,
@@ -95,38 +96,24 @@ function conditionalRead(
   request: IncomingMessage,
   response: ServerResponse,
   headers: Record<string, string>,
+  representationMediaType: string | null = RETAINED_MEDIA,
 ): boolean {
   const etag = headers.etag;
-  const ifMatch = request.headers["if-match"];
-  const ifNone = request.headers["if-none-match"];
-  let status: 304 | 412 | undefined;
-  if (
-    typeof ifMatch === "string" &&
-    ifMatch !== "*" &&
-    (etag === undefined ||
-      !ifMatch
-        .split(",")
-        .map((v) => v.trim())
-        .includes(etag))
-  )
-    status = 412;
-  else if (
-    typeof ifNone === "string" &&
-    (ifNone === "*" ||
-      (etag !== undefined &&
-        ifNone
-          .split(",")
-          .map((v) => v.trim().replace(/^W\//, ""))
-          .includes(etag)))
-  )
-    status = 304;
-  if (status === undefined) return false;
+  const conditions = new Headers();
+  for (const name of ["if-match", "if-none-match"] as const) {
+    const value = request.headers[name];
+    if (typeof value === "string") conditions.set(name, value);
+  }
+  const status = conditionalReadStatus(conditions, etag ?? null);
+  if (status === 200) return false;
   response.writeHead(status, {
     ...headers,
     "cache-control": "private, no-store",
     ...fixtureHeaders(response),
     ...(status === 304
-      ? { "content-type": headers["content-type"] ?? RETAINED_MEDIA }
+      ? representationMediaType === null
+        ? {}
+        : { "content-type": headers["content-type"] ?? representationMediaType }
       : { "content-length": "0" }),
   });
   response.end();
@@ -305,10 +292,12 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
         return;
       }
       if (route === "scope") {
-        response.writeHead(204, {
+        const headers = {
           link: `<${navigation.description}>; rel="service-desc"; type="${RETAINED_MEDIA}"`,
-          ...fixtureHeaders(response),
-        });
+          "cache-control": "private, no-store",
+        };
+        if (conditionalRead(request, response, headers, null)) return;
+        response.writeHead(204, { ...headers, ...fixtureHeaders(response) });
         response.end();
         return;
       }
@@ -358,6 +347,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       )
         throw new RetainedRequestError("invalid-parameter", 400);
       if (route === "description") {
+        if (conditionalRead(request, response, {})) return;
         json(
           response,
           200,
@@ -399,6 +389,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
         return;
       }
       if (route === "directory") {
+        if (conditionalRead(request, response, {})) return;
         json(response, 200, serialized(navigation.targets));
         return;
       }
