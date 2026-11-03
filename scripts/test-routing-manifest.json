@@ -1486,6 +1486,12 @@
       "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
     },
     {
+      "path": "scripts/spec-review-lab.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Owned installed review workstation lifecycle and private CLI relay controls; not arbitrary-provider conformance."
+    },
+    {
       "path": "scripts/spec-schema-fragments.node-test.mjs",
       "runner": "node",
       "lane": "artifact",

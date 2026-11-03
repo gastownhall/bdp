@@ -39,7 +39,8 @@
     "test:legacy:shadow": "node scripts/run-test-route.mjs legacy",
     "test:artifacts:shadow": "node scripts/run-test-route.mjs artifact",
     "smoke:current": "node scripts/smoke-current.mjs",
-    "smoke:legacy": "node scripts/smoke-executables.mjs --legacy"
+    "smoke:legacy": "node scripts/smoke-executables.mjs --legacy",
+    "review:lab": "node scripts/spec-review-lab.mjs"
   },
   "devDependencies": {
     "@babel/parser": "8.0.4",

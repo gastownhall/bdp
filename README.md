@@ -23,6 +23,14 @@ The [editing routine](docs/spec-review/README.md) explains the VS Code comment/p
 
 [Stabilization plan](docs/plans/bdp-stabilization.md) · [Specification status and supporting schemas](specs/README.md) · [CLI design](docs/cli-design/bdp-cli.md) · [Historical inputs](specs/history/pre-canonical-20261101/README.md)
 
+## Try the installed CLI during review
+
+Use the [disposable reference review lab](docs/spec-review/reference-lab.md) for a
+fresh local Scope, installed canonical CLI and explicit restart/recovery controls:
+`pnpm build` then `pnpm review:lab` (or `pnpm review:lab --check` for the finite journey).
+The foreground owner cleans up its privileged fixture on stop, EOF or interruption.
+This is a review workstation, not full provider conformance.
+
 ## Implementation and evidence
 
 This repository also contains TypeScript protocol/client/server packages, a reference SQLite service, black-box conformance tooling and historical implementation evidence. Source publication is not a conformance claim. Product source, build, configuration and test evidence keep their own exact identities; the editorial branch does not promote any of them.
