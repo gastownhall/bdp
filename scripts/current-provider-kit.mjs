@@ -21,6 +21,7 @@ const write = "specs/profiles/write/write.md";
 const definitions = [
   ["core.scope-discovery", `${core}#discovery-and-capabilities`],
   ["write.discovery-directory", `${write}#discover-and-select-write`],
+  ["write.media-before-admission", `${write}#contract-and-media`],
   ["write.create", `${write}#ordinary-results`],
   ["core.point-read", `${core}#read-a-bead-or-link`],
   ["write.no-op", `${write}#covered-state-and-no-ops`],
@@ -65,7 +66,7 @@ export const UNCOVERED_REQUIRED = Object.freeze([
     id: "write.identity-and-admission",
     source: `${write}#admission-authorization-and-limits`,
     reason:
-      "Allocation collisions, complete request/media/key admission, bounds and numeric cases are not implemented.",
+      "Allocation collisions, remaining request/media/key admission variants, bounds and numeric cases are not implemented. The single generic-JSON 415 witness below is partial coverage only.",
   },
   {
     id: "write.authorization-and-owned-state",
@@ -131,7 +132,7 @@ function connections(value) {
     throw new HarnessError("Duplicate adapter connection origin");
   return Object.freeze(result);
 }
-function exchange(routes, target, method = "GET", value, key) {
+function exchange(routes, target, method = "GET", value, key, contentType = media) {
   const logical = new URL(target);
   if (
     logical.username ||
@@ -159,7 +160,7 @@ function exchange(routes, target, method = "GET", value, key) {
           ...(text === undefined
             ? {}
             : {
-                "content-type": media,
+                "content-type": contentType,
                 "content-length": String(Buffer.byteLength(text)),
                 "idempotency-key": key,
               }),
@@ -407,8 +408,24 @@ export async function runCurrentProvider(provision) {
       );
       assert.equal(new Set(Object.values(directory)).size, 8);
     });
-    await step("write.create", async () => {
+    await step("write.media-before-admission", async () => {
       retentionStart = performance.now();
+      const rejected = json(
+        await exchange(routes, directory.createBead, "POST", create, createKey, "application/json"),
+        415,
+        "readUpdateProblem",
+        "application/problem+json",
+      );
+      assert.equal(rejected.code, "unsupported-media-type");
+      const absent = json(
+        await exchange(routes, id),
+        404,
+        "readProblem",
+        "application/problem+json",
+      );
+      assert.equal(absent.code, "resource-not-found");
+    });
+    await step("write.create", async () => {
       created = success(await post("createBead", create, createKey));
       assert.equal(created.outcome, "created");
       assert.equal(created.changed, true);
@@ -418,6 +435,7 @@ export async function runCurrentProvider(provision) {
       assert.deepEqual(created.resource.metadata, create.metadata);
       assert.equal(typeof created.resource.revision, "string");
       assert.notEqual(created.resource.revision, "");
+      assert.deepEqual(success(await post("createBead", create, createKey)), created);
     });
     await step("core.point-read", async () => {
       const reply = await exchange(routes, id);

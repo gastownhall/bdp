@@ -34,7 +34,7 @@ test("current reference passes the executable slice while missing required cover
   assert.equal(report.inputs.inputClosure, "INCOMPLETE");
   assert.equal(report.inputs.resultReuseAttestation, false);
   assert.equal(report.inputs.schemaSha256, report.schemaSha256);
-  assert.equal(implemented(report).length, 13);
+  assert.equal(implemented(report).length, 14);
   assert(implemented(report).every((row) => row.required && row.state === "pass"));
   assert.equal(report.lifecycle.cleanup, "pass");
   for (const obligation of UNCOVERED_REQUIRED)
@@ -71,6 +71,7 @@ test("unconfigured retained-detail window is not treated as a public retention p
 async function corruptingProvider(context, cleanupFails = false, corruption = "postimage") {
   const provider = await provision(context);
   let upstream = new URL(provider.connections[0].connectOrigin);
+  let deleted = false;
   const proxy = http.createServer((request, response) => {
     const call = http.request(
       {
@@ -78,7 +79,10 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
         port: upstream.port,
         method: request.method,
         path: request.url,
-        headers: request.headers,
+        headers:
+          corruption === "media-consumed" && request.headers["content-type"] === "application/json"
+            ? { ...request.headers, "content-type": "application/vnd.bdp.v0.1+json" }
+            : request.headers,
       },
       (reply) => {
         const chunks = [];
@@ -90,6 +94,7 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
             body.length
           ) {
             const value = JSON.parse(body);
+            if (value.outcome === "deleted") deleted = true;
             if (
               ["postimage", "credential-echo"].includes(corruption) &&
               value.outcome === "created"
@@ -105,6 +110,7 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
           }
           if (
             ["resource-pruned", "resource-erased"].includes(corruption) &&
+            deleted &&
             reply.statusCode === 404
           ) {
             const value = JSON.parse(body);
@@ -116,6 +122,25 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
               body = Buffer.from(JSON.stringify(value));
               reply.statusCode = 410;
             }
+          }
+          if (
+            corruption === "media-consumed" &&
+            request.headers["content-type"] === "application/json"
+          ) {
+            // Actually execute the rejected request against the real provider,
+            // consuming its key and creating state, then falsely report 415.
+            // The runner must observe the effect using public GET, not an oracle.
+            assert.equal(reply.statusCode, 200);
+            body = Buffer.from(
+              JSON.stringify({
+                type: "https://github.com/gastownhall/bdp/problems/request",
+                code: "unsupported-media-type",
+                status: 415,
+                retry: "never",
+              }),
+            );
+            reply.statusCode = 415;
+            reply.headers["content-type"] = "application/problem+json";
           }
           if (corruption === "discovery-link") delete reply.headers.link;
           response.writeHead(reply.statusCode, {
@@ -280,4 +305,19 @@ test("schema-valid response echo of Authorization never enters the serialized re
   assert.equal(serialized.includes(credential), false);
   assert.equal(serialized.includes(credential.slice("Bearer ".length)), false);
   assert.equal(report.qualificationComplete, false);
+});
+
+test("415 that secretly executes the same-key create fails public absence observation", async () => {
+  const report = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "media-consumed"),
+  );
+  assert.equal(report.state, "fail");
+  assert.equal(report.sliceComplete, false);
+  assert.equal(report.qualificationComplete, false);
+  assert.equal(
+    report.obligations.find((row) => row.id === "write.media-before-admission").state,
+    "fail",
+  );
+  assert.equal(report.obligations.find((row) => row.id === "write.create").state, "not-run");
+  assert.equal(report.lifecycle.cleanup, "pass");
 });

@@ -11,7 +11,7 @@ The governing [stabilization plan](plans/bdp-stabilization.md#testing-and-cost-d
 requires every required obligation in a qualification scope to have evidence.
 This kit deliberately reports its missing coverage instead of declaring a pass
 for the implemented subset. `qualificationComplete` is always false at this
-stage. `sliceComplete` is separately true only when all 13 executable cases and
+stage. `sliceComplete` is separately true only when all 14 executable cases and
 provision/cleanup complete successfully. It is not a provider badge.
 
 ## Run
@@ -50,7 +50,8 @@ A trusted, explicitly selected local ES module exports:
 export async function provision({ fixture }) {
   // Provision one isolated canonical Scope, full fixture access, and an admitted
   // Bead Type for fixture.type with properties.title string and free metadata.
-  // fixture.id is an unoccupied Scope-relative locator; fixture.runId is unique.
+  // fixture.id is an unused Scope-relative identity (no live/deleted prior identity),
+  // readable with full fixture visibility; fixture.runId is unique.
   return {
     scope: "https://provider.example/isolated/",
     connections: [{
@@ -129,7 +130,8 @@ cache-directive ordering is imposed.
 | --- | --- | --- |
 | `core.scope-discovery` | Successful canonical Scope GET and followed service-desc navigation | [Core discovery](../specs/profiles/core/core.md#discovery-and-capabilities) |
 | `write.discovery-directory` | Closed Write discovery, matching Scope, exact eight distinct ordinary targets | [Write selection/directory](../specs/profiles/write/write.md#discover-and-select-write) |
-| `write.create` | Complete created Bead, requested identity/affiliation, exact authored properties/metadata, opaque revision and mutation HTTP metadata | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
+| `write.media-before-admission` | Generic-JSON create returns schema-valid 415 unsupported-media-type; public GET confirms the explicitly unused identity remains absent before a valid same-bytes/same-key create | [Contract and media](../specs/profiles/write/write.md#contract-and-media) |
+| `write.create` | Same key after the rejected media permits a complete created Bead and exact immediate replay; requested identity/affiliation, exact authored properties/metadata, opaque revision and mutation HTTP metadata | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 | `core.point-read` | Actual GET agrees with created original envelope and Bead kind | [Resource reads](../specs/profiles/core/core.md#read-a-bead-or-link) |
 | `write.no-op` | Same covered state preserves the entire envelope, changed:false | [No-ops](../specs/profiles/write/write.md#covered-state-and-no-ops) |
 | `write.guard-failure` | Wrong independent revision guard gives revision-mismatch and leaves current state unchanged | [Ordinary requests](../specs/profiles/write/write.md#ordinary-requests) |
@@ -144,7 +146,7 @@ cache-directive ordering is imposed.
 These are narrow witnesses, not complete coverage of each linked section. The
 report separately names required uncovered families: complete clause census;
 inventory/native pagination; Link/alias reads; remaining HTTP/selection cases;
-Link CRUD/alias mutation; identity/allocation/admission/limits/numeric cases;
+Link CRUD/alias mutation; remaining identity/allocation/admission/limits/numeric cases;
 authorization/protected Type/owner effects; concurrency/abrupt loss/failover and
 retention/erasure diagnoses. `UNCOVERED_REQUIRED` keeps them as required `not-run`
 rows, preventing this vertical slice from silently becoming full qualification.
@@ -157,3 +159,15 @@ missing lifecycle/retention conditions cannot pass durability, oracle fields are
 refused with cleanup, primary and cleanup failures remain separate, and the
 external-module CLI reports incomplete status. They are verifier controls, not
 evidence that a second independent provider passed.
+
+The media witness covers one `application/json` create refusal before key
+admission. The following valid create and exact original replay use the same
+key and authored JSON bytes, with public point reads confirming the one requested
+identity's state. This does not qualify every 415 variant, identity admission as a
+whole, or absence of all possible provider side effects. The adapter must provision
+the explicitly unused identity with full read visibility; that is a fixture
+condition, not an assumption about arbitrary existing provider data. A negative
+control forwards the rejected request as valid media to the real reference,
+actually consuming its key and creating the target, then falsely reports 415;
+the runner rejects it through a public GET of that target. No internal state
+oracle or production fault hook is used.
