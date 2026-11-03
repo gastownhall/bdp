@@ -19,7 +19,7 @@ import { checkAnchor, resolveSchemaUri, type ResolvedSchemaUri } from "./install
 
 /** Private implementation revision, not a normative BDP version. See the
  * source-pin guard/version rule in test-support/schema-graph-policy.json. */
-export const SCHEMA_GRAPH_POLICY = "schema-resource-index-2";
+export const SCHEMA_GRAPH_POLICY = "schema-resource-index-3";
 const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const deferred = Object.freeze([
   "string-semantics",
