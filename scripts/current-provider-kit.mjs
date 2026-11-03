@@ -229,9 +229,11 @@ export async function runCurrentProvider(provision) {
     } catch (error) {
       row.state = error instanceof AssertionError ? "fail" : "harness-error";
       row.reason =
-        error instanceof AssertionError || error instanceof HarnessError
-          ? error.message
-          : "Harness/provider lifecycle or transport did not complete";
+        error instanceof AssertionError
+          ? `Public assertion failed for ${id}`
+          : error instanceof HarnessError
+            ? error.message
+            : "Harness/provider lifecycle or transport did not complete";
       throw new Stop();
     }
   }
@@ -498,13 +500,14 @@ export async function runCurrentProvider(provision) {
       assert.deepEqual(success(reply), deleted);
     });
     await step("core.deleted-absence", async () => {
-      const problem = json(
-        await exchange(routes, id),
-        404,
-        "readUpdateProblem",
-        "application/problem+json",
+      const reply = await exchange(routes, id);
+      assert([404, 410].includes(reply.status));
+      const problem = json(reply, reply.status, "readProblem", "application/problem+json");
+      assert(
+        reply.status === 404
+          ? problem.code === "resource-not-found"
+          : ["resource-pruned", "resource-erased"].includes(problem.code),
       );
-      assert.equal(problem.code, "resource-not-found");
     });
   } catch (error) {
     if (!(error instanceof Stop)) {

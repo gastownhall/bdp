@@ -36,7 +36,9 @@ The CLI emits one JSON report. Exit 2 means incomplete coverage (including a
 successful slice); exit 1 means at least one public assertion failed; exit 3 means
 an adapter, transport, initialization or cleanup failure prevented observation.
 There is no exit 0/full-qualification path in this initial kit. The report retains
-individual failing rows even when a separate cleanup error makes the aggregate
+fixed per-obligation assertion diagnostics without response values or body diffs,
+so reflected credentials cannot enter assertion reports. It retains individual
+failing rows even when a separate cleanup error makes the aggregate
 state `harness-error`. A required `not-run`, `fail` or `harness-error` blocks
 complete qualification. Prerequisite failures leave dependent cases `not-run`.
 
@@ -131,7 +133,7 @@ cache-directive ordering is imposed.
 | `write.durable-original-success` | Same create key returns whole original envelope after edit, deletion and restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
 | `write.durable-original-failure` | Same failed guard key returns whole original Problem after later state/deletion/restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
 | `write.durable-original-delete` | Same delete key returns original deleted identity after restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
-| `core.deleted-absence` | Current GET remains resource-not-found after retained create replay; no implicit resurrection | [Reads after deletion](../specs/profiles/core/core.md#reads-after-deletion) |
+| `core.deleted-absence` | Current GET remains absent after retained create replay: uniform 404 or Core-permitted authorized 410; no implicit resurrection | [Reads after deletion](../specs/profiles/core/core.md#reads-after-deletion) |
 
 These are narrow witnesses, not complete coverage of each linked section. The
 report separately names required uncovered families: complete clause census;
