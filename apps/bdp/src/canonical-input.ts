@@ -89,6 +89,8 @@ export function parseCanonicalReference(
   scope: string,
   policy: {
     readonly mutationSubject?: boolean;
+    /** Only ordinary current point-read positions admit explicit @current. */
+    readonly currentRead?: boolean;
     readonly allowBatchReference?: boolean;
     readonly allowOpaqueUri?: boolean;
   } = {},
@@ -107,6 +109,34 @@ export function parseCanonicalReference(
       return refuse("opaque URI is not admitted in this Reference position");
     return input;
   }
+  const parsed = parseCanonicalReferenceSelection(input, scope);
+  const selection = parsed.selection;
+  if (selection === undefined) return parsed.uri;
+  if (policy.mutationSubject)
+    return refuse("mutation subjects must be unpinned; use --if-revision");
+  if (selection.kind === "current") {
+    if (!policy.currentRead) return refuse("current selection is not an authored durable pin");
+    return parsed.uri;
+  }
+  if (selection.kind === "ordinal")
+    throw new CanonicalUnsupportedInputError("revision ordinals require an authoritative mapping");
+  return Object.freeze({ uri: parsed.uri, revision: selection.token });
+}
+
+/** Syntax only: selection is not resolution, a current-state guard or a durable pin. */
+export function parseCanonicalReferenceSelection(
+  input: string,
+  scope: string,
+): {
+  readonly uri: string;
+  readonly selection?:
+    | { readonly kind: "current" }
+    | { readonly kind: "ordinal"; readonly ordinal: string }
+    | { readonly kind: "exact"; readonly token: string };
+} {
+  parseCanonicalScope(scope);
+  text(input, "Reference");
+  if (/^https?:\/\//i.test(input)) return { uri: absolute(input, scope) };
   let identity: string;
   let suffix: string | undefined;
   if (input.startsWith("[")) {
@@ -122,13 +152,14 @@ export function parseCanonicalReference(
     suffix = at < 0 ? undefined : input.slice(at + 1);
   }
   const uri = absolute(text(identity, "Reference identity"), scope);
-  if (suffix === undefined) return uri;
-  if (policy.mutationSubject)
-    return refuse("mutation subjects must be unpinned; use --if-revision");
-  if (!suffix.startsWith("="))
-    return refuse("revision selector requires an exact @=TOKEN; no history lookup is available");
-  return Object.freeze({ uri, revision: text(suffix.slice(1), "revision token") });
+  if (suffix === undefined) return { uri };
+  if (suffix === "current") return { uri, selection: { kind: "current" } };
+  if (/^[1-9][0-9]*$/.test(suffix)) return { uri, selection: { kind: "ordinal", ordinal: suffix } };
+  if (suffix.startsWith("="))
+    return { uri, selection: { kind: "exact", token: text(suffix.slice(1), "revision token") } };
+  return refuse("revision selector requires N, current or an exact =TOKEN");
 }
+
 function json(textValue: string): AdmittedJsonValue {
   try {
     const admitted = admitJsonNumbers(decodeJsonDocument(textValue), {

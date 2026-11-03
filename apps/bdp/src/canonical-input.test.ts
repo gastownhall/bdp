@@ -55,6 +55,36 @@ describe("canonical References without lookup", () => {
   ])("refuses unresolved/ambiguous input %s", (input) => {
     expect(() => parseCanonicalReference(input, scope)).toThrow();
   });
+  it("admits explicit current only in current-read positions and preserves exact token suffixes", () => {
+    expect(parseCanonicalReference("note@current", scope, { currentRead: true })).toBe(
+      `${scope}note`,
+    );
+    expect(
+      parseCanonicalReference(`[${scope}note@literal]@current`, scope, { currentRead: true }),
+    ).toBe(`${scope}note@literal`);
+    expect(parseCanonicalReference("note@=r@current", scope, { currentRead: true })).toEqual({
+      uri: `${scope}note`,
+      revision: "r@current",
+    });
+    expect(() => parseCanonicalReference("note@current", scope)).toThrow(CanonicalInputError);
+    expect(() =>
+      parseCanonicalReference("note@current", scope, { mutationSubject: true, currentRead: true }),
+    ).toThrow("must be unpinned");
+    for (const operand of ["note@3", `[${scope}note]@3`])
+      expect(() => parseCanonicalReference(operand, scope)).toThrow(CanonicalUnsupportedInputError);
+  });
+  it("refuses current in stored Type/endpoint pins and all selections in mutation subjects before input I/O", async () => {
+    const reader = { readFile: vi.fn(), readStdin: vi.fn() };
+    for (const request of [
+      compile("create", { type: "Task@current", properties: "@-" }, [], { reader }),
+      compile("link create", { type: "Relates", properties: "@-" }, ["a@current", "b"], { reader }),
+      compile("update", { properties: "@-" }, ["note@current"], { reader }),
+      compile("delete", { force: true }, ["note@=r1"], { reader }),
+    ])
+      await expect(request).rejects.toThrow(CanonicalInputError);
+    expect(reader.readFile).not.toHaveBeenCalled();
+    expect(reader.readStdin).not.toHaveBeenCalled();
+  });
   it("refuses every authored subject pin and only admits explicit batch handles in legal positions", () => {
     expect(() => parseCanonicalReference("note@=r1", scope, { mutationSubject: true })).toThrow(
       CanonicalInputError,
