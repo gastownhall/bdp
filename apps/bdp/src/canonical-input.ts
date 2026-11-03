@@ -145,6 +145,10 @@ export function parseCanonicalReferenceSelection(
   parseCanonicalScope(scope);
   text(input, "Reference");
   if (/^https?:\/\//i.test(input)) return { uri: absolute(input, scope) };
+  if (input.startsWith("batch-ref::"))
+    return refuse("batch reference is not legal in this position or mode");
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(input))
+    return refuse("opaque URI is not admitted in this Reference position");
   let identity: string;
   let suffix: string | undefined;
   if (input.startsWith("[")) {
