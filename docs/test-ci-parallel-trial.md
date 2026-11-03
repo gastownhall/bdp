@@ -8,8 +8,10 @@ cutover. Every trial job has a 20-minute limit while measurement is pending.
 
 The candidate starts from the packed-smoke candidate `aac663de` (including the
 PR345 verifier reuse and PR349 smoke stack) and ordinarily merges main
-`58e7b55e`, including the landed Type descriptor work. These ancestors are not
-new changes authored by this trial. The trial's own files are the partition
+`58e7b55e`, including the landed Type descriptor work, then main `3cf7f9f4`,
+including the URI/security dependency transition and atomic crash witnesses. The
+trial measures the landed fast-uri 3.1.9 lockfile, not the prior dependency. These
+ancestors are not new changes authored by this trial. The trial's own files are the partition
 runner, its Node controls, this document, its temporary workflow and one artifact
 accounting row.
 
