@@ -43,11 +43,20 @@ for (const file of git("ls-files", "--others", "--exclude-standard", "-z")
   .split("\0")
   .filter(Boolean))
   untracked.push({ file, sha256: hash(await readFile(path.join(root, file))) });
+// pnpm exec intentionally omits npm_execpath but identifies its own version in
+// npm_config_user_agent. Prefer that invoking tool to an unrelated PATH binary.
+const invokingPnpm = /^pnpm\/([^\s]+)(?:\s|$)/.exec(process.env.npm_config_user_agent ?? "");
+const pnpmVersionSource = process.env.npm_execpath
+  ? "npm_execpath command"
+  : invokingPnpm
+    ? "invoking pnpm npm_config_user_agent"
+    : "PATH command";
 const pnpmVersion = process.env.npm_execpath
   ? execFileSync(process.execPath, [process.env.npm_execpath, "--version"], {
       encoding: "utf8",
     }).trim()
-  : execFileSync("pnpm", ["--version"], { cwd: root, encoding: "utf8" }).trim();
+  : (invokingPnpm?.[1] ??
+    execFileSync("pnpm", ["--version"], { cwd: root, encoding: "utf8" }).trim());
 assert.equal(process.version, "v24.22.1", "use the pinned Node version");
 assert.equal(pnpmVersion, "11.20.0", "use the pinned pnpm version");
 const report = {
@@ -68,6 +77,7 @@ const report = {
     node: process.version,
     nodeExecutable: process.execPath,
     pnpm: pnpmVersion,
+    pnpmVersionSource,
     versions: process.versions,
   },
   host: {

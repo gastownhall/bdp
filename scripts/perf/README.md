@@ -32,7 +32,9 @@ bytes. Build before every run: the emitted reference digest is recorded, but the
 runner cannot prove a preexisting build corresponds to source. Keep reports
 outside the worktree so reports do not become source inputs to later runs.
 When invoking Node directly, `npm_execpath` may identify the pinned pnpm entry;
-otherwise the runner checks the actual `pnpm` executable on PATH. Wrong pinned
+`pnpm exec` supplies its invoking version through `npm_config_user_agent`;
+plain Node otherwise checks the `pnpm` executable on PATH. The JSON records
+which version source was used. Wrong pinned
 versions fail before provisioning. A startup/argument/build error may precede
 JSON creation; the workflow retains console output and fails either way.
 
