@@ -1,5 +1,8 @@
 /** Public HTTP acceptance and explicitly private crash-timing witnesses.
- * Explicit batch1 provisioning; no historical Transactional suite. */
+ * Explicit batch1 provisioning; no historical Transactional suite.
+ * Crash cases require pnpm build and use that same emitted build for recovery.
+ * Process death preserves OS caches: no fsync, power-loss or media-failure proof.
+ */
 import { fork, type ChildProcess } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
@@ -133,7 +136,7 @@ async function crashChild(
     [],
     { execPath: process.execPath, silent: true },
   );
-  cleanups.push(() => terminateBatchChild(child));
+  cleanups.push(() => terminateBatchChild(child, "SIGKILL"));
   let stdout = "",
     stderr = "";
   child.stdout!.on("data", (data: Buffer) => {
@@ -196,7 +199,9 @@ async function crashChild(
   };
 }
 function batchSnapshot(directory: string) {
-  const db = new DatabaseSync(path.join(directory, "retained-reference.sqlite"));
+  const db = new DatabaseSync(path.join(directory, "retained-reference.sqlite"), {
+    readOnly: true,
+  });
   try {
     return {
       metadata: db.prepare("SELECT * FROM metadata ORDER BY name").all(),
@@ -404,6 +409,12 @@ describe("private-process atomic batch1 crash timing witness over the reference 
   it.each(["resource-staged", "committed"] as const)(
     "SIGKILL at %s preserves whole custody and exact original-key replay",
     async (phase) => {
+      // Do not mix a stale compiled crash child with source-based recovery.
+      // The ordinary pipeline builds before these installed-process witnesses;
+      // file timestamps would not prove full transitive source/build custody.
+      const startRecoveryService: typeof startReferenceService = (
+        await import(new URL("../../../packages/server/dist/reference.js", import.meta.url).href)
+      ).startReferenceService;
       const directory = mkdtempSync(path.join(tmpdir(), "bdp-atomic-crash-"));
       cleanups.push(() => rmSync(directory, { recursive: true, force: true }));
       const config = {
@@ -419,8 +430,14 @@ describe("private-process atomic batch1 crash timing witness over the reference 
         { operation: "createBead", name: "right", type, properties: { side: "right" } },
         { operation: "createLink", name: "edge", type, source: "@left", target: "@right" },
       ]);
-      const target = scope + "bdp/batch";
       const first = await crashChild(config, phase);
+      const discovery = await wire(first.listenUrl, referenceNavigation(scope).description);
+      expect(discovery.status).toBe(200);
+      expect(discovery.headers["x-bdp-private-fixture"]).toBeUndefined();
+      const target = JSON.parse(discovery.text).capabilities[capability]["1"].operation;
+      expect(target).toBe(scope + "bdp/batch");
+      const database = path.join(directory, "retained-reference.sqlite");
+      const imageBeforeRequest = readFileSync(database);
       const pending = wire(first.listenUrl, target, input, "lost-whole-batch").then(
         (response) => ({ kind: "response" as const, response }),
         (error: unknown) => ({ kind: "transport-failure" as const, error }),
@@ -431,6 +448,10 @@ describe("private-process atomic batch1 crash timing witness over the reference 
       await terminateBatchChild(first.child, "SIGKILL");
       expect(first.child.exitCode).toBeNull();
       expect(first.child.signalCode).toBe("SIGKILL");
+      expect(readFileSync(database).equals(imageBeforeRequest)).toBe(phase !== "committed");
+      expect(readFileSync(`${database}-journal`).subarray(0, 8)).toEqual(Buffer.alloc(8));
+      // This first-row staged request never spills pages into the main file;
+      // it proves no durable partial group, not hot-journal rollback playback.
       // The killed request delivered no status/outcome. Recovered facts below,
       // not a fabricated caller result, establish what actually committed.
       expect(await pending).toMatchObject({
@@ -440,7 +461,7 @@ describe("private-process atomic batch1 crash timing witness over the reference 
 
       // Let the real reference owner perform SQLite and semantic recovery BEFORE
       // opening any independent SQL observer, which could itself recover a hot journal.
-      const recovered = await startReferenceService({ ...config, create: false });
+      const recovered = await startRecoveryService({ ...config, create: false });
       cleanups.push(() => recovered.close());
       expect(await operation(recovered)).toBe(target);
       const beads = await wire(recovered.listenUrl, recovered.navigation.beads);
@@ -477,7 +498,10 @@ describe("private-process atomic batch1 crash timing witness over the reference 
           operation: "batch",
           status: 200,
           decision: 1,
+          event_position: 1,
         });
+        expect(before.boundaries.map((row) => row.position)).toEqual([0, 1, 2, 3]);
+        expect(before.decisionFacts.map((row) => row.position)).toEqual([1, 2, 3]);
         expect(before.decisionFacts.map((row) => row.decision)).toEqual([1, 1, 1]);
         expect(before.events.map((row) => JSON.parse(String(row.body)).transaction)).toEqual([
           JSON.parse(String(before.outcomes[0]!.body)).transaction,
@@ -486,7 +510,7 @@ describe("private-process atomic batch1 crash timing witness over the reference 
         ]);
       }
 
-      const service = await startReferenceService({ ...config, create: false });
+      const service = await startRecoveryService({ ...config, create: false });
       cleanups.push(() => service.close());
       const replay = await wire(service.listenUrl, target, input, "lost-whole-batch");
       expect(replay.status).toBe(200);
@@ -495,6 +519,11 @@ describe("private-process atomic batch1 crash timing witness over the reference 
       expect(result.changed).toBe(true);
       expect(result.results.map((row: { operationIndex: number }) => row.operationIndex)).toEqual([
         0, 1, 2,
+      ]);
+      expect(result.results.map((row: { operationName?: string }) => row.operationName)).toEqual([
+        "left",
+        "right",
+        "edge",
       ]);
       const ids = result.results.map((row: { id: string }) => row.id) as string[];
       expect(new Set(ids).size).toBe(3);
@@ -541,6 +570,8 @@ describe("private-process atomic batch1 crash timing witness over the reference 
       expect(after.events).toHaveLength(4);
       expect(after.incidence).toHaveLength(2);
       expect(after.boundaries).toHaveLength(5);
+      expect(after.aliases).toHaveLength(0);
+      expect(after.cursors).toHaveLength(0);
       expect(after.outcomes).toHaveLength(2);
       expect(after.decisionFacts).toHaveLength(4);
       expect(after.decisionFacts.map((row) => row.decision)).toEqual([1, 1, 1, 2]);
@@ -567,7 +598,7 @@ describe("private-process atomic batch1 crash timing witness over the reference 
       expect(after.outcomes[0]!.body).toBe(replay.text);
       expect(after.outcomes[0]!.key).toBe("lost-whole-batch");
       expect(after.metadata.find((row) => row.name === "decisions")!.value).toBe("2");
-      const last = await startReferenceService({ ...config, create: false });
+      const last = await startRecoveryService({ ...config, create: false });
       cleanups.push(() => last.close());
       expect((await wire(last.listenUrl, target, input, "lost-whole-batch")).text).toBe(
         replay.text,
