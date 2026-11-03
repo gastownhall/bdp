@@ -1,4 +1,4 @@
-/** Independent raw-HTTP witnesses for a private, incomplete retained fixture. */
+/** Independent raw-HTTP witnesses for the private fixture and current reference reads. */
 import { fork, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
@@ -11,6 +11,8 @@ import {
   startPrivateRetainedFixture,
   type PrivateFixtureOptions,
 } from "../../../packages/server/src/retained-v01/http.js";
+
+import { startReferenceService } from "../../../packages/server/src/reference.js";
 
 const media = "application/vnd.bdp.v0.1+json";
 const token = "a".repeat(32);
@@ -1425,4 +1427,147 @@ describe("private alias process-death recovery", () => {
       },
     );
   }
+});
+
+describe("current reference native conditional reads", () => {
+  async function currentReference() {
+    const config = configuration();
+    const server = await startReferenceService({
+      directory: config.directory,
+      create: true,
+      instance: "conditional-wire",
+      scope,
+      credentials: config.credentials,
+    });
+    cleanups.push(() => server.close());
+    return server;
+  }
+  it.each(
+    ["GET", "HEAD"].flatMap((method) =>
+      ["scope", "description", "directory"].map((route) => [method, route] as const),
+    ),
+  )(
+    "evaluates untagged %s %s preconditions before emitting a representation",
+    async (method, route) => {
+      const server = await currentReference();
+      const target =
+        route === "scope"
+          ? scope
+          : route === "description"
+            ? server.navigation.description
+            : server.navigation.operations;
+      const ordinary = route === "scope" ? 204 : 200;
+      const cases: [Record<string, string>, number][] = [
+        [{}, ordinary],
+        [{ "if-none-match": "*" }, 304],
+        [{ "if-match": '"unavailable-validator"' }, 412],
+        [{ "if-match": '"unavailable-validator"', "if-none-match": "*" }, 412],
+        [{ "if-match": "*", "if-none-match": "*" }, 304],
+        [{ "if-match": "*" }, ordinary],
+        [{ "if-none-match": '"unavailable-validator"' }, ordinary],
+      ];
+      for (const [headers, status] of cases) {
+        const reply = await wire(server.listenUrl, target, method, undefined, headers);
+        expect(reply.status, JSON.stringify({ method, route, headers })).toBe(status);
+        expect(reply.headers.etag).toBeUndefined();
+        expect(reply.headers["last-modified"]).toBeUndefined();
+        expect(reply.headers["cache-control"]).toBe("private, no-store");
+        expect(reply.headers["bdp-resource-kind"]).toBeUndefined();
+        expect(reply.headers["bdp-collection-kind"]).toBeUndefined();
+        if (route === "scope") {
+          expect(reply.headers.link).toContain(server.navigation.description);
+          expect(reply.headers["content-type"]).toBeUndefined();
+        }
+        if (method === "HEAD" || status !== 200) expect(reply.text).toBe("");
+        else expect(JSON.parse(reply.text)).toBeTypeOf("object");
+        if (status === 304) expect(reply.headers["content-length"]).toBeUndefined();
+      }
+    },
+  );
+  it.each(["GET", "HEAD"])(
+    "uses native tag-list grammar and precedence on actual %s Resource reads",
+    async (method) => {
+      const server = await currentReference();
+      const created = JSON.parse(
+        (
+          await wire(
+            server.listenUrl,
+            server.navigation.targets.createBead,
+            "POST",
+            payload("conditioned"),
+            { "idempotency-key": "conditioned" },
+          )
+        ).text,
+      );
+      const get = await wire(server.listenUrl, created.resource.id);
+      const etag = String(get.headers.etag);
+      const cases: [Record<string, string>, number][] = [
+        [{ "if-match": etag }, 200],
+        [{ "if-match": `W/${etag}` }, 412],
+        [{ "if-none-match": `W/${etag}` }, 304],
+        [{ "if-match": `*, ${etag}` }, 412],
+        [{ "if-none-match": `*, ${etag}` }, 200],
+        [{ "if-none-match": `"different,tag", ${etag}` }, 304],
+        [{ "if-match": '"different"', "if-none-match": etag }, 412],
+        [{ "if-match": etag, "if-none-match": etag }, 304],
+      ];
+      for (const [headers, status] of cases) {
+        const reply = await wire(server.listenUrl, created.resource.id, method, undefined, headers);
+        expect(reply.status, JSON.stringify(headers)).toBe(status);
+        expect(reply.headers.etag).toBe(etag);
+        expect(reply.headers.link).toBe(get.headers.link);
+        expect(reply.headers["bdp-resource-kind"]).toBe("bead");
+        expect(reply.headers["cache-control"]).toBe("private, no-store");
+        if (method === "HEAD" || status !== 200) expect(reply.text).toBe("");
+        else expect(JSON.parse(reply.text)).toEqual(created.resource);
+      }
+    },
+  );
+  it.each(["GET", "HEAD"])(
+    "keeps auth, media, query and cursor refusals ahead of %s conditions",
+    async (method) => {
+      const server = await currentReference();
+      for (const id of ["a", "b"])
+        expect(
+          (
+            await wire(
+              server.listenUrl,
+              server.navigation.targets.createBead,
+              "POST",
+              payload(id),
+              { "idempotency-key": id },
+            )
+          ).status,
+        ).toBe(200);
+      const page = JSON.parse(
+        (await wire(server.listenUrl, server.navigation.beads + "?limit=1")).text,
+      );
+      const cases: [string, Record<string, string>, number, string | undefined][] = [
+        [scope, { authorization: "Bearer wrong" }, 401, "unauthenticated"],
+        [
+          server.navigation.description,
+          { authorization: "Bearer wrong", accept: "image/png" },
+          401,
+          "unauthenticated",
+        ],
+        [server.navigation.operations, { accept: "image/png" }, 406, undefined],
+        [scope + "a?view=properties&unknown=1", {}, 400, "invalid-parameter"],
+        [page.next, { authorization: `Bearer ${thirdToken}` }, 409, "foreign-view"],
+        [scope + "missing", {}, 404, "resource-not-found"],
+      ];
+      for (const [target, headers, status, code] of cases) {
+        const reply = await wire(server.listenUrl, target, method, undefined, {
+          "if-none-match": "*",
+          "if-match": '"unavailable-validator"',
+          ...headers,
+        });
+        expect(reply.status, target).toBe(status);
+        expect(reply.headers["bdp-resource-kind"]).toBeUndefined();
+        expect(reply.headers["bdp-collection-kind"]).toBeUndefined();
+        if (method === "HEAD" || status === 406) expect(reply.text).toBe("");
+        else expect(JSON.parse(reply.text).code).toBe(code);
+      }
+      expect((await wire(server.listenUrl, page.next)).status).toBe(200);
+    },
+  );
 });
