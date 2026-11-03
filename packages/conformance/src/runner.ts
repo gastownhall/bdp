@@ -1,3 +1,4 @@
+import { deepEqual, jsonPointer, literalJsonPointerMatches } from "./json-pointer-verifier.js";
 import {
   createTransactionalObservations,
   TRANSACTIONAL_EXCHANGE_FIELDS,
@@ -2230,6 +2231,19 @@ function evaluateAssertion(
   }
   if (assertion.kind === "json-pointer") {
     if (body.kind !== "json") return outcome(assertion.id, false, observedBodyIssue(body));
+    if (
+      assertion.equalsBinding === undefined &&
+      assertion.fixturePointer === undefined &&
+      assertion.equalsRunProfile === undefined &&
+      assertion.normalize === undefined
+    )
+      return outcome(
+        assertion.id,
+        literalJsonPointerMatches(body.value, assertion),
+        assertion.exists
+          ? "JSON pointer was absent or mismatched"
+          : "JSON pointer unexpectedly existed",
+      );
     const value = jsonPointer(body.value, assertion.pointer);
     const exists = value !== undefined;
     if (assertion.equalsBinding !== undefined) {
@@ -2703,23 +2717,6 @@ function materializeActionInput(
 
 function observedBodyIssue(body: Exclude<ObservedBody, { readonly kind: "json" }>): string {
   return body.kind === "unrepresentable-json" ? body.reason : "response body was not valid JSON";
-}
-
-function jsonPointer(value: unknown, pointer: string): unknown {
-  if (pointer === "") return value;
-  let current: unknown = value;
-  for (const part of pointer.slice(1).split("/")) {
-    if (typeof current !== "object" || current === null) return undefined;
-    const key = part.replace(/~1/g, "/").replace(/~0/g, "~");
-    if (Array.isArray(current)) {
-      if (!/^(?:0|[1-9]\d*)$/.test(key)) return undefined;
-      current = current[Number(key)];
-    } else {
-      if (!Object.hasOwn(current, key)) return undefined;
-      current = (current as Record<string, unknown>)[key];
-    }
-  }
-  return current;
 }
 
 function linkHeader(value: string | undefined, rel: string, base: string): string | undefined {
@@ -3507,32 +3504,6 @@ function isCanonicalUrlPath(pathname: string): boolean {
   } catch {
     return false;
   }
-}
-
-function deepEqual(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-  if (typeof left !== typeof right || left === null || right === null) return false;
-  if (Array.isArray(left) !== Array.isArray(right)) return false;
-  if (Array.isArray(left) && Array.isArray(right))
-    return (
-      left.length === right.length && left.every((value, index) => deepEqual(value, right[index]))
-    );
-  if (typeof left === "object" && typeof right === "object") {
-    const leftKeys = Object.keys(left as object).sort();
-    const rightKeys = Object.keys(right as object).sort();
-    return (
-      leftKeys.length === rightKeys.length &&
-      leftKeys.every(
-        (key, index) =>
-          key === rightKeys[index] &&
-          deepEqual(
-            (left as Record<string, unknown>)[key],
-            (right as Record<string, unknown>)[key],
-          ),
-      )
-    );
-  }
-  return false;
 }
 
 function observedJsonIssue(

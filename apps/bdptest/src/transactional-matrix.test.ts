@@ -1,10 +1,15 @@
+import { literalJsonPointerMatches } from "../../../packages/conformance/src/json-pointer-verifier.js";
+import type {
+  JsonValue,
+  ScenarioAssertion,
+} from "../../../packages/conformance/src/executable-manifest.js";
 import { execFileSync, spawnSync, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   createJsonSchemaValidator,
   createRawHttpExchangeExecutor,
@@ -1066,44 +1071,126 @@ it("retains original cohort abort alongside an actual failed child cleanup", asy
   );
 }, 20000);
 
-it.each(["matched", "order", "index", "poststate"] as const)(
-  "rejects the schema-valid wrong set %s expectation against actual installed results",
-  async (kind) => {
-    const assertion =
-      kind === "matched"
-        ? "matched"
-        : kind === "order"
-          ? "a-id"
-          : kind === "index"
-            ? "b-index"
-            : "properties";
-    const actionId = kind === "poststate" ? "target-a-updated" : "set-update";
-    const observed = await observe({
-      manifest(value) {
-        const row = value.scenarios.find((s) => s.id === "transactional.set.singleton-targets")!;
-        const action = row.actions.find((a) => a.id === actionId)!;
-        const assertions = action.assertions as { id: string; equals?: unknown }[];
-        assertions.find((a) => a.id === assertion)!.equals =
-          kind === "matched"
-            ? { operationIndex: 0, outcome: "matched", count: 3 }
-            : kind === "order"
-              ? `${scope}beads/b`
-              : kind === "index"
-                ? 1
-                : { title: "never-observed" };
+describe("same-run set expectation verifier controls", () => {
+  type PointerAssertion = Extract<ScenarioAssertion, { readonly kind: "json-pointer" }>;
+  const scenarioId = "transactional.set.singleton-targets";
+  const cases = [
+    {
+      kind: "matched",
+      actionId: "set-update",
+      assertionId: "matched",
+      wrong: { operationIndex: 0, outcome: "matched", count: 3 },
+    },
+    { kind: "order", actionId: "set-update", assertionId: "a-id", wrong: `${scope}beads/b` },
+    { kind: "index", actionId: "set-update", assertionId: "b-index", wrong: 1 },
+    {
+      kind: "poststate",
+      actionId: "target-a-updated",
+      assertionId: "properties",
+      wrong: { title: "never-observed" },
+    },
+  ] as const;
+  let observed: InstalledObservation;
+  const bodies = new Map<string, JsonValue>();
+  const assertions = new Map<string, PointerAssertion>();
+  let immutableObservation: string;
+
+  function freezeJson(value: JsonValue): JsonValue {
+    if (value !== null && typeof value === "object") {
+      for (const child of Object.values(value)) freezeJson(child);
+      Object.freeze(value);
+    }
+    return value;
+  }
+
+  beforeAll(async () => {
+    // Keep the actual unmodified run and capture raw responses before the runner
+    // redacts its report. Response selection follows the authored action order,
+    // never an expected payload value: GET a before, updated, deleted, reopened.
+    const responses: { readonly url: string; readonly bodyText: string }[] = [];
+    observed = await observe({
+      async afterExchange(response, _signal, session) {
+        if (session.scenario === scenarioId)
+          responses.push(Object.freeze({ url: response.url, bodyText: response.bodyText }));
       },
     });
-    const row = observed.result.scenarios.find(
-      (s) => s.id === "transactional.set.singleton-targets",
-    )!;
-    expect(row.state).toBe("fail");
-    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
-    expect(exchange.request.exact?.writeState).toBe("complete");
-    expect(exchange.response?.status).toBe(200);
-    expect(exchange.assertions.find((a) => a.id === assertion)?.passed).toBe(false);
-  },
-  120000,
-);
+    const row = observed.result.scenarios.find((scenario) => scenario.id === scenarioId)!;
+    expect(row.state).toBe("pass");
+    const updates = responses.filter(
+      (response) => response.url === observed.baseline.operationTargets.updateWhere,
+    );
+    const targetReads = responses.filter((response) => response.url === `${scope}beads/a`);
+    expect(updates).toHaveLength(1);
+    expect(
+      row.exchanges
+        .filter(
+          (exchange) => exchange.request.url === observed.baseline.operationTargets.updateWhere,
+        )
+        .map((exchange) => exchange.request.id),
+    ).toEqual(["set-update"]);
+    expect(targetReads).toHaveLength(4);
+    expect(
+      row.exchanges
+        .filter((exchange) => exchange.request.url === `${scope}beads/a`)
+        .map((exchange) => exchange.request.id),
+    ).toEqual([
+      "target-a-before",
+      "target-a-updated",
+      "target-a-after-delete",
+      "target-a-reopened",
+    ]);
+    bodies.set("set-update", freezeJson(JSON.parse(updates[0]!.bodyText) as JsonValue));
+    bodies.set("target-a-updated", freezeJson(JSON.parse(targetReads[1]!.bodyText) as JsonValue));
+    const manifest = JSON.parse(manifestSource.bytes.toString("utf8")) as {
+      scenarios: { id: string; actions: { id: string; assertions?: ScenarioAssertion[] }[] }[];
+    };
+    const scenario = manifest.scenarios.find((candidate) => candidate.id === scenarioId)!;
+    for (const entry of cases) {
+      const action = scenario.actions.find((candidate) => candidate.id === entry.actionId)!;
+      const assertion = action.assertions!.find((candidate) => candidate.id === entry.assertionId)!;
+      expect(assertion.kind).toBe("json-pointer");
+      const pointer = assertion as PointerAssertion;
+      expect([
+        pointer.normalize,
+        pointer.equalsBinding,
+        pointer.fixturePointer,
+        pointer.equalsRunProfile,
+      ]).toEqual([undefined, undefined, undefined, undefined]);
+      assertions.set(
+        entry.kind,
+        freezeJson(structuredClone(pointer) as unknown as JsonValue) as unknown as PointerAssertion,
+      );
+      const exchange = row.exchanges.find((candidate) => candidate.request.id === entry.actionId)!;
+      expect(exchange.request.exact?.writeState).toBe("complete");
+      expect(exchange.response?.status).toBe(200);
+      expect(
+        exchange.assertions.find((candidate) => candidate.id === entry.assertionId)?.passed,
+      ).toBe(true);
+    }
+    immutableObservation = JSON.stringify([...bodies]);
+  }, 120000);
+
+  it("reuses the same actual installed positive with identical literal verifier outcomes", () => {
+    for (const entry of cases)
+      expect(
+        literalJsonPointerMatches(bodies.get(entry.actionId), assertions.get(entry.kind)!),
+      ).toBe(true);
+  });
+
+  it.each(cases)(
+    "rejects the wrong $kind expectation using the immutable same-run observation",
+    (entry) => {
+      const original = assertions.get(entry.kind)!;
+      const changed = { ...structuredClone(original), equals: structuredClone(entry.wrong) };
+      expect(literalJsonPointerMatches(bodies.get(entry.actionId), changed)).toBe(false);
+      expect(literalJsonPointerMatches(bodies.get(entry.actionId), original)).toBe(true);
+      expect(changed.equals).not.toEqual(original.equals);
+      expect(Object.isFrozen(original)).toBe(true);
+      expect(Object.isFrozen(bodies.get(entry.actionId))).toBe(true);
+      expect(JSON.stringify([...bodies])).toBe(immutableObservation);
+    },
+  );
+});
 
 it("allows a valid cross-wired set receipt binding but rejects its wrong result oracle", async () => {
   const observed = await observe({
