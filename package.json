@@ -37,7 +37,9 @@
     "test:routing:shadow": "node scripts/test-routing.mjs --check && node --test scripts/test-routing.node-test.mjs",
     "test:current:shadow": "node scripts/run-test-route.mjs current",
     "test:legacy:shadow": "node scripts/run-test-route.mjs legacy",
-    "test:artifacts:shadow": "node scripts/run-test-route.mjs artifact"
+    "test:artifacts:shadow": "node scripts/run-test-route.mjs artifact",
+    "smoke:current": "node scripts/smoke-current.mjs",
+    "smoke:legacy": "node scripts/smoke-executables.mjs --legacy"
   },
   "devDependencies": {
     "@babel/parser": "8.0.4",

@@ -6,7 +6,7 @@ import { type GraphBudget, SchemaGraphError, refuseGraph } from "./installed-sch
 // The pinned dependency closes over this registry in lib/schemes.js. Its public
 // SCHEMES export can be replaced independently, so inspect the original module's
 // data property and retain that reference. Never freeze or modify shared state.
-// This private path is an explicit reviewed coupling to fast-uri 3.1.5.
+// This private path is an explicit reviewed coupling to fast-uri 3.1.9.
 // A removed/export-blocked path refuses graph construction, not module loading.
 const registry: unknown = (() => {
   try {
@@ -53,8 +53,8 @@ function check(text: string, budget: GraphBudget): void {
     if (parts.length > 2) refuseGraph("uri");
     const hostPort = parts[parts.length - 1] as string;
     if (hostPort.includes("%")) {
-      // The dependency decodes hosts repeatedly. Only unreserved ASCII escapes
-      // can safely pass that path; other host escapes are explicitly unsupported.
+      // Keep the private admission boundary independent of dependency repair:
+      // only unreserved ASCII host escapes are supported before normalization.
       for (let i = 0; i < hostPort.length; i++)
         if (hostPort[i] === "%") {
           const c = String.fromCharCode(Number.parseInt(hostPort.slice(i + 1, i + 3), 16));
