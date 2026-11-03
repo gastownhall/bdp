@@ -137,6 +137,7 @@ async function checkpoint(phase) {
     phase,
     elapsedMilliseconds: performance.now() - started,
     memoryBytes: process.memoryUsage(),
+    cpuMicroseconds: process.cpuUsage(),
     storeFiles: files.sort((a, b) => a.name.localeCompare(b.name)),
     storeBytes: files.reduce((sum, file) => sum + file.bytes, 0),
   });
@@ -324,6 +325,7 @@ try {
   await timed("finalClose", () => server.close());
   server = undefined;
   await checkpoint("closed");
+  controller.signal.throwIfAborted();
   report.status = "passed";
 } catch (error) {
   failure = error;
@@ -342,6 +344,16 @@ try {
     cleanupErrors.push(error);
   }
   clearTimeout(timer);
+  // Cleanup awaits can receive a late interrupt after the last HTTP operation.
+  // Freeze the result before detaching the handlers; cancellation is never pass.
+  if (controller.signal.aborted && failure !== controller.signal.reason)
+    failure = failure
+      ? new AggregateError(
+          [failure, controller.signal.reason],
+          "performance workload interrupted",
+          { cause: failure },
+        )
+      : controller.signal.reason;
   process.off("SIGINT", onInt);
   process.off("SIGTERM", onTerm);
   report.cleanup = {
@@ -350,12 +362,20 @@ try {
     errors: cleanupErrors.map((error) => error.message),
   };
   if (cleanupErrors.length) {
-    report.status = "failed";
     failure = new AggregateError(
       [...(failure ? [failure] : []), ...cleanupErrors],
       "performance workload/cleanup failed",
     );
   }
+}
+if (failure) {
+  report.status = "failed";
+  const describeError = (error) => ({
+    name: error.name,
+    message: error.message,
+    ...(error instanceof AggregateError ? { errors: error.errors.map(describeError) } : {}),
+  });
+  report.error = describeError(failure);
 }
 report.finishedAt = new Date().toISOString();
 report.elapsedMilliseconds = performance.now() - started;
