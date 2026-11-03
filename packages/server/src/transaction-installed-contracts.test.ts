@@ -171,6 +171,13 @@ it("binds interpretation policy in detached frozen capture and reconstructs the 
     .digest("hex")}`;
   expect(compiled.identity).toBe(identity);
   expect(compiled.capture.graphPolicy).toBe("schema-resource-index-3");
+  expect(Object.keys(compiled.capture)).toEqual([
+    "artifacts",
+    "artifactLimits",
+    "graphPolicy",
+    "graphLimits",
+    "evaluatorLimits",
+  ]);
   const saved = JSON.parse(JSON.stringify(compiled.capture));
   for (const artifact of [...input.descriptors, ...input.schemas]) artifact.utf8Bytes.fill(0);
   input.limits.totalBytes = 1;

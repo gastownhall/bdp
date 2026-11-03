@@ -74,63 +74,76 @@ function raw<T>(file: string, action: (db: DatabaseSync) => T): T {
   }
 }
 
-it("refuses pre-policy transaction metadata before recovery writes and reopens the same policy unchanged", () => {
-  const f = fixture();
-  const file = path.join(directory(), "transaction.sqlite");
-  const options = {
-    file,
-    scope,
-    types: f.contracts.descriptors,
-    contracts: f.contracts,
-    clock: () => 1000,
-    maintenanceIntervalMs: 60000,
-  };
-  const owner = openTransactionStore({ ...options, create: true });
-  const prepared = prepareTransaction(
-    scope,
-    JSON.stringify({
-      operations: [{ operation: "createBead", id: "beads/a", type, properties: { n: 1 } }],
-    }),
-  );
-  let saved: ReturnType<typeof owner.executeObserved>["receipt"];
-  try {
-    const first = owner.admit("p", "saved", prepared);
-    if (first.kind !== "owned") throw new Error("expected owned claim");
-    saved = owner.executeObserved(first.claim).receipt;
-    expect(owner.admit("p", "pending", prepared).kind).toBe("owned");
-  } finally {
-    owner.close();
-  }
-  const current = readFileSync(file);
-  // Simulate the exact old installation identity/capture fields while retaining
-  // the receipt and pending claim, whose recovery would otherwise write state.
-  raw(file, (db) => {
-    const row = db.prepare("SELECT value FROM metadata WHERE name='configuration'").get()!;
-    const configuration = JSON.parse(String(row.value));
-    configuration.contractIdentity = f.legacyIdentity;
-    db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(
-      JSON.stringify(configuration),
+it.each(["pre-policy", "different-policy"] as const)(
+  "refuses %s transaction metadata before recovery writes and reopens the same policy unchanged",
+  (kind) => {
+    const f = fixture();
+    const file = path.join(directory(), "transaction.sqlite");
+    const options = {
+      file,
+      scope,
+      types: f.contracts.descriptors,
+      contracts: f.contracts,
+      clock: () => 1000,
+      maintenanceIntervalMs: 60000,
+    };
+    const owner = openTransactionStore({ ...options, create: true });
+    const prepared = prepareTransaction(
+      scope,
+      JSON.stringify({
+        operations: [{ operation: "createBead", id: "beads/a", type, properties: { n: 1 } }],
+      }),
     );
-    db.prepare("UPDATE metadata SET value=? WHERE name='contractCapture'").run(
-      stringifyJsonValue(f.legacyCapture),
+    let saved: ReturnType<typeof owner.executeObserved>["receipt"];
+    try {
+      const first = owner.admit("p", "saved", prepared);
+      if (first.kind !== "owned") throw new Error("expected owned claim");
+      saved = owner.executeObserved(first.claim).receipt;
+      expect(owner.admit("p", "pending", prepared).kind).toBe("owned");
+    } finally {
+      owner.close();
+    }
+    const current = readFileSync(file);
+    // Simulate the exact old installation identity/capture fields while retaining
+    // the receipt and pending claim, whose recovery would otherwise write state.
+    raw(file, (db) => {
+      if (kind === "pre-policy") {
+        const row = db.prepare("SELECT value FROM metadata WHERE name='configuration'").get()!;
+        const configuration = JSON.parse(String(row.value));
+        configuration.contractIdentity = f.legacyIdentity;
+        db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(
+          JSON.stringify(configuration),
+        );
+      }
+      db.prepare("UPDATE metadata SET value=? WHERE name='contractCapture'").run(
+        stringifyJsonValue(
+          kind === "pre-policy"
+            ? f.legacyCapture
+            : { ...f.contracts.capture, graphPolicy: "schema-resource-index-2" },
+        ),
+      );
+    });
+    const legacyBytes = readFileSync(file);
+    expect(() =>
+      openTransactionStore({ ...options, create: false, clock: () => 86401000 }),
+    ).toThrow(
+      kind === "pre-policy"
+        ? "transaction installation mismatch"
+        : "transaction contract capture mismatch",
     );
-  });
-  const legacyBytes = readFileSync(file);
-  expect(() => openTransactionStore({ ...options, create: false, clock: () => 86401000 })).toThrow(
-    "transaction installation mismatch",
-  );
-  expect(readFileSync(file)).toEqual(legacyBytes);
-  writeFileSync(file, current);
-  const reopened = openTransactionStore({ ...options, create: false });
-  try {
-    expect(reopened.recoveredPending).toBe(1);
-    expect(reopened.receipt("p", saved!.id)).toEqual(saved!);
-  } finally {
-    reopened.close();
-  }
-  expect(f.contracts.identity).not.toBe(f.legacyIdentity);
-  expect(compileDevelopmentContracts(f.input).identity).toBe(f.contracts.identity);
-});
+    expect(readFileSync(file)).toEqual(legacyBytes);
+    writeFileSync(file, current);
+    const reopened = openTransactionStore({ ...options, create: false });
+    try {
+      expect(reopened.recoveredPending).toBe(1);
+      expect(reopened.receipt("p", saved!.id)).toEqual(saved!);
+    } finally {
+      reopened.close();
+    }
+    expect(f.contracts.identity).not.toBe(f.legacyIdentity);
+    expect(compileDevelopmentContracts(f.input).identity).toBe(f.contracts.identity);
+  },
+);
 
 it.each(["pre-policy", "different-policy"] as const)(
   "refuses %s configured Read/Update custody before writes and preserves same-policy replay",

@@ -8,8 +8,8 @@ rewrite old conformance pins, or establish external consumer adoption.
 
 ## Dependency and observed interpretation
 
-The exact server dependency and AJV 8.17.1's deduplicated transitive resolver move
-from fast-uri 3.1.5 to 3.1.9. The upstream [security release](https://github.com/fastify/fast-uri/releases/tag/v3.1.9)
+The exact server dependency and AJV 8.17.1's transitive resolver move
+from fast-uri 3.1.5 to 3.1.9. A workspace pnpm override pins every workspace fast-uri resolution to 3.1.9; it does not rely only on the current deduplicated lock outcome. The upstream [security release](https://github.com/fastify/fast-uri/releases/tag/v3.1.9)
 and [encoded-scheme](https://github.com/advisories/GHSA-w74x-v6f9-j3xg),
 [host-confusion](https://github.com/advisories/GHSA-wjr9-j795-jxcr),
 [relative-normalization](https://github.com/advisories/GHSA-xhq7-xmqj-769h), and
@@ -45,7 +45,11 @@ either reference spelling. No query-bearing `$id` was found in the shipped
 protocol/spec schema, catalog and matrix JSON scan; arbitrary external artifacts
 are not thereby qualified. Focused controls keep this compatibility refusal
 visible and prove ordinary local `$defs` references and validation still work.
-No schema-registration rewrite is hidden here.
+If both raw query-case keys are registered with different schemas, AJV silently
+selects the uppercase registration for references written either way; the graph
+instead refuses the collision. This is a silent wrong-schema risk for external
+registrations, not merely a fail-closed refusal. No schema-registration rewrite is
+hidden here.
 
 The wrapper retains conservative pre-normalization admission and fail-closed
 checks of the original `fast-uri/lib/schemes.js` registry. Missing or altered
@@ -69,6 +73,13 @@ capture omitted policy too. The configured recovery store records that identity
 in installation/lineage metadata and capture; the Transactional store records
 it in configuration metadata and capture. A dependency-only upgrade could
 therefore recompile under changed interpretation while retaining old custody.
+
+This change closes the specific URI graph-policy custody gap. It does not yet
+bind the separate pattern-subset and annotation-output policy revisions into
+installation capture; their values remain unchanged here. A change to either
+needs a separate explicit custody transition before it can safely reuse
+persisted installations. Source-policy pins are not a complete interpreter
+identity proof.
 
 The candidate binds `graphPolicy: "schema-resource-index-3"` into **both** the
 compiled identity input and immutable capture. The existing prefix format stays

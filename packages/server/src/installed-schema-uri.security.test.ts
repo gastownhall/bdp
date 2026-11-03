@@ -70,10 +70,14 @@ describe("index3 URI security and compatibility boundaries", () => {
 
   it("qualifies dependency relative normalization separately from the graph's absolute resolution", () => {
     // The wrapper never normalizes a scheme-less reference before resolution.
-    for (const reference of ["../x", "a/../b", "./a:b"])
-      expect(uri.resolve("https://a.test/dir/file", uri.normalize(reference))).toBe(
-        uri.resolve("https://a.test/dir/file", reference),
-      );
+    for (const [reference, expected] of [
+      ["../x", "https://a.test/x"],
+      ["a/../b", "https://a.test/dir/b"],
+      ["./a:b", "https://a.test/dir/a:b"],
+    ] as const) {
+      expect(uri.resolve("https://a.test/dir/file", uri.normalize(reference))).toBe(expected);
+      expect(uri.resolve("https://a.test/dir/file", reference)).toBe(expected);
+    }
     // This non-default dependency mode is not used by the graph wrapper.
     expect(uri.normalize("javascript:alert(1)", { reference: "suffix", scheme: "x" })).toBe(
       "javascript%3Aalert(1)",
@@ -138,5 +142,17 @@ describe("index3 URI security and compatibility boundaries", () => {
     const validate = upper.compile({ $ref: "https://schema.test/a?X=%2f" });
     expect(validate(7)).toBe(true);
     expect(validate("7")).toBe(false);
+  });
+  it("records AJV's silent uppercase preference when raw query-case keys coexist", () => {
+    const ajv = new Ajv2020({ strict: true });
+    ajv.addSchema({ $id: "https://schema.test/a?X=%2f", type: "integer" });
+    ajv.addSchema({ $id: "https://schema.test/a?X=%2F", type: "string" });
+    // Graph admission refuses this pair. AJV retains both raw registrations,
+    // but reference normalization silently selects the uppercase registration.
+    for (const reference of ["https://schema.test/a?X=%2f", "https://schema.test/a?X=%2F"]) {
+      const validate = ajv.compile({ $ref: reference });
+      expect(validate(7)).toBe(false);
+      expect(validate("7")).toBe(true);
+    }
   });
 });

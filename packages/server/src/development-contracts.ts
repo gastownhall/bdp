@@ -54,7 +54,10 @@ export function administrativeArray(value: unknown, maximum: number): readonly u
   });
 }
 
-/** Exact immutable installation capture; policy constants are witnesses, not overrides. */
+/** Exact immutable installation capture; policy constants are witnesses, not overrides.
+ * Member order participates in persisted capture bytes and identity digest input.
+ * Reordering is a custody transition, not a cosmetic edit.
+ */
 export interface DevelopmentContractCapture {
   readonly artifacts: readonly ContractArtifactEntry[];
   readonly artifactLimits: ContractArtifactLimits;
