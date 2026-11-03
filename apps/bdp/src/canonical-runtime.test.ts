@@ -87,6 +87,8 @@ it("bounds a blocked failure terminal after interruption between complete pages"
 
 it.each([
   ["1", 5, "unsupported_capability"],
+  ["9223372036854775807", 5, "unsupported_capability"],
+  ["9223372036854775808", 2, "invalid_value"],
   ["=", 2, "invalid_value"],
   ["bare-token", 2, "invalid_value"],
 ] as const)(
@@ -222,6 +224,222 @@ it.each([true, false])(
     } finally {
       bind.mockRestore();
       submit.mockRestore();
+    }
+  },
+);
+
+it.each([
+  ["note@current", "https://wire.example/work/note"],
+  ["note@=r@current", { uri: "https://wire.example/work/note", revision: "r@current" }],
+  ["[https://wire.example/work/note@literal]@current", "https://wire.example/work/note@literal"],
+  ["https://wire.example/work/note@current", "https://wire.example/work/note@current"],
+] as const)(
+  "preserves the complete current or exact read selection %s",
+  async (operand, reference) => {
+    const scope = "https://wire.example/work/";
+    const read = vi.spyOn(RetainedClient.prototype, "read").mockResolvedValue({
+      kind: "success",
+      http: { status: 200, url: scope, headers: {}, contentType: null, retryAfter: null },
+      value: {
+        specification: RETAINED_V01_SPECIFICATION,
+        scope,
+        resourceKind: "bead",
+        representation: "resource",
+        body: {
+          id: `${scope}note`,
+          type: `${scope}Task`,
+          revision: "r1",
+          properties: { title: "observed" },
+          metadata: {},
+        },
+      },
+    });
+    try {
+      const status = await runCanonicalInvocation(
+        {
+          command: ["show"],
+          positionals: [operand],
+          options: { outputFormat: "json" },
+          explicitOptions: ["outputFormat"],
+        },
+        { scope: { url: scope }, auth: {} },
+        { stdout: () => undefined, stderr: () => undefined },
+      );
+      expect(status).toBe(0);
+      expect(read).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ reference }));
+    } finally {
+      read.mockRestore();
+    }
+  },
+);
+
+it.each([
+  ["note@3", 5, "unsupported_capability"],
+  ["[https://wire.example/work/note]@3", 5, "unsupported_capability"],
+  ["note@9223372036854775807", 5, "unsupported_capability"],
+  ["[https://wire.example/work/note]@9223372036854775807", 5, "unsupported_capability"],
+  ["note@9223372036854775808", 2, "invalid_value"],
+  ["[https://wire.example/work/note]@9223372036854775808", 2, "invalid_value"],
+] as const)("diagnoses ordinary ordinal %s without I/O", async (operand, expectedStatus, code) => {
+  const read = vi.spyOn(RetainedClient.prototype, "read");
+  const bind = vi.spyOn(RetainedClient.prototype, "bindWrite");
+  let stdout = "";
+  try {
+    const status = await runCanonicalInvocation(
+      {
+        command: ["show"],
+        positionals: [operand],
+        options: { outputFormat: "json" },
+        explicitOptions: ["outputFormat"],
+      },
+      { scope: { url: "https://wire.example/work/" }, auth: {} },
+      {
+        stdout: (text) => {
+          stdout += text;
+        },
+        stderr: () => undefined,
+      },
+    );
+    expect(status).toBe(expectedStatus);
+    expect(JSON.parse(stdout).error.problem.code).toBe(code);
+    expect(read).not.toHaveBeenCalled();
+    expect(bind).not.toHaveBeenCalled();
+  } finally {
+    read.mockRestore();
+    bind.mockRestore();
+  }
+});
+
+it.each([
+  [
+    "[https://wire.example/work/note@literal]@=r@current",
+    "https://wire.example/work/note@literal",
+    0,
+  ],
+  ["[https://wire.example/work/note]@3", "https://wire.example/work/note", 0],
+  ["https://wire.example/work/note@current", "https://wire.example/work/note@current", 0],
+  ["note@current", "https://wire.example/work/note", 0],
+  ["https://wire.example/work/urn:example:note", "https://wire.example/work/urn:example:note", 0],
+  ["https://wire.example/work/batch-ref::X", "https://wire.example/work/batch-ref::X", 0],
+  ["note@garbage", undefined, 2],
+  ["note@=", undefined, 2],
+  ["note@0", undefined, 2],
+  ["note@01", undefined, 2],
+  ["note@-1", undefined, 2],
+  ["note@9223372036854775807", "https://wire.example/work/note", 0],
+  ["[https://wire.example/work/note]@9223372036854775807", "https://wire.example/work/note", 0],
+  ["note@9223372036854775808", undefined, 2],
+  ["[https://wire.example/work/note]@9223372036854775808", undefined, 2],
+] as const)(
+  "validates whole incidence operand before ignoring applicability: %s",
+  async (operand, identity, expected) => {
+    const scope = "https://wire.example/work/";
+    const list = vi.spyOn(RetainedClient.prototype, "list").mockResolvedValue({
+      kind: "success",
+      http: { status: 200, url: scope, headers: {}, contentType: null, retryAfter: null },
+      value: {
+        specification: RETAINED_V01_SPECIFICATION,
+        scope,
+        collectionKind: "link",
+        page: { items: [], next: null },
+      },
+    });
+    try {
+      const status = await runCanonicalInvocation(
+        {
+          command: ["link", "list"],
+          positionals: [operand],
+          options: { allRevisions: true, outputFormat: "json" },
+          explicitOptions: ["allRevisions", "outputFormat"],
+        },
+        { scope: { url: scope }, auth: {} },
+        { stdout: () => undefined, stderr: () => undefined },
+      );
+      expect(status).toBe(expected);
+      if (identity === undefined) expect(list).not.toHaveBeenCalled();
+      else
+        expect(list).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            filters: {
+              selector: `$[?((@.source == ${JSON.stringify(identity)} || @.source.uri == ${JSON.stringify(identity)}) || (@.target == ${JSON.stringify(identity)} || @.target.uri == ${JSON.stringify(identity)}))]`,
+            },
+          }),
+        );
+    } finally {
+      list.mockRestore();
+    }
+  },
+);
+
+it.each([
+  ["update", "note@current", { properties: "{}" }],
+  ["update", "note@=r1", { properties: "{}" }],
+  ["delete", "note@current", { force: true }],
+  ["delete", "note@=r1", { force: true }],
+  ["delete", "note@current", {}],
+  ["delete", "note@=r1", {}],
+] as const)(
+  "refuses selected mutation target %s %s before any read or Write discovery",
+  async (command, operand, edits) => {
+    const read = vi.spyOn(RetainedClient.prototype, "read");
+    const bind = vi.spyOn(RetainedClient.prototype, "bindWrite");
+    try {
+      expect(
+        await runCanonicalInvocation(
+          {
+            command: [command],
+            positionals: [operand],
+            options: { ...edits, outputFormat: "json" },
+            explicitOptions: [...Object.keys(edits), "outputFormat"],
+          },
+          { scope: { url: "https://wire.example/work/" }, auth: {} },
+          { stdout: () => undefined, stderr: () => undefined },
+        ),
+      ).toBe(2);
+      expect(read).not.toHaveBeenCalled();
+      expect(bind).not.toHaveBeenCalled();
+    } finally {
+      read.mockRestore();
+      bind.mockRestore();
+    }
+  },
+);
+
+it.each([
+  [true, "urn:example:note"],
+  [true, "batch-ref::X"],
+  [false, "urn:example:note"],
+  [false, "batch-ref::X"],
+] as const)(
+  "keeps incidence Reference admission when all-revisions=%s: %s",
+  async (allRevisions, operand) => {
+    const list = vi.spyOn(RetainedClient.prototype, "list");
+    const read = vi.spyOn(RetainedClient.prototype, "read");
+    let stdout = "";
+    try {
+      expect(
+        await runCanonicalInvocation(
+          {
+            command: ["link", "list"],
+            positionals: [operand],
+            options: { allRevisions, outputFormat: "json" },
+            explicitOptions: ["allRevisions", "outputFormat"],
+          },
+          { scope: { url: "https://wire.example/work/" }, auth: {} },
+          {
+            stdout: (text) => {
+              stdout += text;
+            },
+            stderr: () => undefined,
+          },
+        ),
+      ).toBe(2);
+      expect(JSON.parse(stdout).error.problem.code).toBe("invalid_value");
+      expect(list).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      list.mockRestore();
+      read.mockRestore();
     }
   },
 );

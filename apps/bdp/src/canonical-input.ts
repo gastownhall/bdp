@@ -51,16 +51,24 @@ export class CanonicalUnsupportedInputError extends CanonicalInputError {}
  * becomes a Reference, current-state guard or inferred latest/last-live source. */
 export function parseHistoricalSourceSelector(input: string): string {
   text(input, "historical source");
-  if (/^[1-9][0-9]*$/.test(input))
+  if (/^[1-9][0-9]*$/.test(input)) {
+    admitOrdinal(input);
     throw new CanonicalUnsupportedInputError(
       "historical ordinals require an authoritative mapping",
     );
+  }
   if (!input.startsWith("=") || input.length === 1)
     return refuse("historical source requires an exact =TOKEN or authoritative ordinal");
   return input.slice(1);
 }
 function refuse(message: string): never {
   throw new CanonicalInputError(message);
+}
+/** Positive canonical decimal only; compare exact digits without Number rounding. */
+function admitOrdinal(value: string): void {
+  const maximum = "9223372036854775807";
+  if (value.length > maximum.length || (value.length === maximum.length && value > maximum))
+    refuse("revision ordinal exceeds signed 64-bit range");
 }
 function text(value: unknown, label: string): string {
   if (typeof value !== "string" || value.length === 0 || !isUnicodeScalarString(value))
@@ -89,6 +97,8 @@ export function parseCanonicalReference(
   scope: string,
   policy: {
     readonly mutationSubject?: boolean;
+    /** Only ordinary current point-read positions admit explicit @current. */
+    readonly currentRead?: boolean;
     readonly allowBatchReference?: boolean;
     readonly allowOpaqueUri?: boolean;
   } = {},
@@ -107,6 +117,38 @@ export function parseCanonicalReference(
       return refuse("opaque URI is not admitted in this Reference position");
     return input;
   }
+  const parsed = parseCanonicalReferenceSelection(input, scope);
+  const selection = parsed.selection;
+  if (selection === undefined) return parsed.uri;
+  if (policy.mutationSubject)
+    return refuse("mutation subjects must be unpinned; use --if-revision");
+  if (selection.kind === "current") {
+    if (!policy.currentRead) return refuse("current selection is not an authored durable pin");
+    return parsed.uri;
+  }
+  if (selection.kind === "ordinal")
+    throw new CanonicalUnsupportedInputError("revision ordinals require an authoritative mapping");
+  return Object.freeze({ uri: parsed.uri, revision: selection.token });
+}
+
+/** Syntax only: selection is not resolution, a current-state guard or a durable pin. */
+export function parseCanonicalReferenceSelection(
+  input: string,
+  scope: string,
+): {
+  readonly uri: string;
+  readonly selection?:
+    | { readonly kind: "current" }
+    | { readonly kind: "ordinal"; readonly ordinal: string }
+    | { readonly kind: "exact"; readonly token: string };
+} {
+  parseCanonicalScope(scope);
+  text(input, "Reference");
+  if (/^https?:\/\//i.test(input)) return { uri: absolute(input, scope) };
+  if (input.startsWith("batch-ref::"))
+    return refuse("batch reference is not legal in this position or mode");
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(input))
+    return refuse("opaque URI is not admitted in this Reference position");
   let identity: string;
   let suffix: string | undefined;
   if (input.startsWith("[")) {
@@ -122,13 +164,17 @@ export function parseCanonicalReference(
     suffix = at < 0 ? undefined : input.slice(at + 1);
   }
   const uri = absolute(text(identity, "Reference identity"), scope);
-  if (suffix === undefined) return uri;
-  if (policy.mutationSubject)
-    return refuse("mutation subjects must be unpinned; use --if-revision");
-  if (!suffix.startsWith("="))
-    return refuse("revision selector requires an exact @=TOKEN; no history lookup is available");
-  return Object.freeze({ uri, revision: text(suffix.slice(1), "revision token") });
+  if (suffix === undefined) return { uri };
+  if (suffix === "current") return { uri, selection: { kind: "current" } };
+  if (/^[1-9][0-9]*$/.test(suffix)) {
+    admitOrdinal(suffix);
+    return { uri, selection: { kind: "ordinal", ordinal: suffix } };
+  }
+  if (suffix.startsWith("="))
+    return { uri, selection: { kind: "exact", token: text(suffix.slice(1), "revision token") } };
+  return refuse("revision selector requires N, current or an exact =TOKEN");
 }
+
 function json(textValue: string): AdmittedJsonValue {
   try {
     const admitted = admitJsonNumbers(decodeJsonDocument(textValue), {

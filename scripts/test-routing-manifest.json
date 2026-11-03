@@ -1402,6 +1402,12 @@
       "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
     },
     {
+      "path": "scripts/cli-spec-correspondence.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Authored CLI flag tables versus actual parser registration; artifact consistency only, not behavioral or provider conformance."
+    },
+    {
       "path": "scripts/current-provider-kit.node-test.mjs",
       "runner": "node",
       "lane": "current",
@@ -1484,6 +1490,12 @@
       "runner": "vitest",
       "lane": "shared",
       "reason": "Shared value or test-safety mechanics; deliberately included in both shadow Vitest routes."
+    },
+    {
+      "path": "scripts/spec-review-lab.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Owned installed review workstation lifecycle and private CLI relay controls; not arbitrary-provider conformance."
     },
     {
       "path": "scripts/spec-schema-fragments.node-test.mjs",

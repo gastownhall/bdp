@@ -26,6 +26,7 @@ import {
   parseHistoricalSourceSelector,
   compileCanonicalInput,
   parseCanonicalReference,
+  parseCanonicalReferenceSelection,
 } from "./canonical-input.js";
 import {
   CanonicalOutputError,
@@ -270,23 +271,13 @@ export async function runCanonicalInvocation(
       (!mutation && !collection && !alias && command[0] !== "scope") ||
       (!alias && (leaf === "update" || leaf === "delete"));
     const initial = subjectCommand ? invocation.positionals[0] : undefined;
-    const current =
-      initial !== undefined &&
-      !mutation &&
-      !/^https?:/.test(initial) &&
-      initial.endsWith("@current");
     const initialRef =
       initial === undefined
         ? undefined
-        : parseCanonicalReference(
-            current
-              ? initial.startsWith("[")
-                ? initial.slice(1, -9)
-                : initial.slice(0, -8)
-              : initial,
-            scope,
-            { mutationSubject: mutation && !(leaf === "delete" && options.force !== true) },
-          );
+        : parseCanonicalReference(initial, scope, {
+            mutationSubject: mutation,
+            currentRead: !mutation && leaf === "show",
+          });
     const anchor = initialRef === undefined ? scope : referenceUri(initialRef);
     const origin = new URL(anchor).origin;
     const credentialScope =
@@ -444,21 +435,14 @@ export async function runCanonicalInvocation(
       if (link && invocation.positionals.length) {
         const operands = [...invocation.positionals];
         const resolved = operands.map((operand) => {
-          if (!options.allRevisions && !/^https?:/.test(operand) && operand.includes("@"))
+          const parsed = parseCanonicalReferenceSelection(operand, scope);
+          if (!options.allRevisions && parsed.selection !== undefined)
             return refuse(
               "unsupported_capability",
               5,
               "revision-aware incidence requires a coherent endpoint authority",
             );
-          const withoutSelector =
-            options.allRevisions && !/^https?:/.test(operand)
-              ? (operand.split("@", 1)[0] ?? "")
-              : operand;
-          const resolved = parseCanonicalReference(withoutSelector, scope, {
-            mutationSubject: true,
-          });
-          const uri = referenceUri(resolved);
-          return uri;
+          return parsed.uri;
         });
         const identity = (field: string, uri: string): string =>
           `(@.${field} == ${JSON.stringify(uri)} || @.${field}.uri == ${JSON.stringify(uri)})`;
@@ -607,7 +591,8 @@ export async function runCanonicalInvocation(
         return refuse("invalid_arguments", 2, "mutation-only options require --force");
       const raw = invocation.positionals[0];
       if (!raw) return refuse("invalid_arguments", 2, "Resource operand required");
-      const ref = initialRef ?? parseCanonicalReference(raw, scope);
+      const ref =
+        initialRef ?? parseCanonicalReference(raw, scope, { currentRead: leaf === "show" });
       const reply = await client.read({
         ...call,
         reference: ref,

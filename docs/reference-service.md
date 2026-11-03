@@ -169,3 +169,27 @@ The [inventory disposition index](plans/inventory-dispositions-20261102.md)
 retains historical requirements and remaining test work. Current qualification
 receipts must identify the actual source/build/configuration; this API document
 alone is not conformance evidence.
+
+## Executable review support
+
+The [disposable installed review lab](spec-review/reference-lab.md) provides a
+foreground local workstation and finite check. Its generated launcher relays to
+the fixed installed CLI; restart/terminal controls belong to the lab, not new
+protocol or product CLI commands. The table describes the current implementation,
+not a replacement for the canonical specification or CLI design.
+
+| Surface | Executable boundary |
+| --- | --- |
+| Discovery/current full/properties reads | Canonical scope inspect/show; property masks render native properties view. |
+| Bead/Link lists/incidence | Native paging/issued continuations, exact nominal filtering and bounded selectors; family filtering requires unsupported Types. |
+| Bead/Link CRUD, aliases | Eight ordinary singleton operations, exact endpoint/Type pins, guards, no-ops and frozen retry. |
+| Historical source Update | Optional fresh format7; exact source selector and independent current guard. Terminal deletion read is SDK/feature HTTP only; lab control exposes that existing method. |
+| Exact saved Resource reads | Parser accepts exact suffix, SDK emits revision query; this reference correctly rejects it without advertised full History. Endpoint pins do not advertise History; no selected required feature is missing. |
+| Batch | Separate reference format6 supports selected six-CRUD batch1. CLI can emit members/preview; submitted batch is unsupported. Batch+historical reference combination refuses. Draft batch2 is not selected. |
+| Types/Events/full History/Transfer/Query | No advertisement or implementation by this lab. Ordinary Type-definition Beads are generic records, not active interpretation. |
+| Aggregate/Resource projection/HTTP CLI controls | include-links and native Resource masks refuse; no selected canonical HEAD/condition flags. SDK controls do not establish CLI support. |
+| Ordinals/rooted allocation | No authoritative mapping/allocation adapter in this executable; use exact tokens and explicit IDs. |
+
+The lab never opens an existing user store or leaves a detached service. Its
+whole-Scope credential, private journal and local process custody are workstation
+conditions, not authorization/conformance or retention guarantees for other providers.

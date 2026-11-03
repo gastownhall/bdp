@@ -715,7 +715,7 @@ Create one Bead with a Type and optional initial properties and metadata.
 ```text
 bd create [SCOPE] --type TYPE [--id ID | --id-root ROOT]
     [--properties JSON] [--metadata JSON] [--scope SCOPE] [--batch-bind NAME]
-    [--revision-provenance JSON]
+    [--revision-provenance JSON] [--actor ACTOR]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd create --retry-file FILE
@@ -739,6 +739,7 @@ bd create --retry-file FILE
 | `--properties JSON` | `{}` | Initialize properties. See [object inputs](#object-inputs). |
 | `--metadata JSON` | `{}` | Initialize metadata. See [object inputs](#object-inputs). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
 | `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
@@ -947,7 +948,7 @@ bd update REF [--type TYPE] [--scope SCOPE]
        | [--set-property KEY=VALUE]... [--unset-property KEY]...]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
        | [--set-metadata KEY=VALUE]... [--unset-metadata KEY]...]
-    [--revision-provenance JSON]
+    [--revision-provenance JSON] [--actor ACTOR]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd update --retry-file FILE
@@ -976,9 +977,10 @@ bd update --retry-file FILE
 | `--unset-property KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
 | `--set-metadata KEY=VALUE` | No keyed edit | Set a literal top-level key. Repeatable; see [object inputs](#object-inputs). |
 | `--unset-metadata KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
-| `--from-revision REV` | No historical source | Select exact retained same-Bead editable content, then apply explicit edits; alias `--from_revision`. See [write revisions](#write-revision-flags). |
+| `--from-revision REV`, `--from_revision REV` | No historical source | Select exact retained same-Bead editable content, then apply explicit edits; alias `--from_revision`. See [write revisions](#write-revision-flags). |
 | `--if-revision TOKEN` | No guard | Require the exact opaque actual-current token, independently of the historical source. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
 | `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
@@ -1367,7 +1369,7 @@ bd link create --retry-file FILE
 OPTIONS:
     [--scope SCOPE] [--id ID | --id-root ROOT] [--batch-bind NAME]
     [--properties JSON] [--metadata JSON]
-    [--revision-provenance JSON]
+    [--revision-provenance JSON] [--actor ACTOR]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 ```
@@ -1392,6 +1394,7 @@ OPTIONS:
 | `--properties JSON` | `{}` | Initialize properties. See [object inputs](#object-inputs). |
 | `--metadata JSON` | `{}` | Initialize metadata. See [object inputs](#object-inputs). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
 | `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
@@ -1598,7 +1601,7 @@ bd link update REF [--type TYPE] [--from REF] [--to REF]
        | [--set-property KEY=VALUE]... [--unset-property KEY]...]
     [--metadata JSON | --replace-metadata JSON | --patch-metadata JSON
        | [--set-metadata KEY=VALUE]... [--unset-metadata KEY]...]
-    [--revision-provenance JSON]
+    [--revision-provenance JSON] [--actor ACTOR]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd link update --retry-file FILE
@@ -1631,6 +1634,7 @@ bd link update --retry-file FILE
 | `--unset-metadata KEY` | No keyed edit | Remove a literal top-level key idempotently. Repeatable; see [object inputs](#object-inputs). |
 | `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
 | `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |
@@ -1730,7 +1734,7 @@ Preview or apply deletion of one Link.
 bd link delete REF [--scope SCOPE]
     [--output-format default|detail|json|jsonl] [--long]
 bd link delete REF --force [--scope SCOPE] [--if-revision TOKEN]
-    [--revision-provenance JSON]
+    [--revision-provenance JSON] [--actor ACTOR]
     [--idempotency-key KEY | --dry-run-mode batch|bdp]
     [--output-format default|detail|json|jsonl] [--long]
 bd link delete --retry-file FILE
@@ -1751,6 +1755,7 @@ bd link delete --retry-file FILE
 | `--force` | Off | Apply deletion; without it, read the current record as an observational preview. See [write delivery](#mutation-delivery). |
 | `--if-revision TOKEN` | No guard | Require the exact opaque target revision token, unchanged. See [write revisions](#write-revision-flags). |
 | `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
 | `--dry-run-mode MODE` | Off | Use `batch` to emit a member or `bdp` to preview its request. See [emission](#mutation-delivery). |

@@ -113,7 +113,7 @@
       "specs/profiles/types/types.md": "2bc3c0eec8e260314757d15ac083297e04d94032dd0259f19c7e23991409a52f",
       "specs/profiles/transfer/transfer.md": "a6e95bb471e6c307f17edeb40e2d466be1fa0d97730f8fb60eb58a85c65dc1c7",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
-      "docs/cli-design/bdp-cli.md": "dd372e44621303ca56db876c3dcf051bde3fbc73f4348b8c3862b8bccc6a82c5",
+      "docs/cli-design/bdp-cli.md": "9898a41c1dea303d280f9d517b0bc256530cb86b7adb24eb15bf06ade36ea4f2",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
       "scripts/generate-openapi.mjs": "f6a5e78ed64196c390ff4f8e8de16d7259a443658be7f675fac85bfb34b93bc0",
       "scripts/spec-schema-fragments.mjs": "ec234c9e9a0c289dcb7294f2d00fcc528bc2aa6df64a474907d9c3792e80eeff",
@@ -157,7 +157,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2246
+            "line": 2251
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -368,7 +368,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2246
+            "line": 2251
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -574,7 +574,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2246
+            "line": 2251
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -759,7 +759,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2246
+            "line": 2251
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -933,7 +933,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1166,7 +1166,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1378,7 +1378,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1616,7 +1616,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -1834,7 +1834,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1171
+            "line": 1173
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -2114,7 +2114,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1171
+            "line": 1173
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -2371,7 +2371,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -2633,7 +2633,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -2874,7 +2874,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1272
+            "line": 1274
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -3111,7 +3111,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1272
+            "line": 1274
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -3335,7 +3335,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -3616,7 +3616,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -3867,7 +3867,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -4177,7 +4177,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -4456,7 +4456,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1171
+            "line": 1173
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -4785,7 +4785,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1171
+            "line": 1173
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -5079,7 +5079,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5312,7 +5312,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5524,7 +5524,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5762,7 +5762,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -5980,7 +5980,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1820
+            "line": 1825
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -6290,7 +6290,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1820
+            "line": 1825
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -6577,7 +6577,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -6839,7 +6839,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -7080,7 +7080,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1953
+            "line": 1958
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -7317,7 +7317,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1953
+            "line": 1958
           },
           "x-bdp-support": "Complete historicalResolution.version=1",
           "x-bdp-request-media": {
@@ -7541,7 +7541,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -7822,7 +7822,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Resource projection1 current:true",
           "x-bdp-request-media": {
@@ -8073,7 +8073,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -8383,7 +8383,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1468
+            "line": 1471
           },
           "x-bdp-support": "Resource projection1 exact:true plus complete History",
           "x-bdp-request-media": {
@@ -8662,7 +8662,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1820
+            "line": 1825
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -9021,7 +9021,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1820
+            "line": 1825
           },
           "x-bdp-support": "Resource projection1 list:true",
           "x-bdp-request-media": {
@@ -9348,7 +9348,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1820
+            "line": 1825
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -9694,7 +9694,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1820
+            "line": 1825
           },
           "x-bdp-support": "Required retained Core",
           "x-bdp-request-media": {
@@ -10016,7 +10016,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Outside minimum Core; no invented capability advertisement",
           "x-bdp-request-media": {
@@ -10289,7 +10289,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 807
+            "line": 808
           },
           "x-bdp-support": "Outside minimum Core; no invented capability advertisement",
           "x-bdp-request-media": {
@@ -10525,7 +10525,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2314
+            "line": 2319
           },
           "x-bdp-support": "Advertised aliases navigation",
           "x-bdp-request-media": {
@@ -10639,7 +10639,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2314
+            "line": 2319
           },
           "x-bdp-support": "Advertised aliases navigation",
           "x-bdp-request-media": {
@@ -11167,7 +11167,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2246
+            "line": 2251
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -11353,7 +11353,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2246
+            "line": 2251
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -11718,7 +11718,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 937
+            "line": 938
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -11885,7 +11885,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1078
+            "line": 1080
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12052,7 +12052,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1354
+            "line": 1356
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12243,7 +12243,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1587
+            "line": 1590
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12410,7 +12410,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 1723
+            "line": 1727
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12577,7 +12577,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2383
+            "line": 2388
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12727,7 +12727,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2462
+            "line": 2467
           },
           "x-bdp-support": "Write profile",
           "x-bdp-request-media": {
@@ -12878,7 +12878,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2542
+            "line": 2547
           },
           "x-bdp-support": "Write plus atomic-batch1",
           "x-bdp-request-media": {
@@ -13076,7 +13076,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 937
+            "line": 938
           },
           "x-bdp-support": "Write plus historical-update1",
           "x-bdp-request-media": {
@@ -14274,7 +14274,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2044
+            "line": 2049
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -14510,7 +14510,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2044
+            "line": 2049
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -14734,7 +14734,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2144
+            "line": 2149
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -14970,7 +14970,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2144
+            "line": 2149
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -15191,7 +15191,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2044
+            "line": 2049
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
@@ -15415,7 +15415,7 @@
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
-            "line": 2044
+            "line": 2049
           },
           "x-bdp-support": "Advertised Events (optional for Core and Write)",
           "x-bdp-request-media": {
