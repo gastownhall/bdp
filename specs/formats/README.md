@@ -7,7 +7,7 @@ These draft format specifications originate in the Memory experiment. BDP keeps 
 | [Markdown schema tables for JSON Schema](markdown-json-schema.md) | 0.6 draft | Table-first notation with exact schema constraints, bundle/reference preservation and a bounded offline codec. |
 | [Preserved JSON Schema notation](markdown-json-schema-v0.5.md) | 0.5 | Original import retained for historical comparisons. |
 | [Markdown API tables for OpenAPI](markdown-openapi.md) | 0.5 draft | Visible BDP operation tables projected to an OpenAPI 3.1.1 discovered-URL catalog. |
-| [Bead and Link Type definitions](markdown-type-definitions.md) | 0.1 draft | Descriptor fields, sibling property schemas and owned exact Refines declarations; authoring intent and recorded state stay distinct. |
+| [Bead and Link Type definitions](markdown-type-definitions.md) | 0.1 draft | Adopted for canonical intrinsic descriptor documentation; descriptor fields, sibling property schemas and owned exact Refines declarations. Authoring intent and recorded source stay distinct; no Type-format compiler is delivered. |
 | [Markdown Bead/Link authoring bundles](../../experimental/formats/markdown-bead-bundles.md) | 0.1 | Nascent experiment; identity binding, revision pins and edit/delete mechanics remain open. |
 
 ## Maintenance and evidence
@@ -20,7 +20,7 @@ Historical comparisons and stress receipts in the imported documents remain boun
 
 ## Reproduction
 
-The pure Node schema codec and profile projections are checked separately from provider behavior. The same checks run in CI. Use the repository-pinned Node24.22.1 and pnpm11.20.0 after the normal frozen dependency install.
+The pure Node schema codec and profile projections are checked separately from provider behavior. The same checks run in CI. Use the repository-pinned Node 24.22.1 and pnpm 11.20.0 after the normal frozen dependency install.
 
 ```sh
 # Check the complete schema companion and selected profile indexes.
@@ -28,6 +28,9 @@ pnpm markdown:check
 
 # Exercise schema projection, malformed inputs and source correspondence.
 pnpm test:markdown
+
+# Check adopted intrinsic descriptor documents against immutable publication values.
+pnpm exec vitest run packages/protocol/src/markdown-type-artifact.test.ts --reporter=verbose
 
 ```
 
