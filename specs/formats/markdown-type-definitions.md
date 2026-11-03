@@ -5,7 +5,7 @@ version: "0.1"
 
 # Markdown authoring for Bead and Link Type definitions
 
-This draft notation, adopted for [authoritative descriptor documentation](../profiles/types/types.md#adopted-descriptor-documentation), describes **Type definitions**, rather than arbitrary Bead or Link instances. A Bead-Type definition and a Link-Type definition are both definition **Beads**. Their own exact metatype affiliation is separate from the Type identity they define, and direct Refines declarations are owned Link records rather than a descriptor `refines` field. The [descriptor specification](../profiles/types/types.md#2-definitions-identity-and-affiliation) and [Types profile](../profiles/types/types.md) retain their meanings; this format supplies an editable representation and explicit file bindings.
+This draft notation, adopted for [canonical descriptor documentation](../profiles/types/types.md#adopted-descriptor-documentation), describes **Type definitions**, rather than arbitrary Bead or Link instances. A Bead-Type definition and a Link-Type definition are both definition **Beads**. Their own exact metatype affiliation is separate from the Type identity they define, and direct Refines declarations are owned Link records rather than a descriptor `refines` field. The [descriptor specification](../profiles/types/types.md#2-definitions-identity-and-affiliation) and [Types profile](../profiles/types/types.md) retain their meanings; this format supplies an editable representation and explicit file bindings.
 
 The examples use the current [intrinsic-2 publication](../profiles/types/types.md#23-shared-intrinsic-publication). They are not an installation package, public Type CLI, registration/default selection, transaction syntax or provider qualification. [Types1](../profiles/types/types.md#12-types1-capability-and-rejectable-selection) retains its own selection and admission rules. The [experimental instance bundle format](../../experimental/formats/markdown-bead-bundles.md) is separate and acquires no new authority through this document.
 
@@ -17,6 +17,8 @@ A document starts with `# Bead type: DISPLAY NAME` or `# Link type: DISPLAY NAME
 Format: bdp-type-markdown-0.1
 Mode: authoring
 ```
+
+The adopted recorded documents display these existing settings in a `text` fence as shown; the fence is presentation, not a stored field. The exact `Format` and `Mode` source lines supply the settings.
 
 `Mode` is either `authoring` or `recorded`. The heading declares the instance category of the Type being described; it is not a stored `describes` field, Type identity, descriptor title or metatype affiliation. The display name may be changed without changing any emitted value. File and directory names likewise establish no identity.
 
@@ -37,10 +39,10 @@ The comparison output for authoring mode is an **authoring-only** object:
 Recorded comparison output is:
 
 ```text
-{format, mode:"recorded", instanceKind:"bead"|"link", record:COMPLETE_DEFINITION_BEAD}
+{format, mode:"recorded", instanceKind:"bead"|"link", record:RECORDED_DEFINITION_SOURCE}
 ```
 
-Both envelope formats use `format:"bdp-type-markdown-0.1"`. They are comparison values for this notation, not a new BDP wire carrier. `instanceKind` describes the Type's instances; the value under `record` is always a Bead. The serialized descriptor is exactly `definition.properties` or `record.properties`.
+Both envelope formats use `format:"bdp-type-markdown-0.1"`. They are comparison values for this notation, not a new BDP wire carrier. `instanceKind` describes the Type's instances; the value under `record` is always a Bead. The serialized descriptor is exactly `definition.properties` or `record.properties`. `RECORDED_DEFINITION_SOURCE` preserves the complete supplied definition edition and owned capture under its recorded source contract. An explicitly identified immutable pre-metadata publication source is archival source data, not a current Core complete-read Resource; its missing metadata remains absent. Current complete-read output still requires Core's [metadata projection](../profiles/core/core.md#resource-records), including every enclosed owned record. This distinction grants no exception to the current Resource schema or permission to omit unknown required source state.
 
 Sections occur in this order when present: Definition; Descriptor; Properties schema; Schema resources; Selectors; Property access; Incoming; Outgoing; Owns outgoing; Link constraints; Endpoint pairs; Metadata; Revision provenance; Refines; Other owned links. A section occurs at most once. Section headings and table headers below are exact; explanatory prose is not another source of emitted fields. Unknown structural sections refuse rather than disappear.
 
@@ -198,7 +200,7 @@ The remaining Link constraints rows map exactly to sourceMax/targetMax nonnegati
 
 ### Metadata and revision provenance
 
-Metadata, when present, contains one literal JSON object and maps to the definition Bead's common `metadata`, not descriptor properties. A present `{}` remains distinct from an absent section. The corresponding exact/common record contract still determines whether absence is legal for a recorded source; this authoring syntax does not make a required record member optional or invent `{}` to repair missing state. An optional Revision provenance section is available only in recorded mode and contains the complete applicable JSON object under the ordinary `revisionProvenance` member. No author, commit time, provenance state or origin Scope is invented from the file. This format selects no creation-time provenance input or Activity workflow.
+Metadata, when present, contains one literal JSON object and maps to the definition Bead's common `metadata`, not descriptor properties. A present `{}` remains distinct from an absent section. The corresponding recorded source contract determines whether absence is legal. An explicitly identified immutable pre-metadata publication source omits the Metadata section when that source omits the member; projection preserves the publication source record, not a current complete-read record. Serving that source uses Core's current metadata projection separately. This authoring syntax does not make a current required record member optional or invent `{}` to repair missing source state. An optional Revision provenance section is available only in recorded mode and contains the complete applicable JSON object under the ordinary `revisionProvenance` member. No author, commit time, provenance state or origin Scope is invented from the file. This format selects no creation-time provenance input or Activity workflow.
 
 ### Refines declarations
 

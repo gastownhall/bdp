@@ -1,7 +1,9 @@
-# Link type: Refines
+# Link type: Refines (publication2 source record)
 
+```text
 Format: bdp-type-markdown-0.1
 Mode: recorded
+```
 
 ## Definition
 
@@ -10,11 +12,6 @@ Mode: recorded
 | id | "https://github.com/gastownhall/bdp/types/type-system/refines" |
 | revision | "refines-2" |
 | type | {"uri":"https://github.com/gastownhall/bdp/types/type-system/link-type","revision":"link-type-2"} |
-
-## Descriptor
-
-| Field | Value (JSON) |
-| --- | --- |
 
 ## Properties schema
 

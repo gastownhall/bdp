@@ -276,12 +276,17 @@ conformance closure, supported constraints, category agreement or admission for 
 
 #### Adopted descriptor documentation
 
-The authoritative readable descriptor documents use the selected
+The canonical readable renderings of the intrinsic publication use the selected
 [Type-definition Markdown0.1 notation](../../formats/markdown-type-definitions.md):
 [Type](descriptors/type.md), [BeadType](descriptors/bead-type.md),
 [LinkType](descriptors/link-type.md), and [Refines](descriptors/refines.md).
-These recorded documents instantiate the immutable publication2 values and
-captured declarations, including exact pins and member absence. Their
+These recorded documents render the immutable publication2 source values and
+captured declarations, including exact pins and member absence. They preserve
+pre-metadata publication source records, not current complete-read records
+valid against `beadRecord`; Core's metadata projection remains a separate serving
+rule. On any rendered value disagreement, `intrinsic-2.json` governs that
+publication value and the rendering is corrected; the descriptor meanings in
+this specification remain binding. Their
 [documentation boundary](descriptors/README.md) distinguishes frozen source
 records from current complete-read metadata projection. No new schema or
 revision is assigned.

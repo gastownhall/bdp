@@ -110,12 +110,13 @@ function document(name: string) {
   return readFileSync(new URL(`${descriptorDocs}${name}.md`, root), "utf8");
 }
 function documentedSection(text: string, heading: string) {
-  const marker = `## ${heading}\n`;
-  const start = text.indexOf(marker);
-  if (start === -1) throw new Error(`Missing fixed document section ${heading}`);
-  expect(text.indexOf(marker, start + marker.length)).toBe(-1);
-  const end = text.indexOf("\n## ", start + marker.length);
-  return text.slice(start + marker.length, end === -1 ? undefined : end).trim();
+  const headings = [...text.matchAll(/^## ([^\n]+)$/gm)];
+  const matches = headings.filter((match) => match[1] === heading);
+  if (matches.length !== 1)
+    throw new Error(`Missing or duplicate fixed document section ${heading}`);
+  const selected = matches[0]!;
+  const next = headings.find((match) => match.index! > selected.index!);
+  return text.slice(selected.index! + selected[0].length, next?.index).trim();
 }
 const schemaNames: Record<string, string> = {
   type: "type-definition.properties.schema.json",
@@ -130,8 +131,16 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
     for (const record of publication.definitions) {
       const name = record.id.slice(namespace.length);
       const text = document(name);
-      expect(text.startsWith(`# ${name === "refines" ? "Link" : "Bead"} type:`)).toBe(true);
-      expect(text).toContain("Format: bdp-type-markdown-0.1\nMode: recorded");
+      const label = {
+        type: "Type",
+        "bead-type": "BeadType",
+        "link-type": "LinkType",
+        refines: "Refines",
+      }[name as keyof typeof schemaNames];
+      expect(text.split("\n")[0]).toBe(
+        `# ${name === "refines" ? "Link" : "Bead"} type: ${label} (publication2 source record)`,
+      );
+      expect(text).toContain("```text\nFormat: bdp-type-markdown-0.1\nMode: recorded\n```");
       const definition = documentedSection(text, "Definition");
       expect(definition.split("\n")).toEqual([
         "| Field | Value (JSON) |",
@@ -140,7 +149,7 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
       ]);
       expect([...text.matchAll(/^## (.+)$/gm)].map((match) => match[1])).toEqual([
         "Definition",
-        "Descriptor",
+        ...(name === "type" ? ["Descriptor"] : []),
         "Properties schema",
         "Schema resources",
         ...(name === "type"
@@ -151,7 +160,7 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
         "Refines",
       ]);
       expect(Object.hasOwn(record, "metadata")).toBe(false);
-      expect(text).not.toMatch(/^## (?:Metadata|Revision provenance)$/m);
+      expect(text).not.toMatch(/^#{2,4} (?:Metadata|Revision provenance)$/m);
       const validate = name === "refines" ? linkShape : beadShape;
       const original = structuredClone(record.properties);
       expect(validate(record.properties), JSON.stringify(validate.errors)).toBe(true);
@@ -187,12 +196,27 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
       const text = document(record.id.slice(namespace.length));
       const refines = documentedSection(text, "Refines");
       const declarations = Object.values(record.ownedLinks).flat() as Record<string, unknown>[];
-      expect((refines.match(/^### Declaration: /gm) ?? []).length).toBe(declarations.length);
-      for (const declaration of declarations) {
+      const blocks = [...refines.matchAll(/^### Declaration: [A-Za-z][A-Za-z0-9_-]*$/gm)];
+      expect(blocks).toHaveLength(declarations.length);
+      for (const [index, declaration] of declarations.entries()) {
         expect(publication.declarations).toContainEqual(declaration);
-        for (const field of ["id", "revision", "type", "source", "target"])
-          expect(refines).toContain(`| ${field} | ${compact(declaration[field])} |`);
-        expect(refines).toContain("#### Properties\n\n```json\n{}\n```");
+        const block = blocks[index]!;
+        const text = refines.slice(block.index, blocks[index + 1]?.index).trim();
+        expect(text.split("\n")).toEqual([
+          block[0],
+          "",
+          "| Field | Value (JSON) |",
+          "| --- | --- |",
+          ...["id", "revision", "type", "source", "target"].map(
+            (field) => `| ${field} | ${compact(declaration[field])} |`,
+          ),
+          "",
+          "#### Properties",
+          "",
+          "```json",
+          JSON.stringify(declaration.properties, null, 2),
+          "```",
+        ]);
         expect(declaration.source).toBe(record.id);
         expect(Object.hasOwn(declaration, "metadata")).toBe(false);
       }
@@ -202,14 +226,18 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
 
   it("preserves explicit Type ownership, omissions and the two correlated Refines pairs", () => {
     const type = document("type");
-    expect(documentedSection(type, "Descriptor")).toContain("| abstract | true |");
-    expect(documentedSection(type, "Selectors")).toContain(
-      `| refines | family | ${namespace}refines | "refines-2" |`,
+    expect(documentedSection(type, "Descriptor")).toBe(
+      "| Field | Value (JSON) |\n| --- | --- |\n| abstract | true |",
     );
+    expect(documentedSection(type, "Selectors").split("\n")).toEqual([
+      "| Name | Match | Type URI | Revision (JSON) |",
+      "| --- | --- | --- | --- |",
+      `| refines | family | ${namespace}refines | "refines-2" |`,
+    ]);
     expect(documentedSection(type, "Owns outgoing")).toBe("| Selector |\n| --- |\n| refines |");
     for (const name of ["bead-type", "link-type", "refines"]) {
       const text = document(name);
-      expect(documentedSection(text, "Descriptor")).toBe("| Field | Value (JSON) |\n| --- | --- |");
+      expect([...text.matchAll(/^## Descriptor$/gm)]).toHaveLength(0);
       expect(text).not.toContain("## Owns outgoing");
     }
     const refines = document("refines");
@@ -217,10 +245,13 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
       "| bead | either | bead-type | bead | either | bead-type |",
       "| bead | either | link-type | bead | either | link-type |",
     ]);
-    for (const name of ["bead-type", "link-type"])
-      expect(documentedSection(refines, "Selectors")).toContain(
-        `| ${name} | family | ${namespace}${name} | "${name}-2" |`,
-      );
+    expect(documentedSection(refines, "Selectors").split("\n")).toEqual([
+      "| Name | Match | Type URI | Revision (JSON) |",
+      "| --- | --- | --- | --- |",
+      ...["bead-type", "link-type"].map(
+        (name) => `| ${name} | family | ${namespace}${name} | "${name}-2" |`,
+      ),
+    ]);
     expect(refines).not.toContain("## Link constraints");
     const selected = publication.definitions.find(
       (record: { id: string }) => record.id === `${namespace}refines`,
@@ -229,5 +260,39 @@ describe("adopted intrinsic descriptor documents against unchanged publication2"
     expect(selected.properties.linkConstraints.typeConstraints).toHaveLength(2);
     for (const pair of selected.properties.linkConstraints.typeConstraints)
       expect(pair.source.types).toEqual(pair.target.types);
+  });
+});
+
+describe("recorded publication source boundary", () => {
+  it("keeps pre-metadata source records invalid as current complete reads on metadata alone", () => {
+    const validate = validator(`${types.$id}#/$defs/beadRecord`);
+    for (const record of publication.definitions) {
+      expect(validate(record)).toBe(false);
+      expect(validate.errors?.length).toBeGreaterThan(0);
+      for (const error of validate.errors ?? []) {
+        expect(error.keyword).toBe("required");
+        expect(error.params).toEqual({ missingProperty: "metadata" });
+      }
+      const served = structuredClone(record);
+      served.metadata = {};
+      for (const links of Object.values(served.ownedLinks) as Record<string, unknown>[][])
+        for (const link of links) link.metadata = {};
+      expect(validate(served), JSON.stringify(validate.errors)).toBe(true);
+      expect(Object.hasOwn(record, "metadata")).toBe(false);
+    }
+  });
+  it("binds only anchored top-level sections, never deeper headings", () => {
+    expect(
+      documentedSection(
+        "# Document\n### Refines\nnot the section\n## Refines\nselected\n## Next\nother",
+        "Refines",
+      ),
+    ).toBe("selected");
+    expect(() => documentedSection("### Refines\nwrong", "Refines")).toThrow(
+      "Missing or duplicate",
+    );
+    expect(() => documentedSection("## Refines\none\n## Refines\ntwo", "Refines")).toThrow(
+      "Missing or duplicate",
+    );
   });
 });

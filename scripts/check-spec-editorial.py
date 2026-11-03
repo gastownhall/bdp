@@ -22,7 +22,15 @@ CANONICAL = (
     "docs/cli-design/bdp-cli.md",
 )
 ENTRY_POINTS = ("README.md", "specs/README.md", "docs/spec-review/README.md")
-AUTHORING_DOCS = ("specs/formats/README.md", "specs/formats/markdown-openapi.md", "specs/formats/markdown-type-definitions.md")
+AUTHORING_DOCS = (
+    "specs/formats/README.md", "specs/formats/markdown-openapi.md",
+    "specs/formats/markdown-type-definitions.md",
+    "specs/profiles/types/descriptors/README.md",
+    "specs/profiles/types/descriptors/type.md",
+    "specs/profiles/types/descriptors/bead-type.md",
+    "specs/profiles/types/descriptors/link-type.md",
+    "specs/profiles/types/descriptors/refines.md",
+)
 EDITORIAL_TOOLING = {
     ".github/workflows/ci.yml", "scripts/check-spec-editorial.py",
     "scripts/check-spec-editorial-test.py", "scripts/spec-schema-fragments.mjs",

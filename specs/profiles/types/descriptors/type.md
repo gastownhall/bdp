@@ -1,7 +1,9 @@
-# Bead type: Type
+# Bead type: Type (publication2 source record)
 
+```text
 Format: bdp-type-markdown-0.1
 Mode: recorded
+```
 
 ## Definition
 
