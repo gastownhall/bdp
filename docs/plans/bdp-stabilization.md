@@ -37,7 +37,7 @@ not recorded as completed council review.
    [PR174](https://github.com/gastownhall/bdp/pull/174) is an input to reconcile.
    Existing native Beads work in
    [Beads #7719](https://github.com/gastownhall/beads/issues/7719) and
-   [Beads PR141](https://github.com/gastownhall/beads/pull/141) is distinct from
+   [donnabox/beads PR141](https://github.com/donnabox/beads/pull/141) is distinct from
    public BDP wire support. Spec and implementation siblings must agree on the
    exact incoming contract and landed qualification. The selected design is an
    optional discoverable capability: body-free deletion versions, a narrow
@@ -74,6 +74,8 @@ N-language repository strategy remains open; neither a permanent monorepo nor
 creation of external repositories is authorized by this plan.
 
 ## Testing and cost discipline
+
+The additive [shadow routing experiment](../test-routing-shadow.md) documents exact-file commands, prerequisites and receiving limits; it does not replace required suites.
 
 Keep these categories separate in commands, reports and coverage maps:
 
