@@ -1420,6 +1420,12 @@
       "reason": "Offline artifact/generator controls; no provider qualification."
     },
     {
+      "path": "scripts/perf/reference-trends.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Actual reference performance-runner lifecycle, functional measurement and cancellation controls; not artifact consistency or arbitrary-provider conformance."
+    },
+    {
       "path": "scripts/read-cohort-evidence.test.mjs",
       "runner": "vitest",
       "lane": "legacy",

@@ -9,13 +9,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: reference-perf-trends-${{ github.ref }}
+  group: reference-perf-trends-main
   cancel-in-progress: false
 
 jobs:
   reference-trends:
     # Scheduled runs use the default branch; manual observations also use main.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -36,8 +36,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/reference-perf"
-          pnpm exec node scripts/perf/reference-trends.mjs --output "$RUNNER_TEMP/reference-perf/small.json" 2>&1 | tee "$RUNNER_TEMP/reference-perf/small.log"
-          pnpm exec node scripts/perf/reference-trends.mjs --scale medium --output "$RUNNER_TEMP/reference-perf/medium.json" 2>&1 | tee "$RUNNER_TEMP/reference-perf/medium.log"
+          status=0
+          pnpm exec node scripts/perf/reference-trends.mjs --output "$RUNNER_TEMP/reference-perf/small.json" 2>&1 | tee "$RUNNER_TEMP/reference-perf/small.log" || status=1
+          pnpm exec node scripts/perf/reference-trends.mjs --scale medium --output "$RUNNER_TEMP/reference-perf/medium.json" 2>&1 | tee "$RUNNER_TEMP/reference-perf/medium.log" || status=1
+          exit "$status"
       - name: Upload observations including failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

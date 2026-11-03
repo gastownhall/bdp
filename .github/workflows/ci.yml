@@ -117,6 +117,8 @@ jobs:
       - run: pnpm typecheck
       # Real Node child-process tests resolve workspace package exports from dist.
       - run: pnpm build
+      - name: Check reference performance runner lifecycle controls without performance thresholds
+        run: pnpm exec node --test scripts/perf/reference-trends.node-test.mjs
       - run: pnpm test:cli:built
       - run: pnpm test
         env:
