@@ -74,8 +74,11 @@ The descriptor **is the definition Bead's properties object**. This document own
 its field shapes and meanings and their combined interpretation. The common
 Resource envelope remains Core's. An apparent disagreement with a mechanical
 schema is a specification defect to repair, not a choice of precedence or a
-license to ignore a rule. Human descriptor tables do not assert lossless Markdown
-DSL translation, generated code, an installation envelope or provider enforcement.
+license to ignore a rule. This specification adopts Type-definition Markdown0.1
+for the [recorded descriptor documents](descriptors/README.md) in §2.1. Their
+visible fields and owned declarations express the existing selected values;
+adoption does not assert a Type-format parser, lossless translation, generated
+code, an installation envelope or provider enforcement.
 
 Types governs structure and semantic promises. Passing a schema does not prove
 category, valid refinement, supported enforcement semantics, authorization,
@@ -270,6 +273,26 @@ it describes. Neither rule synthesizes affiliation edges in the ordinary graph.
 Passing a properties schema does not establish semantic compatibility, valid
 conformance closure, supported constraints, category agreement or admission for use.
 
+
+#### Adopted descriptor documentation
+
+The authoritative readable descriptor documents use the selected
+[Type-definition Markdown0.1 notation](../../formats/markdown-type-definitions.md):
+[Type](descriptors/type.md), [BeadType](descriptors/bead-type.md),
+[LinkType](descriptors/link-type.md), and [Refines](descriptors/refines.md).
+These recorded documents instantiate the immutable publication2 values and
+captured declarations, including exact pins and member absence. Their
+[documentation boundary](descriptors/README.md) distinguishes frozen source
+records from current complete-read metadata projection. No new schema or
+revision is assigned.
+
+`Definition` supplies the definition Bead's own envelope. `Descriptor`, delegated
+`Properties schema`, `Schema resources` and category-specific sections supply
+its properties object; `Refines` supplies complete recorded owned declarations,
+not a descriptor field. The field/constraint meanings below remain binding.
+This is documentation adoption, independent of Types1 runtime delivery or a
+future Type-format compiler. It changes no exact intrinsic publication bytes,
+registration, installation, authoring operation or instance-bundle status.
 
 #### Common Type fields
 

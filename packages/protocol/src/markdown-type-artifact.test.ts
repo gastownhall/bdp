@@ -101,3 +101,133 @@ describe("Type authoring examples against current descriptor artifacts; no Type-
     expect(validate({ uri, revision: "" })).toBe(false);
   });
 });
+
+// Fixed canonical-document custody checks, not a general Type-format parser.
+const publication = read("specs/profiles/types/intrinsic-2.json");
+const descriptorDocs = "specs/profiles/types/descriptors/";
+const compact = (value: unknown) => JSON.stringify(value);
+function document(name: string) {
+  return readFileSync(new URL(`${descriptorDocs}${name}.md`, root), "utf8");
+}
+function documentedSection(text: string, heading: string) {
+  const marker = `## ${heading}\n`;
+  const start = text.indexOf(marker);
+  if (start === -1) throw new Error(`Missing fixed document section ${heading}`);
+  expect(text.indexOf(marker, start + marker.length)).toBe(-1);
+  const end = text.indexOf("\n## ", start + marker.length);
+  return text.slice(start + marker.length, end === -1 ? undefined : end).trim();
+}
+const schemaNames: Record<string, string> = {
+  type: "type-definition.properties.schema.json",
+  "bead-type": "bead-type-definition.properties.schema.json",
+  "link-type": "link-type-definition.properties.schema.json",
+  refines: "refines.properties.schema.json",
+};
+const namespace = "https://github.com/gastownhall/bdp/types/type-system/";
+
+describe("adopted intrinsic descriptor documents against unchanged publication2", () => {
+  it("records exact definition identity, category and metatype without manufacturing metadata", () => {
+    for (const record of publication.definitions) {
+      const name = record.id.slice(namespace.length);
+      const text = document(name);
+      expect(text.startsWith(`# ${name === "refines" ? "Link" : "Bead"} type:`)).toBe(true);
+      expect(text).toContain("Format: bdp-type-markdown-0.1\nMode: recorded");
+      const definition = documentedSection(text, "Definition");
+      expect(definition.split("\n")).toEqual([
+        "| Field | Value (JSON) |",
+        "| --- | --- |",
+        ...["id", "revision", "type"].map((field) => `| ${field} | ${compact(record[field])} |`),
+      ]);
+      expect([...text.matchAll(/^## (.+)$/gm)].map((match) => match[1])).toEqual([
+        "Definition",
+        "Descriptor",
+        "Properties schema",
+        "Schema resources",
+        ...(name === "type"
+          ? ["Selectors", "Owns outgoing"]
+          : name === "refines"
+            ? ["Selectors", "Endpoint pairs"]
+            : []),
+        "Refines",
+      ]);
+      expect(Object.hasOwn(record, "metadata")).toBe(false);
+      expect(text).not.toMatch(/^## (?:Metadata|Revision provenance)$/m);
+      const validate = name === "refines" ? linkShape : beadShape;
+      const original = structuredClone(record.properties);
+      expect(validate(record.properties), JSON.stringify(validate.errors)).toBe(true);
+      expect(record.properties).toEqual(original);
+    }
+  });
+
+  it("binds complete property schemas and every retained resource without new schema identities", () => {
+    for (const record of publication.definitions) {
+      const name = record.id.slice(namespace.length);
+      const text = document(name);
+      expect(documentedSection(text, "Properties schema")).toBe(
+        `Source: JSON: ../intrinsic-2/${schemaNames[name]}`,
+      );
+      expect(read(`${intrinsic}${schemaNames[name]}`)).toEqual(record.properties.propertiesSchema);
+      const expectedRows = Object.entries(record.properties.schemaResources).map(([uri, value]) => {
+        const local =
+          uri === descriptor.$id
+            ? "../intrinsic-2/type-definition.properties.schema.json"
+            : `schema-resources/${uri.endsWith("/schema") ? "schema" : uri.slice(uri.lastIndexOf("/") + 1)}.schema.json`;
+        const bound = JSON.parse(readFileSync(new URL(`${descriptorDocs}${local}`, root), "utf8"));
+        expect(bound).toEqual(value);
+        return `| ${uri} | JSON: ${local} |`;
+      });
+      expect(documentedSection(text, "Schema resources").split("\n").slice(2)).toEqual(
+        expectedRows,
+      );
+    }
+  });
+
+  it("keeps recorded owned Refines identity, literal source, exact target and absence", () => {
+    for (const record of publication.definitions) {
+      const text = document(record.id.slice(namespace.length));
+      const refines = documentedSection(text, "Refines");
+      const declarations = Object.values(record.ownedLinks).flat() as Record<string, unknown>[];
+      expect((refines.match(/^### Declaration: /gm) ?? []).length).toBe(declarations.length);
+      for (const declaration of declarations) {
+        expect(publication.declarations).toContainEqual(declaration);
+        for (const field of ["id", "revision", "type", "source", "target"])
+          expect(refines).toContain(`| ${field} | ${compact(declaration[field])} |`);
+        expect(refines).toContain("#### Properties\n\n```json\n{}\n```");
+        expect(declaration.source).toBe(record.id);
+        expect(Object.hasOwn(declaration, "metadata")).toBe(false);
+      }
+      if (!declarations.length) expect(refines).toBe("");
+    }
+  });
+
+  it("preserves explicit Type ownership, omissions and the two correlated Refines pairs", () => {
+    const type = document("type");
+    expect(documentedSection(type, "Descriptor")).toContain("| abstract | true |");
+    expect(documentedSection(type, "Selectors")).toContain(
+      `| refines | family | ${namespace}refines | "refines-2" |`,
+    );
+    expect(documentedSection(type, "Owns outgoing")).toBe("| Selector |\n| --- |\n| refines |");
+    for (const name of ["bead-type", "link-type", "refines"]) {
+      const text = document(name);
+      expect(documentedSection(text, "Descriptor")).toBe("| Field | Value (JSON) |\n| --- | --- |");
+      expect(text).not.toContain("## Owns outgoing");
+    }
+    const refines = document("refines");
+    expect(documentedSection(refines, "Endpoint pairs").split("\n").slice(2)).toEqual([
+      "| bead | either | bead-type | bead | either | bead-type |",
+      "| bead | either | link-type | bead | either | link-type |",
+    ]);
+    for (const name of ["bead-type", "link-type"])
+      expect(documentedSection(refines, "Selectors")).toContain(
+        `| ${name} | family | ${namespace}${name} | "${name}-2" |`,
+      );
+    expect(refines).not.toContain("## Link constraints");
+    const selected = publication.definitions.find(
+      (record: { id: string }) => record.id === `${namespace}refines`,
+    );
+    expect(Object.keys(selected.properties.linkConstraints)).toEqual(["typeConstraints"]);
+    expect(selected.properties.linkConstraints.typeConstraints).toHaveLength(2);
+    for (const pair of selected.properties.linkConstraints.typeConstraints)
+      expect(pair.source.types).toEqual(pair.target.types);
+  });
+});

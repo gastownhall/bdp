@@ -5,3 +5,5 @@ Read the [canonical Types specification](types.md). It contains the definition f
 Types adds optional interpretation to [Core](../core/core.md) and composes with [Write](../write/write.md). Definition presence does not register a Type, choose a default or prove provider conformance.
 
 [Types feature schema](types-v1.schema.json) · [Earlier source and artifact index](../../history/pre-canonical-20261101/profiles/types/README.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+
+The [recorded intrinsic descriptor documents](descriptors/README.md) use the adopted Type-definition Markdown notation, preserving publication2 values and exact owned declarations. Documentation adoption does not imply a Type-format compiler or Types1 runtime qualification.
