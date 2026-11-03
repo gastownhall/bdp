@@ -352,6 +352,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "apps/bdptest/src/transactional-set-receipts.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Physical split of the retained transactional matrix set/receipt cases; same full-config installed observations and authored assertions, with no obligation retirement or route promotion."
+    },
+    {
       "path": "apps/bdptest/src/transactional-snapshot-installed.test.ts",
       "runner": "vitest",
       "lane": "legacy",
@@ -1384,6 +1390,18 @@
       "reason": "Offline complete-diff editorial-classifier controls."
     },
     {
+      "path": "scripts/ci-impact-selection.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Shadow impact selector and metadata controls; no target execution or semantic-closure claim."
+    },
+    {
+      "path": "scripts/ci-regression-groups.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
+    },
+    {
       "path": "scripts/current-provider-kit.node-test.mjs",
       "runner": "node",
       "lane": "current",
@@ -1436,6 +1454,12 @@
       "lane": "current",
       "runner": "node",
       "reason": "Actual packed custody and owned-installation cleanup on success and observation failure; requires built workspace."
+    },
+    {
+      "path": "scripts/perf/reference-trends.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Actual reference performance-runner lifecycle, functional measurement and cancellation controls; not artifact consistency or arbitrary-provider conformance."
     },
     {
       "path": "scripts/read-cohort-evidence.test.mjs",
