@@ -1,0 +1,54 @@
+# Chris’s `derived-from` and Polly’s revision sources
+
+Assessment date: 2026-11-03. BDP baseline: [`bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa`](https://github.com/gastownhall/bdp/tree/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa). Proposal sources: Chris Sells, [Memory Beads #5877](https://github.com/gastownhall/beads/issues/5877), Revision 4; Polly’s [Provenance V2 #7510](https://github.com/gastownhall/beads/issues/7510), updated October 21, and its [review draft PR183](https://github.com/gastownhall/bdp/pull/183). This note compares meaning and data lifecycle; neither proposal has amended the pinned canonical Core schema.
+
+## Finding
+
+There is real overlap: both can name Beads, Links or external references and say that information mattered. They are **not currently the same assertion**.
+
+Chris R3 defines `derived-from` as a Memory-level list of References describing what the **content of this Memory** was written from. It has absent, explicitly empty, and nonempty states plus a separate completeness claim. Chris explicitly says this field is **not a graph edge**.
+
+Polly’s October 20 decision defines `revisionProvenance.sources` as References declared for **this particular write**. Every revision preserves its own declaration; readers can derive an accumulated account through revision history and later withdrawals. A source declaration does not create a Link, fetch a target, grant access or prove the claim. Polly’s proposal explicitly says this replaces carry-forward lists and removes the proposed need for a separate content-derivation traversal graph.
+
+Thus, “the same sources list stored both on the Memory and in revision provenance” would duplicate data and risk drift. But removing Chris’s content-lineage field and relying on the provenance proposal’s accumulated operation sources is not automatically equivalent either: that history can include metadata-only or other non-content writes, while a selected historical base/revert has its own lifecycle reference and does not copy the base revision’s sources into the new write.
+
+## Side-by-side semantics
+
+| Question | Chris R3 `derived-from` | Polly #7510 `revisionProvenance.sources` direction |
+| --- | --- | --- |
+| What does an entry mean? | A source from which the Memory’s content was written. It describes the Memory’s subject/content. | Information sources the writer declares used for one accepted operation/change. It describes the change to the containing Resource revision. |
+| Where does it live? | Current proposal: Memory’s own portable state, separate from body and metadata; **not a Link**. A change is durable Memory state and should version it. | A shared per-version provenance envelope outside `properties` and `metadata`; immutable with that version. |
+| How do readers get a full source account? | Current content-lineage declaration on the Memory, with a per-record completeness claim. | Derive an account as of a selected revision by folding its per-write source declarations and withdrawals over retained history. No editable aggregate is stored. |
+| What do empty/absent mean? | Absent = unknown/pre-schema or converted; empty = deliberate assertion of direct authorship/no sources; nonempty = listed inputs. Completeness is complete/incomplete/unknown, never defaulted. | Omitted = no declaration recorded for this write; `[]` = explicitly no sources for this write; nonempty = declared sources. Completeness belongs to that write. Neither omission nor `[]` clears the accumulated account. |
+| Can a source later be withdrawn? | Chris’s current R3 does not specify Polly’s per-write withdrawal mechanism. Its current field changes with the Memory’s durable state. | Yes, by a later revision’s `sourceWithdrawals`; this affects the accumulated account from that point forward while preserving the earlier declaration. It is not a verdict that the source was false. |
+| Does it point to exact source content? | A pinned Reference identifies the exact state; a floating Reference identifies the Bead without claiming a particular state. | Same pinned/unpinned Reference forms. Polly explicitly forbids silently resolving floating to latest or manufacturing a pin. |
+| Does it create a graph relation or fetch target? | R3 explicitly says no graph edge. It is a field containing References. | Explicitly no graph Link, automatic traversal/fetch or access grant. |
+| Is it verified? | No. Completeness and derivation are the author’s claims. | No. Source use and completeness are writer-reported claims; the service must preserve accepted declarations, not silently rewrite them. |
+
+Primary text: Chris [R3 in #5877](https://github.com/gastownhall/beads/issues/5877); Polly [“Sources, accumulation and withdrawal — October 20 decisions” in #7510](https://github.com/gastownhall/beads/issues/7510), especially the per-write rule, Reference forms, empty/absent meanings, withdrawal, and the explicit no-Link statement. PR183 is the reviewable design draft, not adopted Core.
+
+## Why a graph Link is a third choice
+
+If “derived-from link” means an actual BDP Link Resource, that changes the model from what Chris R3 says. A Link is independently identified, typed, versioned, and traversable. Its edit versions its source Bead only when the source Type declares that Link family in `ownsOutgoing`; Core says no outgoing family is owned by default. See [Core “Owned Links,” lines 352–394](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/profiles/core/core.md#L352-L394), [Types `ownsOutgoing`, around line 333](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/profiles/types/types.md#L333), and [Write’s owned-state effects](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/profiles/write/write.md#L744-L766).
+
+Chris’s Memory R22 does require every outgoing Memory Link and its metadata to be versioned with the Memory. The current Memory catalog, however, says direct `References` are unowned ([Memory References, lines 545–568](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/types/memory/memory.md#L545-L568); [ownership table, lines 891–903](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/types/memory/memory.md#L891-L903)). Turning derivation into a Link would therefore reopen the owned-relationship decision, plus Link Type vocabulary, cross-Scope eligibility, deletion/pin behavior, exact Link identity and historical graph capture. It would also contradict R3’s “not a graph edge” unless Chris changes that requirement.
+
+A provenance `sources` entry is a Reference in a version envelope, but it is not a Link Resource and does not participate in graph traversal or Link ownership. Shared Reference syntax does not make these carriers semantically interchangeable.
+
+## Current BDP contract versus Polly’s proposal
+
+Current Core permits a per-version `revisionProvenance` envelope, but its closed shape contains only `actor`, `agent`, `committedAt`, and `message`; it has no `sources`, `sourceWithdrawals`, or `sourcesCompleteness` member ([Core carried attribution](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/profiles/core/core.md#L487-L525); [closed schema](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/profiles/core/core.md#L3044-L3068)). The current Memory Type lists title, body and optional descriptive status, without a `derived-from` field ([Memory Type](https://github.com/gastownhall/bdp/blob/bd3c296d51b3d1179d7487a591f2bb7b7fca0bfa/specs/types/memory/memory.md#L321-L343)). Therefore **neither source model is presently an interoperable canonical field in BDP main**: Chris’s is in his product proposal; Polly’s sources are selected design in an unadopted proposal, awaiting schema/operation work.
+
+Polly’s selected design is more specific about write semantics than Chris R3: save sources atomically with the accepted revision; preserve each write’s original declarations; let withdrawals affect only the subsequent aggregate; never silently rewrite; and mint for nonempty source/withdrawal or explicit complete/incomplete completeness declarations even if content is unchanged. The exact source schema still has open duplicate/order/normalization and simultaneous add/withdraw details, and derived aggregate availability must disclose incomplete, inaccessible or pruned history. It does not promise indefinite source-body retention or completeness of all history.
+
+## Recommendation for the design discussion
+
+Do not model Polly’s `sources` as outgoing Memory Links. That is not her selected design and would create graph/ownership obligations she explicitly avoids. Also do not copy every per-write source list into a mutable Memory `derived-from` list by default.
+
+First decide which question the Memory product actually needs:
+
+1. If it needs **what information informed each change**, use the shared per-write revision-provenance source declaration and its history-derived aggregate, once that proposal is reconciled into Core. Do not add a second Memory list for the same claim.
+2. If it needs **what the current Memory content derives from**, Chris’s field can express a distinct, current-state assertion. Define how it changes when content changes, when non-content edits occur, and when content is reverted. It could be independently curated or explicitly derived from revision provenance under a stated projection rule; do not pretend the existing fold over all write sources automatically gives this answer.
+3. If it needs **traversable graph relationships** to evidence or other Beads, choose actual Links, with explicit ownership and deletion/pin rules. That is a third, heavier model—not required by either sources carrier.
+
+My recommendation is to keep one authoritative claim for each meaning: per-write sources for change inputs; add a Memory-level `derived-from` property only if consumers need current-content lineage that the history-derived source account cannot supply. Preserve Chris’s absent/empty/completeness distinctions if that field remains. Avoid duplicate editable lists and do not turn either source record into an automatic truth, support, or access assertion.
