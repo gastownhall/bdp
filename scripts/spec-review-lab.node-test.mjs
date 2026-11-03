@@ -265,7 +265,8 @@ test("actual installed finite journey and private relay preserve bytes, stdin an
     const stopped = await relay(socket, ["--help"]);
     assert.equal(stopped.code, 1);
     const eofInput = new PassThrough();
-    let eofReady;
+    let eofReady,
+      connections = 0;
     const eofStarted = new Promise((resolve) => {
       eofReady = resolve;
     });
@@ -274,6 +275,7 @@ test("actual installed finite journey and private relay preserve bytes, stdin an
       signal,
       onOutput: events((e) => {
         if (e.event === "review-lab.ready") eofReady(e);
+        if (e.event === "review-lab.relay-connected") connections++;
       }),
     });
     void eofRun.catch(() => undefined);
@@ -308,10 +310,22 @@ test("actual installed finite journey and private relay preserve bytes, stdin an
       });
       waiting.once("error", reject);
     });
-    eofInput.end();
-    await eofRun;
-    assert.equal(await ended, 1);
-    await absent(eofOwner.root);
+    void ended.catch(() => undefined);
+    try {
+      const connectedBy = Date.now() + 2000;
+      while (connections === 0 && Date.now() < connectedBy) await delay(10);
+      assert.equal(connections, 1, "Stdin-waiting relay must actually connect before owner EOF");
+      assert.equal(waiting.exitCode, null);
+      eofInput.end();
+      await eofRun;
+      assert.equal(await ended, 1);
+      await absent(eofOwner.root);
+    } finally {
+      eofInput.end();
+      await eofRun;
+      if (waiting.exitCode === null) waiting.kill("SIGKILL");
+      await ended.catch(() => undefined);
+    }
   });
   await absent(installation);
 });

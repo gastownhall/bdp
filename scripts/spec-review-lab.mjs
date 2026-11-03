@@ -447,6 +447,7 @@ async function worker(installRoot, root, check) {
           return;
         }
         peers.add(socket);
+        event("relay-connected");
         socket.on("close", () => peers.delete(socket));
         socket.on("error", () => undefined);
         let chunks = [],
