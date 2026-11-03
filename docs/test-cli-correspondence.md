@@ -21,8 +21,9 @@ CLI controls; `--config` bootstraps the reference executable. These three are
 explicit root-only exceptions to per-command tables. Adding a new root control
 requires reviewing this boundary; it cannot silently bypass correspondence.
 
-The check intentionally does not interpret prose, defaults, choices, repeatability,
-requiredness, lowering, admission, wire effects or service support. A matching flag
+The check intentionally does not interpret prose, argument placeholder names,
+defaults, choices, repeatability, requiredness, lowering, admission, wire effects
+or service support. A matching flag
 can still have incorrect behavior. Independent CLI parser/runtime tests, installed
 CLI-to-service journeys and public HTTP cases remain necessary. Protocol schema
 and document projections retain their separate existing checks. The correspondence
