@@ -79,8 +79,16 @@ function compare(expected, actual, context) {
 }
 
 export function checkCorrespondence(markdown, root = commandTree()) {
-  const options = (node) =>
-    new Map(node.options.map((option) => [option.long, option.required || option.optional]));
+  const options = (node) => {
+    const result = new Map();
+    for (const option of node.options) {
+      if (option.short) throw new Error(`Undocumented short spelling ${option.short}`);
+      if (!option.long || result.has(option.long))
+        throw new Error(`Missing or duplicate registered long flag ${option.long}`);
+      result.set(option.long, option.required || option.optional);
+    }
+    return result;
+  };
   compare(globalFlags, options(root), "root globals");
   for (const path of commandPaths) {
     let node = root;

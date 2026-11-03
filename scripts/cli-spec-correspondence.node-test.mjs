@@ -75,3 +75,20 @@ test("new actual command options require authored correspondence", () => {
     /create: registered --surprise is undocumented/,
   );
 });
+
+test("undocumented short aliases cannot hide on a documented long option", () => {
+  for (const rootOption of [false, true]) {
+    const root = commandTree();
+    const node = rootOption ? root : root.commands.find((command) => command.name() === "create");
+    const option = node.options.find(
+      (option) => option.long === (rootOption ? "--scope" : "--actor"),
+    );
+    option.short = "-a";
+    assert.throws(() => checkCorrespondence(markdown, root), /Undocumented short spelling -a/);
+  }
+});
+test("duplicate actual option registrations fail instead of collapsing into a map", () => {
+  const root = commandTree();
+  root.options.push(root.options[0]);
+  assert.throws(() => checkCorrespondence(markdown, root), /duplicate registered long flag/);
+});
