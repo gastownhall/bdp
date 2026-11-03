@@ -1,4 +1,9 @@
-import { deepEqual, jsonPointer, literalJsonPointerMatches } from "./json-pointer-verifier.js";
+import {
+  deepEqual,
+  jsonPointer,
+  isLiteralJsonPointerAssertion,
+  literalJsonPointerMatches,
+} from "./json-pointer-verifier.js";
 import {
   createTransactionalObservations,
   TRANSACTIONAL_EXCHANGE_FIELDS,
@@ -2231,12 +2236,7 @@ function evaluateAssertion(
   }
   if (assertion.kind === "json-pointer") {
     if (body.kind !== "json") return outcome(assertion.id, false, observedBodyIssue(body));
-    if (
-      assertion.equalsBinding === undefined &&
-      assertion.fixturePointer === undefined &&
-      assertion.equalsRunProfile === undefined &&
-      assertion.normalize === undefined
-    )
+    if (isLiteralJsonPointerAssertion(assertion))
       return outcome(
         assertion.id,
         literalJsonPointerMatches(body.value, assertion),

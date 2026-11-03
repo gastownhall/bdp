@@ -1,8 +1,3 @@
-import { literalJsonPointerMatches } from "../../../packages/conformance/src/json-pointer-verifier.js";
-import type {
-  JsonValue,
-  ScenarioAssertion,
-} from "../../../packages/conformance/src/executable-manifest.js";
 import { execFileSync, spawnSync, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -11,12 +6,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  type JsonValue,
+  type ScenarioAssertion,
   createJsonSchemaValidator,
   createRawHttpExchangeExecutor,
   type ExactHttpModeOptions,
   type HttpExchangeResponse,
 } from "@bdp/conformance";
 import {
+  literalJsonPointerMatches,
+  isLiteralJsonPointerAssertion,
   createCumulativeTransactionalArtifactBundle,
   loadProfileContractSelection,
   runCumulativeTransactionalMatrix,
@@ -1107,11 +1106,44 @@ describe("same-run set expectation verifier controls", () => {
     // Keep the actual unmodified run and capture raw responses before the runner
     // redacts its report. Response selection follows the authored action order,
     // never an expected payload value: GET a before, updated, deleted, reopened.
-    const responses: { readonly url: string; readonly bodyText: string }[] = [];
+    const responses: {
+      readonly url: string;
+      readonly status: number;
+      readonly requestMethod: string;
+      readonly bodyText: string;
+      readonly request: Pick<
+        NonNullable<HttpExchangeResponse["exactRequest"]>,
+        "source" | "bodyPresent" | "bodyOctets" | "writeState"
+      >;
+    }[] = [];
+    const requests: { readonly method: string; readonly url: string }[] = [];
     observed = await observe({
-      async afterExchange(response, _signal, session) {
+      onDispatch(request, session) {
         if (session.scenario === scenarioId)
-          responses.push(Object.freeze({ url: response.url, bodyText: response.bodyText }));
+          requests.push(Object.freeze({ method: request.method, url: request.url }));
+      },
+      async afterExchange(response, _signal, session) {
+        if (session.scenario === scenarioId) {
+          const request = requests.at(-1);
+          if (requests.length !== responses.length + 1 || request?.url !== response.url)
+            throw new Error("Same-run response does not match its actual dispatched request");
+          const exact = response.exactRequest;
+          if (!exact) throw new Error("Same-run response lacks actual serialized request evidence");
+          responses.push(
+            Object.freeze({
+              url: response.url,
+              status: response.status,
+              requestMethod: request.method,
+              bodyText: response.bodyText,
+              request: Object.freeze({
+                source: exact.source,
+                bodyPresent: exact.bodyPresent,
+                bodyOctets: exact.bodyOctets,
+                writeState: exact.writeState,
+              }),
+            }),
+          );
+        }
       },
     });
     const row = observed.result.scenarios.find((scenario) => scenario.id === scenarioId)!;
@@ -1150,24 +1182,30 @@ describe("same-run set expectation verifier controls", () => {
       const assertion = action.assertions!.find((candidate) => candidate.id === entry.assertionId)!;
       expect(assertion.kind).toBe("json-pointer");
       const pointer = assertion as PointerAssertion;
-      expect([
-        pointer.normalize,
-        pointer.equalsBinding,
-        pointer.fixturePointer,
-        pointer.equalsRunProfile,
-      ]).toEqual([undefined, undefined, undefined, undefined]);
+      expect(isLiteralJsonPointerAssertion(pointer)).toBe(true);
       assertions.set(
         entry.kind,
         freezeJson(structuredClone(pointer) as unknown as JsonValue) as unknown as PointerAssertion,
       );
       const exchange = row.exchanges.find((candidate) => candidate.request.id === entry.actionId)!;
       expect(exchange.request.exact?.writeState).toBe("complete");
+      const captured = entry.actionId === "set-update" ? updates[0]! : targetReads[1]!;
+      expect(exchange.request.method).toBe(entry.actionId === "set-update" ? "POST" : "GET");
+      expect(exchange.request.method).toBe(captured.requestMethod);
+      expect(exchange.request.url).toBe(captured.url);
+      expect(exchange.response?.url).toBe(captured.url);
+      expect(exchange.response?.status).toBe(captured.status);
       expect(exchange.response?.status).toBe(200);
+      expect(exchange.response?.bodyKind).toBe("json");
+      expect(exchange.response?.decodedBodyBytes).toBe(Buffer.byteLength(captured.bodyText));
+      expect(exchange.request.exact).toMatchObject(captured.request);
       expect(
         exchange.assertions.find((candidate) => candidate.id === entry.assertionId)?.passed,
       ).toBe(true);
     }
-    immutableObservation = JSON.stringify([...bodies]);
+    immutableObservation = createHash("sha256")
+      .update(JSON.stringify([...bodies]))
+      .digest("hex");
   }, 120000);
 
   it("reuses the same actual installed positive with identical literal verifier outcomes", () => {
@@ -1187,7 +1225,11 @@ describe("same-run set expectation verifier controls", () => {
       expect(changed.equals).not.toEqual(original.equals);
       expect(Object.isFrozen(original)).toBe(true);
       expect(Object.isFrozen(bodies.get(entry.actionId))).toBe(true);
-      expect(JSON.stringify([...bodies])).toBe(immutableObservation);
+      expect(
+        createHash("sha256")
+          .update(JSON.stringify([...bodies]))
+          .digest("hex"),
+      ).toBe(immutableObservation);
     },
   );
 });

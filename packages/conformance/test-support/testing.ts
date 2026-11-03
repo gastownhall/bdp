@@ -1,4 +1,8 @@
 export {
+  literalJsonPointerMatches,
+  isLiteralJsonPointerAssertion,
+} from "../src/json-pointer-verifier.js";
+export {
   createReadUpdateArtifactSet,
   assertReadUpdateArtifactSet,
   copyReadUpdateArtifactSetSources,

@@ -1,11 +1,30 @@
-import type { JsonValue } from "./executable-manifest.js";
+import assert from "node:assert/strict";
+import type { ScenarioAssertion } from "./executable-manifest.js";
+
+const literalFields = new Set(["id", "kind", "pointer", "exists", "equals"]);
+
+// A whitelist fails closed if the authored assertion grows a new modifier.
+// Use the same predicate for runner delegation and observation-reuse custody.
+export function isLiteralJsonPointerAssertion(assertion: ScenarioAssertion): boolean {
+  return (
+    assertion.kind === "json-pointer" &&
+    Reflect.ownKeys(assertion).every((key) => typeof key === "string" && literalFields.has(key)) &&
+    ["id", "kind", "pointer", "exists"].every((key) => Object.hasOwn(assertion, key)) &&
+    typeof assertion.id === "string" &&
+    typeof assertion.pointer === "string" &&
+    (assertion.pointer === "" || assertion.pointer.startsWith("/")) &&
+    !/~(?![01])/.test(assertion.pointer) &&
+    typeof assertion.exists === "boolean"
+  );
+}
 
 // Internal evaluator shared with expectation-only verifier controls. No transport,
 // session, fixture lookup, capture binding, or normalization happens here.
-export function literalJsonPointerMatches(
-  body: unknown,
-  assertion: { readonly pointer: string; readonly exists: boolean; readonly equals?: JsonValue },
-): boolean {
+export function literalJsonPointerMatches(body: unknown, assertion: ScenarioAssertion): boolean {
+  assert(
+    assertion.kind === "json-pointer" && isLiteralJsonPointerAssertion(assertion),
+    "Literal JSON pointer assertion required",
+  );
   const value = jsonPointer(body, assertion.pointer);
   const exists = value !== undefined;
   return assertion.exists
@@ -15,6 +34,7 @@ export function literalJsonPointerMatches(
 
 export function jsonPointer(value: unknown, pointer: string): unknown {
   if (pointer === "") return value;
+  if (!pointer.startsWith("/") || /~(?![01])/.test(pointer)) return undefined;
   let current: unknown = value;
   for (const part of pointer.slice(1).split("/")) {
     if (typeof current !== "object" || current === null) return undefined;
