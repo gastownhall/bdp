@@ -1366,6 +1366,12 @@
       "reason": "Offline complete-diff editorial-classifier controls."
     },
     {
+      "path": "scripts/current-provider-kit.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Current Core/ordinary Write provider-kit controls: real public HTTP reference adapter, independently authored assertions, explicit fixture conditions and lifecycle failures; incomplete coverage is not full provider qualification."
+    },
+    {
       "path": "scripts/demo-history.test.mjs",
       "runner": "vitest",
       "lane": "legacy",
