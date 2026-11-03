@@ -52,7 +52,9 @@ Credentials are random and private to this whole-Scope fixture. The config is060
 retry files remain under its private state directory. Never print/share that
 config or enable shell tracing around it. The launcher carries no token on argv.
 The lab rejects configuration/profile overrides, nonlocal target URLs and retry
-files outside its state root. External Type identities are data, not dial targets.
+files outside its state root. Retry paths must be absolute (both split and
+equals flag forms), so the relay and CLI cannot interpret different working
+directories. Argv is refused rather than rewritten. External Type identities are data, not dial targets.
 
 In the **first terminal**, the owner accepts three lab controls:
 
