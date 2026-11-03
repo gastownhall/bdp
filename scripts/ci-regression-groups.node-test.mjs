@@ -20,6 +20,7 @@ import { regressionGroups, checkExecutedFiles, groups } from "./ci-regression-gr
 const heavy = [
   "apps/bdptest/src/read-update-matrix.test.ts",
   "apps/bdptest/src/transactional-matrix.test.ts",
+  "apps/bdptest/src/transactional-set-receipts.test.ts",
   "apps/bdpbd/src/read-matrix.test.ts",
 ];
 const remaining = ["packages/config/src/config.test.ts", "scripts/smoke-safety.test.mjs"];
@@ -61,14 +62,21 @@ function report(files = remaining) {
     })),
   };
 }
-test("three named heavyweight files are isolated and every other full-config file remains once", () => {
-  assert.deepEqual(groups, ["read-update-matrix", "transactional-matrix", "realbd", "other"]);
+test("four named heavyweight files are isolated and every other full-config file remains once", () => {
+  assert.deepEqual(groups, [
+    "read-update-matrix",
+    "transactional-matrix",
+    "transactional-set-receipts",
+    "realbd",
+    "other",
+  ]);
   const manifest = fixture(),
     copy = structuredClone(manifest);
   assert.deepEqual(regressionGroups(manifest, sources, inventory), {
     "read-update-matrix": [heavy[0]],
     "transactional-matrix": [heavy[1]],
-    realbd: [heavy[2]],
+    "transactional-set-receipts": [heavy[2]],
+    realbd: [heavy[3]],
     other: [...remaining].sort(),
   });
   assert.deepEqual(manifest, copy);
@@ -106,7 +114,7 @@ test("a newly explicitly accounted file enters remaining group without retiring 
   manifest.tests.push({ path: file, runner: "vitest", lane: "current", reason: "new fixture" });
   const selected = regressionGroups(manifest, [...sources, file], [...inventory, file]);
   assert.deepEqual(selected.other, [...remaining, file].sort());
-  assert.equal(Object.values(selected).flat().length, 6);
+  assert.equal(Object.values(selected).flat().length, 7);
 });
 test("dedicated heavy-file removal cannot silently collapse required full regression", () => {
   const manifest = fixture();
@@ -193,7 +201,11 @@ test("required CI preserves every old command and permits only legitimate editor
   );
   assert(workflow.includes("needs: [changes, specification, implementation, regression]"));
   assert.equal((workflow.match(/if: needs.changes.outputs.editorial != 'true'/g) ?? []).length, 2);
-  assert(workflow.includes("group: [read-update-matrix, transactional-matrix, realbd, other]"));
+  assert(
+    workflow.includes(
+      "group: [read-update-matrix, transactional-matrix, transactional-set-receipts, realbd, other]",
+    ),
+  );
   assert(
     workflow.includes(
       "if: always()\n    needs: [changes, specification, implementation, regression]",
