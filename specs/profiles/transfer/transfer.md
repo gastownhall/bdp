@@ -216,6 +216,9 @@ rules before adoption; this proposed profile does not invent those rules.
 
 ## 9. Review decisions and unresolved mappings
 
+> The [informative appendix](#appendix-open-design-questions) records explicit
+> Transfer revisit triggers alongside these existing open questions.
+
 | ID | Outstanding work; proposed direction |
 | --- | --- |
 | G1 | Stable DNS-neutral logical Scope identity/serving-location relationship. Donna's next design decision; use selected Core until changed, do not adopt a new identifier here. |
@@ -259,3 +262,9 @@ are unresolved; examples above are not a complete import/export validation schem
 No native Transfer HTTP capability, operation, media binding, admission error set
 or result schema is selected by this proposal. No Transfer routes are emitted in
 the current OpenAPI catalog. Final selection remains an explicit design decision.
+
+## Appendix: open design questions
+
+This informative index preserves the proposal's existing G1–G6 questions in [§9](#9-review-decisions-and-unresolved-mappings); it resolves none of their proposed carriers. The [registry](../../deferred.md) tracks deliberate deferrals without treating this editorial draft as an adopted capability.
+
+Transfer design must explicitly revisit replication/changefeeds and cross-feature ordering (review decisions39/43), Snapshot retained-minimum/continuity work (57), and erasure/publication races (76). See [XFER-OBS](../../deferred.md#xfer-obs--replication-streaming-and-cross-feature-order) and [XFER-RETAIN](../../deferred.md#xfer-retain--snapshot-minima-continuity-and-erasurepublication-races). Current Core erasure and Write publication fences continue to apply; stronger mechanisms require demonstrated requirements. G1 retains generic identity/custody questions; G4/G5 retain source authority, safe recovery and import/Event correspondence. Historical Inception and source-correlation residuals remain [unadopted](../../deferred.md#import-context--historical-import-lifecycle-and-source-correlation), not new common Resource members.
