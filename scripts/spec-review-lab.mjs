@@ -381,7 +381,15 @@ async function worker(installRoot, root, check) {
           controller.signal,
           process.execPath,
           [binary, "--config", configPath, ...args],
-          { cwd: root, env: environment, stdio: ["pipe", "pipe", "pipe"], timeoutMs: 65_000 },
+          // Three bounded CLI stop phases (TERM, KILL/group, reap) must finish
+          // inside the outer worker's unchanged 3000ms stop budget.
+          {
+            cwd: root,
+            env: environment,
+            stdio: ["pipe", "pipe", "pipe"],
+            timeoutMs: 65_000,
+            stopTimeoutMs: 500,
+          },
           async (record) => {
             event("cli-started", { pid: record.child.pid });
             const capture = boundedCapture(() => {

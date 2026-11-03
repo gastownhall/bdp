@@ -7,7 +7,7 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { spawnChild, terminateChild } from "./e2e-ready.mjs";
 import { withPackedWorkspace } from "./packed-workspace.mjs";
@@ -333,13 +333,32 @@ test("actual installed finite journey and private relay preserve bytes, stdin an
   await absent(installation);
 });
 
-for (const [signal, expected] of [
-  ["SIGINT", 130],
-  ["SIGTERM", 143],
+for (const [signal, expected, resistant] of [
+  ["SIGINT", 130, false],
+  ["SIGTERM", 143, false],
+  ["SIGTERM", 143, true],
 ]) {
-  test(`foreground ${signal} terminates an observed real CLI child/group and owned root`, {
+  test(`foreground ${signal}${resistant ? " while installed CLI resists TERM" : ""} terminates an observed real CLI child/group and owned root`, {
     timeout: 90_000,
   }, async () => {
+    const signalFixture = resistant
+      ? await mkdtemp(path.join(os.tmpdir(), "bdp-lab-resistant-"))
+      : undefined;
+    const proof = signalFixture && path.join(signalFixture, "ready-pid");
+    const env = { ...process.env };
+    if (resistant) {
+      const preload = path.join(signalFixture, "signal.mjs");
+      await writeFile(
+        preload,
+        `import {writeFileSync} from 'node:fs';
+if (process.argv[1]?.endsWith('/node_modules/.bin/bdp') || process.argv[1]?.endsWith('/node_modules/@bdp/bdp/dist/main.js')) { process.on('SIGTERM', () => {}); writeFileSync(${JSON.stringify(proof)}, String(process.pid)); process.kill(process.pid, 'SIGSTOP'); }
+`,
+        { mode: 0o600 },
+      );
+      env.NODE_OPTIONS = [env.NODE_OPTIONS, "--import", pathToFileURL(preload).href]
+        .filter(Boolean)
+        .join(" ");
+    }
     let root,
       cli,
       workerPid,
@@ -350,7 +369,9 @@ for (const [signal, expected] of [
       finish = resolve;
     });
     let record;
+    const lifecycle = [];
     const onStdout = events((event) => {
+      lifecycle.push(event);
       if (event.event === "packed-workspace.installed") root = event.temporaryRoot;
       if (event.event === "packed-child.started") workerPid ??= event.pid;
       if (event.event === "review-lab.ready") {
@@ -367,6 +388,24 @@ for (const [signal, expected] of [
         cli = event.pid;
         void (async () => {
           try {
+            if (resistant) {
+              const readyBy = Date.now() + 2000;
+              let readyPid;
+              while (Date.now() < readyBy) {
+                try {
+                  readyPid = Number(await readFile(proof, "utf8"));
+                } catch (error) {
+                  if (error.code !== "ENOENT") throw error;
+                }
+                if (readyPid === cli) break;
+                await delay(10);
+              }
+              assert.equal(
+                readyPid,
+                cli,
+                "Signal handler must be installed in the actual CLI before owner interruption",
+              );
+            }
             process.kill(cli, "SIGSTOP");
             const { stdout } = await promisify(execFile)("ps", [
               "-p",
@@ -388,7 +427,7 @@ for (const [signal, expected] of [
     });
     record = spawnChild(process.execPath, [script], {
       cwd: workspace,
-      env: process.env,
+      env,
       stdio: ["pipe", "pipe", "pipe"],
       timeoutMs: 70_000,
       onStdout,
@@ -405,10 +444,28 @@ for (const [signal, expected] of [
       assert.equal(result.code, expected, result.stderr);
       assert.equal(signaled, true);
       await absent(root);
-      for (const pid of [record.child.pid, workerPid, cli]) {
-        assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
-        assert.throws(() => process.kill(-pid, 0), { code: "ESRCH" });
+      const closedAt = lifecycle.findIndex((event) => event.event === "review-lab.closed");
+      const removedAt = lifecycle.findIndex((event) => event.event === "packed-workspace.removed");
+      for (const [role, pid] of [
+        ["owner", record.child.pid],
+        ["worker", workerPid],
+        ["CLI", cli],
+      ]) {
+        const snapshot = (await promisify(execFile)("ps", ["-axo", "pid=,ppid=,pgid=,stat="]))
+          .stdout;
+        const members = snapshot.split("\n").filter((line) => {
+          const fields = line.trim().split(/\s+/);
+          return Number(fields[0]) === pid || Number(fields[2]) === pid;
+        });
+        const diagnostic = `${role} PID/group ${pid} (PID PPID PGID STAT): ${members.join("; ")}`;
+        assert.throws(() => process.kill(pid, 0), { code: "ESRCH" }, diagnostic);
+        assert.throws(() => process.kill(-pid, 0), { code: "ESRCH" }, diagnostic);
+        assert.equal(members.length, 0, diagnostic);
       }
+      assert.ok(
+        closedAt >= 0 && removedAt > closedAt,
+        "Worker must acknowledge completed CLI/listener cleanup before installation removal",
+      );
     } finally {
       await terminateChild(record);
       if (cli) {
@@ -416,6 +473,7 @@ for (const [signal, expected] of [
           process.kill(-cli, "SIGKILL");
         } catch {}
       }
+      if (signalFixture) await rm(signalFixture, { recursive: true });
     }
   });
 }

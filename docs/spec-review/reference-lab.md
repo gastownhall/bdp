@@ -41,7 +41,11 @@ shell parsing, remote administrative endpoint or arbitrary executable selection.
 The Unix socket is0600 under the0700 temporary root. Input is bounded to64KiB
 argv and64KiB stdin,128arguments; at most four relay peers and one CLI invocation
 are admitted. Busy/invalid/remote-target requests refuse rather than queue.
-Each CLI child is bounded to65seconds; relay waits are70seconds. The existing
+Each CLI child is bounded to65seconds; relay waits are70seconds. Its shutdown
+uses500ms per TERM/KILL/reap phase. Those phase budgets total1500ms within the outer worker’s
+unchanged3000ms stop budget. The worker must acknowledge completed child/listener
+cleanup before installation removal; the owner cannot spend the same grace
+period concurrently with its own child’s escalation/reaping. The existing
 child custodian bounds each output stream to1MiB, and the lab producer applies
 a combined1MiB bound before retaining raw stdout/stderr. Overflow stops the lab
 and fails; partial output is never returned as a successful complete invocation. These are workstation
