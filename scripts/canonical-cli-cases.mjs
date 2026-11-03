@@ -2,7 +2,7 @@
  * reference service -> private SQLite. No global Vitest admission mock. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -20,6 +20,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     );
     Object.assign(env, {
       XDG_STATE_HOME: directory,
+      XDG_CONFIG_HOME: path.join(directory, "config-home"),
       ...(scope === undefined ? {} : { BDP_SCOPE_URL: scope, BDP_AUTH_TOKEN: token }),
       ...extras,
     });
@@ -203,6 +204,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     const port = await listen(proxy),
       scope = `http://127.0.0.1:${port}/work/`;
     const store = path.join(directory, "store");
+    const configHome = path.join(directory, "config-home");
     const serviceOptions = {
       directory: store,
       create: true,
@@ -212,12 +214,70 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     };
     try {
       reference = await startReferenceService(serviceOptions);
+      const savedScope = success(
+        await cli(["scope", "set", scope, ...json], directory, undefined, {
+          XDG_CONFIG_HOME: configHome,
+        }),
+        "scope",
+      );
+      assert.equal(savedScope.data.scope, scope);
+      const savedConfig = JSON.parse(
+        await readFile(path.join(configHome, "bdp", "config.json"), "utf8"),
+      );
+      assert.deepEqual(savedConfig, { scope: { url: scope } });
+      assert.equal((await stat(path.join(configHome, "bdp", "config.json"))).mode & 0o777, 0o600);
+      const rootConfigHome = path.join(directory, "root-config-home");
+      const rootScopeSet = await cli(
+        ["scope", "set", "https://scope.invalid"],
+        directory,
+        undefined,
+        { XDG_CONFIG_HOME: rootConfigHome },
+      );
+      assert.equal(rootScopeSet.code, 0, rootScopeSet.stderr);
+      assert.deepEqual(
+        JSON.parse(await readFile(path.join(rootConfigHome, "bdp", "config.json"), "utf8")),
+        { scope: { url: "https://scope.invalid/" } },
+      );
+      const explicitConfig = path.join(directory, "isolated-config.json");
+      await writeFile(explicitConfig, '{"scope":{"url":"https://unchanged.invalid/"}}\n');
+      const isolatedSet = await cli(["--config", explicitConfig, "scope", "set", scope], directory);
+      assert.equal(isolatedSet.code, 2);
+      assert.deepEqual(JSON.parse(isolatedSet.stderr), {
+        level: "error",
+        event: "cli.usage",
+        executable: "bdp",
+        message:
+          "scope set cannot modify an explicitly selected --config file; remove --config and try again",
+      });
+      assert.deepEqual(JSON.parse(await readFile(explicitConfig, "utf8")), {
+        scope: { url: "https://unchanged.invalid/" },
+      });
       const description = success(
-        await cli(["scope", "inspect", ...json], directory, scope),
+        await cli(["scope", "inspect", ...json], directory, undefined, {
+          XDG_CONFIG_HOME: configHome,
+          BDP_AUTH_TOKEN: token,
+        }),
         "scope",
       );
       assert.equal(description.data.beads, scope + "bdp/beads");
       assert.equal(description.data.events, undefined);
+      const anotherWorkingDirectory = path.join(directory, "unrelated-project-directory");
+      await mkdir(anotherWorkingDirectory);
+      const fromAnotherDirectory = success(
+        await cli(["scope", "inspect", ...json], anotherWorkingDirectory, undefined, {
+          XDG_CONFIG_HOME: configHome,
+          BDP_AUTH_TOKEN: token,
+        }),
+        "scope",
+      );
+      assert.equal(fromAnotherDirectory.data.scope, scope);
+      const override = await cli(
+        ["scope", "inspect", "--scope", "http://127.0.0.1:1/other/", ...json],
+        directory,
+        undefined,
+        { XDG_CONFIG_HOME: configHome, BDP_AUTH_TOKEN: token },
+      );
+      assert.notEqual(override.code, 0);
       const create = success(
         await cli(
           [

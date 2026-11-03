@@ -5,7 +5,7 @@ Paired author candidate for [BDP #280](https://github.com/gastownhall/bdp/issues
 ## Set context once
 
 ```sh
-export BDP_SCOPE_URL=https://work.example/acme/
+bdp scope set https://work.example/acme/
 bdp show task-42
 bdp list
 bdp link show relations/81
@@ -13,7 +13,7 @@ bdp create --type Task --properties '{"title":"Review BDP"}'
 bdp link create task-42 task-17 --type Relates
 ```
 
-Commands use the selected default Scope. This candidate client mechanical rule selects context by explicit `--scope SCOPE`, then `BDP_SCOPE_URL`, then configuration `scope.url`. Commands addressing a Scope (`scope inspect`, `list`, `create`, `batch`, `type list`) also allow one positional Scope; it conflicts with `--scope` even when equal. Link create/list/count positionals denote Resources; use `--scope` or the configured default there. Point commands use their primary operand as a Resource, never a guessed Scope. Configuration-file discovery belongs to the selected client configuration contract; this adds no connection-management commands.
+Commands use the selected default Scope. A fresh install has no default; set one with `bdp scope set SCOPE`, which stores `scope.url` in the per-user BDP config (`$XDG_CONFIG_HOME/bdp/config.json`, defaulting to `~/.config/bdp/config.json`). This location is independent of the current working directory. The same client executable works from other project directories and against any BDP server; it does not require a server-specific build. The client context rule selects explicit `--scope SCOPE`, then `BDP_SCOPE_URL`, then configuration `scope.url`; the flag or environment variable can override the saved default. Commands addressing a Scope (`scope inspect`, `list`, `create`, `batch`, `type list`) also allow one positional Scope; it conflicts with `--scope` even when equal. Link create/list/count positionals denote Resources; use `--scope` or the configured default there. Point commands use their primary operand as a Resource, never a guessed Scope.
 
 Every relative primary Resource ID, authored Type ID and Link endpoint uses the established command Scope. The whole local path is identity: do not prepend `beads/`, `links/` or `types/`, strip apparent kind words, or try multiple namespaces. The Scope may choose those words as ordinary path components. Removing prefixes does not relax canonical URI syntax, identity non-reuse, authorization, guards or exact revision binding.
 
