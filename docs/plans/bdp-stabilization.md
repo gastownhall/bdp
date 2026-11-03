@@ -135,7 +135,9 @@ obsolete parent chains wholesale or treat accepted dispositions as completed
 harvests.
 
 Donna completed disposition review of all 12 issues and 48 PRs in the
-post-landing inventory (decisions 11–78). Approved historical closures remain
+post-landing inventory (decisions 11–78). The
+[accepted disposition index](inventory-dispositions-20261102.md) links each item
+to its preserved requirements, exact source and surviving work. Approved historical closures remain
 conditional on item-level harvesting, preserved evidence and published residual
 homes. The disposition ledger must distinguish reviewed, preserved, closed and
 implemented; these statuses are not interchangeable. Revisit replication feeds,
