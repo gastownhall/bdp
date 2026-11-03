@@ -26,6 +26,8 @@ pnpm test:legacy:shadow
 
 `--` is an optional argument separator. Each following argument must name an exact file assigned to that route; arbitrary Vitest flags or out-of-route files are refused. With no file arguments, the runner executes every assigned source file using its recorded runner. Successful completion prints the actual dispatched source-file count. Failures and interruption remain unsuccessful. No implicit empty selection passes. Artifact freshness remains checked separately by the existing `openapi:check`, `markdown:check`, schema-fragment and editorial checks; the new artifact test route alone does not replace those checks or the existing specification CI job. Packed smoke and readiness preflight likewise remain existing separate commands and gates.
 
+The additive [shadow CI impact selector](test-ci-impact-selection.md) emits conservative changed-path selections and incomplete input metadata for review. It does not execute suites, cut over CI or authorize result reuse.
+
 ## What the routes mean
 
 | Category | Scope and limitations |

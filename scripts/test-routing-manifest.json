@@ -1372,6 +1372,12 @@
       "reason": "Offline complete-diff editorial-classifier controls."
     },
     {
+      "path": "scripts/ci-impact-selection.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Shadow impact selector and metadata controls; no target execution or semantic-closure claim."
+    },
+    {
       "path": "scripts/demo-history.test.mjs",
       "runner": "vitest",
       "lane": "legacy",

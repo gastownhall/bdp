@@ -39,24 +39,12 @@ preserved. Main and manual invocations select broader coverage, even with no dif
 An empty explicit pull-request comparison still selects every baseline family;
 missing comparison input is not treated as a trustworthy empty PR diff.
 
-Root must add this exact new row to `scripts/test-routing-manifest.json` when
-integrating the new test file (this branch deliberately leaves that existing
-manifest untouched):
+The routing manifest includes the selector's exact artifact Node control file,
+`scripts/ci-impact-selection.node-test.mjs`. The controls exercise both its
+presence and the fail-closed behavior when it is absent; there is no production
+manifest override or permissive fallback.
 
-```json
-{
-  "path": "scripts/ci-impact-selection.node-test.mjs",
-  "runner": "node",
-  "lane": "artifact",
-  "reason": "Shadow impact selector and metadata controls; no target execution or semantic-closure claim."
-}
-```
-
-Until that row is integrated, a real CLI invocation correctly fails its inventory
-check. The direct controls exercise the exact proposed row as a test-only input;
-there is no production manifest override or permissive fallback.
-
-After inventory integration, use repository-pinned Node 24.22.1:
+Use repository-pinned Node 24.22.1:
 
 ```sh
 node scripts/ci-impact-selection.mjs --event pull-request --base BASE_SHA --head HEAD_SHA
