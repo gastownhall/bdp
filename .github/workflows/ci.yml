@@ -106,7 +106,7 @@ jobs:
       - run: pnpm smoke:current
       # Extend the existing built Node entry with every other current Node control.
       # No shadow target route is adopted; pure controls guard this complete list.
-      - run: pnpm test:cli:built scripts/packed-workspace.node-test.mjs
+      - run: pnpm test:cli:built scripts/packed-workspace.node-test.mjs scripts/current-provider-kit.node-test.mjs
       - name: Preserve read-cohort evidence gate exit policy
         run: pnpm evidence:verify || test $? -eq 2
 

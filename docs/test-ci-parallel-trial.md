@@ -13,8 +13,11 @@ The [successful full trial 41573748099](https://github.com/gastownhall/bdp/actio
 ran source `1fb94710` with 236 disjoint full-config Vitest files, 10415 passing
 cases and 1 existing pending case. Baseline and all four regression jobs passed.
 The observed interval from earliest job start through last completion, including
-cold setup, was 415 seconds; the initial queue was 3 seconds separately. This is
-one actual hosted observation, not a guarantee for future runs. The five-minute
+cold setup, was 415 seconds; the initial queue was 3 seconds separately. The
+five trial jobs totaled 1331 seconds (22 minutes 11 seconds) of runner job time.
+Wall time and aggregate job time measure different costs; no aggregate compute
+saving is guaranteed. This is one actual hosted observation, not a guarantee
+for future runs. The five-minute
 target remains unmet. Each required job now has a ten-minute maximum; timeouts
 remain failures and are not permission to shorten test or hook budgets.
 
@@ -83,9 +86,12 @@ partition controls and actual full-config inventory check. Every Node/current
 manifest entry executes through the existing built Node command with explicit
 additional files; the repeated emitted CLI invocation is retained from the
 successful trial. Its control fails if a new Node/current entry is missing.
-Provider-kit and perf controls are not imported before they exist in this
-candidate. When their source is integrated, add their actual paths to this
-explicit command and rerun the inventory control before promotion is published.
+The provider-kit Node control is included after the ordinary merge of main
+`b9eaf3d8`; that added control was not part of the frozen trial timing. Perf
+controls must be added by actual path when their source is integrated; do not
+import nonexistent files. Preserve the selector/perf workflows' own CI control
+steps when those changes land, without dispatching the selector. Rerun the
+complete Node/current inventory control before promotion is published.
 
 ## Activation and fail-closed aggregation
 
