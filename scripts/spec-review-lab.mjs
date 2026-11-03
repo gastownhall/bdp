@@ -50,6 +50,35 @@ export function admitInvocation(args, scope, state) {
   }
 }
 
+/** Combined producer bound, enforced before retaining any child bytes. */
+export function boundedCapture(onOverflow) {
+  const chunks = { stdout: [], stderr: [] };
+  let used = 0,
+    overflow = false;
+  return {
+    append(stream, bytes) {
+      if (overflow) return;
+      if (used + bytes.length > 1024 * 1024) {
+        overflow = true;
+        onOverflow();
+        return;
+      }
+      used += bytes.length;
+      chunks[stream].push(bytes);
+    },
+    get retainedBytes() {
+      return used;
+    },
+    finish() {
+      if (overflow) throw new Error("Lab output bound exceeded");
+      return {
+        stdout: Buffer.concat(chunks.stdout).toString("base64"),
+        stderr: Buffer.concat(chunks.stderr).toString("base64"),
+      };
+    },
+  };
+}
+
 /** Keep the primary failure even if cleanup fails; no public fault injection. */
 export async function finishOwned(operation, cleanup) {
   let result,
@@ -234,6 +263,7 @@ async function worker(installRoot, root, check) {
     pendingControl = Promise.resolve();
   const token = randomBytes(32).toString("base64url");
   const socketPath = path.join(path.dirname(root), "r.sock");
+  let failure;
   let scope,
     config,
     busy = false,
@@ -354,16 +384,17 @@ async function worker(installRoot, root, check) {
           { cwd: root, env: environment, stdio: ["pipe", "pipe", "pipe"], timeoutMs: 65_000 },
           async (record) => {
             event("cli-started", { pid: record.child.pid });
-            const stdout = [],
-              stderr = [];
-            record.child.stdout.on("data", (bytes) => stdout.push(bytes));
-            record.child.stderr.on("data", (bytes) => stderr.push(bytes));
+            const capture = boundedCapture(() => {
+              failure = new Error("Lab output bound exceeded");
+              controller.abort(failure);
+            });
+            record.child.stdout.on("data", (bytes) => capture.append("stdout", bytes));
+            record.child.stderr.on("data", (bytes) => capture.append("stderr", bytes));
             record.child.stdin?.end(stdin);
             const result = await record.result;
             return {
               code: result.code ?? 1,
-              stdout: Buffer.concat(stdout).toString("base64"),
-              stderr: Buffer.concat(stderr).toString("base64"),
+              ...capture.finish(),
             };
           },
         );
@@ -492,6 +523,7 @@ async function worker(installRoot, root, check) {
           })
           .catch(() => {
             event("control-failed");
+            failure = new Error("Lab control failed");
             abort();
           });
       });
@@ -500,6 +532,7 @@ async function worker(installRoot, root, check) {
         if (controller.signal.aborted) resolve();
         else controller.signal.addEventListener("abort", resolve, { once: true });
       });
+      if (failure) throw failure;
     },
     async () => {
       closing = true;
@@ -509,24 +542,34 @@ async function worker(installRoot, root, check) {
       clearTimeout(maximum);
       for (const peer of peers) peer.destroy();
       const settled = await Promise.allSettled([...active]);
-      // An interrupted invocation is expected; all work must settle before removal.
-      void settled;
-      await pendingControl;
+      // Only the exact expected abort is benign; cleanup failures still fail.
+      const failures = settled
+        .filter(
+          (result) => result.status === "rejected" && result.reason !== controller.signal.reason,
+        )
+        .map((result) => result.reason);
       await finishOwned(
+        async () => {
+          await pendingControl;
+          if (failures.length) throw new AggregateError(failures, "Owned CLI cleanup failed");
+        },
         () =>
           finishOwned(
-            () => close(broker),
             () =>
               finishOwned(
-                () => close(proxy),
-                () => reference?.close(),
+                () => close(broker),
+                () =>
+                  finishOwned(
+                    () => close(proxy),
+                    () => reference?.close(),
+                  ),
               ),
+            async () => {
+              process.off("SIGINT", abort);
+              process.off("SIGTERM", abort);
+              await rm(root, { recursive: true });
+            },
           ),
-        async () => {
-          process.off("SIGINT", abort);
-          process.off("SIGTERM", abort);
-          await rm(root, { recursive: true });
-        },
       );
       event("closed", { root, scope });
     },

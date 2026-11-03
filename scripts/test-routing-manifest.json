@@ -1488,7 +1488,7 @@
     {
       "path": "scripts/spec-review-lab.node-test.mjs",
       "runner": "node",
-      "lane": "artifact",
+      "lane": "current",
       "reason": "Owned installed review workstation lifecycle and private CLI relay controls; not arbitrary-provider conformance."
     },
     {

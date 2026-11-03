@@ -42,7 +42,9 @@ The Unix socket is0600 under the0700 temporary root. Input is bounded to64KiB
 argv and64KiB stdin,128arguments; at most four relay peers and one CLI invocation
 are admitted. Busy/invalid/remote-target requests refuse rather than queue.
 Each CLI child is bounded to65seconds; relay waits are70seconds. The existing
-child custodian also bounds each output stream to1MiB. These are workstation
+child custodian bounds each output stream to1MiB, and the lab producer applies
+a combined1MiB bound before retaining raw stdout/stderr. Overflow stops the lab
+and fails; partial output is never returned as a successful complete invocation. These are workstation
 limits, not protocol support limits. Use `@-`/`--file -` for piped stdin; the relay
 buffers it within the bound, so interactive input is delivered on EOF.
 
@@ -59,7 +61,9 @@ In the **first terminal**, the owner accepts three lab controls:
   This is a lab control, not a new `bdp` verb or full History API.
 - `stop`: close listeners and children, then remove the owned installation/state.
 
-EOF, Ctrl-C and SIGTERM also stop it. Fifteen minutes without a command or two
+EOF, Ctrl-C and SIGTERM also stop it. A failed restart/terminal control stops
+the workstation with a nonzero result; its fixed diagnostic does not reveal
+credentials or underlying incidental error text. Fifteen minutes without a command or two
 hours total ends the session. These finite workstation bounds prevent an
 abandoned listener; they do not change cursor or protocol retention rules. Do not
 close the owner terminal and expect the second-terminal launcher to keep working.
@@ -169,7 +173,9 @@ See the [executable support table](../reference-service.md#executable-review-sup
 Types interpretation, Events, full History, Transfer, richer batch2 and Resource
 projection are unsupported. Exact endpoint pins do **not** establish exact saved
 Resource GET support: `show a@=R1` parses, but this reference rejects the revision
-query. The canonical CLI does not submit batch1 even though a separate reference
+query because full History is unadvertised. This refusal is protocol-correct;
+endpoint pin support does not advertise History or imply missing required support.
+The canonical CLI does not submit batch1 even though a separate reference
 composition can advertise it. No protocol or CLI-design decision follows from
 these implementation boundaries.
 

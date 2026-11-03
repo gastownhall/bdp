@@ -11,7 +11,12 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { spawnChild, terminateChild } from "./e2e-ready.mjs";
 import { withPackedWorkspace } from "./packed-workspace.mjs";
-import { admitInvocation, finishOwned, runInstalledLab } from "./spec-review-lab.mjs";
+import {
+  admitInvocation,
+  boundedCapture,
+  finishOwned,
+  runInstalledLab,
+} from "./spec-review-lab.mjs";
 
 const script = fileURLToPath(new URL("./spec-review-lab.mjs", import.meta.url));
 const workspace = fileURLToPath(new URL("../", import.meta.url));
@@ -81,6 +86,21 @@ test("workstation argv policy refuses remote/config/recovery escapes and oversiz
     scope,
     state,
   );
+});
+
+test("producer capture enforces a combined bound before retention and keeps overflow failed", () => {
+  let failures = 0;
+  const capture = boundedCapture(() => {
+    failures++;
+  });
+  capture.append("stdout", Buffer.alloc(1024 * 1024 - 1));
+  capture.append("stderr", Buffer.from("x"));
+  assert.equal(capture.retainedBytes, 1024 * 1024);
+  capture.append("stderr", Buffer.from("overflow"));
+  for (let n = 0; n < 100; n++) capture.append("stdout", Buffer.alloc(65536));
+  assert.equal(capture.retainedBytes, 1024 * 1024);
+  assert.equal(failures, 1);
+  assert.throws(() => capture.finish(), /bound exceeded/);
 });
 
 test("primary and cleanup failures both survive and produce nonzero process status", async () => {
