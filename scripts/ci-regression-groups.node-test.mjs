@@ -20,6 +20,7 @@ import { regressionGroups, checkExecutedFiles, groups } from "./ci-regression-gr
 const heavy = [
   "apps/bdptest/src/read-update-matrix.test.ts",
   "apps/bdptest/src/transactional-matrix.test.ts",
+  "apps/bdptest/src/transactional-set-receipts.test.ts",
   "apps/bdpbd/src/read-matrix.test.ts",
 ];
 const remaining = ["packages/config/src/config.test.ts", "scripts/smoke-safety.test.mjs"];
@@ -61,14 +62,21 @@ function report(files = remaining) {
     })),
   };
 }
-test("three named heavyweight files are isolated and every other full-config file remains once", () => {
-  assert.deepEqual(groups, ["read-update-matrix", "transactional-matrix", "realbd", "other"]);
+test("four named heavyweight files are isolated and every other full-config file remains once", () => {
+  assert.deepEqual(groups, [
+    "read-update-matrix",
+    "transactional-matrix",
+    "transactional-set-receipts",
+    "realbd",
+    "other",
+  ]);
   const manifest = fixture(),
     copy = structuredClone(manifest);
   assert.deepEqual(regressionGroups(manifest, sources, inventory), {
     "read-update-matrix": [heavy[0]],
     "transactional-matrix": [heavy[1]],
-    realbd: [heavy[2]],
+    "transactional-set-receipts": [heavy[2]],
+    realbd: [heavy[3]],
     other: [...remaining].sort(),
   });
   assert.deepEqual(manifest, copy);
@@ -106,7 +114,7 @@ test("a newly explicitly accounted file enters remaining group without retiring 
   manifest.tests.push({ path: file, runner: "vitest", lane: "current", reason: "new fixture" });
   const selected = regressionGroups(manifest, [...sources, file], [...inventory, file]);
   assert.deepEqual(selected.other, [...remaining, file].sort());
-  assert.equal(Object.values(selected).flat().length, 6);
+  assert.equal(Object.values(selected).flat().length, 7);
 });
 test("dedicated heavy-file removal cannot silently collapse required full regression", () => {
   const manifest = fixture();
@@ -193,7 +201,11 @@ test("required CI preserves every old command and permits only legitimate editor
   );
   assert(workflow.includes("needs: [changes, specification, implementation, regression]"));
   assert.equal((workflow.match(/if: needs.changes.outputs.editorial != 'true'/g) ?? []).length, 2);
-  assert(workflow.includes("group: [read-update-matrix, transactional-matrix, realbd, other]"));
+  assert(
+    workflow.includes(
+      "group: [read-update-matrix, transactional-matrix, transactional-set-receipts, realbd, other]",
+    ),
+  );
   assert(
     workflow.includes(
       "if: always()\n    needs: [changes, specification, implementation, regression]",
@@ -399,4 +411,63 @@ test("actual Vitest JSON refuses a passed-status file whose assertions are all p
       "JSON control cleanup failed",
     );
   if (failure) throw failure;
+});
+
+test("physical transactional split preserves every original callback, table, hook and timeout", async () => {
+  const { parse } = await import("@babel/parser");
+  const { createHash } = await import("node:crypto");
+  const files = [
+    "../apps/bdptest/src/transactional-matrix.test.ts",
+    "../apps/bdptest/src/transactional-set-receipts.test.ts",
+    "../apps/bdptest/test-support/transactional-matrix-observation.ts",
+  ];
+  const ignored = new Set([
+    "loc",
+    "start",
+    "end",
+    "extra",
+    "leadingComments",
+    "trailingComments",
+    "innerComments",
+    "comments",
+    "tokens",
+    "errors",
+  ]);
+  function normalized(value) {
+    if (Array.isArray(value)) return value.map(normalized);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !ignored.has(key))
+        .map(([key, entry]) => [key, normalized(entry)]),
+    );
+  }
+  const statements = files.flatMap((file) => {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const ast = parse(source, {
+      sourceType: "module",
+      plugins: ["typescript", "importAttributes"],
+    });
+    return ast.program.body
+      .filter((node) => node.type !== "ImportDeclaration")
+      .map((node) => (node.type === "ExportNamedDeclaration" ? node.declaration : node))
+      .map((node) =>
+        createHash("sha256")
+          .update(JSON.stringify(normalized(node)))
+          .digest("hex"),
+      );
+  });
+  assert.equal(statements.length, 111);
+  // Captured from the complete original file before editing at 49dafb14865c6a596f692cdfd3205369a55596b4.
+  assert.equal(
+    createHash("sha256").update(JSON.stringify(statements.sort())).digest("hex"),
+    "aafef0132372cdbeb4f47a0b1f894f9b67c9d279ca39532f564be9cbe07eab3b",
+  );
+  const helper = new URL(files[2], import.meta.url);
+  const original = new URL(files[0], import.meta.url);
+  assert.equal(new URL("../../../", helper).href, new URL("../../../", original).href);
+  assert.equal(
+    new URL("./transactional-execution-binding.js", helper).href,
+    new URL("../test-support/transactional-execution-binding.js", original).href,
+  );
 });

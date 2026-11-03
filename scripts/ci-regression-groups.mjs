@@ -10,12 +10,14 @@ import { discoveredTests, readManifest, root, validateManifest } from "./test-ro
 export const groups = Object.freeze([
   "read-update-matrix",
   "transactional-matrix",
+  "transactional-set-receipts",
   "realbd",
   "other",
 ]);
 const dedicated = Object.freeze({
   "read-update-matrix": "apps/bdptest/src/read-update-matrix.test.ts",
   "transactional-matrix": "apps/bdptest/src/transactional-matrix.test.ts",
+  "transactional-set-receipts": "apps/bdptest/src/transactional-set-receipts.test.ts",
   realbd: "apps/bdpbd/src/read-matrix.test.ts",
 });
 function paths(values) {

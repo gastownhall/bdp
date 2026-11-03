@@ -352,6 +352,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "apps/bdptest/src/transactional-set-receipts.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Physical split of the retained transactional matrix set/receipt cases; same full-config installed observations and authored assertions, with no obligation retirement or route promotion."
+    },
+    {
       "path": "apps/bdptest/src/transactional-snapshot-installed.test.ts",
       "runner": "vitest",
       "lane": "legacy",
