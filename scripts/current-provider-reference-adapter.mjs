@@ -45,6 +45,7 @@ export async function provision({ fixture }) {
     // configured fixture therefore retains complete outcomes for this window.
     conditions: {
       retainedDetailWindowMs: fixture.minimumDetailWindowMs,
+      graphRetainedDetailWindowMs: fixture.minimumGraphDetailWindowMs,
       // The fresh composition has no native ownership rule; its canonical alias
       // namespace admits the runner's unique safe leaf. These are fixture facts.
       unownedLinkFixture: true,
