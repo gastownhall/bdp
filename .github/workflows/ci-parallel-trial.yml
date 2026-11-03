@@ -1,0 +1,135 @@
+name: Full regression parallel trial
+
+# Temporary opt-in-by-path experiment. Existing CI remains authoritative.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/ci-parallel-trial.yml
+      - scripts/ci-regression-groups.mjs
+      - scripts/ci-regression-groups.node-test.mjs
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ci-parallel-trial.yml
+      - scripts/ci-regression-groups.mjs
+      - scripts/ci-regression-groups.node-test.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-parallel-trial-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.20.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.22.1
+      - run: test "$(node --version)" = "v24.22.1"
+      - run: test "$(pnpm --version)" = "11.20.0"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:routing:shadow
+      - run: node --test scripts/ci-regression-groups.node-test.mjs
+      - run: node scripts/ci-regression-groups.mjs --check
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm check:boundaries
+      - run: pnpm openapi:check
+      - run: pnpm test:openapi
+      - run: pnpm markdown:check
+      - run: pnpm test:markdown
+      - name: Retain specification-only checks from authoritative CI
+        run: |
+          python3 -B scripts/check-spec-editorial-test.py
+          bash -n docs/cli-design/overview/examples/csv-failure.sh docs/cli-design/overview/examples/csv-review.sh
+          node scripts/spec-schema-fragments.mjs --check
+          python3 -B scripts/check-spec-editorial.py
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test:cli:built
+      - run: pnpm e2e:ready:preflight
+      - run: pnpm smoke
+      - run: pnpm smoke:current
+      # Extend the existing built Node entry with every other current Node control.
+      # No shadow target route is adopted; pure controls guard this complete list.
+      - run: pnpm test:cli:built scripts/packed-workspace.node-test.mjs
+      - name: Preserve read-cohort evidence gate exit policy
+        run: pnpm evidence:verify || test $? -eq 2
+
+  regression:
+    name: Full Vitest / ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [read-update-matrix, transactional-matrix, realbd, other]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.20.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.22.1
+      - run: test "$(node --version)" = "v24.22.1"
+      - run: test "$(pnpm --version)" = "11.20.0"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: matrix.group == 'realbd'
+        with:
+          go-version: 1.26.10
+          cache: false
+      - name: Install real bd build requirements only in its consumer job
+        if: matrix.group == 'realbd'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libicu-dev
+          mkdir -p "$RUNNER_TEMP/bdp-tools"
+          GOBIN="$RUNNER_TEMP/bdp-tools" go install github.com/steveyegge/beads/cmd/bd@v1.0.5
+      - name: Verify the original pinned source-build identity
+        if: matrix.group == 'realbd'
+        run: |
+          test "$(cd "$RUNNER_TEMP/bdp-tools" && ./bd --version)" = "bd version 1.0.5 (dev)"
+          (cd "$RUNNER_TEMP/bdp-tools" && ./bd version --json) | node -e '
+            const { isDeepStrictEqual } = require("node:util");
+            let source = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { source += chunk; });
+            process.stdin.on("end", () => {
+              const actual = JSON.parse(source);
+              const expected = { build: "dev", schema_version: 1, version: "1.0.5" };
+              if (!isDeepStrictEqual(actual, expected)) process.exit(1);
+            });
+          '
+      - name: Execute required real-bd file through unchanged full config
+        if: matrix.group == 'realbd'
+        run: node scripts/ci-regression-groups.mjs --run realbd
+        env:
+          BDP_BD_MATRIX_EXECUTABLE: ${{ runner.temp }}/bdp-tools/bd
+          BDP_REQUIRE_BD_MATRIX: "1"
+      - name: Execute every other selected file through unchanged full config
+        if: matrix.group != 'realbd'
+        run: node scripts/ci-regression-groups.mjs --run "${{ matrix.group }}"
+      - name: Retain actual per-file results, including on a failing trial
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: parallel-trial-${{ matrix.group }}
+          path: ${{ runner.temp }}/bdp-ci-parallel-reports/*.json
+          if-no-files-found: warn
