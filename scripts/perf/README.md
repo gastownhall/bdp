@@ -81,3 +81,27 @@ removed fresh stores, late SIGTERM at the ordinary closed-checkpoint diagnostic,
 invalid scale/repetition bounds and package-manager provenance refusals. They
 observe owned-store presence before the control removes its own fallback root.
 The SIGSTOP/SIGTERM/SIGCONT boundary control is POSIX-only.
+
+## pnpm entry provenance
+
+The pinned [setup action's installer](https://github.com/pnpm/action-setup/blob/b906affcce14559ad1aafd4ab0e942779e9f58b1/src/install-pnpm/run.ts)
+selects plain `pnpm@11.20.0` with `standalone:false`. That
+[package's metadata](https://registry.npmjs.org/pnpm/11.20.0) declares
+`bin/pnpm.mjs`; `bin/pnpm.cjs` is an older-Corepack compatibility shim. Both are
+JavaScript entries executed by the pinned Node. This change does not qualify
+the distinct `@pnpm/exe` native distribution.
+
+RUN supplies `npm_execpath`; plain EXEC without an inherited entry supplies
+only the pnpm user agent.
+The runner resolves a supplied entry before validating its basename and executing
+its version probe, and records `toolchain.pnpmEntrypoint` (null in metadata-only
+EXEC). Other package managers and spoofed non-pnpm entry paths still refuse.
+This is tool provenance, not a cryptographic package-identity attestation.
+
+In RUN contexts the real-reference controls resolve the actual installed pnpm
+package's declared bin, including when their parent used the `.cjs` shim. This
+keeps the positive/lifecycle cases sensitive to the genuine `.mjs` installation
+shape rather than a fake pnpm executable or a filename-only fixture. EXEC checks
+exercise the distinct user-agent-only route. The full packed Node command still
+requires its explicit package-manager packing context; plain EXEC alone does
+not supply that context.

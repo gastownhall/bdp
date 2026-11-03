@@ -54,9 +54,10 @@ for (const file of git("ls-files", "--others", "--exclude-standard", "-z")
 const invokingPnpm = /^pnpm\/([^\s]+)(?:\s|$)/.exec(process.env.npm_config_user_agent ?? "");
 if (process.env.npm_config_user_agent && !invokingPnpm)
   assert.fail("invoke with pnpm; other package-manager user agents are unsupported");
-if (process.env.npm_execpath)
+const pnpmEntrypoint = process.env.npm_execpath ? await realpath(process.env.npm_execpath) : null;
+if (pnpmEntrypoint)
   assert(
-    /^(?:pnpm|pnpm\.cjs|pnpm\.js)$/.test(path.basename(await realpath(process.env.npm_execpath))),
+    /^(?:pnpm|pnpm\.cjs|pnpm\.js|pnpm\.mjs)$/.test(path.basename(pnpmEntrypoint)),
     "npm_execpath must identify pnpm; npm/yarn entrypoints are unsupported",
   );
 const pnpmVersionSource = process.env.npm_execpath
@@ -65,7 +66,7 @@ const pnpmVersionSource = process.env.npm_execpath
     ? "invoking pnpm npm_config_user_agent"
     : "PATH command";
 const pnpmVersion = process.env.npm_execpath
-  ? execFileSync(process.execPath, [process.env.npm_execpath, "--version"], {
+  ? execFileSync(process.execPath, [pnpmEntrypoint, "--version"], {
       encoding: "utf8",
     }).trim()
   : (invokingPnpm?.[1] ??
@@ -91,6 +92,7 @@ const report = {
     nodeExecutable: process.execPath,
     pnpm: pnpmVersion,
     pnpmVersionSource,
+    pnpmEntrypoint,
     versions: process.versions,
   },
   host: {

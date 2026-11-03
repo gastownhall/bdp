@@ -1,6 +1,6 @@
 /** Real built reference observations and runner lifecycle controls; no numeric gate. */
 import assert from "node:assert/strict";
-import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, realpath, rm, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,21 @@ import { spawnChild, terminateChild } from "../e2e-ready.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 async function run(args, { lateSignal = false, env = process.env } = {}) {
+  let canonicalPnpmEntrypoint = null;
+  if (env === process.env && env.npm_execpath) {
+    // RUN contexts exercise the installed package's actual declared entry, not
+    // only Corepack's older .cjs compatibility shim. No fake version executable.
+    const parentEntry = await realpath(env.npm_execpath);
+    const manifestPath = path.resolve(path.dirname(parentEntry), "../package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    assert.equal(manifest.name, "pnpm");
+    assert.equal(manifest.version, "11.20.0");
+    assert.equal(manifest.bin.pnpm, "bin/pnpm.mjs");
+    canonicalPnpmEntrypoint = await realpath(
+      path.resolve(path.dirname(manifestPath), manifest.bin.pnpm),
+    );
+    env = { ...env, npm_execpath: canonicalPnpmEntrypoint };
+  }
   const directory = await mkdtemp(path.join(os.tmpdir(), "bdp-perf-control-"));
   const output = path.join(directory, "report.json");
   let signaled = false,
@@ -61,7 +76,13 @@ async function run(args, { lateSignal = false, env = process.env } = {}) {
       }
       storePresenceBeforeControlCleanup.push(exists);
     }
-    value = { ...result, report, signaled, storePresenceBeforeControlCleanup };
+    value = {
+      ...result,
+      report,
+      signaled,
+      storePresenceBeforeControlCleanup,
+      canonicalPnpmEntrypoint,
+    };
   } catch (error) {
     failure = error;
   }
@@ -99,6 +120,11 @@ for (const scale of ["small", "medium"]) {
     assert.equal(report.workload.repetitions, 5);
     assert.equal(report.repetitions.length, report.workload.repetitions);
     assert.equal(report.toolchain.pnpm, "11.20.0");
+    assert.equal(
+      report.toolchain.pnpmEntrypoint,
+      result.canonicalPnpmEntrypoint,
+      "RUN must exercise the installed package's declared ESM bin; EXEC records no entry",
+    );
     assert.equal(
       report.toolchain.pnpmVersionSource,
       process.env.npm_execpath
@@ -171,29 +197,50 @@ for (const args of [
   });
 }
 
-test("an npm entry is refused as npm rather than mislabeled as a pnpm version", async () => {
-  const result = await run(["--repetitions", "1"], {
-    env: {
-      ...process.env,
-      npm_config_user_agent: "npm/11.12.1 node/v24.22.1",
-      npm_execpath: "/nonexistent/npm-cli.js",
-    },
-  });
-  assert.equal(result.code, 1);
-  assert.equal(result.report, undefined);
-  assert.match(result.stderr, /other package-manager user agents are unsupported/);
-  assert(!result.stderr.includes("use the pinned pnpm version"));
+test("npm and yarn entries refuse instead of being mislabeled as pnpm versions", async () => {
+  for (const manager of ["npm/11.12.1", "yarn/1.22.22"]) {
+    const result = await run(["--repetitions", "1"], {
+      env: {
+        ...process.env,
+        npm_config_user_agent: `${manager} node/v24.22.1`,
+        npm_execpath: "/nonexistent/other-package-manager.js",
+      },
+    });
+    assert.equal(result.code, 1);
+    assert.equal(result.report, undefined);
+    assert.match(result.stderr, /other package-manager user agents are unsupported/);
+    assert(!result.stderr.includes("use the pinned pnpm version"));
+  }
 });
 
-test("a non-pnpm exec path cannot be relabeled by a pnpm user agent", async () => {
-  const result = await run(["--repetitions", "1"], {
-    env: {
-      ...process.env,
-      npm_config_user_agent: "pnpm/11.20.0 node/v24.22.1",
-      npm_execpath: process.execPath,
-    },
-  });
-  assert.equal(result.code, 1);
-  assert.equal(result.report, undefined);
-  assert.match(result.stderr, /npm_execpath must identify pnpm/);
+test("a non-pnpm exec path or disguised symlink cannot be relabeled by a pnpm user agent", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "bdp-pnpm-spoof-control-"));
+  let failure;
+  try {
+    const disguised = path.join(directory, "pnpm.mjs");
+    await symlink(process.execPath, disguised);
+    for (const entry of [process.execPath, disguised]) {
+      const result = await run(["--repetitions", "1"], {
+        env: {
+          ...process.env,
+          npm_config_user_agent: "pnpm/11.20.0 node/v24.22.1",
+          npm_execpath: entry,
+        },
+      });
+      assert.equal(result.code, 1);
+      assert.equal(result.report, undefined);
+      assert.match(result.stderr, /npm_execpath must identify pnpm/);
+    }
+  } catch (error) {
+    failure = error;
+  }
+  try {
+    await rm(directory, { recursive: true, force: true });
+  } catch (error) {
+    throw new AggregateError(
+      [...(failure ? [failure] : []), error],
+      "Spoof control cleanup failed",
+    );
+  }
+  if (failure) throw failure;
 });
