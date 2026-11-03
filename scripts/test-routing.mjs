@@ -7,12 +7,17 @@ import { fileURLToPath } from "node:url";
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const lanes = ["artifact", "current", "legacy", "shared"];
-export const runners = ["node", "vitest", "python"];
+export const runners = ["vitest", "node", "python"];
+const testSuffixes = [
+  [/\.node-test\.[cm]?[jt]sx?$/, "node"],
+  [/(?:^|\/)(?:test_[^/]+|[^/]+[-_]test)\.py$/, "python"],
+  [/\.test\.[cm]?[jt]sx?$/, "vitest"],
+];
+export function inferredRunner(path) {
+  return testSuffixes.find(([pattern]) => pattern.test(path))?.[1];
+}
 export function isTestPath(path) {
-  return (
-    /\.(?:test|node-test)\.[cm]?[jt]sx?$/.test(path) ||
-    path === "scripts/check-spec-editorial-test.py"
-  );
+  return inferredRunner(path) !== undefined;
 }
 export function discoveredTests() {
   return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], {
@@ -55,13 +60,12 @@ export function validateManifest(manifest, paths) {
       typeof entry.reason === "string" && entry.reason.trim().length > 0,
       "Missing classification reason",
     );
-    const expected = entry.path.endsWith(".node-test.mjs")
-      ? "node"
-      : entry.path.endsWith(".py")
-        ? "python"
-        : "vitest";
-    assert.equal(entry.runner, expected, `Wrong runner for ${entry.path}`);
+    assert.equal(entry.runner, inferredRunner(entry.path), `Wrong runner for ${entry.path}`);
     assert(entry.runner === "vitest" || entry.lane !== "shared", "Shared routes require Vitest");
+    assert(
+      entry.lane !== "artifact" || entry.runner !== "vitest",
+      "Artifact routes require Node or Python; no artifact Vitest config is selected",
+    );
   }
   assert.equal(new Set(paths).size, paths.length, "Duplicate discovered path");
   assert.deepEqual(
@@ -105,7 +109,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         lanes: Object.fromEntries(
           lanes.map((lane) => [lane, manifest.tests.filter((entry) => entry.lane === lane).length]),
         ),
-        claim: "Source-file accounting only; full CI unchanged",
+        claim: "Source-file accounting only; full target suites unchanged",
       },
       null,
       2,
