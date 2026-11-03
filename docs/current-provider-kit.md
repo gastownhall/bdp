@@ -11,7 +11,7 @@ The governing [stabilization plan](plans/bdp-stabilization.md#testing-and-cost-d
 requires every required obligation in a qualification scope to have evidence.
 This kit deliberately reports its missing coverage instead of declaring a pass
 for the implemented subset. `qualificationComplete` is always false at this
-stage. `sliceComplete` is separately true only when all 14 executable cases and
+stage. `sliceComplete` is separately true only when all 19 executable cases and
 provision/cleanup complete successfully. It is not a provider badge.
 
 ## Run
@@ -54,6 +54,9 @@ export async function provision({ fixture }) {
   // Bead Type for fixture.type with properties.title string and free metadata.
   // fixture.id is an unused Scope-relative identity (no live/deleted prior identity),
   // readable with full fixture visibility; fixture.runId is unique.
+  // fixture.graphSourceId, fixture.secondaryIds and fixture.linkId are also unused/admitted identities.
+  // fixture.linkType admits properties.label string and free metadata.
+  // fixture.aliasLeaf is an unused safe leaf under the advertised alias base.
   return {
     scope: "https://provider.example/isolated/",
     connections: [{
@@ -61,7 +64,12 @@ export async function provision({ fixture }) {
       connectOrigin: "https://provider.example",
       authorization: "Bearer <owned fixture credential>"
     }],
-    conditions: { retainedDetailWindowMs: fixture.minimumDetailWindowMs },
+    conditions: {
+      retainedDetailWindowMs: fixture.minimumDetailWindowMs,
+      graphRetainedDetailWindowMs: fixture.minimumGraphDetailWindowMs,
+      unownedLinkFixture: true,
+      hierarchicalAliasFixture: true
+    },
     async restart() {
       // Real service/process restart or the provider's declared admin equivalent,
       // preserving the same Scope, principal, effects and authoritative key state.
@@ -149,11 +157,16 @@ cache-directive ordering is imposed.
 | `write.durable-original-failure` | Same failed guard key returns whole original Problem after later state/deletion/restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
 | `write.durable-original-delete` | Same delete key returns original deleted identity after restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
 | `core.deleted-absence` | Current GET remains absent after retained create replay: uniform 404 or Core-permitted authorized 410; no implicit resurrection | [Reads after deletion](../specs/profiles/core/core.md#reads-after-deletion) |
+| `write.link-create` | Unowned local Link has exact authored planes and pinned endpoints; canonical GET agrees, kind is link and service-desc resolves to owning Scope | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
+| `write.link-update` | Guarded endpoint-only correction removes the replaced target pin, preserves omitted source pin/planes; equal target is a full-envelope no-op | [Endpoint correction](../specs/profiles/write/write.md#whole-link-endpoint-correction) |
+| `write.alias-put` | Closed created/updated results, same-target put, repoint and original put replay; public 307 still targets the current Bead | [Aliases](../specs/profiles/write/write.md#aliases) |
+| `write.alias-delete` | Closed delete result and 404 absence; alias reuse followed by old delete replay preserves the new live binding | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
+| `write.link-delete` | Exact final-live deleted Link identity, permitted current absence and unchanged unowned endpoints | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 
 These are narrow witnesses, not complete coverage of each linked section. The
 report separately names required uncovered families: complete clause census;
 inventory/native pagination; Link/alias reads; remaining HTTP/selection cases;
-Link CRUD/alias mutation; remaining identity/allocation/admission/limits/numeric cases;
+remaining Link CRUD/alias variants; remaining identity/allocation/admission/limits/numeric cases;
 authorization/protected Type/owner effects; concurrency/abrupt loss/failover and
 retention/erasure diagnoses. `UNCOVERED_REQUIRED` keeps them as required `not-run`
 rows, preventing this vertical slice from silently becoming full qualification. The
@@ -189,3 +202,79 @@ needing full loader diagnostics can import their selected module manually in an
 operator-owned terminal; that output may contain sensitive paths or data and is
 outside this report's redacted output. Initialization failure before an adapter
 is entered leaves provisioning `not-run` and the aggregate `harness-error`.
+
+
+## Unowned Link and alias fixture slice
+
+The original fourteen Bead cases execute first, including their one controlled
+restart and durable replays. A missing restart or base detail window retains its
+original `not-run` outcomes without blocking the independent graph fixture. An
+actual base failure prevents graph execution; a later graph failure cannot erase
+base evidence. Input hashes and all eight uncovered families remain.
+
+The five graph rows then use a **fresh third source Bead**, two target Beads and
+one Link. They never refer to the original Bead, which has already been deleted.
+Fresh graph work re-reads the canonical Scope, follows current service-desc and
+validates the current discovery/directory and alias base. Original base-key retries
+finish first using their original targets; later navigation changes never rebind
+those retries. The source and targets are created through ordinary public writes after unused
+identity GET 404 preconditions; no private state supplies expected records. The
+shared Bead setup is only fixture provisioning. Unsupported preconditions are
+`not-run`, and setup that cannot be verified is a harness limitation. An unused
+Link GET 404 is independently required before its creation. All three new Bead
+envelopes must remain unchanged through the unowned Link and alias observations.
+After a no-op result, a fresh Link GET verifies the entire stored envelope.
+
+`unownedLinkFixture` declares no owner for this source/Link-Type fixture. Its
+absence skips only Link rows; it does not block aliases. The independent
+`hierarchicalAliasFixture` declares an unused leaf beneath the advertised
+in-Scope hierarchical alias base. An unsuitable base, non-unused alias GET or
+first-put 404 is an unavailable fixture, not a protocol verdict or a retroactive
+provisioning failure. Alias redirects and admitted absence must omit Resource
+kind metadata. Link deletion can still run after an alias failure. The isolated
+adapter cleanup owns remaining fixture Beads and aliases; Bead housekeeping is
+not attributed to the Link-deletion obligation.
+
+The original requested base detail window remains 60 seconds. Graph provisioning
+separately requests `minimumGraphDetailWindowMs: 360000` (six minutes); an adapter
+may declare `graphRetainedDetailWindowMs` only if its real setup guarantees that
+window. The reference is append-only and can do so. This is an administrative
+fixture budget, **not** a BDP retention advertisement or wire SLA. Missing or
+short graph detail conditions leave alias rows `not-run` while Link rows can run.
+Malformed graph-only conditions are harness errors after the base journey and
+cannot retroactively change its outcomes or successful provisioning. The
+monotonic graph clock starts before its earliest mutation, after the base
+journey, so this expanded budget cannot consume the original replay window.
+
+Each alias row checks its detail budget before any row dispatch, and every old-key
+replay checks again immediately before dispatch and after observation. An already
+elapsed window leaves the row and remaining alias subjourney `not-run`; expiry
+while replay is in flight is a harness error. Actual long-window expiry-in-flight
+was not exercised by the bounded controls; the pure readiness control checks the
+boundary arithmetic without changing the runner clock or minimum. These are
+same-session replays, not new crash-durability evidence. Hook containment remains
+an explicit limitation.
+
+The stable `write.remaining-five-operations` ID is intentionally retained for
+report compatibility. It now names **unqualified variants**, not a claim that the
+five operations are entirely unexecuted; its reason describes the narrow
+witnesses. It stays required `not-run`, alongside the complete-obligation audit,
+and complete Core/Write qualification remains unavailable.
+
+Two real HTTP controls reject schema-valid wrong Link pin output and a hidden
+alias replay effect. The latter changes only the upstream retry key, causing a
+real fresh alias rebind, but returns captured original response bytes; a subsequent
+public redirect read must expose the wrong live target. Fixture-condition and
+short-window controls prevent these observations from being counted when their
+prerequisites are unavailable. Additional real HTTP controls check stored no-op
+state, alias kind metadata and fixture limitations while preserving all base rows.
+Reports continue to use fixed redacted diagnostics.
+
+Still unqualified: incident Link membership/directions and native pagination;
+HEAD/304 and all read/negotiation failures; every malformed/admission/identity and
+per-operation guard case; alias collision/authorization/nondisclosure and invalid
+targets; Link retyping/attribution/owned state and atomic owner context; concurrent
+claims, changed retry meaning, expiry, erasure, abrupt loss and failover. Alias
+non-versioning is observed through unchanged Bead envelopes, not an unadvertised
+private Events feed. These additions select no Types, History, Events or batch
+cross-product and provide no provider badge or complete Core/Write qualification.

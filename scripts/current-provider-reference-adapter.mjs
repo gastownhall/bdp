@@ -43,7 +43,14 @@ export async function provision({ fixture }) {
     connections: connections(),
     // This append-only reference has no outcome-expiry administration. The
     // configured fixture therefore retains complete outcomes for this window.
-    conditions: { retainedDetailWindowMs: fixture.minimumDetailWindowMs },
+    conditions: {
+      retainedDetailWindowMs: fixture.minimumDetailWindowMs,
+      graphRetainedDetailWindowMs: fixture.minimumGraphDetailWindowMs,
+      // The fresh composition has no native ownership rule; its canonical alias
+      // namespace admits the runner's unique safe leaf. These are fixture facts.
+      unownedLinkFixture: true,
+      hierarchicalAliasFixture: true,
+    },
     async restart() {
       await server.close();
       server = await startReferenceService({ ...config, create: false });
