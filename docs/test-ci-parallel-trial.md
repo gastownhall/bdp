@@ -1,27 +1,37 @@
-# Full regression parallel CI trial
+# Required full regression CI in parallel
 
-This temporary workflow measures the full regression workload in parallel. The
-existing `.github/workflows/ci.yml` remains unchanged and authoritative. No suite,
-assertion, provider obligation, evidence gate or existing job is retired. There is
-no impact-based selection, successful-result reuse, new evidence claim or CI
-cutover. Every trial job has a 20-minute limit while measurement is pending.
+This candidate promotes the measured full-regression partition into the existing
+`.github/workflows/ci.yml` and removes `ci-parallel-trial.yml`. It retains the
+complete-change classifier, specification gates and aggregate `verify` job.
+No suite, assertion, provider obligation, real-bd fixture or evidence gate is
+retired. There is no impact-based selection, successful-result reuse or adoption
+of the shadow current/legacy Vitest routes.
 
-The candidate starts from the packed-smoke candidate `aac663de` (including the
-PR345 verifier reuse and PR349 smoke stack) and ordinarily merges main
-`58e7b55e`, including the landed Type descriptor work, then main `3cf7f9f4`,
-including the URI/security dependency transition and atomic crash witnesses. The
-trial measures the landed fast-uri 3.1.9 lockfile, not the prior dependency. These
-ancestors are not new changes authored by this trial. The trial's own files are the partition
-runner, its Node controls, this document, its temporary workflow and one artifact
-accounting row.
+## Receiving evidence and timing limits
+
+The [successful full trial 41573748099](https://github.com/gastownhall/bdp/actions/runs/41573748099)
+ran source `1fb94710` with 236 disjoint full-config Vitest files, 10415 passing
+cases and 1 existing pending case. Baseline and all four regression jobs passed.
+The observed interval from earliest job start through last completion, including
+cold setup, was 415 seconds; the initial queue was 3 seconds separately. This is
+one actual hosted observation, not a guarantee for future runs. The five-minute
+target remains unmet. Each required job now has a ten-minute maximum; timeouts
+remain failures and are not permission to shorten test or hook budgets.
+
+The tested source included main `3cf7f9f4`: the fast-uri 3.1.9 dependency/security
+transition and atomic crash witnesses. Earlier stack ancestors include the
+packed-smoke work and PR345 verifier observation reuse. This promotion changes
+workflow placement and controls, preserving those tested partition/job fragments.
+It is a local promotion candidate until reviewed and published; the new workflow
+wiring itself has not yet run on a hosted runner.
 
 ## Full-config partitions
 
-Each regression job installs pinned Node 24.22.1 and pnpm 11.20.0, performs a frozen
-install and builds its own checkout. They do not share installations, builds,
-reports or test results. pnpm and Go action caches are not enabled for this cold
-trial. Registry/network and hosted-image caches are outside this experiment's
-control; record that limit with actual hosted timings.
+Each implementation/regression job installs pinned Node 24.22.1 and pnpm 11.20.0,
+performs a frozen install and builds its own checkout. Jobs share no installations,
+builds, reports or test results. pnpm and Go action caches are not enabled in
+these measured fragments. Registry/network and hosted-image caches are outside
+this experiment's control; retain that limit with actual hosted timings.
 
 | Job/group | Files selected |
 | --- | --- |
@@ -30,87 +40,83 @@ control; record that limit with actual hosted timings.
 | `realbd` | `apps/bdpbd/src/read-matrix.test.ts` |
 | `other` | Every other Vitest file, including all historical, shared and current files |
 
-The runner first validates complete routing-manifest accounting, then compares
-its Vitest entries to `vitest list --config vitest.config.ts --filesOnly --json`.
-The union of the four groups must equal that actual full-config inventory exactly
-once. Missing, duplicate, stale and new unassigned files refuse execution. A new
-explicitly accounted ordinary file enters `other`; removing a dedicated file
-requires an explicit trial update.
+The runner validates complete routing-manifest accounting and compares its
+Vitest entries to actual `vitest list --config vitest.config.ts --filesOnly
+--json` discovery. The four groups must equal that inventory exactly once.
+Missing, duplicate, stale and new unassigned files refuse execution. A newly
+accounted ordinary file enters `other`; removing a dedicated heavyweight file
+requires an explicit partition change.
 
-Execution uses the unchanged full `vitest.config.ts`, its existing aliases and
-`read-conformance-mock.ts` setup, default isolation/concurrency and unchanged test
-and hook timeouts. There is no test-name filter or current-only setup. File
-arguments are filters in Vitest, so after a successful process the runner compares
-the actual JSON `testResults` file names to the entire requested group. Missing,
-duplicate, overmatched, escaped or failed files refuse success. Existing pending
-cases are reported, not removed or newly skipped. The old full CI still runs.
+Execution uses the unchanged full `vitest.config.ts`, aliases,
+`read-conformance-mock.ts` setup, isolation/concurrency and test/hook timeouts.
+There is no test-name filter or current-only setup. After each successful process,
+actual JSON `testResults` file names must equal the entire requested group.
+Missing, duplicated, overmatched, escaped or failed files refuse success.
+Existing pending cases are reported rather than removed or newly skipped.
 
-The real-bd job alone installs Go 1.26.10 and `libicu-dev`, builds the existing
-`github.com/steveyegge/beads/cmd/bd@v1.0.5` fixture binary and performs both existing
-text and exact JSON build-identity checks. Its matrix environment requires the
-real test (`BDP_REQUIRE_BD_MATRIX=1`) and names the absolute binary. No other
-trial job installs Go or executes that matrix. This is the existing repository
-fixture obligation, not a Beads product campaign or consumer-pin change.
+Only `realbd` installs Go 1.26.10 and `libicu-dev`, builds the existing
+`github.com/steveyegge/beads/cmd/bd@v1.0.5` fixture binary, and performs both
+original text and exact JSON identity checks. It requires the real matrix with
+`BDP_REQUIRE_BD_MATRIX=1` and its explicit absolute binary. Other groups do not
+install Go or select that file. This preserves a repository fixture obligation;
+it does not authorize a Beads product campaign or change a consumer pin.
 
-## Authoritative-command crosswalk
+## Required-command crosswalk
 
-| Existing CI command/check | Trial destination |
+| Previous serial CI command/check | Required destination |
 | --- | --- |
-| Node/pnpm version checks, frozen install | Baseline and every regression job |
+| Node/pnpm version checks, frozen install | Implementation baseline and every regression job |
 | Full `pnpm test` | Exact union of four regression jobs, same full Vitest config |
-| Go setup, ICU install, pinned bd source install and both identity checks | `realbd` job only |
-| `pnpm format:check`, `pnpm lint`, `pnpm check:boundaries` | Baseline |
-| `pnpm openapi:check`, `pnpm test:openapi`, `pnpm markdown:check`, `pnpm test:markdown` | Baseline |
-| Specification/editorial Python controls, shell syntax, fragment distribution and canonical-document checks | Baseline, plus unchanged authoritative specification job |
-| `pnpm test:routing:shadow` | Baseline; adds only the new pure control's artifact row |
-| `pnpm typecheck`, `pnpm build` | Baseline; build also repeated in each regression job |
-| `pnpm test:cli:built`, `pnpm e2e:ready:preflight`, old full `pnpm smoke` | Baseline |
-| `pnpm evidence:verify` with only exit 2 admitted as absent evidence | Baseline, unchanged gate policy and full checkout history |
-| Complete-change editorial classification and authoritative aggregate verify | Existing authoritative CI; trial always runs full groups when activated |
+| Go setup, ICU, pinned bd source install and both identity checks | `realbd` only |
+| `pnpm format:check`, `pnpm lint`, `pnpm check:boundaries` | Implementation baseline |
+| OpenAPI and Markdown generation/parity/test commands | Implementation baseline and preserved specification job |
+| Editorial Python controls, shell syntax, fragment distribution and canonical-document checks | Implementation baseline and preserved specification job |
+| `pnpm test:routing:shadow` | Implementation baseline and specification; accounting remains shadow-only |
+| `pnpm typecheck`, `pnpm build` | Implementation baseline; build also repeated per regression job |
+| `pnpm test:cli:built`, `pnpm e2e:ready:preflight`, original full `pnpm smoke` | Implementation baseline |
+| `pnpm evidence:verify`, accepting only exit 2 as absent evidence | Implementation baseline; unchanged gate policy and full checkout history |
+| Complete-change classification | Preserved `changes` job |
+| Aggregate success/failure decision | Preserved `verify` job, now also requiring the regression matrix |
 
-Additional baseline work runs `pnpm smoke:current`, every current Node control
-through the existing built Node entry with additional file arguments (including
-the repeated emitted CLI entry), the new
-pure partition controls and actual full-config inventory check. No command uses
-a previously successful job as a substitute. Trial matrix jobs use fail-fast
-false, so one failing group does not cancel observation of the others. Individual
-job results remain required to evaluate this experiment; an artifact upload is
-not a passing result.
+The baseline additionally retains the tested `pnpm smoke:current`, pure
+partition controls and actual full-config inventory check. Every Node/current
+manifest entry executes through the existing built Node command with explicit
+additional files; the repeated emitted CLI invocation is retained from the
+successful trial. Its control fails if a new Node/current entry is missing.
+Provider-kit and perf controls are not imported before they exist in this
+candidate. When their source is integrated, add their actual paths to this
+explicit command and rerun the inventory control before promotion is published.
 
-## Activation and measurement boundary
+## Activation and fail-closed aggregation
 
-Only PRs targeting main or pushes to main that change the trial workflow,
-partition runner or its control file activate the temporary workflow. An explicit
-manual dispatch is also available. Documentation/accounting-only changes do not
-start another automatic campaign. The existing CI activation is unchanged.
+The original pull-request/push branch activation remains unchanged. There is no
+path filter or temporary manual-only workflow. Both the implementation baseline
+and regression matrix depend on `changes` and run whenever its editorial output
+is not exactly `true`. Matrix fail-fast is false so one failure does not cancel
+the other groups' observations. Available JSON reports are uploaded on failure;
+an uploaded artifact is not a passing result.
 
-Each actual job must complete successfully. Inspect Actions job/step durations
-for frozen install, build, real-bd setup, full Vitest and baseline smoke/control
-cost. Per-file Vitest JSON reports are retained as diagnostic artifacts even on
-failure when available; stale report files are removed before execution. File
-counts are execution accounting, not a complete semantic-obligation census or
-reusable provenance attestation. No cold hosted time has yet been measured by
-this local candidate, and local checks do not establish the ten-minute goal.
+`verify` runs with `always()` and depends on `changes`, `specification`,
+`implementation` and `regression`. It requires the classifier and specification
+to succeed. Only an exact editorial classification permits both implementation
+and regression to be skipped. Every other change requires both results to be
+success, including all four matrix jobs. Failure, cancellation, unexpected skip
+or missing results fail verification. Pure controls execute this actual shell
+aggregation with positive cases and every invalid individual result.
 
-Promotion is a later reviewed change, only after the actual cold trial proves
-all job durations within ten minutes and the command/coverage mapping remains
-intact. It may move these exact job fragments into authoritative CI and remove
-the temporary workflow. This candidate performs neither action. If the `other`
-group or baseline still dominates, measure it and propose a bounded split; do not
-shorten timeouts, suppress failures, weaken assertions or silently retire suites.
-
-## Focused local checks
+## Focused local validation
 
 ```sh
 node --test scripts/ci-regression-groups.node-test.mjs
 node scripts/ci-regression-groups.mjs --check
 pnpm test:routing:shadow
-pnpm typecheck
-pnpm build
+pnpm exec biome lint scripts/ci-regression-groups.mjs scripts/ci-regression-groups.node-test.mjs
+pnpm exec biome format scripts/ci-regression-groups.mjs scripts/ci-regression-groups.node-test.mjs
 ```
 
-A group run is `node scripts/ci-regression-groups.mjs --run GROUP`. The real-bd
-variant additionally requires the explicit required-matrix environment and the
-verified pinned executable; local trial qualification does not require running
-that expensive external fixture. Pure controls independently exercise partition
-loss/duplicates/new-file admission and observed-file omissions/overmatches/failures.
+The ten pure controls check partition completeness, observed-file accounting,
+old command coverage, complete Node/current execution and required-job
+aggregation. Ruby/Psych syntax parsing checks the workflow locally. Local
+promotion validation does not rerun the expensive full Go campaign or establish
+new hosted timing. The successful frozen trial remains the execution evidence;
+normal reviewed receiving and hosted CI must qualify the promoted wiring.

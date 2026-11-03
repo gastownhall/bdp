@@ -1,4 +1,4 @@
-/** Temporary full-regression partition trial. No impact selection or result reuse. */
+/** Required full-regression CI partition. No impact selection or result reuse. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync } from "node:fs";
@@ -113,7 +113,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "Usage: ci-regression-groups.mjs --check | --run GROUP",
   );
   const selection = regressionGroups(readManifest(), discoveredTests(), discoverFullConfig());
-  console.log(JSON.stringify({ trial: true, config: "vitest.config.ts", groups: selection }));
+  console.log(
+    JSON.stringify({ requiredFullRegression: true, config: "vitest.config.ts", groups: selection }),
+  );
   if (args[0] === "--run") {
     const group = args[1];
     if (group === "realbd") {

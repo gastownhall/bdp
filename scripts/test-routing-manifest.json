@@ -1471,7 +1471,7 @@
       "path": "scripts/ci-regression-groups.node-test.mjs",
       "runner": "node",
       "lane": "artifact",
-      "reason": "Pure temporary full-CI partition and observed-file countercheck controls; no target execution, CI cutover or coverage retirement."
+      "reason": "Pure required full-CI partition and observed-file countercheck controls; no target execution, impact selection, result reuse or coverage retirement."
     }
   ]
 }

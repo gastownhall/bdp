@@ -1,6 +1,7 @@
 /** Pure full-regression partition and independent observed-file controls. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import test from "node:test";
 import { regressionGroups, checkExecutedFiles, groups } from "./ci-regression-groups.mjs";
@@ -88,7 +89,7 @@ test("a newly explicitly accounted file enters remaining group without retiring 
   assert.deepEqual(selected.other, [...remaining, file].sort());
   assert.equal(Object.values(selected).flat().length, 6);
 });
-test("dedicated heavy-file removal cannot silently collapse the trial", () => {
+test("dedicated heavy-file removal cannot silently collapse required full regression", () => {
   const manifest = fixture();
   manifest.tests = manifest.tests.filter((entry) => entry.path !== heavy[0]);
   assert.throws(
@@ -147,15 +148,24 @@ test("countercheck refuses failed or unexecuted files and aggregate failures", (
   ])
     assert.throws(() => checkExecutedFiles(remaining, { ...report(), ...replacement }, workspace));
 });
-test("trial preserves full config and old CI while narrowly limiting activation and bd setup", () => {
+test("required CI preserves every old command and permits only legitimate editorial skips", () => {
   const script = readFileSync(new URL("./ci-regression-groups.mjs", import.meta.url), "utf8");
   assert(/"run",\s*"--config",\s*"vitest.config.ts"/.test(script));
   assert(!/--testNamePattern|--testTimeout|--hookTimeout|--passWithNoTests|--exclude/.test(script));
-  const workflow = readFileSync(
-    new URL("../.github/workflows/ci-parallel-trial.yml", import.meta.url),
-    "utf8",
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.equal((workflow.match(/timeout-minutes: 10/g) ?? []).length, 5);
+  assert(
+    !existsSync(new URL("../.github/workflows/ci-parallel-trial.yml", import.meta.url)),
+    "Temporary workflow must be retired at promotion",
   );
-  assert.equal((workflow.match(/timeout-minutes: 20/g) ?? []).length, 2);
+  assert(workflow.includes("needs: [changes, specification, implementation, regression]"));
+  assert.equal((workflow.match(/if: needs.changes.outputs.editorial != 'true'/g) ?? []).length, 2);
+  assert(workflow.includes("group: [read-update-matrix, transactional-matrix, realbd, other]"));
+  assert(
+    workflow.includes(
+      "if: always()\n    needs: [changes, specification, implementation, regression]",
+    ),
+  );
   assert.equal(
     (workflow.match(/go install github.com\/steveyegge\/beads\/cmd\/bd@v1.0.5/g) ?? []).length,
     1,
@@ -198,7 +208,67 @@ test("trial preserves full config and old CI while narrowly limiting activation 
     nodeCurrent,
     "All Node/current controls must remain in baseline",
   );
-  assert(!workflow.includes("cache: pnpm"));
-  assert(workflow.includes("paths:"));
-  assert(workflow.includes("scripts/ci-regression-groups.node-test.mjs"));
+  // The old specification job may keep its own defaults; the measured baseline
+  // and regression fragments keep independent cold installs and builds.
+  const implementation = workflow.slice(
+    workflow.indexOf("  implementation:"),
+    workflow.indexOf("  verify:"),
+  );
+  assert(!implementation.includes("cache: pnpm"));
+  assert(!implementation.includes("ci-impact-selection"));
+  assert(!workflow.includes("paths:"));
+  assert(workflow.includes("run: node --test scripts/ci-regression-groups.node-test.mjs"));
+  assert(workflow.includes("run: node scripts/ci-regression-groups.mjs --check"));
+  for (const check of [
+    "scripts/check-spec-editorial.py --classify",
+    "scripts/check-spec-editorial-test.py",
+    "bash -n docs/cli-design/overview/examples/csv-failure.sh docs/cli-design/overview/examples/csv-review.sh",
+    "node --test scripts/spec-schema-fragments.node-test.mjs",
+    "node scripts/spec-schema-fragments.mjs --check",
+    "python3 -B scripts/check-spec-editorial.py",
+    "go-version: 1.26.10",
+    "libicu-dev",
+    "bd version 1.0.5 (dev)",
+    'const expected = { build: "dev", schema_version: 1, version: "1.0.5" };',
+  ])
+    assert(workflow.includes(check), `Missing original required check: ${check}`);
+  const verify = workflow.slice(workflow.indexOf("  verify:"));
+  assert(/REGRESSION_RESULT: \$\{\{ needs\.regression\.result \}\}/.test(verify));
+  const shell = verify
+    .split("        run: |\n")[1]
+    .split("\n")
+    .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
+    .join("\n");
+  function accepted(editorial, values) {
+    const [scope, spec, implementation, regression] = values;
+    const result = spawnSync("bash", ["-eu", "-c", shell], {
+      env: {
+        ...process.env,
+        EDITORIAL: editorial,
+        SCOPE_RESULT: scope,
+        SPEC_RESULT: spec,
+        IMPLEMENTATION_RESULT: implementation,
+        REGRESSION_RESULT: regression,
+      },
+      encoding: "utf8",
+    });
+    if (result.error) throw result.error;
+    assert.equal(result.signal, null);
+    return result.status === 0;
+  }
+  assert(accepted("true", ["success", "success", "skipped", "skipped"]));
+  assert(accepted("false", ["success", "success", "success", "success"]));
+  for (const editorial of ["true", "false"]) {
+    const valid =
+      editorial === "true"
+        ? ["success", "success", "skipped", "skipped"]
+        : ["success", "success", "success", "success"];
+    for (let index = 0; index < valid.length; index++)
+      for (const outcome of ["failure", "cancelled", "skipped", "success", ""]) {
+        if (outcome === valid[index]) continue;
+        const invalid = [...valid];
+        invalid[index] = outcome;
+        assert(!accepted(editorial, invalid), `verify admitted ${editorial}: ${invalid}`);
+      }
+  }
 });
