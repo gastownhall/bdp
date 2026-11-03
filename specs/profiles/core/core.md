@@ -1017,11 +1017,33 @@ recursive descent, nested filters, functions, regular expressions,
 path-to-path comparisons, or selection of nested values. A Selector always
 selects complete top-level Resources.
 
+Selector is part of Core collection retrieval for both Beads and Links; it is
+not an optional capability and has no separate discovery flag. A Core service
+MUST evaluate well-formed Selectors in this supported profile, subject to its
+advertised Selector limits. It MUST NOT reject the `selector` parameter as
+unknown merely because Selector evaluation is not implemented. The
+`invalid-parameter` response applies when the parameter is malformed, repeated,
+or its value uses a construct outside the supported profile; it does not make
+the parameter itself optional.
+
 For example:
 
 ```text
 $[?@.properties.status == "closed"]
 ```
+
+The following minimal positive case is also supported for either collection:
+
+```text
+$[?@.id == "https://beads.example/acme/beads/task-42"]
+```
+
+When sent to the discovered Bead inventory, this Selector returns the complete
+`task-42` record if it is visible in the request's Authorization View, and no
+other record. The same expression against the Link inventory selects a Link
+with that canonical Link URL. This case uses only a candidate's singular `id`
+path, a JSON string literal, and equality; it does not depend on optional
+projection, Types, or Query support.
 
 The identity-bearing candidate member `id` contains an absolute canonical URL.
 `type` is the actual URI-or-exact-Reference union. Raw Selectors do not flatten that union. `source` and `target` are References: a local
