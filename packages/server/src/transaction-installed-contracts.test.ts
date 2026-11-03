@@ -12,6 +12,7 @@ import {
   ingestContractArtifacts,
 } from "./installed-contract-artifact.js";
 import { SCHEMA_GRAPH_CEILINGS } from "./installed-schema-shape.js";
+import { SCHEMA_GRAPH_POLICY } from "./installed-schema-graph.js";
 import { EVALUATOR_CEILINGS } from "./installed-schema-evaluator.js";
 import { openTransactionStore } from "./transaction-store.js";
 import { prepareTransaction, prepareTransactionSetCore } from "./transaction-batch.js";
@@ -153,7 +154,7 @@ function fixture(input = bundle()) {
     },
   };
 }
-it("exposes detached frozen exact capture without changing compiler identity and reconstructs offline", () => {
+it("binds interpretation policy in detached frozen capture and reconstructs the same policy offline", () => {
   const input = bundle(),
     captured = ingestContractArtifacts(input),
     compiled = compileDevelopmentContracts(input);
@@ -162,12 +163,14 @@ it("exposes detached frozen exact capture without changing compiler identity and
       stringifyJsonValue({
         artifacts: captured.sha256,
         artifactLimits: captured.receipt.limits,
+        graphPolicy: SCHEMA_GRAPH_POLICY,
         graphLimits: SCHEMA_GRAPH_CEILINGS,
         evaluatorLimits: EVALUATOR_CEILINGS,
       }),
     )
     .digest("hex")}`;
   expect(compiled.identity).toBe(identity);
+  expect(compiled.capture.graphPolicy).toBe("schema-resource-index-3");
   const saved = JSON.parse(JSON.stringify(compiled.capture));
   for (const artifact of [...input.descriptors, ...input.schemas]) artifact.utf8Bytes.fill(0);
   input.limits.totalBytes = 1;

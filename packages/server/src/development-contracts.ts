@@ -18,6 +18,7 @@ import {
 } from "./installed-contract-artifact.js";
 import { compilePrivateSchemaEvaluator, EVALUATOR_CEILINGS } from "./installed-schema-evaluator.js";
 import { SCHEMA_GRAPH_CEILINGS } from "./installed-schema-shape.js";
+import { SCHEMA_GRAPH_POLICY } from "./installed-schema-graph.js";
 import type { ResourceContractRegistry, InstalledResourceContract } from "./resource-evaluator.js";
 
 export function administrativeData(
@@ -57,6 +58,7 @@ export function administrativeArray(value: unknown, maximum: number): readonly u
 export interface DevelopmentContractCapture {
   readonly artifacts: readonly ContractArtifactEntry[];
   readonly artifactLimits: ContractArtifactLimits;
+  readonly graphPolicy: typeof SCHEMA_GRAPH_POLICY;
   readonly graphLimits: typeof SCHEMA_GRAPH_CEILINGS;
   readonly evaluatorLimits: typeof EVALUATOR_CEILINGS;
 }
@@ -138,6 +140,7 @@ export function compileDevelopmentContracts(
     capture: Object.freeze({
       artifacts: captured.artifacts,
       artifactLimits: captured.receipt.limits,
+      graphPolicy: SCHEMA_GRAPH_POLICY,
       graphLimits: SCHEMA_GRAPH_CEILINGS,
       evaluatorLimits: EVALUATOR_CEILINGS,
     }),
@@ -146,6 +149,7 @@ export function compileDevelopmentContracts(
         stringifyJsonValue({
           artifacts: captured.sha256,
           artifactLimits: captured.receipt.limits,
+          graphPolicy: SCHEMA_GRAPH_POLICY,
           graphLimits: SCHEMA_GRAPH_CEILINGS,
           evaluatorLimits: EVALUATOR_CEILINGS,
         }),

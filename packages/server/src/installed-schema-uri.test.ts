@@ -52,7 +52,7 @@ describe("bounded generic URI identity", () => {
     },
   );
   it.each([
-    ["https://Host.test:443/a/b", "../C?X=%2f", "https://host.test/C?X=%2f"],
+    ["https://Host.test:443/a/b", "../C?X=%2f", "https://host.test/C?X=%2F"],
     ["https://host.test", "", "https://host.test/"],
     ["https://host.test/a", "#", "https://host.test/a"],
     ["https://host.test/a", "%2e%2e/%2f/%41", "https://host.test/%2E%2E/%2F/A"],
