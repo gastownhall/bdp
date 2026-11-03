@@ -126,7 +126,7 @@ pnpm exec biome lint scripts/ci-regression-groups.mjs scripts/ci-regression-grou
 pnpm exec biome format scripts/ci-regression-groups.mjs scripts/ci-regression-groups.node-test.mjs
 ```
 
-The eleven pure controls and an actual two-file Vitest JSON control check partition completeness, observed-file accounting,
+The ten pure controls and an actual two-file Vitest JSON control check partition completeness, observed-file accounting,
 old command coverage, complete Node/current execution and required-job
 aggregation. Ruby/Psych syntax parsing checks the workflow locally. Local
 promotion validation does not rerun the expensive full Go campaign or establish
@@ -145,7 +145,8 @@ installed-child, principal and cleanup behavior. The complete same-run verifier
 `describe` and its `beforeAll` remain together in the new file. Vitest's existing
 per-file isolation remains unchanged.
 
-A normalized AST statement-multiset control binds all 111 original non-import
+A one-time normalized AST statement-multiset comparison preserved in the
+receiving receipt binds all 111 original non-import
 statements at source `49dafb14865c6a596f692cdfd3205369a55596b4`, including
 callbacks, tables, fixtures, hooks and timeouts. The pre/post full-config collected
 68 names also match the frozen actual trial report. This is a physical move, not
@@ -163,4 +164,4 @@ full config: 68 passed, zero failed/pending, and the exact original expanded-nam
 multiset matched the frozen report (40 retained, 28 moved). Local duration was
 117.79 seconds; file durations were approximately105 and112seconds. This is a
 local observation with an already built checkout, not cold hosted CI evidence.
-The12 partition controls,8 routing controls, build and typecheck also passed.
+The11 partition controls,8 routing controls, build and typecheck also passed.
