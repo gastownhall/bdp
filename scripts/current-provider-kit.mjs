@@ -245,6 +245,22 @@ export async function runCurrentProvider(provision) {
       "utf8",
     );
     report.schemaSha256 = createHash("sha256").update(schemaText).digest("hex");
+    const [caseSource, coreProse, writeProse] = await Promise.all([
+      readFile(new URL(import.meta.url)),
+      readFile(new URL(`../${core}`, import.meta.url)),
+      readFile(new URL(`../${write}`, import.meta.url)),
+    ]);
+    const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+    report.inputs = {
+      caseSourceSha256: sha256(caseSource),
+      coreProseSha256: sha256(coreProse),
+      writeProseSha256: sha256(writeProse),
+      schemaSha256: report.schemaSha256,
+      actualNode: process.versions.node,
+      providerIdentity: "UNVERIFIED",
+      inputClosure: "INCOMPLETE",
+      resultReuseAttestation: false,
+    };
     const schema = JSON.parse(schemaText);
     const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
     ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });

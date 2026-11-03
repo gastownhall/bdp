@@ -1,6 +1,8 @@
 /** Real public-boundary controls; no mock provider answers enter the verifier. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +20,20 @@ test("current reference passes the executable slice while missing required cover
   assert.equal(report.state, "incomplete");
   assert.equal(report.sliceComplete, true, JSON.stringify(report));
   assert.equal(report.qualificationComplete, false);
+  for (const [field, relative] of [
+    ["caseSourceSha256", "./current-provider-kit.mjs"],
+    ["coreProseSha256", "../specs/profiles/core/core.md"],
+    ["writeProseSha256", "../specs/profiles/write/write.md"],
+    ["schemaSha256", "../specs/profiles/core/bdp-v0.1.schema.json"],
+  ]) {
+    const bytes = await readFile(new URL(relative, import.meta.url));
+    assert.equal(report.inputs[field], createHash("sha256").update(bytes).digest("hex"));
+  }
+  assert.equal(report.inputs.actualNode, process.versions.node);
+  assert.equal(report.inputs.providerIdentity, "UNVERIFIED");
+  assert.equal(report.inputs.inputClosure, "INCOMPLETE");
+  assert.equal(report.inputs.resultReuseAttestation, false);
+  assert.equal(report.inputs.schemaSha256, report.schemaSha256);
   assert.equal(implemented(report).length, 13);
   assert(implemented(report).every((row) => row.required && row.state === "pass"));
   assert.equal(report.lifecycle.cleanup, "pass");

@@ -115,7 +115,13 @@ claimed by this slice.
 
 Expected assertions are authored in `scripts/current-provider-kit.mjs`, separate
 from the provider. Response admission uses the current common schema and records
-its exact SHA-256 in the report. Tests compare whole parsed original envelopes;
+its exact SHA-256 in the report. The `inputs` record also hashes the actual case
+source and Core/Write prose files and records the running Node version. Provider
+product identity remains unverified: the function API cannot identify an adapter
+module, and helper/transitive input closure is incomplete. These hashes identify
+observed local inputs; they are not a result-reuse attestation or complete
+execution provenance. Adapter paths, connection URLs and credentials are not
+included. Tests compare whole parsed original envelopes;
 they do not impose JSON member ordering or a revision-token encoding. No HTTP
 cache-directive ordering is imposed.
 
