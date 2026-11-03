@@ -1,8 +1,19 @@
-/** Pure full-regression partition and independent observed-file controls. */
+/** Full-regression partition controls and an independent real-reporter countercheck. */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  realpathSync,
+  readFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { spawnChild, terminateChild } from "./e2e-ready.mjs";
 import test from "node:test";
 import { regressionGroups, checkExecutedFiles, groups } from "./ci-regression-groups.mjs";
 
@@ -37,9 +48,17 @@ function report(files = remaining) {
     success: true,
     numFailedTestSuites: 0,
     numFailedTests: 0,
-    numTotalTests: 7,
+    numTotalTests: files.length * 3 + 1,
+    numPassedTests: files.length * 3,
     numPendingTests: 1,
-    testResults: files.map((file) => ({ name: resolve(workspace, file), status: "passed" })),
+    testResults: files.map((file, index) => ({
+      name: resolve(workspace, file),
+      status: "passed",
+      assertionResults: [
+        ...Array.from({ length: 3 }, (_, n) => ({ title: `executed${n}`, status: "passed" })),
+        ...(index === 0 ? [{ title: "existing pending", status: "skipped" }] : []),
+      ],
+    })),
   };
 }
 test("three named heavyweight files are isolated and every other full-config file remains once", () => {
@@ -143,6 +162,7 @@ test("countercheck refuses failed or unexecuted files and aggregate failures", (
   for (const replacement of [
     { success: false },
     { numFailedTests: 1 },
+    { numPassedTests: 0 },
     { numFailedTestSuites: 1 },
     { testResults: [{ name: resolve(workspace, remaining[0]), status: "pending" }] },
   ])
@@ -151,7 +171,20 @@ test("countercheck refuses failed or unexecuted files and aggregate failures", (
 test("required CI preserves every old command and permits only legitimate editorial skips", () => {
   const script = readFileSync(new URL("./ci-regression-groups.mjs", import.meta.url), "utf8");
   assert(/"run",\s*"--config",\s*"vitest.config.ts"/.test(script));
-  assert(!/--testNamePattern|--testTimeout|--hookTimeout|--passWithNoTests|--exclude/.test(script));
+  assert.deepEqual(
+    [...new Set(script.match(/--[A-Za-z][A-Za-z.-]*/g))].sort(),
+    [
+      "--check",
+      "--config",
+      "--filesOnly",
+      "--json",
+      "--outputFile.json",
+      "--reporter",
+      "--run",
+      "--version",
+    ].sort(),
+    "Runtime flags are closed: no retry/pool/isolation/concurrency/shard/bail or timeout changes",
+  );
   const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
   assert.equal((workflow.match(/timeout-minutes: 10/g) ?? []).length, 5);
   assert(
@@ -199,7 +232,14 @@ test("required CI preserves every old command and permits only legitimate editor
     .sort();
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(pkg.scripts["test:cli:built"], "node --test scripts/canonical-cli.node-test.mjs");
+  assert(
+    pkg.scripts["test:markdown"]
+      .split(/\s+/)
+      .includes("scripts/spec-schema-fragments.node-test.mjs"),
+    "Baseline Markdown controls must retain schema-fragment extraction controls",
+  );
   const command = workflow.split("\n").find((line) => line.includes("run: pnpm test:cli:built "));
+  assert(command, "Baseline must extend the built Node entry with remaining current controls");
   assert.deepEqual(
     [
       "scripts/canonical-cli.node-test.mjs",
@@ -214,7 +254,15 @@ test("required CI preserves every old command and permits only legitimate editor
     workflow.indexOf("  implementation:"),
     workflow.indexOf("  verify:"),
   );
-  assert(!implementation.includes("cache: pnpm"));
+  assert(
+    !/actions\/cache(?:@|\/)/.test(implementation),
+    "Measured fragments cannot add action caches",
+  );
+  assert.deepEqual(
+    [...implementation.matchAll(/^\s*cache:\s*(.+)$/gm)].map((match) => match[1].trim()),
+    ["false"],
+    "Cold fragments retain only the explicit setup-go cache:false",
+  );
   assert(!implementation.includes("ci-impact-selection"));
   assert(!workflow.includes("paths:"));
   assert(workflow.includes("run: node --test scripts/ci-regression-groups.node-test.mjs"));
@@ -271,4 +319,84 @@ test("required CI preserves every old command and permits only legitimate editor
         assert(!accepted(editorial, invalid), `verify admitted ${editorial}: ${invalid}`);
       }
   }
+});
+
+test("actual Vitest JSON refuses a passed-status file whose assertions are all pending", {
+  timeout: 15_000,
+}, async () => {
+  const directory = realpathSync(mkdtempSync(resolve(tmpdir(), "bdp-ci-report-control-")));
+  const project = fileURLToPath(new URL("../", import.meta.url));
+  const files = ["scripts/passed.test.mjs", "scripts/pending.test.mjs"];
+  let record, failure;
+  try {
+    mkdirSync(resolve(directory, "scripts"));
+    writeFileSync(
+      resolve(directory, "config.mjs"),
+      'export default { test: { globals: true, include: ["scripts/*.test.mjs"] } };\n',
+    );
+    writeFileSync(resolve(directory, files[0]), 'test("actual passing case", () => {});\n');
+    writeFileSync(resolve(directory, files[1]), 'test.skip("actual pending case", () => {});\n');
+    const output = resolve(directory, "results.json");
+    record = spawnChild(
+      process.execPath,
+      [
+        resolve(project, "node_modules/vitest/vitest.mjs"),
+        "run",
+        "--root",
+        directory,
+        "--config",
+        resolve(directory, "config.mjs"),
+        "--reporter=json",
+        `--outputFile=${output}`,
+      ],
+      {
+        cwd: directory,
+        env: process.env,
+        stdio: ["ignore", "pipe", "pipe"],
+        timeoutMs: 10_000,
+      },
+    );
+    const result = await record.result;
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+    assert.equal(result.signal, null);
+    const observed = JSON.parse(readFileSync(output, "utf8"));
+    assert.equal(observed.numPassedTests, 1);
+    const pendingFile = observed.testResults.find(
+      (row) => row.name === resolve(directory, files[1]),
+    );
+    assert(
+      pendingFile,
+      `Expected actual pending file in ${observed.testResults.map((row) => row.name)}`,
+    );
+    assert.equal(pendingFile.status, "passed");
+    assert.deepEqual(
+      pendingFile.assertionResults.map((assertion) => assertion.status),
+      ["skipped"],
+    );
+    assert.throws(() => checkExecutedFiles(files, observed, directory), /executed no passing case/);
+    const passedOnly = {
+      ...observed,
+      testResults: observed.testResults.filter((row) => row !== pendingFile),
+    };
+    assert.equal(checkExecutedFiles([files[0]], passedOnly, directory).files, 1);
+  } catch (error) {
+    failure = error;
+  }
+  const cleanupErrors = [];
+  try {
+    if (record) await terminateChild(record);
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  try {
+    rmSync(directory, { recursive: true, force: true });
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  if (cleanupErrors.length)
+    throw new AggregateError(
+      [...(failure ? [failure] : []), ...cleanupErrors],
+      "JSON control cleanup failed",
+    );
+  if (failure) throw failure;
 });

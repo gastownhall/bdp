@@ -66,9 +66,18 @@ function relativeFile(value, workspace = root) {
 export function checkExecutedFiles(expected, report, workspace = root) {
   const requested = paths(expected);
   assert(report && report.success === true, "Vitest did not report success");
+  assert(
+    Number.isSafeInteger(report.numPassedTests) && report.numPassedTests > 0,
+    "Vitest executed no passing case",
+  );
   assert(Array.isArray(report.testResults), "Missing Vitest file results");
   const actual = report.testResults.map((row) => {
     assert(row.status === "passed", "A requested Vitest file did not pass");
+    assert(
+      Array.isArray(row.assertionResults) &&
+        row.assertionResults.some((assertion) => assertion.status === "passed"),
+      "A requested Vitest file executed no passing case",
+    );
     return relativeFile(row.name, workspace);
   });
   assert.deepEqual(

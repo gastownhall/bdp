@@ -55,7 +55,11 @@ Execution uses the unchanged full `vitest.config.ts`, aliases,
 There is no test-name filter or current-only setup. After each successful process,
 actual JSON `testResults` file names must equal the entire requested group.
 Missing, duplicated, overmatched, escaped or failed files refuse success.
-Existing pending cases are reported rather than removed or newly skipped.
+Each requested file and its group must contain at least one actually passing
+assertion; an all-pending file is refused even when Vitest labels it passed.
+Individual pending cases are still reported rather than pinned by count. This
+file-execution guard does not prove a complete semantic-obligation census or
+detect every newly skipped individual case.
 
 Only `realbd` installs Go 1.26.10 and `libicu-dev`, builds the existing
 `github.com/steveyegge/beads/cmd/bd@v1.0.5` fixture binary, and performs both
@@ -120,7 +124,7 @@ pnpm exec biome lint scripts/ci-regression-groups.mjs scripts/ci-regression-grou
 pnpm exec biome format scripts/ci-regression-groups.mjs scripts/ci-regression-groups.node-test.mjs
 ```
 
-The ten pure controls check partition completeness, observed-file accounting,
+The ten pure controls and an actual two-file Vitest JSON control check partition completeness, observed-file accounting,
 old command coverage, complete Node/current execution and required-job
 aggregation. Ruby/Psych syntax parsing checks the workflow locally. Local
 promotion validation does not rerun the expensive full Go campaign or establish

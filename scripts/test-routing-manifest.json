@@ -1477,7 +1477,7 @@
       "path": "scripts/ci-regression-groups.node-test.mjs",
       "runner": "node",
       "lane": "artifact",
-      "reason": "Pure required full-CI partition and observed-file countercheck controls; no target execution, impact selection, result reuse or coverage retirement."
+      "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
     }
   ]
 }
