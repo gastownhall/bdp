@@ -47,6 +47,19 @@ The decision and coverage categories are normative. The matrix, fixtures, and
 expected results must exist in the repository for an implementation to claim
 complete acceptance evidence.
 
+#### Core Selector positive black-box check
+
+Every Core implementation is tested through its public HTTP boundary with a
+valid Selector on both discovered Bead and Link inventories. Use a fixture with
+at least two visible records in each collection and select one by its canonical
+`id`, using the minimal expression from [Core Selection](profiles/core/core.md#selection).
+The response MUST be a successful collection page containing exactly the
+selected record, with no other record. This check establishes that `selector`
+is an implemented Core parameter, rather than merely checking that malformed
+or repeated query parameters are rejected. The existing
+`read.collections.selector` matrix case additionally exercises a composite
+filter, authorization projection, bounded pagination, and result ordering.
+
 #### Scope-defined namespace candidate rows
 
 The paired #280 amendment binds these source obligations to
