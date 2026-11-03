@@ -20,6 +20,9 @@ those of Core. Core, Write, Types and optional [Events](../events/events.md) own
 are mechanical companions: structural validity does not establish admission,
 authorization, atomicity, retention or conformance.
 
+> Ownership reexamination and deferred import/Transfer composition are indexed in
+> the [informative appendix](#appendix-open-design-questions); existing Write requirements remain binding.
+
 ## Contents
 
 1. [Discover and select Write](#discover-and-select-write)
@@ -5914,3 +5917,11 @@ These informative signatures catalog the already selected [historical-update bin
 | --- | --- | --- | --- | --- | --- |
 | view | query | yes | `{"const":"terminal"}` | Current terminal state only; no exact revision or History selection. | — |
 <!-- bdp-operation:end historicalUpdateTerminal -->
+
+## Appendix: open design questions
+
+This informative appendix does not relax mutation, retry, ownership, erasure or final-publication duties. [OWN-REVIEW](../../deferred.md#own-review--owned-links-reexamination) records the requested reexamination of owned Links. Historical correction/recovery should preserve current invariants minimally; a broader redesign, duplicate graph capture or changed cascade rule requires separate review. Exact representation and lifecycle alternatives belong to that design, not a historical-stack cleanup.
+
+[IMPORT-CONTEXT](../../deferred.md#import-context--historical-import-lifecycle-and-source-correlation) preserves unadopted import/source-correlation questions. [XFER-OBS](../../deferred.md#xfer-obs--replication-streaming-and-cross-feature-order) and [XFER-RETAIN](../../deferred.md#xfer-retain--snapshot-minima-continuity-and-erasurepublication-races) require Transfer-time review of ordering, retained continuity and publication races while preserving current atomicity and cleanup fences. These entries grant no new operation or permission to claim unsupported feature composition.
+
+Public receipts remain [deferred exploration](../../deferred.md#write-receipts--public-outcome-services); durable internal outcomes and safe original-key recovery remain mandatory.

@@ -14,6 +14,9 @@ when Events is advertised, its published facts must also satisfy this profile.
 
 ## Contract and advertisement
 
+> Streaming, replication and import-composition questions are preserved in the
+> [informative appendix](#appendix-open-design-questions), separately from this finite contract.
+
 Events is optional for both Core and Write. A Scope advertises support by including
 its absolute `events` URL in discovery; absence means that clients MUST NOT assume
 an Event source or `view=events` is supported. The member is an explicit promise of
@@ -1929,3 +1932,9 @@ their distinct schema resources. Generation does not qualify an implementation.
 | representation | query | no | `{"enum":["postimage","delta"],"default":"postimage"}` | — | — |
 | limit | query | no | `{"$ref":"../profiles/core/bdp-v0.1.schema.json#/$defs/positiveInteger"}` | Positive per-page bound; actual advertised/default limits apply. | — |
 <!-- bdp-operation:end scopeEvents -->
+
+## Appendix: open design questions
+
+This informative appendix distinguishes the selected finite observation contract from future composition. Streaming and replica/changefeed application require their own delivery, coverage, gap, ordering and recovery contract; finite Events advertisement supplies none of them. Feature-specific ordering remains until equivalence is established. Revisit explicitly during Transfer design: [XFER-OBS](../../deferred.md#xfer-obs--replication-streaming-and-cross-feature-order).
+
+Historical import Events, presence/Inception context and source correlation remain unadopted residuals of PR164/165, rather than permission to replay an old log or add a Core field. An import may need new effects under its actual current transition; the exact conditional Events binding must be reviewed. See [IMPORT-CONTEXT](../../deferred.md#import-context--historical-import-lifecycle-and-source-correlation) and Transfer G5. Snapshot/retention and erasure/publication races return during Transfer review under [XFER-RETAIN](../../deferred.md#xfer-retain--snapshot-minima-continuity-and-erasurepublication-races); current durable Event production, coverage and erasure requirements remain intact.

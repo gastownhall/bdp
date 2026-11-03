@@ -2289,6 +2289,9 @@ through a Type example or an implementation convenience.
 
 ## 8. Conformance and unselected mechanisms
 
+> The [informative appendix](#appendix-open-design-questions) links packaging and
+> foreign-Type questions to their deliberate-deferment entries.
+
 A Types1 claim requires the complete selected semantics, not a collection of passing
 schema fixtures or a functioning first increment. A read-only provider may qualify
 without Write; a writing provider must enforce the applicable exact contracts,
@@ -2677,3 +2680,9 @@ shape; their represented affiliations, captured records and semantic admission
 still satisfy Types1. This composition does not claim that a common result schema
 alone proves those cross-value obligations. History versions metadata is not
 relabelled here as a full ordinary Resource representation.
+
+## Appendix: open design questions
+
+This informative appendix indexes unresolved mechanisms; §§7–8 retain their full selected requirements and scope boundaries. Public authoring/acquisition/lifecycle and portable packaging need explicit contracts. Experimental Package global/local Type correspondence may use explicit binding Links, but neither provenance nor a package's available bytes establishes nominal identity, accepted registration, default selection or installation. Review those choices with both Callable and Package: [TYPE-PACKAGING](../../deferred.md#type-packaging--public-authoring-and-globallocal-meaning).
+
+An expected foreign Type declaration might express unenforced intent or participate in a future federation-validation mechanism. Its authority, evidence and failure semantics remain open; URI shape alone is insufficient. See [CORE-REF](../../deferred.md#core-ref--foreign-expectations-witnesses-and-broader-aliases). Current exact interpretation, graph validation and owned declaration rules remain binding; [OWN-REVIEW](../../deferred.md#own-review--owned-links-reexamination) does not weaken them.
