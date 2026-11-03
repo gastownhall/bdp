@@ -27,6 +27,8 @@
     "packages/*/test-support/**/*.ts",
     "scripts/generate-read-cohort.mts",
     "vitest.config.ts",
-    "vitest.evidence.config.ts"
+    "vitest.evidence.config.ts",
+    "vitest.current-shadow.config.ts",
+    "vitest.legacy-shadow.config.ts"
   ]
 }
