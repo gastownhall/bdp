@@ -1,0 +1,485 @@
+/** Bounded reference-only observations, not a performance gate or conformance kit. */
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { request } from "node:http";
+import os from "node:os";
+import path from "node:path";
+import { performance } from "node:perf_hooks";
+import { fileURLToPath } from "node:url";
+import { startReferenceService } from "../../packages/server/dist/reference.js";
+
+const root = fileURLToPath(new URL("../../", import.meta.url));
+const scales = { small: { beads: 20, pageSize: 7 }, medium: { beads: 100, pageSize: 17 } };
+let scale = "small",
+  output,
+  repetitions = 5;
+const seen = new Set();
+for (let i = 2; i < process.argv.length; i += 2) {
+  const name = process.argv[i],
+    value = process.argv[i + 1];
+  assert(
+    ["--scale", "--output", "--repetitions"].includes(name) && value && !seen.has(name),
+    "Usage: reference-trends.mjs [--scale small|medium] [--output FILE] [--repetitions 1..10]",
+  );
+  seen.add(name);
+  if (name === "--scale") scale = value;
+  else if (name === "--repetitions") {
+    assert(/^(?:[1-9]|10)$/.test(value), "repetitions must be an integer from1 through10");
+    repetitions = Number(value);
+  } else output = path.resolve(value);
+}
+assert(Object.hasOwn(scales, scale), "scale must be small or medium");
+const workload = {
+  ...scales[scale],
+  concurrency: 1,
+  payloadBytes: 128,
+  requestTimeoutMs: 5000,
+  runTimeoutMs: 120000,
+  warmup: "none; cold first observation retained",
+  repetitions,
+};
+const gitBytes = (...args) =>
+  execFileSync("git", args, { cwd: root, maxBuffer: 8 * 1024 * 1024, timeout: 10000 });
+const git = (...args) => gitBytes(...args).toString("utf8");
+const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const untracked = [];
+for (const file of git("ls-files", "--others", "--exclude-standard", "-z")
+  .split("\0")
+  .filter(Boolean))
+  untracked.push({ file, sha256: hash(await readFile(path.join(root, file))) });
+// pnpm exec intentionally omits npm_execpath but identifies its own version in
+// npm_config_user_agent. Prefer that invoking tool to an unrelated PATH binary.
+const invokingPnpm = /^pnpm\/([^\s]+)(?:\s|$)/.exec(process.env.npm_config_user_agent ?? "");
+if (process.env.npm_config_user_agent && !invokingPnpm)
+  assert.fail("invoke with pnpm; other package-manager user agents are unsupported");
+const pnpmEntrypoint = process.env.npm_execpath ? await realpath(process.env.npm_execpath) : null;
+if (pnpmEntrypoint)
+  assert(
+    /^(?:pnpm|pnpm\.cjs|pnpm\.js|pnpm\.mjs)$/.test(path.basename(pnpmEntrypoint)),
+    "npm_execpath must identify pnpm; npm/yarn entrypoints are unsupported",
+  );
+const pnpmVersionSource = process.env.npm_execpath
+  ? "verified pnpm entry command"
+  : invokingPnpm
+    ? "invoking pnpm npm_config_user_agent"
+    : "PATH command";
+const pnpmVersion = process.env.npm_execpath
+  ? execFileSync(process.execPath, [pnpmEntrypoint, "--version"], {
+      encoding: "utf8",
+    }).trim()
+  : (invokingPnpm?.[1] ??
+    execFileSync("pnpm", ["--version"], { cwd: root, encoding: "utf8" }).trim());
+assert.equal(process.version, "v24.22.1", "use the pinned Node version");
+assert.equal(pnpmVersion, "11.20.0", "use the pinned pnpm version");
+const report = {
+  format: "bdp-reference-trends-1",
+  status: "running",
+  startedAt: new Date().toISOString(),
+  source: {
+    head: git("rev-parse", "HEAD").trim(),
+    statusPorcelain: git("status", "--porcelain=v1"),
+    trackedDiffSha256: hash(gitBytes("diff", "--binary", "HEAD")),
+    untracked,
+    builtReferenceEntrySha256: hash(
+      await readFile(new URL("../../packages/server/dist/reference.js", import.meta.url)),
+    ),
+    lockSha256: hash(await readFile(path.join(root, "pnpm-lock.yaml"))),
+  },
+  toolchain: {
+    node: process.version,
+    nodeExecutable: process.execPath,
+    pnpm: pnpmVersion,
+    pnpmVersionSource,
+    pnpmEntrypoint,
+    versions: process.versions,
+  },
+  host: {
+    platform: os.platform(),
+    release: os.release(),
+    architecture: os.arch(),
+    cpuModel: os.cpus()[0]?.model,
+    logicalCpus: os.cpus().length,
+    totalMemoryBytes: os.totalmem(),
+    freeMemoryBytesAtStart: os.freemem(),
+    ci: process.env.CI === "true",
+    githubRunId: process.env.GITHUB_RUN_ID ?? null,
+    githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+    imageOs: process.env.ImageOS ?? null,
+    imageVersion: process.env.ImageVersion ?? null,
+    runnerArch: process.env.RUNNER_ARCH ?? null,
+  },
+  workload: {
+    scale,
+    ...workload,
+    composition: "Core + ordinary Write, no optional capabilities",
+    transport: "real loopback HTTP, canonical Host, same-process service and driver, no SDK",
+    operations:
+      "sequential createBead/createLink, updateBead, point GET, complete bead/link page traversal, graceful close/reopen, original create-key replay",
+  },
+  observations: [],
+  checkpoints: [],
+  repetitions: [],
+};
+const controller = new AbortController();
+const timer = setTimeout(
+  () => controller.abort(new Error("performance run exceeded120s")),
+  workload.runTimeoutMs,
+);
+const interrupted = (signal) => {
+  process.exitCode = signal === "SIGINT" ? 130 : 143;
+  controller.abort(new Error(`performance run interrupted by ${signal}`));
+};
+const onInt = () => interrupted("SIGINT"),
+  onTerm = () => interrupted("SIGTERM");
+process.on("SIGINT", onInt);
+process.on("SIGTERM", onTerm);
+let directory, server, repetition;
+const started = performance.now();
+async function timed(operation, action, detail = {}) {
+  controller.signal.throwIfAborted();
+  const begin = performance.now();
+  const value = await action();
+  report.observations.push({
+    repetition,
+    operation,
+    ...detail,
+    milliseconds: performance.now() - begin,
+  });
+  return value;
+}
+async function checkpoint(phase) {
+  controller.signal.throwIfAborted();
+  const files = [];
+  for (const name of await readdir(directory)) {
+    controller.signal.throwIfAborted();
+    const info = await stat(path.join(directory, name));
+    controller.signal.throwIfAborted();
+    assert(info.isFile(), "unexpected nested store entry");
+    files.push({ name, bytes: info.size });
+  }
+  console.error(JSON.stringify({ event: "reference-perf.checkpoint", repetition, phase }));
+  report.checkpoints.push({
+    repetition,
+    phase,
+    elapsedMilliseconds: performance.now() - started,
+    memoryBytes: process.memoryUsage(),
+    cpuMicroseconds: process.cpuUsage(),
+    storeFiles: files.sort((a, b) => a.name.localeCompare(b.name)),
+    storeBytes: files.reduce((sum, file) => sum + file.bytes, 0),
+  });
+}
+const scope = "https://perf.invalid/reference/",
+  media = "application/vnd.bdp.v0.1+json";
+const token = randomBytes(32).toString("base64url");
+async function wire(target, body, key) {
+  const logical = new URL(target),
+    listen = new URL(server.listenUrl);
+  assert.equal(logical.origin, new URL(scope).origin);
+  assert(logical.pathname.startsWith(new URL(scope).pathname));
+  const bytes = body === undefined ? undefined : JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        hostname: listen.hostname,
+        port: listen.port,
+        path: logical.pathname + logical.search,
+        method: bytes === undefined ? "GET" : "POST",
+        signal: controller.signal,
+        headers: {
+          host: logical.host,
+          authorization: `Bearer ${token}`,
+          accept: media,
+          ...(bytes === undefined
+            ? {}
+            : {
+                "content-type": media,
+                "content-length": Buffer.byteLength(bytes),
+                "idempotency-key": key,
+              }),
+        },
+      },
+      (res) => {
+        const chunks = [];
+        let size = 0;
+        res.on("data", (chunk) => {
+          size += chunk.length;
+          if (size > 1048576) req.destroy(new Error("response exceeds1MiB"));
+          else chunks.push(chunk);
+        });
+        res.on("error", reject);
+        res.on("end", () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`unexpected HTTP${res.statusCode}`));
+            return;
+          }
+          const text = Buffer.concat(chunks).toString("utf8");
+          try {
+            resolve({ text, value: JSON.parse(text) });
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    req.on("error", reject);
+    req.setTimeout(workload.requestTimeoutMs, () => req.destroy(new Error("request exceeded5s")));
+    req.end(bytes);
+  });
+}
+async function runRepetition() {
+  let failure,
+    closeState = "not-started";
+  const repetitionStarted = performance.now();
+  directory = undefined;
+  server = undefined;
+  const result = { repetition, status: "running" };
+  async function closeOwned(operation) {
+    const owner = server;
+    await timed(operation, async () => {
+      // Clear only once the close is actually attempted, not before an abort check.
+      server = undefined;
+      try {
+        await owner.close();
+        closeState = "closed";
+      } catch (error) {
+        closeState = "failed";
+        throw error;
+      }
+    });
+  }
+  try {
+    directory = await mkdtemp(path.join(os.tmpdir(), "bdp-reference-perf-"));
+    const options = {
+      directory,
+      create: true,
+      instance: "reference-perf",
+      scope,
+      credentials: [{ token, principal: "perf-owner" }],
+    };
+    server = await timed("provision", () => startReferenceService(options));
+    closeState = "open";
+    const discovery = (await wire(server.navigation.description)).value;
+    assert.equal(discovery.capabilities, undefined);
+    await checkpoint("empty");
+    const creates = [],
+      current = new Map();
+    for (let i = 0; i < workload.beads; i++) {
+      const body = {
+        id: `bead-${String(i).padStart(4, "0")}`,
+        type: "https://types.invalid/perf",
+        properties: { index: i, payload: "x".repeat(workload.payloadBytes) },
+      };
+      const key = `create-${i}`;
+      const reply = await timed(
+        "createBead",
+        () => wire(server.navigation.targets.createBead, body, key),
+        { index: i },
+      );
+      assert.equal(reply.value.outcome, "created");
+      assert.equal(reply.value.changed, true);
+      assert.equal(reply.value.resource.id, scope + body.id);
+      assert.deepEqual(reply.value.resource.properties, body.properties);
+      creates.push({ body, key, text: reply.text });
+      current.set(reply.value.resource.id, reply.value.resource);
+    }
+    const links = new Map(),
+      ids = [...current.keys()];
+    for (let i = 1; i < ids.length; i++) {
+      const reply = await timed(
+        "createLink",
+        () =>
+          wire(
+            server.navigation.targets.createLink,
+            {
+              id: `edge-${i}`,
+              type: "https://types.invalid/edge",
+              source: ids[i - 1],
+              target: ids[i],
+            },
+            `edge-${i}`,
+          ),
+        { index: i },
+      );
+      assert.equal(reply.value.outcome, "created");
+      assert.equal(reply.value.resource.source, ids[i - 1]);
+      assert.equal(reply.value.resource.target, ids[i]);
+      links.set(reply.value.resource.id, reply.value.resource);
+    }
+    await checkpoint("created");
+    for (const [index, id] of ids.entries()) {
+      const reply = await timed(
+        "updateBead",
+        () =>
+          wire(
+            server.navigation.targets.updateBead,
+            { bead: id, metadata: { updated: true }, expectedRevision: current.get(id).revision },
+            `update-${index}`,
+          ),
+        { index },
+      );
+      assert.equal(reply.value.outcome, "updated");
+      assert.equal(reply.value.changed, true);
+      assert.notEqual(reply.value.resource.revision, current.get(id).revision);
+      assert.deepEqual(reply.value.resource.properties, current.get(id).properties);
+      assert.deepEqual(reply.value.resource.metadata, { updated: true });
+      current.set(id, reply.value.resource);
+    }
+    async function readAndPage(label) {
+      for (const [id, expected] of [...current, ...links]) {
+        const reply = await timed(`pointRead.${label}`, () => wire(id));
+        assert.deepEqual(reply.value, expected);
+      }
+      for (const [kind, expected] of [
+        ["beads", current],
+        ["links", links],
+      ]) {
+        let next = `${server.navigation[kind]}?limit=${workload.pageSize}`,
+          pages = 0;
+        const observed = new Map();
+        while (next !== null) {
+          assert(++pages <= expected.size + 1, "page traversal did not terminate");
+          const reply = await timed(`page.${kind}.${label}`, () => wire(next), { page: pages });
+          assert(reply.value.items.length > 0 && reply.value.items.length <= workload.pageSize);
+          for (const item of reply.value.items) {
+            assert(!observed.has(item.id), "duplicate item in page traversal");
+            assert.deepEqual(item, expected.get(item.id));
+            observed.set(item.id, item);
+          }
+          next = reply.value.next;
+          assert(next === null || typeof next === "string");
+        }
+        assert.deepEqual([...observed.keys()].sort(), [...expected.keys()].sort());
+      }
+    }
+    await readAndPage("beforeReopen");
+    await checkpoint("updatedAndRead");
+    await closeOwned("close");
+    server = await timed("reopen", () => startReferenceService({ ...options, create: false }));
+    closeState = "open";
+    await checkpoint("reopened");
+    await readAndPage("afterReopen");
+    for (const [index, saved] of creates.entries()) {
+      const reply = await timed(
+        "originalKeyReplay",
+        () => wire(server.navigation.targets.createBead, saved.body, saved.key),
+        { index },
+      );
+      assert.equal(reply.text, saved.text, "replay substituted current postimage");
+    }
+    // Replays must preserve the independently updated live postimages.
+    for (const [id, expected] of current) assert.deepEqual((await wire(id)).value, expected);
+    await checkpoint("replayed");
+    await closeOwned("finalClose");
+    await checkpoint("closed");
+    controller.signal.throwIfAborted();
+    result.status = "passed";
+  } catch (error) {
+    failure = error;
+    result.status = "failed";
+    result.error = { name: error.name, message: error.message };
+  } finally {
+    const cleanupErrors = [];
+    let removeError, cleanupCloseError;
+    if (server) {
+      const owner = server;
+      server = undefined;
+      try {
+        await owner.close();
+        closeState = "closed";
+      } catch (error) {
+        closeState = "failed";
+        cleanupCloseError = error;
+        cleanupErrors.push(error);
+      }
+    }
+    try {
+      if (directory) await rm(directory, { recursive: true, force: true });
+    } catch (error) {
+      removeError = error;
+      cleanupErrors.push(error);
+    }
+    // Cleanup awaits can receive a late interrupt after the last HTTP operation.
+    // Freeze the result before detaching the handlers; cancellation is never pass.
+    if (controller.signal.aborted && failure !== controller.signal.reason)
+      failure = failure
+        ? new AggregateError(
+            [failure, controller.signal.reason],
+            "performance workload interrupted",
+            { cause: failure },
+          )
+        : controller.signal.reason;
+
+    result.cleanup = {
+      ownedTemporaryDirectory: directory ?? null,
+      removedOwnedDirectory: directory !== undefined && removeError === undefined,
+      ownerCloseState: closeState,
+      closeError: cleanupCloseError?.message ?? null,
+      removeError: removeError?.message ?? null,
+      errors: cleanupErrors.map((error) => error.message),
+    };
+    if (cleanupErrors.length) {
+      failure = new AggregateError(
+        [...(failure ? [failure] : []), ...cleanupErrors],
+        "performance workload/cleanup failed",
+      );
+    }
+  }
+  if (failure) {
+    result.status = "failed";
+    const describeError = (error) => ({
+      name: error.name,
+      message: error.message,
+      ...(error instanceof AggregateError ? { errors: error.errors.map(describeError) } : {}),
+    });
+    result.error = describeError(failure);
+  }
+  result.elapsedMilliseconds = performance.now() - repetitionStarted;
+  report.repetitions.push(result);
+  return failure;
+}
+
+let failure;
+try {
+  for (repetition = 0; repetition < repetitions; repetition++) {
+    controller.signal.throwIfAborted();
+    const error = await runRepetition();
+    if (error)
+      failure = failure
+        ? new AggregateError([failure, error], "performance repetitions failed")
+        : error;
+    if (controller.signal.aborted) break;
+  }
+} catch (error) {
+  failure = failure
+    ? new AggregateError([failure, error], "performance repetitions failed")
+    : error;
+} finally {
+  clearTimeout(timer);
+  if (controller.signal.aborted && !failure) failure = controller.signal.reason;
+  process.off("SIGINT", onInt);
+  process.off("SIGTERM", onTerm);
+}
+report.status = failure ? "failed" : "passed";
+if (failure) report.error = { name: failure.name, message: failure.message };
+report.finishedAt = new Date().toISOString();
+report.elapsedMilliseconds = performance.now() - started;
+report.processPeakRssBytes = process.resourceUsage().maxRSS * 1024;
+report.notes = [
+  "Raw end-to-end operation timings include HTTP/body decoding; assertions run outside each timed interval.",
+  "Memory is the combined driver+service Node process, sampled at checkpoints; maxRSS is process lifetime peak.",
+  "Repetitions use fresh stores in one process; JIT/module/cache state carries across repetitions. No aggregation or exclusion.",
+  "builtReferenceEntrySha256 hashes only reference.js, one transitive entry; it does not identify the complete measured build.",
+  "Store bytes are logical file sizes, not physical allocated blocks or attributable write amplification.",
+  "No warmup exclusion, percentile gate, SLA, cold disk-cache promise, power-loss test, or external-provider qualification.",
+];
+const json = `${JSON.stringify(report, null, 2)}\n`;
+if (output) {
+  await mkdir(path.dirname(output), { recursive: true });
+  await writeFile(output, json);
+} else process.stdout.write(json);
+if (failure) {
+  console.error(failure);
+  process.exitCode ||= 1;
+}

@@ -1,391 +1,40 @@
-import { execFileSync, spawnSync, type ChildProcess } from "node:child_process";
+import { spawnSync, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import {
-  type JsonValue,
-  type ScenarioAssertion,
   createJsonSchemaValidator,
   createRawHttpExchangeExecutor,
   type ExactHttpModeOptions,
   type HttpExchangeResponse,
 } from "@bdp/conformance";
 import {
-  literalJsonPointerMatches,
-  isLiteralJsonPointerAssertion,
   createCumulativeTransactionalArtifactBundle,
   loadProfileContractSelection,
-  runCumulativeTransactionalMatrix,
   assertSameServedProfileConfiguration,
 } from "@bdp/conformance/testing";
-import {
-  createTransactionalExecutionBinding,
-  installedTransactionBinding,
-} from "../test-support/transactional-execution-binding.js";
+import { installedTransactionBinding } from "../test-support/transactional-execution-binding.js";
 import schema from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
-const root = fileURLToPath(new URL("../../../", import.meta.url));
-const { launchInstalledTransaction } = (await import(
-  new URL("../../../scripts/transaction-installed-observation.mjs", import.meta.url).href
-)) as {
-  launchInstalledTransaction(
-    entry: string,
-    configuration: unknown,
-    signal?: AbortSignal,
-  ): Promise<{ child: ChildProcess; ready: Record<string, unknown>; close(): Promise<void> }>;
-};
-const scope = "https://reference.invalid/acme/";
-const entry =
-  process.env.BDP_TRANSACTIONAL_INSTALLED_ENTRY ??
-  path.join(root, "packages/server/dist/transaction-installed-process.js");
-const source = (file: string) => ({
-  bytes: readFileSync(path.join(root, "packages/conformance/test-support/transactional", file)),
-});
-const fixtureSource = source("fixture-v1.json"),
-  manifestSource = source("manifest-v1.json");
-const bundle = createCumulativeTransactionalArtifactBundle(
-  loadProfileContractSelection("transactional"),
-  { manifest: manifestSource, fixture: fixtureSource },
-);
-function artifacts() {
-  const task = `${scope}types/task`,
-    link = `${scope}types/relationship`,
-    propertiesSchema = `${scope}schemas/properties`;
-  const descriptors = [
-    { id: task, name: "Task", describes: "bead", conformsTo: [], propertiesSchema },
-    {
-      id: link,
-      name: "Relationship",
-      describes: "link",
-      conformsTo: [],
-      propertiesSchema,
-      source: { conformsTo: [task], external: "opaque" },
-      target: { conformsTo: [task], external: "opaque" },
-    },
-  ];
-  return {
-    descriptors: descriptors.map((d) => ({ retrievalUri: d.id, utf8: JSON.stringify(d) })),
-    schemas: [
-      {
-        retrievalUri: propertiesSchema,
-        utf8: JSON.stringify({
-          $id: propertiesSchema,
-          type: "object",
-          properties: { title: { type: "string" } },
-          additionalProperties: false,
-        }),
-      },
-    ],
-  };
-}
-const sourceCommit =
-  process.env.BDP_TRANSACTIONAL_SOURCE_COMMIT ??
-  execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-function errorCauses(error: unknown): Set<unknown> {
-  const seen = new Set<unknown>();
-  const visit = (value: unknown) => {
-    if (seen.has(value)) return;
-    seen.add(value);
-    if (value instanceof AggregateError) for (const cause of value.errors) visit(cause);
-    if (value instanceof Error && value.cause !== undefined) visit(value.cause);
-  };
-  visit(error);
-  return seen;
-}
-type ObservationSession = Readonly<{
-  scenario: string;
-  reopen: boolean;
-  sessionOrdinal: number;
-}>;
-type InstalledObservation = {
-  result: Awaited<ReturnType<typeof runCumulativeTransactionalMatrix>>;
-  sessions: Record<string, unknown>[];
-  baseline: ReturnType<typeof installedTransactionBinding>;
-};
-async function observe(control?: {
-  readonly budgetMs?: number;
-  /** Negative-test deadline begins after the first real exchange, with startup still bounded. */
-  readonly afterFirstExchangeBudgetMs?: number;
-  readonly scenarioSelection?: readonly string[];
-  readonly collapsePrincipalB?: boolean;
-  readonly onDispatch?: (request: PrincipalDispatchInput, session: ObservationSession) => void;
-  /** Retain genuine returned evidence before cleanup can fail; never replace it. */
-  readonly onObserved?: (observed: InstalledObservation) => void;
-  readonly invalidReceiptCredentials?: boolean | "set-update" | "set-delete";
-  /** Negative-only removal of one already declared canonical set route. */
-  readonly omitRoute?: {
-    readonly method: "POST";
-    readonly url: `${typeof scope}operations/${"update-where" | "delete-where"}`;
-  };
-  readonly signal?: AbortSignal;
-  readonly children?: ChildProcess[];
-  /** Negative-test gate after actual ordinary wire, never a response replacement. */
-  readonly afterExchange?: (
-    response: HttpExchangeResponse,
-    signal: AbortSignal,
-    session: ObservationSession,
-  ) => Promise<void>;
-  readonly ready?: (ready: Record<string, unknown>) => Record<string, unknown>;
-  readonly manifest?: (value: {
-    scenarios: { id: string; actions: Record<string, unknown>[] }[];
-  }) => void;
-}) {
-  const budgetMs = control?.budgetMs ?? 90000;
-  if (!Number.isSafeInteger(budgetMs) || budgetMs < 1 || budgetMs > 90000)
-    throw new Error("invalid cohort budget");
-  const afterFirstExchangeBudgetMs = control?.afterFirstExchangeBudgetMs;
-  if (
-    afterFirstExchangeBudgetMs !== undefined &&
-    (!Number.isSafeInteger(afterFirstExchangeBudgetMs) ||
-      afterFirstExchangeBudgetMs < 1 ||
-      afterFirstExchangeBudgetMs > budgetMs)
-  )
-    throw new Error("invalid after-first-exchange cohort budget");
-  const controller = new AbortController();
-  const signal = control?.signal
-    ? AbortSignal.any([control.signal, controller.signal])
-    : controller.signal;
-  signal.throwIfAborted();
-  const changed = JSON.parse(manifestSource.bytes.toString()) as {
-    scenarios: { id: string; actions: Record<string, unknown>[] }[];
-  };
-  control?.manifest?.(changed);
-  const runBundle = control?.manifest
-    ? createCumulativeTransactionalArtifactBundle(loadProfileContractSelection("transactional"), {
-        fixture: fixtureSource,
-        manifest: { bytes: Buffer.from(JSON.stringify(changed)) },
-      })
-    : bundle;
-  const directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-installed-"));
-  const tokens: PrincipalTokens = {
-    operator: randomBytes(32).toString("base64url"),
-    reader: randomBytes(32).toString("base64url"),
-    principalA: randomBytes(32).toString("base64url"),
-    principalARotated: randomBytes(32).toString("base64url"),
-    principalB: randomBytes(32).toString("base64url"),
-  };
-  const roles = principalCredentialRoles(tokens, control?.collapsePrincipalB ?? false);
-  const configuration = {
-    scope,
-    directory: path.join(directory, "bootstrap"),
-    create: true,
-    credentials: roles.map(({ token, principal, canMutate }) => ({ token, principal, canMutate })),
-    artifacts: artifacts(),
-  };
-  let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
-  const sessions: Record<string, unknown>[] = [];
-  let observationSession: ObservationSession | undefined;
-  const deniedReceiptUrls = new Set<string>();
-  const expireCohort = () => controller.abort(new Error("installed cohort deadline"));
-  const timer = setTimeout(expireCohort, budgetMs);
-  let firstExchangeTimer: ReturnType<typeof setTimeout> | undefined;
-  let observed: InstalledObservation | undefined;
-  let failure: unknown;
-  const cleanupFailures: unknown[] = [];
-  try {
-    const bootstrap = await launchInstalledTransaction(entry, configuration, signal);
-    control?.children?.push(bootstrap.child);
-    let baseline: ReturnType<typeof installedTransactionBinding>;
-    try {
-      baseline = installedTransactionBinding(bootstrap.ready, sourceCommit, fixtureSource);
-    } finally {
-      await bootstrap.close();
-    }
-    const routes = bundle.manifest.scenarios
-      .flatMap((s) => s.actions ?? [])
-      .flatMap((a) => {
-        if (a.family !== "http") return [];
-        const base =
-          a.target.binding === "scope" ? scope : bundle.fixture.bindings?.[a.target.binding];
-        if (!base) throw new Error("predeclared target unavailable");
-        const url = new URL(a.target.path ?? "", base);
-        for (const [key, value] of Object.entries(a.target.query ?? {})) {
-          if (typeof value !== "string") throw new Error("literal query required");
-          url.searchParams.set(key, value);
-        }
-        return [{ method: a.method, url: url.href }];
-      });
-    const uniqueRoutes = routes.filter(
-      (r, i) => routes.findIndex((o) => o.url === r.url && o.method === r.method) === i,
-    );
-    // Independently authored route inventory, not a second derivation from the manifest.
-    expect(uniqueRoutes).toEqual([
-      { method: "POST", url: `${scope}operations/batch` },
-      { method: "GET", url: `${scope}beads/?limit=32` },
-      { method: "GET", url: `${scope}events/` },
-      { method: "POST", url: `${scope}operations/create-bead` },
-      { method: "POST", url: `${scope}operations/sequence` },
-      { method: "POST", url: `${scope}operations/update-bead` },
-      { method: "GET", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}links/l` },
-      { method: "GET", url: `${scope}beads/new` },
-      { method: "GET", url: `${scope}changes/?after=genesis` },
-      { method: "GET", url: `${scope}links/?limit=32` },
-      { method: "GET", url: `${scope}beads/b` },
-      { method: "GET", url: `${scope}beads/c` },
-      { method: "POST", url: `${scope}operations/update-where` },
-      { method: "POST", url: `${scope}operations/delete-where` },
-      { method: "HEAD", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}beads/missing` },
-      { method: "HEAD", url: `${scope}beads/missing` },
-    ]);
-    const omitted = control?.omitRoute;
-    if (omitted) {
-      expect([`${scope}operations/update-where`, `${scope}operations/delete-where`]).toContain(
-        omitted.url,
-      );
-      expect(omitted.method).toBe("POST");
-      expect(
-        uniqueRoutes.filter((r) => r.url === omitted.url && r.method === omitted.method),
-      ).toHaveLength(1);
-    }
-    const exactMode: ExactHttpModeOptions = {
-      scope,
-      profile: "transactional",
-      routes: uniqueRoutes.filter(
-        (r) => !omitted || r.url !== omitted.url || r.method !== omitted.method,
-      ),
-      maximumRequestHeaderBytes: 16384,
-      maximumRequestBodyBytes: 65536,
-      defaultCredentialRef: "operator",
-      credentialHandles: [
-        ...roles.map(({ ref }) => ({ id: ref, headerNames: ["authorization"] })),
-        { id: "anonymous", headerNames: [] },
-      ],
-      resolveCredentials: ({ credentialRef, url }) =>
-        principalHeaders(
-          roles,
-          credentialRef,
-          (control?.invalidReceiptCredentials === true && url.startsWith(`${scope}receipts/`)) ||
-            deniedReceiptUrls.has(url),
-        ),
-    };
-    target = createTransactionalExecutionBinding({
-      baseline,
-      sourceCommit,
-      fixtureSource,
-      exactMode,
-      launch: async (scenario, reopen, signal) => {
-        if (signal.aborted) throw new Error("launch aborted");
-        const child = await launchInstalledTransaction(
-          entry,
-          {
-            ...configuration,
-            directory: path.join(directory, scenario),
-            create: !reopen,
-          },
-          signal,
-        );
-        control?.children?.push(child.child);
-        observationSession = Object.freeze({ scenario, reopen, sessionOrdinal: sessions.length });
-        sessions.push({ ...child.ready, ...observationSession });
-        return control?.ready ? { ...child, ready: control.ready(child.ready) } : child;
-      },
-    });
-    const result = await runCumulativeTransactionalMatrix(
-      {
-        scope,
-        signal,
-        profile: "transactional",
-        seed: 0,
-        artifactBundle: runBundle,
-        ...(control?.scenarioSelection === undefined
-          ? {}
-          : { scenarioSelection: control.scenarioSelection }),
-        execute: async () => {
-          throw new Error("generic HTTP executor forbidden");
-        },
-        exactExecution: {
-          execute: async (request) => {
-            const session = observationSession;
-            if (!session)
-              throw new Error("ordinary exchange requires a launched observation session");
-            control?.onDispatch?.(
-              Object.freeze({
-                method: request.method,
-                url: request.url,
-                credentialRef: request.credentialRef,
-              }),
-              session,
-            );
-            const response = await target!.target.execute(request);
-            if (observationSession !== session)
-              throw new Error("observation session changed during ordinary exchange");
-            if (afterFirstExchangeBudgetMs !== undefined && firstExchangeTimer === undefined) {
-              firstExchangeTimer = setTimeout(expireCohort, afterFirstExchangeBudgetMs);
-            }
-            if (
-              typeof control?.invalidReceiptCredentials === "string" &&
-              response.status === 200 &&
-              [
-                baseline.operationTargets.updateWhere,
-                baseline.operationTargets.deleteWhere,
-              ].includes(response.url)
-            ) {
-              const receipt = JSON.parse(response.bodyText) as {
-                id?: unknown;
-                idempotencyKey?: unknown;
-              };
-              if (
-                receipt.idempotencyKey === control.invalidReceiptCredentials &&
-                typeof receipt.id === "string"
-              )
-                deniedReceiptUrls.add(receipt.id);
-            }
-            await control?.afterExchange?.(response, signal, session);
-            signal.throwIfAborted();
-            return response;
-          },
-          configuration: target.target.exactConfiguration!,
-        },
-        harness: {
-          ...target.target.harness,
-          cleanup: async (...args) => {
-            try {
-              await target!.target.harness.cleanup(...args);
-            } catch (error) {
-              cleanupFailures.push(error);
-              throw error;
-            }
-          },
-        },
-        schemaValidator: createJsonSchemaValidator(schema),
-        declaredTargetLabel: "private-installed-transactional-partial",
-        prepareTimeoutMs: 10000,
-        cleanupTimeoutMs: 10000,
-        requestTimeoutMs: 5000,
-      },
-      target.context,
-    );
-    observed = { result, sessions, baseline };
-    control?.onObserved?.(observed);
-  } catch (error) {
-    failure = error;
-  } finally {
-    // The runner can report abort as row state; retain the cohort's original
-    // reason before a subsequent child/session cleanup failure is aggregated.
-    if (failure === undefined && signal.aborted) failure = signal.reason;
-    try {
-      await target?.target.close();
-    } catch (cleanup) {
-      cleanupFailures.push(cleanup);
-    } finally {
-      clearTimeout(timer);
-      clearTimeout(firstExchangeTimer);
-      rmSync(directory, { recursive: true, force: true });
-    }
-  }
-  if (cleanupFailures.length) {
-    const causes = [...new Set([...(failure === undefined ? [] : [failure]), ...cleanupFailures])];
-    throw new AggregateError(causes, "installed cohort cleanup failed");
-  }
-  if (failure !== undefined) throw failure;
-  signal.throwIfAborted();
-  if (!observed) throw new Error("missing installed observation");
-  return observed;
-}
+import {
+  launchInstalledTransaction,
+  scope,
+  entry,
+  fixtureSource,
+  manifestSource,
+  bundle,
+  artifacts,
+  sourceCommit,
+  errorCauses,
+  type ObservationSession,
+  type InstalledObservation,
+  observe,
+  type PrincipalDispatchInput,
+  principalCredentialRoles,
+  principalHeaders,
+} from "../test-support/transactional-matrix-observation.js";
+
 it("observes seventeen partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
@@ -673,6 +322,7 @@ it.each([
   },
   120000,
 );
+
 it("refuses missing metadata at bootstrap instead of accepting a nonattesting fixture", () => {
   expect(() =>
     installedTransactionBinding(
@@ -682,6 +332,7 @@ it("refuses missing metadata at bootstrap instead of accepting a nonattesting fi
     ),
   ).toThrow("metadata");
 });
+
 it.each(["binding", "method", "credential", "body-assertion"])(
   "refuses altered private receipt %s without manufacturing observations",
   async (kind) => {
@@ -1070,426 +721,6 @@ it("retains original cohort abort alongside an actual failed child cleanup", asy
   );
 }, 20000);
 
-describe("same-run set expectation verifier controls", () => {
-  type PointerAssertion = Extract<ScenarioAssertion, { readonly kind: "json-pointer" }>;
-  const scenarioId = "transactional.set.singleton-targets";
-  const cases = [
-    {
-      kind: "matched",
-      actionId: "set-update",
-      assertionId: "matched",
-      wrong: { operationIndex: 0, outcome: "matched", count: 3 },
-    },
-    { kind: "order", actionId: "set-update", assertionId: "a-id", wrong: `${scope}beads/b` },
-    { kind: "index", actionId: "set-update", assertionId: "b-index", wrong: 1 },
-    {
-      kind: "poststate",
-      actionId: "target-a-updated",
-      assertionId: "properties",
-      wrong: { title: "never-observed" },
-    },
-  ] as const;
-  let observed: InstalledObservation;
-  const bodies = new Map<string, JsonValue>();
-  const assertions = new Map<string, PointerAssertion>();
-  let immutableObservation: string;
-
-  function freezeJson(value: JsonValue): JsonValue {
-    if (value !== null && typeof value === "object") {
-      for (const child of Object.values(value)) freezeJson(child);
-      Object.freeze(value);
-    }
-    return value;
-  }
-
-  beforeAll(async () => {
-    // Keep the actual unmodified run and capture raw responses before the runner
-    // redacts its report. Response selection follows the authored action order,
-    // never an expected payload value: GET a before, updated, deleted, reopened.
-    const responses: {
-      readonly url: string;
-      readonly status: number;
-      readonly requestMethod: string;
-      readonly bodyText: string;
-      readonly request: Pick<
-        NonNullable<HttpExchangeResponse["exactRequest"]>,
-        "source" | "bodyPresent" | "bodyOctets" | "writeState"
-      >;
-    }[] = [];
-    const requests: { readonly method: string; readonly url: string }[] = [];
-    observed = await observe({
-      onDispatch(request, session) {
-        if (session.scenario === scenarioId)
-          requests.push(Object.freeze({ method: request.method, url: request.url }));
-      },
-      async afterExchange(response, _signal, session) {
-        if (session.scenario === scenarioId) {
-          const request = requests.at(-1);
-          if (requests.length !== responses.length + 1 || request?.url !== response.url)
-            throw new Error("Same-run response does not match its actual dispatched request");
-          const exact = response.exactRequest;
-          if (!exact) throw new Error("Same-run response lacks actual serialized request evidence");
-          responses.push(
-            Object.freeze({
-              url: response.url,
-              status: response.status,
-              requestMethod: request.method,
-              bodyText: response.bodyText,
-              request: Object.freeze({
-                source: exact.source,
-                bodyPresent: exact.bodyPresent,
-                bodyOctets: exact.bodyOctets,
-                writeState: exact.writeState,
-              }),
-            }),
-          );
-        }
-      },
-    });
-    const row = observed.result.scenarios.find((scenario) => scenario.id === scenarioId)!;
-    expect(row.state).toBe("pass");
-    const updates = responses.filter(
-      (response) => response.url === observed.baseline.operationTargets.updateWhere,
-    );
-    const targetReads = responses.filter((response) => response.url === `${scope}beads/a`);
-    expect(updates).toHaveLength(1);
-    expect(
-      row.exchanges
-        .filter(
-          (exchange) => exchange.request.url === observed.baseline.operationTargets.updateWhere,
-        )
-        .map((exchange) => exchange.request.id),
-    ).toEqual(["set-update"]);
-    expect(targetReads).toHaveLength(4);
-    expect(
-      row.exchanges
-        .filter((exchange) => exchange.request.url === `${scope}beads/a`)
-        .map((exchange) => exchange.request.id),
-    ).toEqual([
-      "target-a-before",
-      "target-a-updated",
-      "target-a-after-delete",
-      "target-a-reopened",
-    ]);
-    bodies.set("set-update", freezeJson(JSON.parse(updates[0]!.bodyText) as JsonValue));
-    bodies.set("target-a-updated", freezeJson(JSON.parse(targetReads[1]!.bodyText) as JsonValue));
-    const manifest = JSON.parse(manifestSource.bytes.toString("utf8")) as {
-      scenarios: { id: string; actions: { id: string; assertions?: ScenarioAssertion[] }[] }[];
-    };
-    const scenario = manifest.scenarios.find((candidate) => candidate.id === scenarioId)!;
-    for (const entry of cases) {
-      const action = scenario.actions.find((candidate) => candidate.id === entry.actionId)!;
-      const assertion = action.assertions!.find((candidate) => candidate.id === entry.assertionId)!;
-      expect(assertion.kind).toBe("json-pointer");
-      const pointer = assertion as PointerAssertion;
-      expect(isLiteralJsonPointerAssertion(pointer)).toBe(true);
-      assertions.set(
-        entry.kind,
-        freezeJson(structuredClone(pointer) as unknown as JsonValue) as unknown as PointerAssertion,
-      );
-      const exchange = row.exchanges.find((candidate) => candidate.request.id === entry.actionId)!;
-      expect(exchange.request.exact?.writeState).toBe("complete");
-      const captured = entry.actionId === "set-update" ? updates[0]! : targetReads[1]!;
-      expect(exchange.request.method).toBe(entry.actionId === "set-update" ? "POST" : "GET");
-      expect(exchange.request.method).toBe(captured.requestMethod);
-      expect(exchange.request.url).toBe(captured.url);
-      expect(exchange.response?.url).toBe(captured.url);
-      expect(exchange.response?.status).toBe(captured.status);
-      expect(exchange.response?.status).toBe(200);
-      expect(exchange.response?.bodyKind).toBe("json");
-      expect(exchange.response?.decodedBodyBytes).toBe(Buffer.byteLength(captured.bodyText));
-      expect(exchange.request.exact).toMatchObject(captured.request);
-      expect(
-        exchange.assertions.find((candidate) => candidate.id === entry.assertionId)?.passed,
-      ).toBe(true);
-    }
-    immutableObservation = createHash("sha256")
-      .update(JSON.stringify([...bodies]))
-      .digest("hex");
-  }, 120000);
-
-  it("reuses the same actual installed positive with identical literal verifier outcomes", () => {
-    for (const entry of cases)
-      expect(
-        literalJsonPointerMatches(bodies.get(entry.actionId), assertions.get(entry.kind)!),
-      ).toBe(true);
-  });
-
-  it.each(cases)(
-    "rejects the wrong $kind expectation using the immutable same-run observation",
-    (entry) => {
-      const original = assertions.get(entry.kind)!;
-      const changed = { ...structuredClone(original), equals: structuredClone(entry.wrong) };
-      expect(literalJsonPointerMatches(bodies.get(entry.actionId), changed)).toBe(false);
-      expect(literalJsonPointerMatches(bodies.get(entry.actionId), original)).toBe(true);
-      expect(changed.equals).not.toEqual(original.equals);
-      expect(Object.isFrozen(original)).toBe(true);
-      expect(Object.isFrozen(bodies.get(entry.actionId))).toBe(true);
-      expect(
-        createHash("sha256")
-          .update(JSON.stringify([...bodies]))
-          .digest("hex"),
-      ).toBe(immutableObservation);
-    },
-  );
-});
-
-it("allows a valid cross-wired set receipt binding but rejects its wrong result oracle", async () => {
-  const observed = await observe({
-    manifest(value) {
-      const row = value.scenarios.find((s) => s.id === "transactional.set.singleton-targets")!;
-      const action = row.actions.find((a) => a.id === "set-delete-facts")!;
-      action.input = { binding: "set-update-receipt", method: "GET" };
-      action.assertions = [
-        {
-          id: "expected-delete-count",
-          kind: "json-pointer",
-          pointer: "/body/results/0/count",
-          exists: true,
-          equals: 1,
-        },
-      ];
-    },
-  });
-  const row = observed.result.scenarios.find(
-    (s) => s.id === "transactional.set.singleton-targets",
-  )!;
-  expect(row.state).toBe("fail");
-  const exchange = row.exchanges.find((e) => e.request.id === "set-delete-facts")!;
-  expect(exchange.sourceReceiptObservation?.action).toBe("set-update");
-  expect(exchange.request.exact?.writeState).toBe("complete");
-  expect(exchange.response?.status).toBe(200);
-  expect(
-    row.actions
-      ?.find((a) => a.action.id === "set-delete-facts")
-      ?.assertions?.find((a) => a.id === "expected-delete-count")?.passed,
-  ).toBe(false);
-}, 120000);
-
-it.each(["update-where", "delete-where"] as const)(
-  "refuses an omitted %s route at exact plan preflight before scenario startup or any wire",
-  async (suffix) => {
-    const children: ChildProcess[] = [];
-    let exchanges = 0;
-    await expect(
-      observe({
-        omitRoute: { method: "POST", url: `${scope}operations/${suffix}` },
-        children,
-        afterExchange: async () => {
-          exchanges++;
-        },
-      }),
-    ).rejects.toThrow(
-      "Selected exact HTTP requests do not match the configured execution boundary",
-    );
-    expect(exchanges).toBe(0);
-    // Only the attestation bootstrap launched, already closed before preflight.
-    // No scenario session or POST source exists from which to grant authority.
-    expect(children).toHaveLength(1);
-    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
-  },
-  120000,
-);
-
-it.each(["set-update", "set-delete"] as const)(
-  "records the %s source and exact failed dynamic request when its receipt credentials are denied",
-  async (action) => {
-    const observed = await observe({ invalidReceiptCredentials: action });
-    const row = observed.result.scenarios.find(
-      (s) => s.id === "transactional.set.singleton-targets",
-    )!;
-    expect(row.state).toBe("fail");
-    const exchange = row.exchanges.find((e) => e.sourceReceiptObservation?.action === action)!;
-    expect(exchange.sourceReceiptObservation?.credentialRef).toBe("operator");
-    expect(exchange.sourceReceiptObservation?.responseDigest).toMatch(/^[a-f0-9]{64}$/);
-    expect(exchange.dynamicExactConfiguration?.routes).toEqual([
-      { method: "GET", url: exchange.sourceReceiptObservation!.receipt },
-    ]);
-    expect(exchange.servedSession).toBeDefined();
-    expect(exchange.request.exact?.writeState).toBe("complete");
-    expect(exchange.response?.status).toBe(401);
-    expect(exchange.assertions.find((a) => a.id === "actual-status")?.passed).toBe(false);
-  },
-  120000,
-);
-
-it.each([
-  [
-    "second postimage",
-    "transactional.set.mutation",
-    "m-updated-b",
-    "properties",
-    { title: "never-observed" },
-  ],
-  [
-    "rollback metadata",
-    "transactional.set.mutation",
-    "m-rollback-a",
-    "metadata",
-    { tag: "never-observed" },
-  ],
-  ["receipt order", "transactional.set.mutation", "m-update", "a-id", `${scope}beads/b`],
-  [
-    "Event order",
-    "transactional.set.mutation",
-    "m-update-events",
-    "ordered-facts",
-    [
-      ["created", `${scope}beads/b`, 0],
-      ["created", `${scope}beads/c`, 1],
-      ["created", `${scope}beads/a`, 2],
-      ["updated", `${scope}beads/b`, 0],
-      ["updated", `${scope}beads/a`, 1],
-    ],
-  ],
-  [
-    "zero results",
-    "transactional.set.zero-match",
-    "z-update",
-    "exact-results",
-    [{ operationIndex: 0, outcome: "matched", count: 1 }],
-  ],
-  [
-    "zero Events",
-    "transactional.set.zero-match",
-    "z-update-events",
-    "ordered-facts",
-    [
-      ["created", `${scope}beads/a`, 0],
-      ["updated", `${scope}beads/a`, 0],
-    ],
-  ],
-  ["no effect", "transactional.set.zero-match", "z-update", "no-effect", true],
-] as const)(
-  "discriminates actual set effects against wrong %s expectation",
-  async (kind, id, actionId, assertionId, wrong) => {
-    const observed = await observe({
-      manifest(value) {
-        const row = value.scenarios.find((s) => s.id === id)!;
-        const action = row.actions.find((a) => a.id === actionId)!;
-        const assertion = (action.assertions as { id: string }[]).find(
-          (a) => a.id === assertionId,
-        ) as {
-          equals?: unknown;
-          exists?: boolean;
-        };
-        if (kind === "no effect") assertion.exists = true;
-        else assertion.equals = wrong;
-      },
-    });
-    const row = observed.result.scenarios.find((s) => s.id === id)!;
-    expect(row.state).toBe("fail");
-    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
-    expect(exchange.request.exact?.writeState).toBe("complete");
-    expect(exchange.response?.status).toBe(200);
-    expect(exchange.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
-  },
-  120000,
-);
-
-it.each([
-  ["root next", "p-root-read", "next-page", null],
-  ["inline boundary", "p-update", "p30-id", `${scope}beads/p31`],
-  ["page member", "p-page-read", "p31-id", `${scope}beads/p30`],
-  ["page parent", "p-page-read", "parent", `${scope}receipts/wrong`],
-  ["historical title", "p-page-retained", "historical-title", "later"],
-  ["terminal next", "p-page-read", "no-next", `${scope}receipts/wrong/pages/next`],
-] as const)(
-  "discriminates receipt pagination against wrong %s expectation",
-  async (_kind, actionId, assertionId, wrong) => {
-    const observed = await observe({
-      manifest(value) {
-        const row = value.scenarios.find((s) => s.id === "transactional.receipt.pagination")!;
-        const action = row.actions.find((a) => a.id === actionId)!;
-        const assertion = (
-          action.assertions as { id: string; equals?: unknown; equalsBinding?: string }[]
-        ).find((a) => a.id === assertionId)!;
-        delete assertion.equalsBinding;
-        assertion.equals = wrong;
-      },
-    });
-    const row = observed.result.scenarios.find((s) => s.id === "transactional.receipt.pagination")!;
-    expect(row.state).toBe("fail");
-    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
-    expect(exchange.request.exact?.writeState).toBe("complete");
-    expect(exchange.response?.status).toBe(200);
-    const assertionResults =
-      actionId === "p-update"
-        ? exchange.assertions
-        : row.actions!.find((a) => a.action.id === actionId)!.assertions;
-    expect(assertionResults.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
-  },
-  120000,
-);
-
-it.each([
-  ["conflict code", "c-conflict", "problem-code", "malformed-request", 409],
-  ["reopened conflict status", "c-conflict-reopened", "http-status", 200, 409],
-  [
-    "current record",
-    "c-state",
-    "ordered-state",
-    [[`${scope}beads/b`, `${scope}types/task`, { title: "original" }, { tag: "conflict" }]],
-    200,
-  ],
-  ["retained replay body", "c-retry-reopened", "retained-body", {}, 200],
-  [
-    "unchanged Event",
-    "c-events-reopened",
-    "ordered-facts",
-    [[`${scope}events/`, "created", `${scope}beads/b`, 0]],
-    200,
-  ],
-] as const)(
-  "discriminates completed-key conflict against wrong %s expectation",
-  async (kind, actionId, assertionId, wrong, status) => {
-    const children: ChildProcess[] = [];
-    const observed = await observe({
-      children,
-      manifest(value) {
-        const row = value.scenarios.find((s) => s.id === "transactional.idempotency.conflict")!;
-        const action = row.actions.find((a) => a.id === actionId)!;
-        const assertion = (
-          action.assertions as { id: string; equals?: unknown; equalsBinding?: string }[]
-        ).find((a) => a.id === assertionId)!;
-        delete assertion.equalsBinding;
-        assertion.equals = wrong;
-      },
-    });
-    const row = observed.result.scenarios.find(
-      (s) => s.id === "transactional.idempotency.conflict",
-    )!;
-    expect(observed.result.claimEligible).toBe(false);
-    expect(row.state).toBe("fail");
-    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
-    expect(exchange.request.exact?.writeState).toBe("complete");
-    expect(exchange.response?.status).toBe(status);
-    expect(exchange.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
-    expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
-      true,
-    );
-    console.log(
-      JSON.stringify({
-        kind: "installed-tx-completed-conflict-control",
-        control: kind,
-        sourceCommit,
-        actionId,
-        assertionId,
-        observedStatus: exchange.response?.status,
-        writeState: exchange.request.exact?.writeState,
-        failures: exchange.assertions.filter((a) => !a.passed).map((a) => a.id),
-        childLaunches: children.length,
-        closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
-        artifacts: observed.result.artifacts,
-        declarations: observed.result.declarations,
-        baseline: observed.baseline,
-        claimEligible: observed.result.claimEligible,
-      }),
-    );
-  },
-  120000,
-);
-
 it("pins the matching no-op installed route digest and fifteen-action ledger", () => {
   assertPrincipalStatic();
   assertMemberReplayLedger(memberReplayLedger);
@@ -1709,9 +940,9 @@ const deletionControlNames = [
   "outgoing-order",
   "committed-prefix-state",
 ] as const;
+
 type DeletionControl = (typeof deletionControlNames)[number];
-// Only these three fixed derivative carriers are supported. The positive request
-// and response facts are authored independently; no observed body supplies an oracle.
+
 function applyDeletionControl(
   value: { scenarios: { id: string; actions: Record<string, unknown>[] }[] },
   control: DeletionControl,
@@ -2044,6 +1275,7 @@ it.each(deletionControlNames)(
 );
 
 const crossCarrierId = "transactional.idempotency.cross-carrier";
+
 const crossCarrierActionIds = [
   "x-create",
   "x-created-facts",
@@ -2058,18 +1290,24 @@ const crossCarrierActionIds = [
   "x-current",
   "x-events",
 ];
+
 const crossCarrierControls = ["batch-semantic-conflict", "sequence-fresh-key"] as const;
+
 type CrossCarrierControl = (typeof crossCarrierControls)[number];
+
 type CrossCarrierManifest = { scenarios: { id: string; actions: Record<string, unknown>[] }[] };
+
 const crossCreate = () => ({
   id: "beads/a",
   type: `${scope}types/task`,
   properties: { title: "carrier-original" },
 });
+
 const crossUpdate = () => ({
   bead: "beads/a",
   propertiesChange: [{ op: "replace", path: "/title", value: "carrier-current" }],
 });
+
 function crossCarrierRequests(control?: CrossCarrierControl) {
   const create = crossCreate(),
     update = crossUpdate();
@@ -2123,8 +1361,7 @@ function crossCarrierRequests(control?: CrossCarrierControl) {
     ["events/", undefined, undefined],
   ] as const;
 }
-/** Existing afterExchange observes only ordinary wire; client receipt GETs are
- * validated by the manifest. No report redaction is used as a value source. */
+
 function crossCarrierWire(control?: CrossCarrierControl) {
   const requests = crossCarrierRequests(control);
   const maximum =
@@ -2198,6 +1435,7 @@ function crossCarrierWire(control?: CrossCarrierControl) {
     },
   };
 }
+
 function applyCrossCarrierControl(value: CrossCarrierManifest, control: CrossCarrierControl) {
   const row = value.scenarios.find((r) => r.id === crossCarrierId)!;
   const actionId = control === "batch-semantic-conflict" ? "x-create-batch" : "x-create-sequence";
@@ -2298,6 +1536,7 @@ function applyCrossCarrierControl(value: CrossCarrierManifest, control: CrossCar
         : ["presentation", "created-record"],
   };
 }
+
 function assertCrossCarrierControls() {
   const canonical = JSON.parse(manifestSource.bytes.toString());
   const canonicalExecutionDigest = createHash("sha256")
@@ -2365,6 +1604,7 @@ function assertCrossCarrierControls() {
     ["control-member", "control-no-resource", "control-no-outcome"],
   ]);
 }
+
 it.each(crossCarrierControls)(
   "discriminates retained cross-carrier evidence against %s",
   async (control) => {
@@ -2466,6 +1706,7 @@ it.each(crossCarrierControls)(
 );
 
 const commandMinimumId = "read-update.http.command-minimum-fields";
+
 const minimumActionIds = [
   "m-create-a",
   "m-replay-a",
@@ -2479,14 +1720,19 @@ const minimumActionIds = [
   "m-current",
   "m-events",
 ];
+
 const minimumRawIds = minimumActionIds.filter((id) => id !== "m-retained-a");
+
 const minimumControls = ["minimum-batch-body-conflict", "minimum-readonly-credential"] as const;
+
 type MinimumControl = (typeof minimumControls)[number];
+
 const minimumReplayLedger: readonly (readonly string[])[] = [
   ["m-replay-a", "m-create-a", "whole-json"],
   ["m-replay-b", "m-create-b", "whole-json"],
   ["m-replay-c", "m-create-c", "whole-json"],
 ];
+
 function assertMinimumReplayLedger(ledger: readonly (readonly string[])[]) {
   if (
     JSON.stringify(ledger) !==
@@ -2498,6 +1744,7 @@ function assertMinimumReplayLedger(ledger: readonly (readonly string[])[]) {
   )
     throw new Error("minimum-replay-comparison-ledger");
 }
+
 function minimumRequests(control?: MinimumControl) {
   const create = (name: string) => ({
     id: `beads/${name}`,
@@ -2560,8 +1807,7 @@ function minimumRequests(control?: MinimumControl) {
     { url: `${scope}events/`, body: undefined, headers: O },
   ];
 }
-/** Supplemental assertions on actual unredacted wire. The ledger alone drives
- * replay equality; no arbitrary JSON capture or report-body recovery is used. */
+
 function commandMinimumWire(control?: MinimumControl) {
   assertMinimumReplayLedger(minimumReplayLedger);
   const requests = minimumRequests(control),
@@ -2824,6 +2070,7 @@ function commandMinimumWire(control?: MinimumControl) {
     },
   };
 }
+
 function assertCommandMinimumPositive(
   observed: Awaited<ReturnType<typeof observe>>,
   wire: ReturnType<typeof commandMinimumWire>,
@@ -2895,6 +2142,7 @@ function assertCommandMinimumPositive(
   ]);
   wire.finish();
 }
+
 function applyCommandMinimumControl(value: CrossCarrierManifest, control: MinimumControl) {
   const row = value.scenarios.find((r) => r.id === commandMinimumId)!;
   const actionId = control === "minimum-batch-body-conflict" ? "m-replay-b" : "m-create-a";
@@ -2939,6 +2187,7 @@ function applyCommandMinimumControl(value: CrossCarrierManifest, control: Minimu
           ],
   };
 }
+
 function assertCommandMinimumControls() {
   const canonical = JSON.parse(manifestSource.bytes.toString()),
     validator = createJsonSchemaValidator(schema);
@@ -2975,6 +2224,7 @@ function assertCommandMinimumControls() {
   }
   expect(new Set(digests).size).toBe(2);
 }
+
 it.each(minimumControls)(
   "discriminates command minimum evidence against %s",
   async (control) => {
@@ -3053,6 +2303,7 @@ it.each(minimumControls)(
 );
 
 const memberId = "transactional.sequence.member-transactions";
+
 const memberActionIds = [
   "s-sequence",
   "s-first-receipt",
@@ -3065,14 +2316,18 @@ const memberActionIds = [
   "s-current",
   "s-events",
 ];
+
 const memberRawIds = memberActionIds.filter((id) => !id.endsWith("-facts"));
+
 const memberReplayLedger: readonly (readonly string[])[] = [
   ["s-replay", "s-sequence", "whole-json"],
 ];
+
 function assertMemberReplayLedger(ledger: readonly (readonly string[])[]) {
   if (JSON.stringify(ledger) !== JSON.stringify([["s-replay", "s-sequence", "whole-json"]]))
     throw new Error("sequence-member-replay-ledger");
 }
+
 function memberRequests(negative = false) {
   const first = {
       operation: "createBead",
@@ -3121,6 +2376,7 @@ function memberRequests(negative = false) {
     },
   ];
 }
+
 const memberFailureIds = [
   "serving-position",
   "middle-type",
@@ -3130,6 +2386,7 @@ const memberFailureIds = [
   "middle-no-outcome",
   "middle-no-deleted",
 ];
+
 function memberHandoff(
   index: number,
   url: string,
@@ -3145,8 +2402,7 @@ function memberHandoff(
     writeState === "complete"
   );
 }
-/** Full actual values stay local to assertions. Reports retain only identities,
- * digests and performed-pair inventory; receipt helper equality is separate. */
+
 function sequenceMemberWire(negative = false) {
   assertMemberReplayLedger(memberReplayLedger);
   const validator = createJsonSchemaValidator(schema),
@@ -3356,6 +2612,7 @@ function sequenceMemberWire(negative = false) {
     },
   };
 }
+
 function composedMemberWire(
   cross: ReturnType<typeof crossCarrierWire>,
   minimum: ReturnType<typeof commandMinimumWire>,
@@ -3381,6 +2638,7 @@ function composedMemberWire(
     if (handedOff) await member.afterExchange(response);
   };
 }
+
 function assertMemberPositive(
   observed: Awaited<ReturnType<typeof observe>>,
   wire: ReturnType<typeof sequenceMemberWire>,
@@ -3451,12 +2709,14 @@ function assertMemberPositive(
   }
   wire.finish();
 }
+
 function applyMemberControl(value: CrossCarrierManifest) {
   const row = value.scenarios.find((r) => r.id === memberId)!;
   (row.actions[0]!.raw as { body: { value: string } }).body.value = JSON.stringify(
     memberRequests(true)[0]!.body,
   );
 }
+
 function assertMemberControl() {
   const value = JSON.parse(manifestSource.bytes.toString()) as CrossCarrierManifest,
     original = structuredClone(value);
@@ -3478,6 +2738,7 @@ function assertMemberControl() {
     }),
   ).not.toThrow();
 }
+
 it("discriminates sequence member transactions against a successful middle delete", async () => {
   const children: ChildProcess[] = [],
     wire = sequenceMemberWire(true);
@@ -3548,6 +2809,7 @@ it("discriminates sequence member transactions against a successful middle delet
 }, 120000);
 
 const principalId = "read-update.idempotency.principal-isolation";
+
 const principalRequests = [
   {
     action: "pk-a-create",
@@ -3716,6 +2978,7 @@ const principalRequests = [
     reportedUrl: "https://reference.invalid/acme/events/",
   },
 ] as const;
+
 const principalFailureIds = [
   "http-status",
   "schema",
@@ -3736,6 +2999,7 @@ const principalFailureIds = [
   "resource-properties",
   "resource-metadata",
 ] as const;
+
 const principalPassingIds = [
   "present-bdp-scope-epoch",
   "present-bdp-authorization-view",
@@ -3746,51 +3010,11 @@ const principalPassingIds = [
   "no-provenance",
 ] as const;
 
-type PrincipalTokens = {
-  operator: string;
-  reader: string;
-  principalA: string;
-  principalARotated: string;
-  principalB: string;
-};
-type PrincipalDispatchInput = Readonly<{
-  method: string;
-  url: string;
-  credentialRef: string | undefined;
-}>;
-function principalCredentialRoles(tokens: PrincipalTokens, collapsePrincipalB = false) {
-  return [
-    { ref: "operator", token: tokens.operator, principal: "same", canMutate: true },
-    { ref: "reader", token: tokens.reader, principal: "same", canMutate: false },
-    { ref: "principal-a", token: tokens.principalA, principal: "principal-a", canMutate: true },
-    {
-      ref: "principal-a-rotated",
-      token: tokens.principalARotated,
-      principal: "principal-a",
-      canMutate: true,
-    },
-    {
-      ref: "principal-b",
-      token: tokens.principalB,
-      principal: collapsePrincipalB ? "principal-a" : "principal-b",
-      canMutate: true,
-    },
-  ];
-}
-function principalHeaders(
-  roles: ReturnType<typeof principalCredentialRoles>,
-  ref: string,
-  denyReceipt: boolean,
-): Record<string, string> {
-  if (ref === "anonymous") return {};
-  const role = roles.find((candidate) => candidate.ref === ref);
-  if (!role) throw new Error("unknown principal credential reference");
-  return { authorization: `Bearer ${denyReceipt ? "deliberately-unknown" : role.token}` };
-}
 const principalReplayLedger = [
   ["pk-a-rotated", "pk-a-create", "whole-json"],
   ["pk-b-replay", "pk-b-create", "whole-json"],
 ] as const;
+
 function assertPrincipalReplayLedger(value: readonly (readonly string[])[]) {
   if (
     JSON.stringify(value) !==
@@ -3801,6 +3025,7 @@ function assertPrincipalReplayLedger(value: readonly (readonly string[])[]) {
   )
     throw new Error("principal-replay-ledger");
 }
+
 function assertPrincipalStatic() {
   const tokens = {
     operator: "op",
@@ -3890,8 +3115,7 @@ function assertPrincipalStatic() {
       exists: false,
     });
 }
-/** Two safe boundaries: input carries the authored handle; response carries actual
- * serialized wire/body. The report's action ID is joined only after the run. */
+
 function principalNamespaceWire(collapse = false) {
   assertPrincipalReplayLedger(principalReplayLedger);
   const maximum = collapse ? 2 : 7;
@@ -4170,6 +3394,7 @@ function principalNamespaceWire(collapse = false) {
     },
   };
 }
+
 function withPrincipalWire(
   principal: ReturnType<typeof principalNamespaceWire>,
   old: (response: HttpExchangeResponse) => Promise<void>,
@@ -4179,6 +3404,7 @@ function withPrincipalWire(
     await old(response);
   };
 }
+
 function assertPrincipalPositive(
   observed: InstalledObservation,
   wire: ReturnType<typeof principalNamespaceWire>,
@@ -4198,12 +3424,14 @@ function assertPrincipalPositive(
   }
   wire.finish(observed);
 }
+
 function principalOutputPath() {
   const output = process.env.BDP_TRANSACTIONAL_PRINCIPAL_CUMULATIVE_OUTPUT;
   if (output !== undefined && (!path.isAbsolute(output) || output.length > 4096))
     throw new Error("absolute principal observation output required");
   return output;
 }
+
 it("observes authenticated principal isolation and rotation through selected cumulative HTTP", async () => {
   const output = principalOutputPath(),
     children: ChildProcess[] = [],
@@ -4245,6 +3473,7 @@ it("observes authenticated principal isolation and rotation through selected cum
     }),
   );
 }, 120000);
+
 it("discriminates principal isolation against a separately bound collapsed namespace", async () => {
   const output = principalOutputPath(),
     children: ChildProcess[] = [],
@@ -4305,6 +3534,7 @@ it("discriminates principal isolation against a separately bound collapsed names
 }, 120000);
 
 const conditionalId = "transactional.http.conditional-reads";
+
 const conditionalParentScenarioIds = [
   "read-update.idempotency.principal-isolation",
   "read-update.http.command-minimum-fields",
@@ -4323,11 +3553,15 @@ const conditionalParentScenarioIds = [
   "transactional.idempotency.failed-retained",
   "transactional.sequence.member-transactions",
 ] as const;
+
 const conditionalFalseTag = '"conditional-no-match"';
+
 const conditionalSeed =
   '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"before"}}]}';
+
 const conditionalUpdate =
   '{"operations":[{"operation":"updateBead","bead":"beads/a","propertiesChange":[{"op":"replace","path":"/title","value":"after"}]}]}';
+
 const conditionalActionIds = [
   "seed",
   "initial-get",
@@ -4344,6 +3578,7 @@ const conditionalActionIds = [
   "current-get",
   "current-head",
 ] as const;
+
 function conditionalRequests(control = false) {
   const statuses = [
     200,
@@ -4393,6 +3628,7 @@ function conditionalRequests(control = false) {
     };
   });
 }
+
 const conditionalMetadata = [
   "bdp-scope-epoch",
   "bdp-authorization-view",
@@ -4403,8 +3639,7 @@ const conditionalMetadata = [
   "content-length",
   "vary",
 ] as const;
-/** Independent shallow full-body oracle, with original serialized request evidence.
- * Neither effectiveRequest nor credential-bearing runtime configuration is retained. */
+
 function conditionalReadWire(control = false) {
   const literals = conditionalRequests(control),
     maximum = control ? 4 : 14;
@@ -4698,7 +3933,7 @@ function conditionalReadWire(control = false) {
     },
   };
 }
-/** Route only the actual launched conditional session to the new observer. */
+
 function conditionalScenarioWire(
   conditional: ReturnType<typeof conditionalReadWire>,
   oldDispatch?: (request: PrincipalDispatchInput) => void,
@@ -4726,6 +3961,7 @@ function conditionalScenarioWire(
     },
   };
 }
+
 function applyConditionalControl(value: {
   scenarios: { id: string; actions: Record<string, unknown>[] }[];
 }) {
@@ -4737,6 +3973,7 @@ function applyConditionalControl(value: {
   expect(matches[0]!.value).toBe("*");
   matches[0]!.value = conditionalFalseTag;
 }
+
 it("pins conditional raw literals, request order and the sole header control", () => {
   const literals = conditionalRequests();
   expect(literals.map((r) => r.bodyBytes)).toEqual([141, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 130, 0, 0]);
@@ -4768,6 +4005,7 @@ it("pins conditional raw literals, request order and the sole header control", (
   changedHeader.value = "*";
   expect(changed).toEqual(canonical);
 });
+
 it.each([false, true])(
   "observes partial Transactional conditional reads and HEAD after mutation (control %s)",
   async (control) => {
