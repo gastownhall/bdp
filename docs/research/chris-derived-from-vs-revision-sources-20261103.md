@@ -6,11 +6,11 @@ Assessment date: 2026-11-03. BDP baseline: [`bd3c296d51b3d1179d7487a591f2bb7b7fc
 
 There is real overlap: both can name Beads, Links or external references and say that information mattered. They are **not currently the same assertion**.
 
-Chris R3 defines `derived-from` as a Memory-level list of References describing what the **content of this Memory** was written from. It has absent, explicitly empty, and nonempty states plus a separate completeness claim. Chris explicitly says this field is **not a graph edge**.
+Chris R3 defines `derived-from` as a Memory-level list of References describing what the **content of this Memory** was written from. Because it is durable Memory state, each retained Memory revision can preserve its own pinned References and thereby identify exact source revisions for that version. It has absent, explicitly empty, and nonempty states plus a separate completeness claim. Chris explicitly says this field is **not a graph edge**.
 
 Polly’s October 20 decision defines `revisionProvenance.sources` as References declared for **this particular write**. Every revision preserves its own declaration; readers can derive an accumulated account through revision history and later withdrawals. A source declaration does not create a Link, fetch a target, grant access or prove the claim. Polly’s proposal explicitly says this replaces carry-forward lists and removes the proposed need for a separate content-derivation traversal graph.
 
-Thus, “the same sources list stored both on the Memory and in revision provenance” would duplicate data and risk drift. But removing Chris’s content-lineage field and relying on the provenance proposal’s accumulated operation sources is not automatically equivalent either: that history can include metadata-only or other non-content writes, while a selected historical base/revert has its own lifecycle reference and does not copy the base revision’s sources into the new write.
+Thus, “the same sources list stored both on the Memory and in revision provenance” would duplicate data and risk drift. Chris’s versioned Memory field can attribute the derivation of a particular Memory version if writers update it with relevant content changes. But Chris R4 says omitted fields preserve their current values; the field does not itself require a fresh source declaration for every write. Polly’s per-write sources do require that operation-level distinction. Relying on Polly’s accumulated operation sources instead is not automatically equivalent either: that account can include metadata-only or other non-content writes, while a selected historical base/revert has its own lifecycle reference and does not copy the base revision’s sources into the new write.
 
 ## Side-by-side semantics
 
@@ -26,6 +26,12 @@ Thus, “the same sources list stored both on the Memory and in revision provena
 | Is it verified? | No. Completeness and derivation are the author’s claims. | No. Source use and completeness are writer-reported claims; the service must preserve accepted declarations, not silently rewrite them. |
 
 Primary text: Chris [R3 in #5877](https://github.com/gastownhall/beads/issues/5877); Polly [“Sources, accumulation and withdrawal — October 20 decisions” in #7510](https://github.com/gastownhall/beads/issues/7510), especially the per-write rule, Reference forms, empty/absent meanings, withdrawal, and the explicit no-Link statement. PR183 is the reviewable design draft, not adopted Core.
+
+## Querying and the graph-Link alternative
+
+A `derived-from` property is convenient to inspect when fetching one Memory revision. The selected logical Query AST can read fields and test exact JSON array membership, but it does not yet provide a portable native invocation, nor a general array-item query that matches a source identity across differently pinned Reference objects. Searching all retained Memory revisions by a source also needs a History-aware index or operation. Polly’s proposal names a purpose-built `bd provenance by-ref` query across retained revision sources, but that command/index remains proposal work.
+
+An actual `derived-from` Link makes reverse lookup and traversal natural in the graph model: ask for incoming Links of that Type and follow their sources/targets. That gains graph queryability, but also makes the relation independently identified and subject to Link ownership, pin, deletion and retention rules. It is not what R3 currently says.
 
 ## Why a graph Link is a third choice
 
@@ -51,4 +57,4 @@ First decide which question the Memory product actually needs:
 2. If it needs **what the current Memory content derives from**, Chris’s field can express a distinct, current-state assertion. Define how it changes when content changes, when non-content edits occur, and when content is reverted. It could be independently curated or explicitly derived from revision provenance under a stated projection rule; do not pretend the existing fold over all write sources automatically gives this answer.
 3. If it needs **traversable graph relationships** to evidence or other Beads, choose actual Links, with explicit ownership and deletion/pin rules. That is a third, heavier model—not required by either sources carrier.
 
-My recommendation is to keep one authoritative claim for each meaning: per-write sources for change inputs; add a Memory-level `derived-from` property only if consumers need current-content lineage that the history-derived source account cannot supply. Preserve Chris’s absent/empty/completeness distinctions if that field remains. Avoid duplicate editable lists and do not turn either source record into an automatic truth, support, or access assertion.
+My recommendation is to keep one authoritative claim for each meaning. If Chris wants every Memory content version to name its exact inputs, `derived-from` can do that when those References are updated alongside relevant content changes; the contract should make that duty explicit. If the requirement is to record inputs for every write, including metadata-only edits and other Resource types, Polly’s per-write sources are the closer fit. If both claims are needed, keep them distinct and define how updates/reverts affect each. Preserve Chris’s absent/empty/completeness distinctions if `derived-from` remains. For natural graph traversal, an actual owned Link is an option, but it changes R3 and requires the corresponding graph lifecycle decisions. Do not turn either record into an automatic truth, support, or access assertion.
