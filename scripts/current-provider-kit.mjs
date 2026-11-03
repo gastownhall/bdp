@@ -26,7 +26,7 @@ const definitions = [
   ["core.point-read", `${core}#read-a-bead-or-link`],
   ["write.no-op", `${write}#covered-state-and-no-ops`],
   ["write.guard-failure", `${write}#ordinary-requests`],
-  ["write.effectful-update", `${write}#object-edits-and-endpoint-corrections`],
+  ["write.effectful-update", `${write}#independent-object-planes`],
   ["write.delete", `${write}#ordinary-results`],
   ["write.restart", `${write}#atomic-durability-crash-and-capability-changes`],
   ["write.durable-original-success", `${write}#claims-and-terminal-outcomes`],
@@ -81,6 +81,44 @@ export const UNCOVERED_REQUIRED = Object.freeze([
       "Concurrent claims, abrupt loss/failover, expired detail and retention/erasure diagnoses are not implemented. Restart below is controlled reopen only.",
   },
 ]);
+// Fixed qualification boundary, independent of whichever rows survive execution.
+const requiredObligationIds = Object.freeze([
+  "core.scope-discovery",
+  "write.discovery-directory",
+  "write.media-before-admission",
+  "write.create",
+  "core.point-read",
+  "write.no-op",
+  "write.guard-failure",
+  "write.effectful-update",
+  "write.delete",
+  "write.restart",
+  "write.durable-original-success",
+  "write.durable-original-failure",
+  "write.durable-original-delete",
+  "core.deleted-absence",
+  "coverage.complete-obligation-audit",
+  "core.collections-and-native-pagination",
+  "core.link-and-alias-reads",
+  "core.http-and-selection",
+  "write.remaining-five-operations",
+  "write.identity-and-admission",
+  "write.authorization-and-owned-state",
+  "write.concurrent-and-crash-recovery",
+]);
+
+// Internal script control seam; no provider option can waive this boundary.
+export function hasCompleteRequiredCoverage(rows, lifecycle) {
+  return (
+    lifecycle.provision === "pass" &&
+    lifecycle.cleanup === "pass" &&
+    rows.length === requiredObligationIds.length &&
+    new Set(rows.map((row) => row.id)).size === rows.length &&
+    requiredObligationIds.every((id) =>
+      rows.some((row) => row.id === id && row.required === true && row.state === "pass"),
+    )
+  );
+}
 class HarnessError extends Error {}
 class Stop extends Error {}
 function fields(value, allowed, required) {
@@ -132,7 +170,14 @@ function connections(value) {
     throw new HarnessError("Duplicate adapter connection origin");
   return Object.freeze(result);
 }
-function exchange(routes, target, method = "GET", value, key, contentType = media) {
+function exchange(
+  routes,
+  target,
+  method = "GET",
+  value,
+  key,
+  { contentType = media, accept = media } = {},
+) {
   const logical = new URL(target);
   if (
     logical.username ||
@@ -155,7 +200,7 @@ function exchange(routes, target, method = "GET", value, key, contentType = medi
         path: logical.pathname + logical.search,
         headers: {
           host: logical.host,
-          accept: media,
+          accept,
           ...(route.authorization === undefined ? {} : { authorization: route.authorization }),
           ...(text === undefined
             ? {}
@@ -192,9 +237,13 @@ function exchange(routes, target, method = "GET", value, key, contentType = medi
       () => req.destroy(new HarnessError("Kit HTTP deadline exceeded")),
       5000,
     );
-    req.on("error", () => {
+    req.on("error", (error) => {
       clearTimeout(timer);
-      reject(new HarnessError("Public HTTP exchange did not complete"));
+      reject(
+        error instanceof HarnessError
+          ? error
+          : new HarnessError("Public HTTP exchange did not complete"),
+      );
     });
     req.end(text);
   });
@@ -221,6 +270,7 @@ export async function runCurrentProvider(provision) {
     obligations: rows,
   };
   let provider, cleanup;
+  let provisionEntered = false;
   async function step(id, action) {
     const row = rows.find((entry) => entry.id === id);
     try {
@@ -309,6 +359,7 @@ export async function runCurrentProvider(provision) {
       id: `provider-kit/${runId}/record`,
       minimumDetailWindowMs: 60000,
     });
+    provisionEntered = true;
     provider = await provision(Object.freeze({ fixture }));
     cleanup = Object.getOwnPropertyDescriptor(provider ?? {}, "cleanup")?.value;
     fields(
@@ -340,11 +391,9 @@ export async function runCurrentProvider(provision) {
     if (
       conditions &&
       (!Number.isSafeInteger(conditions.retainedDetailWindowMs) ||
-        conditions.retainedDetailWindowMs < fixture.minimumDetailWindowMs)
+        conditions.retainedDetailWindowMs <= 0)
     )
-      throw new HarnessError(
-        "Adapter retained-detail condition is below the requested fixture window",
-      );
+      throw new HarnessError("Adapter retained-detail condition must be a positive safe integer");
     let retentionStart;
     lifecycle.provision = "pass";
     let discoveryUrl, directory, created, failed, updated, deleted;
@@ -363,19 +412,24 @@ export async function runCurrentProvider(provision) {
     const post = (operation, body, key) =>
       exchange(routes, directory[operation], "POST", body, key);
     await step("core.scope-discovery", async () => {
-      const reply = await exchange(routes, scope.href);
+      const reply = await exchange(routes, scope.href, "GET", undefined, undefined, {
+        accept: "*/*",
+      });
       assert([200, 204].includes(reply.status));
       const links = parseLinkHeader(reply.headers.link ?? "").filter((entry) =>
         entry.parameters.some(
           (parameter) =>
             parameter.name.toLowerCase() === "rel" &&
-            parameter.value.split(/\s+/).includes("service-desc"),
+            parameter.value
+              .split(/\s+/)
+              .some((relation) => relation.toLowerCase() === "service-desc"),
         ),
       );
       assert(links.length > 0, "Scope omitted its required service-desc Link");
       const typed = links.filter((entry) =>
         entry.parameters.some(
-          (parameter) => parameter.name.toLowerCase() === "type" && parameter.value === media,
+          (parameter) =>
+            parameter.name.toLowerCase() === "type" && parameter.value.toLowerCase() === media,
         ),
       );
       const selected = typed.length === 1 ? typed[0] : links.length === 1 ? links[0] : undefined;
@@ -411,7 +465,9 @@ export async function runCurrentProvider(provision) {
     await step("write.media-before-admission", async () => {
       retentionStart = performance.now();
       const rejected = json(
-        await exchange(routes, directory.createBead, "POST", create, createKey, "application/json"),
+        await exchange(routes, directory.createBead, "POST", create, createKey, {
+          contentType: "application/json",
+        }),
         415,
         "readUpdateProblem",
         "application/problem+json",
@@ -498,11 +554,16 @@ export async function runCurrentProvider(provision) {
     if (
       !provider.restart ||
       !conditions ||
+      conditions.retainedDetailWindowMs < fixture.minimumDetailWindowMs ||
       performance.now() - retentionStart >= conditions.retainedDetailWindowMs
     ) {
       rows.find((row) => row.id === "write.restart").reason = !provider.restart
         ? "No explicit adapter restart hook; durable Write slice is not run"
-        : "No current explicit retained-detail fixture window; durable Write slice is not run";
+        : !conditions
+          ? "No explicit retained-detail fixture window; durable Write slice is not run"
+          : conditions.retainedDetailWindowMs < fixture.minimumDetailWindowMs
+            ? "Declared retained-detail window is shorter than the requested fixture window; durable Write slice is not run"
+            : "Retained-detail fixture window elapsed before restart; durable Write slice is not run";
       throw new Stop();
     }
     await step("write.restart", async () => {
@@ -545,11 +606,13 @@ export async function runCurrentProvider(provision) {
     });
   } catch (error) {
     if (!(error instanceof Stop)) {
-      lifecycle.provision = "harness-error";
+      if (provisionEntered) lifecycle.provision = "harness-error";
       report.harnessFailure =
         error instanceof HarnessError
           ? error.message
-          : "Adapter provisioning or suite initialization failed";
+          : provisionEntered
+            ? "Adapter provisioning failed"
+            : "Suite initialization failed";
     }
   } finally {
     if (typeof cleanup === "function") {
@@ -567,7 +630,9 @@ export async function runCurrentProvider(provision) {
     implemented.every((row) => row.state === "pass") &&
     lifecycle.provision === "pass" &&
     lifecycle.cleanup === "pass";
+  report.qualificationComplete = hasCompleteRequiredCoverage(rows, lifecycle);
   report.state =
+    report.harnessFailure !== undefined ||
     lifecycle.provision === "harness-error" ||
     lifecycle.cleanup === "harness-error" ||
     rows.some((row) => row.state === "harness-error")
@@ -579,19 +644,26 @@ export async function runCurrentProvider(provision) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  assert.equal(
-    process.argv.length,
-    4,
-    "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs",
-  );
-  assert.equal(process.argv[2], "--provider");
-  assert(path.isAbsolute(process.argv[3]), "Provider module path must be absolute");
+  if (
+    process.argv.length !== 4 ||
+    process.argv[2] !== "--provider" ||
+    !path.isAbsolute(process.argv[3])
+  ) {
+    process.stderr.write("Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n");
+    process.exit(64);
+  }
   let provision;
   try {
     ({ provision } = await import(pathToFileURL(process.argv[3]).href));
-  } catch {
+  } catch (error) {
+    const category =
+      error?.code === "ERR_MODULE_NOT_FOUND"
+        ? "not-found"
+        : error instanceof SyntaxError
+          ? "syntax"
+          : "module";
     provision = async () => {
-      throw new HarnessError("Selected provider module did not load");
+      throw new HarnessError(`Selected provider module did not load (${category})`);
     };
   }
   const report = await runCurrentProvider(provision);

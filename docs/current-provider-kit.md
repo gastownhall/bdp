@@ -35,6 +35,8 @@ The runner's fixtures never invoke Beads commands or infer startup admission.
 The CLI emits one JSON report. Exit 2 means incomplete coverage (including a
 successful slice); exit 1 means at least one public assertion failed; exit 3 means
 an adapter, transport, initialization or cleanup failure prevented observation.
+Exit 64 means invalid CLI usage; a fixed usage line goes to stderr without
+reflecting supplied arguments.
 There is no exit 0/full-qualification path in this initial kit. The report retains
 fixed per-obligation assertion diagnostics without response values or body diffs,
 so reflected credentials cannot enter assertion reports. It retains individual
@@ -86,10 +88,15 @@ unambiguous candidate; ambiguous candidates are a harness limitation, not a new
 protocol rule forbidding multiple Links. Add explicit connections for every
 served navigation origin. This initial transport supports Authorization headers,
 not every deployment-specific authentication/proxy arrangement. HTTP exchanges
-have a five-second wall deadline and one-MiB response cap; hitting a kit bound is
+have a five-second wall deadline and one-MiB response cap; fixed report diagnostics
+distinguish these kit bounds from an unspecified transport failure. Hitting a kit bound is
 a harness error, not proof of provider nonconformance.
 
 `restart` and `conditions` may be omitted; durability cases then remain `not-run`.
+A positive integer window shorter than the requested minimum likewise leaves
+durability `not-run` while allowing the non-durable cases to run. Zero, negative,
+noninteger or malformed conditions are harness errors. Skip reasons distinguish
+absence, a short window and elapsed time.
 The lifecycle handshake is an administrative test hook, **not BDP wire**. The
 adapter must really carry out its declared restart and retain the isolated
 fixture's stable principal and namespace. The kit cannot independently prove an
@@ -149,7 +156,11 @@ inventory/native pagination; Link/alias reads; remaining HTTP/selection cases;
 Link CRUD/alias mutation; remaining identity/allocation/admission/limits/numeric cases;
 authorization/protected Type/owner effects; concurrency/abrupt loss/failover and
 retention/erasure diagnoses. `UNCOVERED_REQUIRED` keeps them as required `not-run`
-rows, preventing this vertical slice from silently becoming full qualification.
+rows, preventing this vertical slice from silently becoming full qualification. The
+completion calculation checks the exact independent fixed set of required IDs,
+unique rows, required flags, passed states and successful lifecycle; it cannot
+pass merely because a reduced subset passes. There is no waiver option, and the
+coverage-audit row remains required `not-run`.
 Optional Events, Types, historical-update, projection and batch have no selected
 cases here; running the base slice does not qualify their advertised obligations.
 
@@ -171,3 +182,10 @@ control forwards the rejected request as valid media to the real reference,
 actually consuming its key and creating the target, then falsely reports 415;
 the runner rejects it through a public GET of that target. No internal state
 oracle or production fault hook is used.
+
+Module-loading failures use only fixed `not-found`, `syntax` or `module`
+categories, never raw error messages, paths or stacks in the report. Operators
+needing full loader diagnostics can import their selected module manually in an
+operator-owned terminal; that output may contain sensitive paths or data and is
+outside this report's redacted output. Initialization failure before an adapter
+is entered leaves provisioning `not-run` and the aggregate `harness-error`.

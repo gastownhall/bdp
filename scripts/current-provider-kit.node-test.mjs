@@ -7,7 +7,11 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { runCurrentProvider, UNCOVERED_REQUIRED } from "./current-provider-kit.mjs";
+import {
+  runCurrentProvider,
+  UNCOVERED_REQUIRED,
+  hasCompleteRequiredCoverage,
+} from "./current-provider-kit.mjs";
 import { provision } from "./current-provider-reference-adapter.mjs";
 
 const implemented = (report) =>
@@ -142,7 +146,26 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
             reply.statusCode = 415;
             reply.headers["content-type"] = "application/problem+json";
           }
+          if (request.url === new URL(provider.scope).pathname) {
+            if (corruption === "mixed-case-link") {
+              reply.headers.link =
+                reply.headers.link
+                  .replace(/rel="service-desc"/gi, 'rel="Service-Desc"')
+                  .replace(/type="[^"]*"/gi, 'type="APPLICATION/VND.BDP.V0.1+JSON"') +
+                ', <https://current-provider.invalid/unselected>; rel="Service-Desc"; type="text/html"';
+            }
+            if (corruption === "human-landing") {
+              reply.statusCode = request.headers.accept === "*/*" ? 200 : 406;
+              reply.headers["content-type"] = "text/html";
+              body = Buffer.from("<html>Provider landing</html>");
+            }
+            if (corruption === "byte-bound") {
+              reply.statusCode = 200;
+              body = Buffer.alloc(1048577, 120);
+            }
+          }
           if (corruption === "discovery-link") delete reply.headers.link;
+          delete reply.headers["transfer-encoding"];
           response.writeHead(reply.statusCode, {
             ...reply.headers,
             "content-length": String(body.length),
@@ -320,4 +343,145 @@ test("415 that secretly executes the same-key create fails public absence observ
   );
   assert.equal(report.obligations.find((row) => row.id === "write.create").state, "not-run");
   assert.equal(report.lifecycle.cleanup, "pass");
+});
+
+test("registered relation and media case fold selects the actual typed discovery among candidates", async () => {
+  const report = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "mixed-case-link"),
+  );
+  assert.equal(report.sliceComplete, true, JSON.stringify(report));
+  assert.equal(report.qualificationComplete, false);
+});
+
+test("Scope landing permits a negotiating human HTML representation", async () => {
+  const report = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "human-landing"),
+  );
+  assert.equal(report.sliceComplete, true, JSON.stringify(report));
+});
+
+test("short positive detail conditions preserve non-durable observations without pretending durable coverage", async () => {
+  const report = await runCurrentProvider(async (context) => ({
+    ...(await provision(context)),
+    conditions: { retainedDetailWindowMs: 30000 },
+  }));
+  assert.equal(report.state, "incomplete");
+  assert.equal(report.sliceComplete, false);
+  assert.equal(report.qualificationComplete, false);
+  assert.equal(report.lifecycle.provision, "pass");
+  assert.equal(report.lifecycle.cleanup, "pass");
+  assert.equal(report.obligations.find((row) => row.id === "write.delete").state, "pass");
+  const restart = report.obligations.find((row) => row.id === "write.restart");
+  assert.equal(restart.state, "not-run");
+  assert.match(restart.reason, /shorter/);
+});
+
+test("malformed negative and fractional detail conditions remain harness errors", async () => {
+  for (const retainedDetailWindowMs of [-1, 1.5]) {
+    const report = await runCurrentProvider(async (context) => ({
+      ...(await provision(context)),
+      conditions: { retainedDetailWindowMs },
+    }));
+    assert.equal(report.state, "harness-error");
+    assert.equal(report.lifecycle.cleanup, "pass");
+    assert.equal(report.qualificationComplete, false);
+  }
+});
+
+test("kit-owned response-byte bound survives request error reporting", async () => {
+  const report = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "byte-bound"),
+  );
+  assert.equal(report.state, "harness-error");
+  assert.equal(
+    report.obligations.find((row) => row.id === "core.scope-discovery").reason,
+    "Kit response-byte limit exceeded",
+  );
+  assert.equal(report.lifecycle.cleanup, "pass");
+});
+
+test("pre-provision initialization errors do not blame adapter execution", async () => {
+  const report = await runCurrentProvider(undefined);
+  assert.equal(report.lifecycle.provision, "not-run");
+  assert.equal(report.lifecycle.cleanup, "not-run");
+  assert.equal(report.state, "harness-error");
+  assert.equal(report.qualificationComplete, false);
+});
+
+test("CLI misuse has a distinct bounded usage exit without reflecting arguments", async () => {
+  for (const args of [
+    [],
+    ["--provider", "relative-secret-path.mjs"],
+    ["--unknown", "/secret.mjs"],
+  ]) {
+    const result = await new Promise((resolve, reject) => {
+      const child = spawn(
+        process.execPath,
+        [fileURLToPath(new URL("./current-provider-kit.mjs", import.meta.url)), ...args],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "",
+        stderr = "";
+      const timer = setTimeout(() => child.kill("SIGKILL"), 5000);
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.once("error", reject);
+      child.once("close", (code, signal) => {
+        clearTimeout(timer);
+        resolve({ code, signal, stdout, stderr });
+      });
+    });
+    assert.equal(result.signal, null);
+    assert.equal(result.code, 64);
+    assert.equal(result.stdout, "");
+    assert.equal(
+      result.stderr,
+      "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n",
+    );
+  }
+});
+
+test("qualification accounting rejects missing, duplicate, unrequired or failed obligations", async () => {
+  const report = await runCurrentProvider(provision);
+  const rows = report.obligations.map((row) => ({ ...row, state: "pass" }));
+  const lifecycle = { provision: "pass", cleanup: "pass" };
+  assert.equal(hasCompleteRequiredCoverage(rows, lifecycle), true);
+  for (const row of rows) {
+    assert.equal(
+      hasCompleteRequiredCoverage(
+        rows.filter((entry) => entry.id !== row.id),
+        lifecycle,
+      ),
+      false,
+    );
+    assert.equal(
+      hasCompleteRequiredCoverage(
+        rows.map((entry) => (entry.id === row.id ? { ...entry, required: false } : entry)),
+        lifecycle,
+      ),
+      false,
+    );
+    assert.equal(
+      hasCompleteRequiredCoverage(
+        rows.map((entry) => (entry.id === row.id ? { ...entry, state: "not-run" } : entry)),
+        lifecycle,
+      ),
+      false,
+    );
+  }
+  assert.equal(hasCompleteRequiredCoverage([...rows.slice(1), rows[1]], lifecycle), false);
+  assert.equal(hasCompleteRequiredCoverage([], lifecycle), false);
+  assert.equal(
+    hasCompleteRequiredCoverage(rows, { ...lifecycle, cleanup: "harness-error" }),
+    false,
+  );
+  assert.equal(report.qualificationComplete, false);
+  assert.equal(
+    report.obligations.find((row) => row.id === "coverage.complete-obligation-audit").state,
+    "not-run",
+  );
 });
