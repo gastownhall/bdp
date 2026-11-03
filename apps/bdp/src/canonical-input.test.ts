@@ -126,7 +126,7 @@ describe("canonical ordinary mutation compilation", () => {
     });
   });
   it("preserves exact guard token and permits empty authored patch but not attribution/guard-only update", async () => {
-    for (const token of ["123", "=saved", "@current"]) {
+    for (const token of ["123", "=saved", "@current", "9223372036854775808"]) {
       expect(
         await body(compile("update", { ifRevision: token, patchProperties: "[]" }, ["note"])),
       ).toEqual({ bead: `${scope}note`, expectedRevision: token, propertiesChange: [] });
@@ -425,6 +425,26 @@ describe("exact historical Bead Update compilation", () => {
     expect(
       await body(compile("update", { fromRevision: "==saved", ifRevision: "current-D" }, ["note"])),
     ).toEqual({ bead: `${scope}note`, fromRevision: "=saved", expectedRevision: "current-D" });
+  });
+  it("does not apply ordinal bounds to exact source, guard or Reference tokens", async () => {
+    expect(
+      await body(
+        compile(
+          "update",
+          {
+            fromRevision: "=9223372036854775808",
+            ifRevision: "9223372036854775808",
+            type: "Task@=9223372036854775808",
+          },
+          ["note"],
+        ),
+      ),
+    ).toEqual({
+      bead: `${scope}note`,
+      fromRevision: "9223372036854775808",
+      expectedRevision: "9223372036854775808",
+      type: { uri: `${scope}Task`, revision: "9223372036854775808" },
+    });
   });
   it("preserves ordinary explicit Type and object edits alongside the source", async () => {
     expect(

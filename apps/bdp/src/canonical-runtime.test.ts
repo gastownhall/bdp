@@ -87,6 +87,8 @@ it("bounds a blocked failure terminal after interruption between complete pages"
 
 it.each([
   ["1", 5, "unsupported_capability"],
+  ["9223372036854775807", 5, "unsupported_capability"],
+  ["9223372036854775808", 2, "invalid_value"],
   ["=", 2, "invalid_value"],
   ["bare-token", 2, "invalid_value"],
 ] as const)(
@@ -271,38 +273,42 @@ it.each([
   },
 );
 
-it.each(["note@3", "[https://wire.example/work/note]@3"])(
-  "reports unavailable ordinary ordinal %s without I/O",
-  async (operand) => {
-    const read = vi.spyOn(RetainedClient.prototype, "read");
-    const bind = vi.spyOn(RetainedClient.prototype, "bindWrite");
-    let stdout = "";
-    try {
-      const status = await runCanonicalInvocation(
-        {
-          command: ["show"],
-          positionals: [operand],
-          options: { outputFormat: "json" },
-          explicitOptions: ["outputFormat"],
+it.each([
+  ["note@3", 5, "unsupported_capability"],
+  ["[https://wire.example/work/note]@3", 5, "unsupported_capability"],
+  ["note@9223372036854775807", 5, "unsupported_capability"],
+  ["[https://wire.example/work/note]@9223372036854775807", 5, "unsupported_capability"],
+  ["note@9223372036854775808", 2, "invalid_value"],
+  ["[https://wire.example/work/note]@9223372036854775808", 2, "invalid_value"],
+] as const)("diagnoses ordinary ordinal %s without I/O", async (operand, expectedStatus, code) => {
+  const read = vi.spyOn(RetainedClient.prototype, "read");
+  const bind = vi.spyOn(RetainedClient.prototype, "bindWrite");
+  let stdout = "";
+  try {
+    const status = await runCanonicalInvocation(
+      {
+        command: ["show"],
+        positionals: [operand],
+        options: { outputFormat: "json" },
+        explicitOptions: ["outputFormat"],
+      },
+      { scope: { url: "https://wire.example/work/" }, auth: {} },
+      {
+        stdout: (text) => {
+          stdout += text;
         },
-        { scope: { url: "https://wire.example/work/" }, auth: {} },
-        {
-          stdout: (text) => {
-            stdout += text;
-          },
-          stderr: () => undefined,
-        },
-      );
-      expect(status).toBe(5);
-      expect(JSON.parse(stdout).error.problem.code).toBe("unsupported_capability");
-      expect(read).not.toHaveBeenCalled();
-      expect(bind).not.toHaveBeenCalled();
-    } finally {
-      read.mockRestore();
-      bind.mockRestore();
-    }
-  },
-);
+        stderr: () => undefined,
+      },
+    );
+    expect(status).toBe(expectedStatus);
+    expect(JSON.parse(stdout).error.problem.code).toBe(code);
+    expect(read).not.toHaveBeenCalled();
+    expect(bind).not.toHaveBeenCalled();
+  } finally {
+    read.mockRestore();
+    bind.mockRestore();
+  }
+});
 
 it.each([
   [
@@ -316,6 +322,12 @@ it.each([
   ["note@garbage", undefined, 2],
   ["note@=", undefined, 2],
   ["note@0", undefined, 2],
+  ["note@01", undefined, 2],
+  ["note@-1", undefined, 2],
+  ["note@9223372036854775807", "https://wire.example/work/note", 0],
+  ["[https://wire.example/work/note]@9223372036854775807", "https://wire.example/work/note", 0],
+  ["note@9223372036854775808", undefined, 2],
+  ["[https://wire.example/work/note]@9223372036854775808", undefined, 2],
 ] as const)(
   "validates whole incidence operand before ignoring applicability: %s",
   async (operand, identity, expected) => {
