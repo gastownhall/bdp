@@ -37,7 +37,7 @@ not recorded as completed council review.
    [PR174](https://github.com/gastownhall/bdp/pull/174) is an input to reconcile.
    Existing native Beads work in
    [Beads #7719](https://github.com/gastownhall/beads/issues/7719) and
-   [Beads PR141](https://github.com/gastownhall/beads/pull/141) is distinct from
+   [Beads PR141](https://github.com/donnabox/beads/pull/141) is distinct from
    public BDP wire support. Spec and implementation siblings must agree on the
    exact incoming contract and landed qualification. The selected design is an
    optional discoverable capability: body-free deletion versions, a narrow
