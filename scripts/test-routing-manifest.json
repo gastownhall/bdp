@@ -1006,10 +1006,22 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/server/src/installed-schema-uri.security.test.ts",
+      "lane": "legacy",
+      "runner": "vitest",
+      "reason": "Private installed-schema interpreter and configured-authority compatibility; separate from public canonical reference qualification."
+    },
+    {
       "path": "packages/server/src/installed-schema-uri.test.ts",
       "runner": "vitest",
       "lane": "legacy",
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/server/src/installed-schema-uri.transition.test.ts",
+      "lane": "legacy",
+      "runner": "vitest",
+      "reason": "Private installed-schema interpreter and configured-authority compatibility; separate from public canonical reference qualification."
     },
     {
       "path": "packages/server/src/member-executor.test.ts",

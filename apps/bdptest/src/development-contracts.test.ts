@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -6,9 +7,13 @@ import {
   parseReadUpdateDiscovery,
   parseReadUpdateOperationDirectory,
   parseCanonicalHttpUrl,
+  stringifyJsonValue,
   type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
-import { CONTRACT_ARTIFACT_CEILINGS } from "../../../packages/server/src/installed-contract-artifact.js";
+import {
+  CONTRACT_ARTIFACT_CEILINGS,
+  ingestContractArtifacts,
+} from "../../../packages/server/src/installed-contract-artifact.js";
 import type { DevelopmentAccess } from "../../../packages/server/src/development-contracts.js";
 import {
   startPrivateRuntime,
@@ -716,18 +721,39 @@ it("configured authorities expose only explicit principal facets and duplicate c
   ).toBe(204);
 });
 
-it("retains detached immutable capture without changing the predecessor compiler identity", () => {
+it("preserves the pre-policy index2 witness while binding immutable capture to the new interpretation", () => {
   const input = bundle();
   const installed = contracts.compileDevelopmentContracts(input);
   // Literal observed with the actual pre-capture compiler at fccb951 (its compiler
   // and artifact/schema sources are identical to the parent 3e2b878).
   // Reproduce: node ../bdp-integration-logs/transaction-contracts-evidence/prior-identity.mjs
-  // Identity binds fixture artifacts plus artifact, graph and evaluator ceilings.
-  // Intentional changes to those inputs need a justified new witness, not a pasted
-  // hash or an expectation that the old compiler reproduces newly changed ceilings.
-  expect(installed.identity).toBe(
-    "development-schema5-894c98da1156e66e72d7f5b4321365b9496ec68afea377dc1861bdaaa2cadf55",
-  );
+  const predecessorIdentity =
+    "development-schema5-894c98da1156e66e72d7f5b4321365b9496ec68afea377dc1861bdaaa2cadf55";
+  const captured = ingestContractArtifacts(input);
+  const prePolicyInputs = {
+    artifacts: captured.sha256,
+    artifactLimits: captured.receipt.limits,
+    graphLimits: installed.capture.graphLimits,
+    evaluatorLimits: installed.capture.evaluatorLimits,
+  };
+  expect(
+    `development-schema5-${createHash("sha256").update(stringifyJsonValue(prePolicyInputs)).digest("hex")}`,
+  ).toBe(predecessorIdentity);
+  expect(installed.capture.graphPolicy).toBe("schema-resource-index-3");
+  const expectedIdentity = `development-schema5-${createHash("sha256")
+    .update(
+      stringifyJsonValue({
+        artifacts: captured.sha256,
+        artifactLimits: captured.receipt.limits,
+        graphPolicy: "schema-resource-index-3",
+        graphLimits: installed.capture.graphLimits,
+        evaluatorLimits: installed.capture.evaluatorLimits,
+      }),
+    )
+    .digest("hex")}`;
+  expect(installed.identity).toBe(expectedIdentity);
+  expect(installed.identity).not.toBe(predecessorIdentity);
+  expect(contracts.compileDevelopmentContracts(bundle()).identity).toBe(expectedIdentity);
   const saved = JSON.parse(JSON.stringify(installed.capture));
   for (const artifact of [...input.descriptors, ...input.schemas]) artifact.utf8Bytes.fill(0);
   input.schemas.length = 0;

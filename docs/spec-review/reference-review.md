@@ -25,6 +25,10 @@ pins were hashed and match. The manifest records the real retained-v0.1 annotati
 vocabulary change outside the graph policy. This is not a Read evidence reseal,
 profile/CLI qualification or claim that all wire admission stayed unchanged.
 
+The index2 permission above belongs to that recorded candidate. It is superseded
+for the current private interpreter by index3; see the
+[URI security transition](../../packages/server/test-support/uri-security-transition.md).
+
 The review repair passes111 tests across5 affected files plus typecheck. Original
 failures and the initial reservation implementation remain in Git/log history.
 At that checkpoint, closure review, installed smoke and full qualification were
