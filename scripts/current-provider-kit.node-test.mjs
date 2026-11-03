@@ -38,7 +38,7 @@ test("current reference passes the executable slice while missing required cover
   assert.equal(report.inputs.inputClosure, "INCOMPLETE");
   assert.equal(report.inputs.resultReuseAttestation, false);
   assert.equal(report.inputs.schemaSha256, report.schemaSha256);
-  assert.equal(implemented(report).length, 14);
+  assert.equal(implemented(report).length, 19);
   assert(implemented(report).every((row) => row.required && row.state === "pass"));
   assert.equal(report.lifecycle.cleanup, "pass");
   for (const obligation of UNCOVERED_REQUIRED)
@@ -75,16 +75,23 @@ test("unconfigured retained-detail window is not treated as a public retention p
 async function corruptingProvider(context, cleanupFails = false, corruption = "postimage") {
   const provider = await provision(context);
   let upstream = new URL(provider.connections[0].connectOrigin);
-  let deleted = false;
+  const deletedResources = new Set();
+  let originalAlias;
   const proxy = http.createServer((request, response) => {
+    const aliasReplay =
+      corruption === "alias-reexecution" &&
+      originalAlias !== undefined &&
+      originalAlias.key === request.headers["idempotency-key"];
     const call = http.request(
       {
         hostname: upstream.hostname,
         port: upstream.port,
         method: request.method,
         path: request.url,
-        headers:
-          corruption === "media-consumed" && request.headers["content-type"] === "application/json"
+        headers: aliasReplay
+          ? { ...request.headers, "idempotency-key": `mutant-${originalAlias.key}` }
+          : corruption === "media-consumed" &&
+              request.headers["content-type"] === "application/json"
             ? { ...request.headers, "content-type": "application/vnd.bdp.v0.1+json" }
             : request.headers,
       },
@@ -98,7 +105,23 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
             body.length
           ) {
             const value = JSON.parse(body);
-            if (value.outcome === "deleted") deleted = true;
+            if (value.outcome === "deleted" && value.deleted)
+              deletedResources.add(value.deleted.resource.id);
+            if (
+              corruption === "link-pin" &&
+              value.outcome === "created" &&
+              value.resource?.source
+            ) {
+              value.resource.source = value.resource.source.uri;
+              body = Buffer.from(JSON.stringify(value));
+            }
+            if (
+              corruption === "alias-reexecution" &&
+              value.alias &&
+              value.outcome === "created" &&
+              !originalAlias
+            )
+              originalAlias = { key: request.headers["idempotency-key"], body: Buffer.from(body) };
             if (
               ["postimage", "credential-echo"].includes(corruption) &&
               value.outcome === "created"
@@ -114,7 +137,7 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
           }
           if (
             ["resource-pruned", "resource-erased"].includes(corruption) &&
-            deleted &&
+            deletedResources.has(new URL(request.url, provider.scope).href) &&
             reply.statusCode === 404
           ) {
             const value = JSON.parse(body);
@@ -145,6 +168,15 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
             );
             reply.statusCode = 415;
             reply.headers["content-type"] = "application/problem+json";
+          }
+          if (aliasReplay) {
+            // Upstream really reexecutes under a fresh key. Hide the updated
+            // response with the original bytes; only the public state read can
+            // detect that the alias was wrongly rebound by the replay.
+            assert.equal(reply.statusCode, 200);
+            assert.equal(JSON.parse(body).outcome, "updated");
+            assert.equal(JSON.parse(body).target, JSON.parse(originalAlias.body).target);
+            body = originalAlias.body;
           }
           if (request.url === new URL(provider.scope).pathname) {
             if (corruption === "mixed-case-link") {
@@ -484,4 +516,62 @@ test("qualification accounting rejects missing, duplicate, unrequired or failed 
     report.obligations.find((row) => row.id === "coverage.complete-obligation-audit").state,
     "not-run",
   );
+});
+
+test("schema-valid Link response missing its authored source pin fails independent expectations", async () => {
+  const report = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "link-pin"),
+  );
+  assert.equal(report.state, "fail");
+  assert.equal(report.obligations.find((row) => row.id === "write.link-create").state, "fail");
+  assert.equal(report.obligations.find((row) => row.id === "write.link-update").state, "not-run");
+  assert.equal(report.lifecycle.cleanup, "pass");
+  assert.equal(report.qualificationComplete, false);
+});
+
+test("correct-looking original alias response cannot conceal real replay reexecution", async () => {
+  const report = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "alias-reexecution"),
+  );
+  assert.equal(report.state, "fail");
+  assert.equal(report.obligations.find((row) => row.id === "write.alias-put").state, "fail");
+  assert.equal(report.obligations.find((row) => row.id === "write.alias-delete").state, "not-run");
+  assert.equal(report.lifecycle.cleanup, "pass");
+  assert.equal(report.qualificationComplete, false);
+});
+
+test("undeclared graph and alias fixture conditions stay not-run while the original Bead journey completes", async () => {
+  for (const missing of ["unownedLinkFixture", "hierarchicalAliasFixture"]) {
+    const report = await runCurrentProvider(async (context) => {
+      const provider = await provision(context);
+      return { ...provider, conditions: { ...provider.conditions, [missing]: false } };
+    });
+    assert.equal(report.state, "incomplete");
+    assert.equal(report.sliceComplete, false);
+    assert.equal(report.qualificationComplete, false);
+    for (const id of ["write.alias-put", "write.alias-delete"])
+      assert.equal(report.obligations.find((row) => row.id === id).state, "not-run");
+    for (const id of ["write.link-create", "write.link-update", "write.link-delete"])
+      assert.equal(
+        report.obligations.find((row) => row.id === id).state,
+        missing === "unownedLinkFixture" ? "not-run" : "pass",
+      );
+    assert.equal(report.obligations.find((row) => row.id === "write.delete").state, "pass");
+    assert.equal(report.lifecycle.cleanup, "pass");
+  }
+});
+
+test("a short declared detail window cannot dispatch the alias replay mutant or qualify its rows", async () => {
+  const report = await runCurrentProvider(async (context) => {
+    const provider = await corruptingProvider(context, false, "alias-reexecution");
+    return { ...provider, conditions: { ...provider.conditions, retainedDetailWindowMs: 30000 } };
+  });
+  assert.equal(report.state, "incomplete");
+  assert.equal(report.qualificationComplete, false);
+  assert.equal(report.sliceComplete, false);
+  for (const id of ["write.alias-put", "write.alias-delete"])
+    assert.equal(report.obligations.find((row) => row.id === id).state, "not-run");
+  for (const id of ["write.link-create", "write.link-update", "write.link-delete", "write.delete"])
+    assert.equal(report.obligations.find((row) => row.id === id).state, "pass");
+  assert.equal(report.lifecycle.cleanup, "pass");
 });

@@ -27,6 +27,11 @@ const definitions = [
   ["write.no-op", `${write}#covered-state-and-no-ops`],
   ["write.guard-failure", `${write}#ordinary-requests`],
   ["write.effectful-update", `${write}#independent-object-planes`],
+  ["write.link-create", `${write}#ordinary-results`],
+  ["write.link-update", `${write}#whole-link-endpoint-correction`],
+  ["write.alias-put", `${write}#aliases`],
+  ["write.alias-delete", `${write}#claims-and-terminal-outcomes`],
+  ["write.link-delete", `${write}#ordinary-results`],
   ["write.delete", `${write}#ordinary-results`],
   ["write.restart", `${write}#atomic-durability-crash-and-capability-changes`],
   ["write.durable-original-success", `${write}#claims-and-terminal-outcomes`],
@@ -49,7 +54,8 @@ export const UNCOVERED_REQUIRED = Object.freeze([
   {
     id: "core.link-and-alias-reads",
     source: `${core}#incident-link-reads`,
-    reason: "Incident directions, alias redirects and their read metadata are not implemented.",
+    reason:
+      "Link point reads and alias GET redirects have narrow witnesses; incident directions/pagination and complete alias/Link read metadata and failure variants are not implemented.",
   },
   {
     id: "core.http-and-selection",
@@ -60,7 +66,8 @@ export const UNCOVERED_REQUIRED = Object.freeze([
   {
     id: "write.remaining-five-operations",
     source: `${write}#eight-distinct-ordinary-targets`,
-    reason: "Link CRUD and alias put/delete are discovered but not executed.",
+    reason:
+      "Unowned local Link CRUD and alias lifecycle/replay have narrow witnesses; remaining malformed, authorization, identity, owned-state and recovery variants are not implemented.",
   },
   {
     id: "write.identity-and-admission",
@@ -91,6 +98,11 @@ const requiredObligationIds = Object.freeze([
   "write.no-op",
   "write.guard-failure",
   "write.effectful-update",
+  "write.link-create",
+  "write.link-update",
+  "write.alias-put",
+  "write.alias-delete",
+  "write.link-delete",
   "write.delete",
   "write.restart",
   "write.durable-original-success",
@@ -340,8 +352,8 @@ export async function runCurrentProvider(provision) {
       assert.equal(validate(parsed), true, `Response does not satisfy ${definition}`);
       return parsed;
     }
-    function success(reply) {
-      const value = json(reply, 200, "mutationResult");
+    function success(reply, definition = "mutationResult") {
+      const value = json(reply, 200, definition);
       const cache = new Set(
         (reply.headers["cache-control"] ?? "")
           .split(",")
@@ -357,6 +369,13 @@ export async function runCurrentProvider(provision) {
       runId,
       type: "https://conformance.invalid/types/PortableRecord",
       id: `provider-kit/${runId}/record`,
+      linkType: "https://conformance.invalid/types/PortableRelation",
+      linkId: `provider-kit/${runId}/relation`,
+      secondaryIds: Object.freeze([
+        `provider-kit/${runId}/endpoint-b`,
+        `provider-kit/${runId}/endpoint-c`,
+      ]),
+      aliasLeaf: `provider-kit-${runId}`,
       minimumDetailWindowMs: 60000,
     });
     provisionEntered = true;
@@ -387,16 +406,23 @@ export async function runCurrentProvider(provision) {
     const conditions =
       provider.conditions === undefined
         ? undefined
-        : fields(provider.conditions, ["retainedDetailWindowMs"], ["retainedDetailWindowMs"]);
+        : fields(
+            provider.conditions,
+            ["retainedDetailWindowMs", "unownedLinkFixture", "hierarchicalAliasFixture"],
+            ["retainedDetailWindowMs"],
+          );
     if (
       conditions &&
       (!Number.isSafeInteger(conditions.retainedDetailWindowMs) ||
         conditions.retainedDetailWindowMs <= 0)
     )
       throw new HarnessError("Adapter retained-detail condition must be a positive safe integer");
+    for (const name of ["unownedLinkFixture", "hierarchicalAliasFixture"])
+      if (conditions?.[name] !== undefined && typeof conditions[name] !== "boolean")
+        throw new HarnessError("Adapter fixture condition must be boolean");
     let retentionStart;
     lifecycle.provision = "pass";
-    let discoveryUrl, directory, created, failed, updated, deleted;
+    let discoveryUrl, directory, aliases, created, failed, updated, deleted;
     const id = new URL(fixture.id, scope).href;
     const create = {
       id: fixture.id,
@@ -442,6 +468,7 @@ export async function runCurrentProvider(provision) {
       assert.equal(discovery.bdpVersion, "0.1");
       assert.equal(discovery.profile, "write");
       assert.equal(discovery.scope, scope.href);
+      aliases = discovery.aliases;
       directory = json(
         await exchange(routes, discovery.operations),
         200,
@@ -542,6 +569,258 @@ export async function runCurrentProvider(provision) {
       assert.deepEqual(updated.resource.properties, update.properties);
       assert.deepEqual(updated.resource.metadata, create.metadata);
     });
+    const graphRows = [
+      "write.link-create",
+      "write.link-update",
+      "write.alias-put",
+      "write.alias-delete",
+      "write.link-delete",
+    ];
+    if (conditions?.unownedLinkFixture !== true) {
+      for (const name of graphRows)
+        rows.find((row) => row.id === name).reason =
+          "No explicit unowned Link fixture condition; graph/alias subjourney is not run";
+    } else {
+      const secondary = [];
+      let linkCreated, linkUpdated;
+      const linkId = new URL(fixture.linkId, scope).href;
+      const pointBead = async (bead) =>
+        json(await exchange(routes, bead), 200, "currentBeadRecord");
+      const unchangedBeads = async () => {
+        assert.deepEqual(await pointBead(id), updated.resource);
+        for (const bead of secondary) assert.deepEqual(await pointBead(bead.id), bead);
+      };
+      const pointLink = async () => {
+        const reply = await exchange(routes, linkId);
+        assert.equal(reply.headers["bdp-resource-kind"], "link");
+        const descriptions = parseLinkHeader(reply.headers.link ?? "").filter((entry) =>
+          entry.parameters.some(
+            (parameter) =>
+              parameter.name.toLowerCase() === "rel" &&
+              parameter.value.split(/\s+/).some((value) => value.toLowerCase() === "service-desc"),
+          ),
+        );
+        assert(descriptions.length > 0, "Link omitted owning service-desc");
+        const typed = descriptions.filter((entry) =>
+          entry.parameters.some(
+            (parameter) =>
+              parameter.name.toLowerCase() === "type" && parameter.value.toLowerCase() === media,
+          ),
+        );
+        const selected =
+          typed.length === 1 ? typed[0] : descriptions.length === 1 ? descriptions[0] : undefined;
+        if (!selected) throw new HarnessError("Kit cannot select one owning discovery Link");
+        const owning = json(
+          await exchange(routes, new URL(selected.target, linkId).href),
+          200,
+          "writeDiscovery",
+        );
+        assert.equal(owning.scope, scope.href);
+        return json(reply, 200, "currentLinkRecord");
+      };
+      const linkBody = {
+        id: fixture.linkId,
+        type: fixture.linkType,
+        properties: { label: "portable relation" },
+        metadata: { source: "provider-kit" },
+      };
+      await step("write.link-create", async () => {
+        for (const local of fixture.secondaryIds) {
+          const body = {
+            id: local,
+            type: fixture.type,
+            properties: { title: "portable endpoint" },
+            metadata: {},
+          };
+          const result = success(
+            await post("createBead", body, `endpoint-${secondary.length}-${runId}`),
+          );
+          assert.equal(result.outcome, "created");
+          assert.equal(result.changed, true);
+          assert.equal(result.resource.id, new URL(local, scope).href);
+          assert.equal(result.resource.type, fixture.type);
+          assert.deepEqual(result.resource.properties, body.properties);
+          assert.deepEqual(result.resource.metadata, {});
+          secondary.push(result.resource);
+        }
+        linkBody.source = { uri: id, revision: updated.resource.revision };
+        linkBody.target = { uri: secondary[0].id, revision: secondary[0].revision };
+        linkCreated = success(await post("createLink", linkBody, `link-create-${runId}`));
+        assert.equal(linkCreated.outcome, "created");
+        assert.equal(linkCreated.changed, true);
+        assert.equal(linkCreated.resource.id, linkId);
+        for (const field of ["type", "properties", "metadata", "source", "target"])
+          assert.deepEqual(linkCreated.resource[field], linkBody[field]);
+        assert.equal(linkCreated.ownerRevisions, undefined);
+        assert.deepEqual(await pointLink(), linkCreated.resource);
+        await unchangedBeads();
+      });
+      await step("write.link-update", async () => {
+        const body = {
+          link: linkId,
+          target: secondary[1].id,
+          expectedRevision: linkCreated.resource.revision,
+        };
+        linkUpdated = success(await post("updateLink", body, `link-update-${runId}`));
+        assert.equal(linkUpdated.outcome, "updated");
+        assert.equal(linkUpdated.changed, true);
+        assert.notEqual(linkUpdated.resource.revision, linkCreated.resource.revision);
+        assert.equal(linkUpdated.resource.id, linkId);
+        for (const field of ["type", "properties", "metadata", "source"])
+          assert.deepEqual(linkUpdated.resource[field], linkCreated.resource[field]);
+        assert.equal(linkUpdated.resource.target, secondary[1].id);
+        assert.equal(linkUpdated.ownerRevisions, undefined);
+        assert.deepEqual(await pointLink(), linkUpdated.resource);
+        const noop = success(
+          await post(
+            "updateLink",
+            { ...body, expectedRevision: linkUpdated.resource.revision },
+            `link-noop-${runId}`,
+          ),
+        );
+        assert.equal(noop.outcome, "updated");
+        assert.equal(noop.changed, false);
+        assert.deepEqual(noop.resource, linkUpdated.resource);
+        assert.equal(noop.ownerRevisions, undefined);
+        await unchangedBeads();
+      });
+      const detailReady = () =>
+        conditions.retainedDetailWindowMs >= fixture.minimumDetailWindowMs &&
+        performance.now() - retentionStart < conditions.retainedDetailWindowMs;
+      if (conditions.hierarchicalAliasFixture !== true || !detailReady()) {
+        for (const name of ["write.alias-put", "write.alias-delete"])
+          rows.find((row) => row.id === name).reason =
+            conditions.hierarchicalAliasFixture !== true
+              ? "No explicit hierarchical alias fixture condition; alias subjourney is not run"
+              : "No current requested retained-detail fixture window; alias replay subjourney is not run";
+      } else {
+        const base = new URL(aliases);
+        if (
+          base.search ||
+          base.hash ||
+          base.origin !== scope.origin ||
+          !base.pathname.startsWith(scope.pathname)
+        )
+          throw new HarnessError(
+            "Advertised alias base does not fit the declared hierarchical fixture",
+          );
+        base.pathname = base.pathname.replace(/\/?$/, "/") + fixture.aliasLeaf;
+        const alias = base.href,
+          originalPut = { alias, target: id },
+          originalDelete = { alias };
+        let putResult, deleteResult;
+        const aliasAt = async (target) => {
+          const reply = await exchange(routes, alias);
+          assert.equal(reply.status, 307);
+          assert.equal(reply.headers.location, target);
+          assert.equal(reply.bytes.length, 0);
+        };
+        const aliasAbsent = async () =>
+          assert.equal(
+            json(await exchange(routes, alias), 404, "readProblem", "application/problem+json")
+              .code,
+            "resource-not-found",
+          );
+        const aliasReplay = async (operation, body, key, expected) => {
+          if (!detailReady())
+            throw new HarnessError("Retained-detail fixture window elapsed before alias replay");
+          const reply = await post(operation, body, key);
+          if (!detailReady())
+            throw new HarnessError("Retained-detail fixture window elapsed during alias replay");
+          assert.deepEqual(success(reply, "aliasResult"), expected);
+        };
+        await step("write.alias-put", async () => {
+          putResult = success(
+            await post("putAlias", originalPut, `alias-first-${runId}`),
+            "aliasResult",
+          );
+          assert.deepEqual(putResult, { outcome: "created", alias, target: id });
+          await aliasAt(id);
+          assert.deepEqual(
+            success(await post("putAlias", originalPut, `alias-same-${runId}`), "aliasResult"),
+            { outcome: "updated", alias, target: id },
+          );
+          assert.deepEqual(
+            success(
+              await post("putAlias", { alias, target: secondary[0].id }, `alias-repoint-${runId}`),
+              "aliasResult",
+            ),
+            { outcome: "updated", alias, target: secondary[0].id },
+          );
+          await aliasAt(secondary[0].id);
+          await aliasReplay("putAlias", originalPut, `alias-first-${runId}`, putResult);
+          await aliasAt(secondary[0].id);
+          await unchangedBeads();
+        });
+        await step("write.alias-delete", async () => {
+          deleteResult = success(
+            await post("deleteAlias", originalDelete, `alias-delete-${runId}`),
+            "aliasResult",
+          );
+          assert.deepEqual(deleteResult, { outcome: "deleted", alias });
+          await aliasAbsent();
+          assert.deepEqual(
+            success(
+              await post("putAlias", { alias, target: secondary[1].id }, `alias-reuse-${runId}`),
+              "aliasResult",
+            ),
+            { outcome: "created", alias, target: secondary[1].id },
+          );
+          await aliasReplay("deleteAlias", originalDelete, `alias-delete-${runId}`, deleteResult);
+          await aliasAt(secondary[1].id);
+          assert.deepEqual(
+            success(
+              await post("deleteAlias", originalDelete, `alias-final-${runId}`),
+              "aliasResult",
+            ),
+            deleteResult,
+          );
+          await aliasAbsent();
+          await unchangedBeads();
+        });
+      }
+      await step("write.link-delete", async () => {
+        const result = success(
+          await post(
+            "deleteLink",
+            { link: linkId, expectedRevision: linkUpdated.resource.revision },
+            `link-delete-${runId}`,
+          ),
+        );
+        assert.equal(result.outcome, "deleted");
+        assert.equal(result.changed, true);
+        assert.deepEqual(result.deleted, {
+          resourceKind: "link",
+          resource: { id: linkId, type: fixture.linkType, revision: linkUpdated.resource.revision },
+        });
+        assert.equal(result.ownerRevisions, undefined);
+        const absent = await exchange(routes, linkId);
+        assert([404, 410].includes(absent.status));
+        const problem = json(absent, absent.status, "readProblem", "application/problem+json");
+        assert(
+          absent.status === 404
+            ? problem.code === "resource-not-found"
+            : ["resource-pruned", "resource-erased"].includes(problem.code),
+        );
+        await unchangedBeads();
+        for (const [index, bead] of secondary.entries()) {
+          const removed = success(
+            await post(
+              "deleteBead",
+              { bead: bead.id, expectedRevision: bead.revision },
+              `endpoint-delete-${index}-${runId}`,
+            ),
+          );
+          assert.equal(removed.outcome, "deleted");
+          assert.equal(removed.changed, true);
+          assert.deepEqual(removed.deleted, {
+            resourceKind: "bead",
+            resource: { id: bead.id, type: bead.type, revision: bead.revision },
+          });
+        }
+      });
+    }
+
     await step("write.delete", async () => {
       deleted = success(await post("deleteBead", remove, deleteKey));
       assert.equal(deleted.outcome, "deleted");
