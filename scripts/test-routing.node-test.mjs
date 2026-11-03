@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { assertNoHistoricalAdmissionState } from "./current-shadow-admission-setup.mjs";
 import {
   discoveredTests,
   readManifest,
@@ -66,7 +67,10 @@ test("original full command, CI and base admission setup remain outside shadow r
   for (const lane of ["current", "legacy"]) {
     const config = readFileSync(resolve(root, `vitest.${lane}-shadow.config.ts`), "utf8");
     assert(config.includes("...base.test"));
-    assert(!config.includes("setupFiles:"));
+    assert.equal(
+      config.includes('setupFiles: ["./scripts/current-shadow-admission-setup.mjs"]'),
+      lane === "current",
+    );
   }
 });
 
@@ -80,4 +84,20 @@ test("shadow runner refuses an out-of-route file before launching its target sui
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Unknown or out-of-route test/);
   assert(!result.stdout.includes("RUN  v"));
+});
+
+test("current-worker admission guard rejects historical state without creating a grant", () => {
+  const marker = Symbol.for("bdp.test.read-conformance-mock");
+  const absent = {};
+  assertNoHistoricalAdmissionState(absent);
+  assert(!Reflect.has(absent, marker));
+  for (const grants of [new Map(), new Map([["bdptest", 1]])]) {
+    const present = { [marker]: { grants } };
+    assert.throws(
+      () => assertNoHistoricalAdmissionState(present),
+      /Historical admission setup leaked/,
+    );
+    assert.equal(Reflect.get(present, marker).grants, grants);
+  }
+  assertNoHistoricalAdmissionState(globalThis);
 });
