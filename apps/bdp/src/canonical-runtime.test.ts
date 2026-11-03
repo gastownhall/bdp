@@ -319,6 +319,8 @@ it.each([
   ["[https://wire.example/work/note]@3", "https://wire.example/work/note", 0],
   ["https://wire.example/work/note@current", "https://wire.example/work/note@current", 0],
   ["note@current", "https://wire.example/work/note", 0],
+  ["https://wire.example/work/urn:example:note", "https://wire.example/work/urn:example:note", 0],
+  ["https://wire.example/work/batch-ref::X", "https://wire.example/work/batch-ref::X", 0],
   ["note@garbage", undefined, 2],
   ["note@=", undefined, 2],
   ["note@0", undefined, 2],
@@ -399,6 +401,45 @@ it.each([
     } finally {
       read.mockRestore();
       bind.mockRestore();
+    }
+  },
+);
+
+it.each([
+  [true, "urn:example:note"],
+  [true, "batch-ref::X"],
+  [false, "urn:example:note"],
+  [false, "batch-ref::X"],
+] as const)(
+  "keeps incidence Reference admission when all-revisions=%s: %s",
+  async (allRevisions, operand) => {
+    const list = vi.spyOn(RetainedClient.prototype, "list");
+    const read = vi.spyOn(RetainedClient.prototype, "read");
+    let stdout = "";
+    try {
+      expect(
+        await runCanonicalInvocation(
+          {
+            command: ["link", "list"],
+            positionals: [operand],
+            options: { allRevisions, outputFormat: "json" },
+            explicitOptions: ["allRevisions", "outputFormat"],
+          },
+          { scope: { url: "https://wire.example/work/" }, auth: {} },
+          {
+            stdout: (text) => {
+              stdout += text;
+            },
+            stderr: () => undefined,
+          },
+        ),
+      ).toBe(2);
+      expect(JSON.parse(stdout).error.problem.code).toBe("invalid_value");
+      expect(list).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      list.mockRestore();
+      read.mockRestore();
     }
   },
 );
