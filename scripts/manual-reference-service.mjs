@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { canonicalSpecRevision } from "./canonical-spec-revision.mjs";
 
 function reportError(error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -80,6 +81,7 @@ if (process.versions.node !== requiredNode) {
   process.exit(1);
 }
 const { startReferenceService } = await import("../packages/server/dist/reference.js");
+const specRevision = process.env.BDP_SPEC_REVISION ?? canonicalSpecRevision(root);
 const requestedScope = args.scope ?? "http://127.0.0.1:18080/review/";
 const parsedScope = new URL(requestedScope);
 if (
@@ -176,6 +178,7 @@ reference = await startReferenceService({
   create: !existsSync(database),
   instance: "manual-review-playground",
   scope,
+  specRevision,
   authentication,
   credentials: authentication === "required" ? [{ token: saved.token, principal: "reviewer" }] : [],
 });
