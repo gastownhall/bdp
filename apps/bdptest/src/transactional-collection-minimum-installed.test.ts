@@ -891,11 +891,7 @@ it("observes genuine installed current Type and incident-Link minimums within20r
       context(seeded, bound, "pos-1");
       const links = receipt.results.slice(3).map((r) => r.resource);
       const descriptor = JSON.parse(artifacts().descriptors[0]!.utf8);
-      const targets = [
-        `${scope}types/task`,
-        `${scope}types/`,
-        `${scope}beads/a?view=links`,
-      ];
+      const targets = [`${scope}types/task`, `${scope}types/`, `${scope}beads/a?view=links`];
       const expected = [
         descriptor,
         {

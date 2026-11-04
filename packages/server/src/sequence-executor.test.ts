@@ -10,6 +10,7 @@ import { setImmediate as later } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   parseReadUpdateProblem,
+  ProtocolArtifactValidationError,
   parseLinkRecord,
   parseReadUpdateSequenceMemberProblem,
   parseTypeDescriptor,
@@ -35,11 +36,7 @@ import {
   snapshotMemberExecutorOptions,
   type MemberExecutorOptions,
 } from "./member-executor.js";
-import {
-  MemberMetadataError,
-  normalizeMemberIdentity,
-  serializeMemberMetadata,
-} from "./member-identity.js";
+import { normalizeMemberIdentity, serializeMemberMetadata } from "./member-identity.js";
 import * as identityModule from "./member-identity.js";
 import {
   createSequenceLifecycle,
@@ -1136,7 +1133,7 @@ describe("canonical projection and real creator prefixes", () => {
       await execute(f, owner, originalCarrier);
       const original = f.key("update");
       const read = f.store.read.bind(f.store);
-      const alias = vi.fn(() => "links/not-a-bead");
+      const alias = vi.fn(() => `${scope}bdp/not-a-bead`);
       let originalCause: unknown;
       const normalize = identityModule.normalizePreparedMemberIdentity;
       vi.spyOn(identityModule, "normalizePreparedMemberIdentity").mockImplementation((...args) => {
@@ -1170,12 +1167,12 @@ describe("canonical projection and real creator prefixes", () => {
       expect(fault).toBeInstanceOf(SequenceLifecycleError);
       expect(fault).toMatchObject({
         phase: "member",
-        cause: expect.any(MemberMetadataError),
+        cause: expect.any(ProtocolArtifactValidationError),
         cleanup: { kind: "returned", releasedClaims: suffix ? 1 : 0 },
       });
       expect((fault as SequenceLifecycleError).cause).toBe(originalCause);
       expect((fault as SequenceLifecycleError).cause).toMatchObject({
-        message: "live alias resolution requires the canonical in-Scope Resource kind",
+        message: "live alias resolution bead Resource path has a noncanonical segment",
       });
       expect(alias).toHaveBeenCalledExactlyOnceWith("new");
       expect(f.key("update")).toEqual(original);

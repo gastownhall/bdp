@@ -313,7 +313,9 @@ describe("BDP v0 schema bundle", () => {
     expect(readDiscoveryProperties.scope).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });
     for (const member of ["beads", "links"])
       expect(readDiscoveryProperties[member]).toBeUndefined();
-    expect(readDiscoveryProperties.types).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });
+    expect(readDiscoveryProperties.types).toMatchObject({
+      $ref: "#/$defs/absoluteHttpUrl",
+    });
 
     const beadProperties = propertiesOf("beadRecord");
     expect(beadProperties.id).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });

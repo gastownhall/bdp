@@ -84,7 +84,7 @@ it("observes seventeen partial Transactional contracts through packed-capable ac
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "5a32a664575b83fe55ea3b73b617fc738aefffd56d83affdf66a61d7fd8100e5",
+    exactConfigurationDigest: "ef25b64443a15ed227f8c3b90a24d32b4f811b508dde3993493d31a8bdc0405e",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -791,7 +791,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "5a32a664575b83fe55ea3b73b617fc738aefffd56d83affdf66a61d7fd8100e5",
+    "ef25b64443a15ed227f8c3b90a24d32b4f811b508dde3993493d31a8bdc0405e",
   );
   expect(Buffer.byteLength(preimage)).toBe(1434);
   // Preserve every old route and grant only the three explicitly authored new pairs.

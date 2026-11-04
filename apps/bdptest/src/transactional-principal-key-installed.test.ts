@@ -93,7 +93,7 @@ const routeBindings: { method: HttpMethod; url: string }[] = [
   { method: "GET", url: `${scope}bdp/beads?limit=32` },
   { method: "GET", url: `${scope}events/` },
 ];
-const routeSha256 = "40b5131d96ba76a7a77212c92b9336148142f8afb648caac0107f1dc9af3a837";
+const routeSha256 = "c521b218906c8b7494946fbfb547cfb58da27a3dc1eaa73fb7832781b86bd14f";
 // Independent reviewed literals; no dynamic extra receipt fetches or credential probes.
 const requests = [
   {

@@ -66,9 +66,9 @@ const scope = "https://scope.example/acme/";
 const commandTimeoutMs = 10_000;
 const commandMaxOutputBytes = 1_048_576;
 const bdLinkLocalId = (source: string, target: string, type: string): string => {
-  const opaque = (value: string): string =>
-    `b64_${Buffer.from(value, "utf8").toString("base64url")}`;
-  return `link-${opaque(source)}-${opaque(target)}-${opaque(type)}`;
+  return `link_${createHash("sha256")
+    .update(JSON.stringify([source, target, type]))
+    .digest("base64url")}`;
 };
 
 interface FixtureOracles {
@@ -930,7 +930,7 @@ function expectBdOracleParity(
   );
   if (linkBA === undefined) throw new Error("bdpbd realization is missing demo-b blocks demo-a");
   expect(bd.oracles.resources["link.demo-b-a"]).toEqual({
-    id: "link-b64_ZGVtby1i-b64_ZGVtby1h-b64_YmxvY2tz",
+    id: bdLinkLocalId("demo-b", "demo-a", "blocks"),
     source: "demo-b",
     target: "demo-a",
     properties: {},

@@ -323,10 +323,7 @@ export async function observeInstalledReference(entry, directory) {
     assert.equal(sequence.status, 200);
     assert.equal((await wire(`${scope}tail`)).status, 200);
     assert.equal((await wire(`${scope}independent`)).status, 200);
-    assert.equal(
-      (await post("deleteBead", { bead: `${scope}tail` }, "delete_bead")).status,
-      200,
-    );
+    assert.equal((await post("deleteBead", { bead: `${scope}tail` }, "delete_bead")).status, 200);
     assert.equal((await wire(`${scope}tail`)).status, 404);
     for (const [url, allow] of [
       [descriptor, "GET, HEAD"],
@@ -402,10 +399,7 @@ export async function observeInstalledReference(entry, directory) {
       ).status,
       400,
     );
-    assert.equal(
-      (await post("createBead", { ...retry, id: "duplicate" }, "dup")).status,
-      200,
-    );
+    assert.equal((await post("createBead", { ...retry, id: "duplicate" }, "dup")).status, 200);
     assert.equal(
       (
         await wire(target("createBead"), "POST", { ...retry, id: "auth" }, "auth", {

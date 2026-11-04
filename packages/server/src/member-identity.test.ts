@@ -411,9 +411,9 @@ describe("complete captured alias and creator witnesses", () => {
     expect(() =>
       ready(singleton("deleteBead", { bead: "alias/new" }), 0, {
         prior: metadata(ready(singleton("deleteBead", { bead: a }))),
-        resolveAlias: () => `${scope}links/wrong-kind`,
+        resolveAlias: () => "https://foreign.test/resource",
       }),
-    ).toThrow("live alias resolution requires the canonical in-Scope Resource kind");
+    ).toThrow("live alias resolution requires a canonical in-Scope Resource identity");
   });
   it("records unresolved alias identity separately per locator and never falls through on captured misses", () => {
     const member = ready(singleton("deleteBead", { bead: "alias/missing" }), 0, {

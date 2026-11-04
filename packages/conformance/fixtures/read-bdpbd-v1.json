@@ -508,7 +508,7 @@
         [
           "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM",
           "https://work.example/types/blocks",
-          "sha256_FlSOgclGgWfTrYsSI1GUOYqj1sLcjGIpmL4-DGwxb_4",
+          "sha256_b2j4_Tk01999M6KIIIhajTHmJS3-1JYQt9reGgMeNkM",
           "demo-b",
           "",
           "demo-a",
@@ -518,7 +518,7 @@
         [
           "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM",
           "https://work.example/types/blocks",
-          "sha256_Ev1FidXvDUgVo5H5fZMDp7NQc9HnuttC7HteJWJELv0",
+          "sha256_1Tw6-qlTh9jaPZPMS38tq_gDYFzljFTnHG6wL3EgVEw",
           "demo-a",
           "",
           "demo-c",
@@ -528,7 +528,7 @@
         [
           "link_kyNwW_VIRuTGlRFq-jT74GEQ-DJuZ7anMUx7Tkfzc38",
           "https://work.example/types/blocks",
-          "sha256_3aCuLwI1uNkWaIoTEzSltA40ZDV4FqOrsnkis8ktKDM",
+          "sha256_C6iqVVrzmkgWcc6mj2kQdcpWtzdEG8TLzlix3pVsPOc",
           "demo-d",
           "",
           "demo-c",
@@ -538,7 +538,7 @@
         [
           "link_Ai_hbUZ0SeP7x51uPiUUuMj73f9S6_FlaktWuFDRjfA",
           "https://work.example/types/blocks",
-          "sha256_U7J-6iBrJ0lCUbpVdmcjwSwDTCOVWjXi1QjD4J-tI20",
+          "sha256_x73EloC07-NxgM9-_8w6s4dY_Ydc90PpBpgzE8NrV84",
           "demo-f",
           "",
           "demo-e",
@@ -548,7 +548,7 @@
         [
           "link_dlDGuHWRMPqi0sIvaWVWlZAmhkormJkZdCOszuWkUtY",
           "types/related",
-          "sha256_6_vX8A1hgixKCfHMOfMszt39F5gmWND58hZW8oTHisY",
+          "sha256_p8wStVvQx8B2m76xAzCl67-jpGgO2-2XSHCBnlhEamI",
           "demo-e",
           "",
           "demo-f",
@@ -558,7 +558,7 @@
         [
           "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0",
           "https://work.example/types/blocks",
-          "sha256_bOOiIuBkrTtVV86NMxJyxNXPodVbwuq-9nVcAG51kbY",
+          "sha256__QISM-l3Ga--9JDHY-EDIYKMgxXmkVfH9BEwaKx5EFc",
           "demo-i",
           "",
           "demo-a",
@@ -568,7 +568,7 @@
         [
           "link_CwGjBw2C3BrsZ1-FCZFHCSWbgk6AkbfISd90g2z8LB8",
           "https://work.example/types/blocks",
-          "sha256_mekz-pRCc9gbI5az3radXOsCoBeSlzjUTdGEVIVvM_g",
+          "sha256_EM5PxojIhSDvx5hZJZYJYBty_e2upiTDtS0cy6UmBjY",
           "demo-i",
           "",
           "demo-c",
@@ -578,7 +578,7 @@
         [
           "link_2QJEMSuujph5KkVrwpNd6eU9iHTSsX9H_XsJSa-_bww",
           "https://work.example/types/blocks",
-          "sha256_fTSOpLkrvq4GcKjj_1ygegeLSqPL2Zye61eoTHx43zw",
+          "sha256_6pcY1hfH8VexnYxPLW64KGVAK7U_XBwkjvSZtIZt874",
           "demo-j",
           "",
           "demo-c",
@@ -588,7 +588,7 @@
         [
           "link_a_wTVW4j1g5QUm6r4hn70ou3b_BqphIxj7lN_6Bz_GA",
           "https://work.example/types/blocks",
-          "sha256_fSuDnwNqRA0zU43S5e5kr2TatTgfD8jObzd8Za7y1C0",
+          "sha256_VX41Ll4B-aEX4fAL9gGARlrdmRStzSOxWFA7J_Yfe6g",
           "demo-j",
           "",
           "demo-k",

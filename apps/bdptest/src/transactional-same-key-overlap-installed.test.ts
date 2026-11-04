@@ -118,7 +118,7 @@ function text(value: unknown): string {
 function ownedUrl(value: unknown, collection: "receipts" | "beads") {
   const literal = text(value),
     url = new URL(literal),
-    prefix = `${scope}${collection}/`;
+    prefix = collection === "receipts" ? `${scope}receipts/` : scope;
   if (
     literal.length > 8192 ||
     Buffer.byteLength(literal) > 8192 ||

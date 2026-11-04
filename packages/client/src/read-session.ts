@@ -705,11 +705,12 @@ function collectionUrl(
   request: BeadCollectionRequest | LinkCollectionRequest | TypeInventoryRequest,
   discovery: ReadRoots,
 ): AbsoluteHttpUrl | ReadSessionRefusal {
-  const root = request.collection === "beads"
-    ? new URL("bdp/beads", discovery.scope).href
-    : request.collection === "links"
-      ? new URL("bdp/links", discovery.scope).href
-      : discovery.types;
+  const root =
+    request.collection === "beads"
+      ? new URL("bdp/beads", discovery.scope).href
+      : request.collection === "links"
+        ? new URL("bdp/links", discovery.scope).href
+        : discovery.types;
   if (root === undefined)
     throw new ReadSessionCapabilityError("Types inventory is not advertised by this scope");
   const parameters: Record<string, string> = {};

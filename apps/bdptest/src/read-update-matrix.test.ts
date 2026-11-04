@@ -5731,11 +5731,11 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
     [
       "read-update.numeric-model.round-trip-admission",
       // Reviewed parent R span: 12982a61faf2f6710ad165d69022ba2e8c9cc083e599118910a173c52fb9aa6c
-      "1cb3bbdeeb3fadd1121cd0b24d9d11018504cd9bfefecd43d5b59263efc9da2f",
+      "c6c12fefb915f37acf732335f6302cf8fefc0aa6a6f2cccce22a429bbf8366ef",
     ],
     [
       "read-update.numeric-model.nested-refusal",
-      "b60c46ff685e6c74438fbeb49fc4e598e1d5420ba086602d112d82ac03c778ca",
+      "987fed38f580753dc2cdc27dc0429428b3e0ded9dd8c51068336ca3b684e2b37",
     ],
   ]) {
     expect(createHash("sha256").update(numericScenarioSpan(text, id!)).digest("hex")).toBe(digest);
@@ -6138,7 +6138,7 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
     "bf97b67f7b4d1cfd1c430b32b9f6d69ad06ef963c6454b1c1ef52a5de20793a7",
   );
   expect(createHash("sha256").update(rowText).digest("hex")).toBe(
-    "d8e45e0102864b3c2e255a4de892857a89298fb32ac7e1a982e8bf171cac3937",
+    "40fa12b847e577fa21ab1eae2841bcc89ee0e4ed662b1fff15059e1a05fe8b87",
   );
   expect(actions.slice(73).map((a: { id: string }) => a.id)).toEqual([
     "num-subject-metadata-closure-refused",
@@ -6213,7 +6213,7 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   ).toBeLessThanOrEqual(18);
   const finalDigest = (value: string) =>
     createHash("sha256").update(numericScenarioSpan(value, numericNestedId)).digest("hex");
-  const finalExpected = "b60c46ff685e6c74438fbeb49fc4e598e1d5420ba086602d112d82ac03c778ca";
+  const finalExpected = "987fed38f580753dc2cdc27dc0429428b3e0ded9dd8c51068336ca3b684e2b37";
   expect(finalDigest(text)).toBe(finalExpected);
   const n = numericScenarioSpan(text, numericNestedId);
   expect(n.match(/"nn-bead-properties-create-refused"/g)).toHaveLength(2);

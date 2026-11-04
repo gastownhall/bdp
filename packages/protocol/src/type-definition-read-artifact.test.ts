@@ -37,8 +37,15 @@ describe("historical accepted exact-definition carriers, without current lookup 
     const capabilities = {
       [paper.capability]: { "1": paper.advertisementDetail, "2": { futureGrammar: true } },
     };
-    expect(valid("readDiscovery", { ...discovery, capabilities })).toBe(true);
-    expect(valid("readDiscovery", { ...discovery, capabilities }, old)).toBe(false);
+    const historicalDiscovery = {
+      ...discovery,
+      profile: "read",
+      beads: `${discovery.scope}beads/`,
+      links: `${discovery.scope}links/`,
+      capabilities,
+    };
+    expect(valid("readDiscovery", historicalDiscovery)).toBe(true);
+    expect(valid("readDiscovery", historicalDiscovery, old)).toBe(false);
     for (const detail of [
       {},
       { operation: "relative" },

@@ -327,9 +327,12 @@ try {
   );
   activePhase = "public-control";
   const excessiveLimit = discovery.limits.page.maximumItems + 1;
-  const refusal = await fetch(`${discovery.beads}?limit=${excessiveLimit}`, {
-    signal: controller.signal,
-  });
+  const refusal = await fetch(
+    `${new URL("bdp/beads", discovery.scope).href}?limit=${excessiveLimit}`,
+    {
+      signal: controller.signal,
+    },
+  );
   const problem = await refusal.json();
   assert.equal(refusal.status, 413);
   assert.equal(problem.code, "limit-exceeded");

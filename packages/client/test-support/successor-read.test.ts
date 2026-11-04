@@ -131,7 +131,10 @@ describe("successor Read observations", () => {
       [b.id]: { ...b, revision: bt },
       [l.id]: { ...l, revision: lt },
       [`${scope}bdp/beads`]: {
-        items: [{ ...b, revision: bt }, { ...b, id: `${scope}b`, revision: "different" }],
+        items: [
+          { ...b, revision: bt },
+          { ...b, id: `${scope}b`, revision: "different" },
+        ],
         next: null,
       },
       [`${scope}bdp/links`]: { items: [{ ...l, revision: lt }], next: null },

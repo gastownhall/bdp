@@ -133,7 +133,7 @@ function commit(service: Awaited<ReturnType<typeof runtime>>, title = "café") {
     `${scope}operations/create-bead`,
     "POST",
     { "content-type": "application/json", "idempotency-key": "create" },
-    JSON.stringify({ id: "beads/a", type, properties: { title } }),
+    JSON.stringify({ id: "a", type, properties: { title } }),
   );
 }
 it("serves exact captured root and transitive bytes without retaining mutable input", async () => {
@@ -300,7 +300,7 @@ it("preserves minimum refusals before schema conditionals and never observes exc
 });
 it.each([
   ["differing-id", root, `${scope}canonical/root`],
-  ["outside-namespace", `${scope}beads/a`, `${scope}beads/a`],
+  ["outside-namespace", `${scope}a`, `${scope}a`],
   ["query-retrieval", root + "?edition=1", root + "?edition=1"],
 ])(
   "preserves accepted offline configuration and unserved aliases: %s",
@@ -315,7 +315,7 @@ it.each([
       `${scope}operations/create-bead`,
       "POST",
       { "content-type": "application/json", "idempotency-key": "invalid" },
-      JSON.stringify({ id: "beads/invalid", type, properties: { title: 2 } }),
+      JSON.stringify({ id: "invalid", type, properties: { title: 2 } }),
     );
     expect(rejected.status).toBe(200);
     expect(JSON.parse(rejected.text).status).toBe("failed");
@@ -340,7 +340,7 @@ it.each([
       expect(response.status).toBe(_name === "outside-namespace" ? 200 : 404);
       if (_name === "outside-namespace")
         expect(JSON.parse(response.text)).toMatchObject({
-          id: `${scope}beads/a`,
+          id: `${scope}a`,
           properties: { title: "café" },
         });
     }

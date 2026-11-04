@@ -75,7 +75,9 @@ describe("retained Core carrier values", () => {
   });
   it("allows Types only at its fixed optional Scope route", () => {
     expect(
-      parseRetainedDiscovery(JSON.stringify({ ...core, types: "https://records.test/work/types/" })),
+      parseRetainedDiscovery(
+        JSON.stringify({ ...core, types: "https://records.test/work/types/" }),
+      ),
     ).toMatchObject({ types: "https://records.test/work/types/" });
     expect(() =>
       parseRetainedDiscovery(JSON.stringify({ ...core, types: "https://types.test/" })),

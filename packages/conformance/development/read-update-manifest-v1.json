@@ -1300,7 +1300,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/latest",
+              "id": "alias/latest",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -1362,14 +1362,14 @@
               "kind": "json-pointer",
               "pointer": "/status",
               "exists": true,
-              "equals": 409
+              "equals": 200
             },
             {
               "id": "problem",
               "kind": "json-pointer",
-              "pointer": "/body/code",
+              "pointer": "/body/outcome",
               "exists": true,
-              "equals": "identity-taken"
+              "equals": "created"
             },
             {
               "id": "cache",
@@ -4440,7 +4440,7 @@
               "id": "beads/boundary",
               "type": "https://bdp.example/development/bead",
               "properties": {
-                "unicode": "é"
+                "unicode": "\u00e9"
               }
             },
             "headerLines": [
@@ -4502,7 +4502,7 @@
               "kind": "json-pointer",
               "pointer": "/body/properties/unicode",
               "exists": true,
-              "equals": "é"
+              "equals": "\u00e9"
             }
           ]
         }
@@ -6771,7 +6771,7 @@
             },
             "key": "allocate",
             "observeIdentity": true,
-            "excludedIdentity": "beads/reserved"
+            "excludedIdentity": "alias/reserved"
           },
           "captures": [
             {
@@ -6822,15 +6822,14 @@
               "id": "root",
               "kind": "json-pointer",
               "pointer": "/identity/root",
-              "exists": true,
-              "equals": "beads"
+              "exists": true
             },
             {
               "id": "single-segment",
               "kind": "json-pointer",
               "pointer": "/identity/childSegments",
               "exists": true,
-              "equals": 1
+              "equals": 0
             },
             {
               "id": "nonempty",
@@ -6876,7 +6875,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/reserved",
+              "id": "alias/reserved",
               "type": "https://bdp.example/development/bead"
             },
             "key": "reserved-bead"
@@ -7135,6 +7134,32 @@
           ]
         },
         {
+          "id": "create-link-target",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "link-target",
+              "type": "https://bdp.example/development/link",
+              "source": "beads/a",
+              "target": "beads/a"
+            },
+            "key": "create-link-target"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
           "id": "link",
           "family": "client",
           "operation": "development.request",
@@ -7143,7 +7168,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/bad-link",
-              "target": "links/absent"
+              "target": "link-target"
             },
             "key": "link"
           },
@@ -9462,7 +9487,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:é/%2F"
+                "revision": "past:\u00e9/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9500,7 +9525,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             },
             {
               "id": "external",
@@ -9584,7 +9609,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:é/%2F"
+                "revision": "past:\u00e9/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9622,7 +9647,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             },
             {
               "id": "external",
@@ -9698,7 +9723,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:é/%2F"
+                "revision": "past:\u00e9/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9736,7 +9761,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             },
             {
               "id": "external",
@@ -9762,7 +9787,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "beads/a",
-                "revision": "past:é/%2F"
+                "revision": "past:\u00e9/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9801,7 +9826,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             },
             {
               "id": "external",
@@ -9827,7 +9852,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "beads/a",
-                "revision": "past:é/%2F"
+                "revision": "past:e\u0301/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9902,7 +9927,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:é/%2F"
+                "revision": "past:\u00e9/%2F"
               },
               "target": {
                 "uri": "urn:example:REMOTE",
@@ -9959,7 +9984,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             },
             {
               "id": "external",
@@ -9996,7 +10021,7 @@
                   "type": "https://bdp.example/development/link",
                   "source": {
                     "uri": "@made",
-                    "revision": "past:é/%2F"
+                    "revision": "past:\u00e9/%2F"
                   },
                   "target": "beads/a"
                 }
@@ -10032,7 +10057,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             }
           ]
         },
@@ -10059,7 +10084,7 @@
                   "type": "https://bdp.example/development/link",
                   "source": {
                     "uri": "@renamed",
-                    "revision": "past:é/%2F"
+                    "revision": "past:\u00e9/%2F"
                   },
                   "target": "beads/a"
                 }
@@ -10095,7 +10120,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/source/revision",
               "exists": true,
-              "equals": "past:é/%2F"
+              "equals": "past:\u00e9/%2F"
             }
           ]
         }
