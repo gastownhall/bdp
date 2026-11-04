@@ -1102,6 +1102,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/server/src/reference.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
       "path": "packages/server/src/resource-evaluator.test.ts",
       "runner": "vitest",
       "lane": "legacy",
