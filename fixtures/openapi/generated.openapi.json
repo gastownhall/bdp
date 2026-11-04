@@ -271,8 +271,8 @@
       "scripts/generate-openapi.mjs": "f6a5e78ed64196c390ff4f8e8de16d7259a443658be7f675fac85bfb34b93bc0",
       "scripts/spec-schema-fragments.mjs": "ec234c9e9a0c289dcb7294f2d00fcc528bc2aa6df64a474907d9c3792e80eeff",
       "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
-      "packages/protocol/schemas/bdp-v0.1.schema.json": "2da61abeb589cab0709dfda521223dc0ea4927bc4097688009ed81a8ab6ed947",
-      "specs/profiles/core/bdp-v0.1.schema.json": "2da61abeb589cab0709dfda521223dc0ea4927bc4097688009ed81a8ab6ed947",
+      "packages/protocol/schemas/bdp-v0.1.schema.json": "989b62412f398ff991300938c2c15e2a5d527eef0bcc497b2a3434d49a30efb4",
+      "specs/profiles/core/bdp-v0.1.schema.json": "989b62412f398ff991300938c2c15e2a5d527eef0bcc497b2a3434d49a30efb4",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
       "specs/profiles/write/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
       "packages/protocol/schemas/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e"
