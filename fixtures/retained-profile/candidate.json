@@ -6,7 +6,8 @@
     "bdpVersion": "0.1",
     "profile": "core",
     "scope": "https://work.example/acme/",
-    "events": "https://work.example/acme/event-source"
+    "events": "https://work.example/acme/event-source",
+    "specRevision": "0123456789abcdef0123456789abcdef01234567"
   },
   "write": {
     "bdpVersion": "0.1",
@@ -14,7 +15,8 @@
     "scope": "https://work.example/acme/",
     "events": "https://work.example/acme/event-source",
     "operations": "https://work.example/acme/commands",
-    "aliases": "https://work.example/acme/"
+    "aliases": "https://work.example/acme/",
+    "specRevision": "0123456789abcdef0123456789abcdef01234567"
   },
   "richerWrite": {
     "bdpVersion": "0.1",
@@ -42,7 +44,8 @@
           "opaque": true
         }
       }
-    }
+    },
+    "specRevision": "0123456789abcdef0123456789abcdef01234567"
   },
   "directory": {
     "createBead": "https://work.example/acme/commands/new-item",
@@ -61,12 +64,19 @@
     "events": "https://work.example/acme/event-source",
     "historicalResolution": {
       "version": 1
-    }
+    },
+    "specRevision": "0123456789abcdef0123456789abcdef01234567"
   },
   "cliPairs": [
     {
       "operation": "createBead",
-      "argv": ["create", "--type", "https://types.example/Task", "--properties", "{}"],
+      "argv": [
+        "create",
+        "--type",
+        "https://types.example/Task",
+        "--properties",
+        "{}"
+      ],
       "request": {
         "type": "https://types.example/Task",
         "properties": {}
@@ -95,7 +105,13 @@
     },
     {
       "operation": "deleteBead",
-      "argv": ["delete", "task-42", "--force", "--if-revision", "resource-r7"],
+      "argv": [
+        "delete",
+        "task-42",
+        "--force",
+        "--if-revision",
+        "resource-r7"
+      ],
       "request": {
         "bead": "task-42",
         "expectedRevision": "resource-r7"
@@ -121,7 +137,13 @@
     },
     {
       "operation": "updateLink",
-      "argv": ["link", "update", "rel-81", "--replace-metadata", "{}"],
+      "argv": [
+        "link",
+        "update",
+        "rel-81",
+        "--replace-metadata",
+        "{}"
+      ],
       "request": {
         "link": "rel-81",
         "metadata": {}
@@ -129,14 +151,25 @@
     },
     {
       "operation": "deleteLink",
-      "argv": ["link", "delete", "rel-81", "--force"],
+      "argv": [
+        "link",
+        "delete",
+        "rel-81",
+        "--force"
+      ],
       "request": {
         "link": "rel-81"
       }
     },
     {
       "operation": "putAlias",
-      "argv": ["alias", "put", "names/current", "--target", "task-42"],
+      "argv": [
+        "alias",
+        "put",
+        "names/current",
+        "--target",
+        "task-42"
+      ],
       "request": {
         "alias": "names/current",
         "target": "task-42"
@@ -144,7 +177,12 @@
     },
     {
       "operation": "deleteAlias",
-      "argv": ["alias", "delete", "names/current", "--force"],
+      "argv": [
+        "alias",
+        "delete",
+        "names/current",
+        "--force"
+      ],
       "request": {
         "alias": "names/current"
       }
@@ -351,7 +389,12 @@
       "subject": "https://work.example/acme/commands/edit-item",
       "recovery": {
         "file": "/private/bdp/replay.json",
-        "argv": ["bdp", "update", "--retry-file", "/private/bdp/replay.json"]
+        "argv": [
+          "bdp",
+          "update",
+          "--retry-file",
+          "/private/bdp/replay.json"
+        ]
       }
     },
     "error": {

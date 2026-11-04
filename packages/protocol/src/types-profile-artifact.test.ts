@@ -46,6 +46,7 @@ function discovery(profile: "core" | "write") {
     bdpVersion: "0.1",
     profile,
     scope: "https://example.test/scope/",
+    specRevision: "0123456789abcdef0123456789abcdef01234567",
     events: "https://example.test/scope/events",
     ...(profile === "write"
       ? {

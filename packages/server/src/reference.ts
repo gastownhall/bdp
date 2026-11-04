@@ -20,6 +20,8 @@ export interface ReferenceServiceOptions {
   readonly historicalUpdate?: boolean;
   /** Canonical externally routed Scope. The returned listener is loopback-only. */
   readonly scope: string;
+  /** Full canonical-protocol source commit SHA; defaults to BDP_SPEC_REVISION. */
+  readonly specRevision?: string;
   /** Every configured principal has complete Scope access; no partial disclosure model. */
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
 }
@@ -57,6 +59,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
           "create",
           "instance",
           "scope",
+          "specRevision",
           "credentials",
           "atomicBatch",
           "historicalUpdate",
@@ -78,6 +81,9 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     throw new TypeError(
       "explicit reference configuration required; unknown options are unsupported",
     );
+  const specRevision = options.specRevision ?? process.env.BDP_SPEC_REVISION;
+  if (typeof specRevision !== "string" || !/^[0-9a-f]{40}$/.test(specRevision))
+    throw new TypeError("a full lowercase BDP_SPEC_REVISION commit SHA is required");
   const navigation = referenceNavigation(options.scope);
   const listener = await startRetainedListener({
     directory: options.directory,
@@ -85,6 +91,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     instance: options.instance,
     credentials: options.credentials,
     navigation,
+    specRevision,
     referenceCore: true,
     ...(options.atomicBatch === undefined ? {} : { atomicBatch: options.atomicBatch }),
     ...(options.historicalUpdate === undefined

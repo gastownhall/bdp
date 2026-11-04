@@ -62,7 +62,7 @@ The following helpers describe decoded query values or preliminary selection pre
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 84 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 85 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -137,6 +137,7 @@ The entry-point roots reach 84 named definitions in the canonical bundle. They a
 - [revision](bdp-v0.1.schema.md#schema-def-InJldmlzaW9uIg)
 - [revisionActor](bdp-v0.1.schema.md#schema-def-InJldmlzaW9uQWN0b3Ii)
 - [revisionProvenance](bdp-v0.1.schema.md#schema-def-InJldmlzaW9uUHJvdmVuYW5jZSI)
+- [specRevision](bdp-v0.1.schema.md#schema-def-InNwZWNSZXZpc2lvbiI)
 - [typeDefinitionReadCapabilityProblem](bdp-v0.1.schema.md#schema-def-InR5cGVEZWZpbml0aW9uUmVhZENhcGFiaWxpdHlQcm9ibGVtIg)
 - [typeDefinitionReadCapabilityV1](bdp-v0.1.schema.md#schema-def-InR5cGVEZWZpbml0aW9uUmVhZENhcGFiaWxpdHlWMSI)
 - [typeDefinitionReadProblem](bdp-v0.1.schema.md#schema-def-InR5cGVEZWZpbml0aW9uUmVhZFByb2JsZW0i)
