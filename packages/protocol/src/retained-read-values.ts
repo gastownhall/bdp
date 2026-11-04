@@ -14,6 +14,7 @@ export type RetainedDiscovery = RetainedJsonObject & {
   readonly bdpVersion: "0.1";
   readonly profile: "core" | "write";
   readonly scope: AbsoluteHttpUrl;
+  readonly specRevision: string;
   readonly events?: AbsoluteHttpUrl;
 };
 

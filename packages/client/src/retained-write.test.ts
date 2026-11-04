@@ -13,6 +13,7 @@ const discovery = {
   bdpVersion: "0.1",
   profile: "write",
   scope,
+  specRevision: "0123456789abcdef0123456789abcdef01234567",
   events: "https://events.example/feed?edition=7",
   operations: "https://navigation.example/verbs?edition=odd",
   aliases: "https://names.example/lookup/",

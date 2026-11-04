@@ -15,6 +15,7 @@ const discovery = {
   bdpVersion: "0.1",
   profile: "write",
   scope,
+  specRevision: "0123456789abcdef0123456789abcdef01234567",
   aliases: `${scope}aliases/`,
   operations: `${scope}verbs`,
 };

@@ -45,7 +45,7 @@ authorization, atomicity, retention or conformance.
 
 A Write Scope advertises `bdpVersion:"0.1"` and `profile:"write"`. Its closed
 machine discovery requires `scope`, `operations` and `aliases`, in addition to
-those two identity members. Bead and Link inventories use the fixed Core routes
+those two identity members and the Core-required `specRevision`. Bead and Link inventories use the fixed Core routes
 `<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
 optional common members are `events`, `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
@@ -4393,7 +4393,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","specRevision","operations","aliases"]
 
 #### Keywords
 
@@ -4416,6 +4416,7 @@ Required order: ["bdpVersion","profile","scope","operations","aliases"]
 | "order" | schema | no | — | — |
 | "profile" | schema | yes | — | — |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "specRevision" | ref "#/$defs/specRevision" | yes | — | "Exact canonical protocol source commit represented by this discovery document." |
 
 #### Advanced
 

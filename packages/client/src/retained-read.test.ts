@@ -41,6 +41,7 @@ function discovery(profile: "core" | "write" = "core") {
     bdpVersion: "0.1",
     profile,
     scope,
+    specRevision: "0123456789abcdef0123456789abcdef01234567",
     events: "https://events.example/facts",
     ...(profile === "write" ? { operations: directoryUrl, aliases: "https://names.example/" } : {}),
   };
