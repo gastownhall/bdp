@@ -12,6 +12,7 @@ const core = {
   bdpVersion: "0.1",
   profile: "core",
   scope: "https://records.test/work/",
+  specRevision: "0123456789abcdef0123456789abcdef01234567",
   events: "https://facts.test/observations",
 };
 const bead = {
@@ -70,6 +71,7 @@ describe("retained Core carrier values", () => {
       { ...core, beads: "https://lists.test/nodes", links: "https://lists.test/edges" },
     ],
     ["query-scope", { ...core, scope: "https://records.test/work/?tenant=1" }],
+    ["malformed-spec-revision", { ...core, specRevision: "main" }],
   ])("refuses discovery %s", (_label, value) => {
     expect(() => parseRetainedDiscovery(JSON.stringify(value))).toThrow();
   });
@@ -82,6 +84,10 @@ describe("retained Core carrier values", () => {
     expect(() =>
       parseRetainedDiscovery(JSON.stringify({ ...core, types: "https://types.test/" })),
     ).toThrow();
+  });
+  it("requires specRevision", () => {
+    const { specRevision: _revision, ...withoutRevision } = core;
+    expect(() => parseRetainedDiscovery(JSON.stringify(withoutRevision))).toThrow();
   });
   it("preserves complete Type pins, native metadata and opaque revisions", () => {
     expect(parseRetainedResource(JSON.stringify(bead), "bead")).toEqual(bead);

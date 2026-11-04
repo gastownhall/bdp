@@ -6560,9 +6560,13 @@
         "types": {
           "$ref": "#/$defs/absoluteHttpUrl",
           "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
+        },
+        "specRevision": {
+          "$ref": "#/$defs/specRevision",
+          "description": "Exact canonical protocol source commit represented by this discovery document."
         }
       },
-      "required": ["bdpVersion", "profile", "scope"]
+      "required": ["bdpVersion", "profile", "scope", "specRevision"]
     },
     "writeDiscovery": {
       "type": "object",
@@ -6603,9 +6607,13 @@
         },
         "scope": {
           "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "specRevision": {
+          "$ref": "#/$defs/specRevision",
+          "description": "Exact canonical protocol source commit represented by this discovery document."
         }
       },
-      "required": ["bdpVersion", "profile", "scope", "operations", "aliases"]
+      "required": ["bdpVersion", "profile", "scope", "specRevision", "operations", "aliases"]
     },
     "retainedDiscovery": {
       "title": "Selected retained Core or Write discovery",
@@ -8342,6 +8350,11 @@
       "description": "Exact nonnegative integral count of the complete admitted authorized selection. A cutoff or partial scan cannot be reported as a successful count.",
       "minimum": 0,
       "type": "integer"
+    },
+    "specRevision": {
+      "description": "Full lowercase SHA-1 Git commit object ID for the latest change to any canonical BDP protocol source: Core, Write, Types or Events.",
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
     }
   },
   "x-bdp-schema-definitions": [
@@ -8467,6 +8480,7 @@
     "revisionProvenance",
     "revisionProvenanceInput",
     "selector",
+    "specRevision",
     "typeDefinitionReadCapabilityProblem",
     "typeDefinitionReadCapabilityV1",
     "typeDefinitionReadProblem",
@@ -8547,6 +8561,7 @@
       "revisionActor",
       "revisionProvenance",
       "selector",
+      "specRevision",
       "typeDefinitionReadCapabilityProblem",
       "typeDefinitionReadCapabilityV1",
       "typeDefinitionReadProblem",

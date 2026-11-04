@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "dc0b4e9aebd952642239aa3fcc83c20f793593d6012044ebe713c554a3aace65",
+  "sourceSHA256": "906b543847b152897391ce795631d712c858891b7b876f6f54d25d725c48094d",
   "selections": {
     "read": {
       "entryPoints": [
@@ -110,6 +110,7 @@
         "revision",
         "revisionActor",
         "revisionProvenance",
+        "specRevision",
         "typeDefinitionReadCapabilityProblem",
         "typeDefinitionReadCapabilityV1",
         "typeDefinitionReadProblem",

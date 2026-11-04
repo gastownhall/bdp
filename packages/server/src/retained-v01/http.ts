@@ -31,6 +31,7 @@ import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
+  readonly specRevision?: string;
 }
 export const PRIVATE_FIXTURE_GAPS = Object.freeze([
   "complete authorization/disclosure",
@@ -152,6 +153,9 @@ async function receive(request: IncomingMessage): Promise<string> {
   }
 }
 export async function startRetainedListener(options: PrivateFixtureOptions) {
+  const specRevision = options.specRevision ?? process.env.BDP_SPEC_REVISION;
+  if (typeof specRevision !== "string" || !/^[0-9a-f]{40}$/.test(specRevision))
+    throw new TypeError("a full lowercase BDP_SPEC_REVISION commit SHA is required");
   const navigation = captureNavigation(options.navigation);
   const credentials = options.credentials.map((credential) => {
     if (!/^[A-Za-z0-9_-]{32,256}$/.test(credential.token) || !credential.principal)
@@ -355,6 +359,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             bdpVersion: "0.1",
             profile: "write",
             scope: navigation.scope,
+            specRevision,
             aliases: navigation.aliases,
             ...(options.referenceCore === true
               ? {

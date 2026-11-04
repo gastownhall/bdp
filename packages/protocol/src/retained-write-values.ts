@@ -32,6 +32,7 @@ export type RetainedWriteDiscovery = JsonObject & {
   readonly bdpVersion: "0.1";
   readonly profile: "write";
   readonly scope: AbsoluteHttpUrl;
+  readonly specRevision: string;
   readonly events?: AbsoluteHttpUrl;
   readonly operations: AbsoluteHttpUrl;
   readonly aliases: AbsoluteHttpUrl;

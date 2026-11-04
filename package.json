@@ -20,6 +20,7 @@
     "lint": "biome lint .",
     "openapi:generate": "node scripts/generate-openapi.mjs",
     "openapi:check": "node scripts/generate-openapi.mjs --check",
+    "spec:revision": "node scripts/canonical-spec-revision.mjs",
     "test:openapi": "node --test scripts/openapi.node-test.mjs",
     "markdown:generate": "node scripts/generate-markdown-contracts.mjs",
     "markdown:check": "node scripts/generate-markdown-contracts.mjs --check",

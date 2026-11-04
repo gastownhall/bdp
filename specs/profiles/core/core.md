@@ -554,13 +554,21 @@ A minimal discovery document is:
 {
   "bdpVersion": "0.1",
   "profile": "core",
-  "scope": "https://beads.example/acme/"
+  "scope": "https://beads.example/acme/",
+  "specRevision": "0123456789abcdef0123456789abcdef01234567"
 }
 ```
 
-Required Core members are `bdpVersion`, `profile` and `scope`. Optional members are
-`events`, `aliases`, `order`, `limits`, `maximumEndpointMultiplicity`,
-`historicalResolution`, and `capabilities`.
+Required Core members are `bdpVersion`, `profile`, `scope` and `specRevision`.
+`specRevision` is the full lowercase Git commit SHA of the latest commit that
+changed any canonical protocol source: Core, Write, Types or Events. It identifies
+the selected protocol text, not a server build or capability set. A build derives
+it from the source commit; a pull request or development build may identify its
+committed branch revision, and a build after merge identifies the commit on the
+canonical branch. A dirty change to a canonical source MUST NOT be reported as if
+it were represented by the prior commit. Optional members are `events`, `aliases`,
+`order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
+`capabilities`.
 Write uses the same Core meaning with `profile:"write"` and required `operations`
 and `aliases` navigation. Its operation directory belongs to Write. These discovery
 objects are closed; there is no required or guessed `beads` or `links` member.
@@ -3094,6 +3102,20 @@ Other fields: not allowed
 | "message" | ref "#/$defs/contextMessage" | no | — | "Immutable carried change message, present with committedAt and agent." |
 <!-- bdp-schema:end revisionProvenance -->
 
+<!-- bdp-schema:start specRevision -->
+### Schema: "specRevision"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Full lowercase SHA-1 Git commit object ID for the latest change to any canonical BDP protocol source: Core, Write, Types or Events." |
+| pattern | "^[0-9a-f]{40}$" |
+| type | "string" |
+<!-- bdp-schema:end specRevision -->
+
 <!-- bdp-schema:start bdpVersion -->
 ### Schema: "bdpVersion"
 
@@ -3223,7 +3245,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope"]
+Required order: ["bdpVersion","profile","scope","specRevision"]
 
 #### Keywords
 
@@ -3246,6 +3268,7 @@ Required order: ["bdpVersion","profile","scope"]
 | "order" | schema | no | — | "Advertised stable collection order. Omission uses canonical-uri under Core." |
 | "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation." |
+| "specRevision" | ref "#/$defs/specRevision" | yes | — | "Exact canonical protocol source commit represented by this discovery document." |
 | "types" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support." |
 
 #### Advanced

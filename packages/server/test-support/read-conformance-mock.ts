@@ -35,3 +35,6 @@ afterAll(() => {
         .join(", ")}`,
     );
 });
+// Synthetic SHA-1 used only in tests that exercise discovery shape. Real
+// reference builds must supply the source commit through BDP_SPEC_REVISION.
+process.env.BDP_SPEC_REVISION ??= "0000000000000000000000000000000000000000";
