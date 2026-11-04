@@ -419,7 +419,12 @@ it("lists Bead and Link History with newest-first CLI ordinals", async () => {
           explicitOptions: [],
         },
         { scope: { url: scope }, auth: {} },
-        { stdout: (text) => stdout.push(text), stderr: () => undefined },
+        {
+          stdout: (text) => {
+            stdout.push(text);
+          },
+          stderr: () => undefined,
+        },
       ),
     ).toBe(0);
     expect(history).toHaveBeenCalledWith(
