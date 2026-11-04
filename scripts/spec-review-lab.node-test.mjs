@@ -19,6 +19,7 @@ import {
 } from "./spec-review-lab.mjs";
 
 const script = fileURLToPath(new URL("./spec-review-lab.mjs", import.meta.url));
+const stableClient = fileURLToPath(new URL("./bdp-review-lab-client.mjs", import.meta.url));
 const workspace = fileURLToPath(new URL("../", import.meta.url));
 const absent = async (name) => assert.rejects(access(name), { code: "ENOENT" });
 function relay(socket, args, stdin = Buffer.alloc(0)) {
@@ -40,6 +41,26 @@ function relay(socket, args, stdin = Buffer.alloc(0)) {
       resolve({ code, stdout: Buffer.concat(out), stderr: Buffer.concat(err) });
     });
     child.stdin.end(stdin);
+  });
+}
+function runStableClient(stateHome, args = ["--help"]) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [stableClient, ...args], {
+      env: { ...process.env, HOME: stateHome },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const stdout = [],
+      stderr = [];
+    child.stdout.on("data", (chunk) => stdout.push(chunk));
+    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    child.on("error", reject);
+    child.on("close", (code) =>
+      resolve({
+        code,
+        stdout: Buffer.concat(stdout).toString(),
+        stderr: Buffer.concat(stderr).toString(),
+      }),
+    );
   });
 }
 function events(onEvent) {
@@ -89,6 +110,22 @@ test("workstation argv policy refuses remote/config/recovery escapes and oversiz
     scope,
     state,
   );
+});
+
+test("stable lab client gives a bounded nonzero diagnostic when no owner is active", async () => {
+  const stateHome = await mkdtemp(path.join(os.tmpdir(), "bdp-review-client-"));
+  try {
+    const result = await runStableClient(stateHome);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(
+      result.stderr,
+      "No active BDP review lab. Start it with `pnpm review:lab` in the owner terminal.\n",
+    );
+    assert.doesNotMatch(result.stderr, /Error:|node:internal/);
+  } finally {
+    await rm(stateHome, { recursive: true, force: true });
+  }
 });
 
 test("producer capture enforces a combined bound before retention and keeps overflow failed", () => {
@@ -242,10 +279,24 @@ test("actual installed finite journey and private relay preserve bytes, stdin an
       const missing = await relay(socket, ["show", "missing", "--output-format", "json"]);
       assert.equal(missing.code, 3);
       const remote = await relay(socket, ["show", "https://remote.invalid/a"]);
-      assert.equal(remote.code, 1);
-      assert.match(remote.stderr.toString(), /refused/);
+      assert.equal(remote.code, 2);
+      assert.equal(remote.stderr.toString(), "Only this loopback Scope may be contacted\n");
+      const remoteDefault = await relay(socket, [
+        "scope",
+        "set",
+        "https://chris-bot.sellsbrothers.com",
+      ]);
+      assert.equal(remoteDefault.code, 2);
+      assert.equal(remoteDefault.stderr.toString(), "Only this loopback Scope may be contacted\n");
+      const localDefault = await relay(socket, ["scope", "set", owner.scope]);
+      assert.equal(localDefault.code, 2);
+      assert.match(
+        localDefault.stderr.toString(),
+        /scope set cannot modify an explicitly selected --config file/,
+      );
       const invalid = JSON.parse(await malformed(socket, "not JSON"));
-      assert.equal(invalid.code, 1);
+      assert.equal(invalid.code, 2);
+      assert.equal(Buffer.from(invalid.stderr, "base64").toString(), "Invalid relay input\n");
       assert.equal(await malformed(socket, "x".repeat(131073)), "");
       const config = JSON.parse(await readFile(path.join(owner.root, "config.json"), "utf8"));
       assert.equal(created.stdout.includes(config.auth.token), false);

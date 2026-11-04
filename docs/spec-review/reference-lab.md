@@ -25,16 +25,19 @@ Packing requires the existing built artifacts and pnpm run context; package
 installation may need network/cache access. No release or global install occurs.
 
 Wait for `review-lab.ready`. It reports the owned root, local Scope, exact Node
-path and `bdp.mjs` launcher path. In a second terminal assign those literal paths:
+path, disposable `bdp.mjs` launcher and stable client path. Use the stable client
+so an expired lab session reports a short restart instruction instead of a
+missing-temporary-file stack trace:
 
 ```sh
 NODE='/absolute/path/from/ready/node'
-BDP='/absolute/path/from/ready/launcher'
+BDP='/absolute/path/from/ready/stableLauncher'
 "$NODE" "$BDP" --help
 "$NODE" "$BDP" scope inspect --output-format json
 ```
 
-The generated launcher is a **private argv/stdin relay**, not the installed CLI
+The stable client looks up the active private argv/stdin relay and preserves the
+child exit code. The disposable launcher is also a relay, not the installed CLI
 entry itself. The foreground owner spawns that fixed installed entry, owns its
 process group, and returns its stdout/stderr bytes and exit code. There is no
 shell parsing, remote administrative endpoint or arbitrary executable selection.

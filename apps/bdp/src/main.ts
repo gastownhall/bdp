@@ -21,10 +21,15 @@ import {
   loadStartupConfig,
   parseConfigArgs,
 } from "@bdp/config";
-import type { ReadProblem } from "@bdp/protocol";
+import { parseCanonicalScope, RETAINED_V01_SPECIFICATION, type ReadProblem } from "@bdp/protocol";
 import { type Command, CommanderError } from "commander";
 import { createCanonicalCommand } from "./canonical-command.js";
-import { readBoundedFile, writeCanonicalOutput } from "./canonical-io.js";
+import {
+  defaultCliConfigPath,
+  readBoundedFile,
+  saveDefaultScope,
+  writeCanonicalOutput,
+} from "./canonical-io.js";
 import { runCanonicalInvocation } from "./canonical-runtime.js";
 
 const executable = "bdp";
@@ -63,6 +68,8 @@ class BootstrapConfigUsageError extends Error {
     );
   }
 }
+
+class CliOperationError extends Error {}
 
 /** Bootstrap registration policy using the declared option arities. No
  * command-specific parsing or network activity occurs until the profile is known. */
@@ -113,19 +120,30 @@ export async function runBdp(args: readonly string[]): Promise<number> {
     }
     // Read a selected configuration once; profile registration and execution see
     // the same bytes even when the on-disk file changes during this invocation.
-    const configPath = configFile ?? process.env.BDP_CONFIG;
+    const configuredPath = configFile ?? process.env.BDP_CONFIG;
+    const defaultPath = defaultCliConfigPath(process.env);
+    let selectedConfigFile = configuredPath;
+    if (selectedConfigFile === undefined) {
+      try {
+        await readBoundedFile(defaultPath, 1_048_576);
+        selectedConfigFile = defaultPath;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
     const configText =
-      configPath === undefined
+      selectedConfigFile === undefined
         ? undefined
         : new TextDecoder("utf-8", { fatal: true }).decode(
-            await readBoundedFile(configPath, 1_048_576),
+            await readBoundedFile(selectedConfigFile, 1_048_576),
           );
     const readFile = (): string => {
       if (configText === undefined) throw new Error("configuration not captured");
       return configText;
     };
     const selectedProfile =
-      explicitProfile ?? loadCliProfile({ configFile, env: process.env, readFile });
+      explicitProfile ??
+      loadCliProfile({ configFile: selectedConfigFile, env: process.env, readFile });
     const tree = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile: selectedProfile,
@@ -135,6 +153,47 @@ export async function runBdp(args: readonly string[]): Promise<number> {
       // Commander can echo unknown operands; diagnostics never echo argv.
       writeErr: () => undefined,
       onInvocation: async (invocation) => {
+        if (invocation.command.join(" ") === "scope set") {
+          if (configFile !== undefined)
+            throw new CliOperationError(
+              "scope set cannot modify an explicitly selected --config file; remove --config and try again",
+            );
+          let scope: string;
+          try {
+            const supplied = invocation.positionals[0];
+            const candidate =
+              typeof supplied === "string" &&
+              /^https?:\/\//.test(supplied) &&
+              !supplied.endsWith("/")
+                ? `${supplied}/`
+                : supplied;
+            scope = parseCanonicalScope(candidate);
+          } catch {
+            throw new CliOperationError("scope must be an admissible canonical Scope URL");
+          }
+          const target = process.env.BDP_CONFIG ?? defaultPath;
+          try {
+            await saveDefaultScope(target, scope);
+          } catch {
+            throw new CliOperationError(
+              "could not save the BDP config; check the config file and directory permissions",
+            );
+          }
+          const result = {
+            schema_version: 2,
+            bdp_spec: RETAINED_V01_SPECIFICATION,
+            result_kind: "scope",
+            outcome: "success",
+            data: { scope },
+          };
+          process.stdout.write(
+            invocation.options.outputFormat === "json" ||
+              invocation.options.outputFormat === "jsonl"
+              ? `${JSON.stringify(result)}\n`
+              : `Default Scope set to ${scope}\n`,
+          );
+          return;
+        }
         if (invocation.command.join(" ") === "bd ready") {
           const env = {
             ...process.env,
@@ -144,7 +203,7 @@ export async function runBdp(args: readonly string[]): Promise<number> {
           };
           status = await runLegacyBdp(
             [
-              ...(configFile === undefined ? [] : ["--config", configFile]),
+              ...(selectedConfigFile === undefined ? [] : ["--config", selectedConfigFile]),
               "bd",
               "ready",
               ...(invocation.options.json ? ["--json"] : []),
@@ -159,7 +218,7 @@ export async function runBdp(args: readonly string[]): Promise<number> {
             ? { BDP_SCOPE_URL: invocation.options.scope }
             : {}),
         };
-        const config = loadCanonicalCliConfig({ configFile, env, readFile });
+        const config = loadCanonicalCliConfig({ configFile: selectedConfigFile, env, readFile });
         const interruption = new AbortController();
         const interrupt = () => interruption.abort();
         process.on("SIGINT", interrupt);
@@ -185,9 +244,11 @@ export async function runBdp(args: readonly string[]): Promise<number> {
     const message =
       error instanceof BootstrapConfigUsageError
         ? `${error.message}; use --help for usage`
-        : error instanceof CommanderError && error.code === "commander.unknownOption"
-          ? "1 unsupported argument(s); use --help for usage"
-          : "invalid command or configuration; use --help for usage";
+        : error instanceof CliOperationError
+          ? error.message
+          : error instanceof CommanderError && error.code === "commander.unknownOption"
+            ? "1 unsupported argument(s); use --help for usage"
+            : "invalid command or configuration; use --help for usage";
     diagnostic("error", "cli.usage", message);
     return 2;
   }

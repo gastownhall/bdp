@@ -2,10 +2,21 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createServer as httpServer, request } from "node:http";
 import { createRequire } from "node:module";
 import { connect, createServer as unixServer } from "node:net";
+import { homedir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,6 +32,51 @@ const MAX_SESSION = 2 * 60 * 60 * 1000;
 const IDLE = 15 * 60 * 1000;
 const MAX_RELAY = 4 * 1024 * 1024;
 const MAX_INPUT = 65536;
+const sessionDirectory = path.join(homedir(), ".local", "state", "bdp", "review-lab");
+const sessionFile = path.join(
+  sessionDirectory,
+  `${hash(Buffer.from(workspace)).slice(0, 20)}.json`,
+);
+
+async function publishSession(socketPath, root) {
+  await mkdir(sessionDirectory, { recursive: true, mode: 0o700 });
+  const temporary = `${sessionFile}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify({ socketPath, root })}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  try {
+    await rename(temporary, sessionFile);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
+}
+
+async function clearSession(socketPath) {
+  try {
+    const current = JSON.parse(await readFile(sessionFile, "utf8"));
+    if (current.socketPath === socketPath) await rm(sessionFile, { force: true });
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+function publicLabError(error) {
+  const admitted = new Set([
+    "Invalid argv",
+    "Lab configuration is fixed",
+    "Use an owned lab recovery file",
+    "Only this loopback Scope may be contacted",
+    "Lab stdin bound exceeded",
+    "Invalid relay input",
+    "Invalid owned journal",
+    "Journal must retain the local Scope",
+  ]);
+  return admitted.has(error?.message)
+    ? error.message
+    : "The lab could not run this command. Check its arguments and lab status.";
+}
 
 /** Workstation restriction, not new CLI semantics: no remote targets/config escapes. */
 export function admitInvocation(args, scope, state) {
@@ -468,7 +524,12 @@ async function worker(installRoot, root, check) {
         });
         socket.on("end", async () => {
           try {
-            const input = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+            let input;
+            try {
+              input = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+            } catch {
+              throw new Error("Invalid relay input");
+            }
             if (
               Object.keys(input).sort().join(",") !== "args,stdin" ||
               typeof input.stdin !== "string" ||
@@ -479,12 +540,12 @@ async function worker(installRoot, root, check) {
             if (stdin.length > MAX_INPUT) throw new Error("Lab stdin bound exceeded");
             const reply = await execute(input.args, stdin);
             socket.end(JSON.stringify(reply));
-          } catch {
+          } catch (error) {
             socket.end(
               JSON.stringify({
-                code: 1,
+                code: 2,
                 stdout: "",
-                stderr: Buffer.from("Lab invocation refused or failed\n").toString("base64"),
+                stderr: Buffer.from(`${publicLabError(error)}\n`).toString("base64"),
               }),
             );
           }
@@ -492,11 +553,12 @@ async function worker(installRoot, root, check) {
       });
       await listen(broker, socketPath);
       await chmod(socketPath, 0o600);
+      await publishSession(socketPath, root);
       // Fixed absolute paths; no shell expansion, credential, arbitrary executable or URL.
       const launcher = path.join(root, "bdp.mjs");
       await writeFile(
         launcher,
-        `import { spawnSync } from 'node:child_process';\nconst r = spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(self)}, '--invoke', ${JSON.stringify(socketPath)}, ...process.argv.slice(2)], {stdio:'inherit'});\nprocess.exitCode = r.status ?? 1;\n`,
+        `import { spawnSync } from 'node:child_process';\nconst r = spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(self)}, '--invoke', ${JSON.stringify(socketPath)}, ...process.argv.slice(2)], {stdio:'inherit'});\nif (r.error) { console.error('Could not start the BDP review lab command. Use the stable client path printed by the owner.'); process.exitCode = 1; } else process.exitCode = r.status ?? 1;\n`,
         { flag: "wx", mode: 0o600 },
       );
       touch();
@@ -505,6 +567,7 @@ async function worker(installRoot, root, check) {
         root,
         scope,
         launcher,
+        stableLauncher: path.join(workspace, "scripts", "bdp-review-lab-client.mjs"),
         node: process.execPath,
         pid: process.pid,
         mode: check ? "check" : "interactive",
@@ -577,6 +640,7 @@ async function worker(installRoot, root, check) {
               process.off("SIGINT", abort);
               process.off("SIGTERM", abort);
               await rm(root, { recursive: true });
+              await clearSession(socketPath);
             },
           ),
       );
@@ -755,8 +819,16 @@ if (process.argv[1] === self) {
     else if (args[0] === "--invoke" && args.length >= 2)
       process.exitCode = await invoke(args[1], args.slice(2));
     else await main(args);
-  } catch {
-    console.error("Review lab failed; inspect owned lifecycle events. No credentials are printed.");
+  } catch (error) {
+    if (
+      process.argv[2] === "--invoke" &&
+      ["ENOENT", "ECONNREFUSED", "ECONNRESET", "EPIPE"].includes(error?.code)
+    )
+      console.error("The BDP review lab has stopped. Restart it with `pnpm review:lab`.");
+    else
+      console.error(
+        "Review lab failed; inspect owned lifecycle events. No credentials are printed.",
+      );
     process.exitCode = process.exitCode || 1;
   }
 }

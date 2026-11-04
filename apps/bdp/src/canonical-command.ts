@@ -254,6 +254,15 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   flag(root, scope);
 
   const scopeGroup = add(root, "scope", "Discover the selected Scope.", "Read Commands");
+  const setScope = add(
+    scopeGroup,
+    "set",
+    "Set the default Scope for future commands.",
+    "Read Commands",
+    ["<scope>"],
+  );
+  outputFlags(setScope, false, false, false);
+  execute(setScope);
   const inspect = add(
     scopeGroup,
     "inspect",

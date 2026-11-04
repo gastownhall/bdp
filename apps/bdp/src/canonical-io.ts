@@ -84,6 +84,46 @@ export async function saveCanonicalJournal(value: unknown): Promise<string> {
   }
 }
 
+export function defaultCliConfigPath(env: NodeJS.ProcessEnv): string {
+  return join(env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "bdp", "config.json");
+}
+
+/** Persist only the selected Scope while preserving other user configuration. */
+export async function saveDefaultScope(path: string, scope: string): Promise<void> {
+  let config: Record<string, unknown> = {};
+  try {
+    const existing = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(await readBoundedFile(path, 1_048_576)),
+    );
+    if (existing === null || typeof existing !== "object" || Array.isArray(existing))
+      throw new Error("invalid config");
+    config = existing as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new Error("invalid config");
+  }
+  const currentScope = config.scope;
+  const scopeConfig =
+    currentScope !== null && typeof currentScope === "object" && !Array.isArray(currentScope)
+      ? (currentScope as Record<string, unknown>)
+      : {};
+  config.scope = { ...scopeConfig, url: scope };
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  const file = await open(temporary, "wx", 0o600);
+  try {
+    await file.writeFile(`${JSON.stringify(config, null, 2)}\n`, "utf8");
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+  try {
+    await rename(temporary, path);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
+}
+
 export class CanonicalOutputError extends Error {
   constructor() {
     super("BDP output failed");
