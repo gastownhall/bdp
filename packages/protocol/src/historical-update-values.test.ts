@@ -75,8 +75,6 @@ it("selects only advertised exact version1 and keeps batch composition explicit"
         bdpVersion: "0.1",
         profile: "write",
         scope,
-        beads: `${scope}beads`,
-        links: `${scope}links`,
         aliases: `${scope}aliases/`,
         operations: `${scope}operations`,
         capabilities: { [HISTORICAL_UPDATE_CAPABILITY]: versions },
