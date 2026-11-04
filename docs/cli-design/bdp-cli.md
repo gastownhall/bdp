@@ -335,6 +335,12 @@ Alias commands and Bead deletion do not admit this flag. It alone is not an
 update. In member emission it remains that member's ordinary provenance input,
 not a new batch-wide or wire-level global field.
 
+The executable also accepts global `--output-mode human|json` before or after a
+command. It controls the overall presentation and defaults to human; the
+command-specific `--output-format` remains the more specific choice. See
+[read output](read-output.md#preserve-data-and-declare-context) for the format
+and compatibility rules.
+
 <a id="scope-selection"></a>
 
 #### Scope context: candidate client mechanics

@@ -7,8 +7,10 @@ import { createServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { canonicalSpecRevision } from "./canonical-spec-revision.mjs";
 
 export function registerCanonicalCliCases({ binary, startReferenceService }) {
+  const specRevision = canonicalSpecRevision();
   const specification = "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json";
   const json = ["--output-format", "json"];
   const token = "canonical-cli-test-secret-00000000000000000000";
@@ -211,6 +213,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       create: true,
       instance: "canonical-cli",
       scope,
+      specRevision,
       credentials: [{ token, principal: "operator" }],
     };
     try {
@@ -595,6 +598,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
         create: true,
         instance: "cli-delivery",
         scope,
+        specRevision,
         credentials: [{ token, principal: "operator" }],
       });
       for (const id of ["a", "b"])
@@ -870,6 +874,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       create: true,
       instance: "historical-cli",
       scope,
+      specRevision,
       credentials: [{ token, principal: "operator" }],
       historicalUpdate: true,
     };
