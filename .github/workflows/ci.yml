@@ -104,6 +104,8 @@ jobs:
           python3 -B scripts/check-spec-editorial.py
       - run: pnpm typecheck
       - run: pnpm build
+      - name: Resolve canonical spec revision for reference checks
+        run: printf 'BDP_SPEC_REVISION=%s\n' "$(node scripts/canonical-spec-revision.mjs)" >> "$GITHUB_ENV"
       - name: Check reference performance runner lifecycle controls without performance thresholds
         run: pnpm exec node --test scripts/perf/reference-trends.node-test.mjs
       - run: pnpm test:cli:built

@@ -280,11 +280,16 @@ export async function runInstalledLab(
     [self, "--worker", installed.installRoot, root, check ? "check" : "interactive"],
     {
       cwd: installed.temporaryRoot,
-      env: Object.fromEntries(
-        Object.entries(process.env).filter(
-          ([name]) => !name.startsWith("BDP_") && name !== "XDG_STATE_HOME",
+      env: {
+        ...Object.fromEntries(
+          Object.entries(process.env).filter(
+            ([name]) => !name.startsWith("BDP_") && name !== "XDG_STATE_HOME",
+          ),
         ),
-      ),
+        ...(process.env.BDP_SPEC_REVISION
+          ? { BDP_SPEC_REVISION: process.env.BDP_SPEC_REVISION }
+          : {}),
+      },
       stdio: ["pipe", "pipe", "pipe"],
       timeoutMs: MAX_SESSION + 15_000,
       onStdout: onOutput,

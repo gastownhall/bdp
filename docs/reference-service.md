@@ -23,11 +23,18 @@ const service = await startReferenceService({
   create: true,
   instance: "my-reference-instance",
   scope: "https://records.example/acme/",
+  specRevision: process.env.BDP_SPEC_REVISION,
   credentials: [{ token, principal: "operator" }],
 });
 // Explicitly route this canonical Scope to service.listenUrl using your proxy.
 // On shutdown: await service.close().
 ```
+
+Set `BDP_SPEC_REVISION` to the output of `pnpm spec:revision` before starting the
+service. The command returns the full commit SHA that last changed any canonical
+Core, Write, Types or Events source and refuses to stamp a dirty source tree. A
+PR build uses its committed branch SHA; after merge, rebuild from the merged
+canonical branch and stamp its resulting SHA.
 
 The reference Scope URL has a4096-byte configuration bound. Supply a32–256-character URL-safe secret token; no credential is generated or
 installed implicitly. Every configured principal has complete access to this
