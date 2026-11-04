@@ -84,7 +84,7 @@ it("observes seventeen partial Transactional contracts through packed-capable ac
     true,
   );
   expect(observed.result.declarations).toMatchObject({
-    exactConfigurationDigest: "ef25b64443a15ed227f8c3b90a24d32b4f811b508dde3993493d31a8bdc0405e",
+    exactConfigurationDigest: "52f258525bcb8bdc8bee23b0c8c3d6886c207613d3b8186f89ba444d4267077d",
   });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
@@ -437,7 +437,7 @@ it("observes per-handle authorization and separately bound permission-swapped co
                 operations: [
                   {
                     operation: "createBead",
-                    id: `beads/${credentialRef}`,
+                    id: `${credentialRef}`,
                     type: `${scope}types/task`,
                     properties: { title: "authorized" },
                   },
@@ -731,7 +731,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
   const digest = createHash("sha256")
     .update(JSON.stringify(memberRequests()[0]!.body))
     .digest("hex");
-  expect(digest).toBe("f3cde631127aaf530ea5349330e6c7bb46766b02b135f9c7c59acfcd2f2c71c7");
+  expect(digest).toBe("31dd67cc5f7c1c3b84a4aa8228b9cc6ba1362a6e0dfe310cb047e1f103536789");
   expect(digest).not.toBe(
     createHash("sha256").update(JSON.stringify(minimumRequests()[4]!.body)).digest("hex"),
   );
@@ -775,37 +775,37 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
       { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/sequence` },
       { method: "POST", url: `${scope}operations/update-bead` },
-      { method: "GET", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}links/l` },
-      { method: "GET", url: `${scope}beads/new` },
+      { method: "GET", url: `${scope}a` },
+      { method: "GET", url: `${scope}l` },
+      { method: "GET", url: `${scope}new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
       { method: "GET", url: `${scope}bdp/links?limit=32` },
-      { method: "GET", url: `${scope}beads/b` },
-      { method: "GET", url: `${scope}beads/c` },
+      { method: "GET", url: `${scope}b` },
+      { method: "GET", url: `${scope}c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
-      { method: "HEAD", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}beads/missing` },
-      { method: "HEAD", url: `${scope}beads/missing` },
+      { method: "HEAD", url: `${scope}a` },
+      { method: "GET", url: `${scope}missing` },
+      { method: "HEAD", url: `${scope}missing` },
     ],
     scope,
   });
   expect(createHash("sha256").update(preimage).digest("hex")).toBe(
-    "ef25b64443a15ed227f8c3b90a24d32b4f811b508dde3993493d31a8bdc0405e",
+    "52f258525bcb8bdc8bee23b0c8c3d6886c207613d3b8186f89ba444d4267077d",
   );
-  expect(Buffer.byteLength(preimage)).toBe(1434);
+  expect(Buffer.byteLength(preimage)).toBe(1392);
   // Preserve every old route and grant only the three explicitly authored new pairs.
   const oldRoutes = [
-    { method: "GET", url: `${scope}beads/a` },
+    { method: "GET", url: `${scope}a` },
     { method: "POST", url: `${scope}operations/batch` },
-    { method: "GET", url: `${scope}links/l` },
+    { method: "GET", url: `${scope}l` },
     { method: "GET", url: `${scope}bdp/beads?limit=32` },
     { method: "GET", url: `${scope}events/` },
-    { method: "GET", url: `${scope}beads/new` },
+    { method: "GET", url: `${scope}new` },
     { method: "GET", url: `${scope}changes/?after=genesis` },
     { method: "GET", url: `${scope}bdp/links?limit=32` },
-    { method: "GET", url: `${scope}beads/b` },
-    { method: "GET", url: `${scope}beads/c` },
+    { method: "GET", url: `${scope}b` },
+    { method: "GET", url: `${scope}c` },
     { method: "POST", url: `${scope}operations/update-where` },
     { method: "POST", url: `${scope}operations/delete-where` },
     { method: "POST", url: `${scope}operations/create-bead` },
@@ -818,9 +818,9 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
   ).toEqual(
     [
       ...oldRoutes,
-      { method: "HEAD", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}beads/missing` },
-      { method: "HEAD", url: `${scope}beads/missing` },
+      { method: "HEAD", url: `${scope}a` },
+      { method: "GET", url: `${scope}missing` },
+      { method: "HEAD", url: `${scope}missing` },
     ]
       .map(routeKey)
       .sort(),
@@ -959,12 +959,12 @@ function applyDeletionControl(
   const operations = [
     {
       operation: "updateBead",
-      bead: "beads/b",
+      bead: "b",
       propertiesChange: [{ op: "replace", path: "/title", value: prefix }],
       metadataChange: [{ op: "replace", path: "", value: { phase: prefix } }],
     },
-    ...links.map((id) => ({ operation: "deleteLink", link: `links/${id}` })),
-    ...(control === "committed-prefix-state" ? [] : [{ operation: "deleteBead", bead: "beads/a" }]),
+    ...links.map((id) => ({ operation: "deleteLink", link: `${id}` })),
+    ...(control === "committed-prefix-state" ? [] : [{ operation: "deleteBead", bead: "a" }]),
   ];
   const raw = action.raw as { body: { encoding: string; value: string } };
   raw.body = { encoding: "utf8", value: JSON.stringify({ operations }) };
@@ -991,17 +991,13 @@ function applyDeletionControl(
       projections: [{ pointer: "/operationIndex" }, { pointer: "/outcome" }],
       equals: [[0, "updated"], ...deleted.map((_, i) => [i + 1, "deleted"])],
     },
-    pointer("updated-id", "/results/0/resource/id", `${scope}beads/b`),
+    pointer("updated-id", "/results/0/resource/id", `${scope}b`),
     pointer("updated-type", "/results/0/resource/type", task),
     pointer("updated-properties", "/results/0/resource/properties", { title: prefix }),
     pointer("updated-metadata", "/results/0/resource/metadata", { phase: prefix }),
     ...deleted.flatMap((id, i) => [
       pointer(`${id}-kind`, `/results/${i + 1}/deleted/resourceKind`, id === "a" ? "bead" : "link"),
-      pointer(
-        `${id}-id`,
-        `/results/${i + 1}/deleted/resource/id`,
-        `${scope}${id === "a" ? "beads" : "links"}/${id}`,
-      ),
+      pointer(`${id}-id`, `/results/${i + 1}/deleted/resource/id`, `${scope}${id}`),
       pointer(
         `${id}-type`,
         `/results/${i + 1}/deleted/resource/type`,
@@ -1075,14 +1071,14 @@ it("pins deletion-safety derivative carriers, complete positives, and measured s
         op.bead ?? op.link,
       ]),
     ).toEqual([
-      ["updateBead", "beads/b"],
-      ["deleteLink", direction === "incoming" ? "links/l" : "links/r"],
-      ["deleteLink", direction === "incoming" ? "links/r" : "links/l"],
-      ...(control === "committed-prefix-state" ? [] : [["deleteBead", "beads/a"]]),
+      ["updateBead", "b"],
+      ["deleteLink", direction === "incoming" ? "l" : "r"],
+      ["deleteLink", direction === "incoming" ? "r" : "l"],
+      ...(control === "committed-prefix-state" ? [] : [["deleteBead", "a"]]),
     ]);
     expect(body.operations[0]).toEqual({
       operation: "updateBead",
-      bead: "beads/b",
+      bead: "b",
       propertiesChange: [{ op: "replace", path: "/title", value: `${direction}-survives-prefix` }],
       metadataChange: [
         { op: "replace", path: "", value: { phase: `${direction}-survives-prefix` } },
@@ -1298,13 +1294,13 @@ type CrossCarrierControl = (typeof crossCarrierControls)[number];
 type CrossCarrierManifest = { scenarios: { id: string; actions: Record<string, unknown>[] }[] };
 
 const crossCreate = () => ({
-  id: "beads/a",
+  id: "a",
   type: `${scope}types/task`,
   properties: { title: "carrier-original" },
 });
 
 const crossUpdate = () => ({
-  bead: "beads/a",
+  bead: "a",
   propertiesChange: [{ op: "replace", path: "/title", value: "carrier-current" }],
 });
 
@@ -1417,7 +1413,7 @@ function crossCarrierWire(control?: CrossCarrierControl) {
         expect(observed.status).toBe("completed");
         expect(observed.results).toHaveLength(1);
         expect(observed.results[0].resource).toMatchObject({
-          id: `${scope}beads/a`,
+          id: `${scope}a`,
           type: `${scope}types/task`,
           properties: { title: index === 0 ? "carrier-original" : "carrier-current" },
           metadata: {},
@@ -1747,7 +1743,7 @@ function assertMinimumReplayLedger(ledger: readonly (readonly string[])[]) {
 
 function minimumRequests(control?: MinimumControl) {
   const create = (name: string) => ({
-    id: `beads/${name}`,
+    id: `${name}`,
     type: `${scope}types/task`,
     properties: { title: `minimum-${name}` },
   });
@@ -1796,7 +1792,7 @@ function minimumRequests(control?: MinimumControl) {
     post(
       "update-bead",
       {
-        bead: "beads/a",
+        bead: "a",
         expectedRevision: "minimum-wrong-revision",
         propertiesChange: [{ op: "replace", path: "/title", value: "minimum-stale" }],
       },
@@ -1933,7 +1929,7 @@ function commandMinimumWire(control?: MinimumControl) {
             resource,
           });
           expect(resource).toMatchObject({
-            id: `${scope}beads/${name}`,
+            id: `${scope}${name}`,
             type: `${scope}types/task`,
             properties: { title: `minimum-${name}` },
             metadata: {},
@@ -2025,7 +2021,7 @@ function commandMinimumWire(control?: MinimumControl) {
               id: `ev_${projectedIdentity}_${["pos-1", "pos-2", "pos-3"][i]}_0`,
               source: `${scope}events/`,
               type: "created",
-              subject: `${scope}beads/${name}`,
+              subject: `${scope}${name}`,
               subjectType: `${scope}types/task`,
               ordinal: 0,
             });
@@ -2331,21 +2327,21 @@ function assertMemberReplayLedger(ledger: readonly (readonly string[])[]) {
 function memberRequests(negative = false) {
   const first = {
       operation: "createBead",
-      id: "beads/a",
+      id: "a",
       type: `${scope}types/task`,
       properties: { title: "member-first" },
     },
     last = {
       operation: "createBead",
-      id: "beads/b",
+      id: "b",
       type: `${scope}types/task`,
       properties: { title: "member-last" },
     },
-    missing = { operation: "deleteBead", bead: "beads/missing" };
+    missing = { operation: "deleteBead", bead: "missing" };
   const sequence = {
     operations: [
       { ...first, idempotencyKey: "member-a" },
-      { ...missing, ...(negative ? { bead: "beads/a" } : {}), idempotencyKey: "member-fail" },
+      { ...missing, ...(negative ? { bead: "a" } : {}), idempotencyKey: "member-fail" },
       { ...last, idempotencyKey: "member-b" },
     ],
   };
@@ -2397,7 +2393,7 @@ function memberHandoff(
   return (
     (index === 0 || index === 4) &&
     url === `${scope}operations/sequence` &&
-    digest === "f3cde631127aaf530ea5349330e6c7bb46766b02b135f9c7c59acfcd2f2c71c7" &&
+    digest === "31dd67cc5f7c1c3b84a4aa8228b9cc6ba1362a6e0dfe310cb047e1f103536789" &&
     key === undefined &&
     writeState === "complete"
   );
@@ -2424,7 +2420,7 @@ function sequenceMemberWire(negative = false) {
     expect(typeof actual.revision).toBe("string");
     expect((actual.revision as string).length).toBeGreaterThan(0);
     expect(actual).toEqual({
-      id: `${scope}beads/${name}`,
+      id: `${scope}${name}`,
       type: `${scope}types/task`,
       properties: { title },
       metadata: {},
@@ -2496,7 +2492,7 @@ function sequenceMemberWire(negative = false) {
             deleted: {
               resourceKind: "bead",
               resource: {
-                id: `${scope}beads/a`,
+                id: `${scope}a`,
                 type: `${scope}types/task`,
                 revision: body.results[0].resource.revision,
               },
@@ -2578,7 +2574,7 @@ function sequenceMemberWire(negative = false) {
             id: `ev_${identity}_${i === 0 ? "pos-1" : "pos-2"}_0`,
             source: `${scope}events/`,
             type: "created",
-            subject: `${scope}beads/${name}`,
+            subject: `${scope}${name}`,
             subjectType: `${scope}types/task`,
             ordinal: 0,
             time: event.time,
@@ -2830,9 +2826,9 @@ const principalRequests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    body: '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "016a02e9491b047cd02811b54f318db837ed6c3495c767243e7d29f4280bd450",
     status: 200,
     dispatchUrl: "https://reference.invalid/acme/operations/batch",
     reportedUrl: "https://reference.invalid/acme/operations/batch",
@@ -2856,9 +2852,9 @@ const principalRequests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    body: '{"operations":[{"operation":"createBead","id":"b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "01c23f1f4683908e66fcf4b5b42434a4b232cad9cfe6e99267e6dcd47fb4b9fd",
     status: 200,
     dispatchUrl: "https://reference.invalid/acme/operations/batch",
     reportedUrl: "https://reference.invalid/acme/operations/batch",
@@ -2882,9 +2878,9 @@ const principalRequests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    body: '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "016a02e9491b047cd02811b54f318db837ed6c3495c767243e7d29f4280bd450",
     status: 200,
     dispatchUrl: "https://reference.invalid/acme/operations/batch",
     reportedUrl: "https://reference.invalid/acme/operations/batch",
@@ -2908,9 +2904,9 @@ const principalRequests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    body: '{"operations":[{"operation":"createBead","id":"b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "01c23f1f4683908e66fcf4b5b42434a4b232cad9cfe6e99267e6dcd47fb4b9fd",
     status: 200,
     dispatchUrl: "https://reference.invalid/acme/operations/batch",
     reportedUrl: "https://reference.invalid/acme/operations/batch",
@@ -2934,9 +2930,9 @@ const principalRequests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "3de2f9bb5fb4b4b0537d252ba722b05a3385414129cf35fc6ab0355720f9ff62",
+    body: '{"operations":[{"operation":"createBead","id":"c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "6822e7fab4103d0fb527d3fb9c50c615b3cad52c55def50d01112186bb2e6760",
     status: 409,
     dispatchUrl: "https://reference.invalid/acme/operations/batch",
     reportedUrl: "https://reference.invalid/acme/operations/batch",
@@ -3250,7 +3246,7 @@ function principalNamespaceWire(collapse = false) {
         expect(validator.validate("#/$defs/beadRecord", resource)).toEqual([]);
         nonempty(resource.revision);
         expect(resource).toStrictEqual({
-          id: `${scope}beads/${name}`,
+          id: `${scope}${name}`,
           type: `${scope}types/task`,
           revision: resource.revision,
           properties: { title: name },
@@ -3557,10 +3553,10 @@ const conditionalParentScenarioIds = [
 const conditionalFalseTag = '"conditional-no-match"';
 
 const conditionalSeed =
-  '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"before"}}]}';
+  '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"before"}}]}';
 
 const conditionalUpdate =
-  '{"operations":[{"operation":"updateBead","bead":"beads/a","propertiesChange":[{"op":"replace","path":"/title","value":"after"}]}]}';
+  '{"operations":[{"operation":"updateBead","bead":"a","propertiesChange":[{"op":"replace","path":"/title","value":"after"}]}]}';
 
 const conditionalActionIds = [
   "seed",
@@ -3618,7 +3614,7 @@ function conditionalRequests(control = false) {
         : action.endsWith("head")
           ? ("HEAD" as const)
           : ("GET" as const),
-      url: `${scope}${post ? "operations/batch" : i === 9 || i === 10 ? "beads/missing" : "beads/a"}`,
+      url: `${scope}${post ? "operations/batch" : i === 9 || i === 10 ? "missing" : "a"}`,
       credentialRef: i === 7 || i === 8 ? "anonymous" : "operator",
       headerLines,
       body,
@@ -3768,7 +3764,7 @@ function conditionalReadWire(control = false) {
         const revision = nonempty(resource.revision);
         expect(validator.validate("#/$defs/beadRecord", resource)).toEqual([]);
         expect(resource).toStrictEqual({
-          id: `${scope}beads/a`,
+          id: `${scope}a`,
           type: `${scope}types/task`,
           revision,
           properties: { title: i === 0 ? "before" : "after" },
@@ -3976,10 +3972,10 @@ function applyConditionalControl(value: {
 
 it("pins conditional raw literals, request order and the sole header control", () => {
   const literals = conditionalRequests();
-  expect(literals.map((r) => r.bodyBytes)).toEqual([141, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 130, 0, 0]);
+  expect(literals.map((r) => r.bodyBytes)).toEqual([135, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 124, 0, 0]);
   expect([literals[0]!.bodyDigest, literals[11]!.bodyDigest]).toEqual([
-    "d63bac5f6ec230f2b2420b3c0b64ff21dd4fc6d9a8bdf616353d48e35a91d7ae",
-    "c86a262f896fd4b357050b2b952e8d9992aa5b98f4a5d60f1f6f793040770e20",
+    "34948e7001dde6a57184f5931896bd11f8d7dd884621f9b18ec23d3a5a12a3d1",
+    "b3d75b663d6a23d0ca02e022d584323307aa6c25e0ddcd671e8e645eac32f849",
   ]);
   const canonical = JSON.parse(manifestSource.bytes.toString());
   const row = canonical.scenarios.find((r: { id: string }) => r.id === conditionalId)!;
