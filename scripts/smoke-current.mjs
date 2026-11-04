@@ -29,6 +29,9 @@ await withPackedWorkspace(async (installed, signal) => {
         ...Object.fromEntries(
           Object.entries(process.env).filter(([name]) => !name.startsWith("BDP_")),
         ),
+        ...(process.env.BDP_SPEC_REVISION === undefined
+          ? {}
+          : { BDP_SPEC_REVISION: process.env.BDP_SPEC_REVISION }),
         TMPDIR: fixturesRoot,
         TEMP: fixturesRoot,
         TMP: fixturesRoot,
