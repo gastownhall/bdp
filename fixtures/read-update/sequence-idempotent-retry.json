@@ -64,7 +64,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -87,10 +87,10 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-109",
+                "id": "https://beads.example/acme/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "source": "https://beads.example/acme/beads/decision-108",
+                "source": "https://beads.example/acme/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
                 "metadata": {},
@@ -101,7 +101,7 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-108",
+              "source": "https://beads.example/acme/decision-108",
               "sourceRevision": "decision-108-r2"
             }
           ]
@@ -154,7 +154,7 @@
             {
               "idempotencyKey": "w1-task-11-close",
               "operation": "updateBead",
-              "bead": "beads/task-11",
+              "bead": "task-11",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -204,7 +204,7 @@
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-11",
+                "id": "https://beads.example/acme/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r2",
                 "properties": {
@@ -296,7 +296,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -319,10 +319,10 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-109",
+                "id": "https://beads.example/acme/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "source": "https://beads.example/acme/beads/decision-108",
+                "source": "https://beads.example/acme/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
                 "metadata": {},
@@ -333,7 +333,7 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-108",
+              "source": "https://beads.example/acme/decision-108",
               "sourceRevision": "decision-108-r2"
             }
           ]
@@ -368,7 +368,7 @@
             {
               "idempotencyKey": "w1-task-7-priority",
               "operation": "updateBead",
-              "bead": "beads/task-7",
+              "bead": "task-7",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -429,7 +429,7 @@
               "operationIndex": 0,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-7",
+                "id": "https://beads.example/acme/task-7",
                 "type": "https://work.example/types/task",
                 "revision": "task-7-r2",
                 "properties": {
@@ -451,7 +451,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -474,10 +474,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-109",
+                "id": "https://beads.example/acme/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "source": "https://beads.example/acme/beads/decision-108",
+                "source": "https://beads.example/acme/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
                 "metadata": {},
@@ -488,7 +488,7 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-108",
+              "source": "https://beads.example/acme/decision-108",
               "sourceRevision": "decision-108-r2"
             }
           ]
@@ -558,7 +558,7 @@
             {
               "idempotencyKey": "w1-task-11-close",
               "operation": "updateBead",
-              "bead": "beads/task-11",
+              "bead": "task-11",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -590,7 +590,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -613,10 +613,10 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-109",
+                "id": "https://beads.example/acme/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "source": "https://beads.example/acme/beads/decision-108",
+                "source": "https://beads.example/acme/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
                 "metadata": {},
@@ -627,14 +627,14 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-108",
+              "source": "https://beads.example/acme/decision-108",
               "sourceRevision": "decision-108-r2"
             },
             {
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-11",
+                "id": "https://beads.example/acme/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r2",
                 "properties": {
@@ -670,7 +670,7 @@
             {
               "idempotencyKey": "w1-claims-create",
               "operation": "createBead",
-              "id": "beads/notes/claims",
+              "id": "notes/claims",
               "type": "https://work.example/types/task",
               "properties": {
                 "title": "Claims are one step",
@@ -686,7 +686,7 @@
             {
               "idempotencyKey": "w1-claims-close",
               "operation": "updateBead",
-              "bead": "beads/notes/claims",
+              "bead": "notes/claims",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -717,7 +717,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/notes/claims",
+                "id": "https://beads.example/acme/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r1",
                 "properties": {
@@ -737,7 +737,7 @@
               "operationIndex": 1,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/notes/claims",
+                "id": "https://beads.example/acme/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r2",
                 "properties": {
@@ -773,7 +773,7 @@
             {
               "idempotencyKey": "w1-claims-create",
               "operation": "createBead",
-              "id": "beads/notes/claims",
+              "id": "notes/claims",
               "type": "https://work.example/types/task",
               "properties": {
                 "title": "Claims are one step",
@@ -789,7 +789,7 @@
             {
               "idempotencyKey": "w1-claims-close",
               "operation": "updateBead",
-              "bead": "beads/notes/claims",
+              "bead": "notes/claims",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -866,7 +866,7 @@
             {
               "idempotencyKey": "w1-claims-create",
               "operation": "createBead",
-              "id": "beads/notes/claims",
+              "id": "notes/claims",
               "type": "https://work.example/types/task",
               "properties": {
                 "title": "Claims are one step",
@@ -882,7 +882,7 @@
             {
               "idempotencyKey": "w1-claims-close",
               "operation": "updateBead",
-              "bead": "beads/notes/claims",
+              "bead": "notes/claims",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -913,7 +913,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/notes/claims",
+                "id": "https://beads.example/acme/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r1",
                 "properties": {
@@ -933,7 +933,7 @@
               "operationIndex": 1,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/notes/claims",
+                "id": "https://beads.example/acme/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r2",
                 "properties": {

@@ -52,7 +52,7 @@
             {
               "idempotencyKey": "w1-task-42-close",
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r1",
               "propertiesChange": [
                 {
@@ -71,7 +71,7 @@
             {
               "idempotencyKey": "w1-relates-9-delete",
               "operation": "deleteLink",
-              "link": "links/relates-9",
+              "link": "relates-9",
               "expectedRevision": "relates-9-r1"
             }
           ]
@@ -91,7 +91,7 @@
               "operationName": "adr",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/adr-104",
+                "id": "https://beads.example/acme/adr-104",
                 "type": "https://work.example/types/decision",
                 "revision": "adr-104-r1",
                 "properties": {
@@ -114,10 +114,10 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-105",
+                "id": "https://beads.example/acme/cites-105",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-105-r1",
-                "source": "https://beads.example/acme/beads/adr-104",
+                "source": "https://beads.example/acme/adr-104",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -131,14 +131,14 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/adr-104",
+              "source": "https://beads.example/acme/adr-104",
               "sourceRevision": "adr-104-r2"
             },
             {
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-42",
+                "id": "https://beads.example/acme/task-42",
                 "type": "https://work.example/types/task",
                 "revision": "task-42-r2",
                 "properties": {
@@ -160,7 +160,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/acme/links/relates-9",
+                  "id": "https://beads.example/acme/relates-9",
                   "type": "https://work.example/types/relates",
                   "revision": "relates-9-r1"
                 }

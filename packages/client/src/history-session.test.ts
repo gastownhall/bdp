@@ -5,7 +5,7 @@ import { type HistoryRequest, HistorySession, type PreparedHistory } from "./his
 import { ReadSession } from "./read-session.js";
 
 const scope = "https://example.com/scope/";
-const id = `${scope}beads/a`;
+const id = `${scope}a`;
 const request = { kind: "versions", resource: "bead", id } as const;
 const metadata: ReadDiscovery = {
   bdpVersion: "0",
@@ -99,7 +99,7 @@ describe("shared Read/History continuation core", () => {
     const owner = core.createContinuationScope();
     finish(history, undefined, cursor(1), owner);
     for (const bad of [
-      { ...request, id: `${scope}beads/b` },
+      { ...request, id: `${scope}b` },
       { ...request, resource: "link" as const },
     ])
       expect(() => history.prepare({ ...bad, continuation: cursor(1) }, owner)).toThrow(

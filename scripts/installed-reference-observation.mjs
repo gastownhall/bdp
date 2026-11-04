@@ -378,7 +378,7 @@ export async function observeInstalledReference(entry, directory) {
       });
     }
     assert.equal((await wire(`${scope}bdp.json`)).status, 200);
-    const malformed = await wire("/acme/beads/%2e%2e/a");
+    const malformed = await wire("/acme/%2e%2e/a");
     assert.equal(malformed.status, 400);
     assert.equal(
       (await wire(`${target("createBead")}?unexpected=1`, "POST", bead, "bad_target")).status,

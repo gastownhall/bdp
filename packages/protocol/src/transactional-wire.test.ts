@@ -263,14 +263,14 @@ describe("Transactional wire fixtures", () => {
     );
     expect([...targets].sort()).toEqual([
       "bdp.json",
-      "beads/dec-11?view=events&after=ckpt-52_0",
-      "beads/dec-9?view=events",
-      "beads/dec-9?view=events&after=ckpt-43_4",
       "changes/?after=ckpt-42",
       "changes/?after=ckpt-43",
       "changes/?after=ckpt-44",
       "changes/?after=ckpt-46",
       "changes/?after=ckpt-b-43",
+      "dec-11?view=events&after=ckpt-52_0",
+      "dec-9?view=events",
+      "dec-9?view=events&after=ckpt-43_4",
       "operations/",
       "operations/batch",
       "operations/delete-alias",
@@ -439,7 +439,7 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
       }
     }
     // This is the previously illustrated target, deleted by the second batch.
-    expect(() => expectLiveTarget("beads/task-42")).toThrow();
+    expect(() => expectLiveTarget("task-42")).toThrow();
   });
 
   it("rotates the serving view after a grant change while preserving the receipt's execution view", () => {
@@ -471,7 +471,7 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
       operationIndex: 0,
       outcome: "created",
       alias: `${SCOPE}alias/release/latest`,
-      target: `${SCOPE}beads/task-42`,
+      target: `${SCOPE}task-42`,
     };
     const deleted = { operationIndex: 0, outcome: "deleted", alias: put.alias };
     for (const entry of [put, { ...put, outcome: "updated" }, deleted])
@@ -486,7 +486,7 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
     ])
       expect(compiledDefinition("#/$defs/receiptResult")(entry), JSON.stringify(entry)).toBe(false);
     for (const operation of [
-      { operation: "putAlias", alias: "alias/release/latest", target: "beads/task-42" },
+      { operation: "putAlias", alias: "alias/release/latest", target: "task-42" },
       { operation: "deleteAlias", alias: "alias/release/latest" },
     ])
       expect(compiledDefinition("#/$defs/batchOperation")(operation)).toBe(false);
@@ -516,13 +516,13 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
         const operation = {
           operation: kind,
           alias,
-          ...(kind === "putAlias" ? { target: "beads/task-42" } : {}),
+          ...(kind === "putAlias" ? { target: "task-42" } : {}),
         };
         const entry = {
           operationIndex: 0,
           outcome: kind === "putAlias" ? "created" : "deleted",
           alias: `${SCOPE}alias/release/latest`,
-          ...(kind === "putAlias" ? { target: `${SCOPE}beads/task-42` } : {}),
+          ...(kind === "putAlias" ? { target: `${SCOPE}task-42` } : {}),
         };
         expectValid(
           kind === "putAlias" ? "#/$defs/sequencePutAlias" : "#/$defs/sequenceDeleteAlias",
@@ -540,20 +540,20 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
     for (const kind of ["putAlias", "deleteAlias"]) {
       for (const alias of [
         "release/latest",
-        "beads/task-42",
-        `${SCOPE}links/latest`,
+        "task-42",
+        `${SCOPE}latest`,
         "https://beads.example/other/alias/latest",
       ]) {
         const operation = {
           operation: kind,
           alias,
-          ...(kind === "putAlias" ? { target: "beads/task-42" } : {}),
+          ...(kind === "putAlias" ? { target: "task-42" } : {}),
         };
         const entry = {
           operationIndex: 0,
           outcome: kind === "putAlias" ? "created" : "deleted",
           alias: new URL(alias, SCOPE).href,
-          ...(kind === "putAlias" ? { target: `${SCOPE}beads/task-42` } : {}),
+          ...(kind === "putAlias" ? { target: `${SCOPE}task-42` } : {}),
         };
         // These references are structurally valid; the successful exchange
         // contradicts alias subject resolution, which is contextual.
@@ -693,7 +693,7 @@ describe("Transactional sequence problem extensions", () => {
     {},
     { id: "not-a-url", type: 7 },
     { withheld: false },
-    { withheld: true, id: `${SCOPE}beads/task-42`, type: "https://work.example/types/task" },
+    { withheld: true, id: `${SCOPE}task-42`, type: "https://work.example/types/task" },
   ])("rejects malformed allocated identity %j", (allocated) => {
     expect(
       compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({ ...expired, allocated }),
@@ -701,7 +701,7 @@ describe("Transactional sequence problem extensions", () => {
   });
 
   it("permits the disclosed expired-creation identity and keeps it out of other codes", () => {
-    const allocated = { id: `${SCOPE}beads/task-42`, type: "https://work.example/types/task" };
+    const allocated = { id: `${SCOPE}task-42`, type: "https://work.example/types/task" };
     expectValid(
       "#/$defs/transactionalSequenceMemberProblem",
       { ...expired, allocated },
@@ -746,7 +746,7 @@ describe("Transactional sequence problem extensions", () => {
     const grantedResults = granted?.response.body.results as JsonRecord[];
     expect(revokedResults[0]?.allocated).toEqual({ withheld: true });
     expect(grantedResults[0]?.allocated).toEqual({
-      id: `${SCOPE}beads/task-77`,
+      id: `${SCOPE}task-77`,
       type: "https://work.example/types/task",
     });
     for (const results of [revokedResults, grantedResults]) {
@@ -758,7 +758,7 @@ describe("Transactional sequence problem extensions", () => {
         retry: "after-state-change",
       });
     }
-    expect(JSON.stringify(revoked?.response.body)).not.toContain(`${SCOPE}beads/task-77`);
+    expect(JSON.stringify(revoked?.response.body)).not.toContain(`${SCOPE}task-77`);
   });
 
   it("rejects an erasure pointer in the sequence path", () => {
@@ -837,8 +837,8 @@ describe("erasure digest vectors", () => {
       const digest = erased.get(key);
       if (digest !== undefined) expect(digest, vector.label).toBe(vector.sha256);
     }
-    expect(erased.get(`${SCOPE}beads/task-42@task-42-r7`)).toBe(vectors[0]?.sha256);
-    expect(erased.get(`${SCOPE}beads/task-42@task-42-r8`)).toBe(vectors[1]?.sha256);
+    expect(erased.get(`${SCOPE}task-42@task-42-r7`)).toBe(vectors[0]?.sha256);
+    expect(erased.get(`${SCOPE}task-42@task-42-r8`)).toBe(vectors[1]?.sha256);
   });
 });
 
@@ -964,20 +964,20 @@ describe("shapes the bundle now rejects", () => {
     ordinal: 9,
     type: "updated",
     source: `${scope}events/`,
-    subject: `${scope}beads/dec-9`,
+    subject: `${scope}dec-9`,
     subjectType: "https://work.example/types/decision",
     transaction: "txn-0a1b",
     time: "2026-09-07T18:04:12Z",
   };
   const deletedLinkIdentity = {
-    id: `${scope}links/9c1e`,
+    id: `${scope}9c1e`,
     type: OWNED_LINK_TYPE,
     revision: "9c1e-r1",
   };
   const linkRecord = {
     ...deletedLinkIdentity,
-    source: `${scope}beads/dec-11`,
-    target: `${scope}beads/task-42`,
+    source: `${scope}dec-11`,
+    target: `${scope}task-42`,
     properties: { role: "primary" },
   };
   const discovery = {
@@ -1230,9 +1230,9 @@ describe("shapes the bundle now rejects", () => {
         outcome: "deleted",
         deleted: {
           resourceKind: "bead",
-          resource: { id: `${scope}beads/task-42`, type: "https://t.example/t", revision: "r9" },
+          resource: { id: `${scope}task-42`, type: "https://t.example/t", revision: "r9" },
         },
-        source: `${scope}beads/dec-9`,
+        source: `${scope}dec-9`,
         sourceRevision: "dec-9-r3",
       },
     ],
@@ -1258,12 +1258,12 @@ describe("shapes the bundle now rejects", () => {
         operationIndex: 0,
         outcome: "created",
         resource: {
-          id: `${scope}beads/dec-9`,
+          id: `${scope}dec-9`,
           type: "https://work.example/types/decision",
           revision: "r1",
           properties: {},
         },
-        source: `${scope}beads/dec-9`,
+        source: `${scope}dec-9`,
         sourceRevision: "r2",
       },
     ],
@@ -1272,7 +1272,7 @@ describe("shapes the bundle now rejects", () => {
       "an allocated identity both withheld and identified",
       {
         operationIndex: 0,
-        id: `${scope}beads/dec-9`,
+        id: `${scope}dec-9`,
         type: "https://work.example/types/decision",
         withheld: true,
       },
@@ -1381,7 +1381,7 @@ describe("shapes the bundle now rejects", () => {
             operation: "createLink",
             type: OWNED_LINK_TYPE,
             source: { uri: "@d", revision: "pin" },
-            target: "beads/task-42",
+            target: "task-42",
           },
         ],
       },
@@ -1440,7 +1440,7 @@ describe("shapes the bundle now rejects", () => {
 
   function erasureRecord(): JsonRecord {
     return {
-      subject: `${scope}beads/task-42`,
+      subject: `${scope}task-42`,
       revision: "task-42-r7",
       digest: {
         scheme: "sha-256-jcs",
@@ -2277,7 +2277,7 @@ describe("Transactional correction regression probes", () => {
     ).not.toThrow();
     const corrupt = structuredClone(entries) as JsonRecord[];
     const erasedBead = corrupt.find((entry) => entry.outcome === "erased") as JsonRecord;
-    erasedBead.source = `${SCOPE}beads/dec-9`;
+    erasedBead.source = `${SCOPE}dec-9`;
     erasedBead.sourceRevision = "dec-9-r2";
     // The bare lineage shape deliberately has no Resource kind; the
     // contextual check supplies information unavailable to this schema.
@@ -2408,16 +2408,16 @@ describe("Transactional correction regression probes", () => {
     const changes = ((exchange.response.body.groups as JsonRecord[])[0] as JsonRecord)
       .changes as JsonRecord[];
     const source = changes.find(
-      (change) => (change.resource as JsonRecord).id === `${SCOPE}beads/dec-9`,
+      (change) => (change.resource as JsonRecord).id === `${SCOPE}dec-9`,
     )?.resource as JsonRecord;
     const link = changes.find(
-      (change) => (change.resource as JsonRecord).id === `${SCOPE}links/9c1e`,
+      (change) => (change.resource as JsonRecord).id === `${SCOPE}9c1e`,
     )?.resource as JsonRecord;
     const original = fixtures
       .find((fixture) => fixture.id === "transactional-batch")
       ?.exchanges.find((exchange) => exchange.id === "batch-1-original") as FixtureExchange;
     const target = (original.response.body.results as JsonRecord[]).find(
-      (entry) => (entry.resource as JsonRecord).id === `${SCOPE}beads/task-42`,
+      (entry) => (entry.resource as JsonRecord).id === `${SCOPE}task-42`,
     )?.resource as JsonRecord;
     // A closed graph projection assembled from the known pos-43 records;
     // this is an invariant probe, not a newly published snapshot manifest.

@@ -9,7 +9,9 @@
       "kind": "resource",
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": true,
         "modificationDateAvailable": false,
         "scope": "https://beads.example/http-independent/",
@@ -17,7 +19,7 @@
       },
       "request": {
         "method": "GET",
-        "target": "beads/item",
+        "target": "item",
         "headers": {
           "Accept": "image/png"
         }
@@ -42,7 +44,9 @@
       "kind": "mutation",
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "requestSeed": true
@@ -57,7 +61,7 @@
         },
         "schema": "#/$defs/createBeadRequest",
         "body": {
-          "id": "beads/projects/alpha/tasks/t-1",
+          "id": "projects/alpha/tasks/t-1",
           "type": "https://work.example/types/task",
           "properties": {
             "title": "Draft the singleton fixtures",
@@ -101,7 +105,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentAdmissionSeed": true,
@@ -125,7 +131,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/task-42\" || @.target == \"https://beads.example/receipt-pagination/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -138,13 +144,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -182,7 +188,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -209,7 +217,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -221,7 +229,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -231,10 +239,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -266,7 +274,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -305,7 +315,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -334,7 +346,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -346,7 +358,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -356,10 +368,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -391,7 +403,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -431,7 +446,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -470,7 +487,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -509,7 +528,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -551,12 +572,12 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "id": "https://beads.example/receipt-pagination/9c1e",
                   "type": "https://work.example/types/cites",
                   "revision": "9c1e-r1"
                 }
               },
-              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "source": "https://beads.example/receipt-pagination/dec-9",
               "sourceRevision": "dec-9-r3"
             }
           ],
@@ -584,7 +605,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -626,12 +649,12 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "id": "https://beads.example/receipt-pagination/9c1e",
                   "type": "https://work.example/types/cites",
                   "revision": "9c1e-r1"
                 }
               },
-              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "source": "https://beads.example/receipt-pagination/dec-9",
               "sourceRevision": "dec-9-r3"
             }
           ],
@@ -659,7 +682,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -699,7 +724,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -742,12 +769,12 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "id": "https://beads.example/receipt-pagination/9c1e",
                   "type": "https://work.example/types/cites",
                   "revision": "9c1e-r1"
                 }
               },
-              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "source": "https://beads.example/receipt-pagination/dec-9",
               "sourceRevision": "dec-9-r3"
             }
           ],
@@ -775,7 +802,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -815,7 +844,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -854,7 +885,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -893,7 +926,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -922,7 +957,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -934,7 +969,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -944,10 +979,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -979,7 +1014,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1008,7 +1045,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -1020,7 +1057,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -1030,10 +1067,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -1065,7 +1102,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1105,7 +1144,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1135,7 +1176,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -1147,7 +1188,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -1157,10 +1198,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -1192,7 +1233,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1232,7 +1275,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1271,7 +1317,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1310,7 +1359,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1351,7 +1403,7 @@
                   "operation": "upsert",
                   "resourceKind": "bead",
                   "resource": {
-                    "id": "https://beads.example/acme/beads/dec-9",
+                    "id": "https://beads.example/acme/dec-9",
                     "type": "https://work.example/types/decision",
                     "revision": "dec-9-r2",
                     "properties": {
@@ -1361,11 +1413,11 @@
                     "ownedLinks": {
                       "https://work.example/types/cites": [
                         {
-                          "id": "https://beads.example/acme/links/9c1e",
+                          "id": "https://beads.example/acme/9c1e",
                           "type": "https://work.example/types/cites",
                           "revision": "9c1e-r1",
-                          "source": "https://beads.example/acme/beads/dec-9",
-                          "target": "https://beads.example/acme/beads/task-42",
+                          "source": "https://beads.example/acme/dec-9",
+                          "target": "https://beads.example/acme/task-42",
                           "properties": {
                             "role": "evidence"
                           },
@@ -1390,11 +1442,11 @@
                   "operation": "upsert",
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -1410,7 +1462,7 @@
                   "operation": "upsert",
                   "resourceKind": "bead",
                   "resource": {
-                    "id": "https://beads.example/acme/beads/task-42",
+                    "id": "https://beads.example/acme/task-42",
                     "type": "https://work.example/types/task",
                     "revision": "task-42-r8",
                     "properties": {
@@ -1427,7 +1479,7 @@
                   "ordinal": 0,
                   "type": "created",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subject": "https://beads.example/acme/dec-9",
                   "subjectType": "https://work.example/types/decision",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1450,7 +1502,7 @@
                   "ordinal": 1,
                   "type": "created",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1459,8 +1511,8 @@
                     "properties": {
                       "role": "evidence"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "revisionProvenance": {
                       "actor": {
                         "id": "agent:planner",
@@ -1474,18 +1526,18 @@
                   "ordinal": 2,
                   "type": "linked",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
                   "data": {
                     "endpoint": "source",
                     "link": {
-                      "id": "https://beads.example/acme/links/9c1e",
+                      "id": "https://beads.example/acme/9c1e",
                       "type": "https://work.example/types/cites"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42"
                   }
                 },
                 {
@@ -1493,18 +1545,18 @@
                   "ordinal": 3,
                   "type": "linked",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
                   "data": {
                     "endpoint": "target",
                     "link": {
-                      "id": "https://beads.example/acme/links/9c1e",
+                      "id": "https://beads.example/acme/9c1e",
                       "type": "https://work.example/types/cites"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42"
                   }
                 },
                 {
@@ -1512,7 +1564,7 @@
                   "ordinal": 4,
                   "type": "updated",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subject": "https://beads.example/acme/dec-9",
                   "subjectType": "https://work.example/types/decision",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1522,11 +1574,11 @@
                     "ownedLink": {
                       "operation": "created",
                       "link": {
-                        "id": "https://beads.example/acme/links/9c1e",
+                        "id": "https://beads.example/acme/9c1e",
                         "type": "https://work.example/types/cites",
                         "revision": "9c1e-r1",
-                        "source": "https://beads.example/acme/beads/dec-9",
-                        "target": "https://beads.example/acme/beads/task-42",
+                        "source": "https://beads.example/acme/dec-9",
+                        "target": "https://beads.example/acme/task-42",
                         "properties": {
                           "role": "evidence"
                         },
@@ -1551,7 +1603,7 @@
                   "ordinal": 5,
                   "type": "updated",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/task-42",
+                  "subject": "https://beads.example/acme/task-42",
                   "subjectType": "https://work.example/types/task",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1593,7 +1645,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1634,7 +1689,7 @@
                   "operation": "upsert",
                   "resourceKind": "bead",
                   "resource": {
-                    "id": "https://beads.example/acme/beads/dec-9",
+                    "id": "https://beads.example/acme/dec-9",
                     "type": "https://work.example/types/decision",
                     "revision": "dec-9-r2",
                     "properties": {
@@ -1644,11 +1699,11 @@
                     "ownedLinks": {
                       "https://work.example/types/cites": [
                         {
-                          "id": "https://beads.example/acme/links/9c1e",
+                          "id": "https://beads.example/acme/9c1e",
                           "type": "https://work.example/types/cites",
                           "revision": "9c1e-r1",
-                          "source": "https://beads.example/acme/beads/dec-9",
-                          "target": "https://beads.example/acme/beads/task-42",
+                          "source": "https://beads.example/acme/dec-9",
+                          "target": "https://beads.example/acme/task-42",
                           "properties": {
                             "role": "evidence"
                           },
@@ -1673,11 +1728,11 @@
                   "operation": "upsert",
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -1693,7 +1748,7 @@
                   "operation": "upsert",
                   "resourceKind": "bead",
                   "resource": {
-                    "id": "https://beads.example/acme/beads/task-42",
+                    "id": "https://beads.example/acme/task-42",
                     "type": "https://work.example/types/task",
                     "revision": "task-42-r8",
                     "properties": {
@@ -1710,7 +1765,7 @@
                   "ordinal": 0,
                   "type": "created",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subject": "https://beads.example/acme/dec-9",
                   "subjectType": "https://work.example/types/decision",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1733,7 +1788,7 @@
                   "ordinal": 1,
                   "type": "created",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1742,8 +1797,8 @@
                     "properties": {
                       "role": "evidence"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "revisionProvenance": {
                       "actor": {
                         "id": "agent:planner",
@@ -1757,18 +1812,18 @@
                   "ordinal": 2,
                   "type": "linked",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
                   "data": {
                     "endpoint": "source",
                     "link": {
-                      "id": "https://beads.example/acme/links/9c1e",
+                      "id": "https://beads.example/acme/9c1e",
                       "type": "https://work.example/types/cites"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42"
                   }
                 },
                 {
@@ -1776,18 +1831,18 @@
                   "ordinal": 3,
                   "type": "linked",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
                   "data": {
                     "endpoint": "target",
                     "link": {
-                      "id": "https://beads.example/acme/links/9c1e",
+                      "id": "https://beads.example/acme/9c1e",
                       "type": "https://work.example/types/cites"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42"
                   }
                 },
                 {
@@ -1795,7 +1850,7 @@
                   "ordinal": 4,
                   "type": "updated",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subject": "https://beads.example/acme/dec-9",
                   "subjectType": "https://work.example/types/decision",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1805,11 +1860,11 @@
                     "ownedLink": {
                       "operation": "created",
                       "link": {
-                        "id": "https://beads.example/acme/links/9c1e",
+                        "id": "https://beads.example/acme/9c1e",
                         "type": "https://work.example/types/cites",
                         "revision": "9c1e-r1",
-                        "source": "https://beads.example/acme/beads/dec-9",
-                        "target": "https://beads.example/acme/beads/task-42",
+                        "source": "https://beads.example/acme/dec-9",
+                        "target": "https://beads.example/acme/task-42",
                         "properties": {
                           "role": "evidence"
                         },
@@ -1834,7 +1889,7 @@
                   "ordinal": 5,
                   "type": "updated",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/task-42",
+                  "subject": "https://beads.example/acme/task-42",
                   "subjectType": "https://work.example/types/task",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -1876,7 +1931,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1916,7 +1974,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -1958,7 +2019,7 @@
                   "operation": "upsert",
                   "resourceKind": "bead",
                   "resource": {
-                    "id": "https://beads.example/acme/beads/dec-9",
+                    "id": "https://beads.example/acme/dec-9",
                     "type": "https://work.example/types/decision",
                     "revision": "dec-9-r2",
                     "properties": {
@@ -1968,11 +2029,11 @@
                     "ownedLinks": {
                       "https://work.example/types/cites": [
                         {
-                          "id": "https://beads.example/acme/links/9c1e",
+                          "id": "https://beads.example/acme/9c1e",
                           "type": "https://work.example/types/cites",
                           "revision": "9c1e-r1",
-                          "source": "https://beads.example/acme/beads/dec-9",
-                          "target": "https://beads.example/acme/beads/task-42",
+                          "source": "https://beads.example/acme/dec-9",
+                          "target": "https://beads.example/acme/task-42",
                           "properties": {
                             "role": "evidence"
                           },
@@ -1997,11 +2058,11 @@
                   "operation": "upsert",
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -2017,7 +2078,7 @@
                   "operation": "upsert",
                   "resourceKind": "bead",
                   "resource": {
-                    "id": "https://beads.example/acme/beads/task-42",
+                    "id": "https://beads.example/acme/task-42",
                     "type": "https://work.example/types/task",
                     "revision": "task-42-r8",
                     "properties": {
@@ -2034,7 +2095,7 @@
                   "ordinal": 0,
                   "type": "created",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subject": "https://beads.example/acme/dec-9",
                   "subjectType": "https://work.example/types/decision",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -2057,7 +2118,7 @@
                   "ordinal": 1,
                   "type": "created",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -2066,8 +2127,8 @@
                     "properties": {
                       "role": "evidence"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "revisionProvenance": {
                       "actor": {
                         "id": "agent:planner",
@@ -2081,18 +2142,18 @@
                   "ordinal": 2,
                   "type": "linked",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
                   "data": {
                     "endpoint": "source",
                     "link": {
-                      "id": "https://beads.example/acme/links/9c1e",
+                      "id": "https://beads.example/acme/9c1e",
                       "type": "https://work.example/types/cites"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42"
                   }
                 },
                 {
@@ -2100,18 +2161,18 @@
                   "ordinal": 3,
                   "type": "linked",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subject": "https://beads.example/acme/9c1e",
                   "subjectType": "https://work.example/types/cites",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
                   "data": {
                     "endpoint": "target",
                     "link": {
-                      "id": "https://beads.example/acme/links/9c1e",
+                      "id": "https://beads.example/acme/9c1e",
                       "type": "https://work.example/types/cites"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42"
                   }
                 },
                 {
@@ -2119,7 +2180,7 @@
                   "ordinal": 4,
                   "type": "updated",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subject": "https://beads.example/acme/dec-9",
                   "subjectType": "https://work.example/types/decision",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -2129,11 +2190,11 @@
                     "ownedLink": {
                       "operation": "created",
                       "link": {
-                        "id": "https://beads.example/acme/links/9c1e",
+                        "id": "https://beads.example/acme/9c1e",
                         "type": "https://work.example/types/cites",
                         "revision": "9c1e-r1",
-                        "source": "https://beads.example/acme/beads/dec-9",
-                        "target": "https://beads.example/acme/beads/task-42",
+                        "source": "https://beads.example/acme/dec-9",
+                        "target": "https://beads.example/acme/task-42",
                         "properties": {
                           "role": "evidence"
                         },
@@ -2158,7 +2219,7 @@
                   "ordinal": 5,
                   "type": "updated",
                   "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/task-42",
+                  "subject": "https://beads.example/acme/task-42",
                   "subjectType": "https://work.example/types/task",
                   "transaction": "txn-0a1b",
                   "time": "2026-09-07T18:04:12Z",
@@ -2200,7 +2261,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -2240,7 +2304,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
@@ -2280,7 +2347,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2320,7 +2390,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2360,7 +2433,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2407,7 +2483,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2454,7 +2533,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2495,7 +2577,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2543,7 +2628,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2584,7 +2672,10 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentEmptyScope": "https://beads.example/http-empty/"
@@ -2625,13 +2716,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "If-None-Match": "*"
         }
@@ -2664,13 +2758,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "If-Match": "\"unavailable\""
         }
@@ -2703,13 +2800,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "If-Match": "*"
         }
@@ -2724,14 +2824,14 @@
           "BDP-Scope-Position": "pos-43"
         },
         "body": {
-          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "source": "https://beads.example/acme/dec-9?view=events",
           "events": [
             {
               "id": "ckpt-43_0",
               "ordinal": 0,
               "type": "created",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -2753,27 +2853,27 @@
               "id": "ckpt-43_2",
               "ordinal": 2,
               "type": "linked",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/links/9c1e",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/9c1e",
               "subjectType": "https://work.example/types/cites",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
               "data": {
                 "endpoint": "source",
                 "link": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/acme/9c1e",
                   "type": "https://work.example/types/cites"
                 },
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42"
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42"
               }
             },
             {
               "id": "ckpt-43_4",
               "ordinal": 4,
               "type": "updated",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -2783,11 +2883,11 @@
                 "ownedLink": {
                   "operation": "created",
                   "link": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -2831,13 +2931,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "If-None-Match": "\"unavailable\""
         }
@@ -2852,14 +2955,14 @@
           "BDP-Scope-Position": "pos-43"
         },
         "body": {
-          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "source": "https://beads.example/acme/dec-9?view=events",
           "events": [
             {
               "id": "ckpt-43_0",
               "ordinal": 0,
               "type": "created",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -2881,27 +2984,27 @@
               "id": "ckpt-43_2",
               "ordinal": 2,
               "type": "linked",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/links/9c1e",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/9c1e",
               "subjectType": "https://work.example/types/cites",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
               "data": {
                 "endpoint": "source",
                 "link": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/acme/9c1e",
                   "type": "https://work.example/types/cites"
                 },
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42"
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42"
               }
             },
             {
               "id": "ckpt-43_4",
               "ordinal": 4,
               "type": "updated",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -2911,11 +3014,11 @@
                 "ownedLink": {
                   "operation": "created",
                   "link": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -2959,13 +3062,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "If-Match": "\"unavailable\"",
           "If-None-Match": "*"
@@ -2999,13 +3105,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "If-Modified-Since": "Wed, 09 Sep 2026 12:00:00 GMT",
           "If-Unmodified-Since": "Wed, 09 Sep 2026 12:00:00 GMT"
@@ -3021,14 +3130,14 @@
           "BDP-Scope-Position": "pos-43"
         },
         "body": {
-          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "source": "https://beads.example/acme/dec-9?view=events",
           "events": [
             {
               "id": "ckpt-43_0",
               "ordinal": 0,
               "type": "created",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -3050,27 +3159,27 @@
               "id": "ckpt-43_2",
               "ordinal": 2,
               "type": "linked",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/links/9c1e",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/9c1e",
               "subjectType": "https://work.example/types/cites",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
               "data": {
                 "endpoint": "source",
                 "link": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/acme/9c1e",
                   "type": "https://work.example/types/cites"
                 },
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42"
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42"
               }
             },
             {
               "id": "ckpt-43_4",
               "ordinal": 4,
               "type": "updated",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -3080,11 +3189,11 @@
                 "ownedLink": {
                   "operation": "created",
                   "link": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -3128,13 +3237,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "HEAD",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "Accept": "application/json"
         }
@@ -3168,13 +3280,16 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json", "text/event-stream"],
+        "supportedMedia": [
+          "application/json",
+          "text/event-stream"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false
       },
       "request": {
         "method": "HEAD",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "Accept": "text/event-stream"
         }
@@ -3208,7 +3323,9 @@
       },
       "context": {
         "ordinaryStatus": 401,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "authentication"
@@ -3251,7 +3368,9 @@
       },
       "context": {
         "ordinaryStatus": 404,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "undisclosed-target"
@@ -3294,7 +3413,9 @@
       },
       "context": {
         "ordinaryStatus": 409,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "foreign-view",
@@ -3342,7 +3463,9 @@
       },
       "context": {
         "ordinaryStatus": 410,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "expired-epoch",
@@ -3390,7 +3513,9 @@
       },
       "context": {
         "ordinaryStatus": 410,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "expired-detail",
@@ -3441,14 +3566,16 @@
       },
       "context": {
         "ordinaryStatus": 410,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "erasure-expiry",
         "erasureFence": {
           "snapshot": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
           "erasedVersion": {
-            "id": "https://beads.example/acme/beads/task-41",
+            "id": "https://beads.example/acme/task-41",
             "revision": "task-41-r3"
           },
           "erasureAt": "2026-09-07T19:21:00Z",
@@ -3493,7 +3620,9 @@
       },
       "context": {
         "ordinaryStatus": 503,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "catch-up-timeout",
@@ -3548,7 +3677,9 @@
       },
       "context": {
         "ordinaryStatus": 503,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "service-failure"
@@ -3591,7 +3722,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "handle": "retained-manifest"
@@ -3622,7 +3755,7 @@
           "beads": {
             "items": [
               {
-                "id": "https://beads.example/acme/beads/task-41",
+                "id": "https://beads.example/acme/task-41",
                 "type": "https://work.example/types/task",
                 "revision": "task-41-r3",
                 "properties": {
@@ -3631,7 +3764,7 @@
                 }
               },
               {
-                "id": "https://beads.example/acme/beads/task-42",
+                "id": "https://beads.example/acme/task-42",
                 "type": "https://work.example/types/task",
                 "revision": "task-42-r7",
                 "properties": {
@@ -3645,11 +3778,11 @@
           "links": {
             "items": [
               {
-                "id": "https://beads.example/acme/links/blocks-3",
+                "id": "https://beads.example/acme/blocks-3",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-3-r1",
-                "source": "https://beads.example/acme/beads/task-42",
-                "target": "https://beads.example/acme/beads/task-41",
+                "source": "https://beads.example/acme/task-42",
+                "target": "https://beads.example/acme/task-41",
                 "properties": {}
               }
             ],
@@ -3677,7 +3810,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "handle": "retained-manifest"
@@ -3716,7 +3851,9 @@
       },
       "context": {
         "ordinaryStatus": 410,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "timed-expiry"
@@ -3758,14 +3895,16 @@
       },
       "context": {
         "ordinaryStatus": 410,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "erasure-expiry",
         "erasureFence": {
           "snapshot": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
           "erasedVersion": {
-            "id": "https://beads.example/acme/beads/task-41",
+            "id": "https://beads.example/acme/task-41",
             "revision": "task-41-r3"
           },
           "erasureAt": "2026-09-07T19:21:00Z",
@@ -3809,7 +3948,9 @@
       },
       "context": {
         "ordinaryStatus": 404,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "unknown"
@@ -3851,7 +3992,9 @@
       },
       "context": {
         "ordinaryStatus": 404,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "undisclosed"
@@ -3893,7 +4036,9 @@
       },
       "context": {
         "ordinaryStatus": 503,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "service-failure-before-expiry"
@@ -3935,7 +4080,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "recovery": {
@@ -3969,7 +4116,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -3981,7 +4128,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -3991,10 +4138,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -4026,7 +4173,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "recovery": {
@@ -4060,7 +4209,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -4072,7 +4221,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -4082,10 +4231,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"
@@ -4117,7 +4266,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "recovery": {
@@ -4127,7 +4278,9 @@
           "sameAuthorizationView": false,
           "newErasure": false
         },
-        "withheldIndexes": [2]
+        "withheldIndexes": [
+          2
+        ]
       },
       "request": {
         "method": "GET",
@@ -4152,7 +4305,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -4164,7 +4317,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -4198,7 +4351,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "recovery": {
@@ -4208,7 +4363,9 @@
           "sameAuthorizationView": true,
           "newErasure": true
         },
-        "erasedIndexes": [2]
+        "erasedIndexes": [
+          2
+        ]
       },
       "request": {
         "method": "GET",
@@ -4233,7 +4390,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -4245,7 +4402,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -4255,7 +4412,7 @@
               "operationIndex": 2,
               "outcome": "erased",
               "erased": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1"
               }
@@ -4279,7 +4436,9 @@
       "kind": "mutation",
       "context": {
         "ordinaryStatus": 415,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "unsupported-request-media",
@@ -4324,7 +4483,9 @@
       },
       "context": {
         "ordinaryStatus": 404,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "retracted-receipt",
@@ -4375,7 +4536,9 @@
       },
       "context": {
         "ordinaryStatus": 404,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "forgotten-failed-receipt",
@@ -4426,7 +4589,9 @@
       },
       "context": {
         "ordinaryStatus": 404,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "ordinaryRefusal": "prior-epoch-receipt",
@@ -4479,7 +4644,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "admission": {
@@ -4508,12 +4675,12 @@
                 "deleted": {
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/receipt-pagination/links/9c1e",
+                    "id": "https://beads.example/receipt-pagination/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1"
                   }
                 },
-                "source": "https://beads.example/receipt-pagination/beads/dec-9",
+                "source": "https://beads.example/receipt-pagination/dec-9",
                 "sourceRevision": "dec-9-r3"
               }
             ],
@@ -4542,12 +4709,12 @@
                 "deleted": {
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/receipt-pagination/links/9c1e",
+                    "id": "https://beads.example/receipt-pagination/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1"
                   }
                 },
-                "source": "https://beads.example/receipt-pagination/beads/dec-9",
+                "source": "https://beads.example/receipt-pagination/dec-9",
                 "sourceRevision": "dec-9-r3"
               }
             ],
@@ -4572,7 +4739,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/task-42\" || @.target == \"https://beads.example/receipt-pagination/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -4585,13 +4752,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -4629,7 +4796,9 @@
       },
       "context": {
         "ordinaryStatus": 409,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "admission": {
@@ -4658,12 +4827,12 @@
                 "deleted": {
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/receipt-pagination/links/9c1e",
+                    "id": "https://beads.example/receipt-pagination/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1"
                   }
                 },
-                "source": "https://beads.example/receipt-pagination/beads/dec-9",
+                "source": "https://beads.example/receipt-pagination/dec-9",
                 "sourceRevision": "dec-9-r3"
               }
             ],
@@ -4692,12 +4861,12 @@
                 "deleted": {
                   "resourceKind": "link",
                   "resource": {
-                    "id": "https://beads.example/receipt-pagination/links/9c1e",
+                    "id": "https://beads.example/receipt-pagination/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1"
                   }
                 },
-                "source": "https://beads.example/receipt-pagination/beads/dec-9",
+                "source": "https://beads.example/receipt-pagination/dec-9",
                 "sourceRevision": "dec-9-r3"
               }
             ],
@@ -4722,7 +4891,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/task-42\" || @.target == \"https://beads.example/receipt-pagination/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -4735,13 +4904,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "different-guard"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -4781,7 +4950,9 @@
       },
       "context": {
         "ordinaryStatus": 429,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "independentAdmissionSeed": true,
@@ -4807,7 +4978,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/task-42\" || @.target == \"https://beads.example/receipt-pagination/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -4820,13 +4991,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -4866,7 +5037,9 @@
       },
       "context": {
         "ordinaryStatus": 400,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "admission": {
@@ -4919,7 +5092,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "admission": {
@@ -4943,7 +5118,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/task-42\" || @.target == \"https://beads.example/receipt-pagination/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -4956,13 +5131,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -5004,12 +5179,12 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "id": "https://beads.example/receipt-pagination/9c1e",
                   "type": "https://work.example/types/cites",
                   "revision": "9c1e-r1"
                 }
               },
-              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "source": "https://beads.example/receipt-pagination/dec-9",
               "sourceRevision": "dec-9-r3"
             }
           ],
@@ -5031,7 +5206,9 @@
       "kind": "resource",
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": true,
         "modificationDateAvailable": false,
         "scope": "https://beads.example/http-independent/",
@@ -5039,7 +5216,7 @@
       },
       "request": {
         "method": "GET",
-        "target": "beads/item",
+        "target": "item",
         "headers": {
           "Accept": "application/json",
           "If-Match": "\"other-revision\""
@@ -5065,7 +5242,9 @@
       "kind": "resource",
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": true,
         "modificationDateAvailable": false,
         "scope": "https://beads.example/http-independent/",
@@ -5073,7 +5252,7 @@
       },
       "request": {
         "method": "GET",
-        "target": "beads/item",
+        "target": "item",
         "headers": {
           "Accept": "application/json",
           "If-None-Match": "\"item-r1\""
@@ -5104,7 +5283,9 @@
       },
       "context": {
         "ordinaryStatus": 200,
-        "supportedMedia": ["application/json"],
+        "supportedMedia": [
+          "application/json"
+        ],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
         "handle": "creation-target",

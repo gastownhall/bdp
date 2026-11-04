@@ -536,7 +536,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
         problem: Object.freeze({
           ...readProblem("resource-pruned"),
           archivedAt: Object.freeze({
-            uri: "https://archive.example/acme/beads/pruned-relic",
+            uri: "https://archive.example/acme/pruned-relic",
             revision: "arch-r4 (as-written)",
           }) as unknown as Reference,
         }),

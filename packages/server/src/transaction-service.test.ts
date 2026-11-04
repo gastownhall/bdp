@@ -30,7 +30,7 @@ afterEach(async () => {
 });
 const create = (id = "a") => ({
   operation: "createBead",
-  id: `beads/${id}`,
+  id: `${id}`,
   type: bead,
   properties: { title: id },
 });
@@ -190,14 +190,14 @@ describe("private same-owner Transactional service", () => {
       }),
     ).toEqual(first);
     expect(await service.sequence("p", sequence([create()]))).toMatchObject({
-      results: [{ outcome: "created", resource: { id: `${scope}beads/a` } }],
+      results: [{ outcome: "created", resource: { id: `${scope}a` } }],
     });
     const read = await service
       .readFor({ kind: "anonymous" })
-      .perform({ kind: "resource", resource: "bead", id: `${scope}beads/a` as AbsoluteHttpUrl });
+      .perform({ kind: "resource", resource: "bead", id: `${scope}a` as AbsoluteHttpUrl });
     expect(read).toMatchObject({
       kind: "success",
-      body: { id: `${scope}beads/a`, properties: { title: "a" } },
+      body: { id: `${scope}a`, properties: { title: "a" } },
       observation: { sourceContext: { scopePosition: "pos-1" } },
     });
     expect(f.owner.inspect().groups).toHaveLength(1);
@@ -207,7 +207,7 @@ describe("private same-owner Transactional service", () => {
       service = f.open();
     const first = await service.submit(batch());
     if (first.kind !== "receipt") throw new Error("expected receipt");
-    await service.submit(batch([{ operation: "deleteBead", bead: "beads/a" }], "delete"));
+    await service.submit(batch([{ operation: "deleteBead", bead: "a" }], "delete"));
     const observed = requireReceipt(service.receipt(access, first.receipt.id));
     expect(observed.receipt).toEqual(first.receipt);
     expect(observed.context.scopePosition).toBe("pos-2");
@@ -267,7 +267,7 @@ describe("private same-owner Transactional service", () => {
       service = f.open();
     const completed = await service.submit(batch());
     const failed = await service.submit(
-      batch([{ operation: "deleteBead", bead: "beads/missing" }], "failed"),
+      batch([{ operation: "deleteBead", bead: "missing" }], "failed"),
     );
     if (completed.kind !== "receipt" || failed.kind !== "receipt")
       throw new Error("expected receipts");
@@ -275,7 +275,7 @@ describe("private same-owner Transactional service", () => {
     f.setTime(86401001);
     const expired = requireReceipt(service.receipt(access, completed.receipt.id));
     expect(expired).toMatchObject({
-      receipt: { status: "completed", detail: "expired", allocated: [{ id: `${scope}beads/a` }] },
+      receipt: { status: "completed", detail: "expired", allocated: [{ id: `${scope}a` }] },
       context: { scopePosition: "pos-1" },
     });
     expect(service.receipt(access, failed.receipt.id)).toMatchObject({ status: 404 });
@@ -343,7 +343,7 @@ describe("private same-owner Transactional service", () => {
       facet.perform({
         kind: "resource",
         resource: "bead",
-        id: `${scope}beads/a` as AbsoluteHttpUrl,
+        id: `${scope}a` as AbsoluteHttpUrl,
       }),
     ).toThrow("closing");
     await expect(pending).resolves.toMatchObject({ receipt: { status: "completed" } });
@@ -453,7 +453,7 @@ describe("private same-owner Transactional service", () => {
       [
         {
           operation: "updateBead",
-          bead: "beads/a",
+          bead: "a",
           propertiesChange: [{ op: "replace", path: "/title", value: "updated" }],
         },
       ],
@@ -668,7 +668,7 @@ describe("private same-owner Transactional service", () => {
         [
           {
             operation: "updateBead",
-            bead: "beads/a",
+            bead: "a",
             propertiesChange: [{ op: "replace", path: "/title", value: "changed" }],
           },
         ],
@@ -697,7 +697,7 @@ describe("private same-owner Transactional service", () => {
     const deepText = "[".repeat(depth) + "1" + "]".repeat(depth);
     const carrier = prepareTransactionSequence(
       scope,
-      '{"operations":[{"operation":"createBead","id":"beads/deep","type":"' +
+      '{"operations":[{"operation":"createBead","id":"deep","type":"' +
         bead +
         '","idempotencyKey":"deep-observed","properties":{"deep":' +
         deepText +
@@ -737,7 +737,7 @@ describe("private same-owner Transactional service", () => {
     expect(typeof resource.revision).toBe("string");
     expect(resource.revision).not.toBe("");
     const expectedResource = {
-      id: `${scope}beads/deep`,
+      id: `${scope}deep`,
       type: bead,
       revision: resource.revision,
       properties: { deep: JSON.parse(deepText) as unknown },
@@ -760,13 +760,13 @@ describe("private same-owner Transactional service", () => {
     expect(before.resources).toHaveLength(1);
     expect(before.groups).toHaveLength(1);
     checkJson(before.resources, [expectedResource]);
-    const events = await service.events(`${scope}beads/deep?view=events`);
+    const events = await service.events(`${scope}deep?view=events`);
     if (events.kind !== "page") throw new Error("expected deep Resource Event page");
     expect(events.page.events).toHaveLength(1);
     const replay = await service.sequenceObserved("p", carrier);
     expect(checkJson(replay, created, true)).toBeGreaterThan(depth);
     checkJson(f.owner.inspect(), before);
-    checkJson(await service.events(`${scope}beads/deep?view=events`), events);
+    checkJson(await service.events(`${scope}deep?view=events`), events);
   }, 20000);
 
   it("does not return an observed sequence when the final owner observation fails", async () => {
@@ -809,7 +809,7 @@ describe("same-entry direct receipt delivery", () => {
       });
       const service = f.open();
       const result = await service.submit(
-        batch(failed ? [{ operation: "deleteBead", bead: "beads/missing" }] : [create()]),
+        batch(failed ? [{ operation: "deleteBead", bead: "missing" }] : [create()]),
       );
       expect(result.kind).toBe("receipt");
       if (result.kind !== "receipt") throw new Error("missing receipt");
@@ -850,7 +850,7 @@ describe("private minimum-read owner/lifecycle", () => {
   const point = {
     kind: "resource",
     resource: "bead",
-    id: `${scope}beads/a` as AbsoluteHttpUrl,
+    id: `${scope}a` as AbsoluteHttpUrl,
   } as const;
   it("isolates concurrent immutable controls and never holds SQLite during a wait", async () => {
     const f = fixture();
@@ -908,7 +908,7 @@ describe("private minimum-read owner/lifecycle", () => {
         },
       });
       const failed = requireReceipt(
-        await service.submit(batch([{ operation: "deleteBead", bead: "beads/missing" }])),
+        await service.submit(batch([{ operation: "deleteBead", bead: "missing" }])),
       );
       const minimum = {
         scopeEpoch: failed.context.scopeEpoch,
@@ -1001,7 +1001,7 @@ it("drains concurrent receipt-page waits on close while admitted commits can sat
       expect(page).toMatchObject({
         kind: "page",
         context: { scopePosition: "pos-2" },
-        page: { receipt: first.receipt.id, results: [{ resource: { id: `${scope}beads/c` } }] },
+        page: { receipt: first.receipt.id, results: [{ resource: { id: `${scope}c` } }] },
       });
     await closing;
     expect(() =>
@@ -1132,7 +1132,7 @@ describe("fresh Snapshot minimum service", () => {
           expect(result.body.checkpoint).not.toBe("genesis");
           expect(result.body.beads.items).toHaveLength(1);
           expect(result.body.beads.items[0]).toMatchObject({
-            id: `${scope}beads/after-wait`,
+            id: `${scope}after-wait`,
             properties: { title: "after-wait" },
           });
         }
@@ -1831,7 +1831,7 @@ describe("current minimum perform receiving capture", () => {
       },
     );
     const pending = facet.perform(
-      { kind: "resource", resource: "bead", id: `${scope}beads/a` as AbsoluteHttpUrl },
+      { kind: "resource", resource: "bead", id: `${scope}a` as AbsoluteHttpUrl },
       { signal: original.signal },
     );
     const outcome = pending.then(
@@ -1883,7 +1883,7 @@ describe("current minimum perform receiving capture", () => {
       throw new Error("delivery getter executed");
     });
     const delivery = facet.perform(
-      { kind: "resource", resource: "bead", id: `${scope}beads/a` as AbsoluteHttpUrl },
+      { kind: "resource", resource: "bead", id: `${scope}a` as AbsoluteHttpUrl },
       Object.defineProperty({}, "signal", { get: getter }),
     );
     expect(delivery).toBeInstanceOf(Promise);
@@ -1932,7 +1932,7 @@ describe("current minimum perform receiving capture", () => {
       const request = {
         kind: "resource" as const,
         resource: "bead" as const,
-        id: `${scope}beads/a` as AbsoluteHttpUrl,
+        id: `${scope}a` as AbsoluteHttpUrl,
       };
       entries = 0;
       const facet = service.readAtMinimum({ kind: "anonymous" }, minimum);
@@ -1976,7 +1976,7 @@ describe("current minimum perform receiving capture", () => {
         const result = await pending;
         expect(result).toMatchObject({
           kind: "success",
-          body: { id: `${scope}beads/a`, type: bead, properties: { title: "a" } },
+          body: { id: `${scope}a`, type: bead, properties: { title: "a" } },
           observation: { sourceContext: { ...seeded.context, scopePosition: "pos-2" } },
         });
         expect(entries).toBe(2);

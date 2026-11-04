@@ -40,6 +40,7 @@ describe("historical accepted exact-definition carriers, without current lookup 
     const historicalDiscovery = {
       ...discovery,
       profile: "read",
+      // This source-bound carrier validates an older sealed discovery shape.
       beads: `${discovery.scope}beads/`,
       links: `${discovery.scope}links/`,
       capabilities,

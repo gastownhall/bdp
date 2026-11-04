@@ -88,12 +88,12 @@ describe("Node HTTP listener", () => {
         "//user@@evil.example/local-test/bdp.json",
         "ftp://evil.example/local-test/bdp.json",
         "ws://evil.example/local-test/bdp.json",
-        "/local-test/beads/a/../b",
-        "/local-test/beads/a/%2e%2e/b",
-        String.raw`/local-test/beads/a\..\b`,
-        "/local-test/beads/a%5Cb",
-        "http://evil.example/local-test/beads/a/../b",
-        "//evil.example/local-test/beads/a/%2E%2E/b",
+        "/local-test/a/../b",
+        "/local-test/a/%2e%2e/b",
+        String.raw`/local-test/a\..\b`,
+        "/local-test/a%5Cb",
+        "http://evil.example/local-test/a/../b",
+        "//evil.example/local-test/a/%2E%2E/b",
       ])
         expect((await rawRequest(base, "GET", target)).status, target).toBe(404);
       const failed = await fetch(`${base}/local-test/bdp/links`);
@@ -206,7 +206,7 @@ describe("Node HTTP listener", () => {
     const listener = createNodeHttpServer(server, { onError: (error) => failures.push(error) });
     const base = await listen(listener);
     const bead = {
-      id: `${SCOPE}beads/a`,
+      id: `${SCOPE}a`,
       type: "https://work.example/types/task",
       revision: "r1",
       properties: {},
@@ -220,7 +220,7 @@ describe("Node HTTP listener", () => {
       ]) {
         record = { ...bead, ...patch };
         for (const method of ["GET", "HEAD"]) {
-          const response = await rawRequest(base, method, "/local-test/beads/a");
+          const response = await rawRequest(base, method, "/local-test/a");
           expect(response.status).toBe(500);
           expect(response.body).toBe("");
           expect(response.etag).toBeUndefined();
@@ -235,8 +235,8 @@ describe("Node HTTP listener", () => {
         revision: "r😀",
         properties: JSON.parse(String.raw`{"\ud83d\ude00":["\ud83d\ude00"]}`),
       };
-      const get = await rawRequest(base, "GET", "/local-test/beads/a");
-      const head = await rawRequest(base, "HEAD", "/local-test/beads/a");
+      const get = await rawRequest(base, "GET", "/local-test/a");
+      const head = await rawRequest(base, "HEAD", "/local-test/a");
       expect(get.status).toBe(200);
       expect(JSON.parse(get.body)).toEqual({ ...(record as typeof bead), metadata: {} });
       expect(head.status).toBe(200);
@@ -303,7 +303,7 @@ describe("Node HTTP listener", () => {
     const base = await listen(listener);
 
     try {
-      const response = await rawRequest(base, "GET", "/local-test/beads/a");
+      const response = await rawRequest(base, "GET", "/local-test/a");
       expect(response.status).toBe(500);
       expect(response.body).toBe("");
       expect(response.cacheControl).toBeUndefined();
@@ -317,7 +317,7 @@ describe("Node HTTP listener", () => {
         }),
       );
       stringify.mockRestore();
-      const control = await rawRequest(base, "GET", "/local-test/beads/a");
+      const control = await rawRequest(base, "GET", "/local-test/a");
       expect(control.status).toBe(200);
       expect(control.etag).toBeDefined();
     } finally {
@@ -365,7 +365,7 @@ describe("Node HTTP listener", () => {
         });
       try {
         const base = await listen(listener);
-        const response = await rawRequest(base, "GET", "/local-test/beads/a");
+        const response = await rawRequest(base, "GET", "/local-test/a");
         expect(response.status).toBe(500);
         expect(response.body).toBe("");
         expect(response.cacheControl).toBeUndefined();

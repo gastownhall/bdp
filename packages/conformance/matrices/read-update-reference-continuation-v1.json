@@ -394,7 +394,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-create-subject",
             "body": {
-              "id": "beads/att-subject",
+              "id": "att-subject",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "n": 1,
@@ -471,7 +471,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -592,7 +592,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -661,7 +661,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-create-owner",
             "body": {
-              "id": "beads/att-owner",
+              "id": "att-owner",
               "type": "https://reference.invalid/acme/types/decision",
               "properties": {
                 "owner": "unchanged"
@@ -733,7 +733,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "type",
@@ -843,7 +843,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "type",
@@ -901,7 +901,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-create-target",
             "body": {
-              "id": "beads/att-target",
+              "id": "att-target",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "target": "unchanged"
@@ -973,7 +973,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "type",
@@ -1089,7 +1089,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "type",
@@ -1153,7 +1153,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-create-unowned",
             "body": {
-              "id": "links/att-unowned",
+              "id": "att-unowned",
               "type": "https://reference.invalid/acme/types/relates",
               "properties": {
                 "n": 1,
@@ -1166,8 +1166,8 @@
                 "tag": "initial",
                 "retained": true
               },
-              "source": "beads/att-subject",
-              "target": "beads/att-target",
+              "source": "att-subject",
+              "target": "att-target",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-initial",
@@ -1232,7 +1232,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -1269,14 +1269,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -1367,7 +1367,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -1404,14 +1404,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -1541,7 +1541,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-properties",
@@ -1606,7 +1606,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -1727,7 +1727,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -1806,7 +1806,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-metadata",
@@ -1871,7 +1871,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -1992,7 +1992,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -2061,7 +2061,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-subject-stale",
             "body": {
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -2188,7 +2188,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-ignored",
@@ -2347,7 +2347,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-ignored",
@@ -2473,7 +2473,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject"
+              "bead": "att-subject"
             },
             "credentialRef": "operator"
           },
@@ -2525,7 +2525,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -2633,7 +2633,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -2709,7 +2709,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {}
             },
             "credentialRef": "operator"
@@ -2762,7 +2762,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -2870,7 +2870,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -2946,7 +2946,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-subject-actor",
@@ -3011,7 +3011,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -3132,7 +3132,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -3214,7 +3214,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "agent": null,
                 "message": "message att-subject-context"
@@ -3277,7 +3277,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -3418,7 +3418,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "type",
@@ -3530,7 +3530,7 @@
                   }
                 }
               ],
-              "bead": "beads/att-subject",
+              "bead": "att-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-discarded",
@@ -3714,7 +3714,7 @@
                   }
                 }
               ],
-              "link": "links/att-unowned"
+              "link": "att-unowned"
             },
             "credentialRef": "operator"
           },
@@ -3766,7 +3766,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -3803,14 +3803,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -3888,7 +3888,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -3925,14 +3925,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -3978,7 +3978,7 @@
                   }
                 }
               ],
-              "link": "links/att-unowned",
+              "link": "att-unowned",
               "revisionProvenance": {}
             },
             "credentialRef": "operator"
@@ -4031,7 +4031,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -4068,14 +4068,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -4153,7 +4153,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -4190,14 +4190,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -4243,7 +4243,7 @@
                   }
                 }
               ],
-              "link": "links/att-unowned",
+              "link": "att-unowned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-unowned-actor",
@@ -4308,7 +4308,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -4345,14 +4345,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -4443,7 +4443,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -4480,14 +4480,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -4539,7 +4539,7 @@
                   }
                 }
               ],
-              "link": "links/att-unowned",
+              "link": "att-unowned",
               "revisionProvenance": {
                 "agent": null,
                 "message": "message att-unowned-context"
@@ -4602,7 +4602,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -4639,14 +4639,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -4757,7 +4757,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-unowned"
+              "equals": "https://reference.invalid/acme/att-unowned"
             },
             {
               "id": "type",
@@ -4794,14 +4794,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-subject"
+              "equals": "https://reference.invalid/acme/att-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -4883,7 +4883,7 @@
                   }
                 }
               ],
-              "link": "links/att-unowned",
+              "link": "att-unowned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-discarded",
@@ -5042,7 +5042,7 @@
                   }
                 }
               ],
-              "link": "links/att-unowned",
+              "link": "att-unowned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-discarded",
@@ -5276,7 +5276,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-owned-create",
             "body": {
-              "id": "links/att-owned",
+              "id": "att-owned",
               "type": "https://reference.invalid/acme/types/relates",
               "properties": {
                 "n": 1,
@@ -5289,8 +5289,8 @@
                 "tag": "owned",
                 "retained": true
               },
-              "source": "beads/att-owner",
-              "target": "beads/att-target",
+              "source": "att-owner",
+              "target": "att-target",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-owned-create",
@@ -5364,7 +5364,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "type",
@@ -5401,14 +5401,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -5458,7 +5458,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             }
           ]
         },
@@ -5519,7 +5519,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "type",
@@ -5556,14 +5556,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -5674,7 +5674,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "type",
@@ -5830,7 +5830,7 @@
                   }
                 }
               ],
-              "link": "links/att-owned",
+              "link": "att-owned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-owned-properties",
@@ -5904,7 +5904,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "type",
@@ -5941,14 +5941,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -5998,7 +5998,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             }
           ]
         },
@@ -6059,7 +6059,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "type",
@@ -6096,14 +6096,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -6214,7 +6214,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "type",
@@ -6380,7 +6380,7 @@
                   }
                 }
               ],
-              "link": "links/att-owned",
+              "link": "att-owned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-owned-discarded",
@@ -6457,7 +6457,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "same-source-revision",
@@ -6548,7 +6548,7 @@
                   }
                 }
               ],
-              "link": "links/att-owned",
+              "link": "att-owned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-owned-discarded",
@@ -6603,7 +6603,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "same-source-revision",
@@ -6758,7 +6758,7 @@
                   }
                 }
               ],
-              "link": "links/att-owned",
+              "link": "att-owned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-owned-metadata",
@@ -6832,7 +6832,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "type",
@@ -6869,14 +6869,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -6926,7 +6926,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             }
           ]
         },
@@ -6987,7 +6987,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "type",
@@ -7024,14 +7024,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-target"
+              "equals": "https://reference.invalid/acme/att-target"
             },
             {
               "id": "no-owned-plane",
@@ -7142,7 +7142,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "type",
@@ -7285,7 +7285,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "att-owned-delete",
             "body": {
-              "link": "links/att-owned",
+              "link": "att-owned",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:att-owned-delete",
@@ -7338,7 +7338,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "deleted-kind",
@@ -7352,7 +7352,7 @@
               "kind": "json-pointer",
               "pointer": "/body/deleted/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/att-owned"
+              "equals": "https://reference.invalid/acme/att-owned"
             },
             {
               "id": "deleted-type",
@@ -7472,7 +7472,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/att-owner"
+              "equals": "https://reference.invalid/acme/att-owner"
             },
             {
               "id": "type",
@@ -7930,7 +7930,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "id": "beads/rc-source",
+              "id": "rc-source",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "n": 1
@@ -8003,7 +8003,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rc-source"
+              "equals": "https://reference.invalid/acme/rc-source"
             },
             {
               "id": "no-owned-0",
@@ -8057,7 +8057,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "id": "beads/rc-target",
+              "id": "rc-target",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "n": 1
@@ -8130,7 +8130,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rc-target"
+              "equals": "https://reference.invalid/acme/rc-target"
             },
             {
               "id": "no-owned-0",
@@ -8184,10 +8184,10 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "id": "links/rc-live",
+              "id": "rc-live",
               "type": "https://reference.invalid/acme/types/relates",
-              "source": "beads/rc-source",
-              "target": "beads/rc-target",
+              "source": "rc-source",
+              "target": "rc-target",
               "properties": {
                 "edge": 1
               },
@@ -8245,14 +8245,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rc-source"
+              "equals": "https://reference.invalid/acme/rc-source"
             },
             {
               "id": "target-0",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rc-target"
+              "equals": "https://reference.invalid/acme/rc-target"
             },
             {
               "id": "properties-0",
@@ -8273,7 +8273,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/rc-live"
+              "equals": "https://reference.invalid/acme/rc-live"
             }
           ]
         },
@@ -8322,7 +8322,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rc-locator-live",
-              "target": "beads/rc-source"
+              "target": "rc-source"
             },
             "idempotencyKey": "rc-seed-alias"
           },
@@ -8385,7 +8385,7 @@
               "id": "location",
               "kind": "header",
               "name": "location",
-              "equals": "https://reference.invalid/acme/beads/rc-source"
+              "equals": "https://reference.invalid/acme/rc-source"
             },
             {
               "id": "empty",
@@ -8519,7 +8519,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rc-locator-put-local",
-              "target": "beads/rc-missing"
+              "target": "rc-missing"
             },
             "idempotencyKey": "rc-put-local"
           },
@@ -8719,7 +8719,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rc-locator-put-absolute",
-              "target": "https://reference.invalid/acme/beads/rc-missing-absolute"
+              "target": "https://reference.invalid/acme/rc-missing-absolute"
             },
             "idempotencyKey": "rc-put-absolute"
           },
@@ -9316,8 +9316,8 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "alias": "beads/rc-source",
-              "target": "beads/rc-target"
+              "alias": "rc-source",
+              "target": "rc-target"
             },
             "idempotencyKey": "rc-wrong-bead-put-alias"
           },
@@ -9484,7 +9484,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "alias": "beads/rc-source"
+              "alias": "rc-source"
             },
             "idempotencyKey": "rc-wrong-bead-delete-alias"
           },
@@ -9651,8 +9651,8 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "alias": "links/rc-live",
-              "target": "beads/rc-target"
+              "alias": "rc-live",
+              "target": "rc-target"
             },
             "idempotencyKey": "rc-wrong-link-put-alias"
           },
@@ -9819,7 +9819,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "alias": "links/rc-live"
+              "alias": "rc-live"
             },
             "idempotencyKey": "rc-wrong-link-delete-alias"
           },
@@ -9986,7 +9986,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "bead": "links/rc-live",
+              "bead": "rc-live",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -10160,7 +10160,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "link": "beads/rc-source",
+              "link": "rc-source",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -10338,13 +10338,13 @@
                 {
                   "operation": "putAlias",
                   "idempotencyKey": "rc-sequence-wrong-failed-key",
-                  "alias": "beads/rc-source",
-                  "target": "beads/rc-target"
+                  "alias": "rc-source",
+                  "target": "rc-target"
                 },
                 {
                   "operation": "createBead",
                   "idempotencyKey": "rc-sequence-wrong-tail-key",
-                  "id": "beads/rc-rc-sequence-wrong-tail",
+                  "id": "rc-rc-sequence-wrong-tail",
                   "type": "https://reference.invalid/acme/types/task",
                   "properties": {
                     "n": 1
@@ -10430,7 +10430,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rc-rc-sequence-wrong-tail"
+              "equals": "https://reference.invalid/acme/rc-rc-sequence-wrong-tail"
             },
             {
               "id": "no-owned-0",
@@ -10613,7 +10613,7 @@
             "method": "POST",
             "credentialRef": "operator",
             "body": {
-              "id": "beads/rc-missing",
+              "id": "rc-missing",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "n": 1
@@ -10686,7 +10686,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rc-missing"
+              "equals": "https://reference.invalid/acme/rc-missing"
             },
             {
               "id": "no-owned-0",
@@ -10741,7 +10741,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rc-locator-put-local",
-              "target": "beads/rc-missing"
+              "target": "rc-missing"
             },
             "idempotencyKey": "rc-put-local"
           },
@@ -10962,7 +10962,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rc-locator-put-local",
-              "target": "beads/rc-missing"
+              "target": "rc-missing"
             },
             "idempotencyKey": "rc-put-fresh"
           },
@@ -11025,7 +11025,7 @@
               "id": "location",
               "kind": "header",
               "name": "location",
-              "equals": "https://reference.invalid/acme/beads/rc-missing"
+              "equals": "https://reference.invalid/acme/rc-missing"
             },
             {
               "id": "empty",
@@ -11044,7 +11044,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rc-locator-missing",
-              "target": "beads/rc-target"
+              "target": "rc-target"
             },
             "idempotencyKey": "rc-create-alias"
           },
@@ -11107,7 +11107,7 @@
               "id": "location",
               "kind": "header",
               "name": "location",
-              "equals": "https://reference.invalid/acme/beads/rc-target"
+              "equals": "https://reference.invalid/acme/rc-target"
             },
             {
               "id": "empty",
@@ -11325,7 +11325,7 @@
               "id": "location",
               "kind": "header",
               "name": "location",
-              "equals": "https://reference.invalid/acme/beads/rc-target"
+              "equals": "https://reference.invalid/acme/rc-target"
             },
             {
               "id": "empty",
@@ -11438,7 +11438,7 @@
               "id": "location",
               "kind": "header",
               "name": "location",
-              "equals": "https://reference.invalid/acme/beads/rc-source"
+              "equals": "https://reference.invalid/acme/rc-source"
             },
             {
               "id": "empty",
@@ -11907,7 +11907,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-create-subject",
             "body": {
-              "id": "beads/num-subject",
+              "id": "num-subject",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "one": 1,
@@ -11986,7 +11986,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -12109,7 +12109,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -12180,7 +12180,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-create-target",
             "body": {
-              "id": "beads/num-target",
+              "id": "num-target",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "target": "unchanged"
@@ -12253,7 +12253,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "type",
@@ -12370,7 +12370,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "type",
@@ -12435,7 +12435,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-create-link",
             "body": {
-              "id": "links/num-link",
+              "id": "num-link",
               "type": "https://reference.invalid/acme/types/relates",
               "properties": {
                 "one": 1,
@@ -12450,8 +12450,8 @@
                 "number": 1,
                 "tag": "numeric"
               },
-              "source": "beads/num-subject",
-              "target": "beads/num-target",
+              "source": "num-subject",
+              "target": "num-target",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-initial",
@@ -12516,7 +12516,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -12555,14 +12555,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -12653,7 +12653,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -12692,14 +12692,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -12749,7 +12749,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1E300,\"zero\":-0.0,\"one\":1.0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
+              "value": "{\"bead\":\"num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1E300,\"zero\":-0.0,\"one\":1.0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
             }
           },
           "captures": [],
@@ -12849,7 +12849,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,\"zero\":-0.0,\"one\":1e0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
+              "value": "{\"bead\":\"num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,\"zero\":-0.0,\"one\":1e0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
             }
           },
           "captures": [],
@@ -12949,7 +12949,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"metadataChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"tag\":\"numeric\",\"number\":1.0}}]}"
+              "value": "{\"bead\":\"num-subject\",\"metadataChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"tag\":\"numeric\",\"number\":1.0}}]}"
             }
           },
           "captures": [],
@@ -13049,7 +13049,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/one\",\"value\":1e0}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":1.0}],\"revisionProvenance\":{\"agent\":null,\"message\":\"ignored\"}}"
+              "value": "{\"bead\":\"num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/one\",\"value\":1e0}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":1.0}],\"revisionProvenance\":{\"agent\":null,\"message\":\"ignored\"}}"
             }
           },
           "captures": [],
@@ -13153,7 +13153,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject"
+              "bead": "num-subject"
             },
             "bodyBindings": {
               "expectedRevision": "num-subject-initial-rev"
@@ -13249,7 +13249,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-properties",
@@ -13314,7 +13314,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -13437,7 +13437,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -13518,7 +13518,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-metadata",
@@ -13583,7 +13583,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -13706,7 +13706,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -13777,7 +13777,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-subject-stale",
             "body": {
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -13898,7 +13898,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject"
+              "bead": "num-subject"
             },
             "bodyBindings": {
               "expectedRevision": "num-subject-metadata-read-rev"
@@ -14004,7 +14004,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-restored",
@@ -14069,7 +14069,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -14192,7 +14192,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -14263,7 +14263,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-subject-restore-stale",
             "body": {
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -14380,7 +14380,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/nested\",\"value\":{\"bad\":9007199254740993}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":99}]}"
+              "value": "{\"bead\":\"num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/nested\",\"value\":{\"bad\":9007199254740993}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":99}]}"
             }
           },
           "captures": [],
@@ -14487,7 +14487,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-safe",
@@ -14552,7 +14552,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -14675,7 +14675,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -14761,7 +14761,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-distinct",
@@ -14826,7 +14826,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -14949,7 +14949,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -15020,7 +15020,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-subject-distinct-stale",
             "body": {
-              "bead": "beads/num-subject",
+              "bead": "num-subject",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -15141,7 +15141,7 @@
                   }
                 }
               ],
-              "bead": "beads/num-subject"
+              "bead": "num-subject"
             },
             "bodyBindings": {
               "expectedRevision": "num-subject-distinct-read-rev"
@@ -15272,7 +15272,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1E300,\"zero\":-0.0,\"one\":1.0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
+              "value": "{\"link\":\"num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1E300,\"zero\":-0.0,\"one\":1.0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
             }
           },
           "captures": [],
@@ -15372,7 +15372,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,\"zero\":-0.0,\"one\":1e0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
+              "value": "{\"link\":\"num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"nested\":{\"b\":[1,2.0],\"a\":1.0},\"large\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,\"zero\":-0.0,\"one\":1e0}}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-ignored\",\"basis\":\"unknown\"}}}"
             }
           },
           "captures": [],
@@ -15472,7 +15472,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"metadataChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"tag\":\"numeric\",\"number\":1.0}}]}"
+              "value": "{\"link\":\"num-link\",\"metadataChange\":[{\"op\":\"replace\",\"path\":\"\",\"value\":{\"tag\":\"numeric\",\"number\":1.0}}]}"
             }
           },
           "captures": [],
@@ -15572,7 +15572,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/one\",\"value\":1e0}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":1.0}],\"revisionProvenance\":{\"agent\":null,\"message\":\"ignored\"}}"
+              "value": "{\"link\":\"num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/one\",\"value\":1e0}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":1.0}],\"revisionProvenance\":{\"agent\":null,\"message\":\"ignored\"}}"
             }
           },
           "captures": [],
@@ -15676,7 +15676,7 @@
                   }
                 }
               ],
-              "link": "links/num-link"
+              "link": "num-link"
             },
             "bodyBindings": {
               "expectedRevision": "num-link-initial-rev"
@@ -15772,7 +15772,7 @@
                   }
                 }
               ],
-              "link": "links/num-link",
+              "link": "num-link",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-properties",
@@ -15837,7 +15837,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -15876,14 +15876,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -15974,7 +15974,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -16013,14 +16013,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -16069,7 +16069,7 @@
                   }
                 }
               ],
-              "link": "links/num-link",
+              "link": "num-link",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-metadata",
@@ -16134,7 +16134,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -16173,14 +16173,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -16271,7 +16271,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -16310,14 +16310,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -16356,7 +16356,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-link-stale",
             "body": {
-              "link": "links/num-link",
+              "link": "num-link",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -16477,7 +16477,7 @@
                   }
                 }
               ],
-              "link": "links/num-link"
+              "link": "num-link"
             },
             "bodyBindings": {
               "expectedRevision": "num-link-metadata-read-rev"
@@ -16583,7 +16583,7 @@
                   }
                 }
               ],
-              "link": "links/num-link",
+              "link": "num-link",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-restored",
@@ -16648,7 +16648,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -16687,14 +16687,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -16785,7 +16785,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -16824,14 +16824,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -16870,7 +16870,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-link-restore-stale",
             "body": {
-              "link": "links/num-link",
+              "link": "num-link",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -16987,7 +16987,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/nested\",\"value\":{\"bad\":9007199254740993}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":99}]}"
+              "value": "{\"link\":\"num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/nested\",\"value\":{\"bad\":9007199254740993}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":99}]}"
             }
           },
           "captures": [],
@@ -17094,7 +17094,7 @@
                   }
                 }
               ],
-              "link": "links/num-link",
+              "link": "num-link",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-safe",
@@ -17159,7 +17159,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -17198,14 +17198,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -17296,7 +17296,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -17335,14 +17335,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -17396,7 +17396,7 @@
                   }
                 }
               ],
-              "link": "links/num-link",
+              "link": "num-link",
               "revisionProvenance": {
                 "actor": {
                   "id": "writer:num-distinct",
@@ -17461,7 +17461,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -17500,14 +17500,14 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -17598,7 +17598,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -17637,14 +17637,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -17683,7 +17683,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "num-link-distinct-stale",
             "body": {
-              "link": "links/num-link",
+              "link": "num-link",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -17804,7 +17804,7 @@
                   }
                 }
               ],
-              "link": "links/num-link"
+              "link": "num-link"
             },
             "bodyBindings": {
               "expectedRevision": "num-link-distinct-read-rev"
@@ -17974,7 +17974,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740993}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
+              "value": "{\"bead\":\"num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740993}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
             }
           },
           "captures": [],
@@ -18078,7 +18078,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740992}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
+              "value": "{\"bead\":\"num-subject\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740992}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
             }
           },
           "captures": [],
@@ -18114,7 +18114,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -18215,7 +18215,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "type",
@@ -18290,7 +18290,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740993}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
+              "value": "{\"link\":\"num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740993}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
             }
           },
           "captures": [],
@@ -18394,7 +18394,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740992}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
+              "value": "{\"link\":\"num-link\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/zero\",\"value\":7}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/number\",\"value\":9007199254740992}],\"revisionProvenance\":{\"actor\":{\"id\":\"writer:num-metadata-closure\",\"basis\":\"writer-supplied\"}}}"
             }
           },
           "captures": [],
@@ -18430,7 +18430,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -18469,14 +18469,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -18545,7 +18545,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/num-link"
+              "equals": "https://reference.invalid/acme/num-link"
             },
             {
               "id": "type",
@@ -18584,14 +18584,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-subject"
+              "equals": "https://reference.invalid/acme/num-subject"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/num-target"
+              "equals": "https://reference.invalid/acme/num-target"
             },
             {
               "id": "no-owned-plane",
@@ -18959,7 +18959,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "nr-create-source",
             "body": {
-              "id": "beads/nr-source",
+              "id": "nr-source",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "source": "unchanged"
@@ -19016,7 +19016,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "type",
@@ -19117,7 +19117,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "type",
@@ -19173,7 +19173,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "nr-create-target",
             "body": {
-              "id": "beads/nr-target",
+              "id": "nr-target",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "target": "unchanged"
@@ -19230,7 +19230,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "type",
@@ -19331,7 +19331,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "type",
@@ -19398,7 +19398,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0}}"
+              "value": "{\"id\":\"nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0}}"
             }
           },
           "captures": [],
@@ -19502,7 +19502,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":1e-400}}"
+              "value": "{\"id\":\"nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":1e-400}}"
             }
           },
           "captures": [],
@@ -19607,7 +19607,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0}}"
+              "value": "{\"id\":\"nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0}}"
             }
           },
           "captures": [],
@@ -19643,7 +19643,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-integer"
+              "equals": "https://reference.invalid/acme/nr-bead-integer"
             },
             {
               "id": "type",
@@ -19751,7 +19751,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-integer"
+              "equals": "https://reference.invalid/acme/nr-bead-integer"
             },
             {
               "id": "type",
@@ -19818,7 +19818,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
+              "value": "{\"bead\":\"nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -19921,7 +19921,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.12345678901234567891}]}"
+              "value": "{\"bead\":\"nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.12345678901234567891}]}"
             }
           },
           "captures": [],
@@ -20025,7 +20025,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
+              "value": "{\"bead\":\"nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -20061,7 +20061,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-integer"
+              "equals": "https://reference.invalid/acme/nr-bead-integer"
             },
             {
               "id": "type",
@@ -20169,7 +20169,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-integer"
+              "equals": "https://reference.invalid/acme/nr-bead-integer"
             },
             {
               "id": "type",
@@ -20236,7 +20236,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -20340,7 +20340,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.125}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.125}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -20376,7 +20376,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-precision"
+              "equals": "https://reference.invalid/acme/nr-bead-precision"
             },
             {
               "id": "type",
@@ -20489,7 +20489,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-precision"
+              "equals": "https://reference.invalid/acme/nr-bead-precision"
             },
             {
               "id": "type",
@@ -20561,7 +20561,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -20664,7 +20664,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.25}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.25}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -20700,7 +20700,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-precision"
+              "equals": "https://reference.invalid/acme/nr-bead-precision"
             },
             {
               "id": "type",
@@ -20813,7 +20813,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-precision"
+              "equals": "https://reference.invalid/acme/nr-bead-precision"
             },
             {
               "id": "type",
@@ -20885,7 +20885,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-overflow\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":1e309,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"nr-bead-overflow\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":1e309,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -20989,7 +20989,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-overflow\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":1e300,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"nr-bead-overflow\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":1e300,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -21025,7 +21025,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-overflow"
+              "equals": "https://reference.invalid/acme/nr-bead-overflow"
             },
             {
               "id": "type",
@@ -21132,7 +21132,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-overflow"
+              "equals": "https://reference.invalid/acme/nr-bead-overflow"
             },
             {
               "id": "type",
@@ -21198,7 +21198,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e309}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nr-bead-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e309}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -21301,7 +21301,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e299}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nr-bead-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e299}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -21337,7 +21337,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-overflow"
+              "equals": "https://reference.invalid/acme/nr-bead-overflow"
             },
             {
               "id": "type",
@@ -21444,7 +21444,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-bead-overflow"
+              "equals": "https://reference.invalid/acme/nr-bead-overflow"
             },
             {
               "id": "type",
@@ -21510,7 +21510,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -21692,7 +21692,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":1e-400},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":1e-400},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -21797,7 +21797,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -21833,7 +21833,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-integer"
+              "equals": "https://reference.invalid/acme/nr-link-integer"
             },
             {
               "id": "type",
@@ -21870,14 +21870,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -21955,7 +21955,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-integer"
+              "equals": "https://reference.invalid/acme/nr-link-integer"
             },
             {
               "id": "type",
@@ -21992,14 +21992,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -22036,7 +22036,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
+              "value": "{\"link\":\"nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -22217,7 +22217,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.12345678901234567891}]}"
+              "value": "{\"link\":\"nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.12345678901234567891}]}"
             }
           },
           "captures": [],
@@ -22321,7 +22321,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
+              "value": "{\"link\":\"nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -22357,7 +22357,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-integer"
+              "equals": "https://reference.invalid/acme/nr-link-integer"
             },
             {
               "id": "type",
@@ -22394,14 +22394,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -22479,7 +22479,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-integer"
+              "equals": "https://reference.invalid/acme/nr-link-integer"
             },
             {
               "id": "type",
@@ -22516,14 +22516,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -22560,7 +22560,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -22742,7 +22742,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.125}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.125}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -22778,7 +22778,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-precision"
+              "equals": "https://reference.invalid/acme/nr-link-precision"
             },
             {
               "id": "type",
@@ -22820,14 +22820,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -22905,7 +22905,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-precision"
+              "equals": "https://reference.invalid/acme/nr-link-precision"
             },
             {
               "id": "type",
@@ -22947,14 +22947,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -22991,7 +22991,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -23172,7 +23172,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.25}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.25}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -23208,7 +23208,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-precision"
+              "equals": "https://reference.invalid/acme/nr-link-precision"
             },
             {
               "id": "type",
@@ -23250,14 +23250,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -23335,7 +23335,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-precision"
+              "equals": "https://reference.invalid/acme/nr-link-precision"
             },
             {
               "id": "type",
@@ -23377,14 +23377,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -23421,7 +23421,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-overflow\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":1e309,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-overflow\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":1e309,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -23603,7 +23603,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-overflow\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":1e300,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-link-overflow\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":1e300,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -23639,7 +23639,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-overflow"
+              "equals": "https://reference.invalid/acme/nr-link-overflow"
             },
             {
               "id": "type",
@@ -23675,14 +23675,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -23760,7 +23760,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-overflow"
+              "equals": "https://reference.invalid/acme/nr-link-overflow"
             },
             {
               "id": "type",
@@ -23796,14 +23796,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -23840,7 +23840,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e309}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nr-link-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e309}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -24021,7 +24021,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e299}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nr-link-overflow\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":1e299}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -24057,7 +24057,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-overflow"
+              "equals": "https://reference.invalid/acme/nr-link-overflow"
             },
             {
               "id": "type",
@@ -24093,14 +24093,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -24178,7 +24178,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-link-overflow"
+              "equals": "https://reference.invalid/acme/nr-link-overflow"
             },
             {
               "id": "type",
@@ -24214,14 +24214,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -24258,7 +24258,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":-1,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":-1,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -24310,7 +24310,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/nr-schema"
+            "path": "nr-schema"
           },
           "raw": {
             "headerLines": []
@@ -24357,7 +24357,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [
@@ -24401,7 +24401,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-schema"
             },
             {
               "id": "type",
@@ -24499,7 +24499,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-schema"
             },
             {
               "id": "type",
@@ -24563,7 +24563,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":-1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":-1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -24669,7 +24669,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -24705,7 +24705,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-schema"
             },
             {
               "id": "type",
@@ -24795,7 +24795,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-schema"
             },
             {
               "id": "type",
@@ -24859,7 +24859,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":-1,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-edge-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":-1,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [],
@@ -24911,7 +24911,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "links/nr-schema"
+            "path": "nr-edge-schema"
           },
           "raw": {
             "headerLines": []
@@ -24958,7 +24958,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"nr-edge-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"nr-source\",\"target\":\"nr-target\"}"
             }
           },
           "captures": [
@@ -25002,7 +25002,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-edge-schema"
             },
             {
               "id": "type",
@@ -25036,14 +25036,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -25114,7 +25114,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-edge-schema"
             },
             {
               "id": "type",
@@ -25148,14 +25148,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -25192,7 +25192,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":-1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nr-edge-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":-1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -25298,7 +25298,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nr-edge-schema\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":1}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -25334,7 +25334,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-edge-schema"
             },
             {
               "id": "type",
@@ -25368,14 +25368,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -25438,7 +25438,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nr-schema"
+              "equals": "https://reference.invalid/acme/nr-edge-schema"
             },
             {
               "id": "type",
@@ -25472,14 +25472,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-source"
+              "equals": "https://reference.invalid/acme/nr-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nr-target"
+              "equals": "https://reference.invalid/acme/nr-target"
             },
             {
               "id": "no-owned-plane",
@@ -25919,7 +25919,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "nn-create-source",
             "body": {
-              "id": "beads/nn-source",
+              "id": "nn-source",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "source": "unchanged"
@@ -25976,7 +25976,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "type",
@@ -26077,7 +26077,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "type",
@@ -26133,7 +26133,7 @@
             "targetBaseBinding": "operations",
             "idempotencyKey": "nn-create-target",
             "body": {
-              "id": "beads/nn-target",
+              "id": "nn-target",
               "type": "https://reference.invalid/acme/types/task",
               "properties": {
                 "target": "unchanged"
@@ -26190,7 +26190,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "type",
@@ -26291,7 +26291,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "type",
@@ -26358,7 +26358,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nn-bead-properties\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"queue\":[],\"shallow\":9007199254740993,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":9007199254740993}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]}}"
+              "value": "{\"id\":\"nn-bead-properties\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"queue\":[],\"shallow\":9007199254740993,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":9007199254740993}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]}}"
             }
           },
           "captures": [],
@@ -26466,7 +26466,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nn-bead-properties\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"queue\":[],\"shallow\":2,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":4}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]}}"
+              "value": "{\"id\":\"nn-bead-properties\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"queue\":[],\"shallow\":2,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":4}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]}}"
             }
           },
           "captures": [],
@@ -26502,7 +26502,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-properties"
+              "equals": "https://reference.invalid/acme/nn-bead-properties"
             },
             {
               "id": "type",
@@ -26638,7 +26638,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-properties"
+              "equals": "https://reference.invalid/acme/nn-bead-properties"
             },
             {
               "id": "type",
@@ -26733,7 +26733,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nn-bead-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":9007199254740993}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nn-bead-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":9007199254740993}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -26836,7 +26836,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nn-bead-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":6}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"nn-bead-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":6}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -26872,7 +26872,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-properties"
+              "equals": "https://reference.invalid/acme/nn-bead-properties"
             },
             {
               "id": "type",
@@ -27016,7 +27016,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-properties"
+              "equals": "https://reference.invalid/acme/nn-bead-properties"
             },
             {
               "id": "type",
@@ -27119,7 +27119,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nn-bead-metadata\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":1e-400}]}}"
+              "value": "{\"id\":\"nn-bead-metadata\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":1e-400}]}}"
             }
           },
           "captures": [],
@@ -27224,7 +27224,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nn-bead-metadata\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":0}]}}"
+              "value": "{\"id\":\"nn-bead-metadata\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":0}]}}"
             }
           },
           "captures": [],
@@ -27260,7 +27260,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-metadata"
+              "equals": "https://reference.invalid/acme/nn-bead-metadata"
             },
             {
               "id": "type",
@@ -27370,7 +27370,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-metadata"
+              "equals": "https://reference.invalid/acme/nn-bead-metadata"
             },
             {
               "id": "type",
@@ -27439,7 +27439,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nn-bead-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.12345678901234567891}]}}]}"
+              "value": "{\"bead\":\"nn-bead-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.12345678901234567891}]}}]}"
             }
           },
           "captures": [],
@@ -27543,7 +27543,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nn-bead-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.5}]}}]}"
+              "value": "{\"bead\":\"nn-bead-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.5}]}}]}"
             }
           },
           "captures": [],
@@ -27579,7 +27579,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-metadata"
+              "equals": "https://reference.invalid/acme/nn-bead-metadata"
             },
             {
               "id": "type",
@@ -27697,7 +27697,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-bead-metadata"
+              "equals": "https://reference.invalid/acme/nn-bead-metadata"
             },
             {
               "id": "type",
@@ -27774,7 +27774,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nn-link-properties\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"queue\":[],\"shallow\":9007199254740993,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":9007199254740993}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]},\"source\":\"beads/nn-source\",\"target\":\"beads/nn-target\"}"
+              "value": "{\"id\":\"nn-link-properties\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"queue\":[],\"shallow\":9007199254740993,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":9007199254740993}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]},\"source\":\"nn-source\",\"target\":\"nn-target\"}"
             }
           },
           "captures": [],
@@ -27960,7 +27960,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nn-link-properties\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"queue\":[],\"shallow\":2,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":4}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]},\"source\":\"beads/nn-source\",\"target\":\"beads/nn-target\"}"
+              "value": "{\"id\":\"nn-link-properties\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"queue\":[],\"shallow\":2,\"deep\":{\"d0\":{\"d1\":{\"d2\":{\"d3\":{\"d4\":{\"d5\":{\"d6\":{\"d7\":{\"d8\":{\"d9\":{\"d10\":{\"d11\":{\"d12\":{\"d13\":{\"a/b~c\":4}}}}}}}}}}}}}}}},\"metadata\":{\"marker\":\"created\",\"queue\":[]},\"source\":\"nn-source\",\"target\":\"nn-target\"}"
             }
           },
           "captures": [],
@@ -27996,7 +27996,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-properties"
+              "equals": "https://reference.invalid/acme/nn-link-properties"
             },
             {
               "id": "type",
@@ -28061,14 +28061,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -28146,7 +28146,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-properties"
+              "equals": "https://reference.invalid/acme/nn-link-properties"
             },
             {
               "id": "type",
@@ -28211,14 +28211,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -28255,7 +28255,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nn-link-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":9007199254740993}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nn-link-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":9007199254740993}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -28436,7 +28436,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nn-link-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":6}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"nn-link-properties\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":6}]}}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -28472,7 +28472,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-properties"
+              "equals": "https://reference.invalid/acme/nn-link-properties"
             },
             {
               "id": "type",
@@ -28545,14 +28545,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -28630,7 +28630,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-properties"
+              "equals": "https://reference.invalid/acme/nn-link-properties"
             },
             {
               "id": "type",
@@ -28703,14 +28703,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -28747,7 +28747,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nn-link-metadata\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":1e-400}]},\"source\":\"beads/nn-source\",\"target\":\"beads/nn-target\"}"
+              "value": "{\"id\":\"nn-link-metadata\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":1e-400}]},\"source\":\"nn-source\",\"target\":\"nn-target\"}"
             }
           },
           "captures": [],
@@ -28930,7 +28930,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nn-link-metadata\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":0}]},\"source\":\"beads/nn-source\",\"target\":\"beads/nn-target\"}"
+              "value": "{\"id\":\"nn-link-metadata\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"marker\":\"created\",\"queue\":[]},\"metadata\":{\"marker\":\"created\",\"queue\":[],\"outer\":[{\"a/b~c\":0}]},\"source\":\"nn-source\",\"target\":\"nn-target\"}"
             }
           },
           "captures": [],
@@ -28966,7 +28966,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-metadata"
+              "equals": "https://reference.invalid/acme/nn-link-metadata"
             },
             {
               "id": "type",
@@ -29005,14 +29005,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -29090,7 +29090,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-metadata"
+              "equals": "https://reference.invalid/acme/nn-link-metadata"
             },
             {
               "id": "type",
@@ -29129,14 +29129,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -29173,7 +29173,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nn-link-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.12345678901234567891}]}}]}"
+              "value": "{\"link\":\"nn-link-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.12345678901234567891}]}}]}"
             }
           },
           "captures": [],
@@ -29355,7 +29355,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nn-link-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.5}]}}]}"
+              "value": "{\"link\":\"nn-link-metadata\",\"propertiesChange\":[{\"op\":\"add\",\"path\":\"/marker\",\"value\":\"updated\"}],\"metadataChange\":[{\"op\":\"add\",\"path\":\"/queue/-\",\"value\":{\"array\":[{\"a/b~c\":0.5}]}}]}"
             }
           },
           "captures": [],
@@ -29391,7 +29391,7 @@
               "kind": "json-pointer",
               "pointer": "/resource/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-metadata"
+              "equals": "https://reference.invalid/acme/nn-link-metadata"
             },
             {
               "id": "type",
@@ -29438,14 +29438,14 @@
               "kind": "json-pointer",
               "pointer": "/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/resource/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",
@@ -29523,7 +29523,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "https://reference.invalid/acme/links/nn-link-metadata"
+              "equals": "https://reference.invalid/acme/nn-link-metadata"
             },
             {
               "id": "type",
@@ -29570,14 +29570,14 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-source"
+              "equals": "https://reference.invalid/acme/nn-source"
             },
             {
               "id": "target-endpoint",
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/nn-target"
+              "equals": "https://reference.invalid/acme/nn-target"
             },
             {
               "id": "no-owned-plane",

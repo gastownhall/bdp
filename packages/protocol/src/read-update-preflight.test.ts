@@ -16,22 +16,22 @@ const type = "https://types.test/task";
 const prepare = (operation: ReadUpdateOperation, input: unknown) =>
   prepareReadUpdateSingleton(scope, operation, JSON.stringify(input), "exact-Key_1");
 const badLocal = [
-  "HTTPS://example.test/s/beads/a",
-  "https://EXAMPLE.test/s/beads/a",
-  "https://example.test:443/s/beads/a",
-  "https://example.test/%73/beads/a",
+  "HTTPS://example.test/s/a",
+  "https://EXAMPLE.test/s/a",
+  "https://example.test:443/s/a",
+  "https://example.test/%73/a",
   "https://example.test/s/%62eads/a",
-  "https://example.test/s/beads/%61",
-  "https://example.test/s/beads/%2F",
-  "https://example.test/s/beads/a#",
-  "https://example.test/s/beads/a?",
-  "https://example.test/s/beads/%FF",
-  "https://example.test/%73/beads/%FF",
-  "https://example.test/s/../elsewhere/beads/a",
-  "https://example.test/x/../s/beads/a",
-  "https://example.test/s/beads/a?view=properties",
-  "https://example.test/s/beads/a#part",
-  "https://example.test/s//beads/a",
+  "https://example.test/s/%61",
+  "https://example.test/s/%2F",
+  "https://example.test/s/a#",
+  "https://example.test/s/a?",
+  "https://example.test/s/%FF",
+  "https://example.test/%73/%FF",
+  "https://example.test/s/../elsewhere/a",
+  "https://example.test/x/../s/a",
+  "https://example.test/s/a?view=properties",
+  "https://example.test/s/a#part",
+  "https://example.test/s//a",
 ];
 
 describe("whole-carrier Read+Update Scope preflight", () => {
@@ -41,21 +41,21 @@ describe("whole-carrier Read+Update Scope preflight", () => {
       other,
       "deleteBead",
       JSON.stringify({
-        bead: "https://example.test/s/beads/%61",
+        bead: "https://example.test/s/%61",
       }),
       "key",
     );
     expect(() => assertPreparedReadUpdateCarrier(carrier, scope)).toThrow("different Scope");
     expect(() => assertPreparedReadUpdateCarrier(carrier, other)).not.toThrow();
-    const local = prepare("deleteBead", { bead: "beads/a" });
+    const local = prepare("deleteBead", { bead: "a" });
     expect(() => assertPreparedReadUpdateCarrier(local, scope)).not.toThrow();
   });
 
-  it.each(["blob:https://example.test/a", "blob:https://example.test/s/beads/a"])(
+  it.each(["blob:https://example.test/a", "blob:https://example.test/s/a"])(
     "preserves an opaque origin-borrowing URI %s for root and nested Scopes",
     (target) => {
       for (const base of ["https://example.test/", scope]) {
-        const input = { type, source: "beads/a", target };
+        const input = { type, source: "a", target };
         const prepared = prepareReadUpdateSingleton(
           base,
           "createLink",
@@ -69,7 +69,7 @@ describe("whole-carrier Read+Update Scope preflight", () => {
   );
 
   it("preserves deeply frozen singleton and sequence reference inputs", () => {
-    const input = { type, source: "beads/a", target: { uri: "beads/b", revision: "pin" } };
+    const input = { type, source: "a", target: { uri: "b", revision: "pin" } };
     const singleton = prepare("createLink", input);
     const sequence = prepareReadUpdateSequence(
       scope,
@@ -81,7 +81,7 @@ describe("whole-carrier Read+Update Scope preflight", () => {
       const value = prepared.operations[0]?.input;
       expect(Object.isFrozen(value)).toBe(true);
       expect(Object.isFrozen(value?.target)).toBe(true);
-      expect(() => Reflect.set(value?.target as object, "uri", "beads/%61")).not.toThrow();
+      expect(() => Reflect.set(value?.target as object, "uri", "%61")).not.toThrow();
       expect(value?.target).toEqual(input.target);
     }
   });
@@ -96,10 +96,10 @@ describe("whole-carrier Read+Update Scope preflight", () => {
   });
 
   it.each([
-    ["createBead", { type, id: "https://other.test/s/beads/a" }],
+    ["createBead", { type, id: "https://other.test/s/a" }],
     [
       "createLink",
-      { type, id: "https://example.test/sibling/links/a", source: "beads/a", target: "beads/b" },
+      { type, id: "https://example.test/sibling/a", source: "a", target: "b" },
     ],
   ] as const)("requires Scope-local creation identity for %s", (operation, input) => {
     expect(() => parseReadUpdateRequest(operation, JSON.stringify(input))).not.toThrow();
@@ -108,11 +108,11 @@ describe("whole-carrier Read+Update Scope preflight", () => {
 
   it.each([
     ["createBead", { type, id: "task-42" }],
-    ["createBead", { type, id: "links/a" }],
+    ["createBead", { type, id: "a" }],
     ["createLink", { type, id: "relation-81", source: "task-42", target: "person-7" }],
-    ["createLink", { type, id: "beads/a", source: "task-42", target: "person-7" }],
-    ["createBead", { type, id: `${scope}links/a` }],
-    ["createLink", { type, id: `${scope}beads/a`, source: "task-42", target: "person-7" }],
+    ["createLink", { type, id: "a", source: "task-42", target: "person-7" }],
+    ["createBead", { type, id: `${scope}a` }],
+    ["createLink", { type, id: `${scope}a`, source: "task-42", target: "person-7" }],
   ] as const)("accepts kind-independent Scope-local identity for %s", (operation, input) => {
     expect(() => prepare(operation, input)).not.toThrow();
   });
@@ -121,44 +121,44 @@ describe("whole-carrier Read+Update Scope preflight", () => {
     [
       "updateBead",
       {
-        bead: "https://example.test:443/s/beads/a",
+        bead: "https://example.test:443/s/a",
         propertiesChange: [{ op: "add", path: "/n", value: true }],
       },
     ],
-    ["deleteLink", { link: "https://example.test:443/s/links/a" }],
+    ["deleteLink", { link: "https://example.test:443/s/a" }],
     [
       "updateLink",
       {
-        link: "https://example.test:443/s/links/a",
+        link: "https://example.test:443/s/a",
         propertiesChange: [{ op: "add", path: "/n", value: true }],
       },
     ],
-    ["createLink", { type, source: "https://example.test:443/s/beads/a", target: "beads/b" }],
+    ["createLink", { type, source: "https://example.test:443/s/a", target: "b" }],
     [
       "createLink",
       {
         type,
-        source: "beads/a",
-        target: { uri: "https://example.test:443/s/beads/b", revision: "opaque" },
+        source: "a",
+        target: { uri: "https://example.test:443/s/b", revision: "opaque" },
       },
     ],
-    ["putAlias", { alias: "alias/latest", target: "https://example.test:443/s/beads/a" }],
-    ["putAlias", { alias: "https://example.test:443/s/alias/latest", target: "beads/a" }],
+    ["putAlias", { alias: "alias/latest", target: "https://example.test:443/s/a" }],
+    ["putAlias", { alias: "https://example.test:443/s/alias/latest", target: "a" }],
     ["deleteAlias", { alias: "https://example.test:443/s/alias/latest" }],
   ] as const)("checks every declared reference slot for %s", (operation, input) => {
     expect(() => prepare(operation, input)).toThrow(ReadUpdateCarrierError);
   });
 
   it.each([
-    ["createBead", { type, id: "beads/team/%E2%82%AC/a" }],
-    ["createLink", { type, id: `${scope}links/team/a`, source: "beads/a", target: "beads/b" }],
-    ["putAlias", { alias: "alias/alias/latest", target: "beads/a" }],
+    ["createBead", { type, id: "team/%E2%82%AC/a" }],
+    ["createLink", { type, id: `${scope}team/a`, source: "a", target: "b" }],
+    ["putAlias", { alias: "alias/alias/latest", target: "a" }],
     ["deleteAlias", { alias: `${scope}alias/team/latest` }],
-    ["deleteBead", { bead: "links/wrong-kind" }],
-    ["deleteLink", { link: `${scope}beads/wrong-kind` }],
-    ["putAlias", { alias: "beads/wrong-root", target: "links/wrong-kind" }],
-    ["createLink", { type, source: "links/wrong-kind", target: "beads/b" }],
-    ["createLink", { type, source: `${scope}alias/latest`, target: "beads/b" }],
+    ["deleteBead", { bead: "wrong-kind" }],
+    ["deleteLink", { link: `${scope}wrong-kind` }],
+    ["putAlias", { alias: "wrong-root", target: "wrong-kind" }],
+    ["createLink", { type, source: "wrong-kind", target: "b" }],
+    ["createLink", { type, source: `${scope}alias/latest`, target: "b" }],
     ["putAlias", { alias: "alias/latest", target: "alias/no-chain" }],
   ] as const)("preserves valid grammar and member-time categories for %s", (operation, input) => {
     const carrier = prepare(operation, input);
@@ -168,18 +168,18 @@ describe("whole-carrier Read+Update Scope preflight", () => {
 
   it.each([
     "urn:example:opaque",
-    "https://example.test/s%2Fbeads/a",
-    "https://example.test/s%5Cbeads/a",
-    "https://example.test:99999/s/beads/a",
+    "https://example.test/s%2Fa",
+    "https://example.test/s%5Ca",
+    "https://example.test:99999/s/a",
     "foo://[v1.a]/opaque",
-    "https://other.test/s/beads/%61?query=1#pin",
-    "https://example.test/sibling/beads/%61",
-    "https://example.test./s/beads/a",
-    "http://example.test/s/beads/a",
-    "https://example.test:444/s/beads/a",
-    "https://example.test/s%252Fbeads/a",
+    "https://other.test/s/%61?query=1#pin",
+    "https://example.test/sibling/%61",
+    "https://example.test./s/a",
+    "http://example.test/s/a",
+    "https://example.test:444/s/a",
+    "https://example.test/s%252Fa",
   ])("preserves opaque external endpoint bytes %s without DNS equivalence", (uri) => {
-    const input = { type, source: "beads/a", target: { uri, revision: "untouched revision" } };
+    const input = { type, source: "a", target: { uri, revision: "untouched revision" } };
     expect(prepare("createLink", input).operations[0]?.input).toEqual(input);
     // The same outside spelling as an alias target remains a member category error.
     expect(() => prepare("putAlias", { alias: "alias/latest", target: uri })).not.toThrow();
@@ -188,32 +188,32 @@ describe("whole-carrier Read+Update Scope preflight", () => {
   it.each(["%2f", "%2F", "%5c", "%5C"])(
     "preserves a distinct escaped path segment %s while rejecting its local counterpart",
     (separator) => {
-      const outside = `https://example.test/s${separator}other/beads/a`;
+      const outside = `https://example.test/s${separator}other/a`;
       for (const target of [outside, { uri: outside, revision: "exact pin" }]) {
-        const input = { type, source: "beads/a", target };
+        const input = { type, source: "a", target };
         expect(() => parseReadUpdateRequest("createLink", JSON.stringify(input))).not.toThrow();
         expect(prepare("createLink", input).operations[0]?.input).toEqual(input);
       }
-      const local = { type, source: "beads/a", target: `${scope}beads/a${separator}b` };
+      const local = { type, source: "a", target: `${scope}a${separator}b` };
       expect(() => parseReadUpdateRequest("createLink", JSON.stringify(local))).not.toThrow();
       expect(() => prepare("createLink", local)).toThrow(ReadUpdateCarrierError);
-      const control = { type, source: "beads/a", target: `${scope}beads/a` };
+      const control = { type, source: "a", target: `${scope}a` };
       expect(prepare("createLink", control).operations[0]?.input).toEqual(control);
     },
   );
 
   it("uses decoded Scope segments without accepting encoded aliases of the Scope", () => {
     const unicodeScope = "https://example.test/team/%E2%82%AC/";
-    const good = JSON.stringify({ bead: `${unicodeScope}beads/a` });
+    const good = JSON.stringify({ bead: `${unicodeScope}a` });
     expect(() => prepareReadUpdateSingleton(unicodeScope, "deleteBead", good, "key")).not.toThrow();
-    const bad = JSON.stringify({ bead: "https://example.test/%74eam/%e2%82%ac/beads/a" });
+    const bad = JSON.stringify({ bead: "https://example.test/%74eam/%e2%82%ac/a" });
     expect(() => prepareReadUpdateSingleton(unicodeScope, "deleteBead", bad, "key")).toThrow(
       ReadUpdateCarrierError,
     );
     const foreign = JSON.stringify({
       type,
-      source: "beads/a",
-      target: "https://example.test/team/%E2%82%AC-more/beads/a",
+      source: "a",
+      target: "https://example.test/team/%E2%82%AC-more/a",
     });
     expect(() =>
       prepareReadUpdateSingleton(unicodeScope, "createLink", foreign, "key"),
@@ -221,11 +221,11 @@ describe("whole-carrier Read+Update Scope preflight", () => {
   });
 
   it("handles a root Scope and never inspects properties or arbitrary URI-looking strings", () => {
-    const properties = { uri: "https://EXAMPLE.test/s/beads/%2F", alias: "alias//invalid" };
+    const properties = { uri: "https://EXAMPLE.test/s/%2F", alias: "alias//invalid" };
     const carrier = prepareReadUpdateSingleton(
       "https://example.test/",
       "createBead",
-      JSON.stringify({ type, id: "https://example.test/beads/a", properties }),
+      JSON.stringify({ type, id: "https://example.test/a", properties }),
       "key",
     );
     expect(carrier.operations[0]?.input.properties).toEqual(properties);
@@ -233,7 +233,7 @@ describe("whole-carrier Read+Update Scope preflight", () => {
       prepareReadUpdateSingleton(
         "https://example.test/",
         "deleteBead",
-        JSON.stringify({ bead: "https://example.test:443/beads/a" }),
+        JSON.stringify({ bead: "https://example.test:443/a" }),
         "key",
       ),
     ).toThrow(ReadUpdateCarrierError);
@@ -298,19 +298,19 @@ describe("whole-carrier Read+Update Scope preflight", () => {
           }),
         ),
       );
-    expect(() => receive("https://example.test:443/s/beads/a")).toThrow(ReadUpdateCarrierError);
+    expect(() => receive("https://example.test:443/s/a")).toThrow(ReadUpdateCarrierError);
     expect(admit).not.toHaveBeenCalled();
-    expect(receive(`${scope}beads/a`)).toEqual(["first", "middle", "last"]);
+    expect(receive(`${scope}a`)).toEqual(["first", "middle", "last"]);
     expect(admit).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a forged prepared carrier and malformed raw singleton keys", () => {
-    const carrier = prepare("deleteBead", { bead: "beads/a" });
+    const carrier = prepare("deleteBead", { bead: "a" });
     expect(() => assertPreparedReadUpdateCarrier({ ...carrier }, scope)).toThrow(TypeError);
     expect(() => assertPreparedReadUpdateCarrier(null, scope)).toThrow(TypeError);
     for (const key of ["", " padded", "key,key", "a".repeat(257)]) {
       expect(() =>
-        prepareReadUpdateSingleton(scope, "deleteBead", '{"bead":"beads/a"}', key),
+        prepareReadUpdateSingleton(scope, "deleteBead", '{"bead":"a"}', key),
       ).toThrow(ReadUpdateCarrierError);
     }
   });

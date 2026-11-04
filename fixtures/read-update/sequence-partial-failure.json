@@ -35,7 +35,7 @@
             {
               "idempotencyKey": "w1-task-42-reopen",
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r1",
               "propertiesChange": [
                 {
@@ -56,7 +56,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/blocks",
               "source": "@spike",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {},
               "revisionProvenance": {
                 "actor": {
@@ -68,12 +68,12 @@
             {
               "idempotencyKey": "w1-task-42-delete",
               "operation": "deleteBead",
-              "bead": "beads/task-42"
+              "bead": "task-42"
             },
             {
               "idempotencyKey": "w1-task-999-close",
               "operation": "updateBead",
-              "bead": "beads/task-999",
+              "bead": "task-999",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -91,7 +91,7 @@
             {
               "idempotencyKey": "w1-cites-7-1-note",
               "operation": "updateLink",
-              "link": "links/cites-7-1",
+              "link": "cites-7-1",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -123,7 +123,7 @@
               "operationName": "spike",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-106",
+                "id": "https://beads.example/acme/task-106",
                 "type": "https://work.example/types/task",
                 "revision": "task-106-r1",
                 "properties": {
@@ -145,17 +145,17 @@
               "status": 409,
               "retry": "after-state-change",
               "operationIndex": 1,
-              "detail": "beads/task-42 is not at revision task-42-r1"
+              "detail": "task-42 is not at revision task-42-r1"
             },
             {
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/blocks-107",
+                "id": "https://beads.example/acme/blocks-107",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-107-r1",
-                "source": "https://beads.example/acme/beads/task-106",
-                "target": "https://beads.example/acme/beads/task-42",
+                "source": "https://beads.example/acme/task-106",
+                "target": "https://beads.example/acme/task-42",
                 "properties": {},
                 "metadata": {},
                 "revisionProvenance": {
@@ -180,16 +180,16 @@
               "status": 404,
               "retry": "after-state-change",
               "operationIndex": 4,
-              "detail": "beads/task-999 does not exist or is not visible in this Authorization View"
+              "detail": "task-999 does not exist or is not visible in this Authorization View"
             },
             {
               "operationIndex": 5,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-7-1",
+                "id": "https://beads.example/acme/cites-7-1",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-7-1-r2",
-                "source": "https://beads.example/acme/beads/decision-7",
+                "source": "https://beads.example/acme/decision-7",
                 "target": {
                   "uri": "https://github.example/issues/88",
                   "revision": "a1b2c3"
@@ -205,7 +205,7 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-7",
+              "source": "https://beads.example/acme/decision-7",
               "sourceRevision": "decision-7-r4"
             }
           ]

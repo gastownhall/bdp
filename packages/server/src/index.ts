@@ -1157,7 +1157,7 @@ async function drainServerOperations(
 function validateConfiguredScope(scope: unknown): asserts scope is AbsoluteHttpUrl {
   try {
     if (typeof scope !== "string") throw new TypeError("Scope must be a string");
-    resolveCanonicalLocalResourceId(scope as AbsoluteHttpUrl, "bead", "beads/scope-validation");
+    resolveCanonicalLocalResourceId(scope as AbsoluteHttpUrl, "bead", "scope-validation");
   } catch (cause) {
     throw new TypeError("createReadServer scope must be a canonical HTTP(S) URL ending in /", {
       cause,
@@ -1418,7 +1418,7 @@ function assertExactScopePortFields(
  * Validates the alias table at composition time, fail-closed: every alias
  * path is one-or-more canonical safe segments (the Resource-ID grammar),
  * and every target is a canonical in-Scope Bead URL. Alias-to-alias is
- * structurally impossible because targets must live beneath `beads/`.
+ * structurally impossible because targets must be canonical Bead identities.
  */
 function validateAliasTable(
   aliases: Readonly<Record<string, AbsoluteHttpUrl>> | undefined,
@@ -1434,7 +1434,7 @@ function validateAliasTable(
   if (aliases === undefined) return undefined;
   const table = new Map<string, AbsoluteHttpUrl>();
   for (const [path, target] of Object.entries(aliases)) {
-    // The exact Resource-ID segment grammar, shared with beads/ and links/:
+    // The exact Resource-ID segment grammar, shared with Resource identities:
     // canonical encodings only, one valid spelling per name.
     try {
       assertCanonicalPathSegments(path, "alias path");

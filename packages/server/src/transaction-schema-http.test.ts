@@ -229,7 +229,7 @@ const minimumCases: Record<string, string>[] = [
   { "bdp-minimum-scope-position": "", "if-none-match": "*" },
   { "bdp-scope-epoch": "bad", "if-match": '"missing"' },
 ];
-it("preserves minimum refusals before schema conditionals and never observes excluded requests", async () => {
+it("uses Resource fallback for schema paths with minimum controls and never observes schema bytes", async () => {
   const observe = vi.fn(async () => ({
     context: { scopeEpoch: "e", authorizationView: "v", scopePosition: "pos-0" },
   }));
@@ -250,12 +250,17 @@ it("preserves minimum refusals before schema conditionals and never observes exc
       headers["bdp-minimum-scope-position"] === "pos-0" &&
       headers["bdp-scope-epoch"] === "epoch" &&
       headers["bdp-authorization-view"] === "view";
-    expect(response.status, "preserved minimum refusal").toBe(complete ? 500 : 400);
-    expect(await select(new Request(root, { headers }), authorized)).toBeUndefined();
-    expect(response.headers["x-bdp-development-limit"]).toBe(
-      complete ? "minimum-position-route" : undefined,
+    expect(response.status, "schema retrieval is not selected with minimum controls").toBe(
+      complete ? 404 : 400,
     );
-    if (complete) expect(response.text).toBe("");
+    expect(await select(new Request(root, { headers }), authorized)).toBeUndefined();
+    expect(response.headers["x-bdp-development-limit"]).toBeUndefined();
+    if (complete)
+      expect(JSON.parse(response.text)).toMatchObject({
+        status: 404,
+        code: "resource-not-found",
+        retry: "after-state-change",
+      });
     else
       expect(JSON.parse(response.text)).toMatchObject({
         status: 400,
@@ -263,8 +268,9 @@ it("preserves minimum refusals before schema conditionals and never observes exc
         retry: "never",
       });
     expect(response.headers["x-bdp-development"]).toBe("non-attesting");
-    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
-      expect(response.headers[name]).toBeUndefined();
+    if (!complete)
+      for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+        expect(response.headers[name]).toBeUndefined();
   }
   for (const headers of [
     { accept: "text/plain" },
@@ -303,7 +309,7 @@ it.each([
   ["outside-namespace", `${scope}a`, `${scope}a`],
   ["query-retrieval", root + "?edition=1", root + "?edition=1"],
 ])(
-  "preserves accepted offline configuration and unserved aliases: %s",
+  "serves exact schema retrieval URLs and applies Resource fallback to other spellings: %s",
   async (_name, retrieval, canonical) => {
     const input = artifacts(retrieval!, canonical!);
     const service = await runtime(input);
@@ -337,7 +343,15 @@ it.each([
     } else {
       expect(await select(new Request(retrieval!), authorized)).toBeUndefined();
       const response = await wire(service, retrieval!);
-      expect(response.status).toBe(_name === "outside-namespace" ? 200 : 404);
+      expect(response.status).toBe(
+        _name === "outside-namespace" ? 200 : _name === "query-retrieval" ? 400 : 404,
+      );
+      if (_name === "query-retrieval")
+        expect(JSON.parse(response.text)).toMatchObject({
+          status: 400,
+          code: "invalid-parameter",
+          retry: "never",
+        });
       if (_name === "outside-namespace")
         expect(JSON.parse(response.text)).toMatchObject({
           id: `${scope}a`,

@@ -79,11 +79,11 @@ function commit(
 function seed(f: ReturnType<typeof fixture>) {
   for (const id of ["a", "b"])
     commit(f.store, `seed-${id}`, "createBead", {
-      id: `beads/${id}`,
+      id: `${id}`,
       type: bead,
       properties: { value: 0 },
     });
-  commit(f.store, "seed-alias", "putAlias", { alias: "alias/work", target: "beads/a" });
+  commit(f.store, "seed-alias", "putAlias", { alias: "alias/work", target: "a" });
 }
 const sequence = (operations: unknown[]) =>
   prepareTransactionSequence(scope, JSON.stringify({ operations }));
@@ -99,15 +99,15 @@ it("captures alias-only operands at the eligible turn, not whole admission", () 
   const f = fixture();
   seed(f);
   const stepper = createTransactionSequenceStepper(f.store, "p", sequence([update("u", 1)]));
-  commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+  commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
   const turn = stepper.step();
   expect(turn.entry).toMatchObject({
     outcome: "updated",
-    resource: { id: `${scope}beads/b`, properties: { value: 1 } },
+    resource: { id: `${scope}b`, properties: { value: 1 } },
   });
   expect(f.store.inspect().resources).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: `${scope}beads/a`, properties: { value: 0 } }),
+      expect.objectContaining({ id: `${scope}a`, properties: { value: 0 } }),
     ]),
   );
 });
@@ -125,17 +125,17 @@ it.each([false, true])(
     );
     const candidate = request(
       "createLink",
-      swap ? edge("beads/b", `${scope}alias/work`) : edge("alias/work", "beads/b"),
+      swap ? edge("b", `${scope}alias/work`) : edge("alias/work", "b"),
     );
     expect(f.store.admit("p", "edge", candidate).kind).toBe("comparison-pending");
-    expect(f.store.admit("p", "edge", request("createLink", edge("beads/a", "beads/b"))).kind).toBe(
+    expect(f.store.admit("p", "edge", request("createLink", edge("a", "b"))).kind).toBe(
       "conflict",
     );
-    commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+    commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
     const turn = stepper.step();
     expect(turn.entry).toMatchObject({
       outcome: "created",
-      resource: { source: `${scope}beads/b`, target: `${scope}beads/b` },
+      resource: { source: `${scope}b`, target: `${scope}b` },
     });
     const retry = f.store.admit("p", "edge", candidate);
     expect(retry.kind).toBe("existing");
@@ -180,17 +180,17 @@ it("deletes the turn-time alias target and retains its original witness after de
     "p",
     sequence([{ operation: "deleteBead", idempotencyKey: "delete", bead: "alias/work" }]),
   );
-  commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+  commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
   expect(owner.step().entry).toMatchObject({
     outcome: "deleted",
-    deleted: { resourceKind: "bead", resource: { id: `${scope}beads/b`, type: bead } },
+    deleted: { resourceKind: "bead", resource: { id: `${scope}b`, type: bead } },
   });
   expect(f.store.inspect().resources.map((resource) => (resource as { id: string }).id)).toEqual([
-    `${scope}beads/a`,
+    `${scope}a`,
   ]);
   const replay = f.store.admit("p", "delete", request("deleteBead", { bead: "alias/work" }));
   expect(replay.kind).toBe("existing");
-  expect(f.store.admit("p", "delete", request("deleteBead", { bead: "beads/b" }))).toEqual(replay);
+  expect(f.store.admit("p", "delete", request("deleteBead", { bead: "b" }))).toEqual(replay);
   f.reopen();
   expect(f.store.admit("p", "delete", request("deleteBead", { bead: "alias/work" }))).toEqual(
     replay,
@@ -237,7 +237,7 @@ it("retains a recorded miss after assignment while a fresh key executes and the 
       sequence([
         { operation: "deleteAlias", alias: "alias/work", idempotencyKey: "remove" },
         update("miss", 1),
-        { ...update("tail", 2), bead: "beads/b" },
+        { ...update("tail", 2), bead: "b" },
       ]),
     ),
   );
@@ -249,7 +249,7 @@ it("retains a recorded miss after assignment while a fresh key executes and the 
   };
   const failure = f.store.admit("p", "miss", request("updateBead", input));
   expect(failure.kind).toBe("existing");
-  commit(f.store, "assign", "putAlias", { alias: "alias/work", target: "beads/b" });
+  commit(f.store, "assign", "putAlias", { alias: "alias/work", target: "b" });
   expect(f.store.admit("p", "miss", request("updateBead", input))).toEqual(failure);
   expect(
     f.store.admit("p", "miss", request("updateBead", { ...input, bead: "alias/other-missing" }))
@@ -275,26 +275,26 @@ it("never replaces original success witnesses with new retry-locator lookups", (
     propertiesChange: [{ op: "replace", path: "/value", value: 1 }],
   };
   const retained = f.store.admit("p", "u", request("updateBead", input));
-  commit(f.store, "new-locator", "putAlias", { alias: "alias/fresh", target: "beads/a" });
+  commit(f.store, "new-locator", "putAlias", { alias: "alias/fresh", target: "a" });
   expect(f.store.admit("p", "u", request("updateBead", { ...input, bead: "alias/fresh" }))).toEqual(
     retained,
   );
-  commit(f.store, "new-repoint", "putAlias", { alias: "alias/fresh", target: "beads/b" });
+  commit(f.store, "new-repoint", "putAlias", { alias: "alias/fresh", target: "b" });
   expect(
     f.store.admit("p", "u", request("updateBead", { ...input, bead: "alias/fresh" })).kind,
   ).toBe("conflict");
-  commit(f.store, "old-repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+  commit(f.store, "old-repoint", "putAlias", { alias: "alias/work", target: "b" });
   commit(f.store, "delete", "deleteAlias", { alias: "alias/work" });
   expect(f.store.admit("p", "u", request("updateBead", input))).toEqual(retained);
-  expect(f.store.admit("p", "u", request("updateBead", { ...input, bead: "beads/a" }))).toEqual(
+  expect(f.store.admit("p", "u", request("updateBead", { ...input, bead: "a" }))).toEqual(
     retained,
   );
-  expect(original).toMatchObject({ resource: { id: `${scope}beads/a`, properties: { value: 1 } } });
+  expect(original).toMatchObject({ resource: { id: `${scope}a`, properties: { value: 1 } } });
   f.reopen();
   expect(f.store.admit("p", "u", request("updateBead", input))).toEqual(retained);
   expect(f.store.inspect().resources).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: `${scope}beads/b`, properties: { value: 0 } }),
+      expect.objectContaining({ id: `${scope}b`, properties: { value: 0 } }),
     ]),
   );
 });
@@ -330,7 +330,7 @@ it.each(["singleton", "batch"])(
       { operation: "createLink", idempotencyKey: "edge", ...edge("alias/work", "alias/work") },
     ]);
     const owner = createTransactionSequenceStepper(f.store, "p", prepared);
-    const input = edge("alias/work", "beads/b");
+    const input = edge("alias/work", "b");
     const candidate =
       carrier === "singleton"
         ? request("createLink", input)
@@ -342,10 +342,10 @@ it.each(["singleton", "batch"])(
     const compared = await compareAndAdmitTransaction(f.store, "p", "edge", candidate, {
       wait: async () => {
         waits++;
-        commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+        commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
         expect(owner.step().entry).toMatchObject({
           outcome: "created",
-          resource: { source: `${scope}beads/b`, target: `${scope}beads/b` },
+          resource: { source: `${scope}b`, target: `${scope}b` },
         });
       },
     });
@@ -367,7 +367,7 @@ it("uses one bounded comparison deadline and leaves the owner's reservation inta
       "p",
       "u",
       request("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         propertiesChange: [{ op: "replace", path: "/value", value: 1 }],
       }),
       {
@@ -405,7 +405,7 @@ it("symbolizes original locators across both slots without a live lookup and pre
   expect(compare({ uri: `${scope}alias/y`, revision: "opaque" }, "alias/x")).toBe("pending");
   expect(compare({ uri: "alias/x", revision: "different" }, "alias/y")).toBe("conflict");
   // The path no longer proves that an identity is a Link; kind comes from the row.
-  expect(compare({ uri: "alias/x", revision: "opaque" }, "links/not-a-bead")).toBe("pending");
+  expect(compare({ uri: "alias/x", revision: "opaque" }, "not-a-bead")).toBe("pending");
   const repeated = dependencyTemplate(
     "attempt",
     sequence([{ operation: "createLink", idempotencyKey: "edge", ...edge("alias/x", "alias/x") }])
@@ -414,7 +414,7 @@ it("symbolizes original locators across both slots without a live lookup and pre
   expect(
     compareDependencyTemplate(
       repeated,
-      request("createLink", edge("beads/a", "beads/b")),
+      request("createLink", edge("a", "b")),
       resolve,
       () => undefined,
     ),
@@ -559,9 +559,9 @@ it.each(["missing", "inconsistent", "malformed", "foreign-owner"])(
       f.store,
       "p",
       sequence([
-        { operation: "putAlias", idempotencyKey: "prefix", alias: "alias/work", target: "beads/b" },
+        { operation: "putAlias", idempotencyKey: "prefix", alias: "alias/work", target: "b" },
         update("u", 1),
-        { ...update("tail", 2), bead: "beads/a" },
+        { ...update("tail", 2), bead: "a" },
       ]),
     );
     expect(owner.step().entry).toMatchObject({ outcome: "updated" });
@@ -594,17 +594,17 @@ it.each(["missing", "inconsistent", "malformed", "foreign-owner"])(
     );
     expect(f.store.inspect().resources).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: `${scope}beads/a`, properties: { value: 0 } }),
-        expect.objectContaining({ id: `${scope}beads/b`, properties: { value: 0 } }),
+        expect.objectContaining({ id: `${scope}a`, properties: { value: 0 } }),
+        expect.objectContaining({ id: `${scope}b`, properties: { value: 0 } }),
       ]),
     );
-    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/b`);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}b`);
     expect(
       f.store.admit(
         "p",
         "tail",
         request("updateBead", {
-          bead: "beads/a",
+          bead: "a",
           propertiesChange: [{ op: "replace", path: "/value", value: 2 }],
         }),
       ).kind,
@@ -643,14 +643,14 @@ it("cannot manufacture an executable claim from an owned pending alias receipt",
   const forged = { receipt };
   expect(() => f.store.execute(forged)).toThrow("foreign transaction claim");
   expect(f.store.admit("p", "u", prepared.members[0]!.request).kind).toBe("comparison-pending");
-  commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+  commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
   expect(f.store.nextSequence(attempt).result).toMatchObject({
     kind: "receipt",
     receipt: {
       status: "completed",
       results: [
         expect.objectContaining({
-          resource: expect.objectContaining({ id: `${scope}beads/b`, properties: { value: 1 } }),
+          resource: expect.objectContaining({ id: `${scope}b`, properties: { value: 1 } }),
         }),
       ],
     },
@@ -682,7 +682,7 @@ it("requires the normalization UPDATE to match before recording in-memory comple
   expect(normalized).toBe(false);
   expect(f.store.inspect().resources).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: `${scope}beads/a`, properties: { value: 0 } }),
+      expect.objectContaining({ id: `${scope}a`, properties: { value: 0 } }),
     ]),
   );
   expect(
@@ -701,7 +701,7 @@ it("waits for a fixed A candidate then conflicts with the owner's actual B witne
   seed(f);
   const owner = createTransactionSequenceStepper(f.store, "p", sequence([update("u", 1)]));
   const candidate = request("updateBead", {
-    bead: "beads/a",
+    bead: "a",
     propertiesChange: [{ op: "replace", path: "/value", value: 1 }],
   });
   expect(f.store.admit("p", "u", candidate).kind).toBe("comparison-pending");
@@ -710,10 +710,10 @@ it("waits for a fixed A candidate then conflicts with the owner's actual B witne
     await compareAndAdmitTransaction(f.store, "p", "u", candidate, {
       wait: async () => {
         waits++;
-        commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "beads/b" });
+        commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
         expect(owner.step().entry).toMatchObject({
           outcome: "updated",
-          resource: { id: `${scope}beads/b`, properties: { value: 1 } },
+          resource: { id: `${scope}b`, properties: { value: 1 } },
         });
       },
     }),
@@ -735,7 +735,7 @@ it("waits for a fixed A candidate then conflicts with the owner's actual B witne
       "p",
       "u",
       request("updateBead", {
-        bead: "beads/b",
+        bead: "b",
         propertiesChange: [{ op: "replace", path: "/value", value: 1 }],
       }),
     ),
@@ -751,15 +751,15 @@ it("new candidate locators are comparison facts, not original-symbol witnesses",
   const compare = (target: string | undefined) =>
     compareDependencyTemplate(
       template,
-      request("createLink", edge("alias/fresh", "beads/b")),
+      request("createLink", edge("alias/fresh", "b")),
       (locator) => {
         calls.push(locator);
         return target;
       },
       () => undefined,
     );
-  expect(compare(`${scope}beads/a`)).toBe("conflict");
-  expect(compare(`${scope}beads/b`)).toBe("pending");
+  expect(compare(`${scope}a`)).toBe("conflict");
+  expect(compare(`${scope}b`)).toBe("pending");
   expect(compare(undefined)).toBe("conflict");
   expect(calls).toEqual([`${scope}alias/fresh`, `${scope}alias/fresh`, `${scope}alias/fresh`]);
 });
@@ -790,7 +790,7 @@ it("retracts only this attempt's mixed dependency on a transient creator", () =>
     "idempotency-in-progress",
   ]);
   expect(
-    f.store.admit("p", "dependent", request("createLink", edge("beads/a", "alias/work"))).kind,
+    f.store.admit("p", "dependent", request("createLink", edge("a", "alias/work"))).kind,
   ).toBe("owned");
   if (foreign.kind !== "owned") throw new Error("foreign creator");
   expect(f.store.execute(foreign.claim).status).toBe("completed");
@@ -802,7 +802,7 @@ it.each(["after-prefix", "after-resolution", "malformed-pending"])(
     seed(f);
     f.store.close();
     const operations = [
-      { operation: "putAlias", alias: "alias/work", target: "beads/b", idempotencyKey: "repoint" },
+      { operation: "putAlias", alias: "alias/work", target: "b", idempotencyKey: "repoint" },
       update("u", 1),
     ];
     const modules = Object.fromEntries(
@@ -855,13 +855,13 @@ stepper.step();if(${JSON.stringify(stage)}==='after-resolution')stepper.step();p
     expect(f.reopen().recoveredPending).toBe(1);
     expect(f.store.inspect().resources).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: `${scope}beads/b`, properties: { value: 0 } }),
+        expect.objectContaining({ id: `${scope}b`, properties: { value: 0 } }),
       ]),
     );
     const response = steps(createTransactionSequenceStepper(f.store, "p", sequence(operations)));
     expect(response[1]).toMatchObject({
       outcome: "updated",
-      resource: { id: `${scope}beads/b`, properties: { value: 1 } },
+      resource: { id: `${scope}b`, properties: { value: 1 } },
     });
     const size = readFileSync(f.options.file).length;
     expect(size).toBeGreaterThan(0);

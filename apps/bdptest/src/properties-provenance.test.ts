@@ -51,7 +51,7 @@ it("preserves Problem-shaped properties through the public server and Fetch clie
             client.perform({
               kind: "properties",
               resource: "bead",
-              id: `${scope}beads/demo-a`,
+              id: `${scope}demo-a`,
             }),
           ).resolves.toEqual(properties);
         } finally {

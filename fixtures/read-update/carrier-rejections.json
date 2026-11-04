@@ -419,7 +419,7 @@
               "operation": "createLink",
               "name": "cite",
               "type": "https://work.example/types/cites",
-              "source": "beads/decision-7",
+              "source": "decision-7",
               "target": "https://github.example/issues/126",
               "properties": {},
               "revisionProvenance": {
@@ -517,167 +517,167 @@
             {
               "idempotencyKey": "w1-bulk-01",
               "operation": "deleteLink",
-              "link": "links/bulk-01"
+              "link": "bulk-01"
             },
             {
               "idempotencyKey": "w1-bulk-02",
               "operation": "deleteLink",
-              "link": "links/bulk-02"
+              "link": "bulk-02"
             },
             {
               "idempotencyKey": "w1-bulk-03",
               "operation": "deleteLink",
-              "link": "links/bulk-03"
+              "link": "bulk-03"
             },
             {
               "idempotencyKey": "w1-bulk-04",
               "operation": "deleteLink",
-              "link": "links/bulk-04"
+              "link": "bulk-04"
             },
             {
               "idempotencyKey": "w1-bulk-05",
               "operation": "deleteLink",
-              "link": "links/bulk-05"
+              "link": "bulk-05"
             },
             {
               "idempotencyKey": "w1-bulk-06",
               "operation": "deleteLink",
-              "link": "links/bulk-06"
+              "link": "bulk-06"
             },
             {
               "idempotencyKey": "w1-bulk-07",
               "operation": "deleteLink",
-              "link": "links/bulk-07"
+              "link": "bulk-07"
             },
             {
               "idempotencyKey": "w1-bulk-08",
               "operation": "deleteLink",
-              "link": "links/bulk-08"
+              "link": "bulk-08"
             },
             {
               "idempotencyKey": "w1-bulk-09",
               "operation": "deleteLink",
-              "link": "links/bulk-09"
+              "link": "bulk-09"
             },
             {
               "idempotencyKey": "w1-bulk-10",
               "operation": "deleteLink",
-              "link": "links/bulk-10"
+              "link": "bulk-10"
             },
             {
               "idempotencyKey": "w1-bulk-11",
               "operation": "deleteLink",
-              "link": "links/bulk-11"
+              "link": "bulk-11"
             },
             {
               "idempotencyKey": "w1-bulk-12",
               "operation": "deleteLink",
-              "link": "links/bulk-12"
+              "link": "bulk-12"
             },
             {
               "idempotencyKey": "w1-bulk-13",
               "operation": "deleteLink",
-              "link": "links/bulk-13"
+              "link": "bulk-13"
             },
             {
               "idempotencyKey": "w1-bulk-14",
               "operation": "deleteLink",
-              "link": "links/bulk-14"
+              "link": "bulk-14"
             },
             {
               "idempotencyKey": "w1-bulk-15",
               "operation": "deleteLink",
-              "link": "links/bulk-15"
+              "link": "bulk-15"
             },
             {
               "idempotencyKey": "w1-bulk-16",
               "operation": "deleteLink",
-              "link": "links/bulk-16"
+              "link": "bulk-16"
             },
             {
               "idempotencyKey": "w1-bulk-17",
               "operation": "deleteLink",
-              "link": "links/bulk-17"
+              "link": "bulk-17"
             },
             {
               "idempotencyKey": "w1-bulk-18",
               "operation": "deleteLink",
-              "link": "links/bulk-18"
+              "link": "bulk-18"
             },
             {
               "idempotencyKey": "w1-bulk-19",
               "operation": "deleteLink",
-              "link": "links/bulk-19"
+              "link": "bulk-19"
             },
             {
               "idempotencyKey": "w1-bulk-20",
               "operation": "deleteLink",
-              "link": "links/bulk-20"
+              "link": "bulk-20"
             },
             {
               "idempotencyKey": "w1-bulk-21",
               "operation": "deleteLink",
-              "link": "links/bulk-21"
+              "link": "bulk-21"
             },
             {
               "idempotencyKey": "w1-bulk-22",
               "operation": "deleteLink",
-              "link": "links/bulk-22"
+              "link": "bulk-22"
             },
             {
               "idempotencyKey": "w1-bulk-23",
               "operation": "deleteLink",
-              "link": "links/bulk-23"
+              "link": "bulk-23"
             },
             {
               "idempotencyKey": "w1-bulk-24",
               "operation": "deleteLink",
-              "link": "links/bulk-24"
+              "link": "bulk-24"
             },
             {
               "idempotencyKey": "w1-bulk-25",
               "operation": "deleteLink",
-              "link": "links/bulk-25"
+              "link": "bulk-25"
             },
             {
               "idempotencyKey": "w1-bulk-26",
               "operation": "deleteLink",
-              "link": "links/bulk-26"
+              "link": "bulk-26"
             },
             {
               "idempotencyKey": "w1-bulk-27",
               "operation": "deleteLink",
-              "link": "links/bulk-27"
+              "link": "bulk-27"
             },
             {
               "idempotencyKey": "w1-bulk-28",
               "operation": "deleteLink",
-              "link": "links/bulk-28"
+              "link": "bulk-28"
             },
             {
               "idempotencyKey": "w1-bulk-29",
               "operation": "deleteLink",
-              "link": "links/bulk-29"
+              "link": "bulk-29"
             },
             {
               "idempotencyKey": "w1-bulk-30",
               "operation": "deleteLink",
-              "link": "links/bulk-30"
+              "link": "bulk-30"
             },
             {
               "idempotencyKey": "w1-bulk-31",
               "operation": "deleteLink",
-              "link": "links/bulk-31"
+              "link": "bulk-31"
             },
             {
               "idempotencyKey": "w1-bulk-32",
               "operation": "deleteLink",
-              "link": "links/bulk-32"
+              "link": "bulk-32"
             },
             {
               "idempotencyKey": "w1-bulk-33",
               "operation": "deleteLink",
-              "link": "links/bulk-33"
+              "link": "bulk-33"
             }
           ]
         }

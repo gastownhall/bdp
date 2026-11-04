@@ -70,7 +70,7 @@ describe("shared Read HTTP semantics through the public server", () => {
             revision: options.revision ?? "rev-1",
             properties: options.properties ?? {},
             ...(operation.resource === "link"
-              ? { source: `${SCOPE}beads/a`, target: `${SCOPE}beads/b` }
+              ? { source: `${SCOPE}a`, target: `${SCOPE}b` }
               : {}),
           } as never);
         }
@@ -84,7 +84,7 @@ describe("shared Read HTTP semantics through the public server", () => {
           return scopePortSuccess({
             items: [
               {
-                id: `${SCOPE}beads/a`,
+                id: `${SCOPE}a`,
                 type: TYPE,
                 revision: "rev-1",
                 properties: options.properties,
@@ -100,7 +100,7 @@ describe("shared Read HTTP semantics through the public server", () => {
       target: "bdptest",
       admittedProfile: admitReadServerProfile("read", "bdptest"),
       port,
-      aliases: { latest: `${SCOPE}beads/a` },
+      aliases: { latest: `${SCOPE}a` },
       readControls: options.denied
         ? {
             ...controls,
@@ -151,7 +151,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     ["application/json;charset=utf-8, */*;q=0.8", 200],
   ])("negotiates JSON for Accept %s", async (accept, status) => {
     const { get, calls } = fixture();
-    const response = await get("beads/a", accept === undefined ? {} : { Accept: accept });
+    const response = await get("a", accept === undefined ? {} : { Accept: accept });
     expect(response.status).toBe(status);
     expect(calls).toHaveLength(1);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -188,7 +188,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     [{ "If-None-Match": '"rev-1" trailing' }, 200],
   ])("evaluates tag preconditions %j", async (headers, status) => {
     const { get } = fixture();
-    const response = await get("beads/a", headers);
+    const response = await get("a", headers);
     expect(response.status).toBe(status);
     expect(response.headers.get("etag")).toBe('"rev-1"');
     expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -218,7 +218,7 @@ describe("shared Read HTTP semantics through the public server", () => {
         return;
       }
       const { get } = fixture({ revision });
-      const response = await get("beads/a", { "If-None-Match": `"other", W/"${revision}"` });
+      const response = await get("a", { "If-None-Match": `"other", W/"${revision}"` });
       expect(response.status).toBe(304);
     },
   );
@@ -267,7 +267,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     "bdp/links",
     "types/",
     "types/task",
-    "beads/a?view=properties",
+    "a?view=properties",
   ])("handles absent validators on %s", async (target) => {
     const { get } = fixture();
     expect((await get(target, { "If-Match": '"specific"' })).status).toBe(412);
@@ -277,7 +277,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     expect((await get(target, { Accept: "image/png", "If-None-Match": "*" })).status).toBe(406);
   });
 
-  it.each(["beads/a", "beads/a?view=properties", "bdp.json"])(
+  it.each(["a", "a?view=properties", "bdp.json"])(
     "does not invent modification dates on %s",
     async (target) => {
       const { get } = fixture();
@@ -299,8 +299,8 @@ describe("shared Read HTTP semantics through the public server", () => {
     "limit-exceeded",
   ] as const)("keeps ordinary %s before negotiation and conditions", async (code) => {
     const { get } = fixture({ problem: readProblem(code) });
-    const normal = await get("beads/a");
-    const guarded = await get("beads/a", { Accept: "image/png", "If-None-Match": "*" });
+    const normal = await get("a");
+    const guarded = await get("a", { Accept: "image/png", "If-None-Match": "*" });
     expect(guarded.status).toBe(normal.status);
     expect(guarded.body).toEqual(normal.body);
     expect(guarded.headers.get("content-type")).toBe("application/problem+json");
@@ -308,7 +308,7 @@ describe("shared Read HTTP semantics through the public server", () => {
 
   it("keeps authentication before negotiation without consulting the port", async () => {
     const { get, calls } = fixture({ denied: true });
-    const response = await get("beads/a", { Accept: "image/png", "If-None-Match": "*" });
+    const response = await get("a", { Accept: "image/png", "If-None-Match": "*" });
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toBe('Basic realm="read"');
     expect(calls).toHaveLength(0);
@@ -382,7 +382,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     "strips HEAD bodies while preserving GET decisions and headers %j",
     async (headers) => {
       const { get } = fixture();
-      for (const target of ["beads/a", "beads/", "bdp.json", "not-a-route"]) {
+      for (const target of ["a", "", "bdp.json", "not-a-route"]) {
         const normal = await get(target, headers);
         const head = await get(target, headers, "HEAD");
         expect(head.status).toBe(normal.status);
@@ -436,9 +436,9 @@ describe("shared Read HTTP semantics through the public server", () => {
         request.on("error", reject);
         request.end();
       });
-    const record = `{"id":"${SCOPE}beads/a","type":"${TYPE}","revision":"rev-1","properties":{"deep":${deep}},"metadata":{}}`;
+    const record = `{"id":"${SCOPE}a","type":"${TYPE}","revision":"rev-1","properties":{"deep":${deep}},"metadata":{}}`;
     for (const [path, expected] of [
-      ["beads/a", record],
+      ["a", record],
       ["bdp/beads", `{"items":[${record}],"next":null}`],
     ]) {
       if (path === undefined || expected === undefined) throw new Error("missing HTTP fixture");
@@ -494,13 +494,13 @@ describe("shared Read HTTP semantics through the public server", () => {
         request.on("error", reject);
         request.end();
       });
-    const full = await send("GET", "beads/a", {});
+    const full = await send("GET", "a", {});
     expect(full.status).toBe(200);
     expect(JSON.parse(full.body).properties).toEqual(options.properties);
     expect(Buffer.byteLength(full.body)).toBeGreaterThan(full.body.length);
     expect(full.headers["content-length"]).toBe(String(Buffer.byteLength(full.body)));
     for (const method of ["GET", "HEAD"]) {
-      const conditional = await send(method, "beads/a", {
+      const conditional = await send(method, "a", {
         "If-None-Match": ['"other"', 'W/"rev-1"'],
       });
       expect(conditional.status).toBe(304);
@@ -509,12 +509,12 @@ describe("shared Read HTTP semantics through the public server", () => {
       expect(conditional.headers.vary).toBe("Accept");
       expect(conditional.headers["cache-control"]).toBe(full.headers["cache-control"]);
       expect(conditional.headers["content-length"]).toBeUndefined();
-      const mismatch = await send(method, "beads/a", { "If-Match": 'W/"rev-1"' });
+      const mismatch = await send(method, "a", { "If-Match": 'W/"rev-1"' });
       expect(mismatch.status).toBe(412);
       expect(mismatch.body).toBe("");
       expect(mismatch.headers.etag).toBe(full.headers.etag);
       expect(mismatch.headers.vary).toBe("Accept");
-      const refusal = await send(method, "beads/a", {
+      const refusal = await send(method, "a", {
         Accept: ["application/json;q=0", "*/*;q=1"],
         "If-None-Match": "*",
       });
@@ -525,17 +525,17 @@ describe("shared Read HTTP semantics through the public server", () => {
       expect(missing.status).toBe(406);
       expect(missing.body).toBe("");
     }
-    const head = await send("HEAD", "beads/a", {});
+    const head = await send("HEAD", "a", {});
     expect(head.body).toBe("");
     expect(head.headers["content-length"]).toBe(full.headers["content-length"]);
-    expect((await send("POST", "beads/a", { Accept: "image/png", "If-Match": "*" })).status).toBe(
+    expect((await send("POST", "a", { Accept: "image/png", "If-Match": "*" })).status).toBe(
       405,
     );
     expect(errors).toEqual([]);
     const fault = new Error("private backend fault");
     options.fault = fault;
     for (const method of ["GET", "HEAD"]) {
-      const failure = await send(method, "beads/a", { Accept: "image/png", "If-None-Match": "*" });
+      const failure = await send(method, "a", { Accept: "image/png", "If-None-Match": "*" });
       expect(failure.status).toBe(500);
       expect(failure.body).toBe("");
       expect(failure.headers.etag).toBeUndefined();
@@ -548,8 +548,8 @@ describe("shared Read HTTP semantics through the public server", () => {
   it("does not suppress invalid backend data or an unexpected internal failure with 406", async () => {
     const fault = new Error("private failure");
     const { get } = fixture({ fault });
-    await expect(get("beads/a", { Accept: "image/png", "If-None-Match": "*" })).rejects.toBe(fault);
+    await expect(get("a", { Accept: "image/png", "If-None-Match": "*" })).rejects.toBe(fault);
     const invalid = fixture({ revision: "" });
-    await expect(invalid.get("beads/a", { Accept: "image/png" })).rejects.toThrow();
+    await expect(invalid.get("a", { Accept: "image/png" })).rejects.toThrow();
   });
 });

@@ -21,7 +21,7 @@ export type AliasMutation = {
   [K in "putAlias" | "deleteAlias"]: { readonly operation: K; readonly input: ReadUpdateInputs[K] };
 }["putAlias" | "deleteAlias"];
 /** Structural subset of the S6 owned-member facade. Paths omit alias/; target
- * IDs include beads/. This module owns no table, cache, key or transaction.
+ * IDs include . This module owns no table, cache, key or transaction.
  */
 export interface AliasTransaction
   extends Pick<ResourceTransaction, "resource" | "alias" | "identityWasCommitted"> {

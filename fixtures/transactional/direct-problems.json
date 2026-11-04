@@ -62,7 +62,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/acme/task-42\" || @.target == \"https://beads.example/acme/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -75,13 +75,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -168,7 +168,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/cites",
               "source": "@decision",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {}
             },
             {
@@ -212,7 +212,7 @@
             {
               "name": "decision",
               "operation": "createBead",
-              "id": "beads/dec-9",
+              "id": "dec-9",
               "type": "https://work.example/types/decision",
               "properties": {
                 "title": "Adopt owned Links",
@@ -230,7 +230,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/cites",
               "source": "@decision",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {
                 "role": "evidence"
               },
@@ -243,7 +243,7 @@
             },
             {
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r7",
               "propertiesChange": [
                 {

@@ -550,7 +550,7 @@ async function observeUnsupportedDiscovery(execution: BdpClientScenarioActionExe
 async function observeResourceWithoutTypeResolution(execution: BdpClientScenarioActionExecution) {
   const scope = execution.scope as AbsoluteHttpUrl;
   const serviceDescription = new URL("bdp.json", scope).href as AbsoluteHttpUrl;
-  const resource = new URL("beads/client-probe", scope).href as AbsoluteHttpUrl;
+  const resource = new URL("client-probe", scope).href as AbsoluteHttpUrl;
   const descriptor = "https://types.invalid/client-probe" as AbsoluteHttpUrl;
   let discoveryProbes = 0;
   let discoveryDocumentRequests = 0;
@@ -638,7 +638,7 @@ async function observeMalformedSuccessResponse(execution: BdpClientScenarioActio
         url,
         properties === undefined
           ? "{not-json"
-          : `{"items":[{"id":${JSON.stringify(`${scope}beads/a`)},"type":"https://work.example/types/task","revision":"r1","properties":${properties}}],"next":null}`,
+          : `{"items":[{"id":${JSON.stringify(`${scope}a`)},"type":"https://work.example/types/task","revision":"r1","properties":${properties}}],"next":null}`,
         {
           headers: { "content-type": "application/json" },
         },

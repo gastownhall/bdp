@@ -454,7 +454,7 @@ describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", ()
         target: "development/update-bead",
         key: "perturb-prefix",
         body: {
-          bead: "beads/prefix",
+          bead: "prefix",
           propertiesChange: [{ op: "add", path: "/changed", value: true }],
         },
       },

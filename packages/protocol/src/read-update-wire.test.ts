@@ -400,8 +400,8 @@ describe("illustrative property and metadata replacement examples", () => {
 
   it("accepts empty patches and root replacements on either document and rejects malformed or omitted edits", () => {
     for (const [schemaRef, subject] of [
-      ["#/$defs/updateBeadRequest", { bead: "beads/a" }],
-      ["#/$defs/updateLinkRequest", { link: "links/a" }],
+      ["#/$defs/updateBeadRequest", { bead: "a" }],
+      ["#/$defs/updateLinkRequest", { link: "a" }],
     ] as const) {
       for (const invalid of [subject, { ...subject, expectedRevision: "resource-r1" }]) {
         expect(compiledDefinition(schemaRef)(invalid), `${schemaRef} omitted edits`).toBe(false);
@@ -486,18 +486,18 @@ describe("the deleted identity record", () => {
 describe("shapes the bundle now rejects", () => {
   const scope = "https://beads.example/acme/";
   const bead = {
-    id: `${scope}beads/1`,
+    id: `${scope}1`,
     type: "https://t.example/t",
     revision: "r1",
     properties: {},
   };
   const deletedLink = {
     resourceKind: "link",
-    resource: { id: `${scope}links/1`, type: "https://t.example/t", revision: "r1" },
+    resource: { id: `${scope}1`, type: "https://t.example/t", revision: "r1" },
   };
   const deletedBead = {
     resourceKind: "bead",
-    resource: { id: `${scope}beads/1`, type: "https://t.example/t", revision: "r1" },
+    resource: { id: `${scope}1`, type: "https://t.example/t", revision: "r1" },
   };
   const discoveryWithoutAliases = {
     bdpVersion: "0",
@@ -524,23 +524,23 @@ describe("shapes the bundle now rejects", () => {
     [
       "createLinkRequest",
       "a singleton pinned @name endpoint",
-      { type: "https://t.example/t", source: { uri: "@x", revision: "r" }, target: "beads/2" },
+      { type: "https://t.example/t", source: { uri: "@x", revision: "r" }, target: "2" },
     ],
     ["createBeadRequest", "a supplied @name id", { id: "@x", type: "https://t.example/t" }],
     [
       "updateBeadRequest",
       "a patch path that is not a JSON Pointer",
-      { bead: "beads/1", propertiesChange: [{ op: "remove", path: "not-a-pointer" }] },
+      { bead: "1", propertiesChange: [{ op: "remove", path: "not-a-pointer" }] },
     ],
     [
       "updateBeadRequest",
       "a patch path with an invalid escape",
-      { bead: "beads/1", propertiesChange: [{ op: "remove", path: "/~2" }] },
+      { bead: "1", propertiesChange: [{ op: "remove", path: "/~2" }] },
     ],
     [
       "mutationResult",
       "a Bead postimage carrying sourceRevision",
-      { outcome: "created", resource: bead, source: `${scope}beads/1`, sourceRevision: "r9" },
+      { outcome: "created", resource: bead, source: `${scope}1`, sourceRevision: "r9" },
     ],
     [
       "mutationResult",
@@ -550,7 +550,7 @@ describe("shapes the bundle now rejects", () => {
     [
       "mutationResult",
       "a deleted Bead carrying source and sourceRevision",
-      { outcome: "deleted", deleted: deletedBead, source: `${scope}beads/2`, sourceRevision: "r9" },
+      { outcome: "deleted", deleted: deletedBead, source: `${scope}2`, sourceRevision: "r9" },
     ],
     [
       "sequenceMemberResult",
@@ -559,14 +559,14 @@ describe("shapes the bundle now rejects", () => {
         operationIndex: 0,
         outcome: "deleted",
         deleted: deletedBead,
-        source: `${scope}beads/2`,
+        source: `${scope}2`,
         sourceRevision: "r9",
       },
     ],
     [
       "mutationResult",
       "a deleted identity spelled as a URL string",
-      { outcome: "deleted", deleted: `${scope}links/1` },
+      { outcome: "deleted", deleted: `${scope}1` },
     ],
     [
       "mutationResult",
@@ -575,7 +575,7 @@ describe("shapes the bundle now rejects", () => {
         outcome: "deleted",
         deleted: {
           resourceKind: "link",
-          resource: { id: `${scope}links/1`, type: "https://t.example/t" },
+          resource: { id: `${scope}1`, type: "https://t.example/t" },
         },
       },
     ],
@@ -663,16 +663,16 @@ describe("shapes the bundle now rejects", () => {
       },
     ],
     ["putAliasRequest", "a singleton @name alias target", { alias: "alias/x", target: "@x" }],
-    ["putAliasRequest", "a @name alias", { alias: "@x", target: "beads/1" }],
+    ["putAliasRequest", "a @name alias", { alias: "@x", target: "1" }],
     [
       "putAliasRequest",
       "a pinned alias target",
-      { alias: "alias/x", target: { uri: "beads/1", revision: "r" } },
+      { alias: "alias/x", target: { uri: "1", revision: "r" } },
     ],
     [
       "putAliasRequest",
       "an alias put guarded by expectedRevision",
-      { alias: "alias/x", target: "beads/1", expectedRevision: "r1" },
+      { alias: "alias/x", target: "1", expectedRevision: "r1" },
     ],
     [
       "deleteAliasRequest",
@@ -689,7 +689,7 @@ describe("shapes the bundle now rejects", () => {
             idempotencyKey: "k",
             name: "x",
             alias: "alias/x",
-            target: "beads/1",
+            target: "1",
           },
         ],
       },
@@ -697,7 +697,7 @@ describe("shapes the bundle now rejects", () => {
     [
       "aliasResult",
       "a deleted alias carrying a target",
-      { outcome: "deleted", alias: `${scope}alias/x`, target: `${scope}beads/1` },
+      { outcome: "deleted", alias: `${scope}alias/x`, target: `${scope}1` },
     ],
     [
       "aliasResult",
@@ -707,12 +707,12 @@ describe("shapes the bundle now rejects", () => {
     [
       "aliasResult",
       "an alias result carrying a revision",
-      { outcome: "created", alias: `${scope}alias/x`, target: `${scope}beads/1`, revision: "r1" },
+      { outcome: "created", alias: `${scope}alias/x`, target: `${scope}1`, revision: "r1" },
     ],
     [
       "mutationResult",
       "a mutation result spelled as an alias result",
-      { outcome: "created", alias: `${scope}alias/x`, target: `${scope}beads/1` },
+      { outcome: "created", alias: `${scope}alias/x`, target: `${scope}1` },
     ],
     [
       "sequenceMemberAliasResult",
@@ -722,7 +722,7 @@ describe("shapes the bundle now rejects", () => {
         operationName: "x",
         outcome: "created",
         alias: `${scope}alias/x`,
-        target: `${scope}beads/1`,
+        target: `${scope}1`,
       },
     ],
     [
@@ -754,7 +754,7 @@ describe("shapes the bundle now rejects", () => {
             idempotencyKey: "k",
             type: "https://t.example/t",
             source: { uri: "@x", revision: "r" },
-            target: "beads/2",
+            target: "2",
           },
         ],
       },
@@ -762,7 +762,7 @@ describe("shapes the bundle now rejects", () => {
     );
     expectValid(
       "#/$defs/updateBeadRequest",
-      { bead: "beads/1", propertiesChange: [{ op: "remove", path: "/a~1b/~0c" }] },
+      { bead: "1", propertiesChange: [{ op: "remove", path: "/a~1b/~0c" }] },
       "escaped pointer",
     );
     expectValid(
@@ -814,7 +814,7 @@ describe("shapes the bundle now rejects", () => {
     );
     expectValid(
       "#/$defs/mutationResult",
-      { outcome: "deleted", deleted: deletedLink, source: `${scope}beads/1`, sourceRevision: "r9" },
+      { outcome: "deleted", deleted: deletedLink, source: `${scope}1`, sourceRevision: "r9" },
       "owned-Link deletion carrying its identity record",
     );
     expectValid(
@@ -836,7 +836,7 @@ describe("shapes the bundle now rejects", () => {
             operationIndex: 0,
             outcome: "updated",
             alias: `${scope}alias/x`,
-            target: `${scope}beads/1`,
+            target: `${scope}1`,
           },
           { operationIndex: 1, outcome: "deleted", alias: `${scope}alias/y` },
         ],
@@ -1063,10 +1063,10 @@ function expectResolvedReference(
       // creation, whose tombstone keeps the identity it allocated (D24).
       expect(creator?.code, `${label}: ${written} has no binding`).toBe("idempotency-expired");
     }
-  } else if (written.startsWith("beads/") || written.startsWith("links/")) {
-    expect(resolvedUri, label).toBe(`${scope}${written}`);
-  } else {
+  } else if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(written)) {
     expect(resolvedUri, label).toBe(written);
+  } else {
+    expect(resolvedUri, label).toBe(`${scope}${written}`);
   }
 }
 

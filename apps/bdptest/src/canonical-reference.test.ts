@@ -215,33 +215,33 @@ describe("canonical reference Core and ordinary Write", () => {
     expect((await f.wire(scope + "aliases/one")).status).toBe(307);
     expect((await f.post("deleteAlias", { alias: "aliases/one" }, "unname")).status).toBe(200);
   });
-  it("keeps Resource kind independent from beads/ and links/ identity paths", async () => {
+  it("keeps Resource kind independent from ordinary nested identity paths", async () => {
     const f = await fixture();
-    await f.node("links/bead");
+    await f.node("linkish/bead");
     await f.node("person");
     const created = await f.post(
       "createLink",
       {
-        id: "beads/link",
+        id: "beadish/link",
         type: "https://types.invalid/edge",
-        source: "links/bead",
+        source: "linkish/bead",
         target: "person",
       },
       "cross-kind-paths",
     );
     expect(created.status, created.text).toBe(200);
-    expect((await f.wire(scope + "links/bead")).headers["bdp-resource-kind"]).toBe("bead");
-    expect((await f.wire(scope + "beads/link")).headers["bdp-resource-kind"]).toBe("link");
+    expect((await f.wire(scope + "linkish/bead")).headers["bdp-resource-kind"]).toBe("bead");
+    expect((await f.wire(scope + "beadish/link")).headers["bdp-resource-kind"]).toBe("link");
     expect(
       JSON.parse((await f.wire(scope + "bdp/beads")).text).items.map(
         (item: { id: string }) => item.id,
       ),
-    ).toContain(scope + "links/bead");
+    ).toContain(scope + "linkish/bead");
     expect(
       JSON.parse((await f.wire(scope + "bdp/links")).text).items.map(
         (item: { id: string }) => item.id,
       ),
-    ).toContain(scope + "beads/link");
+    ).toContain(scope + "beadish/link");
   });
   it("reserves the control namespace and refuses unsupported meanings without success", async () => {
     const f = await fixture();

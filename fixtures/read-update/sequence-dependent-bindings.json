@@ -50,7 +50,7 @@
             {
               "idempotencyKey": "w1-task-11-priority",
               "operation": "updateBead",
-              "bead": "beads/task-11",
+              "bead": "task-11",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -98,7 +98,7 @@
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-11",
+                "id": "https://beads.example/acme/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r3",
                 "properties": {
@@ -172,7 +172,7 @@
             {
               "idempotencyKey": "w1-task-11-priority",
               "operation": "updateBead",
-              "bead": "beads/task-11",
+              "bead": "task-11",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -204,7 +204,7 @@
               "operationName": "memo",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-112",
+                "id": "https://beads.example/acme/decision-112",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-112-r1",
                 "properties": {
@@ -227,10 +227,10 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-113",
+                "id": "https://beads.example/acme/cites-113",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-113-r1",
-                "source": "https://beads.example/acme/beads/decision-112",
+                "source": "https://beads.example/acme/decision-112",
                 "target": "https://github.example/issues/140",
                 "properties": {},
                 "metadata": {},
@@ -241,14 +241,14 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-112",
+              "source": "https://beads.example/acme/decision-112",
               "sourceRevision": "decision-112-r2"
             },
             {
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-11",
+                "id": "https://beads.example/acme/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r3",
                 "properties": {
@@ -344,10 +344,10 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/cites-113",
+                "id": "https://beads.example/acme/cites-113",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-113-r1",
-                "source": "https://beads.example/acme/beads/decision-112",
+                "source": "https://beads.example/acme/decision-112",
                 "target": "https://github.example/issues/140",
                 "properties": {},
                 "metadata": {},
@@ -358,7 +358,7 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/decision-112",
+              "source": "https://beads.example/acme/decision-112",
               "sourceRevision": "decision-112-r2"
             }
           ]

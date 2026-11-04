@@ -957,7 +957,7 @@ filters to the optional `include=links` aggregate. Collection-kind metadata and
 continuation resizing follow [collections and pagination](#collections-and-pagination).
 
 BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
-path segments, so `beads/task-42/links` could already be the ID of a different
+path segments, so `task-42/links` could already be the ID of a different
 Bead. A suffix subpath would require BDP to reserve and visibly mangle a
 control segment such as `/-/` or `/.bdp/` throughout the local-ID grammar. The
 `view` query parameter avoids that collision while keeping the request visibly

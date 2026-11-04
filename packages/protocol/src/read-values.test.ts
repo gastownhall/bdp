@@ -26,7 +26,7 @@ import {
 
 // Compile-time contract: a Reference is a URI string, or a Pinned
 // Reference with exactly uri and revision — for either reference class.
-const _plainReference: Reference = "https://scope.example/acme/beads/demo-a";
+const _plainReference: Reference = "https://scope.example/acme/demo-a";
 const _externalPolicies: readonly ExternalEndpointPolicy[] = ["none", "opaque", "bead"];
 // @ts-expect-error — the policy union is exactly none | opaque | bead
 const _invalidPolicy: ExternalEndpointPolicy = "always";
@@ -34,7 +34,7 @@ void _externalPolicies;
 void _invalidPolicy;
 const _pinnedExternal: Reference = { uri: "urn:external:cited", revision: "cited-1" };
 const _pinnedLocal: Reference = {
-  uri: "https://scope.example/acme/beads/demo-a",
+  uri: "https://scope.example/acme/demo-a",
   revision: "pin-a-r1",
 };
 const _pinRejectsExtras: Reference = {
@@ -68,11 +68,11 @@ describe("Read envelope parsing", () => {
   it("freezes parsed pins so a mutated input cannot reach the snapshot", () => {
     const source = { uri: "urn:external:pin-witness", revision: "pin-1" };
     const record = {
-      id: `${scope}links/pinned`,
+      id: `${scope}pinned`,
       type: "https://work.example/types/blocks",
       revision: "1",
       source,
-      target: { uri: `${scope}beads/demo-a`, revision: "pin-a-r1" },
+      target: { uri: `${scope}demo-a`, revision: "pin-a-r1" },
       properties: {},
       metadata: {},
     };
@@ -85,13 +85,13 @@ describe("Read envelope parsing", () => {
 
   it("keeps synthesized legacy metadata immutable in direct and historical records and results", () => {
     const bead = {
-      id: `${scope}beads/a`,
+      id: `${scope}a`,
       type: "https://work.example/types/task",
       revision: "r1",
       properties: {},
     };
     const link = {
-      id: `${scope}links/a`,
+      id: `${scope}a`,
       type: "https://work.example/types/blocks",
       revision: "r1",
       source: bead.id,
@@ -152,7 +152,7 @@ describe("Read envelope parsing", () => {
 
   it("uses the canonical URL rules for Scope and Resource paths", () => {
     expect(parseCanonicalScope(scope)).toBe(scope);
-    expect(parseCanonicalHttpUrl(`${scope}beads/a:b`)).toBe(`${scope}beads/a:b`);
+    expect(parseCanonicalHttpUrl(`${scope}a:b`)).toBe(`${scope}a:b`);
     expect(parseCanonicalHttpUrl("https://types.example/descriptors/a%2Fb")).toBe(
       "https://types.example/descriptors/a%2Fb",
     );
@@ -180,29 +180,29 @@ describe("Read envelope parsing", () => {
 
   it("rejects present-but-empty fragment and Scope query delimiters", () => {
     for (const suffix of ["#", "#fragment"]) {
-      expect(() => parseCanonicalHttpUrl(`${scope}beads/a${suffix}`)).toThrow();
+      expect(() => parseCanonicalHttpUrl(`${scope}a${suffix}`)).toThrow();
       expect(() => parseCanonicalScope(`${scope}${suffix}`)).toThrow();
     }
     expect(() => parseCanonicalScope(`${scope}?`)).toThrow();
     expect(parseCanonicalScope(scope)).toBe(scope);
-    expect(parseCanonicalHttpUrl(`${scope}beads/a%23b?cursor=%23`)).toBe(
-      `${scope}beads/a%23b?cursor=%23`,
+    expect(parseCanonicalHttpUrl(`${scope}a%23b?cursor=%23`)).toBe(
+      `${scope}a%23b?cursor=%23`,
     );
   });
 
   it("closes and freezes Resource records and collection pages", () => {
     const bead = {
-      id: `${scope}beads/a`,
+      id: `${scope}a`,
       type: "https://work.example/types/task",
       revision: "1",
       properties: { title: "A" },
       metadata: {},
     };
     const link = {
-      id: `${scope}links/blocks-a-b`,
+      id: `${scope}blocks-a-b`,
       type: "https://work.example/types/blocks",
       revision: "1",
-      source: `${scope}beads/a`,
+      source: `${scope}a`,
       target: { uri: "urn:external:b", revision: "cited-1" },
       properties: {},
       metadata: {},
@@ -243,7 +243,7 @@ describe("Read envelope parsing", () => {
     expect(() =>
       parseLinkRecord({
         ...link,
-        source: { uri: `${scope}beads/a`, revision: "cited-1", extra: true },
+        source: { uri: `${scope}a`, revision: "cited-1", extra: true },
       }),
     ).toThrow();
   });
@@ -285,7 +285,7 @@ describe("Resource properties parsing", () => {
       }
       expect(() =>
         parseBeadRecord({
-          id: `${scope}beads/a`,
+          id: `${scope}a`,
           type: "https://work.example/types/task",
           revision: invalid,
           properties: {},
@@ -306,7 +306,7 @@ describe("Resource properties parsing", () => {
     expect(parsePropertiesRecord(properties)).toEqual(properties);
     expect(
       parseBeadRecord({
-        id: `${scope}beads/a`,
+        id: `${scope}a`,
         type: "https://work.example/types/task",
         revision: "a😀z",
         properties,
@@ -369,7 +369,7 @@ describe("Resource properties parsing", () => {
 
   it("retains closed Resource schema checks and rejects invalid Unicode at arbitrary property depth", () => {
     const bead = {
-      id: `${scope}beads/deep`,
+      id: `${scope}deep`,
       type: "https://work.example/types/task",
       revision: "r1",
       properties: { deep: JSON.parse(`${"[".repeat(256)}1${"]".repeat(256)}`) as unknown },
@@ -386,27 +386,27 @@ describe("Resource properties parsing", () => {
 describe("canonical local Resource IDs", () => {
   it("accepts shared, nested, and historically kind-shaped paths for every Resource kind", () => {
     expect(resolveCanonicalLocalResourceId(scope, "bead", "task-42")).toBe(`${scope}task-42`);
-    expect(resolveCanonicalLocalResourceId(scope, "bead", "links/projects/alpha/task-42")).toBe(
-      `${scope}links/projects/alpha/task-42`,
+    expect(resolveCanonicalLocalResourceId(scope, "bead", "projects/alpha/task-42")).toBe(
+      `${scope}projects/alpha/task-42`,
     );
     expect(resolveCanonicalLocalResourceId(scope, "link", "relation-81")).toBe(
       `${scope}relation-81`,
     );
-    expect(resolveCanonicalLocalResourceId(scope, "link", "beads/blocks/%E2%82%AC")).toBe(
-      `${scope}beads/blocks/%E2%82%AC`,
+    expect(resolveCanonicalLocalResourceId(scope, "link", "blocks/%E2%82%AC")).toBe(
+      `${scope}blocks/%E2%82%AC`,
     );
-    expect(resolveCanonicalLocalResourceId(scope, "bead", "beads/projects/alpha/task-42")).toBe(
-      `${scope}beads/projects/alpha/task-42`,
+    expect(resolveCanonicalLocalResourceId(scope, "bead", "projects/alpha/task-42")).toBe(
+      `${scope}projects/alpha/task-42`,
     );
-    expect(resolveCanonicalLocalResourceId(scope, "link", "links/blocks/%E2%82%AC")).toBe(
-      `${scope}links/blocks/%E2%82%AC`,
+    expect(resolveCanonicalLocalResourceId(scope, "link", "blocks/%E2%82%AC")).toBe(
+      `${scope}blocks/%E2%82%AC`,
     );
     expect(resolveCanonicalLocalResourceId(scope, "type", "types/domain/%E2%82%AC")).toBe(
       `${scope}types/domain/%E2%82%AC`,
     );
   });
 
-  it.each(["bdp", "bdp/beads", "bdp/links/anything"])(
+  it.each(["bdp", "bdp/beads", "bdp/anything"])(
     "reserves the BDP protocol namespace from Resource identity: %s",
     (localId) => {
       expect(() => resolveCanonicalLocalResourceId(scope, "bead", localId)).toThrow(
@@ -420,23 +420,23 @@ describe("canonical local Resource IDs", () => {
 
   it.each([
     ["bead", ""],
-    ["type", "beads/x"],
-    ["bead", "beads/"],
-    ["bead", "beads//x"],
-    ["bead", "beads/."],
-    ["bead", "beads/.."],
-    ["bead", "beads/%2E"],
-    ["bead", "beads/%2E%2E"],
-    ["bead", "beads/a\\b"],
-    ["bead", "beads/a%5Cb"],
-    ["bead", "beads/a%2Fb"],
-    ["bead", "beads/a?view=1"],
-    ["bead", "beads/a#fragment"],
-    ["bead", "beads/a\u0001b"],
-    ["bead", "beads/%41"],
-    ["bead", "beads/%e2%82%ac"],
-    ["bead", "beads/%"],
-    ["bead", "beads/€"],
+    ["type", "x"],
+    ["bead", "a/"],
+    ["bead", "a//x"],
+    ["bead", "."],
+    ["bead", ".."],
+    ["bead", "%2E"],
+    ["bead", "%2E%2E"],
+    ["bead", "a\\b"],
+    ["bead", "a%5Cb"],
+    ["bead", "a%2Fb"],
+    ["bead", "a?view=1"],
+    ["bead", "a#fragment"],
+    ["bead", "a\u0001b"],
+    ["bead", "%41"],
+    ["bead", "%e2%82%ac"],
+    ["bead", "%"],
+    ["bead", "€"],
   ] as const)("rejects a noncanonical %s ID %s", (resource, localId) => {
     expect(() => resolveCanonicalLocalResourceId(scope, resource, localId)).toThrow();
   });
@@ -562,7 +562,7 @@ describe("Type artifact parsing", () => {
     ).toThrow(ProtocolArtifactValidationError);
     expect(() =>
       parseBeadRecord({
-        id: `${scope}beads/a`,
+        id: `${scope}a`,
         type: type.id,
         revision: "1",
         properties: {},
@@ -587,7 +587,7 @@ describe("Type artifact parsing", () => {
       }),
     ).toThrow();
     const record = {
-      id: `${scope}beads/demo-f`,
+      id: `${scope}demo-f`,
       type: "https://work.example/types/decision",
       revision: "1",
       properties: {},
@@ -596,11 +596,11 @@ describe("Type artifact parsing", () => {
     };
     expect(() => parseBeadRecord(record)).toThrow();
     const ownedLink = {
-      id: `${scope}links/cite-1`,
+      id: `${scope}cite-1`,
       type: "https://work.example/types/cites",
       revision: "1",
-      source: `${scope}beads/demo-f`,
-      target: `${scope}beads/demo-a`,
+      source: `${scope}demo-f`,
+      target: `${scope}demo-a`,
       properties: {},
       metadata: {},
     };
@@ -632,7 +632,7 @@ describe("Type artifact parsing", () => {
       parseBeadRecord({
         ...record,
         ownedLinks: {
-          "https://work.example/types/cites": [{ ...ownedLink, source: `${scope}beads/other` }],
+          "https://work.example/types/cites": [{ ...ownedLink, source: `${scope}other` }],
         },
       }),
     ).toThrow("containing Bead");
@@ -641,8 +641,8 @@ describe("Type artifact parsing", () => {
         ...record,
         ownedLinks: {
           "https://work.example/types/cites": [
-            { ...ownedLink, id: `${scope}links/z-cite` },
-            { ...ownedLink, id: `${scope}links/a-cite` },
+            { ...ownedLink, id: `${scope}z-cite` },
+            { ...ownedLink, id: `${scope}a-cite` },
           ],
         },
       }),

@@ -419,7 +419,7 @@ recorded endpoints, pins and affiliations.
 ## Historical-base Bead Update and recovery
 
 The following behavior is selected for the historical-update extension to
-`updateBead`, from the [approved historical Update decisions](https://github.com/gastownhall/beads/issues/7719).
+`updateBead`, from the [approved historical Update decisions](https://github.com/gastownhall/issues/7719).
 This is an optional discoverable capability, not a mandatory widening of Write.
 The body-free terminal-version model and narrow authorized terminal read are
 selected. Source admission requires the exact complete editable content actually

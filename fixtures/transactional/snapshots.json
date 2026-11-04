@@ -36,7 +36,7 @@
           "beads": {
             "items": [
               {
-                "id": "https://beads.example/acme/beads/task-41",
+                "id": "https://beads.example/acme/task-41",
                 "type": "https://work.example/types/task",
                 "revision": "task-41-r3",
                 "properties": {
@@ -45,7 +45,7 @@
                 }
               },
               {
-                "id": "https://beads.example/acme/beads/task-42",
+                "id": "https://beads.example/acme/task-42",
                 "type": "https://work.example/types/task",
                 "revision": "task-42-r7",
                 "properties": {
@@ -59,11 +59,11 @@
           "links": {
             "items": [
               {
-                "id": "https://beads.example/acme/links/blocks-3",
+                "id": "https://beads.example/acme/blocks-3",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-3-r1",
-                "source": "https://beads.example/acme/beads/task-42",
-                "target": "https://beads.example/acme/beads/task-41",
+                "source": "https://beads.example/acme/task-42",
+                "target": "https://beads.example/acme/task-41",
                 "properties": {}
               }
             ],
@@ -102,34 +102,34 @@
           "expiresAt": "2026-09-07T19:40:00Z",
           "erasures": [
             {
-              "subject": "https://beads.example/acme/beads/task-42",
+              "subject": "https://beads.example/acme/task-42",
               "revision": "task-42-r7",
               "digest": {
                 "scheme": "sha-256-jcs",
-                "value": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
+                "value": "ea6a9ccea2e85df1275b070f90f26f397f766632d4648c388827ae72e79a4566"
               }
             },
             {
-              "subject": "https://beads.example/acme/beads/task-42",
+              "subject": "https://beads.example/acme/task-42",
               "revision": "task-42-r8",
               "digest": {
                 "scheme": "sha-256-jcs",
-                "value": "f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677"
+                "value": "1cf68d3dfa82a649f92e6b4a5676aba09115079901f88d42fdeb1fc2ffa57b51"
               }
             },
             {
-              "subject": "https://beads.example/acme/links/rel-5",
+              "subject": "https://beads.example/acme/rel-5",
               "revision": "rel-5-r1",
               "digest": {
                 "scheme": "sha-256-jcs",
-                "value": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
+                "value": "54f3e6a4e07339008e05c77a11692dc3811d1873a7e531eec8256e2cc0993092"
               }
             }
           ],
           "beads": {
             "items": [
               {
-                "id": "https://beads.example/acme/beads/dec-9",
+                "id": "https://beads.example/acme/dec-9",
                 "type": "https://work.example/types/decision",
                 "revision": "dec-9-r3",
                 "properties": {
@@ -147,7 +147,7 @@
                 }
               },
               {
-                "id": "https://beads.example/acme/beads/task-41",
+                "id": "https://beads.example/acme/task-41",
                 "type": "https://work.example/types/task",
                 "revision": "task-41-r3",
                 "properties": {
@@ -156,7 +156,7 @@
                 }
               },
               {
-                "id": "https://beads.example/acme/beads/task-43",
+                "id": "https://beads.example/acme/task-43",
                 "type": "https://work.example/types/task",
                 "revision": "task-43-r2",
                 "properties": {
@@ -165,7 +165,7 @@
                 }
               },
               {
-                "id": "https://beads.example/acme/beads/task-44",
+                "id": "https://beads.example/acme/task-44",
                 "type": "https://work.example/types/task",
                 "revision": "task-44-r1",
                 "properties": {
@@ -179,10 +179,10 @@
           "links": {
             "items": [
               {
-                "id": "https://beads.example/acme/links/2d4f",
+                "id": "https://beads.example/acme/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/acme/beads/task-43",
+                "source": "https://beads.example/acme/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"

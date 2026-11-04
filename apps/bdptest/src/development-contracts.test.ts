@@ -145,7 +145,7 @@ async function fixture(
   const bead = async (id: string, key = id, token = alice) => {
     const response = await post(
       "createBead",
-      { id: `beads/${id}`, type: owner, properties: { n: 1 } },
+      { id: `${id}`, type: owner, properties: { n: 1 } },
       key,
       token,
     );
@@ -157,7 +157,7 @@ async function fixture(
 
 it("installs pinned schema closure and applies inherited validation through actual HTTP with retained failures", async () => {
   const f = await fixture();
-  const bad = { id: "beads/bad", type: owner, properties: { n: -1 } };
+  const bad = { id: "bad", type: owner, properties: { n: -1 } };
   const failure = await f.post("createBead", bad, "bad");
   expect(failure.status).toBe(422);
   expect(failure.value.code).toBe("validation-failed");
@@ -168,7 +168,7 @@ it("installs pinned schema closure and applies inherited validation through actu
       instanceLocation: "/n",
     }),
   ]);
-  expect((await f.wire("beads/bad")).status).toBe(404);
+  expect((await f.wire("bad")).status).toBe(404);
   expect((await f.post("createBead", bad, "bad")).value).toEqual(failure.value);
   expect((await f.post("createBead", { ...bad, properties: { n: 1 } }, "bad")).value.code).toBe(
     "idempotency-conflict",
@@ -187,7 +187,7 @@ it("installs pinned schema closure and applies inherited validation through actu
   expect((await f.wire(a.id)).value).toEqual(a);
   // Input bytes were captured before compilation; mutating the caller's copy cannot loosen validation.
   f.input.schemas[1]?.utf8Bytes.fill(32);
-  expect((await f.post("createBead", { ...bad, id: "beads/still-bad" }, "still_bad")).status).toBe(
+  expect((await f.post("createBead", { ...bad, id: "still-bad" }, "still_bad")).status).toBe(
     422,
   );
   expect((await f.wire("types/")).value.items.map((x: { id: string }) => x.id).sort()).toEqual(
@@ -201,7 +201,7 @@ it("enforces owned source guards, aggregate constraints, revision/provenance fan
     b = await f.bead("b"),
     c = await f.bead("c");
   const input = {
-    id: "links/one",
+    id: "one",
     type: edge,
     source: { uri: a.id, revision: a.revision },
     target: b.id,
@@ -236,11 +236,11 @@ it("enforces owned source guards, aggregate constraints, revision/provenance fan
   expect((await f.wire(a.id)).value).toEqual(source);
   const aggregate = await f.post(
     "createLink",
-    { id: "links/aggregate", type: edge, source: c.id, target: b.id },
+    { id: "aggregate", type: edge, source: c.id, target: b.id },
     "aggregate",
   );
   expect(aggregate.value.code).toBe("aggregate-constraint-violation");
-  expect((await f.wire("links/aggregate")).status).toBe(404);
+  expect((await f.wire("aggregate")).status).toBe(404);
   expect((await f.wire(c.id)).value).toEqual(c);
   const noop = await f.post(
     "updateLink",
@@ -298,19 +298,19 @@ it("uses transport principals rather than actor attribution and distinguishes hi
     (
       await f.post(
         "createBead",
-        { id: "beads/b", type: owner, properties: { n: 1 } },
+        { id: "b", type: owner, properties: { n: 1 } },
         "principal_key",
         bob,
       )
     ).value.code,
   ).toBe("forbidden");
-  f.access.replace("bob", { ...allow, hidden: ["beads/a"] });
+  f.access.replace("bob", { ...allow, hidden: ["a"] });
   expect((await f.wire(a.id, "GET", undefined, undefined, bob)).status).toBe(404);
   expect((await f.post("updateBead", forged, "hidden", bob)).value.code).toBe("resource-not-found");
-  f.access.replace("alice", { ...allow, hidden: ["beads/a"] });
+  f.access.replace("alice", { ...allow, hidden: ["a"] });
   const hiddenReplay = await f.post(
     "createBead",
-    { id: "beads/a", type: owner, properties: { n: 1 } },
+    { id: "a", type: owner, properties: { n: 1 } },
     "principal_key",
   );
   expect(hiddenReplay.status).toBe(403);
@@ -320,7 +320,7 @@ it("uses transport principals rather than actor attribution and distinguishes hi
     (
       await f.post(
         "createBead",
-        { id: "beads/a", type: owner, properties: { n: 1 } },
+        { id: "a", type: owner, properties: { n: 1 } },
         "principal_key",
       )
     ).value.resource,
@@ -331,7 +331,7 @@ it("uses transport principals rather than actor attribution and distinguishes hi
     (
       await f.post(
         "createBead",
-        { id: "beads/b", type: owner, properties: { n: 1 } },
+        { id: "b", type: owner, properties: { n: 1 } },
         "principal_key",
         bob,
       )
@@ -346,7 +346,7 @@ it("withholds a complete owned Resource and its retained postimage when an owned
     b = await f.bead("b");
   const link = await f.post(
     "createLink",
-    { id: "links/secret", type: edge, source: a.id, target: b.id },
+    { id: "secret", type: edge, source: a.id, target: b.id },
     "link",
   );
   expect(link.status).toBe(200);
@@ -354,7 +354,7 @@ it("withholds a complete owned Resource and its retained postimage when an owned
   const saved = await f.post("updateBead", update, "saved");
   expect(saved.status).toBe(200);
   const page = await f.wire("bdp/beads?limit=1");
-  f.access.replace("alice", { ...allow, hidden: ["links/secret"] });
+  f.access.replace("alice", { ...allow, hidden: ["secret"] });
   expect((await f.wire(a.id)).status).toBe(404);
   const replay = await f.post("updateBead", update, "saved");
   expect(replay.status).toBe(403);
@@ -418,7 +418,7 @@ it("refuses unpinned schemas, accessor policies and duplicate credential maps be
   Object.defineProperty(hidden, "0", {
     get() {
       invoked = true;
-      return "beads/a";
+      return "a";
     },
     enumerable: true,
   });
@@ -449,7 +449,7 @@ it("requires write permission on an owned Link's source and preserves state on r
     b = await f.bead("b");
   const created = await f.post(
     "createLink",
-    { id: "links/one", type: edge, source: a.id, target: b.id },
+    { id: "one", type: edge, source: a.id, target: b.id },
     "link",
   );
   expect(created.status).toBe(200);
@@ -458,7 +458,7 @@ it("requires write permission on an owned Link's source and preserves state on r
     link: created.value.resource.id,
     metadataChange: [{ op: "add", path: "/x", value: true }],
   };
-  f.access.replace("alice", { ...allow, readOnly: ["beads/a"] });
+  f.access.replace("alice", { ...allow, readOnly: ["a"] });
   const refused = await f.post("updateLink", update, "source_denied");
   expect(refused.value.code).toBe("forbidden");
   expect((await f.wire(a.id)).value).toEqual(before);
@@ -504,13 +504,13 @@ it("emits a receiver-bounded 422 from a truncated compiler prefix, retains it an
     allOf: Array.from({ length: 1025 }, (_, i) => ({ required: [`p${i}`] })),
   });
   const f = await fixture(input);
-  const invalid = { id: "beads/truncated", type: base, properties: {} };
+  const invalid = { id: "truncated", type: base, properties: {} };
   const failure = await f.post("createBead", invalid, "truncated");
   expect(failure.status).toBe(422);
   expect(failure.value.code).toBe("validation-failed");
   expect(failure.value.diagnostics).toHaveLength(32);
   expect(failure.value.diagnosticsTruncated).toBe(true);
-  expect((await f.wire("beads/truncated")).status).toBe(404);
+  expect((await f.wire("truncated")).status).toBe(404);
   expect((await f.post("createBead", invalid, "truncated")).value).toEqual(failure.value);
   const corrected = {
     ...invalid,
@@ -521,7 +521,7 @@ it("emits a receiver-bounded 422 from a truncated compiler prefix, retains it an
   );
   const created = await f.post("createBead", corrected, "corrected");
   expect(created.status).toBe(200);
-  expect((await f.wire("beads/truncated")).value).toEqual(created.value.resource);
+  expect((await f.wire("truncated")).value).toEqual(created.value.resource);
 });
 
 it("rejects invalid aggregate and missing principal configuration before provisioning", async () => {
@@ -605,7 +605,7 @@ it("reopens after aggregate reordering and exact duplicates, and binds all compi
 
 it("supports actual canonical nested/dotted/encoded IDs in hidden and read-only policy", async () => {
   const f = await fixture();
-  for (const id of ["beads/team/a.b", "beads/a%20b"]) {
+  for (const id of ["team/a.b", "a%20b"]) {
     const created = await f.post(
       "createBead",
       { id, type: owner, properties: { n: 1 } },
@@ -627,7 +627,7 @@ it("supports actual canonical nested/dotted/encoded IDs in hidden and read-only 
     f.access.replace("alice", allow);
     expect((await f.wire(id)).value).toEqual(created.value.resource);
   }
-  expect(() => f.access.replace("alice", { ...allow, hidden: ["beads/a/../b"] })).toThrow();
+  expect(() => f.access.replace("alice", { ...allow, hidden: ["a/../b"] })).toThrow();
 });
 
 // Exercises the full evaluator work ceiling directly and through HTTP;
@@ -658,17 +658,17 @@ it("keeps an actual evaluator work refusal local and permits correction using th
     reason: "limit-work",
   });
   const f = await fixture(input);
-  const failed = await f.post("createBead", { id: "beads/work", type: base, properties }, "work");
+  const failed = await f.post("createBead", { id: "work", type: base, properties }, "work");
   expect(failed.status).toBe(500);
   expect(failed.text).toBe("");
-  expect((await f.wire("beads/work")).status).toBe(404);
+  expect((await f.wire("work")).status).toBe(404);
   const corrected = await f.post(
     "createBead",
-    { id: "beads/work", type: base, properties: { values: [1, 2] } },
+    { id: "work", type: base, properties: { values: [1, 2] } },
     "work",
   );
   expect(corrected.status).toBe(200);
-  expect((await f.wire("beads/work")).value).toEqual(corrected.value.resource);
+  expect((await f.wire("work")).value).toEqual(corrected.value.resource);
 }, 10000);
 
 it("configured authorities expose only explicit principal facets and duplicate credential principals share one route", async () => {

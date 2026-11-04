@@ -53,8 +53,8 @@ function outcome(
     kind: "retain",
     semanticIdentityJson: '{"operation":"createBead","properties":{"number":1.0}}',
     resolutionsJson:
-      '{"creator":{"id":"beads/a","kind":"bead"},"aliases":{"alias/latest":"beads/a"}}',
-    outcomeJson: '{"result":{"id":"beads/a","revision":"r1","sourceRevision":"s1"}}',
+      '{"creator":{"id":"a","kind":"bead"},"aliases":{"alias/latest":"a"}}',
+    outcomeJson: '{"result":{"id":"a","revision":"r1","sourceRevision":"s1"}}',
     effect,
     completedAt: 100,
     retainUntil: 100 + day,
@@ -90,9 +90,9 @@ describe("durable reference ownership and transaction interface", () => {
   it("rejects invalid Resource shapes before SQL and keeps the handle usable", () => {
     const store = open(directory(), true);
     // @ts-expect-error Link endpoints are required by the storage facade.
-    const missing: StoredResource = { id: "links/x", kind: "link", bodyJson: "{}" };
+    const missing: StoredResource = { id: "x", kind: "link", bodyJson: "{}" };
     // @ts-expect-error Beads cannot carry Link endpoint indexes.
-    const bead: StoredResource = { id: "beads/x", kind: "bead", bodyJson: "{}", source: "beads/y" };
+    const bead: StoredResource = { id: "x", kind: "bead", bodyJson: "{}", source: "y" };
     for (const resource of [missing, bead]) {
       const admission = store.admit("alice", [resource.id]);
       expect(() =>
@@ -105,9 +105,9 @@ describe("durable reference ownership and transaction interface", () => {
       expect(store.abandonAttempt(admission)).toBe(1);
     }
     effect(store, "valid", (tx) =>
-      tx.putResource({ id: "beads/valid", kind: "bead", bodyJson: "{}" }),
+      tx.putResource({ id: "valid", kind: "bead", bodyJson: "{}" }),
     );
-    expect(store.read((tx) => tx.resource("beads/valid"))).toBeDefined();
+    expect(store.read((tx) => tx.resource("valid"))).toBeDefined();
   });
   it("rolls back an actual mid-callback SQLite constraint without fencing", () => {
     const store = open(directory(), true);
@@ -119,14 +119,14 @@ describe("durable reference ownership and transaction interface", () => {
     ) {
       if (sql.startsWith("INSERT INTO policy")) {
         // Real SQLite CHECK failure, raised in the member callback after a graph write.
-        this.exec("INSERT INTO resources VALUES ('links/invalid','link','{}',NULL,NULL)");
+        this.exec("INSERT INTO resources VALUES ('invalid','link','{}',NULL,NULL)");
       }
       return original.call(this, sql);
     });
     let failure: unknown;
     try {
       store.executeMember(admission, "key", (tx) => {
-        tx.putResource({ id: "beads/staged", kind: "bead", bodyJson: "{}" });
+        tx.putResource({ id: "staged", kind: "bead", bodyJson: "{}" });
         tx.putPolicy("trigger", "{}");
         return outcome();
       });
@@ -139,8 +139,8 @@ describe("durable reference ownership and transaction interface", () => {
       reason: "constraint",
       cause: { code: "ERR_SQLITE_ERROR", errcode: 275 },
     });
-    expect(store.read((tx) => tx.resource("beads/staged"))).toBeUndefined();
-    expect(store.read((tx) => tx.identityWasCommitted("beads/staged"))).toBe(false);
+    expect(store.read((tx) => tx.resource("staged"))).toBeUndefined();
+    expect(store.read((tx) => tx.identityWasCommitted("staged"))).toBe(false);
     expect(store.read((tx) => tx.key("alice", "key"))).toMatchObject({ kind: "claimed" });
     expect(store.executeMember(admission, "key", () => outcome("failure"))).toMatchObject({
       kind: "completed",
@@ -187,17 +187,17 @@ describe("durable reference ownership and transaction interface", () => {
     expect(() =>
       openRecoveryStore({
         ...options(dir),
-        create: { resources: [{ id: "beads/invalid", kind: "bead", bodyJson: "not JSON" }] },
+        create: { resources: [{ id: "invalid", kind: "bead", bodyJson: "not JSON" }] },
       }),
     ).toThrow();
     expect(existsSync(filename)).toBe(false);
     const store = open(dir, true);
-    effect(store, "seed", (tx) => tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" }));
+    effect(store, "seed", (tx) => tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" }));
     store.close();
     const bytes = readFileSync(filename);
     expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
     expect(readFileSync(filename)).toEqual(bytes);
-    expect(open(dir).read((tx) => tx.resource("beads/a"))).toBeDefined();
+    expect(open(dir).read((tx) => tx.resource("a"))).toBeDefined();
   });
   it.each(["before", "after"])(
     "preserves failed creation after an uncertain %s-COMMIT error",
@@ -255,25 +255,25 @@ describe("durable reference ownership and transaction interface", () => {
   it("preserves nested alias suffixes and assignment-time target liveness", () => {
     const store = open(directory(), true);
     effect(store, "create", (tx) => {
-      tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
-      tx.putAlias("alias/latest", "beads/a");
+      tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" });
+      tx.putAlias("alias/latest", "a");
     });
     expect(store.read((tx) => tx.alias("latest"))).toBeUndefined();
-    expect(store.read((tx) => tx.alias("alias/latest"))).toBe("beads/a");
+    expect(store.read((tx) => tx.alias("alias/latest"))).toBe("a");
     expect(() =>
       effect(store, "collision", (tx) =>
         tx.putResource({ id: "alias/alias/latest", kind: "bead", bodyJson: "{}" }),
       ),
     ).toThrow(expect.objectContaining({ reason: "alias-path-live" }));
     effect(store, "neutral-beads-prefix", (tx) =>
-      tx.putResource({ id: "beads/alias/latest", kind: "bead", bodyJson: "{}" }),
+      tx.putResource({ id: "alias/latest", kind: "bead", bodyJson: "{}" }),
     );
     effect(store, "ordinary-alias-prefix", (tx) =>
       tx.putResource({ id: "alias/a", kind: "bead", bodyJson: "{}" }),
     );
-    effect(store, "delete", (tx) => tx.deleteResource("beads/a"));
-    expect(store.read((tx) => tx.alias("alias/latest"))).toBe("beads/a");
-    expect(() => effect(store, "new-alias", (tx) => tx.putAlias("other", "beads/a"))).toThrow(
+    effect(store, "delete", (tx) => tx.deleteResource("a"));
+    expect(store.read((tx) => tx.alias("alias/latest"))).toBe("a");
+    expect(() => effect(store, "new-alias", (tx) => tx.putAlias("other", "a"))).toThrow(
       expect.objectContaining({ reason: "alias-target-not-live" }),
     );
     expect(() => effect(store, "old-path", (tx) => tx.putAlias("a", "alias/a"))).toThrow(
@@ -511,14 +511,14 @@ describe("durable reference ownership and transaction interface", () => {
     const admission = store.admit("alice", ["key"]);
     const completion = store.executeMember(admission, "key", (tx) => {
       tx.putResource({
-        id: "beads/source",
+        id: "source",
         kind: "bead",
         bodyJson: '{"revision":"source-r2","properties":{"n":1.0}}',
       });
       tx.putResource({
-        id: "links/edge",
+        id: "edge",
         kind: "link",
-        source: "beads/source",
+        source: "source",
         target: "urn:external",
         bodyJson: '{"revision":"link-r1"}',
       });
@@ -528,10 +528,10 @@ describe("durable reference ownership and transaction interface", () => {
     expect(completion).toEqual({ kind: "completed", outcomeJson: outcome().outcomeJson });
     store.close();
     const recovered = open(dir);
-    expect(recovered.read((tx) => tx.resource("beads/source")?.bodyJson)).toBe(
+    expect(recovered.read((tx) => tx.resource("source")?.bodyJson)).toBe(
       '{"revision":"source-r2","properties":{"n":1.0}}',
     );
-    expect(recovered.read((tx) => tx.incidentLinks("beads/source"))).toHaveLength(1);
+    expect(recovered.read((tx) => tx.incidentLinks("source"))).toHaveLength(1);
     expect(recovered.read((tx) => tx.policy("visibility"))).toBe('{"allow":"alice"}');
     expect(recovered.read((tx) => tx.key("alice", "key"))).toMatchObject({
       kind: "retained",
@@ -551,7 +551,7 @@ describe("durable reference ownership and transaction interface", () => {
       const admission = store.admit("alice", ["key"]);
       const attempt = () =>
         store.executeMember(admission, "key", (tx) => {
-          tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
+          tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" });
           tx.allocateRevision();
           if (mode === "throw") throw new Error("evaluator fault");
           return mode === "release" ? { kind: "release" } : outcome("failure");
@@ -559,7 +559,7 @@ describe("durable reference ownership and transaction interface", () => {
       if (mode === "throw") expect(attempt).toThrow("evaluator fault");
       else attempt();
       expect(store.read((tx) => tx.resources())).toEqual([]);
-      expect(store.read((tx) => tx.identityWasCommitted("beads/a"))).toBe(false);
+      expect(store.read((tx) => tx.identityWasCommitted("a"))).toBe(false);
       expect(store.read((tx) => tx.key("alice", "key"))).toMatchObject({
         kind: mode === "failure" ? "retained" : mode === "release" ? "unknown" : "claimed",
       });
@@ -573,7 +573,7 @@ describe("durable reference ownership and transaction interface", () => {
     expect(() =>
       store.executeMember(admission, "key", (async (tx: MemberTransaction) => {
         escaped = tx;
-        tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
+        tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" });
         await Promise.resolve();
         return outcome();
       }) as unknown as (tx: MemberTransaction) => MemberDecision),
@@ -626,12 +626,12 @@ describe("durable reference ownership and transaction interface", () => {
   it("reserves deleted identities and alias paths without changing Link/alias coexistence", () => {
     const store = open(directory(), true);
     effect(store, "seed", (tx) => {
-      tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
-      tx.putAlias("latest", "beads/a");
+      tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" });
+      tx.putAlias("latest", "a");
       tx.putResource({
-        id: "links/latest",
+        id: "latest",
         kind: "link",
-        source: "beads/a",
+        source: "a",
         target: "urn:x",
         bodyJson: "{}",
       });
@@ -644,14 +644,14 @@ describe("durable reference ownership and transaction interface", () => {
       }),
     ).toThrow(expect.objectContaining({ reason: "alias-path-live" }));
     effect(store, "delete", (tx) => {
-      tx.deleteResource("links/latest");
-      tx.deleteResource("beads/a");
+      tx.deleteResource("latest");
+      tx.deleteResource("a");
     });
-    expect(store.read((tx) => tx.alias("latest"))).toBe("beads/a"); // Deleting a Bead invents no alias cascade/refusal.
-    expect(store.read((tx) => tx.identityWasCommitted("beads/a"))).toBe(true);
+    expect(store.read((tx) => tx.alias("latest"))).toBe("a"); // Deleting a Bead invents no alias cascade/refusal.
+    expect(store.read((tx) => tx.identityWasCommitted("a"))).toBe(true);
     expect(() =>
       store.executeMember(store.admit("alice", ["reuse"]), "reuse", (tx) => {
-        tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
+        tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" });
         return outcome();
       }),
     ).toThrow(expect.objectContaining({ reason: "identity-reused" }));
@@ -739,7 +739,7 @@ describe("durable reference ownership and transaction interface", () => {
       });
       expect(() =>
         store.executeMember(admission, "key", (tx) => {
-          tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
+          tx.putResource({ id: "a", kind: "bead", bodyJson: "{}" });
           return outcome();
         }),
       ).toThrow(
@@ -754,7 +754,7 @@ describe("durable reference ownership and transaction interface", () => {
       );
       store.close();
       const recovered = open(dir);
-      expect(recovered.read((tx) => tx.resource("beads/a")) === undefined).toBe(phase === "before");
+      expect(recovered.read((tx) => tx.resource("a")) === undefined).toBe(phase === "before");
       expect(recovered.read((tx) => tx.key("alice", "key"))).toMatchObject({
         kind: phase === "before" ? "unknown" : "retained",
       });
@@ -788,9 +788,9 @@ if(mode==="staged" || mode==="hot"){
 }
 store.executeMember(admission,"first",tx=>{
  const revision=tx.allocateRevision();
- tx.putResource({id:"beads/a",kind:"bead",bodyJson:JSON.stringify({revision})});
- if(mode==="hot")for(let n=0;n<40;n++)tx.putResource({id:"beads/spill-"+n,kind:"bead",bodyJson:JSON.stringify({pad:"x".repeat(18000)})});
- const decision={kind:"retain",effect:"success",semanticIdentityJson:'{"operation":"createBead"}',resolutionsJson:'{"creator":"beads/a"}',outcomeJson:JSON.stringify({id:"beads/a",revision}),completedAt:100,retainUntil:86400100};
+ tx.putResource({id:"a",kind:"bead",bodyJson:JSON.stringify({revision})});
+ if(mode==="hot")for(let n=0;n<40;n++)tx.putResource({id:"spill-"+n,kind:"bead",bodyJson:JSON.stringify({pad:"x".repeat(18000)})});
+ const decision={kind:"retain",effect:"success",semanticIdentityJson:'{"operation":"createBead"}',resolutionsJson:'{"creator":"a"}',outcomeJson:JSON.stringify({id:"a",revision}),completedAt:100,retainUntil:86400100};
  return decision;
 });
 send({barrier:"committed",state:store.read(tx=>tx.key("alice","first"))});stop();
@@ -918,8 +918,8 @@ describe("actual Node24 child-process crashes", () => {
       const store = open(dir);
       expect(store.runtime.recoveredClaims).toBe(mode === "committed" ? 1 : 2);
       expect(store.read((tx) => tx.key("alice", "tail"))).toEqual({ kind: "unknown" });
-      expect(store.read((tx) => tx.resource("beads/tail"))).toBeUndefined();
-      const before = store.read((tx) => tx.resource("beads/a"));
+      expect(store.read((tx) => tx.resource("tail"))).toBeUndefined();
+      const before = store.read((tx) => tx.resource("a"));
       expect(before !== undefined).toBe(mode === "committed");
       if (mode === "committed")
         expect(store.read((tx) => tx.key("alice", "first"))).toEqual(barrier.state);
@@ -927,13 +927,13 @@ describe("actual Node24 child-process crashes", () => {
       let executions = 0;
       const result = store.executeMember(retry, "first", (tx) => {
         executions++;
-        tx.putResource({ id: "beads/a", kind: "bead", bodyJson: '{"revision":"explicit-retry"}' });
+        tx.putResource({ id: "a", kind: "bead", bodyJson: '{"revision":"explicit-retry"}' });
         return outcome();
       });
       expect(executions).toBe(mode === "committed" ? 0 : 1);
       expect(result.kind).toBe(mode === "committed" ? "existing" : "completed");
       store.executeMember(retry, "tail", (tx) => {
-        tx.putResource({ id: "beads/tail", kind: "bead", bodyJson: "{}" });
+        tx.putResource({ id: "tail", kind: "bead", bodyJson: "{}" });
         return outcome();
       });
       expect(store.read((tx) => tx.resources())).toHaveLength(2);
@@ -964,7 +964,7 @@ describe("native JSON syntax storage format", () => {
     const store = openRecoveryStore({
       ...options(dir),
       create: {
-        resources: [{ id: "beads/seed", kind: "bead", bodyJson: text }],
+        resources: [{ id: "seed", kind: "bead", bodyJson: text }],
         types: { "https://types.test/deep": text },
         policy: { seed: text },
       },
@@ -972,7 +972,7 @@ describe("native JSON syntax storage format", () => {
     stores.push(store);
     const admission = store.admit("alice", ["deep"]);
     store.executeMember(admission, "deep", (tx) => {
-      tx.putResource({ id: "beads/deep", kind: "bead", bodyJson: text });
+      tx.putResource({ id: "deep", kind: "bead", bodyJson: text });
       tx.putPolicy("deep", text);
       return outcome("success", {
         semanticIdentityJson: text,
@@ -983,8 +983,8 @@ describe("native JSON syntax storage format", () => {
     store.close();
     const reopened = open(dir);
     expect(reopened.runtime.recoveredClaims).toBe(0);
-    expect(reopened.read((tx) => tx.resource("beads/seed")?.bodyJson)).toBe(text);
-    expect(reopened.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(text);
+    expect(reopened.read((tx) => tx.resource("seed")?.bodyJson)).toBe(text);
+    expect(reopened.read((tx) => tx.resource("deep")?.bodyJson)).toBe(text);
     expect(reopened.read((tx) => tx.installedType("https://types.test/deep"))).toBe(text);
     expect(reopened.read((tx) => tx.policy("seed"))).toBe(text);
     expect(reopened.read((tx) => tx.policy("deep"))).toBe(text);
@@ -1023,7 +1023,7 @@ describe("native JSON syntax storage format", () => {
   });
 
   it.each([
-    ["resources.body", "INSERT INTO resources VALUES ('beads/invalid','bead','{',NULL,NULL)"],
+    ["resources.body", "INSERT INTO resources VALUES ('invalid','bead','{',NULL,NULL)"],
     ["installed_types.body", "INSERT INTO installed_types VALUES ('invalid','{')"],
     ["policy.body", "INSERT INTO policy VALUES ('invalid','{')"],
     ["key_state.identity", "UPDATE key_state SET identity='{' WHERE key='retained'"],
@@ -1046,7 +1046,7 @@ describe("native JSON syntax storage format", () => {
     try {
       expect(() =>
         store.executeMember(admission, "fault", (tx) => {
-          tx.putResource({ id: "beads/staged", kind: "bead", bodyJson: "{}" });
+          tx.putResource({ id: "staged", kind: "bead", bodyJson: "{}" });
           tx.putPolicy("trigger", "{}");
           return outcome();
         }),
@@ -1054,8 +1054,8 @@ describe("native JSON syntax storage format", () => {
     } finally {
       spy.mockRestore();
     }
-    expect(store.read((tx) => tx.resource("beads/staged"))).toBeUndefined();
-    expect(store.read((tx) => tx.identityWasCommitted("beads/staged"))).toBe(false);
+    expect(store.read((tx) => tx.resource("staged"))).toBeUndefined();
+    expect(store.read((tx) => tx.identityWasCommitted("staged"))).toBe(false);
     expect(store.read((tx) => tx.key("alice", "retained"))).toEqual(before);
     expect(store.read((tx) => tx.key("alice", "fault"))).toMatchObject({ kind: "claimed" });
     expect(store.abandonAttempt(admission)).toBe(1);
@@ -1131,7 +1131,7 @@ describe("native JSON syntax storage format", () => {
     store.expire(100 + day);
     effect(store, "retained", (tx) =>
       tx.putResource({
-        id: "beads/old",
+        id: "old",
         kind: "bead",
         bodyJson:
           '{"attribution":{"principal":"old","basis":"unknown"},"changeContext":{"message":{"state":"present","value":"old"}}}',
@@ -1153,7 +1153,7 @@ describe("native JSON syntax storage format", () => {
     try {
       expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(rows);
       expect(
-        after.prepare("SELECT body FROM resources WHERE id='beads/old'").get()?.body,
+        after.prepare("SELECT body FROM resources WHERE id='old'").get()?.body,
       ).toContain('"changeContext"');
     } finally {
       after.close();

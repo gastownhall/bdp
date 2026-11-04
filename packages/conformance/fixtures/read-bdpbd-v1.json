@@ -194,37 +194,49 @@
       "id": "https://work.example/types/work-item",
       "name": "Work Item",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/tracked-item"]
+      "conformsTo": [
+        "https://work.example/types/tracked-item"
+      ]
     },
     {
       "id": "https://work.example/types/task",
       "name": "Task",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": [
+        "https://work.example/types/work-item"
+      ]
     },
     {
       "id": "https://work.example/types/bug",
       "name": "Bug",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": [
+        "https://work.example/types/work-item"
+      ]
     },
     {
       "id": "https://work.example/types/feature",
       "name": "Feature",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": [
+        "https://work.example/types/work-item"
+      ]
     },
     {
       "id": "https://work.example/types/chore",
       "name": "Chore",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": [
+        "https://work.example/types/work-item"
+      ]
     },
     {
       "id": "https://work.example/types/epic",
       "name": "Epic",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": [
+        "https://work.example/types/work-item"
+      ]
     },
     {
       "id": "https://work.example/types/decision",
@@ -248,7 +260,9 @@
       "id": "https://work.example/types/dependency",
       "name": "Dependency",
       "describes": "link",
-      "conformsTo": ["https://work.example/types/relationship"],
+      "conformsTo": [
+        "https://work.example/types/relationship"
+      ],
       "source": {
         "conformsTo": []
       },
@@ -260,7 +274,9 @@
       "id": "https://work.example/types/blocks",
       "name": "Blocks",
       "describes": "link",
-      "conformsTo": ["https://work.example/types/dependency"],
+      "conformsTo": [
+        "https://work.example/types/dependency"
+      ],
       "source": {
         "conformsTo": []
       },
@@ -296,14 +312,20 @@
   "oracles": {
     "external-endpoint": {
       "input": {
-        "linkIds": ["link_lZPvVbK82Rqr62rXqdkRLHVe1RDnT4b28Cib1e8wJfU"]
+        "linkIds": [
+          "link_lZPvVbK82Rqr62rXqdkRLHVe1RDnT4b28Cib1e8wJfU"
+        ]
       },
       "rows": [
         [
           "link_lZPvVbK82Rqr62rXqdkRLHVe1RDnT4b28Cib1e8wJfU",
           "types/related",
-          ["demo-f"],
-          ["external:beads:mol-run-assignee"]
+          [
+            "demo-f"
+          ],
+          [
+            "external:beads:mol-run-assignee"
+          ]
         ]
       ],
       "externalEndpoints": 1,
@@ -346,26 +368,98 @@
       },
       "projection": {
         "beadStatuses": [
-          ["A", "open", 2],
-          ["B", "open", 2],
-          ["C", "closed", 2],
-          ["D", "open", 2],
-          ["E", "deferred", 2],
-          ["F", "open", 2],
-          ["I", "open", 2],
-          ["J", "open", 2],
-          ["K", "closed", 2]
+          [
+            "A",
+            "open",
+            2
+          ],
+          [
+            "B",
+            "open",
+            2
+          ],
+          [
+            "C",
+            "closed",
+            2
+          ],
+          [
+            "D",
+            "open",
+            2
+          ],
+          [
+            "E",
+            "deferred",
+            2
+          ],
+          [
+            "F",
+            "open",
+            2
+          ],
+          [
+            "I",
+            "open",
+            2
+          ],
+          [
+            "J",
+            "open",
+            2
+          ],
+          [
+            "K",
+            "closed",
+            2
+          ]
         ],
         "relationships": [
-          ["A", "C", "blocks"],
-          ["B", "A", "blocks"],
-          ["D", "C", "blocks"],
-          ["E", "F", "relates"],
-          ["F", "E", "blocks"],
-          ["I", "A", "blocks"],
-          ["I", "C", "blocks"],
-          ["J", "C", "blocks"],
-          ["J", "K", "blocks"]
+          [
+            "A",
+            "C",
+            "blocks"
+          ],
+          [
+            "B",
+            "A",
+            "blocks"
+          ],
+          [
+            "D",
+            "C",
+            "blocks"
+          ],
+          [
+            "E",
+            "F",
+            "relates"
+          ],
+          [
+            "F",
+            "E",
+            "blocks"
+          ],
+          [
+            "I",
+            "A",
+            "blocks"
+          ],
+          [
+            "I",
+            "C",
+            "blocks"
+          ],
+          [
+            "J",
+            "C",
+            "blocks"
+          ],
+          [
+            "J",
+            "K",
+            "blocks"
+          ]
         ]
       }
     },
@@ -386,15 +480,25 @@
           "view": "view-a",
           "epoch": "epoch-a"
         },
-        "expectedIds": ["demo-a", "demo-d", "demo-i", "demo-j"],
-        "expectedPageSizes": [2, 2]
+        "expectedIds": [
+          "demo-a",
+          "demo-d",
+          "demo-i",
+          "demo-j"
+        ],
+        "expectedPageSizes": [
+          2,
+          2
+        ]
       },
       "collection-snapshot": {
         "input": {
           "collection": "beads",
           "limit": 2,
           "mutation": {
-            "candidateIds": ["demo-k"],
+            "candidateIds": [
+              "demo-k"
+            ],
             "revision": "conformance-mutated-revision"
           },
           "view": "view-a",
@@ -411,7 +515,13 @@
           "demo-j",
           "demo-k"
         ],
-        "expectedPageSizes": [2, 2, 2, 2, 1]
+        "expectedPageSizes": [
+          2,
+          2,
+          2,
+          2,
+          1
+        ]
       },
       "cursor-errors": {
         "input": {
@@ -462,8 +572,22 @@
           "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM",
           "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"
         ],
-        "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        "expectedIncidentPageSizes": [1, 1, 1],
+        "expectedCollectionPageSizes": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "expectedIncidentPageSizes": [
+          1,
+          1,
+          1
+        ],
         "publicRequests": 16
       }
     },
@@ -503,7 +627,17 @@
       }
     },
     "collections": {
-      "bead-titles": ["A", "B", "C", "D", "E", "F", "I", "J", "K"],
+      "bead-titles": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "I",
+        "J",
+        "K"
+      ],
       "link-records": [
         [
           "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM",
@@ -614,12 +748,37 @@
       ]
     },
     "structural-predicates": {
-      "beads-type": ["A", "B", "D", "I", "J", "K"],
+      "beads-type": [
+        "A",
+        "B",
+        "D",
+        "I",
+        "J",
+        "K"
+      ],
       "beads-type-is-exact": [],
-      "beads-conforms-to-declared-type": ["A", "B", "D", "I", "J", "K"],
-      "beads-conforms-to": ["A", "B", "C", "D", "E", "I", "J", "K"],
+      "beads-conforms-to-declared-type": [
+        "A",
+        "B",
+        "D",
+        "I",
+        "J",
+        "K"
+      ],
+      "beads-conforms-to": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "I",
+        "J",
+        "K"
+      ],
       "beads-predicates-and": [],
-      "links-source-local": ["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"],
+      "links-source-local": [
+        "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+      ],
       "links-target-absolute": [
         "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM",
         "link_kyNwW_VIRuTGlRFq-jT74GEQ-DJuZ7anMUx7Tkfzc38",
@@ -663,7 +822,9 @@
         "link_a_wTVW4j1g5QUm6r4hn70ou3b_BqphIxj7lN_6Bz_GA"
       ],
       "links-conforms-to-cross-kind": [],
-      "links-predicates-and": ["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"],
+      "links-predicates-and": [
+        "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+      ],
       "links-endpoint-pinned-target": [
         "link_Ai_hbUZ0SeP7x51uPiUUuMj73f9S6_FlaktWuFDRjfA",
         "link_dlDGuHWRMPqi0sIvaWVWlZAmhkormJkZdCOszuWkUtY"
@@ -674,8 +835,12 @@
         "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM",
         "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"
       ],
-      "demo-a-outbound": ["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"],
-      "demo-b-outbound": ["link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"],
+      "demo-a-outbound": [
+        "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+      ],
+      "demo-b-outbound": [
+        "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"
+      ],
       "demo-b-inbound": [],
       "demo-a-both": [
         "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM",
@@ -690,63 +855,157 @@
     },
     "ordering": {
       "beads": [
-        ["demo-a"],
-        ["demo-b"],
-        ["demo-c"],
-        ["demo-d"],
-        ["demo-e"],
-        ["demo-f"],
-        ["demo-i"],
-        ["demo-j"],
-        ["demo-k"]
+        [
+          "demo-a"
+        ],
+        [
+          "demo-b"
+        ],
+        [
+          "demo-c"
+        ],
+        [
+          "demo-d"
+        ],
+        [
+          "demo-e"
+        ],
+        [
+          "demo-f"
+        ],
+        [
+          "demo-i"
+        ],
+        [
+          "demo-j"
+        ],
+        [
+          "demo-k"
+        ]
       ],
       "links": [
-        ["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"],
-        ["link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"],
-        ["link_kyNwW_VIRuTGlRFq-jT74GEQ-DJuZ7anMUx7Tkfzc38"],
-        ["link_dlDGuHWRMPqi0sIvaWVWlZAmhkormJkZdCOszuWkUtY"],
-        ["link_Ai_hbUZ0SeP7x51uPiUUuMj73f9S6_FlaktWuFDRjfA"],
-        ["link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"],
-        ["link_CwGjBw2C3BrsZ1-FCZFHCSWbgk6AkbfISd90g2z8LB8"],
-        ["link_2QJEMSuujph5KkVrwpNd6eU9iHTSsX9H_XsJSa-_bww"],
-        ["link_a_wTVW4j1g5QUm6r4hn70ou3b_BqphIxj7lN_6Bz_GA"]
+        [
+          "link_2QJEMSuujph5KkVrwpNd6eU9iHTSsX9H_XsJSa-_bww"
+        ],
+        [
+          "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"
+        ],
+        [
+          "link_Ai_hbUZ0SeP7x51uPiUUuMj73f9S6_FlaktWuFDRjfA"
+        ],
+        [
+          "link_CwGjBw2C3BrsZ1-FCZFHCSWbgk6AkbfISd90g2z8LB8"
+        ],
+        [
+          "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+        ],
+        [
+          "link_a_wTVW4j1g5QUm6r4hn70ou3b_BqphIxj7lN_6Bz_GA"
+        ],
+        [
+          "link_dlDGuHWRMPqi0sIvaWVWlZAmhkormJkZdCOszuWkUtY"
+        ],
+        [
+          "link_kyNwW_VIRuTGlRFq-jT74GEQ-DJuZ7anMUx7Tkfzc38"
+        ],
+        [
+          "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"
+        ]
       ],
       "order": "canonical-uri",
       "types": [
-        ["types/related"],
-        ["https://work.example/types/blocks"],
-        ["https://work.example/types/bug"],
-        ["https://work.example/types/chore"],
-        ["https://work.example/types/cites"],
-        ["https://work.example/types/decision"],
-        ["https://work.example/types/dependency"],
-        ["https://work.example/types/epic"],
-        ["https://work.example/types/feature"],
-        ["https://work.example/types/relates"],
-        ["https://work.example/types/relationship"],
-        ["https://work.example/types/task"],
-        ["https://work.example/types/tracked-item"],
-        ["https://work.example/types/work-item"]
+        [
+          "types/related"
+        ],
+        [
+          "https://work.example/types/blocks"
+        ],
+        [
+          "https://work.example/types/bug"
+        ],
+        [
+          "https://work.example/types/chore"
+        ],
+        [
+          "https://work.example/types/cites"
+        ],
+        [
+          "https://work.example/types/decision"
+        ],
+        [
+          "https://work.example/types/dependency"
+        ],
+        [
+          "https://work.example/types/epic"
+        ],
+        [
+          "https://work.example/types/feature"
+        ],
+        [
+          "https://work.example/types/relates"
+        ],
+        [
+          "https://work.example/types/relationship"
+        ],
+        [
+          "https://work.example/types/task"
+        ],
+        [
+          "https://work.example/types/tracked-item"
+        ],
+        [
+          "https://work.example/types/work-item"
+        ]
       ],
       "links-type": [
-        ["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"],
-        ["link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"],
-        ["link_kyNwW_VIRuTGlRFq-jT74GEQ-DJuZ7anMUx7Tkfzc38"],
-        ["link_Ai_hbUZ0SeP7x51uPiUUuMj73f9S6_FlaktWuFDRjfA"],
-        ["link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"],
-        ["link_CwGjBw2C3BrsZ1-FCZFHCSWbgk6AkbfISd90g2z8LB8"],
-        ["link_2QJEMSuujph5KkVrwpNd6eU9iHTSsX9H_XsJSa-_bww"],
-        ["link_a_wTVW4j1g5QUm6r4hn70ou3b_BqphIxj7lN_6Bz_GA"]
+        [
+          "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+        ],
+        [
+          "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"
+        ],
+        [
+          "link_kyNwW_VIRuTGlRFq-jT74GEQ-DJuZ7anMUx7Tkfzc38"
+        ],
+        [
+          "link_Ai_hbUZ0SeP7x51uPiUUuMj73f9S6_FlaktWuFDRjfA"
+        ],
+        [
+          "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"
+        ],
+        [
+          "link_CwGjBw2C3BrsZ1-FCZFHCSWbgk6AkbfISd90g2z8LB8"
+        ],
+        [
+          "link_2QJEMSuujph5KkVrwpNd6eU9iHTSsX9H_XsJSa-_bww"
+        ],
+        [
+          "link_a_wTVW4j1g5QUm6r4hn70ou3b_BqphIxj7lN_6Bz_GA"
+        ]
       ],
       "demo-a-inbound": [
-        ["link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"],
-        ["link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"]
+        [
+          "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"
+        ],
+        [
+          "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"
+        ]
       ],
-      "demo-a-outbound": [["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"]],
+      "demo-a-outbound": [
+        [
+          "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+        ]
+      ],
       "demo-a-both": [
-        ["link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"],
-        ["link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"],
-        ["link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"]
+        [
+          "link_LDdLtFE2sDBsA6qiWLXh3x5tjgbHHaMygaaUl9QiwsM"
+        ],
+        [
+          "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"
+        ],
+        [
+          "link_lJTRv9MkyjeSy2O4qgp9rmKxZhROA3l1dqVKq28DJJ0"
+        ]
       ]
     },
     "owned-links": {
@@ -1114,7 +1373,11 @@
         "description": "bdpbd-projected-resource-v2 uses IEEE-754-binary64-ECMAScript-JSON numbers: native JSON is parsed into JavaScript binary64 values and finite numbers are serialized with ECMAScript JSON.stringify (shortest round-trip form, negative zero as 0). The preimage is the complete projected Resource excluding only its revision member: id, type, common metadata, revisionProvenance when present, properties, and Link endpoints when present. Objects use UTF-16 code-unit lexical key order recursively, arrays retain order, and strings use ECMAScript JSON.stringify escaping. The UTF-8 bytes are SHA-256 hashed and encoded as unpadded base64url with the sha256_ prefix. This local discipline does not claim RFC 8785/I-JSON conformance: the reader has no duplicate-member or lone-surrogate admission guarantee. Adding common metadata to the complete projected Resource changes content-derived revision tokens, including when metadata is empty; existing tokens are historical and must not be relabeled. Moving actor data into revisionProvenance also changes projected record bytes and therefore their content-derived revision tokens; old tokens are not relabeled. This v2 discipline introduces no discovery member. Read observations cover numeric values actually returned by the supported bd projection, not write admission or arbitrary decimal preservation."
       },
       "input": {
-        "ids": ["demo-a", "demo-c", "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"],
+        "ids": [
+          "demo-a",
+          "demo-c",
+          "link_9TmuHZn1RUv0EiY9jYyUHZ0GIZ9QpqodDypNEEi5EeM"
+        ],
         "numberModel": "IEEE-754-binary64-ECMAScript-JSON"
       }
     },
@@ -1128,7 +1391,11 @@
     }
   },
   "expectations": {
-    "readyTitles": ["J", "D", "A"],
+    "readyTitles": [
+      "J",
+      "D",
+      "A"
+    ],
     "beadCount": 9,
     "linkCount": 9,
     "typeCount": 14

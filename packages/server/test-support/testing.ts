@@ -269,7 +269,7 @@ export function createControlledReadSessionForTesting(options: {
           ...Array.from({ length: materializedLength }, (_, index) =>
             Object.freeze({
               ...template,
-              id: new URL(`beads/limit-${index}`, options.scope).href,
+              id: new URL(`limit-${index}`, options.scope).href,
               revision: `limit-${index}`,
             }),
           ),

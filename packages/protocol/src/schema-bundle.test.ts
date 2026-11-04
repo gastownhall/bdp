@@ -52,7 +52,7 @@ describe("BDP v0 schema bundle", () => {
     const bead = beadRecord();
     const link = {
       ...bead,
-      id: "https://beads.example/acme/links/x",
+      id: "https://beads.example/acme/x",
       source: bead.id,
       target: bead.id,
     };
@@ -438,14 +438,14 @@ describe("BDP v0 schema bundle", () => {
       code: "resource-pruned",
       status: 410,
       retry: "never",
-      archivedAt: { uri: "https://archive.example/acme/beads/x", revision: "arch-r9" },
+      archivedAt: { uri: "https://archive.example/acme/x", revision: "arch-r9" },
     });
     expectInvalid("readProblem", {
       type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
       code: "resource-erased",
       status: 410,
       retry: "never",
-      archivedAt: "https://archive.example/acme/beads/x",
+      archivedAt: "https://archive.example/acme/x",
     });
     // archivedAt is pruned-only: every other code refuses it, so the
     // pointer can never leak through a non-disclosure problem.
@@ -454,7 +454,7 @@ describe("BDP v0 schema bundle", () => {
       code: "resource-not-found",
       status: 404,
       retry: "after-state-change",
-      archivedAt: "https://archive.example/acme/beads/x",
+      archivedAt: "https://archive.example/acme/x",
     });
   });
 
@@ -545,10 +545,10 @@ describe("BDP v0 schema bundle", () => {
     });
     expectInvalid("typeDescriptor", { ...beadTypeDescriptor(), ownsOutgoing: {} });
     const ownedLink = {
-      id: "https://beads.example/acme/links/cites-1",
+      id: "https://beads.example/acme/cites-1",
       type: "https://work.example/types/cites",
       revision: "1",
-      source: "https://beads.example/acme/beads/demo-f",
+      source: "https://beads.example/acme/demo-f",
       target: { uri: "urn:external:cites-witness", revision: "w-1" },
       properties: {},
     };
@@ -598,18 +598,18 @@ describe("BDP v0 schema bundle", () => {
     expectInvalid("beadRecord", {
       ...beadRecord(),
       ownedLinks: {
-        "https://work.example/types/cites": ["https://beads.example/acme/beads/demo-f"],
+        "https://work.example/types/cites": ["https://beads.example/acme/demo-f"],
       },
     });
     expectInvalid("beadRecord", {
       ...beadRecord(),
       ownedLinks: { "not a uri": [ownedLink] },
     });
-    expectValid("reference", "https://beads.example/acme/beads/demo-a");
+    expectValid("reference", "https://beads.example/acme/demo-a");
     expectValid("reference", "urn:external:123");
     expectValid("reference", { uri: "urn:external:123", revision: "cited-9f2c" });
     expectValid("reference", {
-      uri: "https://beads.example/acme/beads/demo-a",
+      uri: "https://beads.example/acme/demo-a",
       revision: "pin-a-r1",
     });
     expectInvalid("reference", {
@@ -653,7 +653,7 @@ function readDiscovery(): SchemaRecord {
 
 function beadRecord(): SchemaRecord {
   return {
-    id: "https://beads.example/acme/beads/task-42",
+    id: "https://beads.example/acme/task-42",
     type: "https://work.example/types/task",
     revision: "opaque-task-revision",
     properties: { title: "Specify BDP mutation", status: "open" },
@@ -662,10 +662,10 @@ function beadRecord(): SchemaRecord {
 
 function linkRecord(): SchemaRecord {
   return {
-    id: "https://beads.example/acme/links/assigned-to-81",
+    id: "https://beads.example/acme/assigned-to-81",
     type: "https://work.example/types/assigned-to",
     revision: "opaque-link-revision",
-    source: "https://beads.example/acme/beads/task-42",
+    source: "https://beads.example/acme/task-42",
     target: { uri: "urn:person:7", revision: "cited-9f2c" },
     properties: { since: "2026-08-04" },
   };

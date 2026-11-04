@@ -17,8 +17,7 @@ import {
 } from "./index.js";
 
 const SCOPE = "https://beads.example/acme/";
-const BEADS = `${SCOPE}beads/`;
-const LINKS = `${SCOPE}links/`;
+const RESOURCE = SCOPE;
 const BEADS_ROUTE = `${SCOPE}bdp/beads`;
 const LINKS_ROUTE = `${SCOPE}bdp/links`;
 const TASK_TYPE = "https://work.example/types/task";
@@ -54,22 +53,22 @@ const unsupportedDiscoveries: readonly (readonly [string, unknown])[] = [
 ];
 
 const unsupportedRequests: readonly (readonly [string, ReadRequest])[] = [
-  ["resource", { kind: "resource", resource: "bead", id: `${BEADS}a` }],
-  ["properties view", { kind: "properties", resource: "bead", id: `${BEADS}a` }],
-  ["incident links", { kind: "bead-links", bead: `${BEADS}a` }],
+  ["resource", { kind: "resource", resource: "bead", id: `${RESOURCE}a` }],
+  ["properties view", { kind: "properties", resource: "bead", id: `${RESOURCE}a` }],
+  ["incident links", { kind: "bead-links", bead: `${RESOURCE}a` }],
 ];
 
-function validBead(id = `${BEADS}a`): Record<string, unknown> {
+function validBead(id = `${RESOURCE}a`): Record<string, unknown> {
   return { id, type: TASK_TYPE, revision: "1", properties: {}, metadata: {} };
 }
 
 function validLink(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: `${LINKS}blocks-a-b`,
+    id: `${RESOURCE}blocks-a-b`,
     type: LINK_TYPE,
     revision: "1",
-    source: `${BEADS}a`,
-    target: `${BEADS}b`,
+    source: `${RESOURCE}a`,
+    target: `${RESOURCE}b`,
     properties: {},
     metadata: {},
     ...overrides,
@@ -354,7 +353,7 @@ describe("BdpClient", () => {
     const client = new BdpClient({ scope: SCOPE, transport });
 
     await expect(
-      client.perform({ kind: "resource", resource: "bead", id: `${BEADS}a` }),
+      client.perform({ kind: "resource", resource: "bead", id: `${RESOURCE}a` }),
     ).resolves.toEqual(problem);
   });
 
@@ -422,7 +421,7 @@ describe("BdpClient", () => {
 
   it("rejects discovery documents that advertise legacy collection roots", async () => {
     const transport = new RecordingTransport({ items: [], next: null });
-    transport.discovery = { ...validDiscovery(), beads: BEADS };
+    transport.discovery = { ...validDiscovery(), beads: RESOURCE };
     const client = new BdpClient({ scope: SCOPE, transport });
     await expect(client.perform({ kind: "collection", collection: "beads" })).resolves.toEqual(
       UNSUPPORTED_DISCOVERY_PROBLEM,
@@ -541,15 +540,15 @@ describe("BdpClient", () => {
     ],
     [
       "Bead Resource",
-      { kind: "resource", resource: "bead", id: `${BEADS}a` },
+      { kind: "resource", resource: "bead", id: `${RESOURCE}a` },
       validBead(),
-      [`${SCOPE}bdp.json`, `${BEADS}a`],
+      [`${SCOPE}bdp.json`, `${RESOURCE}a`],
     ],
     [
       "Link Resource",
-      { kind: "resource", resource: "link", id: `${LINKS}blocks-a-b` },
+      { kind: "resource", resource: "link", id: `${RESOURCE}blocks-a-b` },
       validLink(),
-      [`${SCOPE}bdp.json`, `${LINKS}blocks-a-b`],
+      [`${SCOPE}bdp.json`, `${RESOURCE}blocks-a-b`],
     ],
     [
       "Type Resource",
@@ -559,21 +558,21 @@ describe("BdpClient", () => {
     ],
     [
       "Bead properties",
-      { kind: "properties", resource: "bead", id: `${BEADS}a` },
+      { kind: "properties", resource: "bead", id: `${RESOURCE}a` },
       { status: "open" },
-      [`${SCOPE}bdp.json`, `${BEADS}a?view=properties`],
+      [`${SCOPE}bdp.json`, `${RESOURCE}a?view=properties`],
     ],
     [
       "Link properties",
-      { kind: "properties", resource: "link", id: `${LINKS}blocks-a-b` },
+      { kind: "properties", resource: "link", id: `${RESOURCE}blocks-a-b` },
       { reason: "dependency" },
-      [`${SCOPE}bdp.json`, `${LINKS}blocks-a-b?view=properties`],
+      [`${SCOPE}bdp.json`, `${RESOURCE}blocks-a-b?view=properties`],
     ],
     [
       "incident-Link view",
-      { kind: "bead-links", bead: `${BEADS}a` },
+      { kind: "bead-links", bead: `${RESOURCE}a` },
       { items: [validLink()], next: null },
-      [`${SCOPE}bdp.json`, `${BEADS}a?view=links&direction=both`],
+      [`${SCOPE}bdp.json`, `${RESOURCE}a?view=links&direction=both`],
     ],
   ] as const)(
     "routes and validates the registered %s request variant",
@@ -602,14 +601,14 @@ describe("BdpClient", () => {
   });
 
   it.each([
-    ["foreign Link ID", validLink({ id: "https://outside.example/links/x" })],
-    ["noncanonical local target", validLink({ target: `${BEADS}%61` })],
+    ["foreign Link ID", validLink({ id: "https://outside.example/x" })],
+    ["noncanonical local target", validLink({ target: `${RESOURCE}%61` })],
   ] as const)(
     "applies the top-level Scope boundary to an inline owned Link with %s",
     async (_label, link) => {
       const bead = { ...validBead(), ownedLinks: { [LINK_TYPE]: [link] } };
       for (const [request, body] of [
-        [{ kind: "resource", resource: "bead", id: `${BEADS}a` }, bead],
+        [{ kind: "resource", resource: "bead", id: `${RESOURCE}a` }, bead],
         [
           { kind: "collection", collection: "beads" },
           { items: [bead], next: null },
@@ -635,15 +634,15 @@ describe("BdpClient", () => {
 
   it.each([
     ["mismatched Link Type", [validLink({ type: TASK_TYPE })]],
-    ["different source Bead", [validLink({ source: `${BEADS}b` })]],
-    ["descending IDs", [validLink({ id: `${LINKS}z` }), validLink({ id: `${LINKS}a` })]],
+    ["different source Bead", [validLink({ source: `${RESOURCE}b` })]],
+    ["descending IDs", [validLink({ id: `${RESOURCE}z` }), validLink({ id: `${RESOURCE}a` })]],
     ["duplicate IDs", [validLink(), validLink()]],
   ] as const)(
     "maps invalid owned-Link coherence (%s) to a structured Problem",
     async (_label, owned) => {
       const bead = { ...validBead(), ownedLinks: { [LINK_TYPE]: owned } };
       for (const [request, body] of [
-        [{ kind: "resource", resource: "bead", id: `${BEADS}a` }, bead],
+        [{ kind: "resource", resource: "bead", id: `${RESOURCE}a` }, bead],
         [
           { kind: "collection", collection: "beads" },
           { items: [bead], next: null },
@@ -663,11 +662,11 @@ describe("BdpClient", () => {
     },
   );
 
-  it("accepts a Bead whose ordinary identity path begins with links/", async () => {
+  it("accepts a Bead with a nested ordinary identity path", async () => {
     const transport = new RecordingTransport({
       items: [
         {
-          id: `${LINKS}wrong-kind`,
+          id: `${RESOURCE}linkish/wrong-kind`,
           type: "https://work.example/types/task",
           revision: "1",
           properties: {},
@@ -680,7 +679,7 @@ describe("BdpClient", () => {
     await expect(client.perform({ kind: "collection", collection: "beads" })).resolves.toEqual({
       items: [
         {
-          id: `${LINKS}wrong-kind`,
+          id: `${RESOURCE}linkish/wrong-kind`,
           type: "https://work.example/types/task",
           revision: "1",
           properties: {},
@@ -714,7 +713,7 @@ describe("BdpClient", () => {
     [
       "pin on a noncanonical in-Scope HTTP alias",
       validLink({
-        target: { uri: "https://BEADS.example:443/acme/beads/b", revision: "cited-1" },
+        target: { uri: "https://BEADS.example:443/acme/b", revision: "cited-1" },
       }),
     ],
     ["pin missing its revision", validLink({ target: { uri: "urn:target" } })],
@@ -725,20 +724,20 @@ describe("BdpClient", () => {
     ],
     [
       "noncanonical in-Scope endpoint ID",
-      validLink({ source: "https://BEADS.example:443/acme/beads/a" }),
+      validLink({ source: "https://BEADS.example:443/acme/a" }),
     ],
-    ["noncanonical in-Scope endpoint path", validLink({ target: `${BEADS}b%2Fc` })],
+    ["noncanonical in-Scope endpoint path", validLink({ target: `${RESOURCE}b%2Fc` })],
     [
       "encoded Scope-prefix alias endpoint",
-      validLink({ target: "https://beads.example/%61cme/beads/b" }),
+      validLink({ target: "https://beads.example/%61cme/b" }),
     ],
     [
       "special-scheme Scope alias without slashes",
-      validLink({ target: "https:beads.example/acme/beads/b" }),
+      validLink({ target: "https:beads.example/acme/b" }),
     ],
     [
       "special-scheme Scope alias with one slash",
-      validLink({ target: "https:/beads.example/acme/beads/b" }),
+      validLink({ target: "https:/beads.example/acme/b" }),
     ],
   ] as const)("rejects an invalid Link with %s", async (_label, link) => {
     const client = new BdpClient({
@@ -768,7 +767,7 @@ describe("BdpClient", () => {
   });
 
   it("accepts a pinned in-Scope endpoint and preserves the pin byte-identically", async () => {
-    const link = validLink({ target: { uri: `${BEADS}b`, revision: "pin-b-r4 (as-written)" } });
+    const link = validLink({ target: { uri: `${RESOURCE}b`, revision: "pin-b-r4 (as-written)" } });
     const client = new BdpClient({
       scope: SCOPE,
       transport: new RecordingTransport({ items: [link], next: null }),
@@ -798,16 +797,16 @@ describe("BdpClient", () => {
       "unrelated",
       "both",
       validLink({
-        source: `${BEADS}b`,
-        target: `${BEADS}c`,
+        source: `${RESOURCE}b`,
+        target: `${RESOURCE}c`,
       }),
     ],
     [
       "wrong outbound direction",
       "outbound",
       validLink({
-        source: `${BEADS}b`,
-        target: `${BEADS}a`,
+        source: `${RESOURCE}b`,
+        target: `${RESOURCE}a`,
       }),
     ],
     ["wrong inbound direction", "inbound", validLink()],
@@ -820,7 +819,7 @@ describe("BdpClient", () => {
       });
 
       await expect(
-        client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction }),
+        client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction }),
       ).resolves.toMatchObject({
         code: "temporarily-unavailable",
         detail: "the server returned a structurally invalid Read response",
@@ -829,19 +828,19 @@ describe("BdpClient", () => {
   );
 
   it("binds continuation incident-Link pages to the original Bead and direction", async () => {
-    const continuation = `${BEADS}a?view=links&cursor=opaque`;
+    const continuation = `${RESOURCE}a?view=links&cursor=opaque`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
 
     await expect(
-      client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction: "inbound" }),
+      client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction: "inbound" }),
     ).resolves.toEqual({ items: [], next: continuation });
     transport.result = { items: [validLink()], next: null };
 
     await expect(
       client.perform({
         kind: "bead-links",
-        bead: `${BEADS}a`,
+        bead: `${RESOURCE}a`,
         continuation,
       }),
     ).resolves.toMatchObject({ code: "temporarily-unavailable" });
@@ -1031,23 +1030,23 @@ describe("BdpClient", () => {
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
 
-    await client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction: "inbound" });
-    await client.perform({ kind: "bead-links", bead: `${BEADS}b`, direction: "outbound" });
+    await client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction: "inbound" });
+    await client.perform({ kind: "bead-links", bead: `${RESOURCE}b`, direction: "outbound" });
     transport.result = {
       items: [
         validLink({
-          source: `${BEADS}b`,
-          target: `${BEADS}a`,
+          source: `${RESOURCE}b`,
+          target: `${RESOURCE}a`,
         }),
       ],
       next: null,
     };
 
     await expect(
-      client.perform({ kind: "bead-links", bead: `${BEADS}a`, continuation }),
+      client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, continuation }),
     ).resolves.toMatchObject({ items: expect.any(Array), next: null });
     await expect(
-      client.perform({ kind: "bead-links", bead: `${BEADS}b`, continuation }),
+      client.perform({ kind: "bead-links", bead: `${RESOURCE}b`, continuation }),
     ).resolves.toMatchObject({ items: expect.any(Array), next: null });
   });
 
@@ -1056,9 +1055,9 @@ describe("BdpClient", () => {
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
 
-    await client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction: "inbound" });
+    await client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction: "inbound" });
     await expect(
-      client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction: "outbound" }),
+      client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction: "outbound" }),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server returned a structurally invalid Read response",
@@ -1066,14 +1065,14 @@ describe("BdpClient", () => {
     transport.result = {
       items: [
         validLink({
-          source: `${BEADS}b`,
-          target: `${BEADS}a`,
+          source: `${RESOURCE}b`,
+          target: `${RESOURCE}a`,
         }),
       ],
       next: null,
     };
     await expect(
-      client.perform({ kind: "bead-links", bead: `${BEADS}a`, continuation }),
+      client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, continuation }),
     ).resolves.toMatchObject({ items: expect.any(Array), next: null });
   });
 
@@ -1081,12 +1080,12 @@ describe("BdpClient", () => {
     const continuation = `${SCOPE}incident?cursor=leased-direction`;
     const transport = new GatedDirectionAmbiguityTransport(continuation);
     const client = new BdpClient({ scope: SCOPE, transport });
-    await client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction: "inbound" });
+    await client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction: "inbound" });
 
-    const inbound = client.perform({ kind: "bead-links", bead: `${BEADS}a`, continuation });
+    const inbound = client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, continuation });
     await transport.continuationStarted;
     await expect(
-      client.perform({ kind: "bead-links", bead: `${BEADS}a`, direction: "outbound" }),
+      client.perform({ kind: "bead-links", bead: `${RESOURCE}a`, direction: "outbound" }),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server returned a structurally invalid Read response",
@@ -1238,8 +1237,8 @@ describe("BdpClient", () => {
   });
 
   it.each([
-    ["bead", `${BEADS}requested`, validBead(`${BEADS}other`)],
-    ["link", `${LINKS}requested`, validLink({ id: `${LINKS}other` })],
+    ["bead", `${RESOURCE}requested`, validBead(`${RESOURCE}other`)],
+    ["link", `${RESOURCE}requested`, validLink({ id: `${RESOURCE}other` })],
     ["type", `${SCOPE}descriptors/requested`, validTypeDescriptor(`${SCOPE}descriptors/other`)],
   ] as const)(
     "rejects a %s singleton whose response identity differs",
@@ -1307,7 +1306,7 @@ describe("BdpClient", () => {
     const result = await client.perform({
       kind: "properties",
       resource: "bead",
-      id: `${BEADS}a`,
+      id: `${RESOURCE}a`,
     });
     expect(result).toEqual(properties);
     expect(isReadProblem(result)).toBe(true);
@@ -1315,15 +1314,15 @@ describe("BdpClient", () => {
   });
 
   it.each([
-    ["duplicate slash", `${BEADS}/a`],
-    ["query-bearing ID", `${BEADS}a?view=properties`],
-    ["encoded slash", `${BEADS}a%2Fb`],
-    ["encoded backslash", `${BEADS}a%5Cb`],
-    ["duplicate slash", `${BEADS}/a`],
-    ["encoded reserved colon", `${BEADS}a%3Ab`],
-    ["encoded reserved exclamation", `${BEADS}a%21b`],
-    ["lowercase percent escape", `${BEADS}%e2%82%ac`],
-    ["fragment", `${BEADS}a#fragment`],
+    ["duplicate slash", `${RESOURCE}/a`],
+    ["query-bearing ID", `${RESOURCE}a?view=properties`],
+    ["encoded slash", `${RESOURCE}a%2Fb`],
+    ["encoded backslash", `${RESOURCE}a%5Cb`],
+    ["duplicate slash", `${RESOURCE}/a`],
+    ["encoded reserved colon", `${RESOURCE}a%3Ab`],
+    ["encoded reserved exclamation", `${RESOURCE}a%21b`],
+    ["lowercase percent escape", `${RESOURCE}%e2%82%ac`],
+    ["fragment", `${RESOURCE}a#fragment`],
   ] as const)("rejects a noncanonical Bead Resource %s before dispatch", async (_label, id) => {
     const transport = new RecordingTransport({});
     const client = new BdpClient({ scope: SCOPE, transport });
@@ -1338,11 +1337,11 @@ describe("BdpClient", () => {
 
   it.each([
     ["non-integer limit", { kind: "collection", collection: "beads", limit: 2.5 }],
-    ["invalid direction", { kind: "bead-links", bead: `${BEADS}a`, direction: "sideways" }],
+    ["invalid direction", { kind: "bead-links", bead: `${RESOURCE}a`, direction: "sideways" }],
     ["inapplicable Type filter", { kind: "collection", collection: "types", type: TASK_TYPE }],
-    ["unknown operation", { kind: "future", resource: "bead", id: `${BEADS}a` }],
+    ["unknown operation", { kind: "future", resource: "bead", id: `${RESOURCE}a` }],
     ["unknown collection", { kind: "collection", collection: "future" }],
-    ["unknown Resource kind", { kind: "resource", resource: "future", id: `${BEADS}a` }],
+    ["unknown Resource kind", { kind: "resource", resource: "future", id: `${RESOURCE}a` }],
     ["Type properties view", { kind: "properties", resource: "type", id: TASK_TYPE }],
     ["missing Resource ID", { kind: "resource", resource: "bead" }],
     ["non-string Type filter", { kind: "collection", collection: "beads", type: 7 }],
@@ -1449,7 +1448,7 @@ describe("BdpClient", () => {
     await expect(client.close()).resolves.toBeUndefined();
   });
 
-  it.each(["https://outside.example/beads/a", `${BEADS}a%2Fb`] as const)(
+  it.each(["https://outside.example/a", `${RESOURCE}a%2Fb`] as const)(
     "rejects an unissued incident-Link continuation before discovery: %s",
     async (bead) => {
       const transport = new RecordingTransport({ items: [], next: null });
@@ -1459,7 +1458,7 @@ describe("BdpClient", () => {
         client.perform({
           kind: "bead-links",
           bead,
-          continuation: `${BEADS}a?view=links&cursor=opaque`,
+          continuation: `${RESOURCE}a?view=links&cursor=opaque`,
         }),
       ).rejects.toBeInstanceOf(BdpClientRequestError);
       expect(transport.urls).toEqual([]);
@@ -1820,8 +1819,8 @@ describe("BdpClient", () => {
     ["Type inventory", { kind: "collection", collection: "types" }, `${SCOPE}types/`],
     [
       "incident-Link view",
-      { kind: "bead-links", bead: `${BEADS}a`, direction: "both" },
-      `${BEADS}a?view=links&direction=both`,
+      { kind: "bead-links", bead: `${RESOURCE}a`, direction: "both" },
+      `${RESOURCE}a?view=links&direction=both`,
     ],
   ] as const)("rejects an off-Scope next URL from a %s", async (_label, request, requestUrl) => {
     const continuation = "https://attacker.example/page?cursor=opaque";
@@ -1847,14 +1846,14 @@ describe("BdpClient", () => {
     },
     {
       kind: "bead-links",
-      bead: `${BEADS}a`,
-      continuation: `${BEADS}a?view=links&cursor=opaque`,
+      bead: `${RESOURCE}a`,
+      continuation: `${RESOURCE}a?view=links&cursor=opaque`,
       limit: 10,
     },
     {
       kind: "bead-links",
-      bead: `${BEADS}a`,
-      continuation: `${BEADS}a?view=links&cursor=opaque`,
+      bead: `${RESOURCE}a`,
+      continuation: `${RESOURCE}a?view=links&cursor=opaque`,
       direction: "inbound",
     },
   ] as const)(
@@ -2224,7 +2223,7 @@ describe("createFetchTransport", () => {
     });
     try {
       await expect(
-        client.perform({ kind: "properties", resource: "bead", id: `${BEADS}a` }),
+        client.perform({ kind: "properties", resource: "bead", id: `${RESOURCE}a` }),
       ).resolves.toMatchObject({ code: "temporarily-unavailable", status: 503 });
       expect(requests).toHaveLength(3);
     } finally {
@@ -2252,7 +2251,7 @@ describe("createFetchTransport", () => {
     });
     try {
       await expect(
-        client.perform({ kind: "properties", resource: "bead", id: `${BEADS}a` }),
+        client.perform({ kind: "properties", resource: "bead", id: `${RESOURCE}a` }),
       ).resolves.toEqual(JSON.parse(body));
     } finally {
       await client.close();
@@ -2267,7 +2266,7 @@ describe("createFetchTransport", () => {
     );
 
     await expect(
-      transportValue(transport.perform(BEADS, transportOptions())),
+      transportValue(transport.perform(`${RESOURCE}a`, transportOptions())),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server response did not use a JSON media type",
@@ -2284,11 +2283,11 @@ describe("createFetchTransport", () => {
         cancelled = true;
       },
     });
-    const response = responseAt(BEADS, body, { headers: { "content-type": "text/plain" } });
+    const response = responseAt(RESOURCE, body, { headers: { "content-type": "text/plain" } });
     const transport = createFetchTransport(async () => response);
 
     await expect(
-      transportValue(transport.perform(BEADS, transportOptions())),
+      transportValue(transport.perform(RESOURCE, transportOptions())),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server response did not use a JSON media type",
@@ -2305,10 +2304,10 @@ describe("createFetchTransport", () => {
           cancelled = true;
         },
       });
-      const response = responseAt(BEADS, status === 204 ? null : body, { status });
+      const response = responseAt(RESOURCE, status === 204 ? null : body, { status });
       const transport = createFetchTransport(async () => response);
 
-      await expect(transport.perform(BEADS, transportOptions())).rejects.toThrow(
+      await expect(transport.perform(RESOURCE, transportOptions())).rejects.toThrow(
         `the server returned unexpected success status ${status}`,
       );
       expect(cancelled).toBe(status !== 204);
@@ -2316,9 +2315,9 @@ describe("createFetchTransport", () => {
   );
 
   it("keeps a body-less internal fault outside the protocol Problem taxonomy", async () => {
-    const transport = createFetchTransport(async () => responseAt(BEADS, null, { status: 500 }));
+    const transport = createFetchTransport(async () => responseAt(RESOURCE, null, { status: 500 }));
 
-    await expect(transport.perform(BEADS, transportOptions())).rejects.toThrow(
+    await expect(transport.perform(RESOURCE, transportOptions())).rejects.toThrow(
       "the server returned a body-less internal fault without a BDP Problem",
     );
   });
@@ -2359,7 +2358,7 @@ describe("createFetchTransport", () => {
             cancelled = true;
           },
         });
-        const url = mode === "Read" ? BEADS : SCOPE;
+        const url = mode === "Read" ? RESOURCE : SCOPE;
         const response = responseAt(url, body, {
           status,
           headers: { "content-type": "application/problem+json" },
@@ -2367,7 +2366,7 @@ describe("createFetchTransport", () => {
         const transport = createFetchTransport(async () => response, { responseTimeoutMs: 10 });
         const operation =
           mode === "Read"
-            ? transport.perform(BEADS, transportOptions())
+            ? transport.perform(RESOURCE, transportOptions())
             : transport.discover(SCOPE, { signal: new AbortController().signal });
 
         await expect(operation).rejects.toThrow(
@@ -2382,13 +2381,13 @@ describe("createFetchTransport", () => {
     "does not fabricate a BDP Problem from non-Problem HTTP %i",
     async (status) => {
       const transport = createFetchTransport(async () =>
-        responseAt(BEADS, "<html>intermediary response</html>", {
+        responseAt(RESOURCE, "<html>intermediary response</html>", {
           status,
           headers: { "content-type": "text/html" },
         }),
       );
 
-      await expect(transport.perform(BEADS, transportOptions())).rejects.toThrow(
+      await expect(transport.perform(RESOURCE, transportOptions())).rejects.toThrow(
         `the server returned HTTP ${status} without a BDP Problem`,
       );
     },
@@ -2440,7 +2439,7 @@ describe("createFetchTransport", () => {
     );
 
     await expect(
-      transportValue(transport.perform(BEADS, transportOptions())),
+      transportValue(transport.perform(`${RESOURCE}a`, transportOptions())),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server returned a malformed JSON response",
@@ -2464,7 +2463,7 @@ describe("createFetchTransport", () => {
     Object.defineProperty(response, "url", { value: "https://attacker.example/result" });
     const transport = createFetchTransport(async () => response);
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/authorization",
       code: "forbidden",
       retry: "after-state-change",
@@ -2481,7 +2480,7 @@ describe("createFetchTransport", () => {
     });
     const transport = createFetchTransport(async () => response);
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/request",
       code: "invalid-parameter",
       retry: "never",
@@ -2549,7 +2548,7 @@ describe("createFetchTransport", () => {
     Object.defineProperty(response, "url", { value: "https://attacker.example/result" });
     const transport = createFetchTransport(async () => response, { responseTimeoutMs: 10 });
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/authorization",
       code: "forbidden",
       retry: "after-state-change",
@@ -2561,7 +2560,7 @@ describe("createFetchTransport", () => {
 
   it.each([
     ["Scope", SCOPE, "https://attacker.example/evil", "scope discovery"],
-    ["Read", BEADS, "https://attacker.example/evil", "the response"],
+    ["Read", `${RESOURCE}a`, "https://attacker.example/evil", "the response"],
   ] as const)(
     "classifies a real off-origin %s redirect before body parsing",
     async (_label, url, location, subject) => {
@@ -2591,7 +2590,7 @@ describe("createFetchTransport", () => {
       }),
     );
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/request",
       code: "invalid-parameter",
       retry: "never",
@@ -2609,7 +2608,7 @@ describe("createFetchTransport", () => {
     );
 
     await expect(
-      transportValue(transport.perform(BEADS, transportOptions())),
+      transportValue(transport.perform(RESOURCE, transportOptions())),
     ).resolves.toMatchObject({
       code: "forbidden",
       detail: "the response redirected outside the configured Scope",
@@ -2622,7 +2621,7 @@ describe("createFetchTransport", () => {
       { maximumResponseBodyBytes: 32 },
     );
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/unavailable",
       code: "temporarily-unavailable",
       retry: "after-delay",
@@ -2642,14 +2641,14 @@ describe("createFetchTransport", () => {
         return new Promise<void>(() => undefined);
       },
     });
-    const response = responseAt(BEADS, body);
+    const response = responseAt(RESOURCE, body);
     const transport = createFetchTransport(async () => response, {
       maximumResponseBodyBytes: 32,
       responseTimeoutMs: 10,
     });
 
     await expect(
-      transportValue(transport.perform(BEADS, transportOptions())),
+      transportValue(transport.perform(RESOURCE, transportOptions())),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server response exceeded 32 bytes",
@@ -2668,11 +2667,11 @@ describe("createFetchTransport", () => {
         return new Promise<void>(() => undefined);
       },
     });
-    const response = responseAt(BEADS, body);
+    const response = responseAt(RESOURCE, body);
     const transport = createFetchTransport(async () => response, { responseTimeoutMs: 10 });
 
     await expect(
-      transportValue(transport.perform(BEADS, transportOptions())),
+      transportValue(transport.perform(RESOURCE, transportOptions())),
     ).resolves.toMatchObject({
       code: "temporarily-unavailable",
       detail: "the server response timed out",
@@ -2687,7 +2686,7 @@ describe("createFetchTransport", () => {
       { maximumResponseBodyBytes: 32 },
     );
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).rejects.toThrow(
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).rejects.toThrow(
       "the server returned HTTP 404 with an unreadable BDP Problem",
     );
   });
@@ -2720,7 +2719,7 @@ describe("createFetchTransport", () => {
         responseAt(String(input), JSON.stringify(problem), { status }),
       );
 
-      await expect(transportValue(transport.perform(BEADS, transportOptions()))).rejects.toThrow(
+      await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).rejects.toThrow(
         /the server returned an (?:invalid|incoherent) Problem response/,
       );
     },
@@ -2732,7 +2731,7 @@ describe("createFetchTransport", () => {
       { maximumJsonDepth: 1 },
     );
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/unavailable",
       code: "temporarily-unavailable",
       retry: "after-delay",
@@ -2760,7 +2759,7 @@ describe("createFetchTransport", () => {
       options,
     );
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/unavailable",
       code: "temporarily-unavailable",
       retry: "after-delay",
@@ -2792,10 +2791,10 @@ describe("createFetchTransport", () => {
       status: 200,
       headers: { "content-type": "application/json" },
     });
-    Object.defineProperty(response, "url", { value: BEADS });
+    Object.defineProperty(response, "url", { value: RESOURCE });
     const transport = createFetchTransport(async () => response, { responseTimeoutMs: 10 });
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/unavailable",
       code: "temporarily-unavailable",
       retry: "after-delay",
@@ -2809,7 +2808,7 @@ describe("createFetchTransport", () => {
     const fetchImplementation: typeof fetch = () => new Promise<Response>(() => undefined);
     const transport = createFetchTransport(fetchImplementation, { responseTimeoutMs: 10 });
 
-    await expect(transportValue(transport.perform(BEADS, transportOptions()))).resolves.toEqual({
+    await expect(transportValue(transport.perform(RESOURCE, transportOptions()))).resolves.toEqual({
       type: "https://github.com/gastownhall/bdp/problems/unavailable",
       code: "temporarily-unavailable",
       retry: "after-delay",

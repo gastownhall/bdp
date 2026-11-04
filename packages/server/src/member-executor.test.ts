@@ -72,18 +72,18 @@ function fixture(settings: { owned?: boolean; validate?: PropertyValidator; scop
     target: { conformsTo: [type], external: "opaque" },
   });
   const link = {
-    id: `${selectedScope}links/old`,
+    id: `${selectedScope}old`,
     type: linkType,
     revision: "l0",
-    source: `${selectedScope}beads/a`,
-    target: `${selectedScope}beads/b`,
+    source: `${selectedScope}a`,
+    target: `${selectedScope}b`,
     properties: {},
   };
   const resources: StoredResource[] = ["a", "b", "free"].map((id) => ({
     kind: "bead",
-    id: `beads/${id}`,
+    id: `${id}`,
     bodyJson: stringifyJsonValue({
-      id: `${selectedScope}beads/${id}`,
+      id: `${selectedScope}${id}`,
       type,
       revision: "r0",
       properties: { n: 0 },
@@ -92,9 +92,9 @@ function fixture(settings: { owned?: boolean; validate?: PropertyValidator; scop
   }));
   resources.push({
     kind: "link",
-    id: "links/old",
-    source: "beads/a",
-    target: "beads/b",
+    id: "old",
+    source: "a",
+    target: "b",
     bodyJson: stringifyJsonValue(link),
   });
   const types = {
@@ -246,13 +246,13 @@ describe("real member execution and retention", () => {
     "%s retains and replays numeric patch refusal without leaking request locations",
     (operation) => {
       const f = fixture();
-      const id = operation === "updateBead" ? "beads/a" : "links/old";
+      const id = operation === "updateBead" ? "a" : "old";
       const raw = (literal: string) =>
         JSON.stringify({
           [operation === "updateBead" ? "bead" : "link"]: id,
           propertiesChange: [{ op: "add", path: "/items/-", value: "BAD" }],
         }).replace('"BAD"', literal);
-      const before = ["beads/a", "beads/b", "links/old"].map((id) => f.body(id));
+      const before = ["a", "b", "old"].map((id) => f.body(id));
       const opts = {
         ...f.options,
         numericBudget: {
@@ -287,7 +287,7 @@ describe("real member execution and retention", () => {
       expect(code(f.run(operation, raw("1e401"), "numeric-update", opts))).toBe(
         "idempotency-conflict",
       );
-      expect(["beads/a", "beads/b", "links/old"].map((id) => f.body(id))).toEqual(before);
+      expect(["a", "b", "old"].map((id) => f.body(id))).toEqual(before);
     },
   );
   it("commits creation with exact guarded envelope/metadata, no-op and alias effects, then replays without renewal across reopen", () => {
@@ -414,12 +414,12 @@ describe("real member execution and retention", () => {
 const slots = [
   { operation: "deleteBead", bead: "@made" },
   { operation: "updateBead", bead: "@made", propertiesChange: [{ op: "remove", path: "/x" }] },
-  { operation: "createLink", type: linkType, source: "@made", target: `${scope}beads/b` },
+  { operation: "createLink", type: linkType, source: "@made", target: `${scope}b` },
   {
     operation: "createLink",
     type: linkType,
     source: { uri: "@made", revision: "pin" },
-    target: `${scope}beads/b`,
+    target: `${scope}b`,
   },
   { operation: "createLink", type: linkType, source: "alias/earlier", target: "@made" },
   {
@@ -441,8 +441,8 @@ describe("dependency and numeric admission order", () => {
             ...create,
             operation: "createLink",
             type: linkType,
-            source: `${scope}beads/a`,
-            target: `${scope}beads/b`,
+            source: `${scope}a`,
+            target: `${scope}b`,
           }
         : create;
     const carrier = prepareReadUpdateSequence(
@@ -522,7 +522,7 @@ describe("dependency and numeric admission order", () => {
   );
   it("retains numeric refusal before missing subject/CAS/unbound and preserves exact decimal identity", () => {
     const f = fixture();
-    const raw = `{"bead":"beads/missing","expectedRevision":"wrong","propertiesChange":[{"op":"add","path":"/x","value":9007199254740993}]}`;
+    const raw = `{"bead":"missing","expectedRevision":"wrong","propertiesChange":[{"op":"add","path":"/x","value":9007199254740993}]}`;
     expect(code(f.run("updateBead", raw))).toBe("validation-failed");
     expect(retained(f.key()).semanticIdentityJson).toContain("9007199254740993");
     expect(code(f.run("updateBead", raw.replace("9007199254740993", "9007199254740992")))).toBe(
@@ -543,7 +543,7 @@ describe("dependency and numeric admission order", () => {
   });
   it("records all alias/binding witnesses before an early supplied-ID or authorization refusal", () => {
     const f = fixture();
-    f.run("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
+    f.run("putAlias", { alias: "alias/current", target: "a" }, "alias");
     const carrier = prepareReadUpdateSequence(
       scope,
       stringifyJsonValue({
@@ -553,7 +553,7 @@ describe("dependency and numeric admission order", () => {
             operation: "createLink",
             idempotencyKey: "dependent",
             type: linkType,
-            id: "links/old",
+            id: "old",
             source: "alias/current",
             target: "@made",
           },
@@ -564,7 +564,7 @@ describe("dependency and numeric admission order", () => {
       code(
         f.present(carrier, 1, () => ({
           kind: "bound",
-          id: `${scope}beads/b`,
+          id: `${scope}b`,
           resourceKind: "bead",
         })),
       ),
@@ -578,14 +578,14 @@ describe("dependency and numeric admission order", () => {
 describe("retained witnesses, equality and private creator facts", () => {
   it("reuses original captures and compares new locators without rewriting retained bytes", () => {
     const f = fixture();
-    f.run("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
+    f.run("putAlias", { alias: "alias/current", target: "a" }, "alias");
     const input = { type: linkType, source: "alias/current", target: "alias/current" };
     const made = f.run("createLink", input);
     const state = f.key();
-    f.run("putAlias", { alias: "alias/current", target: "beads/b" }, "repoint");
+    f.run("putAlias", { alias: "alias/current", target: "b" }, "repoint");
     expect(f.run("createLink", input).disposition).toEqual(made.disposition);
     expect(
-      f.run("createLink", { ...input, source: `${scope}beads/a`, target: `${scope}beads/a` })
+      f.run("createLink", { ...input, source: `${scope}a`, target: `${scope}a` })
         .storage,
     ).toBe("replayed");
     expect(code(f.run("createLink", { ...input, source: "alias/other" }))).toBe(
@@ -594,39 +594,39 @@ describe("retained witnesses, equality and private creator facts", () => {
     expect(f.key()).toEqual(state);
     f.run("deleteBead", { bead: "alias/missing" }, "miss");
     const miss = f.key("miss");
-    f.run("putAlias", { alias: "alias/missing", target: "beads/free" }, "install-miss");
+    f.run("putAlias", { alias: "alias/missing", target: "free" }, "install-miss");
     expect(code(f.run("deleteBead", { bead: "alias/missing" }, "miss"))).toBe("resource-not-found");
     expect(f.key("miss")).toEqual(miss);
-    expect(f.body("beads/free")).toBeDefined();
+    expect(f.body("free")).toBeDefined();
     // A different operation is definitely unequal; new alias cannot force a lookup.
     expect(code(f.run("deleteBead", { bead: "alias/never" }))).toBe("idempotency-conflict");
   });
-  it.each(["beads/a", "alias/original"])(
+  it.each(["a", "alias/original"])(
     "compares new aliases for original %s, authorization, deletion and expiry",
     (source) => {
       const f = fixture();
-      f.run("putAlias", { alias: "alias/original", target: "beads/a" }, "original-alias");
-      const input = { type: linkType, source, target: "beads/a" };
+      f.run("putAlias", { alias: "alias/original", target: "a" }, "original-alias");
+      const input = { type: linkType, source, target: "a" };
       const made = f.run("createLink", input);
       expect(code(made)).toBe("created");
       const original = retained(f.key());
-      f.run("putAlias", { alias: "alias/new", target: "beads/a" }, "new-alias");
+      f.run("putAlias", { alias: "alias/new", target: "a" }, "new-alias");
       const retry = { ...input, source: "alias/new" };
       f.clock.mockClear();
       const evaluate = vi.spyOn(evaluator, "evaluateResourceMutation");
       expect(f.run("createLink", retry).disposition).toEqual(made.disposition);
       expect(evaluate).not.toHaveBeenCalled();
       expect(f.clock).not.toHaveBeenCalled();
-      f.policyState.hidden.add(`${scope}beads/a`);
+      f.policyState.hidden.add(`${scope}a`);
       expect(code(f.run("createLink", retry))).toBe("forbidden");
-      expect(code(f.run("createLink", { ...retry, source: "beads/b" }))).toBe(
+      expect(code(f.run("createLink", { ...retry, source: "b" }))).toBe(
         "idempotency-conflict",
       );
       f.policyState.hidden.clear();
       expect(f.run("createLink", retry).disposition).toEqual(made.disposition);
       expect(f.run("createLink", retry, "key", f.options, "bob").storage).toBe("retained");
       expect(f.key("key", "bob")).not.toEqual(original);
-      f.run("putAlias", { alias: "alias/new", target: "beads/b" }, "new-repoint");
+      f.run("putAlias", { alias: "alias/new", target: "b" }, "new-repoint");
       expect(code(f.run("createLink", retry))).toBe("idempotency-conflict");
       f.run("deleteAlias", { alias: "alias/original" }, "remove-original");
       expect(f.run("createLink", input).disposition).toEqual(made.disposition);
@@ -634,7 +634,7 @@ describe("retained witnesses, equality and private creator facts", () => {
       f.store.expire(original.retainUntil);
       const tombstone = f.key();
       expect(tombstone.kind).toBe("expired");
-      f.run("putAlias", { alias: "alias/equal", target: "beads/a" }, "equal-alias");
+      f.run("putAlias", { alias: "alias/equal", target: "a" }, "equal-alias");
       const expired = f.run("createLink", { ...input, source: "alias/equal" });
       expect(code(expired)).toBe("idempotency-expired");
       expect(expired.creator).toEqual(made.creator);
@@ -644,10 +644,10 @@ describe("retained witnesses, equality and private creator facts", () => {
   );
   it("binds only alias for retry normalization, with one lookup per new locator and early mismatch", () => {
     const f = fixture();
-    const input = { type: linkType, source: "beads/a", target: "beads/a" };
+    const input = { type: linkType, source: "a", target: "a" };
     f.run("createLink", input);
-    f.run("putAlias", { alias: "alias/new", target: "beads/a" }, "new");
-    f.run("putAlias", { alias: "alias/second", target: "beads/a" }, "second");
+    f.run("putAlias", { alias: "alias/new", target: "a" }, "new");
+    f.run("putAlias", { alias: "alias/second", target: "a" }, "second");
     const read = f.store.read.bind(f.store);
     const calls: string[] = [];
     let captures = 0,
@@ -755,12 +755,12 @@ describe("retained witnesses, equality and private creator facts", () => {
   });
   it("compares a dangling new alias without reading its deleted target as a fresh mutation", () => {
     const f = fixture();
-    const input = { bead: "beads/free", propertiesChange: [{ op: "add", path: "/n", value: 9 }] };
+    const input = { bead: "free", propertiesChange: [{ op: "add", path: "/n", value: 9 }] };
     const made = f.run("updateBead", input);
     const original = f.key();
-    f.run("putAlias", { alias: "alias/dangling", target: "beads/free" }, "alias");
-    expect(code(f.run("deleteBead", { bead: "beads/free" }, "delete"))).toBe("deleted");
-    expect(f.body("beads/free")).toBeUndefined();
+    f.run("putAlias", { alias: "alias/dangling", target: "free" }, "alias");
+    expect(code(f.run("deleteBead", { bead: "free" }, "delete"))).toBe("deleted");
+    expect(f.body("free")).toBeUndefined();
     expect(f.run("updateBead", { ...input, bead: "alias/dangling" }).disposition).toEqual(
       made.disposition,
     );
@@ -830,7 +830,7 @@ describe("retained witnesses, equality and private creator facts", () => {
             operation: "createLink",
             type: linkType,
             source: { uri: "@made", revision: "pin" },
-            target: "beads/b",
+            target: "b",
             idempotencyKey: "dependent",
           },
         ],
@@ -838,7 +838,7 @@ describe("retained witnesses, equality and private creator facts", () => {
     );
     const binding = {
       kind: "bound" as const,
-      id: `${scope}beads/a`,
+      id: `${scope}a`,
       resourceKind: "bead" as const,
     };
     f.present(carrier, 1, () => binding);
@@ -851,7 +851,7 @@ describe("retained witnesses, equality and private creator facts", () => {
             operation: "createLink",
             type: linkType,
             source: { uri: "@renamed", revision: "pin" },
-            target: `${scope}beads/b`,
+            target: `${scope}b`,
             properties: {},
             revisionProvenance: {},
             idempotencyKey: "dependent",
@@ -869,7 +869,7 @@ describe("retained witnesses, equality and private creator facts", () => {
             operation: "createLink",
             type: linkType,
             source: { uri: "@made", revision: "other" },
-            target: "beads/b",
+            target: "b",
             idempotencyKey: "dependent",
           },
         ],
@@ -906,12 +906,12 @@ describe("clock, policy snapshot and fault boundaries", () => {
       scope,
       stringifyJsonValue({
         operations: [
-          { ...create, id: "beads/new" },
+          { ...create, id: "new" },
           {
             operation: "createLink",
             type: linkType,
-            source: "beads/a",
-            target: "beads/new",
+            source: "a",
+            target: "new",
             idempotencyKey: "link",
           },
         ],
@@ -923,17 +923,17 @@ describe("clock, policy snapshot and fault boundaries", () => {
       f.policyState.now = start + 100;
     };
     runMember(f.store, admission, { id: "alice" }, carrier, 0, unexpectedCreator, f.options);
-    expect(JSON.parse(f.body("beads/new") ?? "null").revisionProvenance.committedAt.value).toBe(
+    expect(JSON.parse(f.body("new") ?? "null").revisionProvenance.committedAt.value).toBe(
       new Date(start + 100).toISOString(),
     );
     expect(retained(f.key("maker")).completedAt).toBe(start + 101);
     f.policyState.now = start + 1000;
     runMember(f.store, admission, { id: "alice" }, carrier, 1, unexpectedCreator, f.options);
     const link = JSON.parse(
-      f.store.read((r) => r.resources().find((v) => v.kind === "link" && v.id !== "links/old"))
+      f.store.read((r) => r.resources().find((v) => v.kind === "link" && v.id !== "old"))
         ?.bodyJson ?? "null",
     );
-    const source = JSON.parse(f.body("beads/a") ?? "null");
+    const source = JSON.parse(f.body("a") ?? "null");
     expect(source.revisionProvenance).toEqual(link.revisionProvenance);
     expect(source.ownedLinks[linkType].find((v: { id: string }) => v.id === link.id)).toEqual(link);
     expect(retained(f.key("link")).completedAt).toBe(start + 1001);
@@ -992,7 +992,7 @@ describe("clock, policy snapshot and fault boundaries", () => {
       code(
         f.run(
           "createLink",
-          { type: linkType, source: "beads/a", target: "beads/free" },
+          { type: linkType, source: "a", target: "free" },
           "first",
           options,
         ),
@@ -1008,14 +1008,14 @@ describe("clock, policy snapshot and fault boundaries", () => {
       code(
         f.run(
           "createLink",
-          { type: linkType, source: "beads/a", target: "beads/free" },
+          { type: linkType, source: "a", target: "free" },
           "second",
           options,
         ),
       ),
     ).toBe("created");
     expect(f.store.read((reader) => reader.resources())).toHaveLength(before.length + 1);
-    expect(f.store.read((reader) => reader.outgoingLinks("beads/a"))).toHaveLength(3);
+    expect(f.store.read((reader) => reader.outgoingLinks("a"))).toHaveLength(3);
     expect(f.policyState.contextCalls).toBe(2);
   });
   it.each([NaN, Infinity, -1, 1.5, Number.MAX_SAFE_INTEGER, 8.64e15])(
@@ -1162,14 +1162,14 @@ describe("stored envelope and metadata integrity", () => {
     [
       "foreign Resource ID",
       (e) => {
-        obj(obj(e.disposition).resource).id = "https://foreign.test/beads/x";
+        obj(obj(e.disposition).resource).id = "https://foreign.test/x";
         return e;
       },
     ],
     [
       "malformed Resource path",
       (e) => {
-        obj(obj(e.disposition).resource).id = `${scope}links//x`;
+        obj(obj(e.disposition).resource).id = `${scope}a//x`;
         return e;
       },
     ],
@@ -1190,7 +1190,7 @@ describe("stored envelope and metadata integrity", () => {
     [
       "incomplete source pair",
       (e) => {
-        obj(e.disposition).source = `${scope}beads/a`;
+        obj(e.disposition).source = `${scope}a`;
         return e;
       },
     ],
@@ -1252,7 +1252,7 @@ describe("stored envelope and metadata integrity", () => {
     ],
     [
       "different creation ID",
-      (m) => ({ ...m, creation: { ...obj(m.creation), id: `${scope}beads/other` } }),
+      (m) => ({ ...m, creation: { ...obj(m.creation), id: `${scope}other` } }),
     ],
     [
       "wrong creation kind",
@@ -1387,7 +1387,7 @@ describe("stored envelope and metadata integrity", () => {
     expect(first.disposition).not.toHaveProperty("status");
     expect(first.creator).toEqual({ kind: "unbound" });
     expect(first.storage).toBe("retained");
-    f.policyState.hidden.add(`${scope}beads/a`);
+    f.policyState.hidden.add(`${scope}a`);
     expect(f.run("createBead", { type }).disposition).toEqual(first.disposition);
     expect(f.key()).toEqual(state);
     const bad = [
@@ -1435,23 +1435,23 @@ describe("stored envelope and metadata integrity", () => {
     const f = fixture();
     const result = f.run("createLink", {
       type: linkType,
-      source: "beads/a",
+      source: "a",
       target: "urn:opaque:outside",
     });
     expect(code(result)).toBe("created");
     const state = retained(f.key());
     assertRetainedOutcomeCompatible(state, scope, {});
     expect(
-      f.run("createLink", { type: linkType, source: "beads/a", target: "urn:opaque:outside" })
+      f.run("createLink", { type: linkType, source: "a", target: "urn:opaque:outside" })
         .storage,
     ).toBe("replayed");
-    f.run("putAlias", { alias: "alias/new", target: "beads/a" }, "alias");
+    f.run("putAlias", { alias: "alias/new", target: "a" }, "alias");
     const alias = retained(f.key("alias"));
     for (const patch of [
       { alias: "https://other.test/alias/new" },
-      { alias: `${scope}beads/new` },
-      { target: "https://other.test/beads/a" },
-      { target: `${scope}links//old` },
+      { alias: `${scope}new` },
+      { target: "https://other.test/a" },
+      { target: `${scope}a//old` },
       { revision: "bad" },
       { outcome: "deleted" },
     ]) {
@@ -1468,19 +1468,19 @@ describe("stored envelope and metadata integrity", () => {
   });
   it("checks supplied-ID/creation coherence and malformed expired creation without inventing an expired codec marker", () => {
     const f = fixture();
-    f.run("createBead", { id: "beads/supplied", type });
+    f.run("createBead", { id: "supplied", type });
     const state = retained(f.key());
     const metadata = obj(JSON.parse(state.resolutionsJson));
-    obj(metadata.creation).id = `${scope}beads/other`;
+    obj(metadata.creation).id = `${scope}other`;
     seedRetained(f, "bad", state, { resolutionsJson: stringifyJsonValue(metadata) });
-    expect(() => f.run("createBead", { id: "beads/supplied", type }, "bad")).toThrow();
+    expect(() => f.run("createBead", { id: "supplied", type }, "bad")).toThrow();
     const missing = obj(JSON.parse(state.resolutionsJson));
     delete missing.creation;
     seedRetained(f, "expired", state, { resolutionsJson: stringifyJsonValue(missing) });
     f.store.expire(state.retainUntil);
     expect(f.key("expired")).not.toHaveProperty("semanticIdentityJson");
     expect(f.key("expired")).not.toHaveProperty("outcomeJson");
-    expect(() => f.run("createBead", { id: "beads/supplied", type }, "expired")).toThrow(
+    expect(() => f.run("createBead", { id: "supplied", type }, "expired")).toThrow(
       "expired creator",
     );
   });
@@ -1631,7 +1631,7 @@ describe("configuration, deep durable values and startup boundary", () => {
 describe("whole-plan cross-boundary regression controls", () => {
   it("captures one fresh alias resolution for repeated slots and performs no live alias lookup on replay", () => {
     const f = fixture();
-    f.run("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
+    f.run("putAlias", { alias: "alias/current", target: "a" }, "alias");
     let calls = 0;
     const execute = f.store.executeMember.bind(f.store);
     vi.spyOn(f.store, "executeMember").mockImplementation((admission, key, evaluate) =>
@@ -1680,7 +1680,7 @@ describe("whole-plan cross-boundary regression controls", () => {
             operation: "createLink",
             type: linkType,
             source: "@made",
-            target: "beads/b",
+            target: "b",
             idempotencyKey: "dependent",
           },
         ],
@@ -1694,7 +1694,7 @@ describe("whole-plan cross-boundary regression controls", () => {
           throw Error("replacement clock");
         };
         supplied.limits.representationBytes = 1;
-        return { kind: "bound", id: `${scope}beads/a`, resourceKind: "bead" };
+        return { kind: "bound", id: `${scope}a`, resourceKind: "bead" };
       },
       supplied,
     );
@@ -1731,7 +1731,7 @@ describe("whole-plan cross-boundary regression controls", () => {
   });
   it("rejects invalid required, duplicate, out-of-order and inconsistent captured metadata using actual stored Link outcomes", () => {
     const f = fixture();
-    f.run("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
+    f.run("putAlias", { alias: "alias/current", target: "a" }, "alias");
     f.run("createLink", { type: linkType, source: "alias/current", target: "alias/current" });
     const state = retained(f.key());
     const original = obj(JSON.parse(state.resolutionsJson));
@@ -1741,12 +1741,12 @@ describe("whole-plan cross-boundary regression controls", () => {
       [witnesses[0]],
       [witnesses[0], witnesses[0]],
       [...witnesses].reverse(),
-      [witnesses[0], { ...witnesses[1], target: `${scope}beads/b` }],
+      [witnesses[0], { ...witnesses[1], target: `${scope}b` }],
       [
         {
           slot: "/id",
           kind: "binding",
-          binding: { kind: "bound", id: `${scope}links/x`, resourceKind: "link" },
+          binding: { kind: "bound", id: `${scope}x`, resourceKind: "link" },
         },
         ...witnesses,
       ],
@@ -1771,19 +1771,19 @@ describe("whole-plan cross-boundary regression controls", () => {
     const direct = {
       ...original,
       witnesses: [
-        { slot: "/source", kind: "direct", uri: `${scope}beads/b` },
-        { slot: "/target", kind: "direct", uri: `${scope}beads/b` },
+        { slot: "/source", kind: "direct", uri: `${scope}b` },
+        { slot: "/target", kind: "direct", uri: `${scope}b` },
       ],
     };
     seedRetained(f, "different", state, { resolutionsJson: stringifyJsonValue(direct) });
     expect(() =>
-      f.run("createLink", { type: linkType, source: "beads/a", target: "beads/a" }, "different"),
+      f.run("createLink", { type: linkType, source: "a", target: "a" }, "different"),
     ).toThrow();
   });
   it("does not infer a creator for an expired successful no-op and detects a contradictory existing-state reread", () => {
     const f = fixture();
     const input = {
-      bead: "beads/free",
+      bead: "free",
       propertiesChange: [{ op: "replace", path: "/n", value: 0 }],
     };
     f.run("updateBead", input);
@@ -1801,7 +1801,7 @@ describe("whole-plan cross-boundary regression controls", () => {
   it("preserves ordered patches, CAS and revisionProvenance in retained identity", () => {
     const f = fixture();
     const input = {
-      bead: "beads/free",
+      bead: "free",
       propertiesChange: [
         { op: "add", path: "/x", value: 1 },
         { op: "replace", path: "/x", value: 2 },
@@ -1851,7 +1851,7 @@ describe("complete source-council correction batch", () => {
     ).toThrow();
     const before = f.store.read((reader) => reader.resources());
     vi.spyOn(evaluator, "evaluateResourceMutation").mockImplementationOnce((tx) => {
-      tx.deleteResource("beads/free");
+      tx.deleteResource("free");
       return { effect: "failure", outcome: reserved, resolutions: [], changed: [], deleted: [] };
     });
     expect(() => f.run("createBead", { type })).toThrow("positionable");
@@ -2000,7 +2000,7 @@ describe("complete source-council correction batch", () => {
               operation: "createLink",
               type: linkType,
               source: "@made",
-              target: "beads/b",
+              target: "b",
               idempotencyKey: "dependent",
             },
           ],
@@ -2008,7 +2008,7 @@ describe("complete source-council correction batch", () => {
       );
       const binding = {
         kind: "bound" as const,
-        id: `${scope}beads/a`,
+        id: `${scope}a`,
         resourceKind: "bead" as const,
       };
       if (path === "retained") f.present(carrier, 1, () => binding);
@@ -2071,12 +2071,12 @@ describe("complete source-council correction batch", () => {
           "allocateResourceId",
         ])
           expect(reader).not.toHaveProperty(writer);
-        expect(reader.resource("beads/a")?.id).toBe("beads/a");
+        expect(reader.resource("a")?.id).toBe("a");
         expect(reader.resources().length).toBeGreaterThanOrEqual(4);
-        expect(reader.incidentLinks("beads/a")).toHaveLength(1);
-        expect(reader.outgoingLinks("beads/a")).toHaveLength(1);
+        expect(reader.incidentLinks("a")).toHaveLength(1);
+        expect(reader.outgoingLinks("a")).toHaveLength(1);
         expect(reader.alias("missing")).toBeUndefined();
-        expect(reader.identityWasCommitted("beads/a")).toBe(true);
+        expect(reader.identityWasCommitted("a")).toBe(true);
         expect(reader.installedType(type)).toContain('"describes":"bead"');
         expect(reader.policy("missing")).toBeUndefined();
         expect(reader.key(principal.id, "key").kind).toBe(
@@ -2090,12 +2090,12 @@ describe("complete source-council correction batch", () => {
     expect(escaped).toHaveLength(2);
     for (const reader of escaped) {
       const attempts = [
-        () => reader.resource("beads/a"),
+        () => reader.resource("a"),
         () => reader.resources(),
-        () => reader.incidentLinks("beads/a"),
-        () => reader.outgoingLinks("beads/a"),
+        () => reader.incidentLinks("a"),
+        () => reader.outgoingLinks("a"),
         () => reader.alias("missing"),
-        () => reader.identityWasCommitted("beads/a"),
+        () => reader.identityWasCommitted("a"),
         () => reader.installedType(type),
         () => reader.policy("missing"),
         () => reader.key("alice", "key"),
@@ -2117,15 +2117,15 @@ describe("runtime properties limits on actual member storage", () => {
         numericBudget: { ...f.options.numericBudget, diagnosticBytes: 8388608 },
       };
       expect(
-        code(f.run("createBead", { type, id: "beads/limit", properties }, "make", options)),
+        code(f.run("createBead", { type, id: "limit", properties }, "make", options)),
       ).toBe("created");
-      const before = f.body("beads/limit");
+      const before = f.body("limit");
       expect(
         code(
           f.run(
             "updateBead",
             {
-              bead: "beads/limit",
+              bead: "limit",
               propertiesChange: [{ op: "replace", path: "", value: properties }],
             },
             "noop",
@@ -2133,26 +2133,26 @@ describe("runtime properties limits on actual member storage", () => {
           ),
         ),
       ).toBe("updated");
-      expect(f.body("beads/limit")).toBe(before);
+      expect(f.body("limit")).toBe(before);
       const larger = { text: `${properties.text}x` };
       expect(Buffer.byteLength(stringifyJsonValue(larger))).toBe(bytes + 1);
       expect(
         code(
           f.run(
             "createBead",
-            { type, id: "beads/over-limit", properties: larger },
+            { type, id: "over-limit", properties: larger },
             "create-over",
             options,
           ),
         ),
       ).toBe("limit-exceeded");
-      expect(f.body("beads/over-limit")).toBeUndefined();
+      expect(f.body("over-limit")).toBeUndefined();
       const clockBefore = f.clock.mock.calls.length;
       expect(
         code(
           f.run(
             "updateBead",
-            { bead: "beads/limit", propertiesChange: [{ op: "replace", path: "", value: larger }] },
+            { bead: "limit", propertiesChange: [{ op: "replace", path: "", value: larger }] },
             "over",
             options,
           ),
@@ -2160,12 +2160,12 @@ describe("runtime properties limits on actual member storage", () => {
       ).toBe("limit-exceeded");
       // Terminal failure retention may sample separately; no committed Resource change.
       expect(f.clock.mock.calls.length).toBeGreaterThan(clockBefore);
-      expect(f.body("beads/limit")).toBe(before);
+      expect(f.body("limit")).toBe(before);
       const linkInput = {
         type: linkType,
-        id: "links/limit",
-        source: "beads/a",
-        target: "beads/b",
+        id: "link-limit",
+        source: "a",
+        target: "b",
         properties,
       };
       expect(code(f.run("createLink", linkInput, "link", options))).toBe("created");
@@ -2173,21 +2173,21 @@ describe("runtime properties limits on actual member storage", () => {
         code(
           f.run(
             "createLink",
-            { ...linkInput, id: "links/over-limit", properties: larger },
+            { ...linkInput, id: "link-over-limit", properties: larger },
             "create-link-over",
             options,
           ),
         ),
       ).toBe("limit-exceeded");
-      expect(f.body("links/over-limit")).toBeUndefined();
-      const linkBefore = f.body("links/limit"),
-        sourceBefore = f.body("beads/a");
+      expect(f.body("link-over-limit")).toBeUndefined();
+      const linkBefore = f.body("link-limit"),
+        sourceBefore = f.body("a");
       expect(
         code(
           f.run(
             "updateLink",
             {
-              link: "links/limit",
+              link: "link-limit",
               propertiesChange: [{ op: "replace", path: "", value: properties }],
             },
             "link-noop",
@@ -2199,17 +2199,17 @@ describe("runtime properties limits on actual member storage", () => {
         code(
           f.run(
             "updateLink",
-            { link: "links/limit", propertiesChange: [{ op: "replace", path: "", value: larger }] },
+            { link: "link-limit", propertiesChange: [{ op: "replace", path: "", value: larger }] },
             "link-over",
             options,
           ),
         ),
       ).toBe("limit-exceeded");
-      expect(f.body("links/limit")).toBe(linkBefore);
-      expect(f.body("beads/a")).toBe(sourceBefore);
+      expect(f.body("link-limit")).toBe(linkBefore);
+      expect(f.body("a")).toBe(sourceBefore);
       f.reopen();
-      expect(f.body("links/limit")).toBe(linkBefore);
-      expect(f.body("beads/a")).toBe(sourceBefore);
+      expect(f.body("link-limit")).toBe(linkBefore);
+      expect(f.body("a")).toBe(sourceBefore);
     });
   it("validates an over-bound postimage before the late size refusal and keeps numeric rejection before contracts and clocks", () => {
     let validations = 0;
@@ -2288,15 +2288,15 @@ describe.each(["properties", "metadata"] as const)("numeric admission in %s", (d
         ? {
             id: `${link ? "links" : "beads"}/numeric-refusal`,
             type: link ? linkType : type,
-            ...(link ? { source: "beads/a", target: "beads/b" } : {}),
+            ...(link ? { source: "a", target: "b" } : {}),
             [document]: { bad: "NUMBER_TOKEN" },
           }
         : {
-            [link ? "link" : "bead"]: link ? "links/old" : "beads/a",
+            [link ? "link" : "bead"]: link ? "old" : "a",
             [`${document}Change`]: [{ op: "add", path: "/bad", value: "NUMBER_TOKEN" }],
           };
       const text = stringifyJsonValue(input).replace('"NUMBER_TOKEN"', "1e400");
-      const before = [f.body("beads/a"), f.body("beads/b"), f.body("links/old")];
+      const before = [f.body("a"), f.body("b"), f.body("old")];
       const options: MemberExecutorOptions = {
         ...f.options,
         numericBudget: {
@@ -2325,7 +2325,7 @@ describe.each(["properties", "metadata"] as const)("numeric admission in %s", (d
           ...(create ? { instanceLocation: "/bad" } : {}),
         },
       ]);
-      expect([f.body("beads/a"), f.body("beads/b"), f.body("links/old")]).toEqual(before);
+      expect([f.body("a"), f.body("b"), f.body("old")]).toEqual(before);
       expect(f.body(`${link ? "links" : "beads"}/numeric-refusal`)).toBeUndefined();
       f.reopen();
       const replay = f.run(operation, text, "numeric-context", {
@@ -2337,7 +2337,7 @@ describe.each(["properties", "metadata"] as const)("numeric admission in %s", (d
         },
       });
       expect(replay.disposition).toEqual(refused.disposition);
-      expect([f.body("beads/a"), f.body("beads/b"), f.body("links/old")]).toEqual(before);
+      expect([f.body("a"), f.body("b"), f.body("old")]).toEqual(before);
     },
   );
 });
@@ -2393,7 +2393,7 @@ it("keeps a complete large first diagnostic and deep valid/invalid neighbors thr
   const invalid = JSON.parse(`${'{"n":'.repeat(depth)}0${"}".repeat(depth)}`);
   expect(
     code(
-      f.run("createBead", { type, id: "beads/deep-limit", properties: valid }, "deep-good", opts),
+      f.run("createBead", { type, id: "deep-limit", properties: valid }, "deep-good", opts),
     ),
   ).toBe("created");
   const bad = f.run("createBead", { type, properties: invalid }, "deep-bad", opts);
@@ -2401,10 +2401,10 @@ it("keeps a complete large first diagnostic and deep valid/invalid neighbors thr
     code: "validation-failed",
     diagnostics: [{ instanceLocation: "/n".repeat(depth), message: "expected one", type }],
   });
-  const saved = f.body("beads/deep-limit"),
+  const saved = f.body("deep-limit"),
     savedBad = f.key("deep-bad");
   f.reopen();
-  expect(f.body("beads/deep-limit")).toBe(saved);
+  expect(f.body("deep-limit")).toBe(saved);
   expect(f.run("createBead", { type, properties: invalid }, "deep-bad", opts).disposition).toEqual(
     bad.disposition,
   );
@@ -2420,19 +2420,19 @@ describe("durable metadata numeric failure", () => {
       const link = operation.endsWith("Link");
       const input = creating
         ? {
-            id: link ? "links/new" : "beads/new",
+            id: link ? "new" : "new",
             type: link ? linkType : type,
-            ...(link ? { source: "beads/a", target: "beads/b" } : {}),
+            ...(link ? { source: "a", target: "b" } : {}),
             properties: { valid: true },
             metadata: { nested: { bad: "BAD" } },
           }
         : {
-            [link ? "link" : "bead"]: link ? "links/old" : "beads/a",
+            [link ? "link" : "bead"]: link ? "old" : "a",
             propertiesChange: [{ op: "add", path: "/changed", value: true }],
             metadataChange: [{ op: "add", path: "/items/-", value: "BAD" }],
           };
       const raw = JSON.stringify(input).replace('"BAD"', "1e400");
-      const ids = ["beads/a", "beads/b", "links/old", "beads/new", "links/new"];
+      const ids = ["a", "b", "old", "new", "new"];
       const before = ids.map((id) => f.body(id));
       const opts = {
         ...f.options,

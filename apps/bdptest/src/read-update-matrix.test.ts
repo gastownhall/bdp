@@ -281,7 +281,7 @@ const coldDirectoryRequests = [
     id: "deleted-link",
     family: "http",
     method: "GET",
-    url: "https://reference.invalid/acme/links/w1-l",
+    url: "https://reference.invalid/acme/w1-l",
     expectedStatus: 404,
   },
   {
@@ -295,7 +295,7 @@ const coldDirectoryRequests = [
     id: "deleted-bead",
     family: "http",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/w1-a",
+    url: "https://reference.invalid/acme/w1-a",
     expectedStatus: 404,
   },
   {
@@ -309,7 +309,7 @@ const coldDirectoryRequests = [
     id: "final-b",
     family: "http",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/w1-b",
+    url: "https://reference.invalid/acme/w1-b",
     expectedStatus: 200,
   },
 ] as const;
@@ -558,13 +558,13 @@ function assertColdDirectory(
     return value;
   }
   const aBase = {
-    id: `${scope}beads/w1-a`,
+    id: `${scope}w1-a`,
     type: `${scope}types/task`,
     properties: { n: 1 },
     metadata: { tag: "a" },
   };
   const bBase = {
-    id: `${scope}beads/w1-b`,
+    id: `${scope}w1-b`,
     type: `${scope}types/task`,
     properties: { n: 1 },
     metadata: { tag: "b" },
@@ -573,7 +573,7 @@ function assertColdDirectory(
   resource("create-b", bBase);
   const aUpdated = resource("update-bead", { ...aBase, properties: { n: 2 } });
   const linkBase = {
-    id: `${scope}links/w1-l`,
+    id: `${scope}w1-l`,
     type: `${scope}types/relates`,
     properties: { edge: 1 },
     metadata: { tag: "link" },
@@ -619,7 +619,7 @@ function assertColdDirectory(
   expect(raw.at(-1)?.body).toEqual(final);
   const bodies: Record<string, unknown> = {
     "create-a": {
-      id: "beads/w1-a",
+      id: "w1-a",
       properties: {
         n: 1,
       },
@@ -629,7 +629,7 @@ function assertColdDirectory(
       type: "https://reference.invalid/acme/types/task",
     },
     "create-b": {
-      id: "beads/w1-b",
+      id: "w1-b",
       properties: {
         n: 1,
       },
@@ -646,11 +646,11 @@ function assertColdDirectory(
           value: 2,
         },
       ],
-      bead: "https://reference.invalid/acme/beads/w1-a",
+      bead: "https://reference.invalid/acme/w1-a",
       expectedRevision: aCreated.revision,
     },
     "create-link": {
-      id: "links/w1-l",
+      id: "w1-l",
       properties: {
         edge: 1,
       },
@@ -658,8 +658,8 @@ function assertColdDirectory(
         tag: "link",
       },
       type: "https://reference.invalid/acme/types/relates",
-      source: "https://reference.invalid/acme/beads/w1-a",
-      target: "https://reference.invalid/acme/beads/w1-b",
+      source: "https://reference.invalid/acme/w1-a",
+      target: "https://reference.invalid/acme/w1-b",
     },
     "update-link": {
       propertiesChange: [
@@ -676,22 +676,22 @@ function assertColdDirectory(
           value: "updated",
         },
       ],
-      link: "https://reference.invalid/acme/links/w1-l",
+      link: "https://reference.invalid/acme/w1-l",
       expectedRevision: linkCreated.revision,
     },
     "put-alias": {
       alias: "alias/w1-locator",
-      target: "https://reference.invalid/acme/beads/w1-a",
+      target: "https://reference.invalid/acme/w1-a",
     },
     "delete-alias": {
       alias: "alias/w1-locator",
     },
     "delete-link": {
-      link: "https://reference.invalid/acme/links/w1-l",
+      link: "https://reference.invalid/acme/w1-l",
       expectedRevision: linkUpdated.revision,
     },
     "delete-bead": {
-      bead: "https://reference.invalid/acme/beads/w1-a",
+      bead: "https://reference.invalid/acme/w1-a",
       expectedRevision: aUpdated.revision,
     },
     sequence: {
@@ -699,7 +699,7 @@ function assertColdDirectory(
         {
           operation: "updateBead",
           idempotencyKey: "directory-sequence-b",
-          bead: "beads/w1-b",
+          bead: "w1-b",
           propertiesChange: [
             {
               op: "replace",
@@ -722,8 +722,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/create-bead",
     credentialRef: "operator",
-    bodyBytes: 113,
-    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    bodyBytes: 107,
+    bodySha256: "1fd32b8af6978a58676c0deb21cf7a95e061a3beaacc7732b463b89c0094b6f5",
     headers: [
       {
         name: "content-type",
@@ -753,8 +753,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/create-bead",
     credentialRef: "operator",
-    bodyBytes: 113,
-    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    bodyBytes: 107,
+    bodySha256: "1fd32b8af6978a58676c0deb21cf7a95e061a3beaacc7732b463b89c0094b6f5",
     headers: [
       {
         name: "content-type",
@@ -788,8 +788,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/create-bead",
     credentialRef: "operator",
-    bodyBytes: 103,
-    bodySha256: "553c7e4b63db182cbe9b18d7a2911e71f2b5f40b1ff9436438ccc9b81410e5a3",
+    bodyBytes: 97,
+    bodySha256: "bb6cf065c644bc53cddee3ef8e330cd5399d2dad8d2373cc7944de41e618133c",
     headers: [
       {
         name: "content-type",
@@ -811,8 +811,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/create-bead",
     credentialRef: "operator",
-    bodyBytes: 113,
-    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    bodyBytes: 107,
+    bodySha256: "1fd32b8af6978a58676c0deb21cf7a95e061a3beaacc7732b463b89c0094b6f5",
     headers: [
       {
         name: "content-type",
@@ -838,8 +838,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/create-bead",
     credentialRef: "unknown",
-    bodyBytes: 113,
-    bodySha256: "3b0ac96a63000ddbc456bc622996b2d29a709a94ddb0022c4d7bdd1bbd792541",
+    bodyBytes: 107,
+    bodySha256: "1fd32b8af6978a58676c0deb21cf7a95e061a3beaacc7732b463b89c0094b6f5",
     headers: [
       {
         name: "content-type",
@@ -869,8 +869,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/update-bead",
     credentialRef: "operator",
-    bodyBytes: 176,
-    bodySha256: "e0ae796e8a992c27102711f854d8cdf7db1dc83ca1b0d0d0b3c5859c261728c2",
+    bodyBytes: 170,
+    bodySha256: "584ebbc05e5e0a6bd64dadef45f237ed7f5fc30c56ca24e0c1d781abc897cc50",
     headers: [
       {
         name: "content-type",
@@ -925,7 +925,7 @@ const commandMinimumRequests = [
   {
     id: "singleton-point",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/w1-a",
+    url: "https://reference.invalid/acme/w1-a",
     credentialRef: "operator",
     bodyBytes: 0,
     bodySha256: null,
@@ -937,8 +937,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/sequence",
     credentialRef: "operator",
-    bodyBytes: 190,
-    bodySha256: "76bd4c1c05ceb414c5da1c4f31892dbe55c0f41bdf3796532341f00f7785163f",
+    bodyBytes: 184,
+    bodySha256: "dcd5124f1c8fe6e800e93cadf057380756f76f2564541e237160f4e0e7f0c52b",
     headers: [
       {
         name: "content-type",
@@ -956,8 +956,8 @@ const commandMinimumRequests = [
     method: "POST",
     url: "https://reference.invalid/acme/operations/sequence",
     credentialRef: "operator",
-    bodyBytes: 190,
-    bodySha256: "76bd4c1c05ceb414c5da1c4f31892dbe55c0f41bdf3796532341f00f7785163f",
+    bodyBytes: 184,
+    bodySha256: "dcd5124f1c8fe6e800e93cadf057380756f76f2564541e237160f4e0e7f0c52b",
     headers: [
       {
         name: "content-type",
@@ -985,7 +985,7 @@ const commandMinimumRequests = [
   {
     id: "sequence-point",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/w1-b",
+    url: "https://reference.invalid/acme/w1-b",
     credentialRef: "operator",
     bodyBytes: 0,
     bodySha256: null,
@@ -1026,7 +1026,7 @@ function commandMinimumOracle(controlled: boolean) {
   function resource(body: unknown, id: string, title: string) {
     const actual = coldObject(body);
     expect(actual).toEqual({
-      id: `${scope}beads/${id}`,
+      id: `${scope}${id}`,
       type: `${scope}types/task`,
       properties: { title },
       metadata: {},
@@ -1726,7 +1726,7 @@ async function run(
             // Repeated GET inputs cannot identify the preimage on their own.
             // Check the actual clone before retaining it for the refusal control.
             expect(record, "metadata control captured distinct preimage").toMatchObject({
-              id: `${scope}beads/num-subject`,
+              id: `${scope}num-subject`,
               type: `${scope}types/task`,
               properties: { one: 9007199254740994 },
               revisionProvenance: {
@@ -1932,7 +1932,7 @@ async function run(
             });
           if (w2Counterfactual === "swap") [results[0], results[3]] = [results[3]!, results[0]!];
           if (w2Counterfactual === "binding-id")
-            results[1]!.resource!.id = `${scope}beads/wrong-dependent`;
+            results[1]!.resource!.id = `${scope}wrong-dependent`;
           if (w2Counterfactual === "dependent-success")
             results[1] = {
               operationIndex: 1,
@@ -2023,7 +2023,7 @@ async function run(
             corrupted.body.resource.source.revision = "different opaque pin";
           if (w1Counterfactual === "deleted-revision")
             corrupted.body.deleted.resource.revision = "newly-minted-wrong-delete-revision";
-          if (w1Counterfactual === "alias-target") corrupted.body.target = `${scope}beads/w1-a`;
+          if (w1Counterfactual === "alias-target") corrupted.body.target = `${scope}w1-a`;
           if (w1Counterfactual === "alias-revision")
             corrupted.body.revision = "fabricated-alias-revision";
           if (w1Counterfactual === "resource-header")
@@ -2075,7 +2075,7 @@ async function run(
           if (w1bCounterfactual === "retained-noop-link")
             (body.resource as { revision: string }).revision = "freshly-minted-on-noop";
           if (w1bCounterfactual === "unowned-source-only")
-            body.source = `${scope}beads/w1b-unowned-source`;
+            body.source = `${scope}w1b-unowned-source`;
           if (w1bCounterfactual === "owned-plane") {
             const plane = (body.ownedLinks as Record<string, unknown[]> | undefined)?.[
               `${scope}types/relates`
@@ -2103,7 +2103,7 @@ async function run(
             link.properties.edge = 999;
           }
           if (w1bCounterfactual === "unowned-source-pair") {
-            body.source = `${scope}beads/w1b-unowned-source`;
+            body.source = `${scope}w1b-unowned-source`;
             body.sourceRevision = "not-permitted-on-unowned-result";
           }
           if (w1bCounterfactual === "target-postimage")
@@ -2374,7 +2374,7 @@ it("pins command minimum literals, ordinary admission and parent preservation", 
   );
   const row = manifest.scenarios.find((r: { id: string }) => r.id === commandMinimumId);
   expect(createHash("sha256").update(JSON.stringify(row)).digest("hex")).toBe(
-    "61d74c4cae007646ea04d928503e57933fa6bae7496758cb50d3e4b7907058c6",
+    "33c86ee162f6bdc144847f43d9e722d772dee6c1f561bcb7d96ca50d819e94fb",
   );
   expect(row.actions).toHaveLength(11);
   const validator = createJsonSchemaValidator(installedObservationSchema);
@@ -2408,7 +2408,7 @@ it("pins command minimum literals, ordinary admission and parent preservation", 
     for (const assertion of action.assertions)
       if (assertion.kind === "json-schema") validator.resolve(assertion.schema);
   }
-  expect(postBytes).toBe(1112);
+  expect(postBytes).toBe(1064);
   expect(row.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(47);
   const set = installedArtifactSet();
   const coverage = set.coverage.rows.find((r) => r.id === commandMinimumId);
@@ -2470,7 +2470,7 @@ it("pins cold RU directory literals, actual target bindings and parent preservat
   );
   const row = manifest.scenarios.find((r: { id: string }) => r.id === coldDirectoryId);
   expect(createHash("sha256").update(JSON.stringify(row)).digest("hex")).toBe(
-    "e479c5684c5631e64a04f1902518975b18a291d6354b5ac2414bff7de0321477",
+    "7a8f97d055d89762f7acdb5f72ebf56fb99dbe010cb6a228021cdcd0aba2471c",
   );
   expect(
     row.actions.map((a: { id: string; family: string }) => ({ id: a.id, family: a.family })),
@@ -2725,7 +2725,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
     // Pin the existing runner projection; credential identity is bound separately in configuration.
     expect(report.reportBinding.exactConfigurationDigest).toBe(
-      "fef02ba85bf30673c103eb61d32c5e2882460345bec2f30e82d28cca2680ee90",
+      "676ac36fd8f686cc6ac0953c49b519541684c6d882562f966bc3fcf83c1ec3a6",
     );
     expect(report.uncoveredIds).toHaveLength(96);
     expect(report.uncoveredIds).toContain(commandMinimumId);
@@ -2759,33 +2759,33 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     // numeric raw mutations and the nine mandatory carriers. No route helper.
     expect(progress.shards[1]!.routes).toEqual([
       { method: "GET", url: `${scope}operations/` },
-      { method: "GET", url: `${scope}beads/att-subject` },
-      { method: "GET", url: `${scope}beads/att-owner` },
-      { method: "GET", url: `${scope}beads/att-target` },
-      { method: "GET", url: `${scope}links/att-unowned` },
-      { method: "GET", url: `${scope}links/att-owned` },
-      { method: "GET", url: `${scope}beads/rc-source` },
-      { method: "GET", url: `${scope}beads/rc-target` },
-      { method: "GET", url: `${scope}links/rc-live` },
-      { method: "GET", url: `${scope}beads/rc-rc-sequence-wrong-tail` },
-      { method: "GET", url: `${scope}beads/rc-missing` },
-      { method: "GET", url: `${scope}beads/num-subject` },
-      { method: "GET", url: `${scope}beads/num-target` },
-      { method: "GET", url: `${scope}links/num-link` },
-      { method: "GET", url: `${scope}beads/nr-source` },
-      { method: "GET", url: `${scope}beads/nr-target` },
-      { method: "GET", url: `${scope}beads/nr-bead-integer` },
-      { method: "GET", url: `${scope}beads/nr-bead-precision` },
-      { method: "GET", url: `${scope}beads/nr-bead-overflow` },
-      { method: "GET", url: `${scope}links/nr-link-integer` },
-      { method: "GET", url: `${scope}links/nr-link-precision` },
-      { method: "GET", url: `${scope}links/nr-link-overflow` },
-      { method: "GET", url: `${scope}beads/nn-source` },
-      { method: "GET", url: `${scope}beads/nn-target` },
-      { method: "GET", url: `${scope}beads/nn-bead-properties` },
-      { method: "GET", url: `${scope}beads/nn-bead-metadata` },
-      { method: "GET", url: `${scope}links/nn-link-properties` },
-      { method: "GET", url: `${scope}links/nn-link-metadata` },
+      { method: "GET", url: `${scope}att-subject` },
+      { method: "GET", url: `${scope}att-owner` },
+      { method: "GET", url: `${scope}att-target` },
+      { method: "GET", url: `${scope}att-unowned` },
+      { method: "GET", url: `${scope}att-owned` },
+      { method: "GET", url: `${scope}rc-source` },
+      { method: "GET", url: `${scope}rc-target` },
+      { method: "GET", url: `${scope}rc-live` },
+      { method: "GET", url: `${scope}rc-rc-sequence-wrong-tail` },
+      { method: "GET", url: `${scope}rc-missing` },
+      { method: "GET", url: `${scope}num-subject` },
+      { method: "GET", url: `${scope}num-target` },
+      { method: "GET", url: `${scope}num-link` },
+      { method: "GET", url: `${scope}nr-source` },
+      { method: "GET", url: `${scope}nr-target` },
+      { method: "GET", url: `${scope}nr-bead-integer` },
+      { method: "GET", url: `${scope}nr-bead-precision` },
+      { method: "GET", url: `${scope}nr-bead-overflow` },
+      { method: "GET", url: `${scope}nr-link-integer` },
+      { method: "GET", url: `${scope}nr-link-precision` },
+      { method: "GET", url: `${scope}nr-link-overflow` },
+      { method: "GET", url: `${scope}nn-source` },
+      { method: "GET", url: `${scope}nn-target` },
+      { method: "GET", url: `${scope}nn-bead-properties` },
+      { method: "GET", url: `${scope}nn-bead-metadata` },
+      { method: "GET", url: `${scope}nn-link-properties` },
+      { method: "GET", url: `${scope}nn-link-metadata` },
       { method: "GET", url: `${scope}` },
       { method: "GET", url: `${scope}bdp.json` },
       { method: "GET", url: `${scope}types/task` },
@@ -2802,8 +2802,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       { method: "POST", url: `${scope}operations/update-link` },
       { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/create-link` },
-      { method: "GET", url: `${scope}beads/nr-schema` },
-      { method: "GET", url: `${scope}links/nr-schema` },
+      { method: "GET", url: `${scope}nr-schema` },
+      { method: "GET", url: `${scope}nr-edge-schema` },
       { method: "POST", url: `${scope}operations/sequence` },
       { method: "POST", url: `${scope}operations/delete-bead` },
       { method: "POST", url: `${scope}operations/delete-link` },
@@ -2812,7 +2812,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     ]);
     expect(progress.shards[1]!.routes).toHaveLength(51);
     expect(progress.shards[1]!.routeDigest).toBe(
-      "935eb3e95b8a19ffd586b63346510f9560dc4ed2b57fd804f278f87ce2259096",
+      "14c78347cdeae9a542785a678d68cc2ee0071af59f4153cfb1faaa8bc54a5c08",
     );
     expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
     expect(progress.observedStatePartitions.fail).toEqual([]);
@@ -3180,13 +3180,13 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
   const fixture = JSON.parse(
     source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
   );
-  fixture.bindings["unused.client-target"] = "links/never-requested";
+  fixture.bindings["unused.client-target"] = "never-requested";
   const report = await run(undefined, ["read-update.singleton.create-bead"], false, false, fixture);
   expect(
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "fef02ba85bf30673c103eb61d32c5e2882460345bec2f30e82d28cca2680ee90",
+    "676ac36fd8f686cc6ac0953c49b519541684c6d882562f966bc3fcf83c1ec3a6",
   );
 }, 30000);
 
@@ -3586,7 +3586,7 @@ const retryControls: (RetryControl & { label: string; failed: string })[] = [
       operationIndex: 0,
       outcome: "updated",
       resource: {
-        id: `${scope}beads/retry-cross-f`,
+        id: `${scope}retry-cross-f`,
         type: `${scope}types/task`,
         revision: "corrupt-revision",
         properties: { n: 5 },
@@ -4210,7 +4210,7 @@ it.each(["alias-location", "stale-collection-record"] as const)(
     if (control === "alias-location") {
       assertionId = "location";
       action.assertions.find((a: { id: string }) => a.id === assertionId).equals =
-        `${scope}beads/ak-target`;
+        `${scope}ak-target`;
     } else {
       const assertion = action.assertions.find(
         (a: { equalsBinding?: string }) =>
@@ -4386,10 +4386,10 @@ it.each([
     const id = referenceRows[index];
     const row = manifest.scenarios.find((r: { id: string }) => r.id === id);
     const action = row.actions.find((a: { id: string }) => a.id === actionId);
-    if (control === "source-pin") action.input.body.source.uri = "beads/ra-source";
-    else if (control === "missing-bead") action.input.body.target = "beads/rb-missing-control";
+    if (control === "source-pin") action.input.body.source.uri = "ra-source";
+    else if (control === "missing-bead") action.input.body.target = "rb-missing-control";
     else if (control === "wrong-absolute-category")
-      action.input.body.target = `${scope}links/rb-live`;
+      action.input.body.target = `${scope}rb-live`;
     else if (control === "wrong-pinned-category") {
       const preseed = {
         id: "wrong-kind-preseed",
@@ -4401,10 +4401,10 @@ it.each([
           method: "POST",
           credentialRef: "operator",
           body: {
-            id: "links/rb-kind-control",
+            id: "rb-kind-control",
             type: "https://reference.invalid/acme/types/relates",
-            source: "beads/rb-source",
-            target: "beads/rb-target",
+            source: "rb-source",
+            target: "rb-target",
             properties: {},
             metadata: {},
           },
@@ -4416,8 +4416,8 @@ it.each([
         ],
       };
       row.actions.splice(row.actions.indexOf(action), 0, preseed);
-      action.input.body.source.uri = "links/rb-kind-control";
-    } else action.input.body.source = "beads/rb-source";
+      action.input.body.source.uri = "rb-kind-control";
+    } else action.input.body.source = "rb-source";
     const report = await run(manifest, [id]);
     const observed = report.result.scenarios.find((r) => r.id === id);
     expect(observed?.state).toBe("fail");
@@ -4606,7 +4606,7 @@ it("detects reference live alias oracle corruption after fresh corrected put", a
   const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
   const action = row.actions.find((a: { id: string }) => a.id === "rb-alias-fresh-0-read");
   action.assertions.find((a: { id: string }) => a.id === "location").equals =
-    `${scope}beads/rb-source`;
+    `${scope}rb-source`;
   const report = await run(manifest, [referenceRows[1]]);
   const observed = report.result.scenarios.find((r) => r.id === referenceRows[1]);
   expect(observed?.state).toBe("fail");
@@ -4624,7 +4624,7 @@ it("pins admitted absolute alias target and opaque pinned endpoint comparators i
   );
   const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
   const alias = row.actions.find((a: { id: string }) => a.id === "rb-seed-alias");
-  expect(alias.input.body.target).toBe(`${scope}beads/rb-source`);
+  expect(alias.input.body.target).toBe(`${scope}rb-source`);
   expect(alias.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
     equals: 200,
   });
@@ -4633,19 +4633,19 @@ it("pins admitted absolute alias target and opaque pinned endpoint comparators i
     equals: 307,
   });
   expect(aliasRead.assertions.find((a: { id: string }) => a.id === "location")).toMatchObject({
-    equals: `${scope}beads/rb-source`,
+    equals: `${scope}rb-source`,
   });
   const link = row.actions.find((a: { id: string }) => a.id === "rb-seed-link");
-  expect(link.input.body.source).toEqual({ uri: "beads/rb-source", revision: "fixture-pin" });
-  expect(link.input.body.target).toEqual({ uri: "beads/rb-target", revision: "fixture-pin" });
+  expect(link.input.body.source).toEqual({ uri: "rb-source", revision: "fixture-pin" });
+  expect(link.input.body.target).toEqual({ uri: "rb-target", revision: "fixture-pin" });
   expect(link.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
     equals: 200,
   });
   expect(link.assertions.find((a: { id: string }) => a.id === "source-0")).toMatchObject({
-    equals: { uri: `${scope}beads/rb-source`, revision: "fixture-pin" },
+    equals: { uri: `${scope}rb-source`, revision: "fixture-pin" },
   });
   expect(link.assertions.find((a: { id: string }) => a.id === "target-0")).toMatchObject({
-    equals: { uri: `${scope}beads/rb-target`, revision: "fixture-pin" },
+    equals: { uri: `${scope}rb-target`, revision: "fixture-pin" },
   });
   expect(link.input.bodyBindings).toBeUndefined();
 });
@@ -4666,7 +4666,7 @@ it.each(["identities", "stale-record"] as const)(
         source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
       );
       assertion.equals = structuredClone(fixture.oracles.referenceEvidence["identities-9"]);
-      assertion.equals[0][0] = `${scope}beads/incorrect-collection-identity`;
+      assertion.equals[0][0] = `${scope}incorrect-collection-identity`;
       delete assertion.fixturePointer;
     } else {
       expect(assertion.equalsBinding).toBe("ra-update-bead-corrected-0-record");
@@ -4730,7 +4730,7 @@ it("detects restored C retained-delete live-alias Location corruption", async ()
     .find((r: { id: string }) => r.id === continuationId)
     .actions.find((a: { id: string }) => a.id === "rc-delete-replay-alias");
   action.assertions.find((a: { id: string }) => a.id === "location").equals =
-    `${scope}beads/rc-source`;
+    `${scope}rc-source`;
   const report = await run(manifest, [continuationId]);
   expect(report.result.scenarios[0]!.state).toBe("fail");
   expect(
@@ -5398,7 +5398,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
       .digest("hex"),
-  ).toBe("a11ec3becc63c3ac0bdb177ea0a1e99adb86339fe9a736efc3d0b0b5375fdb39");
+  ).toBe("bb0c43096e2af6e51e8da8af5029c08665a7ded1a41b839e8a318f6ee0c33a0b");
   const text = bytes.toString();
   const start = text.lastIndexOf(
     "    {",
@@ -5406,7 +5406,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
   );
   const end = text.indexOf("\n    },\n    {", start) + "\n    }".length;
   expect(createHash("sha256").update(text.slice(start, end)).digest("hex")).toBe(
-    "4b1756c631e2cd88b458269f708f52a74d2b71a8291d5bcee2d026237ec70677",
+    "50eb3525ba9a8c76bd4a7a88a795188a1a0dacbd192f7440842138e0e190072f",
   );
   const set = installedArtifactSet();
   expect(set.shards[1]!.scenarioIds).toEqual([
@@ -5449,14 +5449,14 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
       75,
       75,
       [
-        "beads/att-subject",
-        "beads/att-owner",
-        "beads/att-target",
-        "links/att-unowned",
-        "links/att-owned",
+        "att-subject",
+        "att-owner",
+        "att-target",
+        "att-unowned",
+        "att-owned",
       ],
     ],
-    [numericId, 81, 81, ["beads/num-subject", "beads/num-target", "links/num-link"]],
+    [numericId, 81, 81, ["num-subject", "num-target", "num-link"]],
   ] as const) {
     const row = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === id)!;
     expect(row.actions).toHaveLength(count);
@@ -5722,20 +5722,20 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   for (const [id, digest] of [
     [
       "read-update.singleton.attribution",
-      "ba979ba77d116e64770fed0abb9e208ecb5369e6d24d4356f405264ae096fd18",
+      "4c690d37ab7c8d47ac6820f17b6a9b08d3f60941c18abd3bad872c9da7e2a74a",
     ],
     [
       "read-update.alias.unknown-subject",
-      "4b1756c631e2cd88b458269f708f52a74d2b71a8291d5bcee2d026237ec70677",
+      "50eb3525ba9a8c76bd4a7a88a795188a1a0dacbd192f7440842138e0e190072f",
     ],
     [
       "read-update.numeric-model.round-trip-admission",
       // Reviewed parent R span: 12982a61faf2f6710ad165d69022ba2e8c9cc083e599118910a173c52fb9aa6c
-      "c6c12fefb915f37acf732335f6302cf8fefc0aa6a6f2cccce22a429bbf8366ef",
+      "3135746efa25afb69934edd5d344e3a7b4a17488a865aed8fc04d6ba50c40411",
     ],
     [
       "read-update.numeric-model.nested-refusal",
-      "987fed38f580753dc2cdc27dc0429428b3e0ded9dd8c51068336ca3b684e2b37",
+      "292603e2b841d4f249cb9795304b08b9e1f4ffbcf8fa9fc577f62edb9b30b9e9",
     ],
   ]) {
     expect(createHash("sha256").update(numericScenarioSpan(text, id!)).digest("hex")).toBe(digest);
@@ -5749,28 +5749,28 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
       numericRoundTripId,
       96,
       [
-        "beads/nr-source",
-        "beads/nr-target",
-        "beads/nr-bead-integer",
-        "beads/nr-bead-precision",
-        "beads/nr-bead-overflow",
-        "links/nr-link-integer",
-        "links/nr-link-precision",
-        "links/nr-link-overflow",
-        "beads/nr-schema",
-        "links/nr-schema",
+        "nr-source",
+        "nr-target",
+        "nr-bead-integer",
+        "nr-bead-precision",
+        "nr-bead-overflow",
+        "nr-link-integer",
+        "nr-link-precision",
+        "nr-link-overflow",
+        "nr-schema",
+        "nr-edge-schema",
       ],
     ],
     [
       numericNestedId,
       52,
       [
-        "beads/nn-source",
-        "beads/nn-target",
-        "beads/nn-bead-properties",
-        "beads/nn-bead-metadata",
-        "links/nn-link-properties",
-        "links/nn-link-metadata",
+        "nn-source",
+        "nn-target",
+        "nn-bead-properties",
+        "nn-bead-metadata",
+        "nn-link-properties",
+        "nn-link-metadata",
       ],
     ],
   ] as const) {
@@ -6112,7 +6112,7 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
       .digest("hex"),
-  ).toBe("2db03a9d16eff694426170f94e6d92c1d97a36ca2f4b1c957cf820551a74cc26");
+  ).toBe("7253b919eb01aaa06e1bee8330dbd7f4eaa7d3c7740df20baae6b341d86cee7a");
   expect(
     createHash("sha256")
       .update(source("packages/conformance/test-support/read-update-artifact-set-v1.json").bytes)
@@ -6135,10 +6135,10 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   const end = rowText.lastIndexOf(",\n        {", firstNew);
   expect(end).toBeGreaterThan(start);
   expect(createHash("sha256").update(rowText.slice(start, end)).digest("hex")).toBe(
-    "bf97b67f7b4d1cfd1c430b32b9f6d69ad06ef963c6454b1c1ef52a5de20793a7",
+    "33593578524c82c51b85c8aa6b34d3784f861c4b7783bc08fa6bcaff2598d838",
   );
   expect(createHash("sha256").update(rowText).digest("hex")).toBe(
-    "40fa12b847e577fa21ab1eae2841bcc89ee0e4ed662b1fff15059e1a05fe8b87",
+    "c51ac5c4ba87879d119d762fa132b31c6d0724a93f7086127c2223c416d02d7c",
   );
   expect(actions.slice(73).map((a: { id: string }) => a.id)).toEqual([
     "num-subject-metadata-closure-refused",
@@ -6213,7 +6213,7 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   ).toBeLessThanOrEqual(18);
   const finalDigest = (value: string) =>
     createHash("sha256").update(numericScenarioSpan(value, numericNestedId)).digest("hex");
-  const finalExpected = "987fed38f580753dc2cdc27dc0429428b3e0ded9dd8c51068336ca3b684e2b37";
+  const finalExpected = "292603e2b841d4f249cb9795304b08b9e1f4ffbcf8fa9fc577f62edb9b30b9e9";
   expect(finalDigest(text)).toBe(finalExpected);
   const n = numericScenarioSpan(text, numericNestedId);
   expect(n.match(/"nn-bead-properties-create-refused"/g)).toHaveLength(2);
@@ -6616,7 +6616,7 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
     "nr-final-target",
   ]);
   expect(createHash("sha256").update(JSON.stringify(unchanged)).digest("hex")).toBe(
-    "afabb884fd12406986979f8feebc98e764d89e713cb8175d4e12040ebc785920",
+    "898b78923f6c5574db9b1787cc787e00442bcb296d2a7c21e49d6b202f273530",
   );
   expect(row.actions!.filter((a) => changedIds.includes(a.id)).map((a) => a.id)).toEqual(
     changedIds,
@@ -6764,7 +6764,7 @@ it("pins schema PropertyChange preimage capture, complete corrections and four c
   );
   expect(unchangedParentActions).toHaveLength(84);
   expect(createHash("sha256").update(JSON.stringify(unchangedParentActions)).digest("hex")).toBe(
-    "83234fa9a055aa5cd9073c7b951a99e6bc30c4641f4575c082aba31d39151c10",
+    "f2aea7ff5b99dba2a38b6191f0c938c450e0cbe867c87f60e533844234d95f6f",
   );
   for (const kind of ["bead", "link"]) {
     const prefix = `nr-${kind}-schema`;

@@ -402,17 +402,17 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     const seeded = await f.write([
         ...["a", "b", "c"].map((id, i) => ({
           operation: "createBead",
-          id: `beads/${id}`,
+          id: `${id}`,
           type: beadType,
           properties: { title: `before_${i}` },
           metadata: { seeded: id },
         })),
         ...["l", "m"].map((id) => ({
           operation: "createLink",
-          id: `links/${id}`,
+          id: `${id}`,
           type: linkType,
-          source: id === "l" ? "beads/a" : "beads/b",
-          target: "beads/b",
+          source: id === "l" ? "a" : "b",
+          target: "b",
           properties: { title: `before_${id}` },
         })),
       ]),
@@ -427,13 +427,13 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
       expect(page.items.map((r) => [r.id, r.properties.title])).toEqual(
         collection === "beads"
           ? [
-              [`${scope}beads/a`, "before_0"],
-              [`${scope}beads/b`, "before_1"],
-              [`${scope}beads/c`, "before_2"],
+              [`${scope}a`, "before_0"],
+              [`${scope}b`, "before_1"],
+              [`${scope}c`, "before_2"],
             ]
           : [
-              [`${scope}links/l`, "before_l"],
-              [`${scope}links/m`, "before_m"],
+              [`${scope}l`, "before_l"],
+              [`${scope}m`, "before_m"],
             ],
       );
       for (const row of page.items) {
@@ -563,7 +563,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     }
     // The two Links have different sources: ignoring this filter returns an extra row.
     const filtered = await f.exchange(
-      `${scope}bdp/links?source=${encodeURIComponent(`${scope}beads/a`)}`,
+      `${scope}bdp/links?source=${encodeURIComponent(`${scope}a`)}`,
       "GET",
       headers,
     );
@@ -604,7 +604,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     const changed = await f.write([
       {
         operation: "updateBead",
-        bead: "beads/c",
+        bead: "c",
         propertiesChange: [{ op: "replace", path: "/title", value: "after_c" }],
       },
     ]);
@@ -672,16 +672,16 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
           operations: [
             ...["a", "b"].map((id) => ({
               operation: "createBead",
-              id: `beads/${id}`,
+              id: `${id}`,
               type: beadType,
               properties: { title: id },
             })),
             {
               operation: "createLink",
-              id: "links/l",
+              id: "l",
               type: linkType,
-              source: "beads/a",
-              target: "beads/b",
+              source: "a",
+              target: "b",
               properties: { title: "l" },
             },
           ],
@@ -692,9 +692,9 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
       if (!a?.resource || !b?.resource || !l?.resource || !l.sourceRevision)
         throw new Error("missing created resources");
       for (const [index, result, id, type] of [
-        [0, a, "beads/a", beadType],
-        [1, b, "beads/b", beadType],
-        [2, l, "links/l", linkType],
+        [0, a, "a", beadType],
+        [1, b, "b", beadType],
+        [2, l, "l", linkType],
       ] as const) {
         expect(result).toMatchObject({
           operationIndex: index,
@@ -708,8 +708,8 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
         });
         expect(result.resource?.revision).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
       }
-      expect(l.resource).toMatchObject({ source: `${scope}beads/a`, target: `${scope}beads/b` });
-      expect(l.source).toBe(`${scope}beads/a`);
+      expect(l.resource).toMatchObject({ source: `${scope}a`, target: `${scope}b` });
+      expect(l.source).toBe(`${scope}a`);
       expect(l.sourceRevision).not.toBe(a.resource.revision);
       const removed = await exchange(
         `${scope}operations/batch`,
@@ -717,8 +717,8 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
         { "content-type": "application/json", "idempotency-key": "missing_delete" },
         {
           operations: [
-            { operation: "deleteLink", link: "links/l", expectedRevision: l.resource.revision },
-            { operation: "deleteBead", bead: "beads/a" },
+            { operation: "deleteLink", link: "l", expectedRevision: l.resource.revision },
+            { operation: "deleteBead", bead: "a" },
           ],
         },
       );
@@ -732,7 +732,7 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
           resourceKind: "link",
           resource: { id: l.resource.id, type: linkType, revision: l.resource.revision },
         },
-        source: `${scope}beads/a`,
+        source: `${scope}a`,
         sourceRevision: dl.sourceRevision,
       });
       expect(dl.sourceRevision).not.toBe(l.sourceRevision);
@@ -741,19 +741,19 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
         outcome: "deleted",
         deleted: {
           resourceKind: "bead",
-          resource: { id: `${scope}beads/a`, type: beadType, revision: dl.sourceRevision },
+          resource: { id: `${scope}a`, type: beadType, revision: dl.sourceRevision },
         },
       });
       const earlier = minimum(seeded),
         equal = minimum(removed);
       for (const [suffix, method, headers] of [
-        ["beads/never", "GET", earlier],
-        ["beads/never?view=properties", "HEAD", equal],
-        ["links/never", "GET", { ...equal, "if-none-match": "*" }],
-        ["links/never?view=properties", "HEAD", earlier],
-        ["beads/a", "GET", equal],
-        ["beads/a?view=properties", "GET", earlier],
-        ["links/l", "GET", { ...equal, "if-match": '"mismatch"' }],
+        ["never", "GET", earlier],
+        ["never?view=properties", "HEAD", equal],
+        ["never", "GET", { ...equal, "if-none-match": "*" }],
+        ["never?view=properties", "HEAD", earlier],
+        ["a", "GET", equal],
+        ["a?view=properties", "GET", earlier],
+        ["l", "GET", { ...equal, "if-match": '"mismatch"' }],
       ] as const) {
         const response = await exchange(`${scope}${suffix}`, method, headers);
         expect(response.status).toBe(404);
@@ -769,7 +769,7 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
           });
       }
       const behind = await exchange(
-        `${scope}links/l?view=properties`,
+        `${scope}l?view=properties`,
         "GET",
         minimum(removed, "pos-3"),
       );
@@ -788,7 +788,7 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
       expect(behind.headers.location).toBeUndefined();
       context(behind, equal);
       expect(count).toBe(10);
-      expect(urls.size).toBe(9);
+      expect(urls.size).toBe(7);
     },
     undefined,
     "private-installed-compatible-missing-minimum",
@@ -821,7 +821,7 @@ it("observes genuine installed current Type and incident-Link minimums within20r
           operations: [
             ...["a", "b", "c"].map((id) => ({
               operation: "createBead",
-              id: `beads/${id}`,
+              id: `${id}`,
               type: beadType,
               properties: { title: id },
               metadata: { seed: id },
@@ -831,10 +831,10 @@ it("observes genuine installed current Type and incident-Link minimums within20r
               ["l-ba", "b", "a"],
             ].map(([id, source, target]) => ({
               operation: "createLink",
-              id: `links/${id}`,
+              id: `${id}`,
               type: linkType,
-              source: `beads/${source}`,
-              target: `beads/${target}`,
+              source: `${source}`,
+              target: `${target}`,
               properties: { title: id },
               metadata: { seed: id },
             })),
@@ -869,7 +869,7 @@ it("observes genuine installed current Type and incident-Link minimums within20r
         expect(result.outcome).toBe("created");
         expect(result.resource.revision).toEqual(expect.any(String));
         expect(result.resource).toEqual({
-          id: `${scope}${i < 3 ? "beads" : "links"}/${name}`,
+          id: `${scope}${name}`,
           type: i < 3 ? beadType : linkType,
           properties: { title: name },
           metadata: { seed: name },
@@ -877,12 +877,12 @@ it("observes genuine installed current Type and incident-Link minimums within20r
           ...(i < 3
             ? { ownedLinks: { [linkType]: [] } }
             : {
-                source: `${scope}beads/${i === 3 ? "a" : "b"}`,
-                target: `${scope}beads/${i === 3 ? "b" : "a"}`,
+                source: `${scope}${i === 3 ? "a" : "b"}`,
+                target: `${scope}${i === 3 ? "b" : "a"}`,
               }),
         });
         if (i >= 3) {
-          expect(result.source).toBe(`${scope}beads/${i === 3 ? "a" : "b"}`);
+          expect(result.source).toBe(`${scope}${i === 3 ? "a" : "b"}`);
           expect(result.sourceRevision).toEqual(expect.any(String));
           expect(result.sourceRevision).not.toBe(receipt.results[i - 3]!.resource.revision);
         }
@@ -891,7 +891,7 @@ it("observes genuine installed current Type and incident-Link minimums within20r
       context(seeded, bound, "pos-1");
       const links = receipt.results.slice(3).map((r) => r.resource);
       const descriptor = JSON.parse(artifacts().descriptors[0]!.utf8);
-      const targets = [`${scope}types/task`, `${scope}types/`, `${scope}beads/a?view=links`];
+      const targets = [`${scope}types/task`, `${scope}types/`, `${scope}a?view=links`];
       const expected = [
         descriptor,
         {
@@ -962,9 +962,9 @@ it("observes genuine installed current Type and incident-Link minimums within20r
           expect(json<Record<string, unknown>>(response, status)).toMatchObject({ code, status });
       }
       for (const [suffix, rows] of [
-        ["beads/c?view=links", []],
-        ["beads/a?view=links&direction=inbound", [links[1]]],
-        ["beads/a?view=links&direction=outbound", [links[0]]],
+        ["c?view=links", []],
+        ["a?view=links&direction=inbound", [links[1]]],
+        ["a?view=links&direction=outbound", [links[0]]],
       ] as const) {
         const response = await exchange(`${scope}${suffix}`, "GET", bound);
         expect(json(response)).toEqual({ items: rows, next: null });
@@ -980,9 +980,9 @@ it("observes genuine installed current Type and incident-Link minimums within20r
         [
           `${scope}operations/batch`,
           ...targets,
-          `${scope}beads/c?view=links`,
-          `${scope}beads/a?view=links&direction=inbound`,
-          `${scope}beads/a?view=links&direction=outbound`,
+          `${scope}c?view=links`,
+          `${scope}a?view=links&direction=inbound`,
+          `${scope}a?view=links&direction=outbound`,
         ].sort(),
       );
     },
@@ -1016,7 +1016,7 @@ it("observes genuine installed current alias minimums within18requests", async (
         {
           operations: ["a", "b"].map((id) => ({
             operation: "createBead",
-            id: `beads/${id}`,
+            id: `${id}`,
             type: beadType,
             properties: { title: id },
             metadata: { seed: id },
@@ -1043,7 +1043,7 @@ it("observes genuine installed current alias minimums within18requests", async (
         expect(result.resource.revision).toEqual(expect.any(String));
         expect(result.resource.revision.length).toBeGreaterThan(0);
         expect(result.resource).toEqual({
-          id: `${scope}beads/${id}`,
+          id: `${scope}${id}`,
           type: beadType,
           properties: { title: id },
           metadata: { seed: id },
@@ -1063,7 +1063,7 @@ it("observes genuine installed current alias minimums within18requests", async (
           `${scope}operations/${operation}`,
           "POST",
           { "content-type": "application/json", "idempotency-key": key },
-          { alias: "alias/work", ...(target ? { target: `beads/${target}` } : {}) },
+          { alias: "alias/work", ...(target ? { target: `${target}` } : {}) },
         );
         const result = json<{
           status: string;
@@ -1080,14 +1080,14 @@ it("observes genuine installed current alias minimums within18requests", async (
             operationIndex: 0,
             outcome,
             alias: `${scope}alias/work`,
-            ...(target ? { target: `${scope}beads/${target}` } : {}),
+            ...(target ? { target: `${scope}${target}` } : {}),
           },
         ]);
         context(response, headers);
       };
       const redirect = (response: HttpExchangeResponse, target: string) => {
         expect(response.status).toBe(307);
-        expect(response.headers.location).toBe(`${scope}beads/${target}`);
+        expect(response.headers.location).toBe(`${scope}${target}`);
         expect(response.bodyOctets).toBe(0);
         expect(response.bodyText).toBe("");
         expect(response.headers["content-length"]).toBe("0");
@@ -1115,7 +1115,7 @@ it("observes genuine installed current alias minimums within18requests", async (
       // Same actual-response oracle, no extra requests: wrong locator/context must fail.
       expect(() =>
         redirect(
-          { ...repointed, headers: { ...repointed.headers, location: `${scope}beads/a` } },
+          { ...repointed, headers: { ...repointed.headers, location: `${scope}a` } },
           "b",
         ),
       ).toThrow();
@@ -1125,7 +1125,7 @@ it("observes genuine installed current alias minimums within18requests", async (
           "b",
         ),
       ).toThrow();
-      const followed = await exchange(`${scope}beads/b`, "GET", headers);
+      const followed = await exchange(`${scope}b`, "GET", headers);
       expect(json<Row>(followed)).toEqual(receipt.results[1]!.resource);
       // Resource ETag is a separate oracle; context() still forbids ETags on redirects/pages.
       expect(followed.headers["bdp-scope-epoch"]).toBe(headers["bdp-scope-epoch"]);
@@ -1217,7 +1217,7 @@ it("observes genuine installed current alias minimums within18requests", async (
           `${scope}alias/work`,
           `${scope}alias/never`,
           `${scope}alias/work?invalid=1`,
-          `${scope}beads/b`,
+          `${scope}b`,
         ].sort(),
       );
     },
@@ -1235,7 +1235,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
         ...["create-bead", "update-bead", "batch", "sequence"].map(
           (name) => `${scope}operations/${name}`,
         ),
-        ...["a", "b", "c"].map((name) => `${scope}beads/${name}`),
+        ...["a", "b", "c"].map((name) => `${scope}${name}`),
       ]);
       const observedUrls = new Set<string>();
       let calls = 0;
@@ -1291,7 +1291,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
       function resource(value: unknown, name: string) {
         const row = value as Row;
         expect(row).toEqual({
-          id: `${scope}beads/${name}`,
+          id: `${scope}${name}`,
           type: beadType,
           properties: { title: name },
           metadata: {},
@@ -1322,7 +1322,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
       expect(json<Page>(empty)).toEqual({ items: [], next: null });
       const initial = minimum(empty);
       context(empty, initial, "pos-0");
-      const aInput = { id: "beads/a", type: beadType, properties: { title: "a" } };
+      const aInput = { id: "a", type: beadType, properties: { title: "a" } };
       const made = await post("create-bead", aInput, "minimum-a", malformed);
       const aReceipt = receipt(made);
       expect(aReceipt.idempotencyKey).toBe("minimum-a");
@@ -1330,7 +1330,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
       expect(aReceipt.effectPosition).toBe("pos-1");
       const a = created(aReceipt, "a");
       context(made, initial, "pos-1");
-      const readA = await exchange(`${scope}beads/a`);
+      const readA = await exchange(`${scope}a`);
       expect(json(readA)).toEqual(a);
       pointContext(readA, initial, "pos-1");
       const replayA = await post("create-bead", aInput, "minimum-a", foreign);
@@ -1338,7 +1338,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
       context(replayA, initial, "pos-1");
       const bInput = {
         operations: [
-          { operation: "createBead", id: "beads/b", type: beadType, properties: { title: "b" } },
+          { operation: "createBead", id: "b", type: beadType, properties: { title: "b" } },
         ],
       };
       const madeB = await post("batch", bInput, "minimum-b", { "bdp-scope-epoch": "partial" });
@@ -1348,7 +1348,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
       expect(bReceipt.effectPosition).toBe("pos-2");
       const b = created(bReceipt, "b");
       context(madeB, initial, "pos-2");
-      const readB = await exchange(`${scope}beads/b`);
+      const readB = await exchange(`${scope}b`);
       expect(json(readB)).toEqual(b);
       pointContext(readB, initial, "pos-2");
       const replayB = await post("batch", bInput, "minimum-b", { "bdp-scope-epoch": "" });
@@ -1358,7 +1358,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
         operations: [
           {
             operation: "createBead",
-            id: "beads/c",
+            id: "c",
             type: beadType,
             properties: { title: "c" },
             idempotencyKey: "minimum-c",
@@ -1376,7 +1376,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
         results: [{ operationIndex: 0, outcome: "created", resource: c }],
       });
       context(madeC, initial, "pos-3");
-      const readC = await exchange(`${scope}beads/c`);
+      const readC = await exchange(`${scope}c`);
       expect(json(readC)).toEqual(c);
       pointContext(readC, initial, "pos-3");
       const replayC = await post("sequence", sequenceInput, undefined, malformed);
@@ -1388,7 +1388,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
           operations: [
             {
               operation: "createBead",
-              id: "beads/conflict-extra",
+              id: "conflict-extra",
               type: beadType,
               properties: { title: "conflict-extra" },
             },
@@ -1407,7 +1407,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
       const refused = await post(
         "update-bead",
         {
-          bead: "beads/a",
+          bead: "a",
           expectedRevision: "wrong",
           propertiesChange: [{ op: "replace", path: "/title", value: "not-admitted" }],
         },
@@ -1426,7 +1426,7 @@ it("ignores command read controls while enforcing a later installed receipt mini
         operationIndex: 0,
       });
       context(refused, initial, "pos-3");
-      const unchanged = await exchange(`${scope}beads/a`);
+      const unchanged = await exchange(`${scope}a`);
       expect(json(unchanged)).toEqual(a);
       pointContext(unchanged, initial, "pos-3");
       // Grant only the exact receipt root actually observed on the successful command.
@@ -1545,8 +1545,8 @@ it("observes installed parser refusals before unknown minimum handling", async (
           await refusal("bdp/beads?unsupported=x", method, headers);
       for (const suffix of [
         "types/task?view=properties",
-        "beads/a?view=links&direction=sideways",
-        "beads/missing?view=bogus",
+        "a?view=links&direction=sideways",
+        "missing?view=bogus",
       ])
         for (const method of ["GET", "HEAD"] as const) await refusal(suffix, method, opaque);
       await refusal("bdp/beads?unsupported=x", "GET", { ...opaque, "if-none-match": "*" });

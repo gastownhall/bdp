@@ -157,7 +157,7 @@ it("confines the observed receipt target to one canonical bounded root", () => {
 
 const titleFor = (id: string) => (id === "c" ? "corrected-c" : id);
 const create = (id: string, title = id) => ({
-  id: `beads/${id}`,
+  id: `${id}`,
   type: task,
   properties: { title },
 });
@@ -308,7 +308,7 @@ it("observes current context on installed sequence refusals within13requests", a
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ operationIndex: 0, outcome: "created" });
     const resource = record(result[0]!.resource);
-    expect(resource.id).toBe(`${scope}beads/${name}`);
+    expect(resource.id).toBe(`${scope}${name}`);
     expect(resource.type).toBe(task);
     expect(resource.properties).toEqual({ title: titleFor(name) });
     expect(resource.metadata).toEqual({});
@@ -323,7 +323,7 @@ it("observes current context on installed sequence refusals within13requests", a
     const value = checked(response.bodyText, "currentBeadCollection");
     expect(value.next).toBeNull();
     const items = records(value.items);
-    expect(items.map((r) => r.id)).toEqual(names.map((name) => `${scope}beads/${name}`));
+    expect(items.map((r) => r.id)).toEqual(names.map((name) => `${scope}${name}`));
     expect(items).toEqual(receipts.map((receipt) => records(receipt.results)[0]!.resource));
   }
   function events(response: Wire, names: string[], position: string) {
@@ -336,7 +336,7 @@ it("observes current context on installed sequence refusals within13requests", a
     for (const [i, event] of rows.entries()) {
       expect(event).toMatchObject({
         type: "created",
-        subject: `${scope}beads/${names[i]}`,
+        subject: `${scope}${names[i]}`,
         source: `${scope}events/`,
         ordinal: 0,
         transaction: receipts[i]!.transaction,

@@ -6,7 +6,7 @@
     {
       "label": "task-42-r7",
       "record": {
-        "id": "https://beads.example/acme/beads/task-42",
+        "id": "https://beads.example/acme/task-42",
         "type": "https://work.example/types/task",
         "revision": "task-42-r7",
         "properties": {
@@ -14,13 +14,13 @@
           "status": "open"
         }
       },
-      "jcs": "{\"id\":\"https://beads.example/acme/beads/task-42\",\"properties\":{\"status\":\"open\",\"title\":\"Specify BDP mutation\"},\"revision\":\"task-42-r7\",\"type\":\"https://work.example/types/task\"}",
-      "sha256": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
+      "jcs": "{\"id\":\"https://beads.example/acme/task-42\",\"properties\":{\"status\":\"open\",\"title\":\"Specify BDP mutation\"},\"revision\":\"task-42-r7\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "ea6a9ccea2e85df1275b070f90f26f397f766632d4648c388827ae72e79a4566"
     },
     {
       "label": "task-42-r8",
       "record": {
-        "id": "https://beads.example/acme/beads/task-42",
+        "id": "https://beads.example/acme/task-42",
         "type": "https://work.example/types/task",
         "revision": "task-42-r8",
         "properties": {
@@ -28,17 +28,17 @@
           "status": "cited"
         }
       },
-      "jcs": "{\"id\":\"https://beads.example/acme/beads/task-42\",\"properties\":{\"status\":\"cited\",\"title\":\"Specify BDP mutation\"},\"revision\":\"task-42-r8\",\"type\":\"https://work.example/types/task\"}",
-      "sha256": "f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677"
+      "jcs": "{\"id\":\"https://beads.example/acme/task-42\",\"properties\":{\"status\":\"cited\",\"title\":\"Specify BDP mutation\"},\"revision\":\"task-42-r8\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "1cf68d3dfa82a649f92e6b4a5676aba09115079901f88d42fdeb1fc2ffa57b51"
     },
     {
       "label": "9c1e-r1",
       "record": {
-        "id": "https://beads.example/owned-erasure/links/9c1e",
+        "id": "https://beads.example/owned-erasure/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "source": "https://beads.example/owned-erasure/beads/dec-9",
-        "target": "https://beads.example/owned-erasure/beads/task-42",
+        "source": "https://beads.example/owned-erasure/dec-9",
+        "target": "https://beads.example/owned-erasure/task-42",
         "properties": {
           "role": "evidence"
         },
@@ -49,29 +49,29 @@
           }
         }
       },
-      "jcs": "{\"id\":\"https://beads.example/owned-erasure/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"revisionProvenance\":{\"actor\":{\"basis\":\"writer-supplied\",\"id\":\"agent:planner\"}},\"source\":\"https://beads.example/owned-erasure/beads/dec-9\",\"target\":\"https://beads.example/owned-erasure/beads/task-42\",\"type\":\"https://work.example/types/cites\"}",
-      "sha256": "40c90c653514fbf2c0d33c47437c7d7cc8d3ba38b3d12cddabebe1e81fa3b3dc"
+      "jcs": "{\"id\":\"https://beads.example/owned-erasure/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"revisionProvenance\":{\"actor\":{\"basis\":\"writer-supplied\",\"id\":\"agent:planner\"}},\"source\":\"https://beads.example/owned-erasure/dec-9\",\"target\":\"https://beads.example/owned-erasure/task-42\",\"type\":\"https://work.example/types/cites\"}",
+      "sha256": "75e2f067a12397f80316d2fa5c9a5b5fe3331484c16fbd2282e092f5d670d5da"
     },
     {
       "label": "2d4f-r1",
       "record": {
-        "id": "https://beads.example/acme/links/2d4f",
+        "id": "https://beads.example/acme/2d4f",
         "type": "https://work.example/types/relates",
         "revision": "2d4f-r1",
-        "source": "https://beads.example/acme/beads/task-43",
+        "source": "https://beads.example/acme/task-43",
         "target": {
           "uri": "https://github.example/issues/123",
           "revision": "8f0e2b"
         },
         "properties": {}
       },
-      "jcs": "{\"id\":\"https://beads.example/acme/links/2d4f\",\"properties\":{},\"revision\":\"2d4f-r1\",\"source\":\"https://beads.example/acme/beads/task-43\",\"target\":{\"revision\":\"8f0e2b\",\"uri\":\"https://github.example/issues/123\"},\"type\":\"https://work.example/types/relates\"}",
-      "sha256": "a1997ba742b515687a1fea7949b82e4276e1381ba6f110a86831514cc3fb4a78"
+      "jcs": "{\"id\":\"https://beads.example/acme/2d4f\",\"properties\":{},\"revision\":\"2d4f-r1\",\"source\":\"https://beads.example/acme/task-43\",\"target\":{\"revision\":\"8f0e2b\",\"uri\":\"https://github.example/issues/123\"},\"type\":\"https://work.example/types/relates\"}",
+      "sha256": "e8e2a137082be77d2925ab1733bfcb4982cb35e20b50824440a8b732565f9b6d"
     },
     {
       "label": "dec-9-r2",
       "record": {
-        "id": "https://beads.example/owned-erasure/beads/dec-9",
+        "id": "https://beads.example/owned-erasure/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r2",
         "properties": {
@@ -81,11 +81,11 @@
         "ownedLinks": {
           "https://work.example/types/cites": [
             {
-              "id": "https://beads.example/owned-erasure/links/9c1e",
+              "id": "https://beads.example/owned-erasure/9c1e",
               "type": "https://work.example/types/cites",
               "revision": "9c1e-r1",
-              "source": "https://beads.example/owned-erasure/beads/dec-9",
-              "target": "https://beads.example/owned-erasure/beads/task-42",
+              "source": "https://beads.example/owned-erasure/dec-9",
+              "target": "https://beads.example/owned-erasure/task-42",
               "properties": {
                 "role": "evidence"
               },
@@ -105,17 +105,17 @@
           }
         }
       },
-      "jcs": "{\"id\":\"https://beads.example/owned-erasure/beads/dec-9\",\"ownedLinks\":{\"https://work.example/types/cites\":[{\"id\":\"https://beads.example/owned-erasure/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"revisionProvenance\":{\"actor\":{\"basis\":\"writer-supplied\",\"id\":\"agent:planner\"}},\"source\":\"https://beads.example/owned-erasure/beads/dec-9\",\"target\":\"https://beads.example/owned-erasure/beads/task-42\",\"type\":\"https://work.example/types/cites\"}]},\"properties\":{\"status\":\"proposed\",\"title\":\"Adopt owned Links\"},\"revision\":\"dec-9-r2\",\"revisionProvenance\":{\"actor\":{\"basis\":\"writer-supplied\",\"id\":\"agent:planner\"}},\"type\":\"https://work.example/types/decision\"}",
-      "sha256": "ea5e3142f625a3fd36adc98190cb48bf84e2083cd20ccc2d4fc4c8f8fb3a438e"
+      "jcs": "{\"id\":\"https://beads.example/owned-erasure/dec-9\",\"ownedLinks\":{\"https://work.example/types/cites\":[{\"id\":\"https://beads.example/owned-erasure/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"revisionProvenance\":{\"actor\":{\"basis\":\"writer-supplied\",\"id\":\"agent:planner\"}},\"source\":\"https://beads.example/owned-erasure/dec-9\",\"target\":\"https://beads.example/owned-erasure/task-42\",\"type\":\"https://work.example/types/cites\"}]},\"properties\":{\"status\":\"proposed\",\"title\":\"Adopt owned Links\"},\"revision\":\"dec-9-r2\",\"revisionProvenance\":{\"actor\":{\"basis\":\"writer-supplied\",\"id\":\"agent:planner\"}},\"type\":\"https://work.example/types/decision\"}",
+      "sha256": "f6fa9e14241dc54ddb38984320baabf78c379ad54a1ab8739ba9b34f77282026"
     },
     {
       "label": "vec-1-r1",
       "record": {
-        "id": "https://beads.example/acme/beads/vec-1",
+        "id": "https://beads.example/acme/vec-1",
         "type": "https://work.example/types/task",
         "revision": "vec-1-r1",
         "properties": {
-          "big": 1e21,
+          "big": 1e+21,
           "count": 100,
           "largest": 9007199254740991,
           "negativeZero": 0,
@@ -124,13 +124,13 @@
           "whole": 1
         }
       },
-      "jcs": "{\"id\":\"https://beads.example/acme/beads/vec-1\",\"properties\":{\"big\":1e+21,\"count\":100,\"largest\":9007199254740991,\"negativeZero\":0,\"ratio\":0.1,\"tiny\":1e-7,\"whole\":1},\"revision\":\"vec-1-r1\",\"type\":\"https://work.example/types/task\"}",
-      "sha256": "f025bb14be7c25892c79db7e1ffbd1328789f8a4f93759fbe9ffaf53e5c60a4b"
+      "jcs": "{\"id\":\"https://beads.example/acme/vec-1\",\"properties\":{\"big\":1e+21,\"count\":100,\"largest\":9007199254740991,\"negativeZero\":0,\"ratio\":0.1,\"tiny\":1e-7,\"whole\":1},\"revision\":\"vec-1-r1\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "fc17cd300fdc9a448e9a479edc91abb43b944a5083b5592526586faa80205652"
     },
     {
       "label": "vec-2-r1",
       "record": {
-        "id": "https://beads.example/acme/beads/vec-2",
+        "id": "https://beads.example/acme/vec-2",
         "type": "https://work.example/types/task",
         "revision": "vec-2-r1",
         "properties": {
@@ -140,21 +140,21 @@
           "😀": "emoji"
         }
       },
-      "jcs": "{\"id\":\"https://beads.example/acme/beads/vec-2\",\"properties\":{\"Z\":\"\\\"quoted\\\" \\\\ back\",\"a\":\"line\\nbreak\\ttab\",\"é\":\"café\",\"😀\":\"emoji\"},\"revision\":\"vec-2-r1\",\"type\":\"https://work.example/types/task\"}",
-      "sha256": "135fbc96c7deb12207e0b0321ac97686a77d40cf1cf07c75eb730b67d96b9d06"
+      "jcs": "{\"id\":\"https://beads.example/acme/vec-2\",\"properties\":{\"Z\":\"\\\"quoted\\\" \\\\ back\",\"a\":\"line\\nbreak\\ttab\",\"é\":\"café\",\"😀\":\"emoji\"},\"revision\":\"vec-2-r1\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "65ae68802e90ecbe77d24057cff9d24b1a486c7496144608962164a4ed1d49fd"
     },
     {
       "label": "rel-5-r1",
       "record": {
-        "id": "https://beads.example/acme/links/rel-5",
+        "id": "https://beads.example/acme/rel-5",
         "type": "https://work.example/types/relates",
         "revision": "rel-5-r1",
-        "source": "https://beads.example/acme/beads/task-43",
-        "target": "https://beads.example/acme/beads/task-44",
+        "source": "https://beads.example/acme/task-43",
+        "target": "https://beads.example/acme/task-44",
         "properties": {}
       },
-      "jcs": "{\"id\":\"https://beads.example/acme/links/rel-5\",\"properties\":{},\"revision\":\"rel-5-r1\",\"source\":\"https://beads.example/acme/beads/task-43\",\"target\":\"https://beads.example/acme/beads/task-44\",\"type\":\"https://work.example/types/relates\"}",
-      "sha256": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
+      "jcs": "{\"id\":\"https://beads.example/acme/rel-5\",\"properties\":{},\"revision\":\"rel-5-r1\",\"source\":\"https://beads.example/acme/task-43\",\"target\":\"https://beads.example/acme/task-44\",\"type\":\"https://work.example/types/relates\"}",
+      "sha256": "54f3e6a4e07339008e05c77a11692dc3811d1873a7e531eec8256e2cc0993092"
     }
   ]
 }

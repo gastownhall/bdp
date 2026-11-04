@@ -37,15 +37,15 @@ const scope = "https://reference.invalid/acme/";
 const beadType = `${scope}types/task`;
 const schemaUri = `${scope}schemas/properties`;
 const seedKey = "guarded-seed";
-const seedId = `${scope}beads/guarded-seed`;
+const seedId = `${scope}guarded-seed`;
 const seedBody =
-  '{"operations":[{"operation":"createBead","id":"beads/guarded-seed","type":"https://reference.invalid/acme/types/task","properties":{"title":"guarded-seed"},"metadata":{}}]}';
+  '{"operations":[{"operation":"createBead","id":"guarded-seed","type":"https://reference.invalid/acme/types/task","properties":{"title":"guarded-seed"},"metadata":{}}]}';
 function contenderBody(side: "a" | "b", revision: string, guarded: boolean) {
   return JSON.stringify({
     operations: [
       {
         operation: "createBead",
-        id: `beads/marker-${side}`,
+        id: `marker-${side}`,
         type: beadType,
         properties: { title: `marker-${side}` },
         metadata: {},
@@ -302,27 +302,27 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
     }
     check("literal-inputs", () => {
       expect([Buffer.byteLength(seedBody), sha(seedBody)]).toStrictEqual([
-        172,
-        "a1937453b366087694cc040cc81534d1d073fed0e0bcc09b0fc6de39304ef3f0",
+        166,
+        "792434a331ed8395b4bfe4f458d5e7be456dca66d74c9e1975eb6555449bfba6",
       ]);
       // A reference specimen measures construction only; it is never sent.
       const reference = "00000000-0000-4000-8000-000000000000";
       for (const [side, guardedHash, controlHash] of [
         [
           "a",
-          "386fc744c79e39fe4428c6a77c4d7b7b885dc18b41e2b90f1acdf0e0df5fb226",
-          "f707e87dc9ec95f6f564940d3fc097b6880aeeeda9ac493981d9a4344bb5a91d",
+          "4fb55b1ee9cfd866505ae6d9cfbf85e89956849bfd498d155106e05d34cc47c6",
+          "142ebaa8571897cb5229ca628f8d193c27999f5d42398e8cde53beb14fde485a",
         ],
         [
           "b",
-          "59f91799860c3fa0957c4e93fe3bd57fd94621b992da4772b67307329bde0e70",
-          "bbc04ffd826ba2519b86b4a22e47eff5566d2bb5ec90f45fe6ecb8779f6148a5",
+          "744da9ebcac5b474da35182f04b1dbf0a0992ce2ddeab02711b8eca91b43608d",
+          "b23b4831dd961cb462eabbee8add9aac87adc645b5080a585c4c805e3e52a63a",
         ],
       ] as const) {
         const guarded = contenderBody(side, reference, true),
           unguarded = contenderBody(side, reference, false);
-        expect([Buffer.byteLength(guarded), sha(guarded)]).toStrictEqual([381, guardedHash]);
-        expect([Buffer.byteLength(unguarded), sha(unguarded)]).toStrictEqual([323, controlHash]);
+        expect([Buffer.byteLength(guarded), sha(guarded)]).toStrictEqual([369, guardedHash]);
+        expect([Buffer.byteLength(unguarded), sha(unguarded)]).toStrictEqual([311, controlHash]);
         const withoutGuard = JSON.parse(guarded);
         delete withoutGuard.operations[1].expectedRevision;
         expect(JSON.parse(unguarded)).toStrictEqual(withoutGuard);
@@ -669,7 +669,7 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
         for (const [i, result] of results.entries()) {
           const resource = checked(record(result).resource, "beadRecord");
           const revision = text(resource.revision);
-          const id = side === undefined || i === 1 ? seedId : `${scope}beads/marker-${side}`;
+          const id = side === undefined || i === 1 ? seedId : `${scope}marker-${side}`;
           const title =
             side === undefined ? "guarded-seed" : i === 0 ? `marker-${side}` : `winner-${side}`;
           expect(resource).toStrictEqual({
@@ -737,7 +737,7 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
       bBody = contenderBody("b", seedRevision!, mode === "positive");
       for (const body of [aBody, bBody]) {
         expect(Buffer.byteLength(body)).toBe(
-          mode === "positive" ? 343 + revisionEncodingBytes! : 323,
+          mode === "positive" ? 331 + revisionEncodingBytes! : 311,
         );
         const update = JSON.parse(body).operations[1];
         if (mode === "positive") expect(update.expectedRevision).toBe(seedRevision);
@@ -893,7 +893,7 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
             ordinal: 0,
             type: "created",
             source,
-            subject: `${scope}beads/marker-${winningSide}`,
+            subject: `${scope}marker-${winningSide}`,
             subjectType: beadType,
             transaction: winner.transaction,
             time: record(events[1]).time,
@@ -925,7 +925,7 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
       expect(responses.map((r) => r.status)).toStrictEqual([200, 200, 200, 200, 200, 200, 200]);
       expect(maximumLiveSockets).toBeLessThanOrEqual(2);
       expect(responses.reduce((sum, r) => sum + r.requestBodyBytes, 0)).toBe(
-        172 + 3 * (343 + revisionEncodingBytes!),
+        166 + 3 * (331 + revisionEncodingBytes!),
       );
     });
   } catch (error) {

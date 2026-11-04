@@ -9,7 +9,7 @@
       "condition": "The Bead-scoped source reports the Decision's creation, the linked fact at its source endpoint, and its owned-Link updated fact; ordinals 1 and 3 belong to facts the projection does not carry.",
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events",
+        "target": "dec-9?view=events",
         "headers": {
           "accept": "application/json"
         }
@@ -25,14 +25,14 @@
         },
         "schema": "#/$defs/eventPage",
         "body": {
-          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "source": "https://beads.example/acme/dec-9?view=events",
           "events": [
             {
               "id": "ckpt-43_0",
               "ordinal": 0,
               "type": "created",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -54,27 +54,27 @@
               "id": "ckpt-43_2",
               "ordinal": 2,
               "type": "linked",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/links/9c1e",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/9c1e",
               "subjectType": "https://work.example/types/cites",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
               "data": {
                 "endpoint": "source",
                 "link": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/acme/9c1e",
                   "type": "https://work.example/types/cites"
                 },
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42"
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42"
               }
             },
             {
               "id": "ckpt-43_4",
               "ordinal": 4,
               "type": "updated",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1b",
               "time": "2026-09-07T18:04:12Z",
@@ -84,11 +84,11 @@
                 "ownedLink": {
                   "operation": "created",
                   "link": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/acme/dec-9",
+                    "target": "https://beads.example/acme/task-42",
                     "properties": {
                       "role": "evidence"
                     },
@@ -118,7 +118,7 @@
       "condition": "From a separate example: the owned cites Link 7a0b of dec-11 had its role changed. The delta carries the Link's own revisions and the committed change, not the Link's record; the source's version moved from dec-11-r4 to dec-11-r5.",
       "request": {
         "method": "GET",
-        "target": "beads/dec-11?view=events&after=ckpt-52_0",
+        "target": "dec-11?view=events&after=ckpt-52_0",
         "headers": {
           "accept": "application/json"
         }
@@ -134,14 +134,14 @@
         },
         "schema": "#/$defs/eventPage",
         "body": {
-          "source": "https://beads.example/acme/beads/dec-11?view=events",
+          "source": "https://beads.example/acme/dec-11?view=events",
           "events": [
             {
               "id": "ckpt-52_1",
               "ordinal": 1,
               "type": "updated",
-              "source": "https://beads.example/acme/beads/dec-11?view=events",
-              "subject": "https://beads.example/acme/beads/dec-11",
+              "source": "https://beads.example/acme/dec-11?view=events",
+              "subject": "https://beads.example/acme/dec-11",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0b77",
               "time": "2026-09-08T09:15:30Z",
@@ -151,7 +151,7 @@
                 "ownedLink": {
                   "operation": "updated",
                   "link": {
-                    "id": "https://beads.example/acme/links/7a0b",
+                    "id": "https://beads.example/acme/7a0b",
                     "type": "https://work.example/types/cites",
                     "previousRevision": "7a0b-r1",
                     "revision": "7a0b-r2",
@@ -188,7 +188,7 @@
       "condition": "After the second batch: the Link's lifecycle fact came first in the group, then the graph facts source before target, then the source's updated fact last, so the source-endpoint unlinked fact is ordinal 1 and the owned-Link deleted transition ordinal 3. The source's new version carries the attribution supplied to the set deletion.",
       "request": {
         "method": "GET",
-        "target": "beads/dec-9?view=events&after=ckpt-43_4",
+        "target": "dec-9?view=events&after=ckpt-43_4",
         "headers": {
           "accept": "application/json"
         }
@@ -204,33 +204,33 @@
         },
         "schema": "#/$defs/eventPage",
         "body": {
-          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "source": "https://beads.example/acme/dec-9?view=events",
           "events": [
             {
               "id": "ckpt-46_1",
               "ordinal": 1,
               "type": "unlinked",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/links/9c1e",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/9c1e",
               "subjectType": "https://work.example/types/cites",
               "transaction": "txn-0a1d",
               "time": "2026-09-07T18:09:40Z",
               "data": {
                 "endpoint": "source",
                 "link": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/acme/9c1e",
                   "type": "https://work.example/types/cites"
                 },
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42"
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42"
               }
             },
             {
               "id": "ckpt-46_3",
               "ordinal": 3,
               "type": "updated",
-              "source": "https://beads.example/acme/beads/dec-9?view=events",
-              "subject": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9?view=events",
+              "subject": "https://beads.example/acme/dec-9",
               "subjectType": "https://work.example/types/decision",
               "transaction": "txn-0a1d",
               "time": "2026-09-07T18:09:40Z",
@@ -240,7 +240,7 @@
                 "ownedLink": {
                   "operation": "deleted",
                   "link": {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/acme/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1"
                   }

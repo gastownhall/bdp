@@ -148,7 +148,7 @@ describe("bd readiness", () => {
     const first = bead("a", "open");
     const second = bead("b", "open");
     const continuation = `${SCOPE}bdp/beads?cursor=opaque-beads`;
-    const linkContinuation = `${SCOPE}bdp/beads/${encodeURIComponent("a")}?cursor=opaque-links`;
+    const linkContinuation = `${SCOPE}bdp/${encodeURIComponent("a")}?cursor=opaque-links`;
     const requests: string[] = [];
     const client = {
       scope: SCOPE,
@@ -233,7 +233,7 @@ describe("bd readiness", () => {
     const blocked = bead("a", "open");
     const ready = bead("b", "open");
     const external: LinkRecord = {
-      id: `${SCOPE}links/a-external`,
+      id: `${SCOPE}a-external`,
       type: BLOCKS,
       revision: "revision-a-external",
       source: blocked.id,
@@ -511,7 +511,7 @@ describe("bd readiness", () => {
 
 function bead(id: string, status: string, links: readonly LinkRecord[] = []): BeadRecord {
   return {
-    id: `${SCOPE}beads/${id}`,
+    id: `${SCOPE}${id}`,
     type: "https://work.example/types/task",
     revision: `revision-${id}`,
     properties: { status },
@@ -525,11 +525,11 @@ function blocks(id: string, source: string, target: string): LinkRecord {
 
 function link(id: string, type: string, source: string, target: string): LinkRecord {
   return {
-    id: `${SCOPE}links/${id}`,
+    id: `${SCOPE}${id}`,
     type: type === "blocks" ? BLOCKS : type,
     revision: `revision-${id}`,
-    source: `${SCOPE}beads/${source}`,
-    target: `${SCOPE}beads/${target}`,
+    source: `${SCOPE}${source}`,
+    target: `${SCOPE}${target}`,
     properties: {},
   };
 }

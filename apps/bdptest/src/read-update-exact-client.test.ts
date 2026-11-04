@@ -24,14 +24,14 @@ it("rejects foreign, malformed and missing captured targets before dialing or cr
   );
   for (const value of [
     undefined,
-    "https://foreign.invalid/acme/beads/a",
-    "https://example.invalid/other/beads/a",
-    `${scope}beads/%`,
-    `${scope}beads/%2F`,
-    `${scope}beads/../beads/a`,
-    `${scope}beads/a#`,
-    `${scope}beads/a?`,
-    "beads/a",
+    "https://foreign.invalid/acme/a",
+    "https://example.invalid/other/a",
+    `${scope}%`,
+    `${scope}%2F`,
+    `${scope}../a`,
+    `${scope}a#`,
+    `${scope}a?`,
+    "a",
     1,
   ]) {
     const execution = {

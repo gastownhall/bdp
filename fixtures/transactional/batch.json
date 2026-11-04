@@ -21,7 +21,7 @@
             {
               "name": "decision",
               "operation": "createBead",
-              "id": "beads/dec-9",
+              "id": "dec-9",
               "type": "https://work.example/types/decision",
               "properties": {
                 "title": "Adopt owned Links",
@@ -39,7 +39,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/cites",
               "source": "@decision",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {
                 "role": "evidence"
               },
@@ -52,7 +52,7 @@
             },
             {
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r7",
               "propertiesChange": [
                 {
@@ -91,7 +91,7 @@
               "operationName": "decision",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/dec-9",
+                "id": "https://beads.example/acme/dec-9",
                 "type": "https://work.example/types/decision",
                 "revision": "dec-9-r1",
                 "properties": {
@@ -114,11 +114,11 @@
               "operationName": "cite",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/9c1e",
+                "id": "https://beads.example/acme/9c1e",
                 "type": "https://work.example/types/cites",
                 "revision": "9c1e-r1",
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42",
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42",
                 "properties": {
                   "role": "evidence"
                 },
@@ -129,14 +129,14 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9",
               "sourceRevision": "dec-9-r2"
             },
             {
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-42",
+                "id": "https://beads.example/acme/task-42",
                 "type": "https://work.example/types/task",
                 "revision": "task-42-r8",
                 "properties": {
@@ -168,7 +168,7 @@
             {
               "name": "decision",
               "operation": "createBead",
-              "id": "beads/dec-9",
+              "id": "dec-9",
               "type": "https://work.example/types/decision",
               "properties": {
                 "title": "Adopt owned Links",
@@ -186,7 +186,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/cites",
               "source": "@decision",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {
                 "role": "evidence"
               },
@@ -199,7 +199,7 @@
             },
             {
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r7",
               "propertiesChange": [
                 {
@@ -252,7 +252,7 @@
             {
               "name": "decision",
               "operation": "createBead",
-              "id": "beads/dec-9",
+              "id": "dec-9",
               "type": "https://work.example/types/decision",
               "properties": {
                 "title": "Adopt owned Links",
@@ -270,7 +270,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/cites",
               "source": "@decision",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {
                 "role": "evidence"
               },
@@ -283,7 +283,7 @@
             },
             {
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r7",
               "propertiesChange": [
                 {
@@ -322,7 +322,7 @@
               "operationName": "decision",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/dec-9",
+                "id": "https://beads.example/acme/dec-9",
                 "type": "https://work.example/types/decision",
                 "revision": "dec-9-r1",
                 "properties": {
@@ -345,11 +345,11 @@
               "operationName": "cite",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/9c1e",
+                "id": "https://beads.example/acme/9c1e",
                 "type": "https://work.example/types/cites",
                 "revision": "9c1e-r1",
-                "source": "https://beads.example/acme/beads/dec-9",
-                "target": "https://beads.example/acme/beads/task-42",
+                "source": "https://beads.example/acme/dec-9",
+                "target": "https://beads.example/acme/task-42",
                 "properties": {
                   "role": "evidence"
                 },
@@ -360,14 +360,14 @@
                   }
                 }
               },
-              "source": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9",
               "sourceRevision": "dec-9-r2"
             },
             {
               "operationIndex": 2,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-42",
+                "id": "https://beads.example/acme/task-42",
                 "type": "https://work.example/types/task",
                 "revision": "task-42-r8",
                 "properties": {
@@ -399,7 +399,7 @@
             {
               "name": "decision",
               "operation": "createBead",
-              "id": "beads/dec-9",
+              "id": "dec-9",
               "type": "https://work.example/types/decision",
               "properties": {
                 "title": "Adopt owned Links",
@@ -417,7 +417,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/cites",
               "source": "@decision",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {
                 "role": "evidence"
               },
@@ -430,7 +430,7 @@
             },
             {
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r7",
               "propertiesChange": [
                 {
@@ -466,7 +466,7 @@
             "type": "https://github.com/gastownhall/bdp/problems/conflict",
             "title": "Supplied identity was previously committed",
             "status": 409,
-            "detail": "beads/dec-9 has been committed in this Scope and is never reassigned.",
+            "detail": "dec-9 has been committed in this Scope and is never reassigned.",
             "code": "identity-taken",
             "retry": "never",
             "operationIndex": 0,
@@ -494,7 +494,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/acme/task-42\" || @.target == \"https://beads.example/acme/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -507,13 +507,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -555,12 +555,12 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/acme/9c1e",
                   "type": "https://work.example/types/cites",
                   "revision": "9c1e-r1"
                 }
               },
-              "source": "https://beads.example/acme/beads/dec-9",
+              "source": "https://beads.example/acme/dec-9",
               "sourceRevision": "dec-9-r3"
             },
             {
@@ -569,7 +569,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/acme/links/blocks-3",
+                  "id": "https://beads.example/acme/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -581,7 +581,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/acme/beads/task-42",
+                  "id": "https://beads.example/acme/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -591,10 +591,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/2d4f",
+                "id": "https://beads.example/acme/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/acme/beads/task-43",
+                "source": "https://beads.example/acme/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"

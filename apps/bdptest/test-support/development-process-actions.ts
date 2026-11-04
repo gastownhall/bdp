@@ -91,9 +91,9 @@ export function createDevelopmentProcessActions(token: string) {
         );
         delivery = original.then((response) => ({ delivered: response !== undefined }));
         const barrier = await child.wait("parked", 2);
-        const prefix = await child.get("beads/prefix");
+        const prefix = await child.get("prefix");
         prefixDigests.push(digest(prefix));
-        const tail = await child.get("beads/tail");
+        const tail = await child.get("tail");
         return { barrier, prefix: observation(prefix), tail: observation(tail) };
       }
       case "development.process.disconnect":
@@ -132,7 +132,7 @@ export function createDevelopmentProcessActions(token: string) {
         active = await processes.start(store, port, false, false);
         return { scope: active.scope };
       case "development.process.prefix": {
-        const response = await child.get("beads/prefix");
+        const response = await child.get("prefix");
         prefixDigests.push(digest(response));
         return observation(response);
       }

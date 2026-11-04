@@ -830,7 +830,7 @@ export class BdpReadUpdateClient {
     if (
       kind.startsWith("create") &&
       input.id === undefined &&
-      resource.id.slice(this.scope.length).split("/").length !== 2
+      resource.id.slice(this.scope.length).split("/").length !== 1
     )
       throw Error();
     if (result.resource) {

@@ -235,7 +235,7 @@ describe("bdptest reference target Read matrix", () => {
                       resource.ownedLinks = {
                         "https://work.example/types/blocks": [
                           {
-                            id: new URL("links/inline", scope).href,
+                            id: new URL("inline", scope).href,
                             type: "https://work.example/types/blocks",
                             revision: "inline-r1",
                             source: resource.id,

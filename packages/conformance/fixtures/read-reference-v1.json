@@ -51,7 +51,7 @@
       "kind": "bead",
       "code": "resource-pruned",
       "archivedAt": {
-        "uri": "https://archive.example/acme/beads/pruned-relic",
+        "uri": "https://archive.example/acme/pruned-relic",
         "revision": "arch-r4 (as-written)"
       }
     },

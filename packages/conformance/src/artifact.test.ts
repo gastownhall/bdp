@@ -929,7 +929,7 @@ describe("checked-in Read matrix artifacts", () => {
       links: { localId: string; type: string; source: string; target: string }[];
     };
     addedWildcard.links.push({
-      localId: "links/unexcluded-wildcard",
+      localId: "unexcluded-wildcard",
       type: "https://work.example/types/blocks",
       source: "demo-f",
       target: "demo-a",

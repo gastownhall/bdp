@@ -3975,7 +3975,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/does-not-exist"
+            "path": "does-not-exist"
           },
           "headers": {
             "accept": "application/problem+json"
@@ -6345,7 +6345,7 @@
               "kind": "json-pointer",
               "pointer": "/archivedAt/uri",
               "exists": true,
-              "equals": "https://archive.example/acme/beads/pruned-relic"
+              "equals": "https://archive.example/acme/pruned-relic"
             },
             {
               "id": "archived-at-pin",

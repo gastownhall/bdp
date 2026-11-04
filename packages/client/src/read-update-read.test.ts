@@ -314,7 +314,7 @@ describe("Read+Update shared Read session", () => {
     await expect(h.client.read(request)).resolves.toMatchObject({ kind: "success", value: body });
     body = {
       ...bead,
-      ownedLinks: { [link.type]: [{ ...link, target: `${scope}../other/beads/a` }] },
+      ownedLinks: { [link.type]: [{ ...link, target: `${scope}../other/a` }] },
     };
     await expect(h.client.read(request)).rejects.toMatchObject({ code: "invalid-response" });
     const legacy = new BdpClient({
@@ -420,7 +420,7 @@ describe("Read+Update shared Read session", () => {
   it("keeps local URL refusal free of prior discovery context", async () => {
     const h = harness();
     await expect(
-      h.client.read({ kind: "resource", resource: "bead", id: "https://outside.test/beads/a" }),
+      h.client.read({ kind: "resource", resource: "bead", id: "https://outside.test/a" }),
     ).rejects.toMatchObject({
       code: "invalid-input",
       submission: "not-submitted",
@@ -589,7 +589,7 @@ describe("Read+Update shared Read session", () => {
       {
         ...bead,
         ownedLinks: {
-          "https://types.example/link": [{ ...link, id: "https://outside.test/links/l" }],
+          "https://types.example/link": [{ ...link, id: "https://outside.test/l" }],
         },
       },
     ],
@@ -772,12 +772,12 @@ describe("Read+Update shared Read session", () => {
   });
 
   it.each([
-    [`${scope}../other/beads/b`, false],
-    [`${scope}%2e%2e/other/beads/b`, false],
+    [`${scope}../other/b`, false],
+    [`${scope}%2e%2e/other/b`, false],
     [`${scope}b`, true],
-    ["http://example.test/s/beads/b", true],
-    ["https://example.test/s%2fother/beads/b", true],
-    ["https://example.test/s%5cother/beads/b", true],
+    ["http://example.test/s/b", true],
+    ["https://example.test/s%2fother/b", true],
+    ["https://example.test/s%5cother/b", true],
   ])("shared endpoint classifier preserves actual Scope boundary %s", async (target, accepted) => {
     const body = { ...link, target };
     const ru = harness(body);
@@ -932,10 +932,10 @@ describe("Read+Update explicit alias resolution", () => {
     await expect(h.client.read(first)).resolves.toMatchObject({ kind: "success" });
   });
   it.each([
-    "beads/team/a",
+    "team/a",
     `${scope}alias/chain`,
     `${scope}bdp/beads`,
-    "https://outside.test/beads/a",
+    "https://outside.test/a",
     `${scope}a?`,
     `${scope}a#`,
     `${scope}a,${scope}b`,
