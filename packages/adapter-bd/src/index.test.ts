@@ -210,6 +210,43 @@ describe("bd process Scope port", () => {
     });
   });
 
+  it("resolves prefix-free generic Resource and Properties requests by exact identity", async () => {
+    const { port } = await createPort();
+    const beadId = beadUrl("a");
+    const linkId = linkUrl("a", "b", "blocks");
+
+    await expect(
+      port.perform({ kind: "resource", resource: "resource", id: beadId }, options),
+    ).resolves.toMatchObject({ kind: "success", body: { id: beadId, properties: { id: "a" } } });
+    await expect(
+      port.perform({ kind: "resource", resource: "resource", id: linkId }, options),
+    ).resolves.toMatchObject({ kind: "success", body: { id: linkId, source: beadUrl("a") } });
+    await expect(
+      port.perform({ kind: "properties", resource: "resource", id: beadId }, options),
+    ).resolves.toEqual({ kind: "success", body: expect.objectContaining({ id: "a" }) });
+    await expect(
+      port.perform({ kind: "properties", resource: "resource", id: linkId }, options),
+    ).resolves.toEqual({ kind: "success", body: {} });
+    await expect(
+      port.perform(
+        { kind: "resource", resource: "resource", id: beadUrl("missing") },
+        options,
+      ),
+    ).resolves.toMatchObject({
+      kind: "problem",
+      problem: { code: "resource-not-found", status: 404 },
+    });
+  });
+
+  it("rejects snapshots that collide across globally unique Bead and Link identities", async () => {
+    const { port } = await createPort("resource-identity-collision");
+    await expect(port.perform({ kind: "collection", collection: "beads" }, options)).resolves
+      .toMatchObject({
+        kind: "problem",
+        problem: { code: "temporarily-unavailable", status: 503 },
+      });
+  });
+
   it("uses an exact caller-provided environment for every bd child", async () => {
     const environment = {
       PATH: process.env.PATH ?? "",
@@ -840,6 +877,7 @@ async function createPort(
     | "dependency-conflicting-type"
     | "external-degenerate"
     | "external-degenerate-capability"
+    | "resource-identity-collision"
     | "slow"
     | "changing"
     | "changing-dependent-count"
@@ -927,6 +965,8 @@ async function createPort(
       bdRow("b-c", { dependencies: [] }),
       bdRow("b64_YQ", { dependencies: [] }),
     ];
+  } else if (mode === "resource-identity-collision") {
+    rows.push(bdRow(linkUrl("a", "b", "blocks").slice(scope.length), { dependencies: [] }));
   } else if (mode === "local-external-spelling") {
     rows = [
       bdRow("a", {

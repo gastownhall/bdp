@@ -47,8 +47,10 @@ export function createReadResourceFaultPortForTesting(
     async perform(operation, options) {
       if (
         operation.kind === "resource" &&
-        operation.resource === fault.resource &&
-        operation.id === fault.id
+        operation.id === fault.id &&
+        (operation.resource === fault.resource ||
+          (operation.resource === "resource" &&
+            (fault.resource === "bead" || fault.resource === "link")))
       )
         throw fault.error;
       return port.perform(operation, options);

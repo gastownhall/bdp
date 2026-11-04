@@ -242,6 +242,25 @@ describe("test-only Read conformance evidence", () => {
       ),
     ).rejects.toBe(fault);
     await expect(
+      faultingPort.perform(
+        { kind: "resource", resource: "resource", id: "https://scope.example/fault" },
+        options,
+      ),
+    ).rejects.toBe(fault);
+
+    const linkFault = new Error("private Link fault");
+    const linkFaultingPort = createReadResourceFaultPortForTesting(port, {
+      resource: "link",
+      id: "https://scope.example/link-fault",
+      error: linkFault,
+    });
+    await expect(
+      linkFaultingPort.perform(
+        { kind: "resource", resource: "resource", id: "https://scope.example/link-fault" },
+        options,
+      ),
+    ).rejects.toBe(linkFault);
+    await expect(
       faultingPort.perform({ kind: "collection", collection: "beads" }, options),
     ).resolves.toMatchObject({ kind: "problem" });
   });
