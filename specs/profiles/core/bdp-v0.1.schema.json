@@ -6525,7 +6525,7 @@
       }
     },
     "coreDiscovery": {
-      "description": "Closed Core discovery object. Inventory URLs navigate collections rather than reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised.",
+      "description": "Closed Core discovery object. Bead and Link inventories use fixed Scope-relative routes and do not reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -6536,10 +6536,6 @@
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion",
           "description": "Exact complete protocol discriminator, not a nearest-version negotiation."
-        },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Absolute Bead inventory URL. It is navigation, not a Resource-ID base or required path prefix."
         },
         "capabilities": {
           "allOf": [
@@ -6572,10 +6568,6 @@
           "$ref": "#/$defs/coreAdvertisedLimits",
           "description": "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data."
         },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Absolute Link inventory URL; it reserves no Link Resource-ID prefix."
-        },
         "maximumEndpointMultiplicity": {
           "type": "array",
           "items": {
@@ -6596,7 +6588,7 @@
           "description": "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation."
         }
       },
-      "required": ["bdpVersion", "profile", "scope", "beads", "links"]
+      "required": ["bdpVersion", "profile", "scope"]
     },
     "writeDiscovery": {
       "type": "object",
@@ -6607,9 +6599,6 @@
         },
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
-        },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
         },
         "capabilities": {
           "$ref": "#/$defs/capabilityAdvertisements"
@@ -6622,9 +6611,6 @@
         },
         "limits": {
           "$ref": "#/$defs/writeAdvertisedLimits"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
         },
         "maximumEndpointMultiplicity": {
           "type": "array",
@@ -6645,7 +6631,7 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         }
       },
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "operations", "aliases"]
+      "required": ["bdpVersion", "profile", "scope", "operations", "aliases"]
     },
     "retainedDiscovery": {
       "title": "Selected retained Core or Write discovery",

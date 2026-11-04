@@ -340,13 +340,18 @@ export async function runCanonicalInvocation(
       const reply = await client.inspectScope(scope, call);
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
+      const inspection = {
+        ...data,
+        beads: new URL("bdp/beads", scope).href,
+        links: new URL("bdp/links", scope).href,
+      };
       known = {
         schema_version: 2,
         bdp_spec: specification,
         result_kind: "scope",
         outcome: "success",
         context: httpContext(reply.http, scope),
-        data,
+        data: inspection,
       };
     } else if (alias && leaf === "resolve") {
       const operand = invocation.positionals[0];

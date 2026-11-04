@@ -39,13 +39,31 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
   it("admits minimal Core without a Type inventory and checks optional Event navigation", () => {
     expect(valid("coreDiscovery", paper.core)).toBe(true);
     expect(paper.core).not.toHaveProperty("types");
+    expect(paper.core).not.toHaveProperty("beads");
+    expect(paper.core).not.toHaveProperty("links");
     expect(paper.core).not.toHaveProperty("operations");
+    expect(
+      valid("coreDiscovery", {
+        ...paper.core,
+        beads: "https://work.example/acme/bdp/beads",
+        links: "https://work.example/acme/bdp/links",
+      }),
+    ).toBe(false);
     const absent = { ...paper.core };
     delete absent.events;
     expect(valid("coreDiscovery", absent)).toBe(true);
     const writeWithoutEvents = { ...paper.write };
     delete writeWithoutEvents.events;
     expect(valid("writeDiscovery", writeWithoutEvents)).toBe(true);
+    expect(paper.write).not.toHaveProperty("beads");
+    expect(paper.write).not.toHaveProperty("links");
+    expect(
+      valid("writeDiscovery", {
+        ...paper.write,
+        beads: "https://work.example/acme/bdp/beads",
+        links: "https://work.example/acme/bdp/links",
+      }),
+    ).toBe(false);
     expect(valid("coreDiscovery", { ...paper.core, events: "relative" })).toBe(false);
     // A navigation member is not evidence that D1/D2 or provider obligations are satisfied.
   });

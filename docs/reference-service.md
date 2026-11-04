@@ -42,11 +42,12 @@ and cannot silently become this composition. The SQLite engine retains identitie
 durable outcomes and exact saved responses across reopen. Ordinary read cursors
 are process-local and expire rather than restart after reopen.
 
-Default navigation is `bdp` for discovery, `bdp/beads` and `bdp/links` for inventories,
-and discovered `bdp/operations` targets for Write. The `bdp` control namespace is
+Default navigation is `bdp` for discovery, fixed `bdp/beads` and `bdp/links` routes
+for inventories, and discovered `bdp/operations` targets for Write. Core/Write
+discovery does not advertise inventory routes. The `bdp` control namespace is
 reserved against Resource/alias collisions; Resource IDs otherwise share one
-kind-independent space. Clients follow discovery and never derive identity from
-an inventory prefix.
+kind-independent space. Clients use the fixed inventory routes and never derive
+identity from an inventory prefix.
 
 `RetainedClient` follows the selected discovery, exposes point full/properties
 reads, `list`, `incident`, `readPage`, redirect-only `resolveAlias`, `bindWrite` and

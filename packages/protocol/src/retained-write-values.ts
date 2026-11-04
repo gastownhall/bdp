@@ -32,8 +32,6 @@ export type RetainedWriteDiscovery = JsonObject & {
   readonly bdpVersion: "0.1";
   readonly profile: "write";
   readonly scope: AbsoluteHttpUrl;
-  readonly beads: AbsoluteHttpUrl;
-  readonly links: AbsoluteHttpUrl;
   readonly events?: AbsoluteHttpUrl;
   readonly operations: AbsoluteHttpUrl;
   readonly aliases: AbsoluteHttpUrl;
@@ -116,7 +114,7 @@ export function parseRetainedWriteDiscovery(text: string): RetainedWriteDiscover
   const value = parseRetainedObject(text);
   validateRetainedValue("writeDiscovery", value);
   parseCanonicalScope(value.scope);
-  for (const field of ["beads", "links", "events", "operations", "aliases"] as const)
+  for (const field of ["events", "operations", "aliases"] as const)
     if (value[field] !== undefined) parseCanonicalHttpUrl(value[field], `Write discovery.${field}`);
   return value as RetainedWriteDiscovery;
 }

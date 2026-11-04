@@ -355,8 +355,6 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             bdpVersion: "0.1",
             profile: "write",
             scope: navigation.scope,
-            beads: navigation.beads,
-            links: navigation.links,
             aliases: navigation.aliases,
             ...(options.referenceCore === true
               ? {

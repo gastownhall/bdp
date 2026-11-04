@@ -6,16 +6,13 @@ import {
 } from "@bdp/protocol";
 import { RetainedWriteBinding, type RetainedWriteBindingOptions } from "./retained-write.js";
 
-// Independent consumer examples, deliberately unrelated to fixed REST paths or
-// the SQLite provider. No production constants construct the expected binding.
+// Independent consumer example for advertised Write operations; inventory routes are fixed by Core.
 const media = "application/vnd.bdp.v0.1+json";
 const scope = "https://authority.example/work/";
 const discovery = {
   bdpVersion: "0.1",
   profile: "write",
   scope,
-  beads: "https://inventory.example/nodes?set=n",
-  links: "https://inventory.example/edges?set=e",
   events: "https://events.example/feed?edition=7",
   operations: "https://navigation.example/verbs?edition=odd",
   aliases: "https://names.example/lookup/",

@@ -1679,13 +1679,13 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links"]
+Required order: ["bdpVersion","profile","scope"]
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Closed Core discovery object. Inventory URLs navigate collections rather than reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised." |
+| description | "Closed Core discovery object. Bead and Link inventories use fixed Scope-relative routes and do not reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised." |
 | type | "object" |
 
 ### Properties
@@ -1694,12 +1694,10 @@ Required order: ["bdpVersion","profile","scope","beads","links"]
 | --- | --- | --- | --- | --- |
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Bead inventory URL. It is navigation, not a Resource-ID base or required path prefix." |
 | "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
 | "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Link inventory URL; it reserves no Link Resource-ID prefix." |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state." |
 | "order" | schema | no | — | "Advertised stable collection order. Omission uses canonical-uri under Core." |
 | "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
@@ -11603,7 +11601,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","operations","aliases"]
 
 ### Keywords
 
@@ -11617,12 +11615,10 @@ Required order: ["bdpVersion","profile","scope","beads","links","operations","al
 | --- | --- | --- | --- | --- |
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
 | "operations" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "order" | schema | no | — | — |

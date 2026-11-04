@@ -15,8 +15,6 @@ const discovery = {
   bdpVersion: "0.1",
   profile: "write",
   scope,
-  beads: `${scope}beads`,
-  links: `${scope}links`,
   aliases: `${scope}aliases/`,
   operations: `${scope}verbs`,
 };

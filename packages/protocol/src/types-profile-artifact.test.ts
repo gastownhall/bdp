@@ -46,8 +46,6 @@ function discovery(profile: "core" | "write") {
     bdpVersion: "0.1",
     profile,
     scope: "https://example.test/scope/",
-    beads: "https://example.test/scope/beads",
-    links: "https://example.test/scope/links",
     events: "https://example.test/scope/events",
     ...(profile === "write"
       ? {

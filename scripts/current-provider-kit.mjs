@@ -24,6 +24,7 @@ const definitions = [
   ["write.media-before-admission", `${write}#contract-and-media`],
   ["write.create", `${write}#ordinary-results`],
   ["core.point-read", `${core}#read-a-bead-or-link`],
+  ["core.inventory-fixed-routes", `${core}#inventory-entry-points`],
   ["write.no-op", `${write}#covered-state-and-no-ops`],
   ["write.guard-failure", `${write}#ordinary-requests`],
   ["write.effectful-update", `${write}#independent-object-planes`],
@@ -49,7 +50,7 @@ export const UNCOVERED_REQUIRED = Object.freeze([
     id: "core.collections-and-native-pagination",
     source: `${core}#collections-and-pagination`,
     reason:
-      "Inventory traversal, continuation, authorization binding and frozen-selection cases are not implemented.",
+      "Beyond the fixed-route smoke witness, continuation, authorization binding and frozen-selection cases are not implemented.",
   },
   {
     id: "core.link-and-alias-reads",
@@ -95,6 +96,7 @@ const requiredObligationIds = Object.freeze([
   "write.media-before-admission",
   "write.create",
   "core.point-read",
+  "core.inventory-fixed-routes",
   "write.no-op",
   "write.guard-failure",
   "write.effectful-update",
@@ -485,6 +487,8 @@ export async function runCurrentProvider(provision) {
       assert.equal(discovery.bdpVersion, "0.1");
       assert.equal(discovery.profile, "write");
       assert.equal(discovery.scope, scope.href);
+      assert.equal(Object.hasOwn(discovery, "beads"), false);
+      assert.equal(Object.hasOwn(discovery, "links"), false);
       const nextAliases = discovery.aliases;
       const nextDirectory = json(
         await exchange(routes, discovery.operations),
@@ -549,6 +553,21 @@ export async function runCurrentProvider(provision) {
         const reply = await exchange(routes, id);
         assert.equal(reply.headers["bdp-resource-kind"], "bead");
         assert.deepEqual(json(reply, 200, "currentBeadRecord"), created.resource);
+      });
+      await step("core.inventory-fixed-routes", async () => {
+        const beadInventory = await exchange(routes, new URL("bdp/beads", scope).href);
+        assert.equal(beadInventory.status, 200);
+        assert.equal(beadInventory.headers["bdp-collection-kind"], "bead");
+        assert(beadInventory.headers.link?.includes(`<${discoveryUrl}>; rel="service-desc"`));
+        const beadPage = json(beadInventory, 200, "currentBeadCollection");
+        assert(beadPage.items.some((bead) => bead.id === created.resource.id));
+
+        const linkInventory = await exchange(routes, new URL("bdp/links", scope).href);
+        assert.equal(linkInventory.status, 200);
+        assert.equal(linkInventory.headers["bdp-collection-kind"], "link");
+        assert(linkInventory.headers.link?.includes(`<${discoveryUrl}>; rel="service-desc"`));
+        const linkPage = json(linkInventory, 200, "currentLinkCollection");
+        assert(Array.isArray(linkPage.items));
       });
       await step("write.no-op", async () => {
         const reply = success(

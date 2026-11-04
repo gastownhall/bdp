@@ -6,16 +6,12 @@
     "bdpVersion": "0.1",
     "profile": "core",
     "scope": "https://work.example/acme/",
-    "beads": "https://work.example/acme/inventory",
-    "links": "https://work.example/acme/relations",
     "events": "https://work.example/acme/event-source"
   },
   "write": {
     "bdpVersion": "0.1",
     "profile": "write",
     "scope": "https://work.example/acme/",
-    "beads": "https://work.example/acme/inventory",
-    "links": "https://work.example/acme/relations",
     "events": "https://work.example/acme/event-source",
     "operations": "https://work.example/acme/commands",
     "aliases": "https://work.example/acme/"
@@ -24,8 +20,6 @@
     "bdpVersion": "0.1",
     "profile": "write",
     "scope": "https://work.example/acme/",
-    "beads": "https://work.example/acme/inventory",
-    "links": "https://work.example/acme/relations",
     "events": "https://work.example/acme/event-source",
     "operations": "https://work.example/acme/commands",
     "aliases": "https://work.example/acme/",
@@ -64,8 +58,6 @@
     "bdpVersion": "0.1",
     "profile": "core",
     "scope": "https://work.example/acme/",
-    "beads": "https://work.example/acme/inventory",
-    "links": "https://work.example/acme/relations",
     "events": "https://work.example/acme/event-source",
     "historicalResolution": {
       "version": 1

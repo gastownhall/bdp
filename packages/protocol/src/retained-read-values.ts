@@ -14,8 +14,6 @@ export type RetainedDiscovery = RetainedJsonObject & {
   readonly bdpVersion: "0.1";
   readonly profile: "core" | "write";
   readonly scope: AbsoluteHttpUrl;
-  readonly beads: AbsoluteHttpUrl;
-  readonly links: AbsoluteHttpUrl;
   readonly events?: AbsoluteHttpUrl;
 };
 
@@ -26,7 +24,7 @@ export function parseRetainedDiscovery(text: string): RetainedDiscovery {
   const value = parseRetainedObject(text);
   validateRetainedValue("retainedDiscovery", value);
   parseCanonicalScope(value.scope);
-  for (const name of ["beads", "links", "events", "operations", "aliases"] as const)
+  for (const name of ["events", "operations", "aliases"] as const)
     if (value[name] !== undefined) parseCanonicalHttpUrl(value[name], `discovery.${name}`);
   return value as RetainedDiscovery;
 }

@@ -1250,7 +1250,7 @@ Interrupted delivery returns `130`; incomplete output is not successful exhausti
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| Initial population | GET the discovered Beads inventory. |
+| Initial population | GET `<scope>/bdp/beads`. |
 | --type / --exact-type | Set native `conformsTo` / `type` with resolved unpinned Type identity. |
 | --selector JSONPATH | Set the existing bounded `selector` value. |
 | --page-size / --limit | Set each request's native `limit` within the remaining CLI delivery budget. |
@@ -1928,7 +1928,7 @@ Interrupted delivery returns `130`; incomplete output is not successful exhausti
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| Initial population | GET the discovered Links inventory, or a verified Bead `view=links` for incident population. |
+| Initial population | GET `<scope>/bdp/links`, or a verified Bead `view=links` for incident population. |
 | --type / --exact-type | Set native `conformsTo` / `type` with resolved unpinned Type identity. |
 | --selector JSONPATH | Set the existing bounded `selector` value. |
 | --from / --to / --endpoint | Set structural native `source` / `target` / `endpoint` URI predicates. |
@@ -2276,8 +2276,10 @@ bd scope inspect [SCOPE] [--scope SCOPE]
 
 Use the established discovery binding and return the advertised description.
 Preserve the canonical Scope, navigation URLs, profiles and capability versions.
-Do not infer adoption of a new capability from a newer client, expand a missing
-advertisement or guess inventory/operation suffixes. The common candidate
+Structured output also includes the fixed Bead and Link inventory routes derived
+from the canonical Scope; those fields are computed by the CLI and are not part of
+the discovery document. Do not infer adoption of a new capability from a newer
+client, expand a missing advertisement or guess operation suffixes. The common candidate
 [context rule](#scope-selection) establishes the discovery binding; this command
 then reads that selected description.
 
@@ -2285,8 +2287,8 @@ then reads that selected description.
 ##### Results
 
 Use the `scope` descriptor and preserve the native description. Default/detail
-show its advertised fields; structured output does not translate capability
-versions into executable versions. This command does not accept Resource masks,
+show its advertised fields; structured output includes the derived fixed inventory
+routes and does not translate capability versions into executable versions. This command does not accept Resource masks,
 collection paging or write inputs.
 
 

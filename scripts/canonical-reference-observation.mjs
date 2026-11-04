@@ -87,7 +87,8 @@ export async function observeCanonicalReference(installRoot, temporaryRoot) {
       return reply;
     };
     const discovery = success(await sdk.inspectScope(scope)).value;
-    assert.equal(discovery.beads, scope + "bdp/beads");
+    assert.equal(Object.hasOwn(discovery, "beads"), false);
+    assert.equal(Object.hasOwn(discovery, "links"), false);
     assert.equal(discovery.events, undefined);
     assert.equal(discovery.capabilities, undefined);
     const binding = success(await sdk.bindWrite(scope)).value;
