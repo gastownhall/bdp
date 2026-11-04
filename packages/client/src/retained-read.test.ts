@@ -41,8 +41,6 @@ function discovery(profile: "core" | "write" = "core") {
     bdpVersion: "0.1",
     profile,
     scope,
-    beads: "https://inventory.example/nodes",
-    links: "https://inventory.example/edges",
     events: "https://events.example/facts",
     ...(profile === "write" ? { operations: directoryUrl, aliases: "https://names.example/" } : {}),
   };
@@ -885,7 +883,7 @@ describe("retained transport and native Write delivery", () => {
 });
 
 describe("native ordinary page delivery", () => {
-  const inventory = scope + "odd-list?fixed=%2F";
+  const inventory = scope + "bdp/beads?limit=1";
   const next = scope + "odd-list?fixed=%2f&cursor=a%2Bb&limit=2";
   function fetchPages(
     value: unknown = { items: [record], next },
@@ -896,13 +894,12 @@ describe("native ordinary page delivery", () => {
       const url = String(input);
       calls.push(url);
       if (url === scope) return response(url, null, { link: linkHeader }, 204);
-      if (url === description)
-        return response(url, { ...discovery(), beads: inventory, links: scope + "odd-edges" });
+      if (url === description) return response(url, discovery());
       return response(url, value, { link: linkHeader, "bdp-collection-kind": "bead", ...headers });
     });
     return { calls, sdk };
   }
-  it("discovers inventories, returns one complete native page and follows issued bytes exactly", async () => {
+  it("uses the fixed Scope inventory route, returns one complete native page and follows issued bytes exactly", async () => {
     const { sdk, calls } = fetchPages();
     const reply = await sdk.list({ scope, kind: "bead", limit: 1 });
     expect(reply.kind).toBe("success");
@@ -912,9 +909,30 @@ describe("native ordinary page delivery", () => {
       JSON.stringify({ items: [record], next }),
     );
     expect(calls).toHaveLength(4);
-    expect(calls[2]).toBe(inventory + "&limit=1");
+    expect(calls[2]).toBe(inventory);
     await sdk.readPage({ url: next, scope, collectionKind: "bead" });
     expect(calls[4]).toBe(next);
+  });
+  it("uses the fixed Bead and Link routes without discovery members", async () => {
+    const calls: string[] = [];
+    const link = { ...record, source: resource, target: resource };
+    const sdk = client(async (input) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === scope) return response(url, null, { link: linkHeader }, 204);
+      if (url === description) return response(url, discovery());
+      const kind = url.endsWith("/bdp/beads") ? "bead" : "link";
+      return response(
+        url,
+        { items: [kind === "bead" ? record : link], next: null },
+        { link: linkHeader, "bdp-collection-kind": kind },
+      );
+    });
+
+    expect((await sdk.list({ scope, kind: "bead" })).kind).toBe("success");
+    expect((await sdk.list({ scope, kind: "link" })).kind).toBe("success");
+    expect(calls).toContain(`${scope}bdp/beads`);
+    expect(calls).toContain(`${scope}bdp/links`);
   });
   it("requires actual collection metadata even for empty pages", async () => {
     const { sdk } = fetchPages({ items: [], next: null }, { "bdp-collection-kind": "link" });
@@ -969,18 +987,19 @@ it("refuses unknown required options on list and incident before any network", (
   ).toThrowError(expect.objectContaining({ code: "unsupported-feature" }));
 });
 
-it("refuses authorization-scoped pages without private/no-store response controls", async () => {
+it("accepts public inventory pages without an unnecessary private cache directive", async () => {
   const sdk = client(async (input) => {
     const url = String(input);
     if (url === scope) return response(url, null, { link: linkHeader }, 204);
-    if (url === description) return response(url, { ...discovery(), beads: scope + "inventory" });
+    if (url === description) return response(url, discovery());
     return response(
       url,
       { items: [], next: null },
-      { link: linkHeader, "bdp-collection-kind": "bead", "cache-control": "public" },
+      { link: linkHeader, "bdp-collection-kind": "bead", "cache-control": "no-store" },
     );
   });
-  await expect(sdk.list({ scope, kind: "bead" })).rejects.toMatchObject({
-    code: "invalid-response",
+  await expect(sdk.list({ scope, kind: "bead" })).resolves.toMatchObject({
+    kind: "success",
+    value: { page: { items: [], next: null } },
   });
 });

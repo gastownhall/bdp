@@ -553,30 +553,28 @@ A minimal discovery document is:
 {
   "bdpVersion": "0.1",
   "profile": "core",
-  "scope": "https://beads.example/acme/",
-  "beads": "https://beads.example/acme/bdp/beads",
-  "links": "https://beads.example/acme/bdp/links"
+  "scope": "https://beads.example/acme/"
 }
 ```
 
-Required Core members are those shown. Optional members are `events`, `aliases`, `order`,
-`limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and `capabilities`.
+Required Core members are `bdpVersion`, `profile` and `scope`. Optional members are
+`events`, `aliases`, `order`, `limits`, `maximumEndpointMultiplicity`,
+`historicalResolution`, and `capabilities`.
 Write uses the same Core meaning with `profile:"write"` and required `operations`
 and `aliases` navigation. Its operation directory belongs to Write. These discovery
 objects are closed; there is no required or guessed `types` member. Unknown optional
 capabilities use the declared extension map, not arbitrary discovery members.
 
-`beads` and `links` advertise collection-read endpoints, not base URIs for Resource
-identity. They tell a generic client where to list each kind; they do not divide
-the Resource namespace. All Beads and Links may share one Scope-relative ID space,
+Core and Write use the fixed in-Scope collection routes `<scope>/bdp/beads` and
+`<scope>/bdp/links`; discovery does not advertise those routes. They are collection
+entry points, not base URIs for Resource identity, and do not divide the Resource
+namespace. All Beads and Links may share one Scope-relative ID space,
 such as `https://beads.example/acme/task-42` and
 `https://beads.example/acme/relation-81`. No `beads/` or `links/` identity prefix is
-required. Their inventory URLs are absolute HTTP(S) URLs beneath the canonical
-Scope, with no fixed suffix; clients never construct a Resource URL from them. Events
-and operation navigation are discovered absolute HTTP(S) URLs. Aliases navigation
-is an in-Scope base, possibly the Scope itself, not authority for arbitrary paths
-without a binding. Clients MUST NOT synthesize navigation or infer Resource kind
-by stripping/prefixing path segments. No `order` means `canonical-uri`.
+required. Events and operation navigation are discovered absolute HTTP(S) URLs.
+Aliases navigation is an in-Scope base, possibly the Scope itself, not authority
+for arbitrary paths without a binding. Clients MUST NOT infer Resource kind by
+stripping/prefixing path segments. No `order` means `canonical-uri`.
 
 Local Resource/alias spellings contain one or more nonempty safe segments. Empty,
 `.` and `..` segments, controls, backslashes, queries, fragments, scheme-relative
@@ -595,15 +593,14 @@ parallel navigation link relation.
 ### Inventory entry points
 
 A generic client can enumerate Beads and Links without already knowing their IDs:
-read discovery, follow `beads` or `links` with GET, then follow each returned
-Resource `id` to read its complete record. Collection entries are the same Resource
-records returned by point reads. The collection endpoint is not an ID prefix.
+read discovery to establish the selected Scope/profile, GET `<scope>/bdp/beads` or
+`<scope>/bdp/links`, then follow each returned Resource `id` to read its complete
+record. Collection entries are the same Resource records returned by point reads.
+The collection endpoint is not an ID prefix.
 
-The reference service uses `<scope>/bdp/beads` and `<scope>/bdp/links` as its standard
-layout. Deployments MAY advertise different inventory URLs; clients MUST follow
-discovery rather than construct these paths. A service using the standard layout
-reserves `bdp` and its `bdp/` descendants against Resource and alias collisions. This
-reservation does not impose `beads/` or `links/` prefixes on Resource IDs.
+These fixed routes reserve `bdp` and its `bdp/` descendants against Resource and
+alias collisions. This reservation does not impose `beads/` or `links/` prefixes on
+Resource IDs.
 
 For the discovery document above, an unfiltered inventory read is:
 
@@ -1038,7 +1035,7 @@ The following minimal positive case is also supported for either collection:
 $[?@.id == "https://beads.example/acme/beads/task-42"]
 ```
 
-When sent to the discovered Bead inventory, this Selector returns the complete
+When sent to the fixed Bead inventory route, this Selector returns the complete
 `task-42` record if it is visible in the request's Authorization View, and no
 other record. The same expression against the Link inventory selects a Link
 with that canonical Link URL. This case uses only a candidate's singular `id`
@@ -1075,7 +1072,7 @@ determines native invariants and applicable Type constraints.
 
 ## Collections and pagination
 
-GET of discovered Bead/Link inventories returns a closed `{items:[FULL_RECORD...],
+GET of the fixed Bead/Link inventory routes returns a closed `{items:[FULL_RECORD...],
 next:ABSOLUTE_URL_OR_NULL}` object. Incident views use the same Link page shape.
 Selection completes before pagination within one Authorization View. Full records
 are returned directly, not href/value wrappers; explicit projection is the only
@@ -3218,13 +3215,13 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links"]
+Required order: ["bdpVersion","profile","scope"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Closed Core discovery object. Inventory URLs navigate collections rather than reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised." |
+| description | "Closed Core discovery object. Bead and Link inventories use fixed Scope-relative routes and do not reserve Resource-ID prefixes. Events, History and other capabilities are optional and bind their full obligations only when advertised." |
 | type | "object" |
 
 #### Properties
@@ -3233,12 +3230,10 @@ Required order: ["bdpVersion","profile","scope","beads","links"]
 | --- | --- | --- | --- | --- |
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Bead inventory URL. It is navigation, not a Resource-ID base or required path prefix." |
 | "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
 | "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Link inventory URL; it reserves no Link Resource-ID prefix." |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state." |
 | "order" | schema | no | — | "Advertised stable collection order. Omission uses canonical-uri under Core." |
 | "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
@@ -5553,7 +5548,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"beadInventory"` |
-| navigation | `{"role":"discovery-member","member":"beads"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/beads"}` |
 | response | `"currentBeadCollection"` |
 | methods | `["get","head"]` |
 | problem | `"readProblem"` |
@@ -5665,7 +5660,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"projectedBeadInventory"` |
-| navigation | `{"capability":"https://github.com/gastownhall/bdp/capabilities/resource-projection","version":"1","role":"discovery-member","kind":"bead","member":"beads","support":"list"}` |
+| navigation | `{"capability":"https://github.com/gastownhall/bdp/capabilities/resource-projection","version":"1","role":"fixed-scope-path","kind":"bead","path":"bdp/beads","support":"list"}` |
 | response | `["projectedBeadCollection","currentBeadCollection"]` |
 | methods | `["get","head"]` |
 | problem | `"readProblem"` |
@@ -5729,7 +5724,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"linkInventory"` |
-| navigation | `{"role":"discovery-member","member":"links"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/links"}` |
 | response | `"currentLinkCollection"` |
 | methods | `["get","head"]` |
 | problem | `"readProblem"` |
@@ -5844,7 +5839,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"projectedLinkInventory"` |
-| navigation | `{"capability":"https://github.com/gastownhall/bdp/capabilities/resource-projection","version":"1","role":"discovery-member","kind":"link","member":"links","support":"list"}` |
+| navigation | `{"capability":"https://github.com/gastownhall/bdp/capabilities/resource-projection","version":"1","role":"fixed-scope-path","kind":"link","path":"bdp/links","support":"list"}` |
 | response | `["projectedLinkCollection","currentLinkCollection"]` |
 | methods | `["get","head"]` |
 | problem | `"readProblem"` |

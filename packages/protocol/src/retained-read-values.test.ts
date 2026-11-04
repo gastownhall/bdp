@@ -12,8 +12,6 @@ const core = {
   bdpVersion: "0.1",
   profile: "core",
   scope: "https://records.test/work/",
-  beads: "https://lists.test/nodes?opaque=%2B%2f",
-  links: "https://lists.test/edges",
   events: "https://facts.test/observations",
 };
 const bead = {
@@ -67,7 +65,10 @@ describe("retained Core carrier values", () => {
     ["old-version", { ...core, bdpVersion: "0" }],
     ["old-profile", { ...core, profile: "read" }],
     ["malformed-events", { ...core, events: "relative-events" }],
-    ["relative-inventory", { ...core, beads: "nodes" }],
+    [
+      "advertised-inventory",
+      { ...core, beads: "https://lists.test/nodes", links: "https://lists.test/edges" },
+    ],
     ["query-scope", { ...core, scope: "https://records.test/work/?tenant=1" }],
     ["new-required-root", { ...core, types: "https://types.test/" }],
   ])("refuses discovery %s", (_label, value) => {

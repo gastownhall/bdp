@@ -39,7 +39,7 @@ test("current reference passes the executable slice while missing required cover
   assert.equal(report.inputs.inputClosure, "INCOMPLETE");
   assert.equal(report.inputs.resultReuseAttestation, false);
   assert.equal(report.inputs.schemaSha256, report.schemaSha256);
-  assert.equal(implemented(report).length, 19);
+  assert.equal(implemented(report).length, 20);
   assert(implemented(report).every((row) => row.required && row.state === "pass"));
   assert.equal(report.lifecycle.cleanup, "pass");
   for (const obligation of UNCOVERED_REQUIRED)
@@ -82,7 +82,7 @@ const graphIds = [
 ];
 function basePasses(report) {
   const base = implemented(report).filter((row) => !graphIds.includes(row.id));
-  assert.equal(base.length, 14);
+  assert.equal(base.length, 15);
   assert(
     base.every((row) => row.state === "pass"),
     JSON.stringify(base),
@@ -171,8 +171,7 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
             const value = JSON.parse(body);
             if (corruption === "restart-navigation" && restarted) {
               if (value.profile === "write") {
-                for (const field of ["operations", "beads", "links"])
-                  value[field] = refreshed(value[field]);
+                value.operations = refreshed(value.operations);
                 value.aliases = `${value.aliases.replace(/\/?$/, "/")}fresh`;
               } else if (value.createBead) {
                 for (const field of Object.keys(value)) value[field] = refreshed(value[field]);

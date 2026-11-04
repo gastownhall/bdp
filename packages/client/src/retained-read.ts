@@ -242,7 +242,6 @@ export class RetainedClient {
         return invalid();
       const target = parseCanonicalHttpUrl(response.headers.location);
       if (!target.startsWith(selected) || target.includes("?")) return invalid();
-      privateNoStore(response);
       return Object.freeze({
         kind: "success",
         http: context(response),
@@ -286,9 +285,7 @@ export class RetainedClient {
       if (landing.kind !== "scope-probe" || ![200, 204].includes(landing.status)) return invalid();
       const discovery = await this.#discovery(description(landing), scope, active);
       if (discovery.kind !== "success") return discovery;
-      const target = discovery.value[kind === "bead" ? "beads" : "links"];
-      if (!target.startsWith(scope)) return invalid();
-      const url = new URL(target);
+      const url = new URL(kind === "bead" ? "bdp/beads" : "bdp/links", scope);
       for (const [name, value] of Object.entries(filters)) {
         if (url.searchParams.has(name)) return invalid();
         url.searchParams.append(name, value);
@@ -397,7 +394,6 @@ export class RetainedClient {
       controls.ifModifiedSince === undefined
     )
       return invalid();
-    privateNoStore(response);
     if (response.contentType !== null && media(response.contentType) !== RETAINED_V01_MEDIA_TYPE)
       return invalid();
     let page: RetainedCollection | undefined;
@@ -496,7 +492,6 @@ export class RetainedClient {
           response.headers["bdp-collection-kind"] !== undefined
         )
           return invalid();
-        privateNoStore(response);
         const location = parseCanonicalHttpUrl(response.headers.location);
         if (
           (selectedScope !== undefined && !location.startsWith(selectedScope)) ||
@@ -601,7 +596,6 @@ export class RetainedClient {
         return invalid();
       if (refused) return refused;
       if (response.headers["bdp-resource-kind"] !== "bead") return invalid();
-      privateNoStore(response);
       const text = this.#document(response, HISTORICAL_UPDATE_MEDIA);
       let value: HistoricalUpdateView | HistoricalUpdateTerminalView;
       try {
@@ -686,7 +680,6 @@ export class RetainedClient {
         )
           return invalid();
         if (refused) return refused;
-        privateNoStore(response);
         const value = historical
           ? parseHistoricalUpdateResult(this.#document(response, selectedMedia))
           : parseRetainedWriteResult(operation, this.#document(response));
@@ -847,7 +840,6 @@ function failure(
     media(response.contentType) !== "application/problem+json"
   )
     return invalid();
-  privateNoStore(response);
   return Object.freeze({
     kind: "problem",
     problem: historical
@@ -878,14 +870,6 @@ function description(response: RetainedHttpContext): string {
   } catch {
     return invalid();
   }
-}
-
-function privateNoStore(response: RetainedHttpContext): void {
-  const directives = (response.headers["cache-control"] ?? "")
-    .toLowerCase()
-    .split(",")
-    .map((v) => v.trim());
-  if (!directives.includes("private") || !directives.includes("no-store")) invalid();
 }
 
 function signalOnly(call: RetainedClientCallOptions): AbortSignal | undefined {

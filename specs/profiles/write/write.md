@@ -44,13 +44,16 @@ authorization, atomicity, retention or conformance.
 ## Discover and select Write
 
 A Write Scope advertises `bdpVersion:"0.1"` and `profile:"write"`. Its closed
-machine discovery requires `scope`, `beads`, `links`, `operations` and
-`aliases`, in addition to those two identity members. The optional common members
-are `events`, `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution` and
-`capabilities`, with their Core meanings. There is no required Type inventory.
-Navigation URLs are absolute HTTP(S) URLs. Clients follow the discovered URLs and
-verify the owning Scope, Resource kind and selected contract; they MUST NOT infer
-an operation from a Resource, Type or endpoint path.
+machine discovery requires `scope`, `operations` and `aliases`, in addition to
+those two identity members. Bead and Link inventories use the fixed Core routes
+`<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
+optional common members are `events`, `order`, `limits`,
+`maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
+their Core meanings. There is no required Type inventory.
+The operation-directory URL is absolute HTTP(S) navigation. Clients use the fixed
+inventory paths and follow the discovered operation-directory members, verifying
+the owning Scope, Resource kind and selected contract; they MUST NOT infer an
+operation from a Resource, Type or endpoint path.
 
 <a id="operation-directory-and-singleton-targets"></a>
 
@@ -4390,7 +4393,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","operations","aliases"]
 
 #### Keywords
 
@@ -4404,12 +4407,10 @@ Required order: ["bdpVersion","profile","scope","beads","links","operations","al
 | --- | --- | --- | --- | --- |
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
 | "operations" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "order" | schema | no | — | — |

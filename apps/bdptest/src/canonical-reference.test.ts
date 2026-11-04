@@ -109,13 +109,13 @@ describe("canonical reference Core and ordinary Write", () => {
     expect(discovery).toMatchObject({
       profile: "write",
       scope,
-      beads: scope + "bdp/beads",
-      links: scope + "bdp/links",
     });
+    expect(discovery).not.toHaveProperty("beads");
+    expect(discovery).not.toHaveProperty("links");
     expect(discovery).not.toHaveProperty("events");
     expect(discovery).not.toHaveProperty("types");
     for (const id of ["z", "a", "m", "n"]) await f.node(id);
-    const first = await f.wire(discovery.beads + "?limit=1");
+    const first = await f.wire(scope + "bdp/beads?limit=1");
     expect(first.status, first.text).toBe(200);
     expect(first.headers["bdp-collection-kind"]).toBe("bead");
     expect(first.headers["bdp-resource-kind"]).toBeUndefined();
