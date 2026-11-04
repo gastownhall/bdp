@@ -129,7 +129,7 @@ it("observes current context on installed direct refusals within14requests", asy
   const routes = [
     { method: "POST", url: `${scope}operations/create-bead` },
     { method: "POST", url: `${scope}operations/batch` },
-    { method: "GET", url: `${scope}beads/?limit=32` },
+    { method: "GET", url: `${scope}bdp/beads?limit=32` },
     { method: "GET", url: `${scope}events/` },
   ];
   let receiptUrl: string | undefined;

@@ -122,15 +122,12 @@ describe("Read envelope parsing", () => {
       bdpVersion: "0",
       profile: "read",
       scope,
-      beads: `${scope}beads/`,
-      links: `${scope}links/`,
-      types: `${scope}types/`,
       limits: { page: { defaultItems: 10, maximumItems: 100 } },
     };
     const parsed = parseReadDiscovery(source);
-    source.beads = "https://attacker.example/";
+    source.scope = "https://attacker.example/";
 
-    expect(parsed.beads).toBe(`${scope}beads/`);
+    expect(parsed.scope).toBe(scope);
     expect(Object.isFrozen(parsed)).toBe(true);
     expect(Object.isFrozen(parsed.limits?.page)).toBe(true);
     expect(() => parseReadDiscovery({ ...source, profile: "transactional" })).toThrow();
@@ -387,7 +384,17 @@ describe("Resource properties parsing", () => {
 });
 
 describe("canonical local Resource IDs", () => {
-  it("accepts nested canonical Bead, Link, and Type paths", () => {
+  it("accepts shared, nested, and historically kind-shaped paths for every Resource kind", () => {
+    expect(resolveCanonicalLocalResourceId(scope, "bead", "task-42")).toBe(`${scope}task-42`);
+    expect(resolveCanonicalLocalResourceId(scope, "bead", "links/projects/alpha/task-42")).toBe(
+      `${scope}links/projects/alpha/task-42`,
+    );
+    expect(resolveCanonicalLocalResourceId(scope, "link", "relation-81")).toBe(
+      `${scope}relation-81`,
+    );
+    expect(resolveCanonicalLocalResourceId(scope, "link", "beads/blocks/%E2%82%AC")).toBe(
+      `${scope}beads/blocks/%E2%82%AC`,
+    );
     expect(resolveCanonicalLocalResourceId(scope, "bead", "beads/projects/alpha/task-42")).toBe(
       `${scope}beads/projects/alpha/task-42`,
     );
@@ -399,13 +406,21 @@ describe("canonical local Resource IDs", () => {
     );
   });
 
+  it.each(["bdp", "bdp/beads", "bdp/links/anything"])(
+    "reserves the BDP protocol namespace from Resource identity: %s",
+    (localId) => {
+      expect(() => resolveCanonicalLocalResourceId(scope, "bead", localId)).toThrow(
+        "reserved BDP protocol namespace",
+      );
+      expect(() => resolveCanonicalLocalResourceId(scope, "link", localId)).toThrow(
+        "reserved BDP protocol namespace",
+      );
+    },
+  );
+
   it.each([
-    ["bead", "links/x"],
-    ["link", "beads/x"],
+    ["bead", ""],
     ["type", "beads/x"],
-    ["type", "types/"],
-    ["type", "types/%61"],
-    ["type", "types/a%2Fb"],
     ["bead", "beads/"],
     ["bead", "beads//x"],
     ["bead", "beads/."],
@@ -433,9 +448,6 @@ describe("Type artifact parsing", () => {
       bdpVersion: "0",
       profile: "read",
       scope,
-      beads: `${scope}beads/`,
-      links: `${scope}links/`,
-      types: `${scope}types/`,
       maximumEndpointMultiplicity: [
         { linkConformsTo: "https://work.example/types/blocks", endpoint: "source", max: 1 },
       ],

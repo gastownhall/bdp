@@ -2470,7 +2470,7 @@ it("pins cold RU directory literals, actual target bindings and parent preservat
   );
   const row = manifest.scenarios.find((r: { id: string }) => r.id === coldDirectoryId);
   expect(createHash("sha256").update(JSON.stringify(row)).digest("hex")).toBe(
-    "7930b51eea68914b24ece231d9b30479e14936572bcd67d18351ffc6562efeff",
+    "e479c5684c5631e64a04f1902518975b18a291d6354b5ac2414bff7de0321477",
   );
   expect(
     row.actions.map((a: { id: string; family: string }) => ({ id: a.id, family: a.family })),
@@ -2725,7 +2725,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
     // Pin the existing runner projection; credential identity is bound separately in configuration.
     expect(report.reportBinding.exactConfigurationDigest).toBe(
-      "26da5a286d9887bebbb0fcf73a92c5d09aa7b7fcfdcc9ed91f767f4db1578c69",
+      "fef02ba85bf30673c103eb61d32c5e2882460345bec2f30e82d28cca2680ee90",
     );
     expect(report.uncoveredIds).toHaveLength(96);
     expect(report.uncoveredIds).toContain(commandMinimumId);
@@ -2792,8 +2792,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       { method: "GET", url: `${scope}types/relates` },
       { method: "GET", url: `${scope}types/decision` },
       { method: "GET", url: `${scope}alias/rc-locator-live` },
-      { method: "GET", url: `${scope}beads/?limit=100` },
-      { method: "GET", url: `${scope}links/?limit=100` },
+      { method: "GET", url: `${scope}bdp/beads?limit=100` },
+      { method: "GET", url: `${scope}bdp/links?limit=100` },
       { method: "GET", url: `${scope}alias/rc-locator-put-local` },
       { method: "GET", url: `${scope}alias/rc-locator-put-absolute` },
       { method: "GET", url: `${scope}alias/rc-locator-missing` },
@@ -2812,7 +2812,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     ]);
     expect(progress.shards[1]!.routes).toHaveLength(51);
     expect(progress.shards[1]!.routeDigest).toBe(
-      "272c31e6bdf474d3889042e3bc636f4f144b58ea1e87a8f8176c772a1a026110",
+      "935eb3e95b8a19ffd586b63346510f9560dc4ed2b57fd804f278f87ce2259096",
     );
     expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
     expect(progress.observedStatePartitions.fail).toEqual([]);
@@ -2915,7 +2915,7 @@ it("rejects response-only no-op revision corruption after actual HTTP", async ()
 
 it.each([
   ["read.types.descriptor", "task", "identity", "types/not-task"],
-  ["read.discovery.canonical-navigation", "discovery", "beads-navigation", "links/"],
+  ["read.discovery.canonical-navigation", "discovery", "types-navigation", "bdp/not-types"],
   ["read.collections.invalid-query", "unsupported-parameter", "status", 200],
 ] as const)(
   "rejects a wrong inherited Read expectation for %s",
@@ -3186,7 +3186,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "26da5a286d9887bebbb0fcf73a92c5d09aa7b7fcfdcc9ed91f767f4db1578c69",
+    "fef02ba85bf30673c103eb61d32c5e2882460345bec2f30e82d28cca2680ee90",
   );
 }, 30000);
 
@@ -4390,8 +4390,34 @@ it.each([
     else if (control === "missing-bead") action.input.body.target = "beads/rb-missing-control";
     else if (control === "wrong-absolute-category")
       action.input.body.target = `${scope}links/rb-live`;
-    else if (control === "wrong-pinned-category") action.input.body.source.uri = "links/rb-live";
-    else action.input.body.source = "beads/rb-source";
+    else if (control === "wrong-pinned-category") {
+      const preseed = {
+        id: "wrong-kind-preseed",
+        family: "client",
+        operation: "installed.exact-request",
+        input: {
+          targetBinding: "create-link",
+          targetBaseBinding: "operations",
+          method: "POST",
+          credentialRef: "operator",
+          body: {
+            id: "links/rb-kind-control",
+            type: "https://reference.invalid/acme/types/relates",
+            source: "beads/rb-source",
+            target: "beads/rb-target",
+            properties: {},
+            metadata: {},
+          },
+          idempotencyKey: "wrong-kind-preseed",
+        },
+        captures: [],
+        assertions: [
+          { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+        ],
+      };
+      row.actions.splice(row.actions.indexOf(action), 0, preseed);
+      action.input.body.source.uri = "links/rb-kind-control";
+    } else action.input.body.source = "beads/rb-source";
     const report = await run(manifest, [id]);
     const observed = report.result.scenarios.find((r) => r.id === id);
     expect(observed?.state).toBe("fail");
@@ -5372,7 +5398,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
       .digest("hex"),
-  ).toBe("10a7c6f97a280cf88e58d3aa2039fe580904b74bfffcebda4747fc3c1a34b583");
+  ).toBe("a11ec3becc63c3ac0bdb177ea0a1e99adb86339fe9a736efc3d0b0b5375fdb39");
   const text = bytes.toString();
   const start = text.lastIndexOf(
     "    {",
@@ -5380,7 +5406,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
   );
   const end = text.indexOf("\n    },\n    {", start) + "\n    }".length;
   expect(createHash("sha256").update(text.slice(start, end)).digest("hex")).toBe(
-    "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
+    "4b1756c631e2cd88b458269f708f52a74d2b71a8291d5bcee2d026237ec70677",
   );
   const set = installedArtifactSet();
   expect(set.shards[1]!.scenarioIds).toEqual([
@@ -5696,20 +5722,20 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   for (const [id, digest] of [
     [
       "read-update.singleton.attribution",
-      "1b81ae03b7aea896732e001291bb2ef92edd6bf5586c13a7e91afaf563f3e769",
+      "ba979ba77d116e64770fed0abb9e208ecb5369e6d24d4356f405264ae096fd18",
     ],
     [
       "read-update.alias.unknown-subject",
-      "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
+      "4b1756c631e2cd88b458269f708f52a74d2b71a8291d5bcee2d026237ec70677",
     ],
     [
       "read-update.numeric-model.round-trip-admission",
       // Reviewed parent R span: 12982a61faf2f6710ad165d69022ba2e8c9cc083e599118910a173c52fb9aa6c
-      "b21d827713dd553a7f1dccda8fac82b13a6741cd7273d5bf0b4fecf39bee25cd",
+      "1cb3bbdeeb3fadd1121cd0b24d9d11018504cd9bfefecd43d5b59263efc9da2f",
     ],
     [
       "read-update.numeric-model.nested-refusal",
-      "068f02059e00c89130eb6be9683768e4828812e22371645d58540942f60f1d56",
+      "b60c46ff685e6c74438fbeb49fc4e598e1d5420ba086602d112d82ac03c778ca",
     ],
   ]) {
     expect(createHash("sha256").update(numericScenarioSpan(text, id!)).digest("hex")).toBe(digest);
@@ -6086,7 +6112,7 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
     createHash("sha256")
       .update(source("packages/conformance/fixtures/read-update-reference-v1.json").bytes)
       .digest("hex"),
-  ).toBe("f89932d68e3bf5867d79eb3de680af4bc67b761b3c3bce5da127f6ca75e27765");
+  ).toBe("2db03a9d16eff694426170f94e6d92c1d97a36ca2f4b1c957cf820551a74cc26");
   expect(
     createHash("sha256")
       .update(source("packages/conformance/test-support/read-update-artifact-set-v1.json").bytes)
@@ -6109,10 +6135,10 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   const end = rowText.lastIndexOf(",\n        {", firstNew);
   expect(end).toBeGreaterThan(start);
   expect(createHash("sha256").update(rowText.slice(start, end)).digest("hex")).toBe(
-    "ad6a9d2807f86f6a07df8718ac451ae72ed9dc7dad12309a9d98710182ab50d6",
+    "bf97b67f7b4d1cfd1c430b32b9f6d69ad06ef963c6454b1c1ef52a5de20793a7",
   );
   expect(createHash("sha256").update(rowText).digest("hex")).toBe(
-    "7e2f42ea630bb38bf3d31d02a0ad68a88172cfe394439a42498cd77036763972",
+    "d8e45e0102864b3c2e255a4de892857a89298fb32ac7e1a982e8bf171cac3937",
   );
   expect(actions.slice(73).map((a: { id: string }) => a.id)).toEqual([
     "num-subject-metadata-closure-refused",
@@ -6187,7 +6213,7 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   ).toBeLessThanOrEqual(18);
   const finalDigest = (value: string) =>
     createHash("sha256").update(numericScenarioSpan(value, numericNestedId)).digest("hex");
-  const finalExpected = "068f02059e00c89130eb6be9683768e4828812e22371645d58540942f60f1d56";
+  const finalExpected = "b60c46ff685e6c74438fbeb49fc4e598e1d5420ba086602d112d82ac03c778ca";
   expect(finalDigest(text)).toBe(finalExpected);
   const n = numericScenarioSpan(text, numericNestedId);
   expect(n.match(/"nn-bead-properties-create-refused"/g)).toHaveLength(2);
@@ -6590,7 +6616,7 @@ it("pins bounded R closure source, changed-action ledger and unchanged companion
     "nr-final-target",
   ]);
   expect(createHash("sha256").update(JSON.stringify(unchanged)).digest("hex")).toBe(
-    "3378857a12c4632d66354e62f044dc5db27708133d5d1fdb3f522a0323d1b5e5",
+    "afabb884fd12406986979f8feebc98e764d89e713cb8175d4e12040ebc785920",
   );
   expect(row.actions!.filter((a) => changedIds.includes(a.id)).map((a) => a.id)).toEqual(
     changedIds,
@@ -6738,7 +6764,7 @@ it("pins schema PropertyChange preimage capture, complete corrections and four c
   );
   expect(unchangedParentActions).toHaveLength(84);
   expect(createHash("sha256").update(JSON.stringify(unchangedParentActions)).digest("hex")).toBe(
-    "393f9c3cab0cbfd501e863a75a243a28fa40806c648993eaf2068916cf488c20",
+    "83234fa9a055aa5cd9073c7b951a99e6bc30c4641f4575c082aba31d39151c10",
   );
   for (const kind of ["bead", "link"]) {
     const prefix = `nr-${kind}-schema`;

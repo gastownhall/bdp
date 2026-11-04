@@ -112,11 +112,14 @@ function canonical(scope: string, reference: string): string {
   assertAdmittedPath(reference);
   return new URL(reference, scope).href;
 }
-function pathInScope(scope: string, uri: string, root: "alias/" | "beads/"): string | undefined {
+function pathInScope(scope: string, uri: string, root?: "alias/"): string | undefined {
   if (!uri.startsWith(scope)) return undefined;
   const path = uri.slice(scope.length);
   assertAdmittedPath(path, uri);
-  return path.startsWith(root) && path.length > root.length ? path : undefined;
+  if (path.length === 0) return undefined;
+  if (root !== undefined && (!path.startsWith(root) || path.length === root.length))
+    return undefined;
+  return path;
 }
 
 /** Invoke only inside S6 executeMember after whole-carrier S1/Scope preflight
@@ -148,15 +151,18 @@ export function evaluateAliasMutation(
     if (localAlias === undefined) fail("resource-not-found");
     const path = localAlias.slice("alias/".length);
     // The deliberate uniqueness disclosure precedes target/category/visibility checks.
-    if (mutation.operation === "putAlias" && tx.identityWasCommitted(`beads/${path}`))
+    if (mutation.operation === "putAlias" && tx.identityWasCommitted(`alias/${path}`))
       fail("identity-taken");
     const currentId = tx.alias(path);
     let proposed: BeadRecord | undefined;
     let proposedId: string | undefined;
     if (mutation.operation === "putAlias") {
       const target = canonical(scope, mutation.input.target);
-      proposedId = pathInScope(scope, target, "beads/");
-      if (proposedId === undefined) badTarget();
+      proposedId = pathInScope(scope, target);
+      if (proposedId === undefined || proposedId.startsWith("alias/")) badTarget();
+      const targetResource = tx.resource(proposedId);
+      if (targetResource === undefined) fail("resource-not-found");
+      if (targetResource.kind !== "bead") badTarget();
       proposed = loadVisible(proposedId);
     }
     if (mutation.operation === "deleteAlias" && currentId === undefined) fail("resource-not-found");

@@ -310,9 +310,10 @@ describe("BDP v0 schema bundle", () => {
     });
 
     const readDiscoveryProperties = propertiesOf("readDiscovery");
-    for (const member of ["scope", "beads", "links", "types"]) {
-      expect(readDiscoveryProperties[member]).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });
-    }
+    expect(readDiscoveryProperties.scope).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });
+    for (const member of ["beads", "links"])
+      expect(readDiscoveryProperties[member]).toBeUndefined();
+    expect(readDiscoveryProperties.types).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });
 
     const beadProperties = propertiesOf("beadRecord");
     expect(beadProperties.id).toEqual({ $ref: "#/$defs/absoluteHttpUrl" });
@@ -634,8 +635,6 @@ function readDiscovery(): SchemaRecord {
     bdpVersion: "0",
     profile: "read",
     scope: "https://beads.example/acme/",
-    beads: "https://beads.example/acme/beads/",
-    links: "https://beads.example/acme/links/",
     types: "https://beads.example/acme/types/",
     limits: {
       page: { defaultItems: 50, maximumItems: 200 },

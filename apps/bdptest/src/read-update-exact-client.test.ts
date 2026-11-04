@@ -4,7 +4,7 @@ import { expect, it, vi } from "vitest";
 import { createInstalledExactClient } from "../test-support/read-update-exact-client.js";
 import type { ExactHttpModeOptions, ScenarioActionExecution } from "@bdp/conformance";
 const scope = "https://example.invalid/acme/";
-it("rejects foreign, malformed, wrong-kind and missing captured targets before dialing or credentials", async () => {
+it("rejects foreign, malformed and missing captured targets before dialing or credentials", async () => {
   const resolveCredentials = vi.fn(() => ({}));
   const mode: ExactHttpModeOptions = {
     scope,
@@ -26,7 +26,6 @@ it("rejects foreign, malformed, wrong-kind and missing captured targets before d
     undefined,
     "https://foreign.invalid/acme/beads/a",
     "https://example.invalid/other/beads/a",
-    `${scope}links/a`,
     `${scope}beads/%`,
     `${scope}beads/%2F`,
     `${scope}beads/../beads/a`,

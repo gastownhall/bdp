@@ -112,8 +112,8 @@ export function referenceFixtureAliases(
   scope: AbsoluteHttpUrl,
 ): Readonly<Record<string, AbsoluteHttpUrl>> {
   return Object.freeze({
-    decision: new URL("beads/demo-f", scope).href,
-    "releases/latest": new URL("beads/demo-a", scope).href,
+    decision: new URL("demo-f", scope).href,
+    "releases/latest": new URL("demo-a", scope).href,
   });
 }
 
@@ -221,6 +221,14 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
             ? scopePortProblem<LinkResourceOperation>(notFound())
             : scopePortSuccess<LinkResourceOperation>(item);
         }
+        if (operation.resource === "resource") {
+          const disclosed = disclosures?.get(operation.id);
+          if (disclosed !== undefined) return scopePortProblem(disclosed.problem);
+          const bead = beads.find((item) => item.id === operation.id);
+          if (bead !== undefined) return scopePortSuccess(bead);
+          const link = links.find((item) => item.id === operation.id);
+          return link === undefined ? scopePortProblem(notFound()) : scopePortSuccess(link);
+        }
         const item = typeDescriptors.find((type) => type.id === operation.id);
         return item === undefined
           ? scopePortProblem<TypeResourceOperation>(notFound())
@@ -235,6 +243,10 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
           return record === undefined
             ? scopePortProblem<BeadPropertiesOperation>(notFound())
             : scopePortSuccess<BeadPropertiesOperation>(record.properties);
+        }
+        if (operation.resource === "resource") {
+          const bead = beads.find((item) => item.id === operation.id);
+          if (bead !== undefined) return scopePortSuccess(bead.properties);
         }
         const record = links.find((link) => link.id === operation.id);
         return record === undefined
@@ -375,7 +387,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     const createdAt = `2026-08-08T23:33:3${index + 1}Z`;
     const blockingTargets = blockingTargetsById.get(localId) ?? [];
     return {
-      id: new URL(`beads/${localId}`, scope).href,
+      id: new URL(localId, scope).href,
       type,
       revision: "1",
       // Carried revisionProvenance, in lockstep with the portable fixture: demo-a
@@ -461,7 +473,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       if (name === pinWitnessId) return name;
       if (name === citesWitnessId) return { uri: name, revision: citesWitnessRevision } as const;
       if (name === collationWitnessId) return name;
-      const beadId = new URL(`beads/${name}`, scope).href;
+      const beadId = new URL(name, scope).href;
       if (!beadById.has(beadId))
         throw new Error("reference Link endpoint does not name a reference Bead");
       // The pinned-local Link's in-Scope target carries a pin: the domain
@@ -474,7 +486,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     const type = typeByName.get(String(typeName));
     if (type === undefined) throw new Error(`reference domain does not define ${String(typeName)}`);
     return {
-      id: new URL(`links/${localId}`, scope).href,
+      id: new URL(localId, scope).href,
       type,
       revision: "1",
       // demo-j-k carries `unknown`-basis provenance (lockstep with the
@@ -518,7 +530,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   // erased answers with nothing beyond its code.
   const disclosures = new Map<string, FixtureDisclosure>([
     [
-      new URL("beads/pruned-relic", scope).href,
+      new URL("pruned-relic", scope).href,
       Object.freeze({
         kind: "bead" as const,
         problem: Object.freeze({
@@ -531,7 +543,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       }),
     ],
     [
-      new URL("beads/erased-relic", scope).href,
+      new URL("erased-relic", scope).href,
       Object.freeze({ kind: "bead" as const, problem: readProblem("resource-erased") }),
     ],
   ]);
@@ -716,9 +728,10 @@ function readFixtureDisclosures(
   for (const [index, entry] of readArray(value, "fixture.disclosures").entries()) {
     const path = `fixture.disclosures[${index}]`;
     const record = readRecord(entry, path);
-    requireAllowedKeys(record, ["localId", "code", "archivedAt"], path);
+    requireAllowedKeys(record, ["localId", "kind", "code", "archivedAt"], path);
     const localId = readNonemptyString(record.localId, `${path}.localId`);
-    const kind = localId.startsWith("links/") ? ("link" as const) : ("bead" as const);
+    const kind = record.kind;
+    if (kind !== "bead" && kind !== "link") throw new Error(`${path}.kind must be bead or link`);
     const { id } = readFixtureLocalId(scope, kind, localId, `${path}.localId`);
     if (table.has(id)) throw new Error(`${path} duplicates a disclosure subject`);
     if (liveIds.has(id))

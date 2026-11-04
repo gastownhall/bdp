@@ -1702,6 +1702,7 @@ Required order: ["bdpVersion","profile","scope"]
 | "order" | schema | no | — | "Advertised stable collection order. Omission uses canonical-uri under Core." |
 | "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation." |
+| "types" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support." |
 
 ### Advanced
 
@@ -4712,7 +4713,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","types"]
+Required order: ["bdpVersion","profile","scope"]
 
 ### Keywords
 
@@ -4726,16 +4727,14 @@ Required order: ["bdpVersion","profile","scope","beads","links","types"]
 | --- | --- | --- | --- | --- |
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/advertisedLimits" | no | — | — |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
 | "order" | schema | no | — | — |
 | "profile" | schema | yes | — | — |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "types" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "types" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 
 ### Advanced
 
@@ -5521,7 +5520,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","types","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","operations","aliases"]
 
 ### Keywords
 
@@ -5535,17 +5534,15 @@ Required order: ["bdpVersion","profile","scope","beads","links","types","operati
 | --- | --- | --- | --- | --- |
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/readUpdateAdvertisedLimits" | no | — | — |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
 | "operations" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "order" | schema | no | — | — |
 | "profile" | schema | yes | — | — |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "types" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "types" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 
 ### Advanced
 
@@ -9856,7 +9853,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","beads","links","types","operations","aliases","scopeEpoch","authorizationView","headPosition","minimumReplayPosition","receipts","snapshot","changes","events"]
+Required order: ["bdpVersion","profile","scope","operations","aliases","scopeEpoch","authorizationView","headPosition","minimumReplayPosition","receipts","snapshot","changes","events"]
 
 ### Keywords
 
@@ -9872,14 +9869,12 @@ Required order: ["bdpVersion","profile","scope","beads","links","types","operati
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "authorizationView" | ref "#/$defs/wireToken" | yes | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
-| "beads" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "changes" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "events" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "headPosition" | ref "#/$defs/wireToken" | yes | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/transactionalAdvertisedLimits" | no | — | — |
-| "links" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
 | "minimumReplayPosition" | ref "#/$defs/wireToken" | yes | — | — |
 | "operations" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
@@ -9889,7 +9884,7 @@ Required order: ["bdpVersion","profile","scope","beads","links","types","operati
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "scopeEpoch" | ref "#/$defs/wireToken" | yes | — | — |
 | "snapshot" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "types" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "types" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 
 ### Advanced
 

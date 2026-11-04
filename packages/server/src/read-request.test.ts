@@ -124,10 +124,15 @@ describe("shared Read request kernel", () => {
   });
 
   it.each([
-    { kind: "collection", collection: "beads", continuation: `${scope}beads/?cursor=x`, limit: 1 },
-    { kind: "collection", collection: "links", source: `${scope}alias/latest` },
+    {
+      kind: "collection",
+      collection: "beads",
+      continuation: `${scope}bdp/beads?cursor=x`,
+      limit: 1,
+    },
+    { kind: "collection", collection: "links", source: `${scope}alias//latest` },
     { kind: "collection", collection: "beads", type: "relative" },
-    { kind: "resource", resource: "bead", id: `${scope}links/wrong` },
+    { kind: "resource", resource: "bead", id: `${scope}links//wrong` },
     { kind: "bead-links", bead: bead.id, direction: "sideways" },
     { kind: "scope-discovery", scope: "https://other.example/" },
   ])("keeps existing request validation for %j", (request) => {
@@ -146,7 +151,7 @@ describe("shared Read request kernel", () => {
   });
 
   it("normalizes only structural local endpoints while preserving opaque and Selector bytes", () => {
-    const url = new URL(`${scope}links/`);
+    const url = new URL(`${scope}bdp/links`);
     url.searchParams.set("source", "beads/a");
     url.searchParams.set("target", "urn:example:OUTSIDE");
     url.searchParams.set("selector", '$[?@.source == "beads/a"]');
@@ -159,9 +164,44 @@ describe("shared Read request kernel", () => {
     });
   });
 
+  it("uses fixed inventory routes and leaves Resource kind out of identity paths", () => {
+    expect(requestFromUrl(new URL("bdp/beads", scope), scope)).toEqual({
+      kind: "collection",
+      collection: "beads",
+    });
+    expect(requestFromUrl(new URL("bdp/links", scope), scope)).toEqual({
+      kind: "collection",
+      collection: "links",
+    });
+    expect(requestFromUrl(new URL("types/", scope), scope)).toEqual({
+      kind: "collection",
+      collection: "types",
+    });
+    expect(requestFromUrl(new URL("types/task", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "type",
+      id: `${scope}types/task`,
+    });
+    expect(requestFromUrl(new URL("task-42", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "resource",
+      id: `${scope}task-42`,
+    });
+    expect(requestFromUrl(new URL("links/a", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "resource",
+      id: `${scope}links/a`,
+    });
+    expect(requestFromUrl(new URL("beads/task", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "resource",
+      id: `${scope}beads/task`,
+    });
+  });
+
   it.each([
-    "beads/?limit=1&limit=2",
-    "links/?unknown=x",
+    "bdp/beads?limit=1&limit=2",
+    "bdp/links?unknown=x",
     "types/?type=https://example.test/T",
     "beads/a?view=links&direction=sideways",
     "beads/a?include=links",
@@ -205,7 +245,7 @@ describe("shared Read request kernel", () => {
     expect(() =>
       validateServerBead({ ...bead, ownedLinks: { [link.type]: [link] } }, scope),
     ).not.toThrow();
-    expect(() => validateServerLink({ ...link, source: `${scope}alias/a` }, scope)).toThrow(
+    expect(() => validateServerLink({ ...link, source: `${scope}alias//a` }, scope)).toThrow(
       ProtocolArtifactValidationError,
     );
     expect(() => validateServerLink({ ...link, source: "urn:outside:a" }, scope)).toThrow(
@@ -218,7 +258,7 @@ describe("shared Read request kernel", () => {
       /direction/,
     );
     expect(() =>
-      variant.validateBody(request, { items: [], next: `${scope}links/?cursor=x` }, scope),
+      variant.validateBody(request, { items: [], next: `${scope}bdp/links?cursor=x` }, scope),
     ).toThrow(/pagination/);
   });
 

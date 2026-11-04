@@ -1190,7 +1190,7 @@ describe("G7 raw current alias and retained A versus current B", () => {
       ...r,
       alias(suffix) {
         r.alias(suffix);
-        return "links/wrong-kind";
+        return "https://foreign.invalid/wrong-kind";
       },
     });
     await expect(facet.resolveAlias(alias)).rejects.toBeInstanceOf(Error);
@@ -1269,6 +1269,7 @@ describe("G8 lawful shared aggregate configuration", () => {
     expect(discovery1).toMatchObject({
       kind: "discovery",
       data: {
+        types: `${scope}types/`,
         maximumEndpointMultiplicity: [{ endpoint: "source", linkConformsTo: linkType, max: 1 }],
       },
       observation: baseObservation(f),

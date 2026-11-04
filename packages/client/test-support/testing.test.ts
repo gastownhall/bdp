@@ -341,11 +341,9 @@ function fixtureFetch(
         bdpVersion: "0",
         profile: "read",
         scope,
-        beads: `${scope}beads/`,
-        links: `${scope}links/`,
         types: `${scope}types/`,
       });
-    if (url === `${scope}beads/`)
+    if (url === `${scope}bdp/beads`)
       return jsonAt(url, {
         items: [
           {
@@ -363,7 +361,7 @@ function fixtureFetch(
         ],
         next: null,
       });
-    if (url === `${scope}links/`)
+    if (url === `${scope}bdp/links`)
       return jsonAt(url, {
         items: [
           {

@@ -124,10 +124,10 @@
   },
   "externalEndpointLinks": [
     {
-      "localId": "links/external-target",
+      "localId": "external-target",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-f",
+      "source": "demo-f",
       "target": {
         "uri": "external:beads:mol-run-assignee",
         "revision": "  Cited-9F2c — α/β (draft) Å\t"
@@ -148,30 +148,30 @@
       }
     },
     {
-      "localId": "links/external-source",
+      "localId": "external-source",
       "type": "https://work.example/types/blocks",
       "revision": "1",
       "source": "external:beads:mol-run-assignee",
-      "target": "beads/demo-f",
+      "target": "demo-f",
       "properties": {}
     },
     {
-      "localId": "links/pinned-local",
+      "localId": "pinned-local",
       "type": "https://work.example/types/blocks",
       "revision": "1",
       "source": "urn:external:pin-witness",
       "target": {
-        "uri": "beads/demo-f",
+        "uri": "demo-f",
         "revision": "pin-a-r1 (as-written)"
       },
       "properties": {}
     },
     {
-      "localId": "links/ZZ-collation",
+      "localId": "ZZ-collation",
       "type": "https://work.example/types/blocks",
       "revision": "1",
       "source": "urn:external:collation-witness",
-      "target": "beads/demo-f",
+      "target": "demo-f",
       "properties": {}
     }
   ],

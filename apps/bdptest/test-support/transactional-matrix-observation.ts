@@ -220,7 +220,7 @@ export async function observe(control?: {
     // Independently authored route inventory, not a second derivation from the manifest.
     expect(uniqueRoutes).toEqual([
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "GET", url: `${scope}beads/?limit=32` },
+      { method: "GET", url: `${scope}bdp/beads?limit=32` },
       { method: "GET", url: `${scope}events/` },
       { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/sequence` },
@@ -229,7 +229,7 @@ export async function observe(control?: {
       { method: "GET", url: `${scope}links/l` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
-      { method: "GET", url: `${scope}links/?limit=32` },
+      { method: "GET", url: `${scope}bdp/links?limit=32` },
       { method: "GET", url: `${scope}beads/b` },
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },

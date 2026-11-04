@@ -39,8 +39,6 @@ export function assembleTransactionDiscovery(
     bdpVersion: "0",
     profile: "transactional",
     scope,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
     types: `${scope}types/`,
     operations: `${scope}operations/`,
     aliases: `${scope}alias/`,

@@ -385,7 +385,7 @@ it("keeps Event route/query validation private and closed", () => {
     "events/?after=genesis",
     "beads/a?view=events&view=events",
     "beads/a?view=events&after=",
-    "types/a?view=events",
+    "bdp/beads?view=events",
   ])
     expect(() => transactionEventRequest(new URL(target, scope), scope)).toThrow(
       TransactionEventParameterError,

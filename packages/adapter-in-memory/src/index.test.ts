@@ -382,9 +382,9 @@ describe("reference fixture Scope port", () => {
     }
     expect(() =>
       createPortableReferenceFixturePort(scope, fixture("links/not-a-bead", type.id)),
-    ).toThrow("must begin with beads/");
+    ).not.toThrow();
     expect(() => createPortableReferenceFixturePort(scope, fixture("beads/..", type.id))).toThrow(
-      "forbidden segment",
+      "noncanonical segment",
     );
     expect(() =>
       createPortableReferenceFixturePort(
@@ -400,7 +400,7 @@ describe("reference fixture Scope port", () => {
     ).toThrow(ProtocolArtifactValidationError);
   });
 
-  it("validates Link IDs and endpoint references as canonical IDs of the expected kind", () => {
+  it("validates Link IDs and endpoint references without inferring kind from path", () => {
     const task = {
       id: "https://work.example/types/task",
       name: "Task",
@@ -411,7 +411,7 @@ describe("reference fixture Scope port", () => {
       name: "Blocks",
       describes: "link",
     } as const;
-    const fixture = (localId: string, source = "beads/a") => ({
+    const fixture = (localId: string, source = "links/a") => ({
       types: [task, blocks],
       typeDescriptors: [
         { ...task, conformsTo: [] },
@@ -423,8 +423,8 @@ describe("reference fixture Scope port", () => {
         },
       ],
       beads: [
-        { localId: "beads/a", type: task.id, revision: "1", properties: {} },
-        { localId: "beads/b", type: task.id, revision: "1", properties: {} },
+        { localId: "links/a", type: task.id, revision: "1", properties: {} },
+        { localId: "links/b", type: task.id, revision: "1", properties: {} },
       ],
       links: [
         {
@@ -432,18 +432,18 @@ describe("reference fixture Scope port", () => {
           type: blocks.id,
           revision: "1",
           source,
-          target: "beads/b",
+          target: "links/b",
           properties: {},
         },
       ],
     });
 
-    expect(() => createPortableReferenceFixturePort(scope, fixture("beads/not-a-link"))).toThrow(
-      "must begin with links/",
-    );
+    expect(() =>
+      createPortableReferenceFixturePort(scope, fixture("beads/not-a-link")),
+    ).not.toThrow();
     expect(() =>
       createPortableReferenceFixturePort(scope, fixture("links/blocks", "links/a")),
-    ).toThrow("must begin with beads/");
+    ).not.toThrow();
   });
 
   it("preserves exact external endpoint identities in either Link orientation", async () => {
@@ -779,32 +779,51 @@ describe("reference fixture Scope port", () => {
     // String-form archivedAt is a valid Reference; junk shapes are not.
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-pruned", archivedAt: "urn:archive:relic" },
+        {
+          localId: "beads/gone",
+          kind: "bead",
+          code: "resource-pruned",
+          archivedAt: "urn:archive:relic",
+        },
       ]),
     ).not.toThrow();
     expect(
-      withDisclosures([{ localId: "beads/gone", code: "resource-pruned", archivedAt: {} }]),
+      withDisclosures([
+        { localId: "beads/gone", kind: "bead", code: "resource-pruned", archivedAt: {} },
+      ]),
     ).toThrow();
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-pruned", archivedAt: { banana: 42 } },
+        {
+          localId: "beads/gone",
+          kind: "bead",
+          code: "resource-pruned",
+          archivedAt: { banana: 42 },
+        },
       ]),
     ).toThrow();
     // Duplicates and live overlap refuse.
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-erased" },
-        { localId: "beads/gone", code: "resource-pruned" },
+        { localId: "beads/gone", kind: "bead", code: "resource-erased" },
+        { localId: "beads/gone", kind: "bead", code: "resource-pruned" },
       ]),
     ).toThrow("duplicates");
-    expect(withDisclosures([{ localId: "beads/live", code: "resource-erased" }])).toThrow(
-      "gone or live",
-    );
+    expect(
+      withDisclosures([{ localId: "beads/live", kind: "bead", code: "resource-erased" }]),
+    ).toThrow("gone or live");
     // Unknown codes and erased-with-pointer refuse.
-    expect(withDisclosures([{ localId: "beads/gone", code: "cursor-expired" }])).toThrow();
+    expect(
+      withDisclosures([{ localId: "beads/gone", kind: "bead", code: "cursor-expired" }]),
+    ).toThrow();
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-erased", archivedAt: "urn:archive:x" },
+        {
+          localId: "beads/gone",
+          kind: "bead",
+          code: "resource-erased",
+          archivedAt: "urn:archive:x",
+        },
       ]),
     ).toThrow("condition-specific");
   });
@@ -831,10 +850,11 @@ describe("reference fixture Scope port", () => {
       disclosures: [
         {
           localId: "beads/gone",
+          kind: "bead",
           code: "resource-pruned",
           archivedAt: { uri: "urn:archive:gone", revision: "arch-1" },
         },
-        { localId: "links/gone-edge", code: "resource-erased" },
+        { localId: "links/gone-edge", kind: "link", code: "resource-erased" },
       ],
     });
     const pruned = { code: "resource-pruned", status: 410 };

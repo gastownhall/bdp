@@ -36,8 +36,6 @@ function publicFetch(resources: Record<string, unknown>): typeof fetch {
         bdpVersion: "0",
         profile: "read",
         scope,
-        beads: `${scope}beads/`,
-        links: `${scope}links/`,
         types: `${scope}types/`,
       });
     if (Object.hasOwn(resources, url)) return json(url, resources[url]);
@@ -103,18 +101,18 @@ describe("successor Read observations", () => {
   });
   it("detects stale numeric revisions and refuses to count an all-Bead or numberless sample as coverage", async () => {
     const b = {
-      id: `${scope}beads/a`,
+      id: `${scope}a`,
       type: "https://work.example/types/task",
       properties: { priority: 2 },
       metadata: {},
     };
     const l = {
-      id: `${scope}links/a-b`,
+      id: `${scope}a-b`,
       type: "https://work.example/types/blocks",
       properties: {},
       metadata: {},
-      source: `${scope}beads/a`,
-      target: `${scope}beads/b`,
+      source: `${scope}a`,
+      target: `${scope}b`,
     };
     // Literal serialized preimages, independent of the observation and adapter algorithms.
     const bt =
@@ -129,8 +127,16 @@ describe("successor Read observations", () => {
           `{"id":"${l.id}","metadata":{},"properties":{},"source":"${l.source}","target":"${l.target}","type":"${l.type}"}`,
         )
         .digest("base64url");
-    const resources = { [b.id]: { ...b, revision: bt }, [l.id]: { ...l, revision: lt } };
-    const input = { ids: ["beads/a", "links/a-b"], numberModel: model };
+    const resources = {
+      [b.id]: { ...b, revision: bt },
+      [l.id]: { ...l, revision: lt },
+      [`${scope}bdp/beads`]: {
+        items: [{ ...b, revision: bt }, { ...b, id: `${scope}b`, revision: "different" }],
+        next: null,
+      },
+      [`${scope}bdp/links`]: { items: [{ ...l, revision: lt }], next: null },
+    };
+    const input = { ids: ["a", "a-b"], numberModel: model };
     const numericResult = await run("numeric-token-model", input, publicFetch(resources));
     expect(numericResult).not.toHaveProperty("numberModel");
     await expect(run("numeric-token-model", input, publicFetch(resources))).resolves.toMatchObject({
@@ -155,10 +161,10 @@ describe("successor Read observations", () => {
     await expect(
       run(
         "numeric-token-model",
-        { ...input, ids: ["beads/a", "beads/b"] },
+        { ...input, ids: ["a", "b"] },
         publicFetch({
           ...resources,
-          [`${scope}beads/b`]: { ...b, id: `${scope}beads/b`, revision: "different" },
+          [`${scope}b`]: { ...b, id: `${scope}b`, revision: "different" },
         }),
       ),
     ).resolves.toMatchObject({ bothKinds: false });
@@ -233,7 +239,7 @@ describe("successor Read observations", () => {
         items: [{ id: descriptor.id, name: descriptor.name, describes: descriptor.describes }],
         next: null,
       },
-      [`${scope}beads/`]: { items: [], next: null },
+      [`${scope}bdp/beads`]: { items: [], next: null },
     });
     const result = await run(
       "ownership-inventory",
@@ -256,7 +262,7 @@ describe("successor Read observations", () => {
     expect(publisherReads).toEqual([descriptor.id]);
     expect(targetReads).not.toContain(descriptor.id);
     expect(targetReads).toContain(`${scope}types/`);
-    expect(targetReads).toContain(`${scope}beads/`);
+    expect(targetReads).toContain(`${scope}bdp/beads`);
     await expect(run("ownership-inventory", { ids: [descriptor.id] }, target)).rejects.toThrow(
       "controlled descriptor bindings",
     );
@@ -268,7 +274,7 @@ describe("successor Read observations", () => {
         { ids: ["https://work.example/types/task"] },
         publicFetch({
           [`${scope}types/`]: { items: [], next: `${scope}types/?cursor=more` },
-          [`${scope}beads/`]: { items: [], next: null },
+          [`${scope}bdp/beads`]: { items: [], next: null },
         }),
         async (url) => json(String(url), {}),
       ),
@@ -314,7 +320,7 @@ describe("successor Read observations", () => {
         }),
       ),
     ).resolves.toMatchObject({ exactGroups: false });
-    const id = `${scope}links/external-target`;
+    const id = `${scope}external-target`;
     await expect(
       run(
         "wildcard-present",

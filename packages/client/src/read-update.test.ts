@@ -25,9 +25,7 @@ const discovery = {
   bdpVersion: "0",
   profile: "read-update",
   scope,
-  beads: `${scope}beads/`,
-  links: `${scope}links/`,
-  types: `${scope}types/`,
+
   operations: `${scope}operations/`,
   aliases: `${scope}alias/`,
 };

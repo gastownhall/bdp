@@ -214,7 +214,7 @@ describe("test-only Read conformance evidence", () => {
       server.perform(
         { kind: "collection", collection: "beads" },
         {
-          httpRequest: new Request(`${scope}beads/`, {
+          httpRequest: new Request(`${scope}bdp/beads`, {
             headers: { "x-view": "view-1", "x-epoch": "epoch-1" },
           }),
         },
@@ -262,7 +262,7 @@ describe("test-only Read conformance evidence", () => {
         {
           kind: "resource",
           resource: "bead",
-          id: new URL(`beads/__problem__/${definition.code}`, scope).href,
+          id: new URL(`__problem__/${definition.code}`, scope).href,
         },
         options,
       );
@@ -274,7 +274,7 @@ describe("test-only Read conformance evidence", () => {
           {
             kind: "resource",
             resource: "bead",
-            id: new URL(`beads/__problem__/${code}`, scope).href,
+            id: new URL(`__problem__/${code}`, scope).href,
           },
           options,
         ),

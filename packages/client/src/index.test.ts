@@ -19,6 +19,8 @@ import {
 const SCOPE = "https://beads.example/acme/";
 const BEADS = `${SCOPE}beads/`;
 const LINKS = `${SCOPE}links/`;
+const BEADS_ROUTE = `${SCOPE}bdp/beads`;
+const LINKS_ROUTE = `${SCOPE}bdp/links`;
 const TASK_TYPE = "https://work.example/types/task";
 const LINK_TYPE = "https://work.example/types/blocks";
 const OUTSIDE_SCOPE_PROBLEM = {
@@ -39,17 +41,11 @@ const UNSUPPORTED_VERSION_DISCOVERY = {
   bdpVersion: "1",
   profile: "read",
   scope: SCOPE,
-  beads: BEADS,
-  links: `${SCOPE}links/`,
-  types: `${SCOPE}types/`,
 } as const;
 const UNSUPPORTED_PROFILE_DISCOVERY = {
   bdpVersion: "0",
   profile: "future",
   scope: SCOPE,
-  beads: BEADS,
-  links: `${SCOPE}links/`,
-  types: `${SCOPE}types/`,
 } as const;
 
 const unsupportedDiscoveries: readonly (readonly [string, unknown])[] = [
@@ -102,7 +98,7 @@ describe("BdpClient", () => {
         return responseAt(url, JSON.stringify(validDiscovery()), {
           headers: { "content-type": "application/json" },
         });
-      if (url === BEADS)
+      if (url === BEADS_ROUTE)
         return responseAt(url, JSON.stringify({ items: [], next: null }), {
           headers: { "content-type": "application/json" },
         });
@@ -117,7 +113,7 @@ describe("BdpClient", () => {
       items: [],
       next: null,
     });
-    expect(requests.map(({ url }) => url)).toEqual([SCOPE, `${SCOPE}bdp.json`, BEADS]);
+    expect(requests.map(({ url }) => url)).toEqual([SCOPE, `${SCOPE}bdp.json`, BEADS_ROUTE]);
     expect(requests.every(({ init }) => init?.credentials === "omit")).toBe(true);
   });
 
@@ -424,26 +420,15 @@ describe("BdpClient", () => {
     expect(transport.urls).toEqual([]);
   });
 
-  it.each(["beads", "links", "types"] as const)(
-    "rejects a discovery document whose %s root is not the fixed Scope root",
-    async (root) => {
-      const transport = new RecordingTransport({ items: [], next: null });
-      transport.discovery = {
-        ...(transport.discovery as Record<string, unknown>),
-        [root]: `https://beads.example/other/${root}/`,
-      };
-      const client = new BdpClient({ scope: SCOPE, transport });
-
-      await expect(client.perform({ kind: "collection", collection: "beads" })).resolves.toEqual({
-        type: "https://github.com/gastownhall/bdp/problems/authorization",
-        code: "forbidden",
-        retry: "after-state-change",
-        status: 403,
-        detail: "discovery metadata does not identify the configured Scope",
-      });
-      expect(transport.urls).toEqual([`${SCOPE}bdp.json`]);
-    },
-  );
+  it("rejects discovery documents that advertise legacy collection roots", async () => {
+    const transport = new RecordingTransport({ items: [], next: null });
+    transport.discovery = { ...validDiscovery(), beads: BEADS };
+    const client = new BdpClient({ scope: SCOPE, transport });
+    await expect(client.perform({ kind: "collection", collection: "beads" })).resolves.toEqual(
+      UNSUPPORTED_DISCOVERY_PROBLEM,
+    );
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`]);
+  });
 
   it("rejects discovery metadata for a different Scope path", async () => {
     const transport = new RecordingTransport({ items: [], next: null });
@@ -471,7 +456,7 @@ describe("BdpClient", () => {
       {
         kind: "collection",
         collection: "beads",
-        continuation: "https://user:secret@beads.example/acme/beads/?cursor=x",
+        continuation: "https://user:secret@beads.example/acme/bdp/beads?cursor=x",
       },
     ],
   ] as const)(
@@ -496,9 +481,6 @@ describe("BdpClient", () => {
       bdpVersion: "0",
       profile: "transactional",
       scope: SCOPE,
-      beads: BEADS,
-      links: `${SCOPE}links/`,
-      types: `${SCOPE}types/`,
     };
     const client = new BdpClient({ scope: SCOPE, transport });
     await expect(client.perform({ kind: "collection", collection: "beads" })).resolves.toEqual(
@@ -528,7 +510,7 @@ describe("BdpClient", () => {
     await expect(client.perform(request)).resolves.toEqual({ items: [], next: null });
     expect(transport.urls).toEqual([
       `${SCOPE}bdp.json`,
-      `${BEADS}?selector=%24%5B%3F%40.properties.status+%3D%3D+%22open%22%5D`,
+      `${BEADS_ROUTE}?selector=%24%5B%3F%40.properties.status+%3D%3D+%22open%22%5D`,
     ]);
   });
 
@@ -543,13 +525,13 @@ describe("BdpClient", () => {
       "Bead collection",
       { kind: "collection", collection: "beads" },
       { items: [], next: null },
-      [`${SCOPE}bdp.json`, BEADS],
+      [`${SCOPE}bdp.json`, BEADS_ROUTE],
     ],
     [
       "Link collection",
       { kind: "collection", collection: "links" },
       { items: [], next: null },
-      [`${SCOPE}bdp.json`, LINKS],
+      [`${SCOPE}bdp.json`, LINKS_ROUTE],
     ],
     [
       "Type inventory",
@@ -681,7 +663,7 @@ describe("BdpClient", () => {
     },
   );
 
-  it("rejects a collection whose typed Resource identities do not match its kind", async () => {
+  it("accepts a Bead whose ordinary identity path begins with links/", async () => {
     const transport = new RecordingTransport({
       items: [
         {
@@ -695,11 +677,17 @@ describe("BdpClient", () => {
     });
     const client = new BdpClient({ scope: SCOPE, transport });
 
-    await expect(
-      client.perform({ kind: "collection", collection: "beads" }),
-    ).resolves.toMatchObject({
-      code: "temporarily-unavailable",
-      detail: "the server returned a structurally invalid Read response",
+    await expect(client.perform({ kind: "collection", collection: "beads" })).resolves.toEqual({
+      items: [
+        {
+          id: `${LINKS}wrong-kind`,
+          type: "https://work.example/types/task",
+          revision: "1",
+          properties: {},
+          metadata: {},
+        },
+      ],
+      next: null,
     });
   });
 
@@ -860,7 +848,7 @@ describe("BdpClient", () => {
   });
 
   it("rejects a continuation outside its client-issued request context", async () => {
-    const continuation = `${BEADS}?cursor=opaque`;
+    const continuation = `${BEADS_ROUTE}?cursor=opaque`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
     await client.perform({ kind: "collection", collection: "beads" });
@@ -869,7 +857,7 @@ describe("BdpClient", () => {
     await expect(
       client.perform({ kind: "collection", collection: "types", continuation }),
     ).rejects.toBeInstanceOf(BdpClientRequestError);
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE]);
   });
 
   it("rejects an unissued collection continuation before discovery", async () => {
@@ -880,7 +868,7 @@ describe("BdpClient", () => {
       client.perform({
         kind: "collection",
         collection: "beads",
-        continuation: `${BEADS}?cursor=unissued`,
+        continuation: `${BEADS_ROUTE}?cursor=unissued`,
       }),
     ).rejects.toBeInstanceOf(BdpClientRequestError);
     expect(transport.urls).toEqual([]);
@@ -904,7 +892,7 @@ describe("BdpClient", () => {
   });
 
   it("retains repeated issuance of one continuation in the same context", async () => {
-    const continuation = `${BEADS}?cursor=shared`;
+    const continuation = `${BEADS_ROUTE}?cursor=shared`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
 
@@ -921,7 +909,7 @@ describe("BdpClient", () => {
   });
 
   it("allows only one concurrent dispatch for one continuation issuance", async () => {
-    const continuation = `${BEADS}?cursor=single-concurrent`;
+    const continuation = `${BEADS_ROUTE}?cursor=single-concurrent`;
     const transport = new GatedContinuationTransport(continuation, 1);
     const client = new BdpClient({ scope: SCOPE, transport });
     await client.perform({ kind: "collection", collection: "beads" });
@@ -938,7 +926,7 @@ describe("BdpClient", () => {
   });
 
   it("allows two concurrent dispatches for two identical continuation issuances", async () => {
-    const continuation = `${BEADS}?cursor=double-concurrent`;
+    const continuation = `${BEADS_ROUTE}?cursor=double-concurrent`;
     const transport = new GatedContinuationTransport(continuation, 2);
     const client = new BdpClient({ scope: SCOPE, transport });
     await client.perform({ kind: "collection", collection: "beads" });
@@ -957,7 +945,7 @@ describe("BdpClient", () => {
   });
 
   it("forgets only continuations owned by the selected traversal scope", async () => {
-    const continuation = `${BEADS}?cursor=owner-isolated`;
+    const continuation = `${BEADS_ROUTE}?cursor=owner-isolated`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
     const firstScope = client.createContinuationScope();
@@ -989,7 +977,7 @@ describe("BdpClient", () => {
   });
 
   it("restores a leased continuation after a protocol Problem", async () => {
-    const continuation = `${BEADS}?cursor=retry-after-problem`;
+    const continuation = `${BEADS_ROUTE}?cursor=retry-after-problem`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
     await client.perform({ kind: "collection", collection: "beads" });
@@ -1013,7 +1001,7 @@ describe("BdpClient", () => {
   });
 
   it("restores a leased continuation after caller abort", async () => {
-    const continuation = `${BEADS}?cursor=retry-after-abort`;
+    const continuation = `${BEADS_ROUTE}?cursor=retry-after-abort`;
     const transport = new GatedContinuationTransport(continuation, 1);
     const client = new BdpClient({ scope: SCOPE, transport });
     const continuationScope = client.createContinuationScope();
@@ -1109,7 +1097,7 @@ describe("BdpClient", () => {
   });
 
   it("rejects a continuation self-loop without consuming the issued capability", async () => {
-    const continuation = `${BEADS}?cursor=loop`;
+    const continuation = `${BEADS_ROUTE}?cursor=loop`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
 
@@ -1127,8 +1115,8 @@ describe("BdpClient", () => {
   });
 
   it("rejects a multi-page continuation cycle without consuming an independent issuance", async () => {
-    const first = `${BEADS}?cursor=cycle-a`;
-    const second = `${BEADS}?cursor=cycle-b`;
+    const first = `${BEADS_ROUTE}?cursor=cycle-a`;
+    const second = `${BEADS_ROUTE}?cursor=cycle-b`;
     const transport = new RecordingTransport({ items: [], next: first });
     const client = new BdpClient({ scope: SCOPE, transport });
 
@@ -1154,20 +1142,20 @@ describe("BdpClient", () => {
   });
 
   it("bounds abandoned continuation capabilities and recovers after consumption", async () => {
-    const transport = new RecordingTransport({ items: [], next: `${BEADS}?cursor=0` });
+    const transport = new RecordingTransport({ items: [], next: `${BEADS_ROUTE}?cursor=0` });
     const client = new BdpClient({ scope: SCOPE, transport });
     const continuationScope = client.createContinuationScope();
 
     for (let index = 0; index < 1_024; index += 1) {
-      transport.result = { items: [], next: `${BEADS}?cursor=${index}` };
+      transport.result = { items: [], next: `${BEADS_ROUTE}?cursor=${index}` };
       await expect(
         client.perform({ kind: "collection", collection: "beads" }, { continuationScope }),
       ).resolves.toEqual({
         items: [],
-        next: `${BEADS}?cursor=${index}`,
+        next: `${BEADS_ROUTE}?cursor=${index}`,
       });
     }
-    const overflow = `${BEADS}?cursor=overflow`;
+    const overflow = `${BEADS_ROUTE}?cursor=overflow`;
     transport.result = { items: [], next: overflow };
     await expect(
       client.perform({ kind: "collection", collection: "beads" }, { continuationScope }),
@@ -1182,7 +1170,7 @@ describe("BdpClient", () => {
         {
           kind: "collection",
           collection: "beads",
-          continuation: `${BEADS}?cursor=0`,
+          continuation: `${BEADS_ROUTE}?cursor=0`,
         },
         { continuationScope },
       ),
@@ -1196,7 +1184,7 @@ describe("BdpClient", () => {
     });
 
     client.forgetContinuations(continuationScope);
-    const afterReclamation = `${BEADS}?cursor=after-reclamation`;
+    const afterReclamation = `${BEADS_ROUTE}?cursor=after-reclamation`;
     transport.result = { items: [], next: afterReclamation };
     await expect(
       client.perform({ kind: "collection", collection: "beads" }, { continuationScope }),
@@ -1207,7 +1195,8 @@ describe("BdpClient", () => {
   });
 
   it("bounds retained continuation history and recovers after terminal consumption", async () => {
-    const continuation = (index: number | "overflow" | "recovered") => `${BEADS}?cursor=${index}`;
+    const continuation = (index: number | "overflow" | "recovered") =>
+      `${BEADS_ROUTE}?cursor=${index}`;
     const transport = new RecordingTransport({ items: [], next: continuation(0) });
     const client = new BdpClient({ scope: SCOPE, transport });
 
@@ -1326,7 +1315,7 @@ describe("BdpClient", () => {
   });
 
   it.each([
-    ["cross-kind root", `${LINKS}a`],
+    ["duplicate slash", `${BEADS}/a`],
     ["query-bearing ID", `${BEADS}a?view=properties`],
     ["encoded slash", `${BEADS}a%2Fb`],
     ["encoded backslash", `${BEADS}a%5Cb`],
@@ -1556,7 +1545,7 @@ describe("BdpClient", () => {
     await client.perform({ kind: "collection", collection: "beads" });
     await client.perform({ kind: "collection", collection: "links" });
 
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS, LINKS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE, LINKS_ROUTE]);
   });
 
   it("owns and freezes cached discovery before exposing it", async () => {
@@ -1574,7 +1563,7 @@ describe("BdpClient", () => {
       items: [],
       next: null,
     });
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE]);
   });
 
   it("does not dispatch after a caller aborts during cached discovery resolution", async () => {
@@ -1590,7 +1579,7 @@ describe("BdpClient", () => {
     controller.abort("caller stopped after cached discovery");
 
     await expect(operation).rejects.toBeInstanceOf(BdpClientOperationAbortedError);
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE]);
   });
 
   it("does not resolve public discover after a cached caller abort", async () => {
@@ -1750,7 +1739,7 @@ describe("BdpClient", () => {
       items: [],
       next: null,
     });
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, `${SCOPE}bdp.json`, BEADS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, `${SCOPE}bdp.json`, BEADS_ROUTE]);
   });
 
   it("single-flights cold discovery across concurrent operations", async () => {
@@ -1766,7 +1755,7 @@ describe("BdpClient", () => {
       { items: [], next: null },
       { items: [], next: null },
     ]);
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS, LINKS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE, LINKS_ROUTE]);
   });
 
   it("does not let one caller abort the shared cold discovery", async () => {
@@ -1785,7 +1774,7 @@ describe("BdpClient", () => {
     expect(transport.discoverySignal?.aborted).toBe(false);
     transport.finishDiscovery();
     await expect(second).resolves.toEqual({ items: [], next: null });
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, LINKS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, LINKS_ROUTE]);
   });
 
   it("close aborts and waits for an in-flight shared discovery", async () => {
@@ -1815,19 +1804,19 @@ describe("BdpClient", () => {
   });
 
   it("follows an authoritative continuation URL after Scope discovery without rebuilding it", async () => {
-    const continuation = `${SCOPE}beads/?cursor=opaque%2ftoken%7Epart&limit=7`;
+    const continuation = `${SCOPE}bdp/beads?cursor=opaque%2ftoken%7Epart&limit=7`;
     const transport = new RecordingTransport({ items: [], next: continuation });
     const client = new BdpClient({ scope: SCOPE, transport });
 
     await client.perform({ kind: "collection", collection: "beads" });
     transport.result = { items: [], next: null };
     await client.perform({ kind: "collection", collection: "beads", continuation });
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS, continuation]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE, continuation]);
   });
 
   it.each([
-    ["Bead collection", { kind: "collection", collection: "beads" }, BEADS],
-    ["Link collection", { kind: "collection", collection: "links" }, LINKS],
+    ["Bead collection", { kind: "collection", collection: "beads" }, BEADS_ROUTE],
+    ["Link collection", { kind: "collection", collection: "links" }, LINKS_ROUTE],
     ["Type inventory", { kind: "collection", collection: "types" }, `${SCOPE}types/`],
     [
       "incident-Link view",
@@ -1853,7 +1842,7 @@ describe("BdpClient", () => {
     {
       kind: "collection",
       collection: "beads",
-      continuation: `${BEADS}?cursor=opaque`,
+      continuation: `${BEADS_ROUTE}?cursor=opaque`,
       type: TASK_TYPE,
     },
     {
@@ -1914,7 +1903,7 @@ describe("BdpClient", () => {
     await expect(
       client.perform({ kind: "collection", collection: "beads" }),
     ).rejects.toBeInstanceOf(BdpClientClosedError);
-    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS]);
+    expect(transport.urls).toEqual([`${SCOPE}bdp.json`, BEADS_ROUTE]);
   });
 
   it("close is idempotent while several rejecting operations settle", async () => {
@@ -2180,9 +2169,6 @@ describe("createFetchTransport", () => {
             bdpVersion: "0",
             profile: "read",
             scope: SCOPE,
-            beads: BEADS,
-            links: `${SCOPE}links/`,
-            types: `${SCOPE}types/`,
           }),
           { headers: { "content-type": "application/json" } },
         );
@@ -2202,7 +2188,7 @@ describe("createFetchTransport", () => {
       status: 503,
       detail: "the server returned a malformed JSON response",
     });
-    expect(urls).toEqual([SCOPE, `${SCOPE}bdp.json`, BEADS]);
+    expect(urls).toEqual([SCOPE, `${SCOPE}bdp.json`, BEADS_ROUTE]);
     expect(requests.map(({ redirect }) => redirect)).toEqual(["manual", "manual", "manual"]);
     expect(new Headers(requests[1]?.headers).get("accept")).toBe("application/json");
     expect(new Headers(requests[2]?.headers).get("accept")).toBe("application/json");
@@ -2894,8 +2880,6 @@ function validDiscovery(): Record<string, unknown> {
     bdpVersion: "0",
     profile: "read",
     scope: SCOPE,
-    beads: BEADS,
-    links: LINKS,
     types: `${SCOPE}types/`,
   };
 }
@@ -3033,8 +3017,6 @@ class DelayedDiscoveryTransport implements BdpTransport {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: BEADS,
-          links: LINKS,
           types: `${SCOPE}types/`,
         } as Body,
       };
@@ -3074,9 +3056,6 @@ class BlockingTransport implements BdpTransport {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         } as Body,
       };
     }
@@ -3115,9 +3094,6 @@ class MultiBlockingTransport implements BdpTransport {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         } as Body,
       };
     }

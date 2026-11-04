@@ -340,10 +340,10 @@ function canonical(scope: string, spelling: string): string {
 }
 function resourcePath(scope: string, uri: string, kind: ResourceKind): string | undefined {
   const path = local(scope, uri);
-  if (!path?.startsWith(kind === "bead" ? "beads/" : "links/")) return undefined;
+  if (path === undefined) return undefined;
   try {
     parseCanonicalHttpUrl(uri);
-    assertCanonicalPathSegments(path, "Resource path");
+    assertCanonicalPathSegments(path, `${kind} Resource path`);
   } catch {
     return undefined;
   }
@@ -624,7 +624,7 @@ function evaluate(
     const path = resourcePath(scope, canonical(scope, spelling), resourceKind);
     if (path === undefined)
       throw new TypeError("creation ID must already have canonical Resource grammar and kind");
-    if (supplied === undefined && path.indexOf("/", 6) !== -1)
+    if (supplied === undefined && path.includes("/"))
       throw new Error("allocator must return one opaque Resource identity segment");
     id = path;
     if (supplied !== undefined)
@@ -638,8 +638,8 @@ function evaluate(
         throw new Error("allocator returned a committed Resource identity");
       fail("identity-taken");
     }
-    if (resourceKind === "bead" && tx.alias(id.slice(6)) !== undefined) {
-      if (supplied === undefined) throw new Error("allocator returned a live Bead alias path");
+    if (id.startsWith("alias/") && tx.alias(id.slice("alias/".length)) !== undefined) {
+      if (supplied === undefined) throw new Error("allocator returned a live Resource alias path");
       fail("alias-path-taken");
     }
   } else {
@@ -704,6 +704,8 @@ function evaluate(
     if (path !== undefined) {
       if (!resourcePath(scope, absolute, "bead"))
         bad("Link endpoint is not a Bead reference", options);
+      const endpointResource = tx.resource(path);
+      if (endpointResource?.kind === "link") bad("Link endpoint is not a Bead reference", options);
       loadVisible(absolute, "bead");
     }
     return (

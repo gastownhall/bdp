@@ -328,7 +328,13 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
           return result.response;
         },
         async read(url: URL) {
-          if (classifyAliasPath(url, scope) !== undefined) return reads.resolveAlias(url.href);
+          const aliasPath = classifyAliasPath(url, scope);
+          if (isReadProblem(aliasPath)) return { kind: "problem" as const, problem: aliasPath };
+          if (aliasPath !== undefined) {
+            const alias = await reads.resolveAlias(url.href);
+            if (alias.kind === "target" || alias.problem.code !== "resource-not-found")
+              return alias;
+          }
           const request = requestFromUrl(url, scope);
           if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
           const result = await reads.perform(request);

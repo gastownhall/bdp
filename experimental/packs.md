@@ -306,7 +306,7 @@ The next comparison must include generic labelled revisions or Editions that sel
 
 ### Graph-data namespace and protocol navigation
 
-The service's chosen bdp/ prefix holds protocol navigation and is reserved from ordinary Bead allocation in the current design. Those HTTP endpoints are addressable; they are not ordinary graph Beads. Existing Core more generally protects the actual advertised navigation addresses against conflicting Resource/alias allocation and does not mandate the same literal prefix for every service.
+The fixed `<scope>/bdp/beads` and `<scope>/bdp/links` paths are protocol inventory routes, not Bead or Link identities. Core reserves `bdp/` for protocol navigation; it does not reserve `beads/` or `links/` as Resource-ID prefixes, and either path spelling may identify either Resource kind. This is separate from `sys/`, the selected name for the service-managed graph-data namespace: `sys/packages` is an actual registry Bead whose ID appears in ordinary inventory and uses ordinary Resource reads, revisions, authorization and Links. Whether `sys/` is reserved against ordinary allocation, and how the registry URI is discovered, remain package decisions; this draft does not amend Core's general identity rules.
 
 **Selected namespace:** service-managed graph data uses the name sys/. The selected registry-Link model uses a real registry Bead, with sys/packages as its working location. Service-managed Beads and Links there use ordinary typed Resource reads, queries, revisions and authorization. Path spelling does not confer authority, Type membership or containment, and does not create a parent Bead automatically.
 

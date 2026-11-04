@@ -7,6 +7,7 @@ import {
   ContinuationRegistryProtocolError,
   type ContinuationReservation,
   localRefusal,
+  ReadSessionCapabilityError,
   ReadSessionBodyInspectionError,
   ReadSessionLocalError,
   type ReadSessionRefusal,
@@ -60,7 +61,7 @@ import {
   referenceUri,
 } from "@bdp/protocol";
 
-export type ReadRoots = Pick<ReadDiscovery, "scope" | "beads" | "links" | "types">;
+export type ReadRoots = Pick<ReadDiscovery, "scope" | "types">;
 const capturedRequests = new WeakSet<object>();
 
 type ReadRequestVariantMap = {
@@ -89,6 +90,10 @@ type ReadRequestVariantMap = {
     ReadRequest,
     { readonly kind: "resource"; readonly resource: "type" }
   >;
+  readonly "resource:resource": Extract<
+    ReadRequest,
+    { readonly kind: "resource"; readonly resource: "resource" }
+  >;
   readonly "properties:bead": Extract<
     ReadRequest,
     { readonly kind: "properties"; readonly resource: "bead" }
@@ -96,6 +101,10 @@ type ReadRequestVariantMap = {
   readonly "properties:link": Extract<
     ReadRequest,
     { readonly kind: "properties"; readonly resource: "link" }
+  >;
+  readonly "properties:resource": Extract<
+    ReadRequest,
+    { readonly kind: "properties"; readonly resource: "resource" }
   >;
   readonly "bead-links": Extract<ReadRequest, { readonly kind: "bead-links" }>;
 };
@@ -136,6 +145,8 @@ function visitReadRequest<Result>(
           return visitor["resource:link"](request);
         case "type":
           return visitor["resource:type"](request);
+        case "resource":
+          return visitor["resource:resource"](request);
       }
       return unreachableReadRequestVariant(request);
     case "properties":
@@ -144,6 +155,8 @@ function visitReadRequest<Result>(
           return visitor["properties:bead"](request);
         case "link":
           return visitor["properties:link"](request);
+        case "resource":
+          return visitor["properties:resource"](request);
       }
       return unreachableReadRequestVariant(request);
     case "bead-links":
@@ -276,6 +289,13 @@ const READ_REQUEST_DESCRIPTORS = {
     requiredUrlFields: ["id"],
     continuationIncompatibleFields: [],
   },
+  "resource:resource": {
+    kind: "resource",
+    qualifierValue: "resource",
+    allowedFields: ["kind", "resource", "id"],
+    requiredUrlFields: ["id"],
+    continuationIncompatibleFields: [],
+  },
   "properties:bead": {
     kind: "properties",
     qualifierValue: "bead",
@@ -286,6 +306,13 @@ const READ_REQUEST_DESCRIPTORS = {
   "properties:link": {
     kind: "properties",
     qualifierValue: "link",
+    allowedFields: ["kind", "resource", "id"],
+    requiredUrlFields: ["id"],
+    continuationIncompatibleFields: [],
+  },
+  "properties:resource": {
+    kind: "properties",
+    qualifierValue: "resource",
     allowedFields: ["kind", "resource", "id"],
     requiredUrlFields: ["id"],
     continuationIncompatibleFields: [],
@@ -502,8 +529,11 @@ function readRequestUrl(
       resourceUrl(scope, resourceRequest.id, resourceRequest.resource),
     "resource:type": (resourceRequest) =>
       resourceUrl(scope, resourceRequest.id, resourceRequest.resource, externalTypeDescriptorIds),
+    "resource:resource": (resourceRequest) =>
+      resourceUrl(scope, resourceRequest.id, resourceRequest.resource),
     "properties:bead": (propertiesRequest) => propertiesUrl(propertiesRequest, scope),
     "properties:link": (propertiesRequest) => propertiesUrl(propertiesRequest, scope),
+    "properties:resource": (propertiesRequest) => propertiesUrl(propertiesRequest, scope),
     "bead-links": (beadLinksRequest) => beadLinksUrl(beadLinksRequest, scope),
   });
 }
@@ -519,7 +549,7 @@ function collectionRequestUrl(
 }
 
 function propertiesUrl(
-  request: ReadRequestVariantMap["properties:bead" | "properties:link"],
+  request: ReadRequestVariantMap["properties:bead" | "properties:link" | "properties:resource"],
   scope: AbsoluteHttpUrl,
 ): AbsoluteHttpUrl | ReadSessionRefusal {
   const id = resourceUrl(scope, request.id, request.resource);
@@ -584,8 +614,15 @@ function validateReadBody(
           throw new ReadResponseValidationError("wrong Type ID");
         return { kind: "success", body: descriptor };
       },
+      "resource:resource": () => {
+        if (body === null || typeof body !== "object" || Array.isArray(body))
+          throw new ReadResponseValidationError("invalid Resource record");
+        if ("source" in body) return { kind: "success", body: parseLinkRecord(body) };
+        return { kind: "success", body: parseBeadRecord(body) };
+      },
       "properties:bead": () => ({ kind: "success", body: parsePropertiesRecord(body) }),
       "properties:link": () => ({ kind: "success", body: parsePropertiesRecord(body) }),
+      "properties:resource": () => ({ kind: "success", body: parsePropertiesRecord(body) }),
       "bead-links": () => {
         if (continuation?.kind !== "bead-links")
           throw new ReadResponseValidationError("missing incident-Link continuation context");
@@ -667,13 +704,14 @@ function validateTypeInventory(page: TypeInventory, scope: AbsoluteHttpUrl): Typ
 function collectionUrl(
   request: BeadCollectionRequest | LinkCollectionRequest | TypeInventoryRequest,
   discovery: ReadRoots,
-): AbsoluteHttpUrl {
-  const root =
-    request.collection === "beads"
-      ? discovery.beads
-      : request.collection === "links"
-        ? discovery.links
-        : discovery.types;
+): AbsoluteHttpUrl | ReadSessionRefusal {
+  const root = request.collection === "beads"
+    ? new URL("bdp/beads", discovery.scope).href
+    : request.collection === "links"
+      ? new URL("bdp/links", discovery.scope).href
+      : discovery.types;
+  if (root === undefined)
+    throw new ReadSessionCapabilityError("Types inventory is not advertised by this scope");
   const parameters: Record<string, string> = {};
   for (const key of ["type", "conformsTo", "source", "target", "endpoint", "selector"] as const) {
     const value = Object.hasOwn(request, key)
@@ -683,7 +721,7 @@ function collectionUrl(
   }
   if (Object.hasOwn(request, "limit") && request.limit !== undefined)
     parameters.limit = String(request.limit);
-  return appendQuery(root, parameters);
+  return appendQuery(root as AbsoluteHttpUrl, parameters);
 }
 
 function appendQuery(url: AbsoluteHttpUrl, parameters: Readonly<Record<string, string>>): string {

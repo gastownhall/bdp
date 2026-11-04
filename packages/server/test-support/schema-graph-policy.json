@@ -12,7 +12,7 @@
     "packages/server/src/installed-schema-builtins.ts": "9fb097b1c5d431d7e1095523ac5fba82f591718abd217d6c8b889a3a731b08f7",
     "packages/server/src/installed-contract-artifact.ts": "db8f3b1e0a4b8dc1a07a56bcadb66d3cdbebff114fb119becec79d11474eb7f0",
     "packages/protocol/src/json-admission.ts": "fad4bd5159e7ff9a309d9c094c0c8beb950593a60d69f088971cb9bb6b84e76e",
-    "packages/protocol/src/read-values.ts": "6ff2cd2456a5487ded968bac6651164ed4a82ad665b8896986accfd662688482",
+    "packages/protocol/src/read-values.ts": "3100e268f8690375522e4aeb2f659e85a5a4c7a8dcb6bfcf5ed9a4fcb9d3570d",
     "packages/protocol/src/type-conformance.ts": "f13f76fb51b62934353acea8cecc0ccb0a41482f96219a497e6bc9f4e6c14ab7",
     "packages/protocol/src/index.ts": "bcf28fa305d86cacaf8c37ca8d074742b20e8d755e21621af62fd28e53956334",
     "packages/protocol/src/json-values.ts": "9a1cd0b12ccd41913e2874673fdb2a24ae7925d7e4e880f50cecc717dadec591",

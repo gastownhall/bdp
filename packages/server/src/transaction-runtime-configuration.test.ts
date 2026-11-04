@@ -148,9 +148,9 @@ it("serves a real default compiled canonical runtime and detaches inputs and sea
   const record = await wire(runtime.listenUrl, "canonical.test", "/acme/beads/a");
   expect(record.status).toBe(200);
   expect(JSON.parse(record.body).properties).toEqual({ n: 1 });
-  expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).body).toContain(
-    '"name":"Item"',
-  );
+  expect(
+    (await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).body,
+  ).toContain('"name":"Item"');
 });
 
 it("separates all four authority cases, nondefault ports and request default-port refusal", async () => {
@@ -175,7 +175,9 @@ it("separates all four authority cases, nondefault ports and request default-por
     ).toBe(400);
   }
   expect((await wire(canonical.listenUrl, "canonical.test", "/acme/beads/a")).status).toBe(404);
-  expect((await wire(canonical.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
+  expect(
+    (await wire(canonical.listenUrl, "canonical.test", "/acme/types/item")).status,
+  ).toBe(200);
   const options = fixture();
   options.authorityMode = "listener";
   const listener = await start(options);
@@ -188,15 +190,20 @@ it("separates all four authority cases, nondefault ports and request default-por
   );
   for (const field of ["artifactIdentity", "policyIdentity", "authenticationIdentity"] as const)
     expect(listenerMetadata[field]).toBe(canonicalMetadata[field]);
-  expect((await wire(listener.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(400);
   expect(
-    (await wire(listener.listenUrl, new URL(listener.listenUrl).host, "/acme/types/item")).status,
+    (await wire(listener.listenUrl, "canonical.test", "/acme/types/item")).status,
+  ).toBe(400);
+  expect(
+    (await wire(listener.listenUrl, new URL(listener.listenUrl).host, "/acme/types/item"))
+      .status,
   ).toBe(200);
   const nondefault = await start(fixture("https://canonical.test:8443/acme/"));
-  expect((await wire(nondefault.listenUrl, "canonical.test:8443", "/acme/types/item")).status).toBe(
-    200,
-  );
-  expect((await wire(nondefault.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(400);
+  expect(
+    (await wire(nondefault.listenUrl, "canonical.test:8443", "/acme/types/item")).status,
+  ).toBe(200);
+  expect(
+    (await wire(nondefault.listenUrl, "canonical.test", "/acme/types/item")).status,
+  ).toBe(400);
   await expect(
     startTransactionRuntime({ ...fixture(), scope: "https://canonical.test:443/acme/" }),
   ).rejects.toThrow();
@@ -285,7 +292,9 @@ it.each([
 it("suppresses numeric seams and schema-free metadata without changing private serving", async () => {
   const runtime = await start(fixture(), { receiptMaximumItems: 2 });
   expect(runtime.configurationMetadata).toBeUndefined();
-  expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
+  expect(
+    (await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status,
+  ).toBe(200);
   const options = fixture();
   const { artifacts: _artifacts, ...schemaFree } = options;
   const descriptor = {
@@ -488,9 +497,9 @@ it("detaches supplied Type inventory and nested seams without qualifying injecte
       })
     ).status,
   ).toBe(200);
-  expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).body).toContain(
-    '"name":"Item"',
-  );
+  expect(
+    (await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).body,
+  ).toContain('"name":"Item"');
 });
 it("retains exact supplied closure refusal and closes startup resources for a valid retry", async () => {
   const options = fixture(),
@@ -502,7 +511,9 @@ it("retains exact supplied closure refusal and closes startup resources for a va
   expect(existsSync(path.join(options.directory, "transaction.sqlite"))).toBe(false);
   const runtime = await start(options);
   expect(runtime.configurationMetadata).toBeDefined();
-  expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
+  expect(
+    (await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status,
+  ).toBe(200);
 });
 it("refuses invalid numeric seams before store provisioning", async () => {
   const options = fixture();
@@ -552,7 +563,9 @@ it("binds credentials through the versioned credential domain without asserting 
   );
   // The predictable fixture tokens intentionally demonstrate no entropy-provenance
   // claim; installed evidence must generate credentials with a CSPRNG.
-  expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
+  expect(
+    (await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status,
+  ).toBe(200);
 });
 
 it("hashes actual stream defaults and all four transport timers; timing seams remain unattestable", async () => {

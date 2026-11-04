@@ -11,9 +11,7 @@ const metadata: ReadDiscovery = {
   bdpVersion: "0",
   profile: "read",
   scope,
-  beads: `${scope}beads/`,
-  links: `${scope}links/`,
-  types: `${scope}types/`,
+
   historicalResolution: { version: 1 },
 };
 const cursor = (n: number) => `${id}?view=versions&cursor=${n}`;
@@ -56,7 +54,7 @@ describe("shared Read/History continuation core", () => {
     const owner = core.createContinuationScope();
     for (let n = 0; n < 1023; n++) finish(history, undefined, cursor(n), owner);
     const prepared = read.prepare({ kind: "collection", collection: "beads" });
-    const staged = prepared.validate({ items: [], next: `${scope}beads/?cursor=read` });
+    const staged = prepared.validate({ items: [], next: `${scope}bdp/beads?cursor=read` });
     if (staged.kind !== "success") throw new Error("Read stage");
     prepared.commit(staged.value);
     prepared.release();

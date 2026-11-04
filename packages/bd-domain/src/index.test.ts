@@ -147,8 +147,8 @@ describe("bd readiness", () => {
   it("follows every authoritative bead and incident-link continuation", async () => {
     const first = bead("a", "open");
     const second = bead("b", "open");
-    const continuation = `${SCOPE}beads/?cursor=opaque-beads`;
-    const linkContinuation = `${SCOPE}beads/${encodeURIComponent("a")}?cursor=opaque-links`;
+    const continuation = `${SCOPE}bdp/beads?cursor=opaque-beads`;
+    const linkContinuation = `${SCOPE}bdp/beads/${encodeURIComponent("a")}?cursor=opaque-links`;
     const requests: string[] = [];
     const client = {
       scope: SCOPE,
@@ -161,9 +161,6 @@ describe("bd readiness", () => {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         };
       },
       async perform(request: { readonly kind: string; readonly continuation?: string }) {
@@ -211,12 +208,9 @@ describe("bd readiness", () => {
               bdpVersion: "0",
               profile: "read",
               scope: SCOPE,
-              beads: `${SCOPE}beads/`,
-              links: `${SCOPE}links/`,
-              types: `${SCOPE}types/`,
             } as Body,
           };
-        if (url === `${SCOPE}beads/`)
+        if (url === `${SCOPE}bdp/beads`)
           return { kind: "success", body: { items: [openCollectionItem], next: null } as Body };
         if (url === continuation)
           return { kind: "success", body: { items: [], next: null } as Body };
@@ -258,9 +252,6 @@ describe("bd readiness", () => {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         };
       },
       async perform(request: {
@@ -299,16 +290,13 @@ describe("bd readiness", () => {
               bdpVersion: "0",
               profile: "read",
               scope: SCOPE,
-              beads: `${SCOPE}beads/`,
-              links: `${SCOPE}links/`,
-              types: `${SCOPE}types/`,
             } as Body,
           });
-        if (url === `${SCOPE}beads/`) {
+        if (url === `${SCOPE}bdp/beads`) {
           page += 1;
           return Promise.resolve({
             kind: "success",
-            body: { items: [], next: `${SCOPE}beads/?cursor=failed-${page}` } as Body,
+            body: { items: [], next: `${SCOPE}bdp/beads?cursor=failed-${page}` } as Body,
           });
         }
         return Promise.resolve({
@@ -335,8 +323,8 @@ describe("bd readiness", () => {
   });
 
   it("does not revoke an unrelated traversal's continuation after readiness fails", async () => {
-    const unrelatedContinuation = `${SCOPE}beads/?cursor=unrelated`;
-    const readinessContinuation = `${SCOPE}beads/?cursor=readiness`;
+    const unrelatedContinuation = `${SCOPE}bdp/beads?cursor=unrelated`;
+    const readinessContinuation = `${SCOPE}bdp/beads?cursor=readiness`;
     let initialCollections = 0;
     const transport: BdpTransport = {
       discover: () =>
@@ -352,12 +340,9 @@ describe("bd readiness", () => {
               bdpVersion: "0",
               profile: "read",
               scope: SCOPE,
-              beads: `${SCOPE}beads/`,
-              links: `${SCOPE}links/`,
-              types: `${SCOPE}types/`,
             } as Body,
           });
-        if (url === `${SCOPE}beads/`) {
+        if (url === `${SCOPE}bdp/beads`) {
           initialCollections += 1;
           return Promise.resolve({
             kind: "success",
@@ -421,9 +406,6 @@ describe("bd readiness", () => {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         };
       },
       async perform() {
@@ -451,9 +433,6 @@ describe("bd readiness", () => {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         };
       },
       async perform(request: { readonly kind: string }) {
@@ -484,9 +463,6 @@ describe("bd readiness", () => {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         };
       },
       async perform(request: { readonly kind: string }) {
@@ -494,7 +470,8 @@ describe("bd readiness", () => {
         incidentRequests += 1;
         return {
           items: [],
-          next: incidentRequests % 5_000 === 0 ? null : `${SCOPE}links/?cursor=${incidentRequests}`,
+          next:
+            incidentRequests % 5_000 === 0 ? null : `${SCOPE}bdp/links?cursor=${incidentRequests}`,
         };
       },
     };
@@ -508,7 +485,7 @@ describe("bd readiness", () => {
   });
 
   it("fails boundedly when a continuation cycles", async () => {
-    const continuation = `${SCOPE}beads/?cursor=cycle`;
+    const continuation = `${SCOPE}bdp/beads?cursor=cycle`;
     const client = {
       createContinuationScope() {
         return {} as never;
@@ -518,9 +495,6 @@ describe("bd readiness", () => {
           bdpVersion: "0",
           profile: "read",
           scope: SCOPE,
-          beads: `${SCOPE}beads/`,
-          links: `${SCOPE}links/`,
-          types: `${SCOPE}types/`,
         };
       },
       async perform() {

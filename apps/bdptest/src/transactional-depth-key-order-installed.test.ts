@@ -288,7 +288,7 @@ const requests = [
     index: 13,
     label: "final-complete-collection",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/?limit=32",
+    url: "https://reference.invalid/acme/bdp/beads?limit=32",
     key: null,
     accept: "application/json",
     contentType: null,
@@ -338,7 +338,7 @@ it("observes installed retained key conflicts and fresh deep carrier execution",
     { method: "GET", url: `${scope}beads/depth-b-a` },
     { method: "POST", url: `${scope}operations/create-bead` },
     { method: "GET", url: `${scope}beads/depth-s-a` },
-    { method: "GET", url: `${scope}beads/?limit=32` },
+    { method: "GET", url: `${scope}bdp/beads?limit=32` },
   ];
   const savedResources: Record<string, unknown>[] = [];
   const receiptIds = new Set<string>();

@@ -38,7 +38,7 @@ const SCOPE = "https://beads.example/acme/";
 describe("alias resolution", () => {
   const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
   const port: ScopePort = {
-    perform: () => Promise.reject(new Error("alias tests never reach the port")),
+    perform: () => Promise.resolve(scopePortProblem(readProblem("resource-not-found"))),
   };
   function aliasServer(aliases?: Readonly<Record<string, AbsoluteHttpUrl>>) {
     return createReadServer({
@@ -115,10 +115,10 @@ describe("alias resolution", () => {
     ).toThrow("serviceDescription must not live beneath the alias root");
   });
 
-  it("refuses composition with a noncanonical alias path or a non-Bead target", () => {
+  it("refuses composition with a noncanonical alias path or a noncanonical target", () => {
     expect(() => aliasServer({ "bad//path": `${scope}beads/demo-f` as AbsoluteHttpUrl })).toThrow();
-    expect(() => aliasServer({ ok: `${scope}links/demo-b-a` as AbsoluteHttpUrl })).toThrow();
-    expect(() => aliasServer({ ok: `${scope}alias/other` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: `${scope}links//demo-b-a` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: `${scope}alias//other` as AbsoluteHttpUrl })).toThrow();
     expect(() =>
       aliasServer({ ok: "https://elsewhere.example/beads/x" as AbsoluteHttpUrl }),
     ).toThrow();
@@ -445,7 +445,7 @@ describe("Read server contract", () => {
       await expect(
         server.perform(
           { kind: "collection", collection: "beads" },
-          { httpRequest: new Request(`${SCOPE}beads/`, { headers }) },
+          { httpRequest: new Request(`${SCOPE}bdp/beads`, { headers }) },
         ),
       ).resolves.toEqual(readProblem("forbidden"));
       await expect(
@@ -535,7 +535,7 @@ describe("Read server contract", () => {
     ["malformed collection", { kind: "success", body: { items: [], next: "not-a-url" } }],
     [
       "unsupported adapter continuation",
-      { kind: "success", body: { items: [], next: `${SCOPE}beads/?cursor=opaque` } },
+      { kind: "success", body: { items: [], next: `${SCOPE}bdp/beads?cursor=opaque` } },
     ],
   ])("fails closed for a %s ScopePort result", async (_label, result) => {
     const server = readServer({
@@ -680,7 +680,7 @@ describe("Read server contract", () => {
       {
         kind: "collection",
         collection: "links",
-        source: `${SCOPE}links/a-b`,
+        source: `${SCOPE}links//a-b`,
       },
       {
         kind: "collection",
@@ -697,8 +697,8 @@ describe("Read server contract", () => {
         collection: "beads",
         conformsTo: "not a url" as never,
       },
-      { kind: "collection", collection: "beads", type: `${SCOPE}beads/a` },
-      { kind: "collection", collection: "links", conformsTo: `${SCOPE}links/a-b` },
+      { kind: "collection", collection: "beads", type: "not a URL" as never },
+      { kind: "collection", collection: "links", conformsTo: "not a URL" as never },
     ];
 
     for (const request of cases)
@@ -984,13 +984,13 @@ describe("Read server contract", () => {
     const cases: readonly ReadRequest[] = [
       { kind: "resource", resource: "bead", id: "not a URL" as never },
       { kind: "resource", resource: "bead", id: `${SCOPE}beads/%61` },
-      { kind: "resource", resource: "bead", id: `${SCOPE}links/a-b` },
+      { kind: "resource", resource: "bead", id: `${SCOPE}links//a-b` },
       {
         kind: "resource",
         resource: "link",
         id: "https://other.example/acme/links/a-b",
       },
-      { kind: "resource", resource: "link", id: `${SCOPE}beads/a` },
+      { kind: "resource", resource: "link", id: `${SCOPE}beads//a` },
     ];
 
     for (const request of cases)
@@ -1041,7 +1041,7 @@ describe("Read server contract", () => {
         resource: "bead",
         id: "https://other.example/acme/beads/a",
       },
-      { kind: "properties", resource: "bead", id: `${SCOPE}links/a-b` },
+      { kind: "properties", resource: "bead", id: `${SCOPE}links//a-b` },
       { kind: "properties", resource: "link", id: `${SCOPE}links/%61-b` },
       {
         kind: "properties",
@@ -1063,7 +1063,7 @@ describe("Read server contract", () => {
     const server = readServer(new ResultPort(requests));
     const cases: readonly ReadRequest[] = [
       { kind: "bead-links", bead: `${SCOPE}beads/%61`, direction: "both" },
-      { kind: "bead-links", bead: `${SCOPE}links/a-b`, direction: "both" },
+      { kind: "bead-links", bead: `${SCOPE}links//a-b`, direction: "both" },
       {
         kind: "bead-links",
         bead: "https://other.example/acme/beads/a",
@@ -1266,7 +1266,7 @@ describe("Read server contract", () => {
         token,
         authorizationView: "test-view",
         scopeEpoch: "test-epoch",
-        projection: `${SCOPE}beads/?limit=1`,
+        projection: `${SCOPE}bdp/beads?limit=1`,
       }),
     ).toThrowError(expect.objectContaining({ code: "configuration-error" }));
   });
@@ -1644,9 +1644,6 @@ function resultFor<Request extends ReadRequest>(request: Request): ReadBodyFor<R
         bdpVersion: "0",
         profile: "read",
         scope: SCOPE,
-        beads: `${SCOPE}beads/`,
-        links: `${SCOPE}links/`,
-        types: `${SCOPE}types/`,
       } satisfies ReadBodyFor<ScopeDiscoveryRequest>;
       break;
     case "collection":

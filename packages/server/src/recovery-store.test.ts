@@ -262,15 +262,21 @@ describe("durable reference ownership and transaction interface", () => {
     expect(store.read((tx) => tx.alias("alias/latest"))).toBe("beads/a");
     expect(() =>
       effect(store, "collision", (tx) =>
-        tx.putResource({ id: "beads/alias/latest", kind: "bead", bodyJson: "{}" }),
+        tx.putResource({ id: "alias/alias/latest", kind: "bead", bodyJson: "{}" }),
       ),
     ).toThrow(expect.objectContaining({ reason: "alias-path-live" }));
+    effect(store, "neutral-beads-prefix", (tx) =>
+      tx.putResource({ id: "beads/alias/latest", kind: "bead", bodyJson: "{}" }),
+    );
+    effect(store, "ordinary-alias-prefix", (tx) =>
+      tx.putResource({ id: "alias/a", kind: "bead", bodyJson: "{}" }),
+    );
     effect(store, "delete", (tx) => tx.deleteResource("beads/a"));
     expect(store.read((tx) => tx.alias("alias/latest"))).toBe("beads/a");
     expect(() => effect(store, "new-alias", (tx) => tx.putAlias("other", "beads/a"))).toThrow(
       expect.objectContaining({ reason: "alias-target-not-live" }),
     );
-    expect(() => effect(store, "old-path", (tx) => tx.putAlias("a", "beads/a"))).toThrow(
+    expect(() => effect(store, "old-path", (tx) => tx.putAlias("a", "alias/a"))).toThrow(
       expect.objectContaining({ reason: "alias-path-committed" }),
     );
   });
@@ -633,7 +639,7 @@ describe("durable reference ownership and transaction interface", () => {
     const bad = store.admit("alice", ["bad"]);
     expect(() =>
       store.executeMember(bad, "bad", (tx) => {
-        tx.putResource({ id: "beads/latest", kind: "bead", bodyJson: "{}" });
+        tx.putResource({ id: "alias/latest", kind: "bead", bodyJson: "{}" });
         return outcome();
       }),
     ).toThrow(expect.objectContaining({ reason: "alias-path-live" }));
@@ -850,7 +856,7 @@ describe("allocation and recovery integrity", () => {
     let allocated = "";
     store.executeMember(admission, "seed", (tx) => {
       allocated = tx.allocateResourceId("bead");
-      expect(allocated).toMatch(/^beads\/[a-f0-9]{64}$/);
+      expect(allocated).toMatch(/^[a-f0-9]{64}$/);
       expect(tx.identityWasCommitted(allocated)).toBe(false);
       tx.putResource({ id: allocated, kind: "bead", bodyJson: "{}" });
       expect(tx.identityWasCommitted(allocated)).toBe(true);

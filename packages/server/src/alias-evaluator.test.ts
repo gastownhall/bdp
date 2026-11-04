@@ -36,12 +36,15 @@ afterEach(() => {
   for (const directory of roots.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 function bead(id: string, extra = {}): StoredResource {
+  return beadAt(`beads/${id}`, extra);
+}
+function beadAt(id: string, extra = {}): StoredResource {
   return {
-    id: `beads/${id}`,
+    id,
     kind: "bead",
     bodyJson: JSON.stringify(
       parseBeadRecord({
-        id: `${scope}beads/${id}`,
+        id: `${scope}${id}`,
         type: beadType,
         revision: `revision-${id}`,
         properties: {},
@@ -260,7 +263,7 @@ describe("owned-member alias evaluator", () => {
     "https://elsewhere.test/beads/a",
     "urn:example:bead",
   ])("refuses noncanonical target %s with one diagnostic and no alias chain", (target) => {
-    const f = fixture();
+    const f = fixture([bead("a"), bead("b"), link("edge", "a", "b")]);
     f.mutate((tx) => tx.putAlias("elsewhere", "beads/a"));
     const result = f.execute("putAlias", { alias: "alias/new", target });
     failure(result, "validation-failed");
@@ -286,8 +289,9 @@ describe("owned-member alias evaluator", () => {
     "checks permanent Bead identity before unknown/invalid target and authorization (deleted=%s)",
     (deleted) => {
       const f = fixture();
+      f.mutate((tx) => tx.putResource(beadAt("alias/a")));
       if (deleted) {
-        f.mutate((tx) => tx.deleteResource("beads/a"));
+        f.mutate((tx) => tx.deleteResource("alias/a"));
         f.reopen();
       }
       const policy = { canRead: vi.fn(() => false), canWriteBead: vi.fn(() => false) };
@@ -309,7 +313,7 @@ describe("owned-member alias evaluator", () => {
     expect(f.alias("shared")).toBe("beads/a");
   });
 
-  it("allows Link creation at an already live alias path", () => {
+  it("allows a distinct Link path that shares the alias's final segment", () => {
     const f = fixture();
     f.execute("putAlias", { alias: "alias/shared", target: "beads/a" });
     f.mutate((tx) => tx.putResource(link("shared", "a", "b")));
@@ -481,9 +485,9 @@ describe("owned-member alias evaluator", () => {
   it("allows Bead creation at a path only after its alias was deleted", () => {
     const f = fixture();
     f.execute("putAlias", { alias: "alias/reusable", target: "beads/a" });
-    expect(() => f.mutate((tx) => tx.putResource(bead("reusable")))).toThrow();
+    expect(() => f.mutate((tx) => tx.putResource(beadAt("alias/reusable")))).toThrow();
     f.execute("deleteAlias", { alias: "alias/reusable" });
-    f.mutate((tx) => tx.putResource(bead("reusable")));
+    f.mutate((tx) => tx.putResource(beadAt("alias/reusable")));
     failure(
       f.execute("putAlias", { alias: "alias/reusable", target: "beads/a" }),
       "identity-taken",
@@ -558,7 +562,7 @@ describe("owned-member alias evaluator", () => {
 
   it("returns the complete unbounded diagnostic and admits exactly its byte bound", () => {
     const f = fixture();
-    const input = { alias: "alias/new", target: "links/no" };
+    const input = { alias: "alias/new", target: "alias/not-a-target" };
     const result = f.execute("putAlias", input, { limits: {} });
     failure(result, "validation-failed");
     if (result.effect !== "failure") throw new Error("missing diagnostic");

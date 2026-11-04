@@ -404,7 +404,8 @@ it("symbolizes original locators across both slots without a live lookup and pre
     );
   expect(compare({ uri: `${scope}alias/y`, revision: "opaque" }, "alias/x")).toBe("pending");
   expect(compare({ uri: "alias/x", revision: "different" }, "alias/y")).toBe("conflict");
-  expect(compare({ uri: "alias/x", revision: "opaque" }, "links/not-a-bead")).toBe("conflict");
+  // The path no longer proves that an identity is a Link; kind comes from the row.
+  expect(compare({ uri: "alias/x", revision: "opaque" }, "links/not-a-bead")).toBe("pending");
   const repeated = dependencyTemplate(
     "attempt",
     sequence([{ operation: "createLink", idempotencyKey: "edge", ...edge("alias/x", "alias/x") }])

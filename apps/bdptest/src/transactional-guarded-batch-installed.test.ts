@@ -403,7 +403,7 @@ it("preserves one guarded batch winner and rolls back the losing marker through 
           : index === 5
             ? receiptUrl
             : index === 6
-              ? `${scope}beads/?limit=32`
+              ? `${scope}bdp/beads?limit=32`
               : `${scope}events/`;
       if (!literal) throw new Error("guarded-batch missing issued receipt root");
       const url = new URL(literal);

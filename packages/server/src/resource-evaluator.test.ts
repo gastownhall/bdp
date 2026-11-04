@@ -89,7 +89,7 @@ function fixture(descriptors: readonly TypeDescriptor[] = [beadDescriptor(), lin
     identityWasCommitted: (id) => identities.has(id),
     alias: (id) => aliases.get(id),
     installedType: (id) => installed.get(id),
-    allocateResourceId: (kind) => `${kind === "bead" ? "beads" : "links"}/generated-${++nextId}`,
+    allocateResourceId: () => `generated-${++nextId}`,
     allocateRevision: () => `revision-${++nextRevision}`,
     putResource(record) {
       records.set(record.id, record);
@@ -520,7 +520,10 @@ describe("pure member Resource evaluation", () => {
     f.createBead("a");
     f.aliases.set("taken", "beads/a");
     failure(f.createBead("a", {}, { type: "https://missing.test/type" }), "identity-taken");
-    failure(f.createBead("taken", {}, { type: "https://missing.test/type" }), "alias-path-taken");
+    failure(
+      f.execute("createBead", { id: "alias/taken", type: "https://missing.test/type" }),
+      "alias-path-taken",
+    );
     const result = f.execute("updateBead", {
       bead: "alias/taken",
       propertiesChange: [{ op: "replace", path: "", value: {} }],
@@ -533,6 +536,7 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
+    f.createLink("other", "beads/a", "beads/b");
     failure(f.execute("deleteBead", { bead: "links/a" }), "resource-not-found");
     failure(f.createLink("wrong", "beads/a", "links/other"), "validation-failed");
     failure(
@@ -1800,7 +1804,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
               facade.allocateResourceId = () => seed.id;
               break;
             case "alias-id":
-              facade.allocateResourceId = () => "beads/reserved";
+              facade.allocateResourceId = () => "alias/reserved";
               break;
             case "hierarchical-id":
               facade.allocateResourceId = () => "beads/a/b";
@@ -1946,7 +1950,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       throw new Error("unexpected revision allocation");
     };
     failure(f.createBead("existing"), "identity-taken");
-    failure(f.createBead("reserved"), "alias-path-taken");
+    failure(f.execute("createBead", { id: "alias/reserved", type: beadType }), "alias-path-taken");
     expect(f.records.size).toBe(1);
   });
 });
@@ -2942,6 +2946,20 @@ describe("staged properties before endpoint constraints", () => {
     ["urn:source", "urn:target"],
   ])("retains generic endpoint failure before properties: %s / %s", (source, target) => {
     const f = orderedFixture();
+    f.tx.putResource({
+      id: "links/wrong",
+      kind: "link",
+      source: "beads/a",
+      target: "beads/b",
+      bodyJson: JSON.stringify({
+        id: `${scope}links/wrong`,
+        type: linkType,
+        revision: "wrong-link",
+        source: `${scope}beads/a`,
+        target: `${scope}beads/b`,
+        properties: {},
+      }),
+    });
     const problem = failure(
       f.createLink("generic", source, target, { properties: { valid: false } }),
       "validation-failed",

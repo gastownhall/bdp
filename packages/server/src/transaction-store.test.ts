@@ -1421,7 +1421,7 @@ describe("private atomic transaction owner", () => {
         .kind,
     ).toBe("owned");
   });
-  it("enforces Bead/alias uniqueness across deletion and allows Link identities with the same suffix", () => {
+  it("allows Resources and aliases to share a suffix while retaining identity tombstones", () => {
     const f = fixture();
     execute(
       f.store,
@@ -1441,7 +1441,7 @@ describe("private atomic transaction owner", () => {
       );
       expect(receipt).toMatchObject({
         status: "failed",
-        problem: { code: "identity-taken", operationIndex: 0 },
+        problem: { code: "resource-not-found", operationIndex: 0 },
       });
     }
     aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
@@ -1450,7 +1450,7 @@ describe("private atomic transaction owner", () => {
       [{ operation: "createBead", id: "beads/work", type: bead }],
       "blocked-bead",
     );
-    expect(blocked).toMatchObject({ status: "failed", problem: { code: "alias-path-taken" } });
+    expect(blocked.status).toBe("completed");
     expect(
       execute(
         f.store,
@@ -1468,9 +1468,12 @@ describe("private atomic transaction owner", () => {
     ).toBe("completed");
     aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
     expect(
-      execute(f.store, [{ operation: "createBead", id: "beads/work", type: bead }], "released-bead")
-        .status,
-    ).toBe("completed");
+      execute(
+        f.store,
+        [{ operation: "createBead", id: "beads/work", type: bead }],
+        "released-bead",
+      ),
+    ).toMatchObject({ status: "failed", problem: { code: "identity-taken" } });
   });
   it("retains alias target failures without effects and still refuses aliases in atomic batches", () => {
     const f = fixture();
@@ -1487,7 +1490,10 @@ describe("private atomic transaction owner", () => {
         status: "failed",
         requiredPosition: "pos-0",
         problem: {
-          code: target === "beads/missing" ? "resource-not-found" : "validation-failed",
+          code:
+            target === "alias/other" || target.startsWith("https://")
+              ? "validation-failed"
+              : "resource-not-found",
           operationIndex: 0,
         },
       });
@@ -2052,7 +2058,12 @@ describe("private atomic transaction owner", () => {
       );
       expect(recovered.inspect().groups).toHaveLength(2);
     });
-  for (const corruption of ["duplicate", "foreign-scope", "wrong-target-root", "version"] as const)
+  for (const corruption of [
+    "duplicate",
+    "foreign-scope",
+    "reserved-target-namespace",
+    "version",
+  ] as const)
     it(`refuses ${corruption} persisted witnesses as an owner fault without rewriting the original disposition`, () => {
       const f = witnessFixture();
       aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
@@ -2074,8 +2085,8 @@ describe("private atomic transaction owner", () => {
         if (corruption === "duplicate")
           data.operations[0].aliases.push({ ...data.operations[0].aliases[0] });
         if (corruption === "foreign-scope") data.scope = "https://other.test/";
-        if (corruption === "wrong-target-root")
-          data.operations[0].aliases[0].target = `${scope}links/a`;
+        if (corruption === "reserved-target-namespace")
+          data.operations[0].aliases[0].target = `${scope}bdp/links/a`;
         if (corruption === "version") data.format = "future";
         raw
           .prepare("UPDATE receipts SET witnesses=? WHERE key='corrupt'")

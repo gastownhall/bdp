@@ -30,9 +30,7 @@ function discovery(): ReadDiscovery {
   return {
     ...fixture<ReadDiscovery>("discovery-read"),
     scope,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
+
     aliases: `${scope}alias/`,
   };
 }

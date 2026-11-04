@@ -121,9 +121,8 @@ export interface ReadDiscovery {
   readonly bdpVersion: "0";
   readonly profile: ProtocolProfile;
   readonly scope: AbsoluteHttpUrl;
-  readonly beads: AbsoluteHttpUrl;
-  readonly links: AbsoluteHttpUrl;
-  readonly types: AbsoluteHttpUrl;
+  /** Optional fixed Type inventory route; omitted when Types inventory is unsupported. */
+  readonly types?: AbsoluteHttpUrl;
   /**
    * The alias root, when this authority serves aliases: repointable names
    * beneath `alias/` that resolve to canonical Bead URLs with one 307.
@@ -144,7 +143,7 @@ export function isReadDiscovery(value: unknown): value is ReadDiscovery {
     (candidate.profile === "read" ||
       candidate.profile === "read-update" ||
       candidate.profile === "transactional") &&
-    ["scope", "beads", "links", "types"].every((key) => isAbsoluteHttpUrl(candidate[key]))
+    isAbsoluteHttpUrl(candidate.scope)
   );
 }
 
@@ -167,8 +166,8 @@ export interface EndpointConstraint {
   /**
    * Whether this endpoint may reference an out-of-Scope target: "none"
    * rejects external URIs at creation, "opaque" admits any external URI,
-   * and "bead" admits external URIs that are bead-shaped (a canonical
-   * .../beads/{id} URL) at creation time — declared intent, not an ongoing
+   * and "bead" admits external URIs that use the configured bead-intent URL
+   * shape at creation time — declared intent, not an ongoing
    * guarantee. Absent means "opaque", preserving the pre-policy behavior.
    */
   readonly external?: ExternalEndpointPolicy;
@@ -404,6 +403,13 @@ export interface TypeResourceRequest {
   readonly id: AbsoluteHttpUrl;
 }
 
+/** A point URL carries identity only; the stored row determines Resource kind. */
+export interface ResourceRequest {
+  readonly kind: "resource";
+  readonly resource: "resource";
+  readonly id: AbsoluteHttpUrl;
+}
+
 export interface BeadPropertiesRequest {
   readonly kind: "properties";
   readonly resource: "bead";
@@ -413,6 +419,12 @@ export interface BeadPropertiesRequest {
 export interface LinkPropertiesRequest {
   readonly kind: "properties";
   readonly resource: "link";
+  readonly id: AbsoluteHttpUrl;
+}
+
+export interface ResourcePropertiesRequest {
+  readonly kind: "properties";
+  readonly resource: "resource";
   readonly id: AbsoluteHttpUrl;
 }
 
@@ -432,8 +444,10 @@ export type ReadRequest =
   | BeadResourceRequest
   | LinkResourceRequest
   | TypeResourceRequest
+  | ResourceRequest
   | BeadPropertiesRequest
   | LinkPropertiesRequest
+  | ResourcePropertiesRequest
   | BeadLinksRequest;
 
 /** A wire-neutral semantic operation consumed by Scope adapters. */
@@ -453,11 +467,16 @@ export type ReadBodyFor<Request extends ReadRequest> = Request extends ScopeDisc
             ? LinkRecord
             : Request extends TypeResourceRequest
               ? TypeDescriptor
-              : Request extends BeadPropertiesRequest | LinkPropertiesRequest
-                ? PropertiesRecord
-                : Request extends BeadLinksRequest
-                  ? LinkCollection
-                  : never;
+              : Request extends ResourceRequest
+                ? BeadRecord | LinkRecord
+                : Request extends
+                      | BeadPropertiesRequest
+                      | LinkPropertiesRequest
+                      | ResourcePropertiesRequest
+                  ? PropertiesRecord
+                  : Request extends BeadLinksRequest
+                    ? LinkCollection
+                    : never;
 
 export type ReadBody = ReadBodyFor<ReadRequest>;
 

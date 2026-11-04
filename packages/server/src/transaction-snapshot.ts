@@ -415,12 +415,8 @@ export function transactionSnapshotStorage(
       const link = value as LinkRecord;
       for (const endpoint of [link.source, link.target])
         if (validateServerEndpoint(endpoint, scope)) {
-          integrity(
-            records
-              .get(referenceUri(endpoint).slice(scope.length))
-              ?.value.id.startsWith(`${scope}beads/`),
-            "missing in-Scope endpoint",
-          );
+          const target = records.get(referenceUri(endpoint).slice(scope.length))?.value;
+          integrity(target !== undefined && !("source" in target), "missing in-Scope endpoint");
         }
     }
   }

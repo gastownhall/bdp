@@ -227,21 +227,21 @@ describe("private two-artifact Read+Update set", () => {
     expect(currentText.slice(minimum.start - 6, minimum.start)).toBe(",\n    ");
     const manifestText = currentText.slice(0, minimum.start - 6) + currentText.slice(minimum.end);
     expect(createHash("sha256").update(manifestText).digest("hex")).toBe(
-      "80f74625b6074892b707365859572f8bc0b8c10478d36ac307370ef6027f5fc3",
+      "4696390205d74b4357ce59002c49d4adb3498a74ebb1149b956697d93e63835b",
     );
     expect(JSON.parse(manifestText).scenarios).toHaveLength(50);
     const span = coldDirectorySpan(manifestText, "scenarios");
     expect(manifestText.slice(span.end, span.end + 6)).toBe(",\n    ");
     const parent = manifestText.slice(0, span.start) + manifestText.slice(span.end + 6);
     expect(createHash("sha256").update(parent).digest("hex")).toBe(
-      "c86b33535f25a1d117ce021a3bb70164f5635bdaee50758e3428c130ccc3227f",
+      "d956b4bbdfc12c81dfd489ba87195c3ce4fe5c975c5e34916dbab1a34811c64b",
     );
     expect(JSON.parse(parent).scenarios).toHaveLength(49);
     expect(
       createHash("sha256")
         .update(read("matrices/read-update-reference-continuation-v1.json").bytes)
         .digest("hex"),
-    ).toBe("24d754618b51f255b5885d83c53ccf9a06593031e1812739a4f2b504c4a1df8d");
+    ).toBe("2f9256b68566408032e5b1db7feeecc273d42f73fd187ca1339a5bf07b967e44");
     const currentCoverage = Buffer.from(
       read("test-support/read-update-coverage-v1.json").bytes,
     ).toString();
@@ -257,7 +257,7 @@ describe("private two-artifact Read+Update set", () => {
       priorMinimum +
       currentCoverage.slice(minimumCoverage.end);
     expect(createHash("sha256").update(coverageText).digest("hex")).toBe(
-      "85b717f1817d8ea295d0a7c51f8914bdfb942d1786d414924d3d5f80be7cd10a",
+      "280d8fa036dbb75568483e7fda46e64715294c6394b48aea5d9d73fa3b37213f",
     );
     const coverageSpan = coldDirectorySpan(coverageText, "rows");
     const previous =
@@ -270,7 +270,7 @@ describe("private two-artifact Read+Update set", () => {
             coverageText.slice(coverageSpan.end),
         )
         .digest("hex"),
-    ).toBe("f8f0b001928f8488292403b57c973bd918cba224ef9e00fe0691482bf5cfac0c");
+    ).toBe("4de17502f0ebfa53b0d4fcbd3aff5cde2670d3f4e33d35a51c3ef3b428c79405");
     const cold = manifest.scenarios.find(
       (row: { id: string }) => row.id === "read-update.discovery.operation-directory",
     );
@@ -278,7 +278,7 @@ describe("private two-artifact Read+Update set", () => {
     expect(cold.actions).toHaveLength(21);
     expect(cold.actions.flatMap((a: { assertions: unknown[] }) => a.assertions)).toHaveLength(134);
     expect(createHash("sha256").update(JSON.stringify(cold)).digest("hex")).toBe(
-      "7930b51eea68914b24ece231d9b30479e14936572bcd67d18351ffc6562efeff",
+      "e479c5684c5631e64a04f1902518975b18a291d6354b5ac2414bff7de0321477",
     );
     const last = manifest.scenarios.at(-1);
     expect(

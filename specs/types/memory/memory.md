@@ -359,8 +359,8 @@ Every owned claim concerns the whole subject group collectively. The first accep
 
 ```json
 [
-  {"uri": "https://beads.example/acme/beads/web-app", "revision": "web-r2"},
-  {"uri": "https://beads.example/acme/beads/api", "revision": "api-r7"}
+  {"uri": "https://beads.example/acme/web-app", "revision": "web-r2"},
+  {"uri": "https://beads.example/acme/api", "revision": "api-r7"}
 ]
 ```
 

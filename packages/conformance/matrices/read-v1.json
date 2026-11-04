@@ -197,17 +197,13 @@
               "id": "beads-navigation",
               "kind": "json-pointer",
               "pointer": "/beads",
-              "exists": true,
-              "equals": "beads/",
-              "normalize": "scope-relative-url"
+              "exists": false
             },
             {
               "id": "links-navigation",
               "kind": "json-pointer",
               "pointer": "/links",
-              "exists": true,
-              "equals": "links/",
-              "normalize": "scope-relative-url"
+              "exists": false
             },
             {
               "id": "types-navigation",
@@ -333,7 +329,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "limit": "50"
             }
@@ -358,7 +354,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "links/",
+            "path": "bdp/links",
             "query": {
               "limit": "200"
             }
@@ -634,15 +630,7 @@
           "headers": {
             "accept": "application/json"
           },
-          "captures": [
-            {
-              "binding": "beads",
-              "from": {
-                "kind": "json-pointer",
-                "pointer": "/beads"
-              }
-            }
-          ],
+          "captures": [],
           "assertions": [
             {
               "id": "successful",
@@ -655,7 +643,8 @@
           "id": "beads",
           "method": "GET",
           "target": {
-            "binding": "beads"
+            "binding": "scope",
+            "path": "bdp/beads"
           },
           "headers": {
             "accept": "application/json"
@@ -752,15 +741,7 @@
           "headers": {
             "accept": "application/json"
           },
-          "captures": [
-            {
-              "binding": "links",
-              "from": {
-                "kind": "json-pointer",
-                "pointer": "/links"
-              }
-            }
-          ],
+          "captures": [],
           "assertions": [
             {
               "id": "successful",
@@ -773,7 +754,8 @@
           "id": "links",
           "method": "GET",
           "target": {
-            "binding": "links"
+            "binding": "scope",
+            "path": "bdp/links"
           },
           "headers": {
             "accept": "application/json"
@@ -901,22 +883,7 @@
           "headers": {
             "accept": "application/json"
           },
-          "captures": [
-            {
-              "binding": "beads",
-              "from": {
-                "kind": "json-pointer",
-                "pointer": "/beads"
-              }
-            },
-            {
-              "binding": "links",
-              "from": {
-                "kind": "json-pointer",
-                "pointer": "/links"
-              }
-            }
-          ],
+          "captures": [],
           "assertions": [
             {
               "id": "successful",
@@ -929,7 +896,8 @@
           "id": "beads-type",
           "method": "GET",
           "target": {
-            "binding": "beads",
+            "binding": "scope",
+            "path": "bdp/beads",
             "query": {
               "type": "https://work.example/types/task"
             }
@@ -969,7 +937,8 @@
           "id": "beads-type-is-exact",
           "method": "GET",
           "target": {
-            "binding": "beads",
+            "binding": "scope",
+            "path": "bdp/beads",
             "query": {
               "type": "https://work.example/types/work-item"
             }
@@ -1010,7 +979,8 @@
           "id": "beads-conforms-to-declared-type",
           "method": "GET",
           "target": {
-            "binding": "beads",
+            "binding": "scope",
+            "path": "bdp/beads",
             "query": {
               "conformsTo": "https://work.example/types/task"
             }
@@ -1050,7 +1020,8 @@
           "id": "beads-conforms-to",
           "method": "GET",
           "target": {
-            "binding": "beads",
+            "binding": "scope",
+            "path": "bdp/beads",
             "query": {
               "conformsTo": "https://work.example/types/tracked-item"
             }
@@ -1090,7 +1061,8 @@
           "id": "beads-predicates-and",
           "method": "GET",
           "target": {
-            "binding": "beads",
+            "binding": "scope",
+            "path": "bdp/beads",
             "query": {
               "type": "https://work.example/types/decision",
               "conformsTo": "https://work.example/types/work-item"
@@ -1132,7 +1104,8 @@
           "id": "links-source-local",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "source": {
                 "binding": "bead.demo-a",
@@ -1176,7 +1149,8 @@
           "id": "links-target-absolute",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "target": {
                 "binding": "bead.demo-c",
@@ -1220,7 +1194,8 @@
           "id": "links-endpoint-or",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "endpoint": {
                 "binding": "bead.demo-a",
@@ -1264,7 +1239,8 @@
           "id": "links-endpoint-pinned-target",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "endpoint": {
                 "binding": "bead.demo-f",
@@ -1308,7 +1284,8 @@
           "id": "links-type",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "type": "https://work.example/types/blocks"
             }
@@ -1362,7 +1339,8 @@
           "id": "links-type-is-exact",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "type": "https://work.example/types/relationship"
             }
@@ -1403,7 +1381,8 @@
           "id": "links-conforms-to-declared-type",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "conformsTo": "https://work.example/types/blocks"
             }
@@ -1444,7 +1423,8 @@
           "id": "links-conforms-to",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "conformsTo": "https://work.example/types/relationship"
             }
@@ -1485,7 +1465,8 @@
           "id": "links-conforms-to-cross-kind",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "conformsTo": "https://work.example/types/work-item"
             }
@@ -1526,7 +1507,8 @@
           "id": "links-predicates-and",
           "method": "GET",
           "target": {
-            "binding": "links",
+            "binding": "scope",
+            "path": "bdp/links",
             "query": {
               "type": "https://work.example/types/blocks",
               "source": {
@@ -3125,7 +3107,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "accept": "application/json"
@@ -3149,7 +3131,7 @@
           "method": "HEAD",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "accept": "application/json"
@@ -3323,7 +3305,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "links/"
+            "path": "bdp/links"
           },
           "headers": {
             "accept": "application/json"
@@ -3347,7 +3329,7 @@
           "method": "HEAD",
           "target": {
             "binding": "scope",
-            "path": "links/"
+            "path": "bdp/links"
           },
           "headers": {
             "accept": "application/json"
@@ -3626,7 +3608,7 @@
             "binding": "bead.demo-a"
           },
           "headers": {
-            "accept": "text/html",
+            "accept": "application/json",
             "if-none-match": "*"
           },
           "captures": [],
@@ -3654,7 +3636,7 @@
             "binding": "bead.demo-a"
           },
           "headers": {
-            "accept": "text/html",
+            "accept": "application/json",
             "if-none-match": "*"
           },
           "captures": [],
@@ -3754,7 +3736,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "accept": "application/json",
@@ -3800,7 +3782,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "links/"
+            "path": "bdp/links"
           },
           "headers": {
             "accept": "application/json"
@@ -4987,9 +4969,9 @@
           "family": "lifecycle",
           "operation": "nondisclosure-identities",
           "input": {
-            "hiddenId": "beads/demo-b",
-            "deletedId": "beads/demo-f",
-            "unknownId": "beads/never-existed",
+            "hiddenId": "demo-b",
+            "deletedId": "demo-f",
+            "unknownId": "never-existed",
             "view": "nondisclosure-view",
             "epoch": "nondisclosure-epoch"
           },
@@ -5247,7 +5229,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "unsupported": "1"
             }
@@ -5306,7 +5288,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "limit": ["1", "2"]
             }
@@ -5365,7 +5347,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "links/",
+            "path": "bdp/links",
             "query": {
               "selector": ["$[?@.id]", "$[?@.type]"]
             }
@@ -6432,9 +6414,9 @@
           "family": "lifecycle",
           "operation": "disclosure-authorization-gate",
           "input": {
-            "prunedId": "beads/pruned-relic",
-            "erasedId": "beads/erased-relic",
-            "unknownId": "beads/never-existed",
+            "prunedId": "pruned-relic",
+            "erasedId": "erased-relic",
+            "unknownId": "never-existed",
             "view": "disclosure-gate-view",
             "epoch": "disclosure-gate-epoch"
           },
@@ -6622,14 +6604,14 @@
           "family": "lifecycle",
           "operation": "owned-closure",
           "input": {
-            "source": "beads/demo-f",
-            "target": "beads/demo-a",
-            "link": "links/cites-local",
-            "control": "beads/demo-c",
-            "unknown": "beads/never-existed-closure",
+            "source": "demo-f",
+            "target": "demo-a",
+            "link": "cites-local",
+            "control": "demo-c",
+            "unknown": "never-existed-closure",
             "view": "owned-closure-view",
             "epoch": "owned-closure-epoch",
-            "unknownLink": "links/never-existed-closure"
+            "unknownLink": "never-existed-closure"
           },
           "captures": [],
           "assertions": [
@@ -7158,14 +7140,14 @@
           "family": "lifecycle",
           "operation": "owned-closure",
           "input": {
-            "source": "beads/demo-f",
-            "target": "beads/demo-e",
-            "link": "links/demo-f-e",
-            "control": "beads/demo-c",
-            "unknown": "beads/never-existed-closure",
+            "source": "demo-f",
+            "target": "demo-e",
+            "link": "demo-f-e",
+            "control": "demo-c",
+            "unknown": "never-existed-closure",
             "view": "owned-closure-view",
             "epoch": "owned-closure-epoch",
-            "unknownLink": "links/never-existed-closure",
+            "unknownLink": "never-existed-closure",
             "wildcardOnly": true,
             "payloadWitness": "opaque authored value"
           },
@@ -7570,7 +7552,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {},
           "captures": [],
@@ -7913,7 +7895,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "accept": "text/html"
@@ -8022,7 +8004,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "limit": "0"
             }
@@ -8209,7 +8191,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {},
           "captures": [],
@@ -8853,7 +8835,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "if-match": "*"
@@ -8884,7 +8866,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "if-none-match": "*"
@@ -8943,7 +8925,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "if-match": {
@@ -8981,7 +8963,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "if-none-match": {
@@ -9034,7 +9016,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "limit": "0"
             }
@@ -9509,7 +9491,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "limit": "0"
             }
@@ -9532,7 +9514,7 @@
           "method": "HEAD",
           "target": {
             "binding": "scope",
-            "path": "beads/",
+            "path": "bdp/beads",
             "query": {
               "limit": "0"
             }
@@ -9574,7 +9556,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {},
           "captures": [],
@@ -9591,7 +9573,7 @@
           "method": "HEAD",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {},
           "captures": [],
@@ -9627,7 +9609,7 @@
           "method": "GET",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "if-none-match": "*"
@@ -9650,7 +9632,7 @@
           "method": "HEAD",
           "target": {
             "binding": "scope",
-            "path": "beads/"
+            "path": "bdp/beads"
           },
           "headers": {
             "if-none-match": "*"

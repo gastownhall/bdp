@@ -79,7 +79,7 @@ it("keeps deterministic ScopePort contract faults local and non-retryable", asyn
         perform: async () =>
           scopePortSuccess({
             items: [],
-            next: `${scope}beads/?cursor=unsupported-adapter-continuation`,
+            next: `${scope}bdp/beads?cursor=unsupported-adapter-continuation`,
           } as never) as never,
       },
     });

@@ -15,14 +15,14 @@ import {
 
 const scope = "https://example.test/s/";
 const bead = {
-  id: `${scope}beads/team/a`,
+  id: `${scope}team/a`,
   type: "https://types.example/task",
   revision: "r1",
   properties: {},
   metadata: {},
 };
 const link = {
-  id: `${scope}links/team/l`,
+  id: `${scope}team/l`,
   type: "https://types.example/link",
   revision: "l1",
   source: bead.id,
@@ -31,7 +31,7 @@ const link = {
   metadata: {},
 };
 const descriptor = {
-  id: `${scope}descriptors/task`,
+  id: `${scope}types/task`,
   name: "Task",
   describes: "bead",
   conformsTo: [],
@@ -40,9 +40,8 @@ const discovery = {
   bdpVersion: "0",
   profile: "read-update",
   scope,
-  beads: `${scope}beads/`,
-  links: `${scope}links/`,
   types: `${scope}types/`,
+
   aliases: `${scope}alias/`,
   operations: `${scope}operations/`,
 };
@@ -193,16 +192,16 @@ const variants: readonly [string, ScopeReadOperation, unknown][] = [
 // These fixed targets are independent of the shared builder used by both clients.
 const preExtractionTargets: Readonly<Record<string, string>> = {
   "Bead collection":
-    "https://example.test/s/beads/?selector=status+%3D%3D+%27in+progress%27&limit=2",
+    "https://example.test/s/bdp/beads?selector=status+%3D%3D+%27in+progress%27&limit=2",
   "Link collection":
-    "https://example.test/s/links/?type=https%3A%2F%2Ftypes.example%2Flink&conformsTo=urn%3Abase&source=https%3A%2F%2Fexample.test%2Fs%2Fbeads%2Fteam%2Fa&target=urn%3Aexternal&endpoint=https%3A%2F%2Fexternal.test%2Fa%3Fq%3Dx%2520y&limit=2",
+    "https://example.test/s/bdp/links?type=https%3A%2F%2Ftypes.example%2Flink&conformsTo=urn%3Abase&source=https%3A%2F%2Fexample.test%2Fs%2Fteam%2Fa&target=urn%3Aexternal&endpoint=https%3A%2F%2Fexternal.test%2Fa%3Fq%3Dx%2520y&limit=2",
   "Type inventory": "https://example.test/s/types/?limit=2",
-  Bead: "https://example.test/s/beads/team/a",
-  Link: "https://example.test/s/links/team/l",
-  "Type descriptor": "https://example.test/s/descriptors/task",
-  "Bead properties": "https://example.test/s/beads/team/a?view=properties",
-  "Link properties": "https://example.test/s/links/team/l?view=properties",
-  "Incident Links": "https://example.test/s/beads/team/a?view=links&direction=outbound&limit=2",
+  Bead: "https://example.test/s/team/a",
+  Link: "https://example.test/s/team/l",
+  "Type descriptor": "https://example.test/s/types/task",
+  "Bead properties": "https://example.test/s/team/a?view=properties",
+  "Link properties": "https://example.test/s/team/l?view=properties",
+  "Incident Links": "https://example.test/s/team/a?view=links&direction=outbound&limit=2",
 };
 
 describe("Read+Update shared Read session", () => {
@@ -338,7 +337,7 @@ describe("Read+Update shared Read session", () => {
     await legacy.close();
   });
   it("reports registry capacity without misattributing the last HTTP response", async () => {
-    const h = harness({ items: [], next: `${scope}beads/?cursor=same` });
+    const h = harness({ items: [], next: `${scope}bdp/beads?cursor=same` });
     for (let i = 0; i < 1024; i++) await h.client.read(first);
     await expect(h.client.read(first)).rejects.toMatchObject({
       code: "invalid-input",
@@ -486,7 +485,7 @@ describe("Read+Update shared Read session", () => {
     const pending = h.client.read(request);
     Object.assign(request, { collection: "links" });
     await expect(pending).resolves.toMatchObject({ kind: "success" });
-    expect(h.calls.at(-1)).toBe(`${scope}beads/`);
+    expect(h.calls.at(-1)).toBe(`${scope}bdp/beads`);
   });
 
   it.each([405, 406, 500])("retains native empty %s and actual metadata", async (status) => {
@@ -583,7 +582,7 @@ describe("Read+Update shared Read session", () => {
     });
   });
   it.each([
-    ["wrong id", { ...bead, id: `${scope}beads/other` }],
+    ["wrong id", { ...bead, id: `${scope}other` }],
     ["wrong category", link],
     [
       "foreign inline link",
@@ -602,7 +601,7 @@ describe("Read+Update shared Read session", () => {
     ).rejects.toMatchObject({ code: "invalid-response", httpStatus: 200 });
   });
   it("rejects off-Scope next without issuing a continuation", async () => {
-    const next = "https://outside.test/beads/?cursor=x";
+    const next = "https://outside.test/bdp/beads?cursor=x";
     const h = harness({ items: [], next });
     await expect(h.client.read(first)).rejects.toMatchObject({ code: "invalid-response" });
     await expect(h.client.read({ ...first, continuation: next })).rejects.toMatchObject({
@@ -611,7 +610,7 @@ describe("Read+Update shared Read session", () => {
     });
   });
   it("inherits incident direction for authoritative continuation bytes", async () => {
-    const next = `${scope}beads/team/a?view=links&cursor=a%2Bb%20c`;
+    const next = `${scope}team/a?view=links&cursor=a%2Bb%20c`;
     let body: unknown = { items: [link], next };
     const h = harness(page, {
       get: async (url) => response(url.endsWith("bdp.json") ? discovery : body, url),
@@ -631,7 +630,7 @@ describe("Read+Update shared Read session", () => {
   it.each(["abort", "timeout"])(
     "restores a leased page by public %s settlement despite an unsettled inner transport",
     async (mode) => {
-      const next = `${scope}beads/?cursor=a%2Bb%20c`;
+      const next = `${scope}bdp/beads?cursor=a%2Bb%20c`;
       let sends = 0,
         release!: (value: ReadUpdateHttpResponse) => void;
       // A separate captured transport switches behavior through state, not method replacement.
@@ -666,11 +665,11 @@ describe("Read+Update shared Read session", () => {
       await expect(original.client.read({ ...first, continuation: next })).resolves.toMatchObject({
         kind: "success",
       });
-      release(response({ items: [], next: `${scope}beads/?cursor=unseen` }, next));
+      release(response({ items: [], next: `${scope}bdp/beads?cursor=unseen` }, next));
       await Promise.resolve();
       await Promise.resolve();
       await expect(
-        original.client.read({ ...first, continuation: `${scope}beads/?cursor=unseen` }),
+        original.client.read({ ...first, continuation: `${scope}bdp/beads?cursor=unseen` }),
       ).rejects.toMatchObject({ code: "invalid-input" });
       await original.client.close();
     },
@@ -678,8 +677,8 @@ describe("Read+Update shared Read session", () => {
   it("does not consume or issue a page when validation crosses the final deadline", async () => {
     let now = 0;
     const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
-    const next = `${scope}beads/?cursor=old`,
-      unseen = `${scope}beads/?cursor=unseen`;
+    const next = `${scope}bdp/beads?cursor=old`,
+      unseen = `${scope}bdp/beads?cursor=unseen`;
     let body: unknown = { items: [], next };
     const h = harness(
       page,
@@ -713,7 +712,7 @@ describe("Read+Update shared Read session", () => {
     }
   });
   it("keeps duplicate issuance, owners, concurrent leases and forgetting independent", async () => {
-    const next = `${scope}beads/?cursor=same`;
+    const next = `${scope}bdp/beads?cursor=same`;
     let body: unknown = { items: [], next };
     const h = harness(page, {
       get: async (url) => response(url.endsWith("bdp.json") ? discovery : body, url),
@@ -740,7 +739,7 @@ describe("Read+Update shared Read session", () => {
     expect(() => h.client.forgetContinuations(owner)).toThrowError(/closed/);
   });
   it.each([false, true])("close fences late initial/leased page (leased=%s)", async (leased) => {
-    const next = `${scope}beads/?cursor=next`;
+    const next = `${scope}bdp/beads?cursor=next`;
     let wait = false,
       started = false,
       release!: (value: ReadUpdateHttpResponse) => void;
@@ -763,7 +762,10 @@ describe("Read+Update shared Read session", () => {
     await h.client.close();
     await expect(pending).rejects.toMatchObject({ code: "closed", submission: "not-submitted" });
     release(
-      response({ items: [], next: `${scope}beads/?cursor=late` }, leased ? next : `${scope}beads/`),
+      response(
+        { items: [], next: `${scope}bdp/beads?cursor=late` },
+        leased ? next : `${scope}bdp/beads`,
+      ),
     );
     await Promise.resolve();
     await expect(h.client.read(first)).rejects.toMatchObject({ code: "closed" });
@@ -772,7 +774,7 @@ describe("Read+Update shared Read session", () => {
   it.each([
     [`${scope}../other/beads/b`, false],
     [`${scope}%2e%2e/other/beads/b`, false],
-    [`${scope}beads/b`, true],
+    [`${scope}b`, true],
     ["http://example.test/s/beads/b", true],
     ["https://example.test/s%2fother/beads/b", true],
     ["https://example.test/s%5cother/beads/b", true],
@@ -880,7 +882,7 @@ describe("Read+Update explicit alias resolution", () => {
       value: { alias, target },
       http: { status: 307, url: alias },
     });
-    target = `${scope}beads/new`;
+    target = `${scope}new`;
     await expect(h.client.resolveAlias(alias)).resolves.toMatchObject({
       kind: "success",
       value: { alias, target },
@@ -931,14 +933,14 @@ describe("Read+Update explicit alias resolution", () => {
   });
   it.each([
     "beads/team/a",
-    `${scope}links/l`,
     `${scope}alias/chain`,
+    `${scope}bdp/beads`,
     "https://outside.test/beads/a",
-    `${scope}beads/a?`,
-    `${scope}beads/a#`,
-    `${scope}beads/a,${scope}beads/b`,
-    `${scope}beads/%2F`,
-    `${scope}beads/a/../b`,
+    `${scope}a?`,
+    `${scope}a#`,
+    `${scope}a,${scope}b`,
+    `${scope}%2F`,
+    `${scope}a/../b`,
   ])("rejects Location %s with the actual307 context", async (target) => {
     const h = harness(page, { resolveAlias: async (url) => redirect(url, target) });
     await expect(h.client.resolveAlias(alias)).rejects.toMatchObject({
@@ -984,16 +986,15 @@ describe("Read+Update explicit alias resolution", () => {
           JSON.stringify({
             ...discovery,
             scope: root,
-            beads: `${root}beads/`,
-            links: `${root}links/`,
             types: `${root}types/`,
+
             aliases: `${root}alias/`,
             operations: `${root}operations/`,
           }),
         );
         return;
       }
-      res.writeHead(307, { location: `${root}beads/a` });
+      res.writeHead(307, { location: `${root}a` });
       res.end();
     });
     await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
@@ -1008,7 +1009,7 @@ describe("Read+Update explicit alias resolution", () => {
     try {
       await expect(client.resolveAlias(`${root}alias/a`)).resolves.toMatchObject({
         kind: "success",
-        value: { alias: `${root}alias/a`, target: `${root}beads/a` },
+        value: { alias: `${root}alias/a`, target: `${root}a` },
       });
       token = undefined;
       await expect(client.resolveAlias(`${root}alias/a`)).resolves.toMatchObject({

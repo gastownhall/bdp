@@ -60,10 +60,10 @@ describe("Node HTTP listener", () => {
       expect(discovery.status).toBe(200);
       expect(discovery.headers.get("cache-control")).toBe("private, no-store");
       expect(await discovery.json()).toMatchObject({ scope: SCOPE, profile: "read" });
-      const beads = await fetch(`${base}/local-test/beads/`);
+      const beads = await fetch(`${base}/local-test/bdp/beads`);
       expect(beads.status).toBe(200);
       expect(beads.headers.get("cache-control")).toBe("private, no-store");
-      const head = await rawRequest(base, "HEAD", "/local-test/beads/");
+      const head = await rawRequest(base, "HEAD", "/local-test/bdp/beads");
       expect(head.status).toBe(200);
       expect(head.contentLength).toBe(beads.headers.get("content-length"));
       expect(head.cacheControl).toBe(beads.headers.get("cache-control"));
@@ -96,13 +96,13 @@ describe("Node HTTP listener", () => {
         "//evil.example/local-test/beads/a/%2E%2E/b",
       ])
         expect((await rawRequest(base, "GET", target)).status, target).toBe(404);
-      const failed = await fetch(`${base}/local-test/links/`);
+      const failed = await fetch(`${base}/local-test/bdp/links`);
       expect(failed.status).toBe(500);
       expect(await failed.text()).toBe("");
       expect(failures).toHaveLength(1);
 
       for (const method of ["POST", "PUT", "DELETE", "OPTIONS", "TRACE", "CONNECT"]) {
-        const response = await rawRequest(base, method, "/local-test/beads/");
+        const response = await rawRequest(base, method, "/local-test/bdp/beads");
         expect(response.status).toBe(405);
         expect(response.allow).toBe("GET, HEAD");
         expect(response.contentLength).toBe("0");
@@ -136,14 +136,14 @@ describe("Node HTTP listener", () => {
     const base = await listen(listener);
 
     try {
-      const response = await fetch(`${base}/local-test/beads/?limit=1`, {
+      const response = await fetch(`${base}/local-test/bdp/beads?limit=1`, {
         headers: { authorization: "Bearer node-principal" },
       });
       expect(response.status).toBe(200);
       expect(observed).toEqual([
         {
           authorization: "Bearer node-principal",
-          url: `${SCOPE}beads/?limit=1`,
+          url: `${SCOPE}bdp/beads?limit=1`,
         },
       ]);
     } finally {
@@ -173,9 +173,9 @@ describe("Node HTTP listener", () => {
       const listener = createNodeHttpServer(readServer);
       const base = await listen(listener);
       const atLimitSelector = `$${" ".repeat(limits.selector.bytes - 1)}`;
-      const atLimitPath = `/local-test/beads/?selector=${encodeURIComponent(atLimitSelector)}`;
+      const atLimitPath = `/local-test/bdp/beads?selector=${encodeURIComponent(atLimitSelector)}`;
       const selector = "x".repeat(limits.selector.bytes + 1);
-      const path = `/local-test/beads/?selector=${encodeURIComponent(selector)}`;
+      const path = `/local-test/bdp/beads?selector=${encodeURIComponent(selector)}`;
       expect(Buffer.byteLength(path)).toBeGreaterThan(maxHeaderSize);
 
       try {
@@ -263,7 +263,7 @@ describe("Node HTTP listener", () => {
     const base = await listen(listener);
 
     try {
-      const response = await rawRequest(base, "GET", "/local-test/beads/");
+      const response = await rawRequest(base, "GET", "/local-test/bdp/beads");
       expect(response.status).toBe(500);
       expect(response.body).toBe("");
       expect(response.contentType).toBeUndefined();
@@ -289,7 +289,7 @@ describe("Node HTTP listener", () => {
       admittedProfile: admitReadServerProfile("read", "bdptest"),
       port: {
         perform: async (operation) =>
-          operation.kind === "resource" && operation.resource === "bead"
+          operation.kind === "resource"
             ? (scopePortSuccess({
                 id: operation.id,
                 type: "https://work.example/types/task",
@@ -335,7 +335,7 @@ describe("Node HTTP listener", () => {
       admittedProfile: admitReadServerProfile("read", "bdptest"),
       port: {
         perform: async (operation) =>
-          operation.kind === "resource" && operation.resource === "bead"
+          operation.kind === "resource"
             ? (scopePortSuccess({
                 id: operation.id,
                 type: "https://work.example/types/task",
@@ -413,7 +413,7 @@ describe("Node HTTP listener", () => {
     });
     const listener = createNodeHttpServer(readServer);
     const base = await listen(listener);
-    const client = httpRequest(`${base}/local-test/beads/`);
+    const client = httpRequest(`${base}/local-test/bdp/beads`);
     client.on("error", () => undefined);
     client.end();
 

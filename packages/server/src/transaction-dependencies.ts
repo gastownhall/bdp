@@ -33,6 +33,18 @@ export type DependencyTemplate = CreatorDependencyTemplate | AliasDependencyTemp
 function aliasTemplate(template: DependencyTemplate): template is AliasDependencyTemplate {
   return "form" in template;
 }
+function scopedResourceIdentity(scope: string, value: string): boolean {
+  if (!value.startsWith(scope)) return false;
+  const local = value.slice(scope.length);
+  if (local.startsWith("bdp/")) return false;
+  try {
+    parseCanonicalHttpUrl(value);
+    assertCanonicalPathSegments(local, "sequence Resource identity");
+    return true;
+  } catch {
+    return false;
+  }
+}
 /** Pending-only data is consumed by its exclusive owner. Startup retracts it. */
 export function parseDependencyTemplate(text: string, scope: string): DependencyTemplate {
   const value = JSON.parse(text) as DependencyTemplate;
@@ -189,12 +201,7 @@ export function compareDependencyTemplate(
     const value = candidate.referenceIdentities.get(d.field);
     if (value === undefined) return "conflict";
     const encoded = JSON.parse(value) as [string, [string, string]];
-    if (
-      encoded[1][0] !== "string" ||
-      !encoded[1][1].startsWith(
-        `${request.carrier.scope}${d.resourceKind === "bead" ? "beads" : "links"}/`,
-      )
-    )
+    if (encoded[1][0] !== "string" || !scopedResourceIdentity(request.carrier.scope, encoded[1][1]))
       return "conflict";
     if (d.suppliedId !== undefined && value !== encodeSemanticValue(d.suppliedId))
       return "conflict";
@@ -279,12 +286,21 @@ function compareAliasTemplate(
     return { symbol };
   };
   const aliasTerm = (locator: string): Term =>
-    variable(
-      `alias:${locator}`,
-      (value) =>
-        stringIdentity(value)?.startsWith(`${request.carrier.scope}beads/`) === true ||
-        value === encodeSemanticValue({ unresolvedAlias: locator }),
-    );
+    variable(`alias:${locator}`, (value) => {
+      const identity = stringIdentity(value);
+      if (identity === undefined)
+        return value === encodeSemanticValue({ unresolvedAlias: locator });
+      if (!identity.startsWith(request.carrier.scope)) return false;
+      try {
+        assertCanonicalPathSegments(
+          identity.slice(request.carrier.scope.length),
+          "alias target identity",
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    });
   const compatible = (symbol: string, value: string) =>
     domains.get(root(symbol))!.every((permit) => permit(value));
   const unify = (left: Term, right: Term): boolean => {
@@ -331,9 +347,8 @@ function compareAliasTemplate(
             : variable(`creator:${dependency.creator}`, (value) => {
                 const id = stringIdentity(value);
                 return (
-                  id?.startsWith(
-                    `${request.carrier.scope}${dependency.resourceKind === "bead" ? "beads" : "links"}/`,
-                  ) === true &&
+                  id !== undefined &&
+                  scopedResourceIdentity(request.carrier.scope, id) &&
                   (dependency.suppliedId === undefined || id === dependency.suppliedId)
                 );
               });

@@ -195,7 +195,7 @@ it("observes current context on installed sequence refusals within13requests", a
   const routes = [
     { method: "POST", url: `${scope}operations/create-bead` },
     { method: "POST", url: `${scope}operations/sequence` },
-    { method: "GET", url: `${scope}beads/?limit=32` },
+    { method: "GET", url: `${scope}bdp/beads?limit=32` },
     { method: "GET", url: `${scope}events/` },
   ];
   let receiptUrl: string | undefined;

@@ -1330,7 +1330,7 @@ describe("internal discovery owner observation", () => {
       problem: { code: "cursor-expired" },
     });
     const selected = requestFromUrl(
-      new URL(`${scope}beads/?selector=${encodeURIComponent("$[?@.properties.title == 'a']")}`),
+      new URL(`${scope}bdp/beads?selector=${encodeURIComponent("$[?@.properties.title == 'a']")}`),
       scope,
     );
     if (isReadProblem(selected)) throw new Error("expected selector request");

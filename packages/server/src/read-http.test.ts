@@ -261,17 +261,21 @@ describe("shared Read HTTP semantics through the public server", () => {
     ).toBe(304);
   });
 
-  it.each(["bdp.json", "beads/", "links/", "types/", "types/task", "beads/a?view=properties"])(
-    "handles absent validators on %s",
-    async (target) => {
-      const { get } = fixture();
-      expect((await get(target, { "If-Match": '"specific"' })).status).toBe(412);
-      expect((await get(target, { "If-Match": "*" })).status).toBe(200);
-      expect((await get(target, { "If-None-Match": "*" })).status).toBe(304);
-      expect((await get(target, { "If-None-Match": '"specific"' })).status).toBe(200);
-      expect((await get(target, { Accept: "image/png", "If-None-Match": "*" })).status).toBe(406);
-    },
-  );
+  it.each([
+    "bdp.json",
+    "bdp/beads",
+    "bdp/links",
+    "types/",
+    "types/task",
+    "beads/a?view=properties",
+  ])("handles absent validators on %s", async (target) => {
+    const { get } = fixture();
+    expect((await get(target, { "If-Match": '"specific"' })).status).toBe(412);
+    expect((await get(target, { "If-Match": "*" })).status).toBe(200);
+    expect((await get(target, { "If-None-Match": "*" })).status).toBe(304);
+    expect((await get(target, { "If-None-Match": '"specific"' })).status).toBe(200);
+    expect((await get(target, { Accept: "image/png", "If-None-Match": "*" })).status).toBe(406);
+  });
 
   it.each(["beads/a", "beads/a?view=properties", "bdp.json"])(
     "does not invent modification dates on %s",
@@ -435,7 +439,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     const record = `{"id":"${SCOPE}beads/a","type":"${TYPE}","revision":"rev-1","properties":{"deep":${deep}},"metadata":{}}`;
     for (const [path, expected] of [
       ["beads/a", record],
-      ["beads/", `{"items":[${record}],"next":null}`],
+      ["bdp/beads", `{"items":[${record}],"next":null}`],
     ]) {
       if (path === undefined || expected === undefined) throw new Error("missing HTTP fixture");
       const get = await send("GET", path);
@@ -518,12 +522,8 @@ describe("shared Read HTTP semantics through the public server", () => {
       expect(refusal.body).toBe("");
       expect(refusal.headers.etag).toBeUndefined();
       const missing = await send(method, "missing", { Accept: "image/png", "If-None-Match": "*" });
-      expect(missing.status).toBe(404);
-      expect(
-        method === "HEAD"
-          ? missing.body === ""
-          : JSON.parse(missing.body).code === "resource-not-found",
-      ).toBe(true);
+      expect(missing.status).toBe(406);
+      expect(missing.body).toBe("");
     }
     const head = await send("HEAD", "beads/a", {});
     expect(head.body).toBe("");

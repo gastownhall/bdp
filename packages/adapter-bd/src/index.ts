@@ -143,14 +143,16 @@ export function createBdProcessScopePort(
       ? value
       : opaqueComponent(value);
   const beadId = (id: string): AbsoluteHttpUrl =>
-    resolveCanonicalLocalResourceId(scope, "bead", `beads/${localComponent(id)}`);
+    resolveCanonicalLocalResourceId(scope, "bead", localComponent(id));
   const mintedTypeId = (type: string): AbsoluteHttpUrl =>
     parseCanonicalTypeId(new URL(`types/${localComponent(type)}`, scope).href, "minted bd Type");
   const linkId = (source: string, target: string, type: string): AbsoluteHttpUrl =>
     resolveCanonicalLocalResourceId(
       scope,
       "link",
-      `links/${opaqueComponent(source)}/${opaqueComponent(target)}/${opaqueComponent(type)}`,
+      `link_${createHash("sha256")
+        .update(JSON.stringify([source, target, type]))
+        .digest("base64url")}`,
     );
   const run = (args: readonly string[], signal: AbortSignal): Promise<unknown> =>
     new Promise((resolve, reject) => {

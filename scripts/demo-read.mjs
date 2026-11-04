@@ -311,7 +311,7 @@ try {
   );
   const cliRequests = http.filter((entry) => entry.phase === "bdp-cli");
   assert(cliRequests.some((entry) => entry.target === "/local-test/bdp.json"));
-  assert(cliRequests.some((entry) => entry.target.startsWith("/local-test/beads/")));
+  assert(cliRequests.some((entry) => entry.target.startsWith("/local-test/bdp/beads")));
   assert(cliRequests.some((entry) => entry.target.includes("?view=links&direction=outbound")));
   assert(cliRequests.every((entry) => entry.method === "GET" && [200, 204].includes(entry.status)));
   say(

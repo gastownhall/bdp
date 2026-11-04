@@ -133,8 +133,8 @@ async function main() {
     server.on("error", (error) => controller.abort(error));
     await listenFixture(server, controller.signal);
     scope = `http://127.0.0.1:${server.address().port}/history-demo/`;
-    const subject = `${scope}beads/decision`;
-    const linkId = `${scope}links/citation`;
+    const subject = `${scope}decision`;
+    const linkId = `${scope}citation-link`;
     const oldRevision = "r +/%?&雪";
     const target = (url) => {
       const parsed = new URL(url);
@@ -167,8 +167,6 @@ async function main() {
       profile: "read",
       historicalResolution: { version: 1 },
       scope,
-      beads: `${scope}beads/`,
-      links: `${scope}links/`,
       types: `${scope}types/`,
       aliases: `${scope}alias/`,
     });
@@ -205,7 +203,7 @@ async function main() {
       type: "https://work.example/types/cites",
       revision: "link-old",
       source: subject,
-      target: { uri: `${scope}beads/target`, revision: "target%2Fold" },
+      target: { uri: `${scope}target`, revision: "target%2Fold" },
       properties: { opaque: { $ref: "not-a-protocol-reference" } },
       revisionProvenance,
     };

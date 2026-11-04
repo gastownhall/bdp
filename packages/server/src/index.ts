@@ -687,16 +687,17 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       return isReadServerProblem(result) ? problemResponse(result) : jsonResponse(result);
     },
     async alias(aliasPath, request) {
-      // Gate before consulting the static table, even for invalid alias paths.
+      // Gate before consulting the static table.
       const gate = await server.perform(
         { kind: "scope-discovery", scope: server.scope },
         { signal: request.signal, httpRequest: request },
       );
       if (isReadServerProblem(gate)) return problemResponse(gate);
-      if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
       const target = server.aliases?.get(aliasPath) ?? notFound();
       return isReadProblem(target)
-        ? problemResponse(target)
+        ? target.code === "resource-not-found"
+          ? undefined
+          : problemResponse(target)
         : { status: 307, headers: new Headers({ location: target, "content-length": "0" }) };
     },
     async perform(parsed, request) {
@@ -1458,8 +1459,6 @@ function discoveryFor(options: ServerOptions): ReadDiscovery {
     bdpVersion: "0",
     profile: options.admittedProfile.profile,
     scope: options.scope,
-    beads: new URL("beads/", options.scope).href,
-    links: new URL("links/", options.scope).href,
     types: new URL("types/", options.scope).href,
     ...(options.aliases === undefined ? {} : { aliases: new URL("alias/", options.scope).href }),
     order: "canonical-uri",

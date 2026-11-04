@@ -14,7 +14,7 @@ interface ReadHttpRoutes {
   probe(request: Request): Promise<{ readonly serviceDescription: string }>;
   problem(problem: ReadProblem): HttpResponse;
   discover(request: Request): Promise<HttpResponse>;
-  alias(path: string | ReadProblem, request: Request): Promise<HttpResponse>;
+  alias(path: string, request: Request): Promise<HttpResponse | undefined>;
   perform(parsed: ReadRequest, request: Request): Promise<HttpResponse>;
 }
 /** Raw projection only; the caller applies Read HTTP semantics exactly once. */
@@ -27,7 +27,13 @@ export function createReadHttpRoute(routes: ReadHttpRoutes): HttpHandler {
     if (url.origin !== scopeUrl.origin) return routes.problem(notFound());
     const probe = await routes.probe(request);
     const aliasPath = classifyAliasPath(url, routes.scope);
-    if (aliasPath !== undefined) return routes.alias(aliasPath, request);
+    if (isReadProblem(aliasPath)) return routes.problem(aliasPath);
+    if (aliasPath !== undefined) {
+      const alias = await routes.alias(aliasPath, request);
+      // `alias/` is not a reserved Resource-ID namespace. A missing alias may
+      // therefore fall through to the ordinary Resource route.
+      if (alias !== undefined) return alias;
+    }
     if (url.pathname === scopeUrl.pathname)
       return {
         status: 204,

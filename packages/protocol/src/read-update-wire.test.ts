@@ -503,9 +503,7 @@ describe("shapes the bundle now rejects", () => {
     bdpVersion: "0",
     profile: "read-update",
     scope,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
+
     operations: `${scope}operations/`,
   };
   // `aliases` is required in Read+Update discovery (D37, option 2).
@@ -514,9 +512,6 @@ describe("shapes the bundle now rejects", () => {
     bdpVersion: "0",
     profile: "read",
     scope,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
   };
   const validationFailed = {
     type: `${BDP_PROBLEM_FAMILY_PREFIX}validation`,
@@ -1054,7 +1049,10 @@ function expectResolvedReference(
   if (typeof written !== "string") throw new Error(`${label}: unreadable reference`);
   if (written.startsWith("alias/") || written.startsWith(`${scope}alias/`)) {
     expect(typeof resolvedUri, label).toBe("string");
-    expect((resolvedUri as string).startsWith(`${scope}beads/`), `${label}: ${written}`).toBe(true);
+    expect((resolvedUri as string).startsWith(scope), `${label}: ${written}`).toBe(true);
+    expect((resolvedUri as string).startsWith(`${scope}bdp/`), `${label}: route collision`).toBe(
+      false,
+    );
   } else if (written.startsWith("@")) {
     const creator = earlier.find((candidate) => candidate.operationName === written.slice(1));
     const created = creator?.resource as JsonRecord | undefined;
@@ -1102,7 +1100,8 @@ function expectAliasResult(
   }
   expect(["created", "updated"], label).toContain(entry.outcome);
   expectResolvedReference(member.target, entry.target, earlier, scope, `${label}: target`);
-  expect((entry.target as string).startsWith(`${scope}beads/`), `${label}: target`).toBe(true);
+  expect((entry.target as string).startsWith(scope), `${label}: target`).toBe(true);
+  expect((entry.target as string).startsWith(`${scope}bdp/`), `${label}: target route`).toBe(false);
 }
 
 function expectProblemRow(problem: JsonRecord, label: string): void {

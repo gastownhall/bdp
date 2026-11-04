@@ -617,7 +617,7 @@ it("narrows current Transactional visibility and fences issued handles after pol
       first.resources[0],
     );
     const collection = authorizationChecked(
-      await f.request("beads/?limit=2"),
+      await f.request("bdp/beads?limit=2"),
       200,
       "currentBeadCollection",
     );
@@ -671,7 +671,7 @@ it("narrows current Transactional visibility and fences issued handles after pol
       return value;
     };
     await problem("beads/b00", 404, "resource-not-found");
-    const empty = await f.request("beads/?limit=2");
+    const empty = await f.request("bdp/beads?limit=2");
     expect(authorizationChecked(empty, 200, "currentBeadCollection")).toEqual({
       items: [],
       next: null,

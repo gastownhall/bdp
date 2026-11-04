@@ -515,8 +515,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       throw new RecoveryStoreError("invalid-input", "Bead must not carry Link endpoints");
     }
     requireText(resource.id, "resource id");
-    const root = resource.kind === "bead" ? "beads/" : "links/";
-    if (!resource.id.startsWith(root) || resource.id.length === root.length)
+    if (resource.id.length === 0 || resource.id.startsWith("/") || resource.id.endsWith("/"))
       throw new RecoveryStoreError("invalid-input", "normalized local Resource ID required");
     requireJson(resource.bodyJson);
     const previous = get("SELECT kind,source,target FROM resources WHERE id=?", resource.id);
@@ -537,8 +536,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       );
     // Evaluator supplies canonical namespace-relative Resource IDs and alias paths.
     if (
-      resource.kind === "bead" &&
-      get("SELECT path FROM aliases WHERE path=?", resource.id.replace(/^beads\//, ""))
+      resource.id.startsWith("alias/") &&
+      get("SELECT path FROM aliases WHERE path=?", resource.id.slice("alias/".length))
     )
       throw new RecoveryStoreError("alias-path-live", "Bead identity collides with a live alias");
     run(
@@ -839,15 +838,10 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
           putAlias(aliasPathBeneathRoot, beadId) {
             check();
             requireText(aliasPathBeneathRoot, "alias path");
-            if (
-              get(
-                "SELECT id FROM identities WHERE kind='bead' AND id=?",
-                `beads/${aliasPathBeneathRoot}`,
-              )
-            )
+            if (get("SELECT id FROM identities WHERE id=?", `alias/${aliasPathBeneathRoot}`))
               throw new RecoveryStoreError(
                 "alias-path-committed",
-                "alias collides with committed Bead path",
+                "alias collides with committed Resource identity",
               );
             if (get("SELECT kind FROM resources WHERE id=?", beadId)?.kind !== "bead")
               throw new RecoveryStoreError(
@@ -884,9 +878,13 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
               const suffix = createHash("sha256")
                 .update(`${meta("namespace")}:identity:${next}`)
                 .digest("hex");
-              const id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
+              const id = suffix;
               if (get("SELECT id FROM identities WHERE id=?", id)) continue;
-              if (kind === "bead" && get("SELECT path FROM aliases WHERE path=?", suffix)) continue;
+              if (
+                id.startsWith("alias/") &&
+                get("SELECT path FROM aliases WHERE path=?", id.slice("alias/".length))
+              )
+                continue;
               return id;
             }
           },

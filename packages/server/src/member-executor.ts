@@ -11,6 +11,7 @@ import {
   admitJsonNumbers,
   assertPreparedReadUpdateCarrier,
   decodeJsonDocument,
+  assertCanonicalPathSegments,
   parseCanonicalScope,
   parseReadUpdateAliasResult,
   parseReadUpdateMutationResult,
@@ -144,19 +145,27 @@ function epoch(value: unknown): asserts value is number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
     throw new TypeError("safe nonnegative epoch milliseconds required");
 }
-function rootId(scope: string, value: string, kind: "bead" | "link"): void {
+function rootId(scope: string, value: string, _kind: "bead" | "link"): void {
   if (
     !value.startsWith(scope) ||
-    resolveCanonicalLocalResourceId(parseCanonicalScope(scope), kind, value.slice(scope.length)) !==
-      value
+    resolveCanonicalLocalResourceId(
+      parseCanonicalScope(scope),
+      "bead",
+      value.slice(scope.length),
+    ) !== value
   )
-    throw new MemberIntegrityError("stored Resource identity escaped its canonical Scope/kind");
+    throw new MemberIntegrityError("stored Resource identity escaped its canonical Scope");
 }
 function aliasId(scope: string, value: string): void {
   if (!value.startsWith(`${scope}alias/`))
     throw new MemberIntegrityError("stored alias escaped its Scope");
   // Alias suffix obeys the same canonical safe-segment grammar as Resource IDs.
-  rootId(scope, `${scope}beads/${value.slice(scope.length + 6)}`, "bead");
+  const local = value.slice(scope.length + "alias/".length);
+  try {
+    assertCanonicalPathSegments(local, "stored alias path");
+  } catch {
+    throw new MemberIntegrityError("stored alias has a noncanonical path");
+  }
 }
 function guardedJson(value: string): unknown {
   const admitted = admitJsonNumbers(decodeJsonDocument(value), {

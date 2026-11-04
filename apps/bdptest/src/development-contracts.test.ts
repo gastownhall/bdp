@@ -353,7 +353,7 @@ it("withholds a complete owned Resource and its retained postimage when an owned
   const update = { bead: a.id, metadataChange: [{ op: "add", path: "/reviewed", value: true }] };
   const saved = await f.post("updateBead", update, "saved");
   expect(saved.status).toBe(200);
-  const page = await f.wire("beads/?limit=1");
+  const page = await f.wire("bdp/beads?limit=1");
   f.access.replace("alice", { ...allow, hidden: ["links/secret"] });
   expect((await f.wire(a.id)).status).toBe(404);
   const replay = await f.post("updateBead", update, "saved");

@@ -315,6 +315,11 @@ describe("non-attesting bdptest HTTP development authority", () => {
       status: 409,
       body: { code: "idempotency-conflict" },
     });
+    await h.post(
+      "create-bead",
+      { id: "alias/a", type: DEVELOPMENT_BEAD_TYPE },
+      "alias_path_resource",
+    );
     expect(
       await h.post("put-alias", { alias: "alias/a", target: b.id }, "collision"),
     ).toMatchObject({ status: 409, body: { code: "identity-taken" } });
@@ -623,7 +628,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     const denied = await fetch(url, { headers: { "if-none-match": "*" } });
     expect(denied.status).toBe(401);
     expect(parseReadUpdateProblem(await denied.json()).code).toBe("unauthenticated");
-    const noTag = await fetch(`${h.server.scope}beads/`, {
+    const noTag = await fetch(`${h.server.scope}bdp/beads`, {
       headers: { ...headers, "if-none-match": "*" },
     });
     expect(noTag.status).toBe(304);
@@ -639,7 +644,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       ["application/*;q=0.5", 200],
       ["application/json; charset=utf-8", 406],
     ] as const) {
-      const response = await fetch(`${h.server.scope}beads/`, {
+      const response = await fetch(`${h.server.scope}bdp/beads`, {
         headers: { authorization: `Bearer ${token}`, accept },
       });
       expect(response.status).toBe(status);
@@ -657,9 +662,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(head.headers.get("content-type")).toBe("application/problem+json");
     expect(await head.text()).toBe("");
     for (const [target, method, allow] of [
-      ["beads/", "POST", "GET, HEAD"],
+      ["bdp/beads", "POST", "GET, HEAD"],
       ["development/create-bead", "GET", "POST"],
-      ["beads/", "OPTIONS", "GET, HEAD"],
+      ["bdp/beads", "OPTIONS", "GET, HEAD"],
     ] as const) {
       const response = await fetch(`${h.server.scope}${target}`, {
         method,
@@ -922,7 +927,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     await h.server.close();
     await expect(start(dir, Number(new URL(h.server.scope).port), true)).rejects.toThrow();
     const reopened = await start(dir, Number(new URL(h.server.scope).port), false);
-    expect((await reopened.get("beads/")).status).toBe(200);
+    expect((await reopened.get("bdp/beads")).status).toBe(200);
   });
 });
 

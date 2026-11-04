@@ -13,10 +13,10 @@
           "assertions": [
             "scope.successful",
             "discovery.successful",
-            "discovery.beads-navigation",
-            "discovery.links-navigation",
             "discovery.types-navigation",
-            "discovery.local-ru-discovery"
+            "discovery.local-ru-discovery",
+            "discovery.no-beads",
+            "discovery.no-links"
           ]
         }
       ]
@@ -32,10 +32,10 @@
           "assertions": [
             "scope.successful",
             "discovery.successful",
-            "discovery.beads-navigation",
-            "discovery.links-navigation",
             "discovery.types-navigation",
-            "discovery.local-ru-discovery"
+            "discovery.local-ru-discovery",
+            "discovery.no-beads",
+            "discovery.no-links"
           ]
         }
       ]

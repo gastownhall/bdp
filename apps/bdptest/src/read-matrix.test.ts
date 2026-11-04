@@ -118,8 +118,8 @@ async function expectReferenceFixtureParity(portablePort: ScopePort): Promise<vo
   await compare({
     kind: "collection",
     collection: "links",
-    source: new URL("beads/demo-a", scope).href,
-    endpoint: new URL("beads/demo-c", scope).href,
+    source: new URL("demo-a", scope).href,
+    endpoint: new URL("demo-c", scope).href,
   });
   for (const localId of [
     "demo-a",
@@ -132,7 +132,7 @@ async function expectReferenceFixtureParity(portablePort: ScopePort): Promise<vo
     "demo-j",
     "demo-k",
   ]) {
-    const id = new URL(`beads/${localId}`, scope).href;
+    const id = new URL(localId, scope).href;
     await compare({ kind: "resource", resource: "bead", id });
     await compare({ kind: "properties", resource: "bead", id });
     for (const direction of ["inbound", "outbound", "both"] as const)
@@ -151,7 +151,7 @@ async function expectReferenceFixtureParity(portablePort: ScopePort): Promise<vo
     "external-source",
     "external-target",
   ]) {
-    const id = new URL(`links/${localId}`, scope).href;
+    const id = new URL(localId, scope).href;
     await compare({ kind: "resource", resource: "link", id });
     await compare({ kind: "properties", resource: "link", id });
   }
@@ -239,7 +239,7 @@ describe("bdptest reference target Read matrix", () => {
                             type: "https://work.example/types/blocks",
                             revision: "inline-r1",
                             source: resource.id,
-                            target: new URL("beads/demo-b", scope).href,
+                            target: new URL("demo-b", scope).href,
                             properties: {},
                             metadata: {},
                           },
@@ -327,7 +327,12 @@ describe("bdptest reference target Read matrix", () => {
     let omittedBodies = 0;
     const missingMetadata: typeof fetch = async (input, init) => {
       const response = await dial(input, init);
-      if (!response.url.includes("/beads/")) return response;
+      const responseUrl = new URL(response.url);
+      if (
+        responseUrl.pathname !== new URL("demo-a", scope).pathname &&
+        !responseUrl.searchParams.toString().includes(encodeURIComponent(`${scope}demo-a`))
+      )
+        return response;
       const body = (await response.json()) as Record<string, unknown>;
       delete body.metadata;
       omittedBodies += 1;
@@ -341,7 +346,7 @@ describe("bdptest reference target Read matrix", () => {
       family: "client",
       operation: "owned-links",
       scope,
-      input: { bead: "beads/demo-a" },
+      input: { bead: "demo-a" },
       signal: new AbortController().signal,
     };
     try {
@@ -516,7 +521,7 @@ async function startReferenceSession(
   const fixtureAliases = portableReferenceFixtureAliases(scope, fixture);
   const faultPort = injectInternalFault
     ? createReadResourceFaultPortForTesting(port, {
-        resource: "bead",
+        resource: "resource",
         id: faultingResource,
         error: new Error(
           `private injected adapter fault [${requireInternalFaultSentinel(fixture)}]`,
@@ -537,7 +542,7 @@ async function startReferenceSession(
           unauthenticatedChallenge: controlledReadUnauthenticatedChallenge,
           ...(injectProblemTable
             ? {
-                unauthenticatedProblemUrl: new URL("beads/?limit=1", scope).href,
+                unauthenticatedProblemUrl: new URL("bdp/beads?limit=1", scope).href,
               }
             : {}),
           ...(controlledLimits === undefined ? {} : { limits: controlledLimits }),

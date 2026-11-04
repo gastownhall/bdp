@@ -9,9 +9,6 @@
       "body": {
         "bdpVersion": "0",
         "scope": "https://beads.example/acme/",
-        "beads": "https://beads.example/acme/beads/",
-        "links": "https://beads.example/acme/links/",
-        "types": "https://beads.example/acme/types/",
         "aliases": "https://beads.example/acme/alias/",
         "profile": "read",
         "historicalResolution": {
@@ -27,9 +24,6 @@
         "bdpVersion": "0",
         "profile": "read-update",
         "scope": "https://beads.example/acme/",
-        "beads": "https://beads.example/acme/beads/",
-        "links": "https://beads.example/acme/links/",
-        "types": "https://beads.example/acme/types/",
         "operations": "https://beads.example/acme/operations/",
         "aliases": "https://beads.example/acme/alias/",
         "limits": {
@@ -81,9 +75,6 @@
         "authorizationView": "view-a",
         "headPosition": "pos-42",
         "minimumReplayPosition": "pos-17",
-        "beads": "https://beads.example/acme/beads/",
-        "links": "https://beads.example/acme/links/",
-        "types": "https://beads.example/acme/types/",
         "operations": "https://beads.example/acme/operations/",
         "aliases": "https://beads.example/acme/alias/",
         "receipts": "https://beads.example/acme/receipts/",
@@ -594,7 +585,10 @@
       "body": {
         "type": "https://work.example/types/decision",
         "revisionProvenance": {
-          "actor": { "id": "human:donna", "basis": "writer-supplied" },
+          "actor": {
+            "id": "human:donna",
+            "basis": "writer-supplied"
+          },
           "agent": "assistant-a",
           "message": null
         }

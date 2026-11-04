@@ -68,7 +68,7 @@ const commandMaxOutputBytes = 1_048_576;
 const bdLinkLocalId = (source: string, target: string, type: string): string => {
   const opaque = (value: string): string =>
     `b64_${Buffer.from(value, "utf8").toString("base64url")}`;
-  return `links/${opaque(source)}/${opaque(target)}/${opaque(type)}`;
+  return `link-${opaque(source)}-${opaque(target)}-${opaque(type)}`;
 };
 
 interface FixtureOracles {
@@ -322,12 +322,12 @@ setTimeout(() => process.exit(0), 1500);
   });
 
   it.each([
-    ["Link ID", 0, "links/corrupt"],
+    ["Link ID", 0, "wrong-link-id"],
     ["Link Type ID", 1, "types/corrupt"],
     ["Link revision", 2, "99"],
-    ["source Bead ID", 3, "beads/corrupt-source"],
+    ["source Bead ID", 3, "wrong-source"],
     ["source Type ID", 4, "types/corrupt-source"],
-    ["target Bead ID", 5, "beads/corrupt-target"],
+    ["target Bead ID", 5, "wrong-target"],
     ["target Type ID", 6, "types/corrupt-target"],
     ["Link properties", 7, { corrupt: true }],
   ] as const)("rejects corruption of the %s in the bdpbd Link oracle", (_field, index, value) => {
@@ -790,8 +790,8 @@ function expectLogicalReadinessEquivalence(
       throw new Error("bdpbd realization has a Link endpoint without a seeded Bead");
     const id = new URL(bdLinkLocalId(source, target, type), scope).href;
     const projectedLinkType = projectedTypeId(type, "link");
-    const sourceId = new URL(`beads/${encodeURIComponent(source)}`, scope).href;
-    const targetId = new URL(`beads/${encodeURIComponent(target)}`, scope).href;
+    const sourceId = new URL(encodeURIComponent(source), scope).href;
+    const targetId = new URL(encodeURIComponent(target), scope).href;
     const revision = projectedResourceRevisionForOracle({
       id,
       type: new URL(projectedLinkType, scope).href,
@@ -916,7 +916,7 @@ function expectBdOracleParity(
   const beadA = bd.bd.beads.find(({ id }) => id === "demo-a");
   if (beadA === undefined) throw new Error("bdpbd realization is missing demo-a");
   expect(bd.oracles.resources["bead.demo-a"]).toMatchObject({
-    id: "beads/demo-a",
+    id: "demo-a",
     properties: {
       id: beadA.id,
       status: beadA.status,
@@ -930,9 +930,9 @@ function expectBdOracleParity(
   );
   if (linkBA === undefined) throw new Error("bdpbd realization is missing demo-b blocks demo-a");
   expect(bd.oracles.resources["link.demo-b-a"]).toEqual({
-    id: "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
-    source: "beads/demo-b",
-    target: "beads/demo-a",
+    id: "link-b64_ZGVtby1i-b64_ZGVtby1h-b64_YmxvY2tz",
+    source: "demo-b",
+    target: "demo-a",
     properties: {},
   });
 
@@ -1023,7 +1023,7 @@ function projectBdReadyRecords(
   const linkType = (name: string): string =>
     typeByName.get(`link:${name}`) ?? `${scope}types/${name}`;
   return bd.bd.beads.map((bead) => ({
-    id: `${scope}beads/${bead.id}`,
+    id: `${scope}${bead.id}`,
     type: beadType(bead.type),
     revision: "1",
     properties: {
@@ -1037,11 +1037,11 @@ function projectBdReadyRecords(
       items: bd.bd.links
         .filter(({ source }) => source === bead.id)
         .map((link) => ({
-          id: `${scope}links/${link.source}-${link.target}-${link.type}`,
+          id: `${scope}link-${link.source}-${link.target}-${link.type}`,
           type: linkType(link.type),
           revision: "1",
-          source: `${scope}beads/${link.source}`,
-          target: `${scope}beads/${link.target}`,
+          source: `${scope}${link.source}`,
+          target: `${scope}${link.target}`,
           properties: {},
         })),
       next: null,
@@ -1084,7 +1084,7 @@ async function startBdpbdSession(
           unauthenticatedChallenge: controlledReadUnauthenticatedChallenge,
           ...(injectProblemTable
             ? {
-                unauthenticatedProblemUrl: new URL("beads/?limit=1", scopeUrl).href,
+                unauthenticatedProblemUrl: new URL("bdp/beads?limit=1", scopeUrl).href,
               }
             : {}),
           ...(controlledLimits === undefined ? {} : { limits: controlledLimits }),

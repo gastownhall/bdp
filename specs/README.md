@@ -19,7 +19,7 @@ Reference client/service/test alignment follows this structural round against it
 
 ## Supporting material
 
-The two BDP v0 schema copies, [specs source](profiles/core/bdp-v0.schema.json) and [protocol-package mirror](../packages/protocol/schemas/bdp-v0.schema.json), are historical pins retained for the reference implementation's existing evidence; they do not define the current canonical specification.
+The two BDP v0 schema copies, [specs source](profiles/core/bdp-v0.schema.json) and [protocol-package mirror](../packages/protocol/schemas/bdp-v0.schema.json), remain transitional inputs for the reference client's existing tests. They carry no external back-compatibility promise, may evolve with the implementation, and do not define the current canonical specification.
 
 - [Common JSON schema](profiles/core/bdp-v0.1.schema.json) and [Types schema](profiles/types/types-v1.schema.json) are machine-readable companions. Unused historical helper definitions do not add operations to the canonical prose. Their alignment is checked explicitly as the specification is reviewed.
 - The [current OpenAPI catalog](openapi/README.md) is generated from visible profile appendices. Its checks are separate from implementation qualification.

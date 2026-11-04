@@ -1167,9 +1167,9 @@ describe("stored envelope and metadata integrity", () => {
       },
     ],
     [
-      "wrong Resource root",
+      "malformed Resource path",
       (e) => {
-        obj(obj(e.disposition).resource).id = `${scope}links/x`;
+        obj(obj(e.disposition).resource).id = `${scope}links//x`;
         return e;
       },
     ],
@@ -1451,7 +1451,7 @@ describe("stored envelope and metadata integrity", () => {
       { alias: "https://other.test/alias/new" },
       { alias: `${scope}beads/new` },
       { target: "https://other.test/beads/a" },
-      { target: `${scope}links/old` },
+      { target: `${scope}links//old` },
       { revision: "bad" },
       { outcome: "deleted" },
     ]) {

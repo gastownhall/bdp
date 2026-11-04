@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
@@ -39,14 +38,16 @@ describe("staged contract artifact binding, without a runtime upgrade", () => {
     }
   });
 
-  it("preserves the held v0 artifact and runtime identity at the source boundary", () => {
-    expect(createHash("sha256").update(legacyText).digest("hex")).toBe(
-      "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327",
-    );
+  it("keeps the transitional v0 schema mirror aligned without a compatibility byte pin", () => {
     expect(read("packages/protocol/schemas/bdp-v0.schema.json")).toBe(legacyText);
     expect(JSON.parse(legacyText).$id).toBe(BDP_V0_SCHEMA_ID);
     expect(isReadDiscovery(cases.legacyDiscovery)).toBe(true);
     expect(isReadDiscovery({ ...cases.legacyDiscovery, bdpVersion: "0.1" })).toBe(false);
+    const discovery = JSON.parse(legacyText).$defs.readDiscovery;
+    expect(discovery.required).not.toContain("beads");
+    expect(discovery.required).not.toContain("links");
+    expect(discovery.properties).not.toHaveProperty("beads");
+    expect(discovery.properties).not.toHaveProperty("links");
   });
 
   it("admits only the exact new version rather than a number or compatibility range", () => {

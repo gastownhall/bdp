@@ -405,7 +405,7 @@ describe("private canonical Read+Update composition", () => {
       ).status,
     ).toBe(304);
     expect((await h.wire(a.id)).value.metadata).toEqual(a.metadata);
-    const page = await h.wire("beads/?limit=1");
+    const page = await h.wire("bdp/beads?limit=1");
     expect(page.value.items).toEqual([a]);
     expect(typeof page.value.next).toBe("string");
     await h.post("deleteBead", { bead: c.id, expectedRevision: c.revision }, "delete_c");
@@ -413,22 +413,22 @@ describe("private canonical Read+Update composition", () => {
     const second = await h.wire(page.value.next),
       third = await h.wire(second.value.next);
     expect(third.value.items).toEqual([c]);
-    const fresh = await h.wire("beads/");
+    const fresh = await h.wire("bdp/beads");
     expect(fresh.value.items.map((x: { id: string }) => x.id)).toEqual([
       a.id,
       `${h.server.scope}beads/b`,
       `${h.server.scope}beads/d`,
     ]);
     const selected = await h.wire(
-      `beads/?selector=${encodeURIComponent("$[?@.properties.n == 1]")}`,
+      `bdp/beads?selector=${encodeURIComponent("$[?@.properties.n == 1]")}`,
     );
     expect(selected.value.items).toEqual([a]);
     const types = await h.wire("types/");
     expect(types.status).toBe(200);
     expect(types.value.items.map((x: { id: string }) => x.id).sort()).toEqual([beadType, linkType]);
-    expect((await h.wire("beads/?limit=101")).status).toBe(413);
+    expect((await h.wire("bdp/beads?limit=101")).status).toBe(413);
     expect(
-      (await h.wire(`beads/?selector=${encodeURIComponent(`$${" ".repeat(4096)}`)}`)).status,
+      (await h.wire(`bdp/beads?selector=${encodeURIComponent(`$${" ".repeat(4096)}`)}`)).status,
     ).toBe(413);
   });
 
@@ -672,7 +672,9 @@ it("lets the SDK discover, mutate, alias-resolve and read without supplied opera
       ),
     );
     expect((await h.wire("beads/sdk?view=links&direction=both")).value.items).toEqual([edge]);
-    expect((await h.wire(`links/?source=${encodeURIComponent(a.id)}`)).value.items).toEqual([edge]);
+    expect((await h.wire(`bdp/links?source=${encodeURIComponent(a.id)}`)).value.items).toEqual([
+      edge,
+    ]);
     const inclusion = await h.wire("beads/sdk?include=links&direction=both");
     // Optional aggregate is not installed; incident-link view remains supported.
     expect(inclusion.status).toBe(400);

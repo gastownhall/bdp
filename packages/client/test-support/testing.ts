@@ -156,10 +156,12 @@ async function observeExternalLinkEndpoints(
   type LinkRow = readonly [id: string, type: string, source: EndpointRow, target: EndpointRow];
   try {
     const rows: LinkRow[] = [];
+    const linkHasLocalEndpoint: boolean[] = [];
     let externalEndpoints = 0;
     let localSource = 0;
     let localTarget = 0;
     for (const id of ids) {
+      const localEndpointCount = localSource + localTarget;
       const result = await client.perform(
         { kind: "resource", resource: "link", id },
         { signal: execution.signal },
@@ -171,10 +173,8 @@ async function observeExternalLinkEndpoints(
       ): EndpointRow => {
         const uri = referenceUri(endpoint);
         if (uri.startsWith(scope)) {
-          if (uri.startsWith(`${scope}beads/`)) {
-            if (role === "source") localSource += 1;
-            else localTarget += 1;
-          }
+          if (role === "source") localSource += 1;
+          else localTarget += 1;
           const localRevision = referenceRevision(endpoint);
           const localUri = uri.slice(scope.length);
           return localRevision === undefined ? [localUri] : [localUri, localRevision];
@@ -189,6 +189,7 @@ async function observeExternalLinkEndpoints(
         normalize(result.source, "source"),
         normalize(result.target, "target"),
       ]);
+      linkHasLocalEndpoint.push(localSource + localTarget > localEndpointCount);
     }
     return {
       outcome: "success",
@@ -196,11 +197,7 @@ async function observeExternalLinkEndpoints(
       externalEndpoints,
       localSource,
       localTarget,
-      allHaveLocalEndpoint: rows.every((row) => {
-        const source = row[2];
-        const target = row[3];
-        return source[0]?.startsWith("beads/") === true || target[0]?.startsWith("beads/") === true;
-      }),
+      allHaveLocalEndpoint: linkHasLocalEndpoint.every(Boolean),
     };
   } finally {
     await client.close();
@@ -307,7 +304,7 @@ async function observeDisconnectRecovery(
   if (fetchImplementation === undefined)
     throw new Error("disconnect-recovery requires a public target Fetch implementation");
   const scope = execution.scope as AbsoluteHttpUrl;
-  const beads = new URL("beads/", scope).href;
+  const beads = new URL("bdp/beads", scope).href;
   let readRequests = 0;
   let disconnectInjected = false;
   const disconnectingFetch: typeof fetch = async (input, init) => {
@@ -615,7 +612,7 @@ async function observeMalformedSuccessResponse(execution: BdpClientScenarioActio
   const properties = malformedResponseProperties(execution.input);
   const scope = execution.scope as AbsoluteHttpUrl;
   const serviceDescription = new URL("bdp.json", scope).href;
-  const beads = new URL("beads/", scope).href;
+  const beads = new URL("bdp/beads", scope).href;
   let scopeRequests = 0;
   let discoveryDocumentRequests = 0;
   let readRequests = 0;
@@ -641,7 +638,7 @@ async function observeMalformedSuccessResponse(execution: BdpClientScenarioActio
         url,
         properties === undefined
           ? "{not-json"
-          : `{"items":[{"id":${JSON.stringify(`${beads}a`)},"type":"https://work.example/types/task","revision":"r1","properties":${properties}}],"next":null}`,
+          : `{"items":[{"id":${JSON.stringify(`${scope}beads/a`)},"type":"https://work.example/types/task","revision":"r1","properties":${properties}}],"next":null}`,
         {
           headers: { "content-type": "application/json" },
         },
@@ -703,9 +700,7 @@ function discovery(scope: AbsoluteHttpUrl): ReadDiscovery {
     bdpVersion: "0",
     profile: "read",
     scope,
-    beads: new URL("beads/", scope).href as AbsoluteHttpUrl,
-    links: new URL("links/", scope).href as AbsoluteHttpUrl,
-    types: new URL("types/", scope).href as AbsoluteHttpUrl,
+    types: `${scope}types/`,
   };
 }
 

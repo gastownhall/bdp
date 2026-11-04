@@ -105,9 +105,6 @@ describe("bdp ready CLI", () => {
               bdpVersion: "0",
               profile: "read",
               scope,
-              beads: `${scope}beads/`,
-              links: `${scope}links/`,
-              types: `${scope}types/`,
             }),
           );
           return;

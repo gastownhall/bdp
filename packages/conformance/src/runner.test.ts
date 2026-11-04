@@ -1400,9 +1400,6 @@ describe("black-box conformance runner", () => {
           bdpVersion: "0",
           profile: "read",
           scope: "https://scope.example/",
-          beads: "https://scope.example/beads/",
-          links: "https://scope.example/links/",
-          types: "https://scope.example/types/",
         }),
       });
     const result = await runConformanceMatrix({
@@ -2263,14 +2260,14 @@ describe("black-box conformance runner", () => {
         headers: { "content-type": "application/json" },
         bodyText: JSON.stringify({
           token: "opaque",
-          next: "https://scope.example/beads/?cursor=opaque",
+          next: "https://scope.example/bdp/beads?cursor=opaque",
         }),
       }),
       harness: harness(),
     });
     expect(result.scenarios[0]?.exchanges[0]?.response).toMatchObject({
       bodyKind: "json",
-      decodedBodyBytes: 70,
+      decodedBodyBytes: 73,
     });
     expect(result.scenarios[0]?.exchanges[0]?.response).not.toHaveProperty("body");
   });

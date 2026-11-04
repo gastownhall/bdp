@@ -31,9 +31,6 @@
           "authorizationView": "view-a",
           "headPosition": "pos-42",
           "minimumReplayPosition": "pos-17",
-          "beads": "https://beads.example/acme/beads/",
-          "links": "https://beads.example/acme/links/",
-          "types": "https://beads.example/acme/types/",
           "operations": "https://beads.example/acme/operations/",
           "aliases": "https://beads.example/acme/alias/",
           "receipts": "https://beads.example/acme/receipts/",
@@ -63,7 +60,8 @@
               "maximumSnapshotLifetime": "PT300S",
               "replay": "P30D"
             }
-          }
+          },
+          "types": "https://beads.example/acme/types/"
         }
       }
     },

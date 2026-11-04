@@ -357,7 +357,7 @@ it("preserves one allocated effect and receipt across same-key singleton and bat
             : index === 3
               ? receiptUrl
               : index === 4
-                ? `${scope}beads/?limit=32`
+                ? `${scope}bdp/beads?limit=32`
                 : `${scope}events/`;
       if (!literal) throw new Error("same-key missing issued receipt root");
       const url = new URL(literal);

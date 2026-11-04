@@ -878,7 +878,7 @@ describe("initial collection minimums", () => {
     expect(items(second)[0]?.revision).toBeTruthy();
   });
 
-  it.each(["beads/", "beads/a"])(
+  it.each(["bdp/beads", "beads/a"])(
     "rejects a pre-aborted server Request for %s before any owner SQL",
     async (suffix) => {
       const f = fixture();
@@ -2098,9 +2098,10 @@ describe("current alias minimum subset", () => {
     fault = "provider";
     await expect(read.resolveAlias(url("alias/work"))).rejects.toBe(sentinel);
     fault = "target";
-    await expect(read.resolveAlias(url("alias/work"))).rejects.toThrow(
-      "invalid stored alias target",
-    );
+    expect(await read.resolveAlias(url("alias/work"))).toMatchObject({
+      kind: "problem",
+      problem: { code: "resource-not-found" },
+    });
     fault = undefined;
     expect(await read.resolveAlias(url("alias/work"))).toMatchObject({
       kind: "target",

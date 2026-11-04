@@ -53,7 +53,7 @@ export class TransactionEventParameterError extends Error {
 export interface TransactionEventSource {
   readonly url: string;
   readonly subject?: string;
-  readonly kind: "scope" | "bead" | "link";
+  readonly kind: "scope" | "resource";
 }
 export interface TransactionEventGroup {
   readonly scopeEpoch: string;
@@ -160,14 +160,13 @@ export function transactionEventRequest(
   let source: TransactionEventSource;
   if (scopeRoute) source = { kind: "scope", url: scopeSource };
   else {
-    const local = url.pathname.slice(base.pathname.length),
-      kind = local.startsWith("beads/") ? "bead" : local.startsWith("links/") ? "link" : undefined;
-    if (!kind || url.searchParams.get("view") !== "events")
+    const local = url.pathname.slice(base.pathname.length);
+    if (!local || local.startsWith("bdp/") || url.searchParams.get("view") !== "events")
       throw new TransactionEventParameterError();
     try {
-      const subject = resolveCanonicalLocalResourceId(scope, kind, local);
+      const subject = resolveCanonicalLocalResourceId(scope, "bead", local);
       if (new URL(subject).pathname !== url.pathname) throw new Error("noncanonical Event subject");
-      source = { kind, subject, url: `${subject}?view=events` };
+      source = { kind: "resource", subject, url: `${subject}?view=events` };
     } catch {
       throw new TransactionEventParameterError();
     }
@@ -251,12 +250,16 @@ export function projectTransactionEventGroup(
     if (visible && source.kind !== "scope") {
       include =
         event.subject === source.subject && ["created", "updated", "deleted"].includes(event.type);
-      if (source.kind === "bead" && (event.type === "linked" || event.type === "unlinked")) {
+      if (event.type === "linked" || event.type === "unlinked") {
         if (data.endpoint !== "source" && data.endpoint !== "target")
           throw new Error("invalid endpoint fact");
         include = reference(data[data.endpoint]) === source.subject;
       }
-      if (source.kind === "bead" && event.type === "updated" && linkIds.has(event.subject)) {
+      if (
+        event.type === "updated" &&
+        event.subject !== source.subject &&
+        linkIds.has(event.subject)
+      ) {
         const pair = endpoints.get(event.subject);
         if (!pair) throw new Error("incident Link update lacks same-group endpoints");
         include = pair.some((endpoint) => reference(endpoint) === source.subject);

@@ -236,7 +236,7 @@ async function start(signal: AbortSignal, label: string) {
     bodySha256: string;
   }[] = [];
   async function exchange(
-    url = `${scope}beads/`,
+    url = `${scope}bdp/beads`,
     method: HttpMethod = "GET",
     headers: Record<string, string> = {},
     body?: unknown,
@@ -392,10 +392,10 @@ function context(
 }
 it("observes genuine installed initial collection minimums, fixed-budget failures, conditionals and retained rows", async () => {
   await withInstalled(async (f) => {
-    const empty = await f.exchange(`${scope}beads/`),
+    const empty = await f.exchange(`${scope}bdp/beads`),
       genesis = minimum(empty, "genesis");
     for (const collection of ["beads", "links"]) {
-      const response = await f.exchange(`${scope}${collection}/`, "GET", genesis);
+      const response = await f.exchange(`${scope}bdp/${collection}`, "GET", genesis);
       expect(json<Page>(response)).toEqual({ items: [], next: null });
       context(response, genesis, "pos-0");
     }
@@ -419,7 +419,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
       headers = minimum(seeded);
     const expected: Record<string, Row[]> = {};
     for (const collection of ["beads", "links"]) {
-      const target = `${scope}${collection}/?limit=32&type=${encodeURIComponent(collection === "beads" ? beadType : linkType)}`;
+      const target = `${scope}bdp/${collection}?limit=32&type=${encodeURIComponent(collection === "beads" ? beadType : linkType)}`;
       const response = await f.exchange(target, "GET", headers);
       const page = json<Page>(response);
       expected[collection] = page.items;
@@ -563,7 +563,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     }
     // The two Links have different sources: ignoring this filter returns an extra row.
     const filtered = await f.exchange(
-      `${scope}links/?source=${encodeURIComponent(`${scope}beads/a`)}`,
+      `${scope}bdp/links?source=${encodeURIComponent(`${scope}beads/a`)}`,
       "GET",
       headers,
     );
@@ -571,7 +571,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     context(filtered, headers);
     // A valid nonmatching Type distinguishes filtering from an unfiltered collection.
     const noTypeMatch = await f.exchange(
-      `${scope}beads/?type=${encodeURIComponent(linkType)}`,
+      `${scope}bdp/beads?type=${encodeURIComponent(linkType)}`,
       "GET",
       headers,
     );
@@ -582,7 +582,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
       [`selector=${encodeURIComponent("$[?")}`, 400, "invalid-parameter"],
     ] as const) {
       const response = await f.exchange(
-        `${scope}beads/?${query}`,
+        `${scope}bdp/beads?${query}`,
         "GET",
         minimum(seeded, "pos-999"),
       );
@@ -592,12 +592,12 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
         retry: "never",
       });
     }
-    const anonymous = await f.exchange(`${scope}beads/`, "GET", headers, undefined, "anonymous");
+    const anonymous = await f.exchange(`${scope}bdp/beads`, "GET", headers, undefined, "anonymous");
     expect(anonymous.status).toBe(401);
     for (const h of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
       expect(anonymous.headers[h]).toBeUndefined();
     // Capture after slow timeout witnesses: default collection cursors live only1s.
-    const first = await f.exchange(`${scope}beads/?limit=2`, "GET", headers),
+    const first = await f.exchange(`${scope}bdp/beads?limit=2`, "GET", headers),
       page = json<Page>(first);
     expect(page.items).toEqual(expected.beads?.slice(0, 2));
     if (typeof page.next !== "string") throw new Error("missing actual collection continuation");
@@ -615,7 +615,7 @@ it("observes genuine installed initial collection minimums, fixed-budget failure
     context(retained, minimum(changed));
     expect(retained.headers["bdp-scope-position"]).toBe(changed.headers["bdp-scope-position"]);
     const current = json<Page>(
-      await f.exchange(`${scope}beads/?limit=32`, "GET", minimum(changed)),
+      await f.exchange(`${scope}bdp/beads?limit=32`, "GET", minimum(changed)),
     );
     expect(current.items[2]?.properties.title).toBe("after_c");
     expect(current.items[2]?.revision).not.toBe(second.items[0]?.revision);
@@ -633,7 +633,7 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
       const exchange = async (...args: Parameters<typeof f.exchange>) => {
         count++;
         expect(count).toBeLessThanOrEqual(10);
-        urls.add(args[0] ?? `${scope}beads/`);
+        urls.add(args[0] ?? `${scope}bdp/beads`);
         return f.exchange(...args);
       };
       type Result = {
@@ -891,7 +891,11 @@ it("observes genuine installed current Type and incident-Link minimums within20r
       context(seeded, bound, "pos-1");
       const links = receipt.results.slice(3).map((r) => r.resource);
       const descriptor = JSON.parse(artifacts().descriptors[0]!.utf8);
-      const targets = [`${scope}types/task`, `${scope}types/`, `${scope}beads/a?view=links`];
+      const targets = [
+        `${scope}types/task`,
+        `${scope}types/`,
+        `${scope}beads/a?view=links`,
+      ];
       const expected = [
         descriptor,
         {
@@ -1229,7 +1233,7 @@ it("observes genuine installed current alias minimums within18requests", async (
 it("ignores command read controls while enforcing a later installed receipt minimum", async () => {
   await withInstalled(
     async (f) => {
-      const collection = `${scope}beads/?limit=32`;
+      const collection = `${scope}bdp/beads?limit=32`;
       const routes = new Set([
         collection,
         ...["create-bead", "update-bead", "batch", "sequence"].map(
@@ -1497,7 +1501,7 @@ it("observes installed parser refusals before unknown minimum handling", async (
         expect(calls).toBeLessThanOrEqual(25);
         return f.exchange(...args);
       };
-      const setup = await exchange(`${scope}beads/`);
+      const setup = await exchange(`${scope}bdp/beads`);
       expect(json<Page>(setup)).toEqual({ items: [], next: null });
       const current = minimum(setup),
         opaque = minimum(setup, "opaque");
@@ -1538,19 +1542,19 @@ it("observes installed parser refusals before unknown minimum handling", async (
       for (const collection of ["beads", "links"])
         for (const query of ["unsupported=x", "limit=1&limit=2", "limit=0"])
           for (const method of ["GET", "HEAD"] as const)
-            await refusal(`${collection}/?${query}`, method, opaque);
+            await refusal(`bdp/${collection}?${query}`, method, opaque);
       const controls: readonly Record<string, string>[] = [{}, current];
       for (const headers of controls)
         for (const method of ["GET", "HEAD"] as const)
-          await refusal("beads/?unsupported=x", method, headers);
+          await refusal("bdp/beads?unsupported=x", method, headers);
       for (const suffix of [
         "types/task?view=properties",
         "beads/a?view=links&direction=sideways",
         "beads/missing?view=bogus",
       ])
         for (const method of ["GET", "HEAD"] as const) await refusal(suffix, method, opaque);
-      await refusal("beads/?unsupported=x", "GET", { ...opaque, "if-none-match": "*" });
-      await refusal("beads/?unsupported=x", "HEAD", { ...opaque, accept: "image/png" });
+      await refusal("bdp/beads?unsupported=x", "GET", { ...opaque, "if-none-match": "*" });
+      await refusal("bdp/beads?unsupported=x", "HEAD", { ...opaque, accept: "image/png" });
       expect(calls).toBe(25);
     },
     undefined,

@@ -287,9 +287,7 @@
           "bdpVersion": "0.1",
           "profile": "read",
           "scope": "https://work.example/acme/",
-          "beads": "https://work.example/acme/inventory",
-          "links": "https://work.example/acme/relations",
-          "types": "https://work.example/acme/type-catalog"
+          "types": "https://work.example/acme/types/"
         },
         "context": {
           "subject": "https://work.example/acme/bdp.json"

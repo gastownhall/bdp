@@ -1,10 +1,5 @@
 /** Private cumulative Read+Update composition; not a public profile admission. */
-import {
-  parseReadUpdateDiscovery,
-  isReadProblem,
-  readProblem,
-  type ReadProblem,
-} from "@bdp/protocol";
+import { parseReadUpdateDiscovery, readProblem, type ReadProblem } from "@bdp/protocol";
 import * as routing from "./read-http-routing.js";
 import type { DevelopmentHttpComposition } from "./development-runtime.js";
 
@@ -48,11 +43,12 @@ export function createDevelopmentComposition(scopePath: string): DevelopmentHttp
         probe: async () => ({ serviceDescription }),
         problem,
         discover: discovery,
-        async alias(suffix, request) {
-          if (isReadProblem(suffix)) return problem(suffix);
+        async alias(_suffix, request) {
           const result = await authority.resolveAlias(request.url);
           return result.kind === "problem"
-            ? problem(result.problem)
+            ? result.problem.code === "resource-not-found"
+              ? undefined
+              : problem(result.problem)
             : {
                 status: 307,
                 headers: new Headers({
@@ -70,8 +66,9 @@ export function createDevelopmentComposition(scopePath: string): DevelopmentHttp
               ? routing.scopeDataResponse(
                   parsed,
                   result.body,
-                  "resourceRevision" in result.observation
-                    ? result.observation.resourceRevision
+                  "resourceRevision" in (result.observation as object)
+                    ? (result.observation as { readonly resourceRevision?: string })
+                        .resourceRevision
                     : undefined,
                 )
               : problem(readProblem("resource-not-found"));

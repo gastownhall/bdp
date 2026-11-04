@@ -90,7 +90,7 @@ if (output !== undefined && !path.isAbsolute(output))
 const contextNames = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
 const routeBindings: { method: HttpMethod; url: string }[] = [
   { method: "POST", url: `${scope}operations/batch` },
-  { method: "GET", url: `${scope}beads/?limit=32` },
+  { method: "GET", url: `${scope}bdp/beads?limit=32` },
   { method: "GET", url: `${scope}events/` },
 ];
 const routeSha256 = "40b5131d96ba76a7a77212c92b9336148142f8afb648caac0107f1dc9af3a837";
@@ -230,7 +230,7 @@ const requests = [
     index: 6,
     label: "current-complete",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/?limit=32",
+    url: "https://reference.invalid/acme/bdp/beads?limit=32",
     credentialRef: "a",
     headerLines: [
       {

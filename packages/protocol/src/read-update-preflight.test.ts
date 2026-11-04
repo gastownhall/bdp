@@ -96,20 +96,26 @@ describe("whole-carrier Read+Update Scope preflight", () => {
   });
 
   it.each([
-    ["createBead", { type, id: `${scope}links/a` }],
-    ["createLink", { type, id: `${scope}beads/a`, source: "beads/a", target: "beads/b" }],
     ["createBead", { type, id: "https://other.test/s/beads/a" }],
     [
       "createLink",
       { type, id: "https://example.test/sibling/links/a", source: "beads/a", target: "beads/b" },
     ],
-  ] as const)(
-    "requires Scope-local creation identity and correct root for %s",
-    (operation, input) => {
-      expect(() => parseReadUpdateRequest(operation, JSON.stringify(input))).not.toThrow();
-      expect(() => prepare(operation, input)).toThrow(ReadUpdateCarrierError);
-    },
-  );
+  ] as const)("requires Scope-local creation identity for %s", (operation, input) => {
+    expect(() => parseReadUpdateRequest(operation, JSON.stringify(input))).not.toThrow();
+    expect(() => prepare(operation, input)).toThrow(ReadUpdateCarrierError);
+  });
+
+  it.each([
+    ["createBead", { type, id: "task-42" }],
+    ["createBead", { type, id: "links/a" }],
+    ["createLink", { type, id: "relation-81", source: "task-42", target: "person-7" }],
+    ["createLink", { type, id: "beads/a", source: "task-42", target: "person-7" }],
+    ["createBead", { type, id: `${scope}links/a` }],
+    ["createLink", { type, id: `${scope}beads/a`, source: "task-42", target: "person-7" }],
+  ] as const)("accepts kind-independent Scope-local identity for %s", (operation, input) => {
+    expect(() => prepare(operation, input)).not.toThrow();
+  });
 
   it.each([
     [

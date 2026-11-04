@@ -95,9 +95,7 @@ export function parseReadDiscovery(value: unknown, path = "Read discovery"): Rea
   const discovery = snapshotProtocolRecord(value, path);
   validateFromSchema(getProtocolValueValidators().discovery, discovery, path);
   parseCanonicalTypeId(discovery.scope, `${path}.scope`);
-  parseCanonicalTypeId(discovery.beads, `${path}.beads`);
-  parseCanonicalTypeId(discovery.links, `${path}.links`);
-  parseCanonicalTypeId(discovery.types, `${path}.types`);
+  if (discovery.types !== undefined) parseCanonicalHttpUrl(discovery.types, `${path}.types`);
   if (discovery.aliases !== undefined) parseCanonicalTypeId(discovery.aliases, `${path}.aliases`);
   if (Array.isArray(discovery.maximumEndpointMultiplicity)) {
     for (const [index, policy] of discovery.maximumEndpointMultiplicity.entries())
@@ -324,7 +322,9 @@ export function parseCanonicalScope(value: unknown, path = "Scope"): AbsoluteHtt
   return scope;
 }
 
-/** Resolve a canonical local Resource ID beneath the required fixed root. */
+/** Resolve a canonical Scope-relative Resource identity. Kind comes from the
+ * operation/record, never from a path prefix.
+ */
 export function resolveCanonicalLocalResourceId(
   scope: AbsoluteHttpUrl,
   resource: "bead" | "link" | "type",
@@ -335,13 +335,20 @@ export function resolveCanonicalLocalResourceId(
     throw new ProtocolArtifactValidationError(
       "local Resource ID must not contain query or fragment",
     );
-  const segments = localId.split("/");
-  const expectedRoot = resource === "bead" ? "beads" : resource === "link" ? "links" : "types";
-  if (segments[0] !== expectedRoot || segments.length < 2)
+  if (resource === "type") {
+    const segments = localId.split("/");
+    if (segments[0] !== "types" || segments.length < 2)
+      throw new ProtocolArtifactValidationError(
+        "local Type ID must begin with types/ and contain an ID path",
+      );
+    for (const segment of segments.slice(1)) validateCanonicalIdSegment(segment);
+    return new URL(localId, scope).href as AbsoluteHttpUrl;
+  }
+  assertCanonicalPathSegments(localId, `${resource} local ID`);
+  if (localId === "bdp" || localId.startsWith("bdp/"))
     throw new ProtocolArtifactValidationError(
-      `local ${resource} ID must begin with ${expectedRoot}/ and contain an ID path`,
+      "local Resource ID must not occupy the reserved BDP protocol namespace",
     );
-  for (const segment of segments.slice(1)) validateCanonicalIdSegment(segment);
   return new URL(localId, scope).href as AbsoluteHttpUrl;
 }
 
@@ -422,8 +429,7 @@ function validateFromSchema(validator: ValidateFunction, value: unknown, path: s
  * Validates one canonical path (one or more safe segments joined by `/`)
  * under the exact Resource-ID segment grammar: nonempty, no `.`/`..`, no
  * embedded separators or controls after one-time UTF-8 decoding, and
- * canonically encoded. The alias root shares this grammar with `beads/`
- * and `links/`.
+ * canonically encoded. Resource kind does not constrain path segments.
  */
 export function assertCanonicalPathSegments(path: string, label: string): void {
   const segments = path.split("/");

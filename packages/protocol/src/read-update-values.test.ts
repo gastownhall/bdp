@@ -371,19 +371,11 @@ describe("RU parser boundary regressions", () => {
   });
 
   it.each(["createBead", "createLink"] as const)(
-    "rejects wrong-root and non-HTTP creation IDs for %s",
+    "rejects non-HTTP or noncanonical absolute creation IDs for %s",
     (kind) => {
       const fields =
         kind === "createBead" ? { type } : { type, source: "beads/a", target: "beads/b" };
-      for (const id of [
-        kind === "createBead" ? "links/a" : "beads/a",
-        "wrong-root/a",
-        "alias/a",
-        "beads",
-        "links",
-        "urn:example:opaque",
-        "https://EXAMPLE.test/s/beads/a",
-      ]) {
+      for (const id of ["urn:example:opaque", "https://EXAMPLE.test/s/beads/a"]) {
         const input = { ...fields, id };
         expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
           ReadUpdateCarrierError,
@@ -393,6 +385,23 @@ describe("RU parser boundary regressions", () => {
             sequence([create, { ...input, operation: kind, idempotencyKey: "second" }]),
           ),
         ).toThrow(ReadUpdateCarrierError);
+      }
+    },
+  );
+
+  it.each(["createBead", "createLink"] as const)(
+    "accepts kind-independent local creation IDs for %s",
+    (kind) => {
+      const fields =
+        kind === "createBead" ? { type } : { type, source: "source", target: "target" };
+      for (const id of ["task-42", "beads/ordinary", "links/ordinary", "sys/system-record"]) {
+        const input = { ...fields, id };
+        expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).not.toThrow();
+        expect(() =>
+          parseReadUpdateSequenceRequest(
+            sequence([create, { ...input, operation: kind, idempotencyKey: "second" }]),
+          ),
+        ).not.toThrow();
       }
     },
   );
@@ -531,9 +540,6 @@ describe("canonical RU response parsers", () => {
       bdpVersion: "0.1",
       profile: "read-update",
       scope: "https://example.test/s/",
-      beads: "https://example.test/s/beads/",
-      links: "https://example.test/s/links/",
-      types: "https://example.test/s/types/",
       operations: "https://example.test/s/operations/",
       aliases: "https://example.test/s/alias/",
     };

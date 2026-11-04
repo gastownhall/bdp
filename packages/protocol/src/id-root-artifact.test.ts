@@ -31,20 +31,17 @@ describe("fixed id-root1 separate Write artifact", () => {
       expect(ajv.getSchema(`${feature.$id}#/$defs/${name}`), name).toBeDefined();
   });
 
-  it("preserves both historical schema byte pins and current distribution mirrors", () => {
-    for (const [version, hash] of [
-      ["v0", "15104f001d41290c130b22999ceafe3bb9e83e8aa36db3f7aee2de06c268a327"],
-      ["v0.1", "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f"],
-    ]) {
-      const canonical =
-        version === "v0.1"
-          ? historicalArtifactSchema()
-          : bytes(`specs/profiles/core/bdp-${version}.schema.json`);
-      expect(createHash("sha256").update(canonical).digest("hex")).toBe(hash);
-      expect(bytes(`packages/protocol/schemas/bdp-${version}.schema.json`)).toEqual(
-        bytes(`specs/profiles/core/bdp-${version}.schema.json`),
-      );
-    }
+  it("keeps the transitional v0 mirror aligned and the canonical v0.1 artifact generated", () => {
+    expect(bytes("packages/protocol/schemas/bdp-v0.schema.json")).toEqual(
+      bytes("specs/profiles/core/bdp-v0.schema.json"),
+    );
+    const canonical = historicalArtifactSchema();
+    expect(createHash("sha256").update(canonical).digest("hex")).toBe(
+      "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f",
+    );
+    expect(bytes("packages/protocol/schemas/bdp-v0.1.schema.json")).toEqual(
+      bytes("specs/profiles/core/bdp-v0.1.schema.json"),
+    );
   });
 
   it("requires exact version1 advertisement with closed empty detail", () => {

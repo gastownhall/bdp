@@ -31,6 +31,8 @@
     "http.resource": "beads/read-a",
     "http.link": "links/read-a",
     "http.absent": "beads/http-never-created",
+    "bead-inventory": "bdp/beads",
+    "link-inventory": "bdp/links",
     "w1.a": "beads/w1-a",
     "w1.b": "beads/w1-b",
     "w1.l": "links/w1-l",

@@ -38,7 +38,7 @@ export function establishReadConformanceEvidenceForTesting(target: ReadServerTar
 export function createReadResourceFaultPortForTesting(
   port: ScopePort,
   fault: {
-    readonly resource: "bead" | "link" | "type";
+    readonly resource: "bead" | "link" | "type" | "resource";
     readonly id: string;
     readonly error: Error;
   },
@@ -65,13 +65,13 @@ export function createReadProblemTablePortForTesting(
   port: ScopePort,
   options: { readonly scope: string; readonly pathPrefix?: string },
 ): ScopePort {
-  const pathPrefix = options.pathPrefix ?? "beads/__problem__/";
+  const pathPrefix = options.pathPrefix ?? "__problem__/";
   const prefix = new URL(pathPrefix, options.scope).href;
   return {
     async perform(operation, performOptions) {
       if (
         operation.kind === "resource" &&
-        operation.resource === "bead" &&
+        (operation.resource === "bead" || operation.resource === "resource") &&
         operation.id.startsWith(prefix)
       ) {
         const encodedCode = operation.id.slice(prefix.length);

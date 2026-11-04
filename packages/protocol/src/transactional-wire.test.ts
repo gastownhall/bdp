@@ -988,9 +988,7 @@ describe("shapes the bundle now rejects", () => {
     authorizationView: "view-a",
     headPosition: "pos-42",
     minimumReplayPosition: "pos-17",
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
+
     operations: `${scope}operations/`,
     aliases: `${scope}alias/`,
     receipts: `${scope}receipts/`,
@@ -1878,7 +1876,7 @@ function expectClosedSnapshot(manifest: JsonRecord, label: string, scope = SCOPE
     for (const endpoint of ["source", "target"] as const) {
       const reference = link[endpoint];
       const uri = typeof reference === "string" ? reference : (reference as JsonRecord).uri;
-      if (typeof uri === "string" && uri.startsWith(`${scope}beads/`))
+      if (typeof uri === "string" && uri.startsWith(`${scope}bdp/beads`))
         expect(beadIds.has(uri), `${label}: ${link.id} ${endpoint}`).toBe(true);
     }
   }

@@ -770,7 +770,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     profile: "transactional",
     routes: [
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "GET", url: `${scope}beads/?limit=32` },
+      { method: "GET", url: `${scope}bdp/beads?limit=32` },
       { method: "GET", url: `${scope}events/` },
       { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/sequence` },
@@ -779,7 +779,7 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
       { method: "GET", url: `${scope}links/l` },
       { method: "GET", url: `${scope}beads/new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
-      { method: "GET", url: `${scope}links/?limit=32` },
+      { method: "GET", url: `${scope}bdp/links?limit=32` },
       { method: "GET", url: `${scope}beads/b` },
       { method: "GET", url: `${scope}beads/c` },
       { method: "POST", url: `${scope}operations/update-where` },
@@ -799,11 +799,11 @@ it("pins the matching no-op installed route digest and fifteen-action ledger", (
     { method: "GET", url: `${scope}beads/a` },
     { method: "POST", url: `${scope}operations/batch` },
     { method: "GET", url: `${scope}links/l` },
-    { method: "GET", url: `${scope}beads/?limit=32` },
+    { method: "GET", url: `${scope}bdp/beads?limit=32` },
     { method: "GET", url: `${scope}events/` },
     { method: "GET", url: `${scope}beads/new` },
     { method: "GET", url: `${scope}changes/?after=genesis` },
-    { method: "GET", url: `${scope}links/?limit=32` },
+    { method: "GET", url: `${scope}bdp/links?limit=32` },
     { method: "GET", url: `${scope}beads/b` },
     { method: "GET", url: `${scope}beads/c` },
     { method: "POST", url: `${scope}operations/update-where` },
@@ -1357,7 +1357,7 @@ function crossCarrierRequests(control?: CrossCarrierControl) {
     ["update-bead", update, "carrier-update"],
     ["create-bead", create, "carrier-create"],
     ["batch", { operations: [{ operation: "createBead", ...create }] }, "carrier-create"],
-    ["beads/?limit=32", undefined, undefined],
+    ["bdp/beads?limit=32", undefined, undefined],
     ["events/", undefined, undefined],
   ] as const;
 }
@@ -1803,7 +1803,7 @@ function minimumRequests(control?: MinimumControl) {
       "minimum-stale",
       M,
     ),
-    { url: `${scope}beads/?limit=32`, body: undefined, headers: O },
+    { url: `${scope}bdp/beads?limit=32`, body: undefined, headers: O },
     { url: `${scope}events/`, body: undefined, headers: O },
   ];
 }
@@ -2365,7 +2365,7 @@ function memberRequests(negative = false) {
     post("batch", { operations: [last] }, "member-b"),
     post("sequence", sequence),
     {
-      url: `${scope}beads/?limit=32`,
+      url: `${scope}bdp/beads?limit=32`,
       body: undefined,
       headers: [{ name: "accept", value: "application/json" }],
     },
@@ -2944,7 +2944,7 @@ const principalRequests = [
   {
     action: "pk-current",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/?limit=32",
+    url: "https://reference.invalid/acme/bdp/beads?limit=32",
     credentialRef: "principal-a",
     headerLines: [
       {
@@ -2956,8 +2956,8 @@ const principalRequests = [
     bodyBytes: 0,
     bodySha256: null,
     status: 200,
-    dispatchUrl: "https://reference.invalid/acme/beads/?limit=32",
-    reportedUrl: "https://reference.invalid/acme/beads/?<redacted>",
+    dispatchUrl: "https://reference.invalid/acme/bdp/beads?limit=32",
+    reportedUrl: "https://reference.invalid/acme/bdp/beads?<redacted>",
   },
   {
     action: "pk-events",
@@ -3074,7 +3074,7 @@ function assertPrincipalStatic() {
   for (const literal of principalRequests) {
     expect(literal.url).toBe(literal.dispatchUrl);
     expect(literal.reportedUrl).toBe(
-      literal.action === "pk-current" ? `${scope}beads/?<redacted>` : literal.dispatchUrl,
+      literal.action === "pk-current" ? `${scope}bdp/beads?<redacted>` : literal.dispatchUrl,
     );
     const digest =
       literal.body === null ? undefined : createHash("sha256").update(literal.body).digest("hex");

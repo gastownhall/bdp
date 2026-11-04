@@ -163,13 +163,10 @@ function canonical(scope: string, spelling: string): string {
   return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(spelling) ? spelling : new URL(spelling, scope).href;
 }
 function resourceId(scope: string, value: unknown, kind: ResourceKind, source = "binding"): string {
-  if (
-    typeof value !== "string" ||
-    !value.startsWith(`${scope}${kind === "bead" ? "beads" : "links"}/`)
-  )
-    throw new MemberMetadataError(`${source} requires the canonical in-Scope Resource kind`);
+  if (typeof value !== "string" || !value.startsWith(scope))
+    throw new MemberMetadataError(`${source} requires a canonical in-Scope Resource identity`);
   parseCanonicalHttpUrl(value);
-  assertCanonicalPathSegments(value.slice(scope.length), `${source} Resource path`);
+  assertCanonicalPathSegments(value.slice(scope.length), `${source} ${kind} Resource path`);
   return value;
 }
 function binding(

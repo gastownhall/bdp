@@ -342,7 +342,7 @@ async function observeAdvertisedLimitBoundaries(
   let publicRequests = 0;
   const first = await requestPage(
     fetchImplementation,
-    new URL("beads/", execution.scope),
+    new URL("bdp/beads", execution.scope),
     view,
     epoch,
     execution.signal,
@@ -486,8 +486,8 @@ async function observeProblemTable(
   for (const code of codes) {
     const target =
       code === "unauthenticated"
-        ? new URL("beads/?limit=1", execution.scope).href
-        : new URL(`beads/__problem__/${encodeURIComponent(code)}`, execution.scope).href;
+        ? new URL("bdp/beads?limit=1", execution.scope).href
+        : new URL(`__problem__/${encodeURIComponent(code)}`, execution.scope).href;
     const problem = await requestProblem(
       fetchImplementation,
       target,
@@ -1711,9 +1711,9 @@ function pageSchemaFor(
   responseUrl: string,
 ): "#/$defs/currentBeadCollection" | "#/$defs/currentLinkCollection" {
   const url = new URL(responseUrl);
-  if (url.searchParams.get("view") === "links" || url.pathname.endsWith("/links/"))
+  if (url.searchParams.get("view") === "links" || url.pathname.endsWith("/bdp/links"))
     return "#/$defs/currentLinkCollection";
-  if (url.pathname.endsWith("/beads/")) return "#/$defs/currentBeadCollection";
+  if (url.pathname.endsWith("/bdp/beads")) return "#/$defs/currentBeadCollection";
   throw new Error("controlled page request used an unsupported projection");
 }
 
@@ -1822,7 +1822,7 @@ function collectionUrl(
   collection: string,
   parameters: Readonly<Record<string, string | number>>,
 ): URL {
-  const url = new URL(`${collection}/`, baseScope);
+  const url = new URL(`bdp/${collection}`, baseScope);
   for (const [name, value] of Object.entries(parameters)) url.searchParams.set(name, String(value));
   return url;
 }
@@ -1944,12 +1944,19 @@ export function createCurrentReadWireValidator(schemaValidator: SchemaValidator)
     const view = target.searchParams.get("view");
     // Properties and optional History are distinct representations, not current records.
     if ((view !== null && view !== "links") || target.searchParams.has("revision")) return;
+    if (
+      local === "" ||
+      local === "bdp.json" ||
+      local === "types/" ||
+      local.startsWith("types/") ||
+      local.startsWith("alias/")
+    )
+      return;
     let schema: string | undefined;
-    if (local === "beads/") schema = "#/$defs/currentBeadCollection";
-    else if (local === "links/" || (local.startsWith("beads/") && view === "links"))
-      schema = "#/$defs/currentLinkCollection";
-    else if (local.startsWith("beads/")) schema = "#/$defs/currentBeadRecord";
-    else if (local.startsWith("links/")) schema = "#/$defs/currentLinkRecord";
+    if (local === "bdp/beads") schema = "#/$defs/currentBeadCollection";
+    else if (local === "bdp/links" || view === "links") schema = "#/$defs/currentLinkCollection";
+    else if (body && typeof body === "object" && !Array.isArray(body))
+      schema = "source" in body ? "#/$defs/currentLinkRecord" : "#/$defs/currentBeadRecord";
     if (schema !== undefined) {
       const failures = schemaValidator.validate(schema, body);
       if (failures.length > 0)

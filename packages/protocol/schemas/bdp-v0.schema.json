@@ -18,10 +18,18 @@
       "const": "0"
     },
     "protocolProfile": {
-      "enum": ["read", "read-update", "transactional"]
+      "enum": [
+        "read",
+        "read-update",
+        "transactional"
+      ]
     },
     "retryDisposition": {
-      "enum": ["never", "after-state-change", "after-delay"]
+      "enum": [
+        "never",
+        "after-state-change",
+        "after-delay"
+      ]
     },
     "readProblemCode": {
       "enum": [
@@ -48,7 +56,11 @@
     "readProblem": {
       "title": "BDP Read Problem Details",
       "type": "object",
-      "required": ["type", "code", "retry"],
+      "required": [
+        "type",
+        "code",
+        "retry"
+      ],
       "properties": {
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -58,7 +70,17 @@
         },
         "status": {
           "type": "integer",
-          "enum": [400, 401, 403, 404, 409, 410, 413, 429, 503]
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            410,
+            413,
+            429,
+            503
+          ]
         },
         "detail": {
           "type": "string"
@@ -81,7 +103,9 @@
                 "const": "malformed-request"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -104,7 +128,9 @@
                 "const": "invalid-parameter"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -127,7 +153,9 @@
                 "const": "unauthenticated"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -150,7 +178,9 @@
                 "const": "forbidden"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -173,7 +203,9 @@
                 "const": "resource-not-found"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -196,7 +228,9 @@
                 "const": "foreign-view"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -219,7 +253,9 @@
                 "const": "cursor-expired"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -242,7 +278,9 @@
                 "const": "request-too-large"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -265,7 +303,9 @@
                 "const": "limit-exceeded"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -288,7 +328,9 @@
                 "const": "rate-limited"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -311,7 +353,9 @@
                 "const": "temporarily-unavailable"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -334,7 +378,9 @@
                 "const": "resource-pruned"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -357,7 +403,9 @@
                 "const": "resource-erased"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -380,7 +428,9 @@
                 "const": "revision-unknown"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -403,7 +453,9 @@
                 "const": "revision-unretained"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -426,7 +478,9 @@
                 "const": "revision-reorganized"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -449,7 +503,9 @@
                 "const": "revision-not-tracked"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -472,7 +528,9 @@
                 "const": "revision-unrepresentable"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -495,7 +553,9 @@
                 "const": "resource-pruned"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -513,7 +573,9 @@
                   "const": "resource-pruned"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -529,7 +591,9 @@
                 "const": "resource-erased"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -544,10 +608,14 @@
                 "const": "revision-unretained"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
-            "required": ["missing"],
+            "required": [
+              "missing"
+            ],
             "properties": {
               "missing": {
                 "$ref": "#/$defs/historyMissing"
@@ -573,7 +641,9 @@
                 ]
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -599,13 +669,19 @@
     },
     "endpointConstraint": {
       "type": "object",
-      "required": ["conformsTo"],
+      "required": [
+        "conformsTo"
+      ],
       "properties": {
         "conformsTo": {
           "$ref": "#/$defs/typeIdArray"
         },
         "external": {
-          "enum": ["none", "opaque", "bead"]
+          "enum": [
+            "none",
+            "opaque",
+            "bead"
+          ]
         }
       },
       "additionalProperties": false
@@ -613,7 +689,12 @@
     "typeDescriptor": {
       "title": "BDP Type Descriptor",
       "type": "object",
-      "required": ["id", "name", "describes", "conformsTo"],
+      "required": [
+        "id",
+        "name",
+        "describes",
+        "conformsTo"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -626,7 +707,10 @@
           "type": "string"
         },
         "describes": {
-          "enum": ["bead", "link"]
+          "enum": [
+            "bead",
+            "link"
+          ]
         },
         "conformsTo": {
           "$ref": "#/$defs/typeIdArray"
@@ -671,7 +755,9 @@
                 "const": "link"
               }
             },
-            "required": ["describes"]
+            "required": [
+              "describes"
+            ]
           },
           "then": {
             "properties": {
@@ -682,7 +768,10 @@
                 "$ref": "#/$defs/endpointConstraint"
               }
             },
-            "required": ["source", "target"]
+            "required": [
+              "source",
+              "target"
+            ]
           },
           "else": {
             "properties": {
@@ -696,10 +785,14 @@
             "not": {
               "anyOf": [
                 {
-                  "required": ["source"]
+                  "required": [
+                    "source"
+                  ]
                 },
                 {
-                  "required": ["target"]
+                  "required": [
+                    "target"
+                  ]
                 }
               ]
             }
@@ -712,7 +805,9 @@
                 "const": "link"
               }
             },
-            "required": ["describes"]
+            "required": [
+              "describes"
+            ]
           },
           "then": {
             "properties": {
@@ -725,7 +820,11 @@
     },
     "typeSummary": {
       "type": "object",
-      "required": ["id", "name", "describes"],
+      "required": [
+        "id",
+        "name",
+        "describes"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -735,14 +834,20 @@
           "minLength": 1
         },
         "describes": {
-          "enum": ["bead", "link"]
+          "enum": [
+            "bead",
+            "link"
+          ]
         }
       },
       "additionalProperties": false
     },
     "typesInventory": {
       "type": "object",
-      "required": ["items", "next"],
+      "required": [
+        "items",
+        "next"
+      ],
       "properties": {
         "items": {
           "type": "array",
@@ -773,7 +878,12 @@
     },
     "beadRecord": {
       "type": "object",
-      "required": ["id", "type", "revision", "properties"],
+      "required": [
+        "id",
+        "type",
+        "revision",
+        "properties"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -814,7 +924,14 @@
     },
     "linkRecord": {
       "type": "object",
-      "required": ["id", "type", "revision", "source", "target", "properties"],
+      "required": [
+        "id",
+        "type",
+        "revision",
+        "source",
+        "target",
+        "properties"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -851,7 +968,9 @@
         },
         {
           "type": "object",
-          "required": ["metadata"],
+          "required": [
+            "metadata"
+          ],
           "properties": {
             "metadata": {
               "$ref": "#/$defs/metadata"
@@ -885,7 +1004,9 @@
         },
         {
           "type": "object",
-          "required": ["metadata"],
+          "required": [
+            "metadata"
+          ],
           "properties": {
             "metadata": {
               "$ref": "#/$defs/metadata"
@@ -926,7 +1047,10 @@
     },
     "beadCollection": {
       "type": "object",
-      "required": ["items", "next"],
+      "required": [
+        "items",
+        "next"
+      ],
       "properties": {
         "items": {
           "type": "array",
@@ -949,7 +1073,10 @@
     },
     "linkCollection": {
       "type": "object",
-      "required": ["items", "next"],
+      "required": [
+        "items",
+        "next"
+      ],
       "properties": {
         "items": {
           "type": "array",
@@ -1103,13 +1230,20 @@
     },
     "maximumEndpointMultiplicityPolicy": {
       "type": "object",
-      "required": ["linkConformsTo", "endpoint", "max"],
+      "required": [
+        "linkConformsTo",
+        "endpoint",
+        "max"
+      ],
       "properties": {
         "linkConformsTo": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "endpoint": {
-          "enum": ["source", "target"]
+          "enum": [
+            "source",
+            "target"
+          ]
         },
         "max": {
           "$ref": "#/$defs/positiveInteger"
@@ -1119,7 +1253,11 @@
     },
     "readDiscovery": {
       "type": "object",
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "types"],
+      "required": [
+        "bdpVersion",
+        "profile",
+        "scope"
+      ],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -1130,20 +1268,17 @@
         "scope": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "aliases": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "order": {
-          "enum": ["canonical-uri"]
+          "enum": [
+            "canonical-uri"
+          ]
         },
         "limits": {
           "$ref": "#/$defs/advertisedLimits"
@@ -1172,7 +1307,10 @@
     },
     "pinnedReference": {
       "type": "object",
-      "required": ["uri", "revision"],
+      "required": [
+        "uri",
+        "revision"
+      ],
       "properties": {
         "uri": {
           "$ref": "#/$defs/absoluteUri"
@@ -1186,7 +1324,9 @@
     },
     "ownedLinkDeclaration": {
       "type": "object",
-      "required": ["max"],
+      "required": [
+        "max"
+      ],
       "properties": {
         "label": {
           "type": "string",
@@ -1200,7 +1340,9 @@
     },
     "ownedWildcardDeclaration": {
       "type": "object",
-      "required": ["max"],
+      "required": [
+        "max"
+      ],
       "properties": {
         "max": {
           "$ref": "#/$defs/positiveInteger"
@@ -1237,7 +1379,10 @@
     },
     "inputPinnedReference": {
       "type": "object",
-      "required": ["uri", "revision"],
+      "required": [
+        "uri",
+        "revision"
+      ],
       "properties": {
         "uri": {
           "$ref": "#/$defs/resourceReference"
@@ -1261,7 +1406,10 @@
     },
     "durableInputPinnedReference": {
       "type": "object",
-      "required": ["uri", "revision"],
+      "required": [
+        "uri",
+        "revision"
+      ],
       "properties": {
         "uri": {
           "$ref": "#/$defs/durableResourceReference"
@@ -1298,10 +1446,17 @@
         "oneOf": [
           {
             "type": "object",
-            "required": ["op", "path", "value"],
+            "required": [
+              "op",
+              "path",
+              "value"
+            ],
             "properties": {
               "op": {
-                "enum": ["add", "replace"]
+                "enum": [
+                  "add",
+                  "replace"
+                ]
               },
               "path": {
                 "$ref": "#/$defs/jsonPointer"
@@ -1312,7 +1467,10 @@
           },
           {
             "type": "object",
-            "required": ["op", "path"],
+            "required": [
+              "op",
+              "path"
+            ],
             "properties": {
               "op": {
                 "const": "remove"
@@ -1335,7 +1493,9 @@
     },
     "createBeadMembers": {
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/durableResourceReference"
@@ -1356,16 +1516,22 @@
     },
     "updateBeadMembers": {
       "type": "object",
-      "required": ["bead"],
+      "required": [
+        "bead"
+      ],
       "anyOf": [
         {
-          "required": ["propertiesChange"],
+          "required": [
+            "propertiesChange"
+          ],
           "properties": {
             "propertiesChange": true
           }
         },
         {
-          "required": ["metadataChange"],
+          "required": [
+            "metadataChange"
+          ],
           "properties": {
             "metadataChange": true
           }
@@ -1391,7 +1557,9 @@
     },
     "deleteBeadMembers": {
       "type": "object",
-      "required": ["bead"],
+      "required": [
+        "bead"
+      ],
       "properties": {
         "bead": {
           "$ref": "#/$defs/resourceReference"
@@ -1403,7 +1571,11 @@
     },
     "createLinkMembers": {
       "type": "object",
-      "required": ["type", "source", "target"],
+      "required": [
+        "type",
+        "source",
+        "target"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/durableResourceReference"
@@ -1430,16 +1602,22 @@
     },
     "updateLinkMembers": {
       "type": "object",
-      "required": ["link"],
+      "required": [
+        "link"
+      ],
       "anyOf": [
         {
-          "required": ["propertiesChange"],
+          "required": [
+            "propertiesChange"
+          ],
           "properties": {
             "propertiesChange": true
           }
         },
         {
-          "required": ["metadataChange"],
+          "required": [
+            "metadataChange"
+          ],
           "properties": {
             "metadataChange": true
           }
@@ -1465,7 +1643,9 @@
     },
     "deleteLinkMembers": {
       "type": "object",
-      "required": ["link"],
+      "required": [
+        "link"
+      ],
       "properties": {
         "link": {
           "$ref": "#/$defs/resourceReference"
@@ -1480,7 +1660,10 @@
     },
     "putAliasMembers": {
       "type": "object",
-      "required": ["alias", "target"],
+      "required": [
+        "alias",
+        "target"
+      ],
       "properties": {
         "alias": {
           "$ref": "#/$defs/durableResourceReference"
@@ -1492,7 +1675,9 @@
     },
     "deleteAliasMembers": {
       "type": "object",
-      "required": ["alias"],
+      "required": [
+        "alias"
+      ],
       "properties": {
         "alias": {
           "$ref": "#/$defs/durableResourceReference"
@@ -1622,7 +1807,10 @@
           "$ref": "#/$defs/localName"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceUpdateBead": {
@@ -1640,7 +1828,10 @@
           "$ref": "#/$defs/idempotencyKey"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceDeleteBead": {
@@ -1658,7 +1849,10 @@
           "$ref": "#/$defs/idempotencyKey"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceCreateLink": {
@@ -1679,7 +1873,10 @@
           "$ref": "#/$defs/localName"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceUpdateLink": {
@@ -1697,7 +1894,10 @@
           "$ref": "#/$defs/idempotencyKey"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceDeleteLink": {
@@ -1715,7 +1915,10 @@
           "$ref": "#/$defs/idempotencyKey"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequencePutAlias": {
@@ -1733,7 +1936,10 @@
           "$ref": "#/$defs/idempotencyKey"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceDeleteAlias": {
@@ -1751,7 +1957,10 @@
           "$ref": "#/$defs/idempotencyKey"
         }
       },
-      "required": ["operation", "idempotencyKey"],
+      "required": [
+        "operation",
+        "idempotencyKey"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceMember": {
@@ -1785,7 +1994,9 @@
     "sequenceRequest": {
       "title": "BDP Read+Update sequence request",
       "type": "object",
-      "required": ["operations"],
+      "required": [
+        "operations"
+      ],
       "properties": {
         "operations": {
           "type": "array",
@@ -1798,14 +2009,25 @@
       "additionalProperties": false
     },
     "mutationOutcome": {
-      "enum": ["created", "updated", "deleted"]
+      "enum": [
+        "created",
+        "updated",
+        "deleted"
+      ]
     },
     "resourceKind": {
-      "enum": ["bead", "link"]
+      "enum": [
+        "bead",
+        "link"
+      ]
     },
     "resourceIdentity": {
       "type": "object",
-      "required": ["id", "type", "revision"],
+      "required": [
+        "id",
+        "type",
+        "revision"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -1822,7 +2044,10 @@
     },
     "deletedIdentity": {
       "type": "object",
-      "required": ["resourceKind", "resource"],
+      "required": [
+        "resourceKind",
+        "resource"
+      ],
       "properties": {
         "resourceKind": {
           "$ref": "#/$defs/resourceKind"
@@ -1835,7 +2060,9 @@
     },
     "mutationResultMembers": {
       "type": "object",
-      "required": ["outcome"],
+      "required": [
+        "outcome"
+      ],
       "properties": {
         "outcome": {
           "$ref": "#/$defs/mutationOutcome"
@@ -1869,10 +2096,14 @@
                 "const": "deleted"
               }
             },
-            "required": ["outcome"]
+            "required": [
+              "outcome"
+            ]
           },
           "then": {
-            "required": ["deleted"],
+            "required": [
+              "deleted"
+            ],
             "properties": {
               "deleted": {
                 "$ref": "#/$defs/deletedIdentity"
@@ -1881,7 +2112,9 @@
             }
           },
           "else": {
-            "required": ["resource"],
+            "required": [
+              "resource"
+            ],
             "properties": {
               "resource": {
                 "oneOf": [
@@ -1899,7 +2132,9 @@
         },
         {
           "if": {
-            "required": ["resource"],
+            "required": [
+              "resource"
+            ],
             "properties": {
               "resource": {
                 "$ref": "#/$defs/beadRecord"
@@ -1915,11 +2150,15 @@
         },
         {
           "if": {
-            "required": ["deleted"],
+            "required": [
+              "deleted"
+            ],
             "properties": {
               "deleted": {
                 "type": "object",
-                "required": ["resourceKind"],
+                "required": [
+                  "resourceKind"
+                ],
                 "properties": {
                   "resourceKind": {
                     "const": "bead"
@@ -1937,8 +2176,12 @@
         }
       ],
       "dependentRequired": {
-        "source": ["sourceRevision"],
-        "sourceRevision": ["source"]
+        "source": [
+          "sourceRevision"
+        ],
+        "sourceRevision": [
+          "source"
+        ]
       }
     },
     "mutationResult": {
@@ -1953,7 +2196,10 @@
     },
     "aliasResultMembers": {
       "type": "object",
-      "required": ["outcome", "alias"],
+      "required": [
+        "outcome",
+        "alias"
+      ],
       "properties": {
         "outcome": {
           "$ref": "#/$defs/mutationOutcome"
@@ -1973,7 +2219,9 @@
                 "const": "deleted"
               }
             },
-            "required": ["outcome"]
+            "required": [
+              "outcome"
+            ]
           },
           "then": {
             "properties": {
@@ -1981,7 +2229,9 @@
             }
           },
           "else": {
-            "required": ["target"]
+            "required": [
+              "target"
+            ]
           }
         }
       ]
@@ -2012,7 +2262,9 @@
           "$ref": "#/$defs/localName"
         }
       },
-      "required": ["operationIndex"],
+      "required": [
+        "operationIndex"
+      ],
       "unevaluatedProperties": false
     },
     "sequenceMemberAliasResult": {
@@ -2028,7 +2280,9 @@
           "minimum": 0
         }
       },
-      "required": ["operationIndex"],
+      "required": [
+        "operationIndex"
+      ],
       "unevaluatedProperties": false
     },
     "readUpdateProblemCode": {
@@ -2068,7 +2322,9 @@
     },
     "validationDiagnostic": {
       "type": "object",
-      "required": ["message"],
+      "required": [
+        "message"
+      ],
       "properties": {
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2077,7 +2333,10 @@
           "$ref": "#/$defs/absoluteUri"
         },
         "document": {
-          "enum": ["properties", "metadata"]
+          "enum": [
+            "properties",
+            "metadata"
+          ]
         },
         "instanceLocation": {
           "$ref": "#/$defs/jsonPointer"
@@ -2089,8 +2348,12 @@
       },
       "additionalProperties": false,
       "dependentRequired": {
-        "type": ["schemaLocation"],
-        "schemaLocation": ["type"]
+        "type": [
+          "schemaLocation"
+        ],
+        "schemaLocation": [
+          "type"
+        ]
       }
     },
     "validationDiagnostics": {
@@ -2103,7 +2366,11 @@
     "readUpdateProblem": {
       "title": "BDP Read+Update Problem Details",
       "type": "object",
-      "required": ["type", "code", "retry"],
+      "required": [
+        "type",
+        "code",
+        "retry"
+      ],
       "properties": {
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2113,7 +2380,19 @@
         },
         "status": {
           "type": "integer",
-          "enum": [400, 401, 403, 404, 409, 410, 413, 415, 422, 429, 503]
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            410,
+            413,
+            415,
+            422,
+            429,
+            503
+          ]
         },
         "detail": {
           "type": "string"
@@ -2146,7 +2425,9 @@
                 "$ref": "#/$defs/readProblemCode"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "$ref": "#/$defs/readProblem"
@@ -2159,7 +2440,9 @@
                 "const": "unsupported-media-type"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2182,7 +2465,9 @@
                 "const": "binding-unavailable"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2205,7 +2490,9 @@
                 "const": "validation-failed"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2228,7 +2515,9 @@
                 "const": "type-not-installed"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2251,7 +2540,9 @@
                 "const": "identity-taken"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2274,7 +2565,9 @@
                 "const": "alias-path-taken"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2297,7 +2590,9 @@
                 "const": "revision-mismatch"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2320,7 +2615,9 @@
                 "const": "incident-links-exist"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2343,7 +2640,9 @@
                 "const": "aggregate-constraint-violation"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2366,7 +2665,9 @@
                 "const": "idempotency-conflict"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2389,7 +2690,9 @@
                 "const": "idempotency-in-progress"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2412,7 +2715,9 @@
                 "const": "idempotency-expired"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2435,7 +2740,9 @@
                 "const": "revision-allocation-unsafe"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2458,10 +2765,14 @@
                 "const": "validation-failed"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
-            "required": ["diagnostics"],
+            "required": [
+              "diagnostics"
+            ],
             "properties": {
               "diagnostics": {
                 "$ref": "#/$defs/validationDiagnostics"
@@ -2477,7 +2788,9 @@
                   "const": "validation-failed"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -2495,7 +2808,9 @@
                   "const": "resource-pruned"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -2511,7 +2826,9 @@
                 "const": "after-delay"
               }
             },
-            "required": ["retry"]
+            "required": [
+              "retry"
+            ]
           },
           "else": {
             "properties": {
@@ -2526,7 +2843,9 @@
                 "const": "revision-allocation-unsafe"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -2550,7 +2869,9 @@
                   "const": "revision-unretained"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -2583,7 +2904,10 @@
           }
         }
       ],
-      "required": ["status", "operationIndex"],
+      "required": [
+        "status",
+        "operationIndex"
+      ],
       "properties": {
         "status": {
           "type": "integer"
@@ -2601,7 +2925,9 @@
     "sequenceResponse": {
       "title": "BDP Read+Update sequence response",
       "type": "object",
-      "required": ["results"],
+      "required": [
+        "results"
+      ],
       "properties": {
         "results": {
           "type": "array",
@@ -2734,9 +3060,6 @@
         "bdpVersion",
         "profile",
         "scope",
-        "beads",
-        "links",
-        "types",
         "operations",
         "aliases"
       ],
@@ -2750,14 +3073,9 @@
         "scope": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "operations": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2766,7 +3084,9 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "order": {
-          "enum": ["canonical-uri"]
+          "enum": [
+            "canonical-uri"
+          ]
         },
         "limits": {
           "$ref": "#/$defs/readUpdateAdvertisedLimits"
@@ -2841,7 +3161,10 @@
     },
     "typedLinkReference": {
       "type": "object",
-      "required": ["id", "type"],
+      "required": [
+        "id",
+        "type"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2854,7 +3177,10 @@
     },
     "createdData": {
       "type": "object",
-      "required": ["revision", "properties"],
+      "required": [
+        "revision",
+        "properties"
+      ],
       "properties": {
         "revision": {
           "$ref": "#/$defs/revision"
@@ -2876,14 +3202,23 @@
         }
       },
       "dependentRequired": {
-        "source": ["target"],
-        "target": ["source"]
+        "source": [
+          "target"
+        ],
+        "target": [
+          "source"
+        ]
       },
       "additionalProperties": false
     },
     "ownedLinkDelta": {
       "type": "object",
-      "required": ["id", "type", "previousRevision", "revision"],
+      "required": [
+        "id",
+        "type",
+        "previousRevision",
+        "revision"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2909,13 +3244,17 @@
       },
       "anyOf": [
         {
-          "required": ["change"],
+          "required": [
+            "change"
+          ],
           "properties": {
             "change": true
           }
         },
         {
-          "required": ["metadataChange"],
+          "required": [
+            "metadataChange"
+          ],
           "properties": {
             "metadataChange": true
           }
@@ -2925,10 +3264,17 @@
     },
     "ownedLinkChange": {
       "type": "object",
-      "required": ["operation", "link"],
+      "required": [
+        "operation",
+        "link"
+      ],
       "properties": {
         "operation": {
-          "enum": ["created", "updated", "deleted"]
+          "enum": [
+            "created",
+            "updated",
+            "deleted"
+          ]
         },
         "link": {
           "type": "object"
@@ -2942,7 +3288,9 @@
                 "const": "created"
               }
             },
-            "required": ["operation"]
+            "required": [
+              "operation"
+            ]
           },
           "then": {
             "properties": {
@@ -2959,7 +3307,9 @@
                 "const": "updated"
               }
             },
-            "required": ["operation"]
+            "required": [
+              "operation"
+            ]
           },
           "then": {
             "properties": {
@@ -2976,7 +3326,9 @@
                 "const": "deleted"
               }
             },
-            "required": ["operation"]
+            "required": [
+              "operation"
+            ]
           },
           "then": {
             "properties": {
@@ -2991,7 +3343,10 @@
     },
     "updatedData": {
       "type": "object",
-      "required": ["previousRevision", "revision"],
+      "required": [
+        "previousRevision",
+        "revision"
+      ],
       "properties": {
         "previousRevision": {
           "$ref": "#/$defs/revision"
@@ -3022,13 +3377,17 @@
           },
           "anyOf": [
             {
-              "required": ["change"],
+              "required": [
+                "change"
+              ],
               "properties": {
                 "change": true
               }
             },
             {
-              "required": ["metadataChange"],
+              "required": [
+                "metadataChange"
+              ],
               "properties": {
                 "metadataChange": true
               }
@@ -3037,7 +3396,9 @@
         },
         {
           "type": "object",
-          "required": ["ownedLink"],
+          "required": [
+            "ownedLink"
+          ],
           "properties": {
             "ownedLink": true,
             "change": false,
@@ -3049,7 +3410,9 @@
     },
     "deletedData": {
       "type": "object",
-      "required": ["revision"],
+      "required": [
+        "revision"
+      ],
       "properties": {
         "revision": {
           "$ref": "#/$defs/revision"
@@ -3059,10 +3422,18 @@
     },
     "linkDeltaData": {
       "type": "object",
-      "required": ["endpoint", "link", "source", "target"],
+      "required": [
+        "endpoint",
+        "link",
+        "source",
+        "target"
+      ],
       "properties": {
         "endpoint": {
-          "enum": ["source", "target"]
+          "enum": [
+            "source",
+            "target"
+          ]
         },
         "link": {
           "$ref": "#/$defs/typedLinkReference"
@@ -3077,7 +3448,13 @@
       "additionalProperties": false
     },
     "eventType": {
-      "enum": ["created", "updated", "deleted", "linked", "unlinked"]
+      "enum": [
+        "created",
+        "updated",
+        "deleted",
+        "linked",
+        "unlinked"
+      ]
     },
     "event": {
       "title": "BDP Event",
@@ -3131,7 +3508,9 @@
                 "const": "created"
               }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           "then": {
             "properties": {
@@ -3148,7 +3527,9 @@
                 "const": "updated"
               }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           "then": {
             "properties": {
@@ -3165,7 +3546,9 @@
                 "const": "deleted"
               }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           "then": {
             "properties": {
@@ -3179,10 +3562,15 @@
           "if": {
             "properties": {
               "type": {
-                "enum": ["linked", "unlinked"]
+                "enum": [
+                  "linked",
+                  "unlinked"
+                ]
               }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
           "then": {
             "properties": {
@@ -3198,7 +3586,11 @@
     "eventPage": {
       "title": "BDP Event Source page",
       "type": "object",
-      "required": ["source", "events", "next"],
+      "required": [
+        "source",
+        "events",
+        "next"
+      ],
       "properties": {
         "source": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -3243,10 +3635,17 @@
     },
     "updateWhereMembers": {
       "type": "object",
-      "required": ["collection", "selector", "change"],
+      "required": [
+        "collection",
+        "selector",
+        "change"
+      ],
       "properties": {
         "collection": {
-          "enum": ["beads", "links"]
+          "enum": [
+            "beads",
+            "links"
+          ]
         },
         "selector": {
           "$ref": "#/$defs/selector"
@@ -3264,10 +3663,16 @@
     },
     "deleteWhereMembers": {
       "type": "object",
-      "required": ["collection", "selector"],
+      "required": [
+        "collection",
+        "selector"
+      ],
       "properties": {
         "collection": {
-          "enum": ["beads", "links"]
+          "enum": [
+            "beads",
+            "links"
+          ]
         },
         "selector": {
           "$ref": "#/$defs/selector"
@@ -3315,7 +3720,9 @@
           "$ref": "#/$defs/localName"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "updateBeadOperation": {
@@ -3330,7 +3737,9 @@
           "const": "updateBead"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "deleteBeadOperation": {
@@ -3345,7 +3754,9 @@
           "const": "deleteBead"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "createLinkOperation": {
@@ -3363,7 +3774,9 @@
           "$ref": "#/$defs/localName"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "updateLinkOperation": {
@@ -3378,7 +3791,9 @@
           "const": "updateLink"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "deleteLinkOperation": {
@@ -3393,7 +3808,9 @@
           "const": "deleteLink"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "updateWhereOperation": {
@@ -3408,7 +3825,9 @@
           "const": "updateWhere"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "deleteWhereOperation": {
@@ -3423,7 +3842,9 @@
           "const": "deleteWhere"
         }
       },
-      "required": ["operation"],
+      "required": [
+        "operation"
+      ],
       "unevaluatedProperties": false
     },
     "batchOperation": {
@@ -3457,7 +3878,9 @@
     "batchRequest": {
       "title": "BDP Transactional batch request",
       "type": "object",
-      "required": ["operations"],
+      "required": [
+        "operations"
+      ],
       "properties": {
         "operations": {
           "type": "array",
@@ -3527,17 +3950,35 @@
       "additionalProperties": false
     },
     "receiptStatus": {
-      "enum": ["pending", "completed", "failed"]
+      "enum": [
+        "pending",
+        "completed",
+        "failed"
+      ]
     },
     "receiptDetail": {
-      "enum": ["available", "expired", "withheld"]
+      "enum": [
+        "available",
+        "expired",
+        "withheld"
+      ]
     },
     "receiptEntryOutcome": {
-      "enum": ["created", "updated", "deleted", "matched", "withheld", "erased"]
+      "enum": [
+        "created",
+        "updated",
+        "deleted",
+        "matched",
+        "withheld",
+        "erased"
+      ]
     },
     "receiptResult": {
       "type": "object",
-      "required": ["operationIndex", "outcome"],
+      "required": [
+        "operationIndex",
+        "outcome"
+      ],
       "properties": {
         "operationIndex": {
           "type": "integer",
@@ -3597,19 +4038,28 @@
           "if": {
             "properties": {
               "outcome": {
-                "enum": ["created", "updated"]
+                "enum": [
+                  "created",
+                  "updated"
+                ]
               }
             },
-            "required": ["outcome"],
+            "required": [
+              "outcome"
+            ],
             "not": {
               "properties": {
                 "alias": true
               },
-              "required": ["alias"]
+              "required": [
+                "alias"
+              ]
             }
           },
           "then": {
-            "required": ["resource"],
+            "required": [
+              "resource"
+            ],
             "properties": {
               "resource": true,
               "deleted": false,
@@ -3625,16 +4075,22 @@
                 "const": "deleted"
               }
             },
-            "required": ["outcome"],
+            "required": [
+              "outcome"
+            ],
             "not": {
               "properties": {
                 "alias": true
               },
-              "required": ["alias"]
+              "required": [
+                "alias"
+              ]
             }
           },
           "then": {
-            "required": ["deleted"],
+            "required": [
+              "deleted"
+            ],
             "properties": {
               "deleted": true,
               "resource": false,
@@ -3650,10 +4106,14 @@
                 "const": "erased"
               }
             },
-            "required": ["outcome"]
+            "required": [
+              "outcome"
+            ]
           },
           "then": {
-            "required": ["erased"],
+            "required": [
+              "erased"
+            ],
             "properties": {
               "erased": true,
               "resource": false,
@@ -3669,10 +4129,14 @@
                 "const": "matched"
               }
             },
-            "required": ["outcome"]
+            "required": [
+              "outcome"
+            ]
           },
           "then": {
-            "required": ["count"],
+            "required": [
+              "count"
+            ],
             "properties": {
               "count": true,
               "operationName": false,
@@ -3691,7 +4155,9 @@
                 "const": "withheld"
               }
             },
-            "required": ["outcome"]
+            "required": [
+              "outcome"
+            ]
           },
           "then": {
             "properties": {
@@ -3706,7 +4172,9 @@
         },
         {
           "if": {
-            "required": ["resource"],
+            "required": [
+              "resource"
+            ],
             "properties": {
               "resource": {
                 "$ref": "#/$defs/beadRecord"
@@ -3722,11 +4190,15 @@
         },
         {
           "if": {
-            "required": ["deleted"],
+            "required": [
+              "deleted"
+            ],
             "properties": {
               "deleted": {
                 "type": "object",
-                "required": ["resourceKind"],
+                "required": [
+                  "resourceKind"
+                ],
                 "properties": {
                   "resourceKind": {
                     "const": "bead"
@@ -3744,7 +4216,9 @@
         },
         {
           "if": {
-            "required": ["alias"]
+            "required": [
+              "alias"
+            ]
           },
           "then": {
             "allOf": [
@@ -3773,14 +4247,20 @@
         }
       ],
       "dependentRequired": {
-        "source": ["sourceRevision"],
-        "sourceRevision": ["source"]
+        "source": [
+          "sourceRevision"
+        ],
+        "sourceRevision": [
+          "source"
+        ]
       },
       "additionalProperties": false
     },
     "allocatedIdentity": {
       "type": "object",
-      "required": ["operationIndex"],
+      "required": [
+        "operationIndex"
+      ],
       "properties": {
         "operationIndex": {
           "type": "integer",
@@ -3801,7 +4281,10 @@
       },
       "oneOf": [
         {
-          "required": ["id", "type"],
+          "required": [
+            "id",
+            "type"
+          ],
           "properties": {
             "id": true,
             "type": true,
@@ -3809,7 +4292,9 @@
           }
         },
         {
-          "required": ["withheld"],
+          "required": [
+            "withheld"
+          ],
           "properties": {
             "withheld": true,
             "id": false,
@@ -3886,7 +4371,9 @@
                 "const": "failed"
               }
             },
-            "required": ["status"]
+            "required": [
+              "status"
+            ]
           },
           "then": {
             "properties": {
@@ -3981,7 +4468,9 @@
                     "type": "null"
                   }
                 },
-                "required": ["next"]
+                "required": [
+                  "next"
+                ]
               },
               "then": {
                 "properties": {
@@ -4101,7 +4590,11 @@
     "mutationReceiptPage": {
       "title": "BDP Mutation Receipt page",
       "type": "object",
-      "required": ["receipt", "results", "next"],
+      "required": [
+        "receipt",
+        "results",
+        "next"
+      ],
       "properties": {
         "receipt": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -4127,7 +4620,11 @@
       "additionalProperties": false
     },
     "transactionalOnlyProblemCode": {
-      "enum": ["cardinality-violated", "event-history-expired", "catch-up-timeout"]
+      "enum": [
+        "cardinality-violated",
+        "event-history-expired",
+        "catch-up-timeout"
+      ]
     },
     "transactionalProblemCode": {
       "anyOf": [
@@ -4186,7 +4683,11 @@
     "transactionalProblem": {
       "title": "BDP Transactional Problem Details",
       "type": "object",
-      "required": ["type", "code", "retry"],
+      "required": [
+        "type",
+        "code",
+        "retry"
+      ],
       "properties": {
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -4196,7 +4697,19 @@
         },
         "status": {
           "type": "integer",
-          "enum": [400, 401, 403, 404, 409, 410, 413, 415, 422, 429, 503]
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            410,
+            413,
+            415,
+            422,
+            429,
+            503
+          ]
         },
         "detail": {
           "type": "string"
@@ -4233,7 +4746,9 @@
                 "$ref": "#/$defs/readUpdateProblemCode"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "$ref": "#/$defs/readUpdateProblem"
@@ -4246,7 +4761,9 @@
                 "const": "event-history-expired"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -4271,7 +4788,9 @@
                 "const": "catch-up-timeout"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -4296,7 +4815,9 @@
                 "const": "resource-erased"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -4312,7 +4833,9 @@
                   "const": "limit-exceeded"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -4328,7 +4851,9 @@
                 "const": "after-delay"
               }
             },
-            "required": ["retry"]
+            "required": [
+              "retry"
+            ]
           },
           "else": {
             "properties": {
@@ -4344,7 +4869,9 @@
                   "const": "revision-unretained"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -4358,7 +4885,12 @@
     "receiptProblem": {
       "title": "BDP Mutation Receipt problem",
       "type": "object",
-      "required": ["type", "code", "status", "retry"],
+      "required": [
+        "type",
+        "code",
+        "status",
+        "retry"
+      ],
       "properties": {
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -4368,7 +4900,14 @@
         },
         "status": {
           "type": "integer",
-          "enum": [400, 403, 404, 409, 413, 422]
+          "enum": [
+            400,
+            403,
+            404,
+            409,
+            413,
+            422
+          ]
         },
         "detail": {
           "type": "string"
@@ -4411,7 +4950,9 @@
                 "$ref": "#/$defs/readUpdateProblemCode"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "$ref": "#/$defs/readUpdateProblem"
@@ -4424,7 +4965,9 @@
                 "const": "cardinality-violated"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -4447,14 +4990,21 @@
             "not": {
               "properties": {
                 "code": {
-                  "enum": ["limit-exceeded", "aggregate-constraint-violation"]
+                  "enum": [
+                    "limit-exceeded",
+                    "aggregate-constraint-violation"
+                  ]
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
-            "required": ["operationIndex"],
+            "required": [
+              "operationIndex"
+            ],
             "properties": {
               "operationIndex": true
             }
@@ -4468,7 +5018,9 @@
                   "const": "limit-exceeded"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -4485,7 +5037,9 @@
                   "const": "revision-unretained"
                 }
               },
-              "required": ["code"]
+              "required": [
+                "code"
+              ]
             }
           },
           "then": {
@@ -4496,15 +5050,24 @@
         }
       ],
       "dependentRequired": {
-        "operationName": ["operationIndex"]
+        "operationName": [
+          "operationIndex"
+        ]
       }
     },
     "stateChange": {
       "type": "object",
-      "required": ["operation", "resourceKind", "resource"],
+      "required": [
+        "operation",
+        "resourceKind",
+        "resource"
+      ],
       "properties": {
         "operation": {
-          "enum": ["upsert", "tombstone"]
+          "enum": [
+            "upsert",
+            "tombstone"
+          ]
         },
         "resourceKind": {
           "$ref": "#/$defs/resourceKind"
@@ -4524,7 +5087,10 @@
                 "const": "bead"
               }
             },
-            "required": ["operation", "resourceKind"]
+            "required": [
+              "operation",
+              "resourceKind"
+            ]
           },
           "then": {
             "properties": {
@@ -4554,7 +5120,10 @@
                 "const": "link"
               }
             },
-            "required": ["operation", "resourceKind"]
+            "required": [
+              "operation",
+              "resourceKind"
+            ]
           },
           "then": {
             "properties": {
@@ -4571,7 +5140,9 @@
                 "const": "tombstone"
               }
             },
-            "required": ["operation"]
+            "required": [
+              "operation"
+            ]
           },
           "then": {
             "properties": {
@@ -4586,10 +5157,15 @@
     },
     "erasureDigest": {
       "type": "object",
-      "required": ["scheme", "value"],
+      "required": [
+        "scheme",
+        "value"
+      ],
       "properties": {
         "scheme": {
-          "enum": ["sha-256-jcs"]
+          "enum": [
+            "sha-256-jcs"
+          ]
         },
         "value": {
           "type": "string",
@@ -4600,7 +5176,11 @@
     },
     "erasureRecord": {
       "type": "object",
-      "required": ["subject", "revision", "digest"],
+      "required": [
+        "subject",
+        "revision",
+        "digest"
+      ],
       "properties": {
         "subject": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -4682,7 +5262,9 @@
                 "const": true
               }
             },
-            "required": ["projectionAdvance"]
+            "required": [
+              "projectionAdvance"
+            ]
           },
           "then": {
             "properties": {
@@ -4706,7 +5288,9 @@
           },
           "else": {
             "type": "object",
-            "required": ["transaction"],
+            "required": [
+              "transaction"
+            ],
             "properties": {
               "transaction": true
             },
@@ -4997,9 +5581,6 @@
         "bdpVersion",
         "profile",
         "scope",
-        "beads",
-        "links",
-        "types",
         "operations",
         "aliases",
         "scopeEpoch",
@@ -5033,14 +5614,9 @@
         "minimumReplayPosition": {
           "$ref": "#/$defs/wireToken"
         },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "operations": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -5061,7 +5637,9 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "order": {
-          "enum": ["canonical-uri"]
+          "enum": [
+            "canonical-uri"
+          ]
         },
         "limits": {
           "$ref": "#/$defs/transactionalAdvertisedLimits"
@@ -5083,7 +5661,10 @@
       "oneOf": [
         {
           "type": "object",
-          "required": ["id", "type"],
+          "required": [
+            "id",
+            "type"
+          ],
           "properties": {
             "id": {
               "$ref": "#/$defs/absoluteHttpUrl"
@@ -5096,7 +5677,9 @@
         },
         {
           "type": "object",
-          "required": ["withheld"],
+          "required": [
+            "withheld"
+          ],
           "properties": {
             "withheld": {
               "const": true
@@ -5120,7 +5703,9 @@
                 "const": "idempotency-expired"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -5142,7 +5727,9 @@
                 "const": "resource-erased"
               }
             },
-            "required": ["code"]
+            "required": [
+              "code"
+            ]
           },
           "then": {
             "properties": {
@@ -5155,7 +5742,9 @@
     "transactionalSequenceResponse": {
       "title": "BDP Transactional sequence response",
       "type": "object",
-      "required": ["results"],
+      "required": [
+        "results"
+      ],
       "properties": {
         "results": {
           "type": "array",
@@ -5184,7 +5773,9 @@
           "const": 1
         }
       },
-      "required": ["version"],
+      "required": [
+        "version"
+      ],
       "additionalProperties": false
     },
     "contextString": {
@@ -5200,17 +5791,25 @@
               "minLength": 1
             }
           },
-          "required": ["state", "value"],
+          "required": [
+            "state",
+            "value"
+          ],
           "additionalProperties": false
         },
         {
           "type": "object",
           "properties": {
             "state": {
-              "enum": ["absent", "undetermined"]
+              "enum": [
+                "absent",
+                "undetermined"
+              ]
             }
           },
-          "required": ["state"],
+          "required": [
+            "state"
+          ],
           "additionalProperties": false
         }
       ]
@@ -5227,17 +5826,25 @@
               "type": "string"
             }
           },
-          "required": ["state", "value"],
+          "required": [
+            "state",
+            "value"
+          ],
           "additionalProperties": false
         },
         {
           "type": "object",
           "properties": {
             "state": {
-              "enum": ["absent", "undetermined"]
+              "enum": [
+                "absent",
+                "undetermined"
+              ]
             }
           },
-          "required": ["state"],
+          "required": [
+            "state"
+          ],
           "additionalProperties": false
         }
       ]
@@ -5254,17 +5861,24 @@
               "$ref": "#/$defs/dateTime"
             }
           },
-          "required": ["state", "value"],
+          "required": [
+            "state",
+            "value"
+          ],
           "additionalProperties": false
         },
         {
           "type": "object",
           "properties": {
             "state": {
-              "enum": ["undetermined"]
+              "enum": [
+                "undetermined"
+              ]
             }
           },
-          "required": ["state"],
+          "required": [
+            "state"
+          ],
           "additionalProperties": false
         }
       ]
@@ -5278,7 +5892,9 @@
               "const": "record"
             }
           },
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "additionalProperties": false
         },
         {
@@ -5299,7 +5915,10 @@
               ]
             }
           },
-          "required": ["kind", "pointer"],
+          "required": [
+            "kind",
+            "pointer"
+          ],
           "additionalProperties": false
         },
         {
@@ -5312,7 +5931,9 @@
               "$ref": "#/$defs/absoluteHttpUrl"
             }
           },
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "additionalProperties": false
         }
       ]
@@ -5332,7 +5953,10 @@
           "uniqueItems": true
         }
       },
-      "required": ["complete", "items"],
+      "required": [
+        "complete",
+        "items"
+      ],
       "additionalProperties": false,
       "allOf": [
         {
@@ -5342,7 +5966,9 @@
                 "const": true
               }
             },
-            "required": ["complete"]
+            "required": [
+              "complete"
+            ]
           },
           "then": {
             "properties": {
@@ -5362,16 +5988,26 @@
           "$ref": "#/$defs/revision"
         },
         "lineage": {
-          "enum": ["current", "replaced"]
+          "enum": [
+            "current",
+            "replaced"
+          ]
         },
         "body": {
-          "enum": ["complete", "incomplete"]
+          "enum": [
+            "complete",
+            "incomplete"
+          ]
         },
         "revisionProvenance": {
           "$ref": "#/$defs/revisionProvenance"
         }
       },
-      "required": ["revision", "lineage", "body"],
+      "required": [
+        "revision",
+        "lineage",
+        "body"
+      ],
       "additionalProperties": false
     },
     "historyWindow": {
@@ -5401,7 +6037,11 @@
           "type": "boolean"
         }
       },
-      "required": ["newest", "oldest", "complete"],
+      "required": [
+        "newest",
+        "oldest",
+        "complete"
+      ],
       "additionalProperties": false,
       "allOf": [
         {
@@ -5411,7 +6051,9 @@
                 "type": "null"
               }
             },
-            "required": ["newest"]
+            "required": [
+              "newest"
+            ]
           },
           "then": {
             "properties": {
@@ -5440,7 +6082,11 @@
           "const": "all-retained"
         },
         "participation": {
-          "enum": ["tracked", "not-tracked", "undetermined"]
+          "enum": [
+            "tracked",
+            "not-tracked",
+            "undetermined"
+          ]
         },
         "window": {
           "$ref": "#/$defs/historyWindow"
@@ -5462,17 +6108,29 @@
           ]
         }
       },
-      "required": ["subject", "population", "participation", "window", "items", "next"],
+      "required": [
+        "subject",
+        "population",
+        "participation",
+        "window",
+        "items",
+        "next"
+      ],
       "additionalProperties": false,
       "allOf": [
         {
           "if": {
             "properties": {
               "participation": {
-                "enum": ["not-tracked", "undetermined"]
+                "enum": [
+                  "not-tracked",
+                  "undetermined"
+                ]
               }
             },
-            "required": ["participation"]
+            "required": [
+              "participation"
+            ]
           },
           "then": {
             "properties": {
@@ -5532,11 +6190,17 @@
     },
     "revisionActor": {
       "type": "object",
-      "required": ["id", "basis"],
+      "required": [
+        "id",
+        "basis"
+      ],
       "properties": {
         "basis": {
           "type": "string",
-          "enum": ["writer-supplied", "unknown"]
+          "enum": [
+            "writer-supplied",
+            "unknown"
+          ]
         },
         "id": {
           "type": "string",
@@ -5564,9 +6228,18 @@
       },
       "additionalProperties": false,
       "dependentRequired": {
-        "committedAt": ["agent", "message"],
-        "agent": ["committedAt", "message"],
-        "message": ["committedAt", "agent"]
+        "committedAt": [
+          "agent",
+          "message"
+        ],
+        "agent": [
+          "committedAt",
+          "message"
+        ],
+        "message": [
+          "committedAt",
+          "agent"
+        ]
       }
     },
     "revisionProvenanceInput": {
@@ -5587,7 +6260,10 @@
           ]
         },
         "message": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [],

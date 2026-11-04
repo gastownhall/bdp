@@ -50,7 +50,7 @@ describe("BDP public HTTP handler", () => {
     const discovery = await handler(new Request(`${SCOPE}bdp.json`));
     expect(discovery.status).toBe(200);
     expect(discovery.body).toMatchObject({ bdpVersion: "0", profile: "read", scope: SCOPE });
-    const beads = await handler(new Request(`${SCOPE}beads/`));
+    const beads = await handler(new Request(`${SCOPE}bdp/beads`));
     expect(beads.status).toBe(200);
     expect(beads.body).toEqual({ items: [], next: null });
   });
@@ -110,6 +110,25 @@ describe("BDP public HTTP handler", () => {
           properties: {},
         } as never);
       }
+      if (operation.kind === "resource" && operation.resource === "resource") {
+        if (operation.id === `${SCOPE}unknown`)
+          return scopePortProblem(readProblem("resource-not-found"));
+        return operation.id === `${SCOPE}links/a-b`
+          ? scopePortSuccess({
+              id: operation.id,
+              type: "https://work.example/types/blocks",
+              revision: "opaque-link-revision",
+              source: `${SCOPE}beads/a`,
+              target: `${SCOPE}beads/b`,
+              properties: {},
+            } as never)
+          : scopePortSuccess({
+              id: operation.id,
+              type: "https://work.example/types/task",
+              revision: "opaque-task-revision",
+              properties: {},
+            } as never);
+      }
       if (operation.kind === "resource" && operation.resource === "type") {
         return scopePortSuccess({
           id: operation.id,
@@ -132,7 +151,7 @@ describe("BDP public HTTP handler", () => {
     const bead = await handler(new Request(`${SCOPE}beads/a`));
     const link = await handler(new Request(`${SCOPE}links/a-b`));
     const type = await handler(new Request(`${SCOPE}types/task`));
-    const collection = await handler(new Request(`${SCOPE}beads/`));
+    const collection = await handler(new Request(`${SCOPE}bdp/beads`));
     const problem = await handler(new Request(`${SCOPE}unknown`));
 
     expect(bead.headers.get("etag")).toBe('"opaque-task-revision"');
@@ -284,7 +303,10 @@ describe("BDP public HTTP handler", () => {
 
   it("rejects foreign origins and unknown routes with protocol Problems", async () => {
     const port: ScopePort = {
-      perform: async () => scopePortSuccess({ items: [], next: null } as never) as never,
+      perform: async (operation) =>
+        operation.kind === "resource" && operation.resource === "resource"
+          ? scopePortProblem(readProblem("resource-not-found"))
+          : scopePortSuccess({ items: [], next: null } as never),
     };
     const handler = createHttpHandler(
       createReadServer({
@@ -306,10 +328,10 @@ describe("BDP public HTTP handler", () => {
       `${SCOPE}beads/a/`,
       `${SCOPE}links/a-b/`,
       `${SCOPE}types/%61`,
-      `${SCOPE}types/a%2Fb`,
     ])
       expect((await handler(new Request(target))).status, target).toBe(404);
-    const badLimit = await handler(new Request(`${SCOPE}beads/?limit=0`));
+    expect((await handler(new Request(`${SCOPE}types/a%2Fb`))).status).toBe(404);
+    const badLimit = await handler(new Request(`${SCOPE}bdp/beads?limit=0`));
     expect(badLimit.status).toBe(400);
     const badDirection = await handler(
       new Request(`${SCOPE}beads/a?view=links&direction=sideways`),
@@ -321,8 +343,6 @@ describe("BDP public HTTP handler", () => {
       `${SCOPE}beads/a?view=properties&direction=inbound`,
       `${SCOPE}beads/a?include=links`,
       `${SCOPE}beads/a?direction=inbound`,
-      `${SCOPE}links/a-b?view=links`,
-      `${SCOPE}types/task?view=properties`,
     ])
       expect((await handler(new Request(target))).status, target).toBe(400);
   });
@@ -338,7 +358,7 @@ describe("BDP public HTTP handler", () => {
       }),
     );
 
-    const links = new URL(`${SCOPE}links/`);
+    const links = new URL(`${SCOPE}bdp/links`);
     links.searchParams.set("type", "https://work.example/types/blocks");
     links.searchParams.set("conformsTo", "https://work.example/types/dependency");
     links.searchParams.set("source", "beads/a");
@@ -358,7 +378,7 @@ describe("BDP public HTTP handler", () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
 
-    const external = new URL(`${SCOPE}links/`);
+    const external = new URL(`${SCOPE}bdp/links`);
     external.searchParams.set("source", "urn:example:opaque");
     external.searchParams.set("endpoint", "https://external.example:443/a");
     expect((await handler(new Request(external))).status).toBe(200);
@@ -372,7 +392,7 @@ describe("BDP public HTTP handler", () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
 
-    const rfcOnly = new URL(`${SCOPE}links/`);
+    const rfcOnly = new URL(`${SCOPE}bdp/links`);
     rfcOnly.searchParams.set("source", "https://[v1.fe80::]/");
     rfcOnly.searchParams.set("target", "https://u:p@other.example/beads/demo-a");
     rfcOnly.searchParams.set("endpoint", "https:other.example/beads/demo-a");
@@ -389,20 +409,19 @@ describe("BDP public HTTP handler", () => {
     );
 
     for (const target of [
-      `${SCOPE}beads/?type=task`,
-      `${SCOPE}beads/?conformsTo=task`,
-      `${SCOPE}beads/?source=beads%2Fdemo-a`,
-      `${SCOPE}beads/?selector=%24`,
-      `${SCOPE}beads/?limit=1`,
-      `${SCOPE}beads/?cursor=opaque`,
+      `${SCOPE}bdp/beads?type=task`,
+      `${SCOPE}bdp/beads?conformsTo=task`,
+      `${SCOPE}bdp/beads?source=beads%2Fdemo-a`,
+      `${SCOPE}bdp/beads?selector=%24`,
+      `${SCOPE}bdp/beads?limit=1`,
+      `${SCOPE}bdp/beads?cursor=opaque`,
       `${SCOPE}types/?type=https%3A%2F%2Fwork.example%2Ftypes%2Ftask`,
-      `${SCOPE}links/?source=beads%2Fdemo-a&source=beads%2Fdemo-b`,
-      `${SCOPE}links/?unknown=value`,
-      `${SCOPE}links/?source=beads%2F..%2Fx`,
-      `${SCOPE}links/?source=${encodeURIComponent(`${SCOPE}links/demo-a-c`)}`,
-      `${SCOPE}links/?source=${encodeURIComponent(`${SCOPE}beads/%41`)}`,
-      `${SCOPE}links/?source=${encodeURIComponent("https://u:p@beads.example/acme/beads/demo-a")}`,
-      `${SCOPE}links/?source=${encodeURIComponent("https:beads.example/acme/beads/demo-a")}`,
+      `${SCOPE}bdp/links?source=beads%2Fdemo-a&source=beads%2Fdemo-b`,
+      `${SCOPE}bdp/links?unknown=value`,
+      `${SCOPE}bdp/links?source=beads%2F..%2Fx`,
+      `${SCOPE}bdp/links?source=${encodeURIComponent(`${SCOPE}beads/%41`)}`,
+      `${SCOPE}bdp/links?source=${encodeURIComponent("https://u:p@beads.example/acme/beads/demo-a")}`,
+      `${SCOPE}bdp/links?source=${encodeURIComponent("https:beads.example/acme/beads/demo-a")}`,
     ]) {
       const invalid = await handler(new Request(target));
       expect(invalid.status, target).toBe(400);
@@ -447,7 +466,7 @@ describe("BDP public HTTP handler", () => {
         readControls: testReadControls(),
       }),
     );
-    const initial = new URL(`${SCOPE}beads/`);
+    const initial = new URL(`${SCOPE}bdp/beads`);
     initial.searchParams.set("selector", "$[?@.properties.ready == true]");
     initial.searchParams.set("limit", "1");
 
@@ -494,7 +513,7 @@ describe("BDP public HTTP handler", () => {
       }),
     );
     const first = await handler(
-      new Request(`${SCOPE}beads/?limit=1`, {
+      new Request(`${SCOPE}bdp/beads?limit=1`, {
         headers: { authorization: "Principal A" },
       }),
     );
@@ -541,10 +560,10 @@ describe("BDP public HTTP handler", () => {
     );
 
     const malformed = await handler(
-      new Request(`${SCOPE}beads/?selector=${encodeURIComponent("$[?]")}`),
+      new Request(`${SCOPE}bdp/beads?selector=${encodeURIComponent("$[?]")}`),
     );
-    const excessiveLimit = await handler(new Request(`${SCOPE}beads/?limit=11`));
-    const first = await handler(new Request(`${SCOPE}beads/?limit=1`));
+    const excessiveLimit = await handler(new Request(`${SCOPE}bdp/beads?limit=11`));
+    const first = await handler(new Request(`${SCOPE}bdp/beads?limit=1`));
     now += 10;
     const expired = await handler(new Request((first.body as { readonly next: string }).next));
 
@@ -578,10 +597,10 @@ describe("BDP public HTTP handler", () => {
         readControls: testReadControls(),
       }),
     );
-    const first = await handler(new Request(`${SCOPE}beads/?limit=1`));
+    const first = await handler(new Request(`${SCOPE}bdp/beads?limit=1`));
     const next = (first.body as { readonly next: string }).next;
     const forgedUrl = new URL(next);
-    forgedUrl.pathname = `${new URL(SCOPE).pathname}links/`;
+    forgedUrl.pathname = `${new URL(SCOPE).pathname}bdp/links`;
 
     const forged = await handler(new Request(forgedUrl));
     const replay = await handler(new Request(next));
@@ -601,14 +620,17 @@ describe("BDP public HTTP handler", () => {
         target: "bdptest",
         admittedProfile: admitReadServerProfile("read", "bdptest"),
         port: {
-          perform: async () => scopePortSuccess({ items: [], next: null } as never) as never,
+          perform: async (operation) =>
+            operation.kind === "resource" && operation.resource === "resource"
+              ? scopePortProblem(readProblem("resource-not-found"))
+              : scopePortSuccess({ items: [], next: null } as never),
         },
       }),
     );
 
-    const collection = await handler(new Request(`${SCOPE}beads/`));
+    const collection = await handler(new Request(`${SCOPE}bdp/beads`));
     const problem = await handler(new Request(`${SCOPE}unknown`));
-    const invalidParameter = await handler(new Request(`${SCOPE}beads/?limit=0`));
+    const invalidParameter = await handler(new Request(`${SCOPE}bdp/beads?limit=0`));
     const discovery = await handler(new Request(`${SCOPE}bdp.json`));
     const scope = await handler(new Request(SCOPE));
     const method = await handler(new Request(SCOPE, { method: "OPTIONS" }));
@@ -642,7 +664,7 @@ describe("BDP public HTTP handler", () => {
       }),
     );
 
-    const response = await handler(new Request(`${SCOPE}beads/?limit=1`));
+    const response = await handler(new Request(`${SCOPE}bdp/beads?limit=1`));
 
     expect(response).toMatchObject({ status, body: { code } });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -666,7 +688,7 @@ describe("BDP public HTTP handler", () => {
       }),
     );
 
-    await expect(handler(new Request(`${SCOPE}beads/`))).rejects.toThrow(
+    await expect(handler(new Request(`${SCOPE}bdp/beads`))).rejects.toThrow(
       /authentication challenge/,
     );
   });
@@ -762,7 +784,7 @@ describe("BDP public HTTP handler", () => {
       }),
     );
 
-    const response = await handler(new Request(`${SCOPE}beads/`));
+    const response = await handler(new Request(`${SCOPE}bdp/beads`));
 
     expect(response.status).toBe(410);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -809,7 +831,7 @@ describe("BDP public HTTP handler", () => {
     });
     const handler = createHttpHandler(server);
     const controller = new AbortController();
-    const pending = handler(new Request(`${SCOPE}beads/`, { signal: controller.signal }));
+    const pending = handler(new Request(`${SCOPE}bdp/beads`, { signal: controller.signal }));
     await vi.waitFor(() => expect(perform).toHaveBeenCalledOnce());
     controller.abort("client disconnected");
 
@@ -837,7 +859,7 @@ describe("BDP public HTTP handler", () => {
         },
       },
     });
-    await expect(createHttpHandler(server)(new Request(`${SCOPE}beads/`))).rejects.toThrow(
+    await expect(createHttpHandler(server)(new Request(`${SCOPE}bdp/beads`))).rejects.toThrow(
       "private adapter details",
     );
   });
@@ -856,14 +878,14 @@ describe("BDP public HTTP handler", () => {
     );
 
     for (const method of ["POST", "PUT", "DELETE"]) {
-      const response = await handler(new Request(`${SCOPE}beads/`, { method }));
+      const response = await handler(new Request(`${SCOPE}bdp/beads`, { method }));
       expect(response.status).toBe(405);
       expect(response.body).toBeUndefined();
       expect(response.headers.get("allow")).toBe("GET, HEAD");
       expect(response.headers.get("content-length")).toBe("0");
     }
     expect(perform).not.toHaveBeenCalled();
-    expect((await handler(new Request(`${SCOPE}beads/`))).status).toBe(200);
+    expect((await handler(new Request(`${SCOPE}bdp/beads`))).status).toBe(200);
   });
 });
 

@@ -2,6 +2,7 @@ import { REFERENCE_TYPE_DESCRIPTORS } from "@bdp/protocol";
 import { BD_SERVED_TYPE_DESCRIPTORS } from "./index.js";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -16,9 +17,11 @@ const localComponent = (value: string): string =>
   /^[A-Za-z0-9._~-]+$/.test(value) && value !== "." && value !== ".." && !value.startsWith("b64_")
     ? value
     : opaque(value);
-const beadUrl = (id: string): string => `${scope}beads/${localComponent(id)}`;
+const beadUrl = (id: string): string => `${scope}${localComponent(id)}`;
 const linkUrl = (source: string, target: string, type: string): string =>
-  `${scope}links/${opaque(source)}/${opaque(target)}/${opaque(type)}`;
+  `${scope}link_${createHash("sha256")
+    .update(JSON.stringify([source, target, type]))
+    .digest("base64url")}`;
 const typeUrl = (type: string): string => `${scope}types/${localComponent(type)}`;
 
 afterEach(async () => {

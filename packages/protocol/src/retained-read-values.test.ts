@@ -70,9 +70,16 @@ describe("retained Core carrier values", () => {
       { ...core, beads: "https://lists.test/nodes", links: "https://lists.test/edges" },
     ],
     ["query-scope", { ...core, scope: "https://records.test/work/?tenant=1" }],
-    ["new-required-root", { ...core, types: "https://types.test/" }],
   ])("refuses discovery %s", (_label, value) => {
     expect(() => parseRetainedDiscovery(JSON.stringify(value))).toThrow();
+  });
+  it("allows Types only at its fixed optional Scope route", () => {
+    expect(
+      parseRetainedDiscovery(JSON.stringify({ ...core, types: "https://records.test/work/types/" })),
+    ).toMatchObject({ types: "https://records.test/work/types/" });
+    expect(() =>
+      parseRetainedDiscovery(JSON.stringify({ ...core, types: "https://types.test/" })),
+    ).toThrow();
   });
   it("preserves complete Type pins, native metadata and opaque revisions", () => {
     expect(parseRetainedResource(JSON.stringify(bead), "bead")).toEqual(bead);
