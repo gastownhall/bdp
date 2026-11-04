@@ -97,8 +97,11 @@ mutations use verified owning Scope/navigation. Preserve whole Scope-defined nam
 without beads/links/types prefixes. [Scope routing](scope-and-references.md) controls
 normalization, aliases, kind and credential boundaries.
 
-Human selectors are `ID@N` for a stable store-local ordinal, `ID@=TOKEN` for an
-exact portable revision token, and `ID@current` for explicit current selection.
+Human selectors are `ID@N` for a one-based position in the subject's newest-first
+retained History order on `show` and `link show`, `ID@=TOKEN` for an exact
+portable revision token, and `ID@current` for explicit current selection. `@1`
+means the newest retained version. Because positions shift as History changes,
+exact tokens remain the stable portable form.
 An unwrapped absolute HTTP URL stays literal, including raw @; use the quoted
 `'[URL]@REV'` form to select a revision of an absolute URL. The full canonical
 URL keeps literal identities containing @ selectable. `--id` is always literal. See [reference parsing](scope-and-references.md#revision-selectors).
@@ -109,8 +112,10 @@ URL keeps literal identities containing @ selectable. `--id` is always literal. 
 | authored --type | TYPE@N or TYPE@=TOKEN | Exact Type affiliation after authoritative ordinal resolution |
 | authored Link source/target | REF@N or REF@=TOKEN | Exact endpoint pin after authoritative ordinal resolution |
 
-Local ordinals require a truthful selected-store mapping and resolve to full tokens
-before transport or stored references; unavailable mapping refuses, never guesses.
+Read ordinals resolve through the authority-ordered History versions pages and
+become full tokens before the exact read. Other ordinal-bearing positions must
+use their command-specific mapping contract; unavailable mapping refuses, never
+guesses.
 `--from-revision` retains its separately specified `N` or `=TOKEN` grammar only on a
 specified historical-content adapter. Type/endpoint @current refuses as a pin;
 bare input is unpinned. Mutation targets remain unpinned. Type filter operands
@@ -435,7 +440,7 @@ Write that revision on the Reference itself:
 | Reference | Meaning |
 | --- | --- |
 | `note-1` | Read the current state. |
-| `note-1@3` | Select local revision number 3. |
+| `note-1@3` | On `show`, select the third retained version in newest-first History order. |
 | `note-1@=saved-r1` | Select exact token `saved-r1`. |
 | `note-1@current` | Explicitly select the current state. |
 
@@ -443,10 +448,11 @@ On commands with several References, each Reference carries its own revision
 selection where the command allows it. The same syntax applies to References
 in flags, such as `--type task@3` when setting a Bead or Link's Type.
 
-Local revision numbers are positive whole numbers, from 1 through
-9,223,372,036,854,775,807. Their meaning is stable within the selected store.
-They are not positions in a history page and need not match numbers in another
-store. Use exact tokens when exchanging references between stores.
+Read ordinals are positive whole numbers, from 1 through
+9,223,372,036,854,775,807, and count the authority's newest-first retained
+History sequence across pages. Their meaning is relative to the retained window
+at resolution time; new versions or pruning can shift them. Use exact tokens
+when preserving or exchanging a selected revision.
 
 A deletion event has no saved Resource body to read. Selecting its number
 fails rather than choosing a nearby live revision. Invalid suffix syntax also
@@ -461,7 +467,7 @@ Quotes protect the argument from the shell; they are not part of the Reference.
 
 | Reference | Meaning |
 | --- | --- |
-| `'[https://work.example/acme/note-1]@3'` | Select local revision number 3. |
+| `'[https://work.example/acme/note-1]@3'` | Select the third retained version in newest-first History order. |
 | `'[https://work.example/acme/note-1]@=saved-r1'` | Select exact token `saved-r1`. |
 | `'[https://work.example/acme/note-1]@current'` | Select the current state. |
 
@@ -890,7 +896,7 @@ Preserve BDP Problems in the common error format.
 | CLI input | Protocol request or client behavior |
 | --- | --- |
 | Bare `REF` or `REF@current` | GET the canonical Resource URL. |
-| `REF@N` | Look up local revision number N, then request `revision=TOKEN`. |
+| `REF@N` | Traverse newest-first History pages to row N, then request `revision=TOKEN`. |
 | `REF@=TOKEN` | Request the exact `revision` query value, without the CLI's leading `=`. |
 | `--properties-only` | Request `view=properties`. |
 | `--include-links` | Request `include=links`. |
@@ -912,7 +918,7 @@ bd show note-1
 # Read a note using its full URL. Quotes pass the URL unchanged through the shell.
 bd show 'https://work.example/acme/note-1'
 
-# Read local revision number 3 using a suffix.
+# Read the third retained version in newest-first History order.
 bd show note-1@3
 
 # Read an exact revision token using a suffix.
@@ -1278,9 +1284,7 @@ Enumerate one native History page for a Bead or Link.
 ##### Usage
 
 ```text
-bd versions REF [--scope SCOPE] [--paged] [--page-size N]
-    [--output-format default|detail|table|json|jsonl] [--long]
-bd versions REF --continue URL [--scope SCOPE] [--paged]
+bd versions REF [--scope SCOPE] [--page-size N] [--all]
     [--output-format default|detail|table|json|jsonl] [--long]
 ```
 
@@ -1295,19 +1299,17 @@ bd versions REF --continue URL [--scope SCOPE] [--paged]
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
-| `--paged` | On | Deliver one native History page. |
-| `--page-size N` | Provider History default | Select the initial History page limit; cannot accompany continuation. |
-| `--continue URL` | Initial History page | Use the native same-subject History next URL unchanged. |
+| `--page-size N` | Provider History default | Select each native History page limit. |
+| `--all` | Off | Follow native pages in this invocation, up to 100 pages. |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `table`, `json` or `jsonl`. See [output](#output-controls). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
 ##### Behavior
 
-Require the service's complete application History capability. Revision suffixes,
-collection filters, masks, `--unpaged` and a total `--limit` are not accepted.
-This cut delivers one page per call. A continuation preserves its issued limit
-and History context; the ordinary collection cursor-resizing rule does not apply.
-An initial page size must meet the service's History bounds.
+Require the service's advertised History capability. The default delivers one
+page; `--all` follows the same issued snapshot for at most 100 pages. An initial
+page size must meet the service's History bounds. Revision suffixes, collection
+filters, masks and a total `--limit` are not accepted.
 
 Preserve the native subject, population, participation, window and retained-address
 semantics. A version listing is not a promise that all retained bodies remain
@@ -1317,11 +1319,11 @@ rewritten as native History versions rows.
 
 ##### Results
 
-Use `version_collection`, preserving the native page. Each JSONL item carries
-the subject, verified kind when known and the complete native version row.
-The header records History context; the terminal preserves the exact delivered
-boundary and native continuation. Finite human, detail and table formats show
-the same version context. See [History delivery](#optional-history-delivery-without-a-new-history-promise).
+Preserve the native History page and add a CLI `ordinal` to each row, numbered
+one-based across the newest-first sequence delivered by this invocation. The
+ordinal is a convenience rank, not a token or stable identifier. JSON and JSONL
+include it; human, detail and table output show the same rank and native History
+context. See [History delivery](#optional-history-delivery-without-a-new-history-promise).
 
 
 ##### Errors and exit status
@@ -1338,7 +1340,7 @@ Interrupted delivery returns `130`.
 | --- | --- |
 | REF | GET the canonical subject with `view=versions`; require actual advertised complete History. |
 | --page-size N | Set initial native `limit=N` under History bounds. |
-| --continue URL | Follow the same-subject native next URL unchanged, including its issued limit. |
+| --all | Follow same-subject History next URLs within one client session. |
 | Generic subject | Retain the actual subject kind when known; do not infer it from URI spelling. |
 | Output flags | Render unchanged native History context and rows; no read masks. |
 
@@ -1348,7 +1350,10 @@ Interrupted delivery returns `130`.
 # Read one page of retained versions.
 bd versions note-1
 
-# Request a smaller initial History page.
+# Follow the version history in one bounded invocation.
+bd versions note-1 --all
+
+# Request a smaller History page.
 bd versions note-1 --page-size 10 --output-format json
 
 ```
@@ -1548,7 +1553,7 @@ Preserve BDP Problems in the common error format.
 | CLI input | Protocol request or client behavior |
 | --- | --- |
 | Bare `REF` or `REF@current` | GET the canonical Resource URL and verify actual Link kind. |
-| `REF@N` | Look up local revision number N, then request `revision=TOKEN`. |
+| `REF@N` | Traverse newest-first History pages to row N, then request `revision=TOKEN`. |
 | `REF@=TOKEN` | Request the exact `revision` query value, without the CLI's leading `=`. |
 | `--properties-only` | Request `view=properties`. |
 | Output format, detail and field-selection flags | Render the selected result without changing native selection. |
@@ -1567,7 +1572,7 @@ bd link show rel-1
 # Read a Link using its full URL. Quotes pass the URL unchanged through the shell.
 bd link show 'https://work.example/acme/rel-1'
 
-# Read local revision number 3 using a suffix.
+# Read the third retained version in newest-first History order.
 bd link show rel-1@3
 
 # Read an exact revision token using a suffix.
@@ -1576,7 +1581,7 @@ bd link show rel-1@=saved-r1
 # Read that exact token and return JSON.
 bd link show rel-1@=saved-r1 --output-format json
 
-# Read the exact token 3, rather than local revision number 3.
+# Read the exact token `3`, rather than the third History row.
 bd link show rel-1@=3
 
 # Select a revision of an absolute URL. Quotes protect the brackets in the shell.
@@ -1962,9 +1967,7 @@ Enumerate one native History page for a verified Link.
 ##### Usage
 
 ```text
-bd link versions REF [--scope SCOPE] [--paged] [--page-size N]
-    [--output-format default|detail|table|json|jsonl] [--long]
-bd link versions REF --continue URL [--scope SCOPE] [--paged]
+bd link versions REF [--scope SCOPE] [--page-size N] [--all]
     [--output-format default|detail|table|json|jsonl] [--long]
 ```
 
@@ -1979,19 +1982,17 @@ bd link versions REF --continue URL [--scope SCOPE] [--paged]
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
-| `--paged` | On | Deliver one native History page. |
-| `--page-size N` | Provider History default | Select the initial History page limit; cannot accompany continuation. |
-| `--continue URL` | Initial History page | Use the native same-subject History next URL unchanged. |
+| `--page-size N` | Provider History default | Select each native History page limit. |
+| `--all` | Off | Follow native pages in this invocation, up to 100 pages. |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `table`, `json` or `jsonl`. See [output](#output-controls). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 
 ##### Behavior
 
-Require the service's complete application History capability. Revision suffixes,
-collection filters, masks, `--unpaged` and a total `--limit` are not accepted.
-This cut delivers one page per call. A continuation preserves its issued limit
-and History context; the ordinary collection cursor-resizing rule does not apply.
-An initial page size must meet the service's History bounds.
+Require the service's advertised History capability. The default delivers one
+page; `--all` follows the same issued snapshot for at most 100 pages. An initial
+page size must meet the service's History bounds. Revision suffixes, collection
+filters, masks and a total `--limit` are not accepted.
 
 Preserve the native subject, population, participation, window and retained-address
 semantics. A version listing is not a promise that all retained bodies remain
@@ -2005,11 +2006,11 @@ or fetch a different current body merely to manufacture evidence.
 
 ##### Results
 
-Use `version_collection`, preserving the native page. Each JSONL item carries
-the subject, verified kind when known and the complete native version row.
-The header records History context; the terminal preserves the exact delivered
-boundary and native continuation. Finite human, detail and table formats show
-the same version context. See [History delivery](#optional-history-delivery-without-a-new-history-promise).
+Preserve the native History page and add a CLI `ordinal` to each row, numbered
+one-based across the newest-first sequence delivered by this invocation. The
+ordinal is a convenience rank, not a token or stable identifier. JSON and JSONL
+include it; human, detail and table output show the same rank and native History
+context. See [History delivery](#optional-history-delivery-without-a-new-history-promise).
 
 
 ##### Errors and exit status
@@ -2026,7 +2027,7 @@ Interrupted delivery returns `130`.
 | --- | --- |
 | REF | GET the canonical subject with `view=versions`; require actual advertised complete History. |
 | --page-size N | Set initial native `limit=N` under History bounds. |
-| --continue URL | Follow the same-subject native next URL unchanged, including its issued limit. |
+| --all | Follow same-subject History next URLs within one client session. |
 | Link assertion | Verify actual Link kind. |
 | Output flags | Render unchanged native History context and rows; no read masks. |
 
@@ -2036,7 +2037,10 @@ Interrupted delivery returns `130`.
 # Read one page of retained versions.
 bd link versions rel-1
 
-# Request a smaller initial History page.
+# Follow the Link's versions in one bounded invocation.
+bd link versions rel-1 --all
+
+# Request a smaller History page.
 bd link versions rel-1 --page-size 10 --output-format json
 
 ```

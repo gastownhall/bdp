@@ -44,9 +44,13 @@ describe("bdp ready CLI", () => {
     },
   );
 
-  it.each([false, true])(
-    "reports a local transport failure without an unhandled rejection (json=%s)",
-    async (json) => {
+  it.each([
+    { json: false, args: [] },
+    { json: true, args: ["--json"] },
+    { json: true, args: ["--output-mode", "json"] },
+  ])(
+    "reports a local transport failure without an unhandled rejection (%j)",
+    async ({ json, args }) => {
       const server = createServer((_request, response) => {
         response.statusCode = 502;
         response.setHeader("content-type", "text/html");
@@ -59,7 +63,7 @@ describe("bdp ready CLI", () => {
       const closeClient = vi.spyOn(BdpClient.prototype, "close");
 
       try {
-        await expect(runBdp(["bd", "ready", ...(json ? ["--json"] : [])])).resolves.toBe(1);
+        await expect(runBdp(["bd", "ready", ...args])).resolves.toBe(1);
       } finally {
         await close(server);
       }

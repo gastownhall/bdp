@@ -22,6 +22,8 @@ export interface ReferenceServiceOptions {
   readonly scope: string;
   /** Every configured principal has complete Scope access; no partial disclosure model. */
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
+  /** Defaults to required; disabled assigns one local anonymous test principal. */
+  readonly authentication?: "required" | "disabled";
 }
 export function referenceNavigation(scope: string): PrivateNavigation {
   const selected = parseCanonicalScope(scope);
@@ -58,6 +60,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
           "instance",
           "scope",
           "credentials",
+          "authentication",
           "atomicBatch",
           "historicalUpdate",
         ].includes(name),
@@ -65,7 +68,12 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean") ||
     (options.historicalUpdate !== undefined && typeof options.historicalUpdate !== "boolean") ||
     (options.atomicBatch === true && options.historicalUpdate === true) ||
+    (options.authentication !== undefined &&
+      options.authentication !== "required" &&
+      options.authentication !== "disabled") ||
     !Array.isArray(options.credentials) ||
+    ((options.authentication ?? "required") === "required" && options.credentials.length === 0) ||
+    ((options.authentication ?? "required") === "disabled" && options.credentials.length !== 0) ||
     options.credentials.some(
       (credential) =>
         credential === null ||
@@ -84,6 +92,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     create: options.create,
     instance: options.instance,
     credentials: options.credentials,
+    authentication: options.authentication ?? "required",
     navigation,
     referenceCore: true,
     ...(options.atomicBatch === undefined ? {} : { atomicBatch: options.atomicBatch }),

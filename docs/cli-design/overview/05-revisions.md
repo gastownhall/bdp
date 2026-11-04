@@ -6,9 +6,9 @@ same Resource. We can read a retained state, cite it exactly, or use the current
 revision to protect an edit from overwriting someone else's work.
 
 The guide now has the title `CSV export guide (reviewed)`, after the update we
-observed. For this example, the Scope advertises complete application History and
-allows the illustrated reads. Its adapter also provides stable local revision
-numbers. The omitted details in these outputs are marked with `…`. Outputs are authored excerpts; the short token labels below stand for
+observed. For this example, the Scope advertises application History and allows
+the illustrated reads. Its retained versions are ordered newest first by the
+authority. The omitted details in these outputs are marked with `…`. Outputs are authored excerpts; the short token labels below stand for
 complete opaque tokens, not a token-generation scheme or a runtime transcript.
 
 ### Read the current state and its revision
@@ -118,15 +118,16 @@ This projection uses Core's selected service-side capability and its canonical
 CLI mapping. A client that only masks a full response does not thereby implement
 that capability; these examples do not claim installed conformance.
 
-### Use a local revision number when available
+### Select by newest-first position
 
-The example adapter maps local number 1 to `guide-a`, 7 to `guide-g`, and 8 to
-`guide-h`. That mapping is stable for this Resource and authority. Another store
-may assign different numbers to the same portable tokens.
+For point reads, `@N` selects the one-based row position in the retained
+newest-first History sequence. Here `@1` is `guide-h`, and `@8` is `guide-a`.
+These convenience positions shift when new versions are added or the retained
+window is pruned. Use `@=TOKEN` when a Reference must remain fixed.
 
 ```console
-# Use the adapter's stable local number for the original state.
-> bd show csv-draft@1
+# Select the oldest row in this complete eight-version window.
+> bd show csv-draft@8
 csv-draft [note] CSV export notes
 Revision: guide-a
 …
@@ -134,11 +135,10 @@ Keep column headings in every CSV export.
 
 ```
 
-The CLI resolves the number before sending the exact token to BDP. It cannot
-derive a number by counting a versions page, renumber after pruning, or assume a
-numeric token is an ordinal. Without authoritative mapping, this convenience
-refuses; exact token reads remain the portable operation. Absolute HTTP URLs
-remain literal. To attach a selector, wrap the URL in brackets and quote the
+The CLI counts authority-ordered History rows across their issued pages and
+sends the selected exact token to BDP. It never orders tokens by spelling or
+claimed timestamp. The displayed ordinal is not retained as a durable mapping.
+Absolute HTTP URLs remain literal. To attach a selector, wrap the URL in brackets and quote the
 whole argument for the shell:
 
 ```console

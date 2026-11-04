@@ -201,7 +201,14 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       if (options.cliProfile !== undefined && options.cliProfile !== settings.profile)
         command.error("select the CLI profile before constructing its command tree");
       if (options.retryFile !== undefined) {
-        const permitted = new Set(["retryFile", "outputFormat", "long", "config", "cliProfile"]);
+        const permitted = new Set([
+          "retryFile",
+          "outputFormat",
+          "outputMode",
+          "long",
+          "config",
+          "cliProfile",
+        ]);
         if (
           args.some((arg) => arg !== undefined) ||
           [...explicit].some((name) => !permitted.has(name))
@@ -251,6 +258,11 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   flag(ready, ["--json", "Use the existing readiness JSON representation."]);
   execute(ready);
   if (settings.profile === "compat") return root;
+  flag(root, [
+    "--output-mode <mode>",
+    "Choose human-friendly output or the structured JSON envelope.",
+    ["human", "json"],
+  ]);
   flag(root, scope);
 
   const scopeGroup = add(root, "scope", "Discover the selected Scope.", "Read Commands");
@@ -310,6 +322,18 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
         "included-Link options require --include-links",
       );
     });
+
+    const versions = add(
+      parent,
+      "versions",
+      `List retained History versions for one ${isLink ? "Link" : "Bead"}.`,
+      "Read Commands",
+      [isLink ? "<link-id>" : "<bead-id>"],
+    );
+    flag(versions, ["--page-size <n>", "Set the native History page size."]);
+    flag(versions, ["--all", "Follow History pages to the bounded CLI traversal limit."]);
+    outputFlags(versions, true, false);
+    execute(versions);
 
     const list = add(
       parent,
@@ -385,7 +409,11 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
 
     for (const operation of ["create", "update", "delete"] as const) {
       const args =
-        operation === "create" ? (isLink ? ["[source]", "[target]"] : ["[scope]"]) : ["[ref]"];
+        operation === "create"
+          ? isLink
+            ? ["[source]", "[target]"]
+            : ["[scope]"]
+          : [isLink ? "[link-id]" : "[bead-id]"];
       const command = add(
         parent,
         operation,
@@ -393,6 +421,8 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
         "Write Commands",
         args,
       );
+      if (operation !== "create")
+        command.usage(`${isLink ? "<link-id>" : "<bead-id>"} | --retry-file <file>`);
       if (operation !== "delete") {
         flag(command, ["--type <type>", "Set the whole Type Reference."]);
         for (const entry of operation === "create" ? objectFlags : editFlags) flag(command, entry);
@@ -461,7 +491,9 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
         if (options.dryRunMode !== undefined)
           fail(
             command,
-            ["outputFormat", "long", "idempotencyKey"].some((name) => explicit.has(name)),
+            ["outputFormat", "outputMode", "long", "idempotencyKey"].some((name) =>
+              explicit.has(name),
+            ),
             "emission conflicts with display controls and execution keys",
           );
         if (operation === "delete" && !options.force)
@@ -524,7 +556,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
     fail(
       batch,
       options.dryRunMode !== undefined &&
-        ["outputFormat", "long", "idempotencyKey"].some((name) => explicit.has(name)),
+        ["outputFormat", "outputMode", "long", "idempotencyKey"].some((name) => explicit.has(name)),
       "emission conflicts with display controls and execution keys",
     );
   });

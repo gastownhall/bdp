@@ -1,5 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  BdpClient,
+  BdpClientLocalError,
+  createFetchTransport,
+  isBdpClientProblem,
   createHistoricalUpdateFetchTransport,
   createRetainedFetchTransport,
   type PreparedRetainedWrite,
@@ -13,20 +17,23 @@ import type { CanonicalCliConfig } from "@bdp/config";
 import {
   admitJsonNumbers,
   decodeJsonDocument,
+  parseCanonicalHttpUrl,
   parseCanonicalScope,
   RETAINED_V01_SPECIFICATION,
   RETAINED_WRITE_OPERATIONS,
   type RetainedJsonObject,
   type RetainedResourceKind,
+  type HistoryVersionRow,
+  type HistoryVersionsPage,
 } from "@bdp/protocol";
 import type { CanonicalInvocation } from "./canonical-command.js";
 import {
   CanonicalInputError,
   CanonicalUnsupportedInputError,
-  parseHistoricalSourceSelector,
   compileCanonicalInput,
   parseCanonicalReference,
   parseCanonicalReferenceSelection,
+  parseHistoricalSourceSelector,
 } from "./canonical-input.js";
 import {
   CanonicalOutputError,
@@ -43,6 +50,7 @@ import {
 
 const MAX_BYTES = 8_388_608;
 const MAX_INPUT_BYTES = 1_048_576;
+const MAX_ORDINAL_HISTORY_PAGES = 100;
 const utf8 = new TextDecoder("utf-8", { fatal: true });
 class CliError extends Error {
   constructor(
@@ -62,6 +70,76 @@ const stringOption = (
 ): string | undefined => (typeof options[key] === "string" ? (options[key] as string) : undefined);
 const referenceUri = (reference: ReturnType<typeof parseCanonicalReference>): string =>
   typeof reference === "string" ? reference : reference.uri;
+
+function createHistoryClient(config: CanonicalCliConfig, scope: string): BdpClient {
+  const token = config.auth.token;
+  const scopedFetch: typeof fetch = (input, init) => {
+    if (token === undefined) return fetch(input, init);
+    const target =
+      input instanceof Request
+        ? input.url
+        : input instanceof URL
+          ? input.href
+          : new URL(input, scope).href;
+    if (!target.startsWith(scope)) return fetch(input, init);
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    headers.set("authorization", `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  };
+  return new BdpClient({
+    scope: parseCanonicalScope(scope),
+    transport: createFetchTransport(scopedFetch),
+  });
+}
+
+async function resolveRevisionOrdinal(
+  config: CanonicalCliConfig,
+  scope: string,
+  resource: "bead" | "link",
+  id: string,
+  ordinal: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const client = createHistoryClient(config, scope);
+  let remaining = BigInt(ordinal);
+  let continuation: string | undefined;
+  try {
+    for (let pageNumber = 0; pageNumber < MAX_ORDINAL_HISTORY_PAGES; pageNumber++) {
+      const request = {
+        kind: "versions" as const,
+        resource,
+        id: parseCanonicalHttpUrl(id),
+        ...(continuation === undefined
+          ? {}
+          : { continuation: parseCanonicalHttpUrl(continuation) }),
+      };
+      const page = await client.performHistory(request, signal === undefined ? {} : { signal });
+      if (isBdpClientProblem(page)) throw { kind: "problem", problem: page };
+      if (remaining <= BigInt(page.items.length)) {
+        const selected = page.items[Number(remaining - 1n)];
+        if (selected === undefined) break;
+        return selected.revision;
+      }
+      remaining -= BigInt(page.items.length);
+      if (page.next === null)
+        return refuse(
+          "revision_not_found",
+          3,
+          `revision @${ordinal} is outside the retained window; inspect it with bdp versions ${id}`,
+        );
+      continuation = page.next;
+    }
+    return refuse(
+      "unsupported_capability",
+      5,
+      `revision @${ordinal} exceeds the ${MAX_ORDINAL_HISTORY_PAGES}-page resolution bound; use an exact token from bdp versions ${id}`,
+    );
+  } finally {
+    await client.close();
+  }
+}
 function integer(value: unknown, fallback: number, minimum: number): number {
   if (value === undefined) return fallback;
   if (
@@ -159,26 +237,32 @@ export async function runCanonicalInvocation(
   // A non-draining consumer must not prevent bounded cancellation settlement.
   const failureSignal = (): AbortSignal | undefined =>
     io.signal?.aborted ? AbortSignal.timeout(1000) : io.signal;
+  const outputMode = options.outputMode;
+  const format = options.outputFormat ?? (outputMode === "json" ? "json" : "default");
+  const displayOptions = { ...options, outputFormat: format };
   const output = async (value: CanonicalOutput): Promise<void> => {
-    const rendered = renderCanonicalOutput(value, options, scope);
+    const rendered = renderCanonicalOutput(value, displayOptions, scope);
     await io.stdout(rendered, value.outcome === "success" ? io.signal : failureSignal());
     const raw = Array.isArray(options.omit) && options.omit.includes("envelope");
-    if (
-      value.outcome !== "success" &&
-      (raw || (options.outputFormat !== "json" && options.outputFormat !== "jsonl"))
-    )
+    if (value.outcome !== "success" && (raw || (format !== "json" && format !== "jsonl")))
       await io.stderr(
         `${JSON.stringify({ error: value.error, ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }) })}\n`,
         failureSignal(),
       );
   };
   try {
-    const format = options.outputFormat ?? "default";
+    if (outputMode !== undefined && outputMode !== "human" && outputMode !== "json")
+      return refuse("invalid_arguments", 2, "output mode must be human or json");
     if (
       !["default", "detail", "table", "json", "jsonl"].includes(String(format)) ||
       (format === "table" && !collection)
     )
       return refuse("invalid_arguments", 2, "output format is not admitted for this command");
+    if (
+      (outputMode === "human" && (format === "json" || format === "jsonl")) ||
+      (outputMode === "json" && format !== "json" && format !== "jsonl")
+    )
+      return refuse("invalid_arguments", 2, "output mode conflicts with output format");
     const scopePositional =
       command[0] === "scope" ||
       (!link && !alias && ["create", "list", "batch"].includes(leaf ?? ""))
@@ -190,7 +274,14 @@ export async function runCanonicalInvocation(
     scope = parseCanonicalScope(scopePositional ?? selectedScope ?? scope);
     const retry = stringOption(options, "retryFile");
     if (retry !== undefined) {
-      const allowed = new Set(["retryFile", "config", "cliProfile", "outputFormat", "long"]);
+      const allowed = new Set([
+        "retryFile",
+        "config",
+        "cliProfile",
+        "outputFormat",
+        "outputMode",
+        "long",
+      ]);
       if (
         invocation.positionals.length ||
         invocation.explicitOptions.some((key) => !allowed.has(key))
@@ -214,7 +305,7 @@ export async function runCanonicalInvocation(
         absoluteSubject &&
         !collection &&
         !alias &&
-        ["show", "update", "delete"].includes(leaf ?? "")
+        ["show", "update", "delete", "versions"].includes(leaf ?? "")
       )
     )
       return refuse(
@@ -271,13 +362,43 @@ export async function runCanonicalInvocation(
       (!mutation && !collection && !alias && command[0] !== "scope") ||
       (!alias && (leaf === "update" || leaf === "delete"));
     const initial = subjectCommand ? invocation.positionals[0] : undefined;
-    const initialRef =
-      initial === undefined
-        ? undefined
-        : parseCanonicalReference(initial, scope, {
-            mutationSubject: mutation,
-            currentRead: !mutation && leaf === "show",
-          });
+    let initialRef: ReturnType<typeof parseCanonicalReference> | undefined;
+    if (initial !== undefined && leaf === "show") {
+      const selected = parseCanonicalReferenceSelection(initial, scope);
+      if (selected.selection?.kind === "ordinal") {
+        if (
+          config.scope?.url === undefined &&
+          selectedScope === undefined &&
+          selected.uri.startsWith("http")
+        )
+          return refuse(
+            "missing_target_scope",
+            2,
+            "ordinal revision selection requires --scope or a configured default Scope",
+          );
+        const revision = await resolveRevisionOrdinal(
+          config,
+          scope,
+          link ? "link" : "bead",
+          selected.uri,
+          selected.selection.ordinal,
+          io.signal,
+        );
+        initialRef = { uri: selected.uri, revision };
+      } else {
+        initialRef = parseCanonicalReference(initial, scope, {
+          mutationSubject: mutation,
+          currentRead: !mutation && leaf === "show",
+        });
+      }
+    } else if (initial !== undefined && leaf === "versions") {
+      const selected = parseCanonicalReferenceSelection(initial, scope);
+      if (selected.selection !== undefined)
+        return refuse("invalid_arguments", 2, "versions requires an unpinned Resource identity");
+      initialRef = selected.uri;
+    } else if (initial !== undefined) {
+      initialRef = parseCanonicalReference(initial, scope, { mutationSubject: mutation });
+    }
     const anchor = initialRef === undefined ? scope : referenceUri(initialRef);
     const origin = new URL(anchor).origin;
     const credentialScope =
@@ -560,6 +681,76 @@ export async function runCanonicalInvocation(
         data: { items, next },
         completion: { returned: items.length, exhausted: next === null, stop_reason: stop },
       };
+    } else if (leaf === "versions") {
+      const raw = invocation.positionals[0];
+      if (!raw) return refuse("invalid_arguments", 2, "Resource identity required");
+      const subject = parseCanonicalReferenceSelection(raw, scope);
+      if (subject.selection !== undefined)
+        return refuse("invalid_arguments", 2, "versions requires an unpinned Resource identity");
+      const resource: "bead" | "link" = link ? "link" : "bead";
+      const pageSize = options.pageSize === undefined ? undefined : integer(options.pageSize, 0, 1);
+      const followAll = options.all === true;
+      const history = createHistoryClient(config, scope);
+      let pageNumber = 0;
+      let next: string | null = null;
+      let firstPage: HistoryVersionsPage | undefined;
+      const items: HistoryVersionRow[] = [];
+      try {
+        let continuation: string | undefined;
+        do {
+          if (++pageNumber > MAX_ORDINAL_HISTORY_PAGES)
+            return refuse(
+              "unsupported_capability",
+              5,
+              `History traversal exceeds the ${MAX_ORDINAL_HISTORY_PAGES}-page CLI bound`,
+            );
+          const result = await history.performHistory(
+            {
+              kind: "versions",
+              resource,
+              id: parseCanonicalHttpUrl(subject.uri),
+              ...(pageSize === undefined || continuation !== undefined ? {} : { limit: pageSize }),
+              ...(continuation === undefined
+                ? {}
+                : { continuation: parseCanonicalHttpUrl(continuation) }),
+            },
+            call,
+          );
+          if (isBdpClientProblem(result)) throw { kind: "problem", problem: result };
+          const page = result as HistoryVersionsPage;
+          firstPage ??= page;
+          items.push(...page.items);
+          next = page.next;
+          continuation = page.next ?? undefined;
+        } while (followAll && next !== null);
+      } finally {
+        await history.close();
+      }
+      if (firstPage === undefined)
+        return refuse("invalid_value", 1, "History returned no versions page");
+      const data = {
+        ...firstPage,
+        items: items.map((row, index) => ({ ordinal: index + 1, ...row })),
+        next,
+      };
+      known = {
+        schema_version: 2,
+        bdp_spec: specification,
+        result_kind: "history_versions",
+        outcome: "success",
+        context: {
+          subject: firstPage.subject,
+          resource_kind: resource,
+          pages: pageNumber,
+          complete_traversal: next === null,
+        },
+        data,
+        completion: {
+          returned: items.length,
+          exhausted: next === null,
+          stop_reason: next === null ? "exhausted" : "page",
+        },
+      };
     } else if (
       !mutation ||
       (leaf === "delete" && options.force !== true && !alias && retry === undefined)
@@ -715,6 +906,10 @@ export async function runCanonicalInvocation(
     } else if (error instanceof CanonicalInputError || error instanceof CanonicalProjectionError) {
       status = 2;
       code = "invalid_value";
+      message = error.message;
+    } else if (error instanceof BdpClientLocalError) {
+      status = error.code === "invalid-request" ? 2 : 1;
+      code = error.code;
       message = error.message;
     } else if (error instanceof RetainedClientError || error instanceof RetainedTransportError) {
       unknown = error.submission === "unknown";

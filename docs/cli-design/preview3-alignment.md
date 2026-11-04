@@ -16,7 +16,7 @@ and BDP integration; Iris import; Sybil canonical CLI semantics and source revie
 
 | CLI | Lowering / boundary |
 | --- | --- |
-| `show ID@N` | Resolve stable store-local ordinal, then ordinary exact `revision=TOKEN` |
+| `show ID@N` | Resolve the Nth newest-first retained History row, then ordinary exact `revision=TOKEN` |
 | `show ID@=TOKEN` | Exact historical GET; no standalone canonical `--revision` flag |
 | `show ID@current` | Current Resource read; no fabricated historical token |
 | `update ID --if-revision TOKEN` | Unpinned write target plus exact expectedRevision guard |
@@ -73,8 +73,9 @@ These are contract examples, pending qualification against the built product:
 
 ## History and allocation adapters
 
-Token generation is unchanged. `@N` means a stable store-local Resource/history
-ordinal, `@=TOKEN` an exact portable token, `@current` explicit current. N is a positive int64; explicit
+Token generation is unchanged. On point reads, `@N` means a one-based rank in
+newest-first retained History, `@=TOKEN` an exact portable token, and `@current`
+explicit current. The rank can shift as history changes. N is a positive int64; explicit
 token flags bypass the suffix parser. Numeric
 tokens remain representable with @= or the explicit literal flag. Generated forms
 need no shell glob/bracket/# syntax; arbitrary exact values retain JSON/literal

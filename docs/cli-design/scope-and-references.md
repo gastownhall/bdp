@@ -49,15 +49,16 @@ A literal local `notes@4` remains selectable through its full canonical URL.
 Explicit `--id` input is always literal; newly created local IDs reserve `@` for
 selectors. No already-issued identity is renamed by this grammar.
 
-N is a positive decimal int64, parsed without rounding. An ordinal is an adapter
-lookup for the selected Resource/history authority, never page position, current lineage depth, token prefix or a portable numeric token.
-Restore, pruning and sync must not silently change what an existing local selector
-means. Unknown/unsupported mapping refuses; do not enumerate a page and count rows.
-Deletion ordinals identify events, not readable bodies; no nearest-live fallback.
-Different stores can number the same portable revision differently.
+N is a positive decimal int64, parsed without rounding. For `show` and `link show`,
+an ordinal is the one-based position in the selected authority's newest-first
+retained History sequence: `@1` is its newest retained row. The CLI follows
+History continuations and sends the selected row's exact token in the wire read.
+This rank can change when a version is added or pruned; use `@=TOKEN` for a stable
+portable selection. Token spelling never establishes order. Deletion is not a
+synthetic Resource version and has no readable body; no nearest-live fallback.
 
-Resolve an admitted ordinal to the exact full token before transport, persistence
-or a stored Reference. `--if-revision TOKEN` instead takes an exact opaque token
+Resolve a point-read ordinal to the exact full token before the Resource read.
+`--if-revision TOKEN` instead takes an exact opaque token
 unchanged, including numeric-looking tokens and literal leading `=`. There is no
 ordinal guard shorthand. Bead historical Update's `--from-revision` adapter uses
 its separate `N` / `=TOKEN` source grammar; it does not define guard syntax.

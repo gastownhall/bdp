@@ -2,6 +2,33 @@ import { describe, expect, it } from "vitest";
 import { type CanonicalOutput, renderCanonicalOutput } from "./canonical-output.js";
 
 describe("canonical delivery framing and human References", () => {
+  it("renders Scope discovery for people and retains the JSON envelope on request", () => {
+    const result: CanonicalOutput = {
+      schema_version: 2,
+      bdp_spec: "selected",
+      result_kind: "scope",
+      outcome: "success",
+      data: {
+        scope: "https://work.example/team/",
+        bdpVersion: "0.1",
+        profile: "write",
+        beads: "https://work.example/team/bdp/beads",
+        links: "https://work.example/team/bdp/links",
+        order: "canonical-uri",
+        limits: { page: { defaultItems: 25, maximumItems: 100 } },
+      },
+    };
+
+    const human = renderCanonicalOutput(result, {});
+    expect(human).toContain("Scope: https://work.example/team/");
+    expect(human).toContain("Profile: write");
+    expect(human).toContain("Beads inventory: https://work.example/team/bdp/beads");
+    expect(human).toContain('"maximumItems": 100');
+    expect(human).toContain('"order": "canonical-uri"');
+
+    expect(JSON.parse(renderCanonicalOutput(result, { outputMode: "json" }))).toEqual(result);
+  });
+
   it("uses bracketed absolute pin syntax and never shortens foreign identities", () => {
     const result: CanonicalOutput = {
       schema_version: 2,

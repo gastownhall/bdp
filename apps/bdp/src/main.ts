@@ -30,6 +30,7 @@ import {
   saveDefaultScope,
   writeCanonicalOutput,
 } from "./canonical-io.js";
+import { type CanonicalOutput, renderCanonicalOutput } from "./canonical-output.js";
 import { runCanonicalInvocation } from "./canonical-runtime.js";
 
 const executable = "bdp";
@@ -45,6 +46,7 @@ Commands:
 
 Options:
   --config <path>  Load a JSON startup configuration file from <path>.
+  --output-mode <mode>  Choose human or structured JSON output (canonical commands).
   --help           Show this help text.
   --version        Show the executable version.
 
@@ -179,22 +181,37 @@ export async function runBdp(args: readonly string[]): Promise<number> {
               "could not save the BDP config; check the config file and directory permissions",
             );
           }
-          const result = {
+          const result: CanonicalOutput = {
             schema_version: 2,
             bdp_spec: RETAINED_V01_SPECIFICATION,
             result_kind: "scope",
             outcome: "success",
             data: { scope },
           };
-          process.stdout.write(
-            invocation.options.outputFormat === "json" ||
-              invocation.options.outputFormat === "jsonl"
-              ? `${JSON.stringify(result)}\n`
-              : `Default Scope set to ${scope}\n`,
-          );
+          const outputMode = invocation.options.outputMode;
+          const outputFormat = invocation.options.outputFormat;
+          if (
+            (outputMode === "human" && (outputFormat === "json" || outputFormat === "jsonl")) ||
+            (outputMode === "json" &&
+              outputFormat !== undefined &&
+              outputFormat !== "json" &&
+              outputFormat !== "jsonl")
+          )
+            throw new CliOperationError("output mode conflicts with output format");
+          if (outputMode === "json" || outputFormat === "json" || outputFormat === "jsonl") {
+            process.stdout.write(
+              renderCanonicalOutput(
+                result,
+                { outputFormat: outputFormat === "jsonl" ? "jsonl" : "json" },
+                scope,
+              ),
+            );
+          } else process.stdout.write(`Default Scope set to ${scope}\n`);
           return;
         }
         if (invocation.command.join(" ") === "bd ready") {
+          if (invocation.options.outputMode === "human" && invocation.options.json)
+            throw new CliOperationError("output mode conflicts with --json");
           const env = {
             ...process.env,
             ...(typeof invocation.options.scope === "string"
@@ -206,7 +223,9 @@ export async function runBdp(args: readonly string[]): Promise<number> {
               ...(selectedConfigFile === undefined ? [] : ["--config", selectedConfigFile]),
               "bd",
               "ready",
-              ...(invocation.options.json ? ["--json"] : []),
+              ...(invocation.options.json || invocation.options.outputMode === "json"
+                ? ["--json"]
+                : []),
             ],
             env,
           );

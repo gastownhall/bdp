@@ -107,6 +107,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       }
       assert.match(rootHelp.stdout, /Read Commands:/);
       assert.match(rootHelp.stdout, /Write Commands:/);
+      assert.match(rootHelp.stdout, /--output-mode <mode>/);
       const createHelp = await cli(["create", "--help"], directory);
       assert.match(createHelp.stdout, /--actor/);
       assert.match(createHelp.stdout, /Global Flags:/);
@@ -215,7 +216,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     try {
       reference = await startReferenceService(serviceOptions);
       const savedScope = success(
-        await cli(["scope", "set", scope, ...json], directory, undefined, {
+        await cli(["scope", "set", scope, "--output-mode", "json"], directory, undefined, {
           XDG_CONFIG_HOME: configHome,
         }),
         "scope",
@@ -261,6 +262,16 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       );
       assert.equal(description.data.beads, scope + "bdp/beads");
       assert.equal(description.data.events, undefined);
+      const humanDescription = await cli(
+        ["scope", "inspect", "--output-mode", "human"],
+        directory,
+        undefined,
+        { XDG_CONFIG_HOME: configHome, BDP_AUTH_TOKEN: token },
+      );
+      assert.equal(humanDescription.code, 0, humanDescription.stderr);
+      assert.ok(humanDescription.stdout.includes(`Scope: ${scope}`));
+      assert.match(humanDescription.stdout, /Beads inventory:/);
+      assert.doesNotMatch(humanDescription.stdout, /"schema_version"/);
       const anotherWorkingDirectory = path.join(directory, "unrelated-project-directory");
       await mkdir(anotherWorkingDirectory);
       const fromAnotherDirectory = success(
