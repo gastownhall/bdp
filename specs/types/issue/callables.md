@@ -93,11 +93,10 @@ so the native client is complete.
   carries the record; `reclaimedLease.revision` stays because that result carries no
   record.
 - **K-12 Link identity and the Dependency pair.** A Dependency Link's identity is
-  derived from its ordered pair and a generation: `<scope>/deps/<source>/<target>/<n>`,
-  generation 1 for the pair's first Link, the next integer each time the pair is
-  re-added after a removal. A removed generation stays consumed, as Core requires;
-  `addDependencies` is an upsert over the live generation; `removeDependency`
-  removes it. Clients never compute the identity; records carry it.
+  opaque, as [Issue and Dependency Types](issue.md) §5 states. A removed identity
+  stays consumed, as Core requires; `addDependencies` is an upsert over the pair's
+  live Link; `removeDependency` removes it. Clients never compute the identity;
+  records carry it.
 - **K-6 Pagination and bounds.** `limit`, `cursor`, `has_more` and `next_cursor`
   keep their native meanings; `limit: 0` means unbounded only where v0 admitted it.
   The item caps v0 enforced (one hundred anchors, a thousand identifiers) are the
@@ -1004,7 +1003,7 @@ Other fields: not allowed
 
 ### addDependencies (CallableBatch)
 
-Extern: `issueops.DependencyEditor`. Asserts Dependencies by endpoints as an upsert, all edges or none. For a pair with no live Dependency the next generation of the pair's Link identity is created with the given Type and metadata; for a live Dependency of the same Type the metadata and thread are updated in place as a new revision, or nothing is written when nothing differs; for a live Dependency of another Type the call is refused with reason dependency-exists, as the native path refuses it, and the kind is changed with updateLink or by remove and add. The whole set is cycle-checked at the end. A generic client may use createLink instead; this callable is the native idiom.
+Extern: `issueops.DependencyEditor`. Asserts Dependencies by endpoints as an upsert, all edges or none. For a pair with no live Dependency a new Link is created with the given Type and metadata; for a live Dependency of the same Type the metadata and thread are updated in place as a new revision, or nothing is written when nothing differs; for a live Dependency of another Type the call is refused with reason dependency-exists, as the native path refuses it, and the kind is changed with updateLink or by remove and add. The whole set is cycle-checked at the end. A generic client may use createLink instead; this callable is the native idiom.
 
 **`addDependenciesArguments`** — Arguments of addDependencies.
 
@@ -1403,7 +1402,7 @@ Result: `commentRecord` (§3).
 
 ### removeDependency (CallableBatch)
 
-Extern: `issueops.DependencyEditor`. Removes the live Dependency between the named source and target, by endpoints: its Link identity is consumed for good, and a later addDependencies of the same pair mints the next generation. removed false is a success, not a refusal, so a replayed teardown needs no error handling. The native deleteLink by identity is the generic way to the same effect.
+Extern: `issueops.DependencyEditor`. Removes the live Dependency between the named source and target, by endpoints: its Link identity is consumed for good, and a later addDependencies of the same pair creates a Link with a new identity. removed false is a success, not a refusal, so a replayed teardown needs no error handling. The native deleteLink by identity is the generic way to the same effect.
 
 **`removeDependencyArguments`** — Arguments of removeDependency.
 
@@ -1464,7 +1463,7 @@ the item, never as a Problem, because the invocation succeeded.
 | IC-7 | `removeDependency` on a pair with no Dependency returns `removed: false` with HTTP 200 |
 | IC-8 | `heartbeatIssue` by the holder leaves the Issue's `bead.revision` unchanged and changes `observations.heartbeat_at` on the next view |
 | IC-9 | `deleteIssues` of an Issue with a live incident Dependency and neither `cascade` nor `force` is refused; with `cascade` the descendants are erased and their identities answer `identity-taken` to a supplied id |
-| IC-10 | A replay of any CallableBatch under the same `Idempotency-Key` returns the original result and commits nothing |
+| IC-10 | Under `idempotency`, a replay of any CallableBatch under the same `Idempotency-Key` returns the original result and commits nothing |
 
 ## 8. Appendix: tracker callables outside the package
 

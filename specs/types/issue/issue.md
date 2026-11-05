@@ -201,11 +201,12 @@ classification authority can enter the record.
 
 Rules the schema does not carry:
 
-- **Identity.** A record's native identifier (`bd-1a2b`, for example) is the one
-  safe segment of its local Resource ID, so the canonical URL is
-  `<scope>/bd-1a2b`; it is not a property. A native identifier that is not one
-  safe segment under Core's grammar cannot be served; the provider's identifier
-  policy is bound to that grammar for any Scope it exposes over BDP. (**preview**)
+- **Identity.** A record's native identifier (`bd-1a2b`, for example) is its
+  local Resource ID, one or more safe segments under Core's grammar, so the
+  canonical URL is `<scope>/bd-1a2b`; it is not a property. A native identifier
+  outside that grammar cannot be served, and the shared CLI reserves `@` for
+  revision syntax; the provider's identifier policy is bound to both for any
+  Scope it exposes over BDP. (**preview**)
 - **Title.** Nonempty; the provider's native byte bound (500 bytes of UTF-8 in
   the reference tracker) is a native admission rule, refused as
   `validation-failed`, not a `maxLength`.
@@ -348,54 +349,42 @@ computed by the tracker and exposed through its Callables.
 
 ## 5. Link identity, uniqueness and the remove-and-add cycle
 
-> **Open for Donna.** The spelling below conflicts with Write at this commit:
-> an omitted `id` allocates "one opaque segment", the allocator "MUST NOT encode
-> meaning into its minted segment", and "There are no mandatory Type prefixes".
-> Proposed resolution: keep the pair-plus-generation rule as the provider's
-> derivation and specify only that the identity is opaque, read from records,
-> consumed on removal and new for the pair's next Link. This text stands as
-> drafted until she rules.
+A Dependency Link's canonical identity is **opaque and is read from records**;
+clients never compute it. Removing a Link consumes its identity under Write's
+lifetime non-reuse rule, and the pair's next Link has a new identity with its
+own lineage. When `createLink` omits `id`, the provider allocates one opaque
+segment, as Write requires. A provider MAY derive that segment from the ordered
+pair and a generation, for example as a name-based hash, where the generation
+is 1 for the pair's first Link in the Scope's lifetime and advances each time
+the pair acquires a Link again after a removal. The derivation is the
+provider's own and means nothing to a client. A provider MAY refuse a supplied
+`id` under its native allocation policy, as Write permits; a supplied identity
+ever committed is `identity-taken`. (**preview**)
 
-A Dependency Link's canonical identity is **derived from its ordered pair and a
-generation**: `<scope>/deps/<source>/<target>/<n>`, where `<source>` and
-`<target>` are the endpoints' local identifiers, an external target's opaque
-URI spelled as one segment, and `<n>` is a positive integer, 1 for the pair's
-first Link in the Scope's lifetime and the next integer each time the pair
-acquires a Link again after a removal. The identity is deterministic from facts
-the provider holds, the pair and its identity ledger, so no allocation and no
-new column are needed; clients never compute it and read it from records.
-Write's lifetime non-reuse rule then has its intended effect: a removed
-generation stays consumed, a `createLink` that supplies a consumed identity is
-refused as `identity-taken`, and the pair's next Link is a new identity with
-its own lineage. (**preview**)
-
-Why not the pair alone: Core never reassigns a committed identity, and the one
-mechanism by which a deleted identity legitimately returns to life as a later
-version of the same lineage, Write's historical update with its same-identity
-recovery, applies to Beads only in its first edition and adds no Link
-recovery. Until Link recovery is selected (§11), a Link that came back live at
-its old identity after a removal would be a reused identity; the generation
-keeps the pair identity honest without it, and a later edition that selects
-Link recovery can retire the generation segment for new Scopes.
+A removed Link does not return at its old identity because Write's historical
+update and same-identity recovery cover Beads only in their first edition.
+[Extending them to Links](https://github.com/gastownhall/bdp/issues/363) is open
+(§11). Selecting it can change how a provider derives an identity without
+changing the wire, because clients do not parse one.
 
 The native remove-and-add idiom carries over unchanged. The native way to
 change a relationship's metadata is to remove the row and add it again with the
-same endpoints and new metadata; over BDP that is the removal of generation `n`
-followed by the creation of generation `n+1` with the new metadata, whether a
-client spells it as `removeDependency` and `addDependencies` or as `deleteLink`
-and `createLink`.
+same endpoints and new metadata; over BDP that is the removal of the live Link
+followed by the creation of a new one with the new metadata, whether a client
+spells it as `removeDependency` and `addDependencies` or as `deleteLink` and
+`createLink`.
 
 `addDependencies`, in the [Issue and Dependency Callables](callables.md), is an
-**upsert over the live generation**: a pair with no live Link gets its next
-generation with the given Type and metadata; a live Link of the same Type has
-its metadata and thread updated in place as a new revision, or nothing is
-written when nothing differs; a live Link of another Type refuses with the
-reason dependency-exists, as the native path refuses it. A relationship's kind
-changes with `updateLink` carrying `type`, validated against the pair, cycle and
-hierarchy rules as a whole, or by remove and add. A BDP-aware client MAY use
-`createLink` (refused on an occupied pair by pair uniqueness), `updateLink` with
-`metadata` or `metadataChange`, and `deleteLink` directly; the provider
-translates neither path into the other.
+**upsert over the live Link**: a pair with no live Link gets a new Link with the
+given Type and metadata; a live Link of the same Type has its metadata and
+thread updated in place as a new revision, or nothing is written when nothing
+differs; a live Link of another Type refuses with the reason dependency-exists,
+as the native path refuses it. A relationship's kind changes with `updateLink`
+carrying `type`, validated against the pair, cycle and hierarchy rules as a
+whole, or by remove and add. A BDP-aware client MAY use `createLink` (refused on
+an occupied pair by pair uniqueness), `updateLink` with `metadata` or
+`metadataChange`, and `deleteLink` directly; the provider translates neither
+path into the other.
 
 To remove a relationship given only its endpoints, a client uses
 `removeDependency`, or reads the one live Link of the pair,
@@ -483,7 +472,7 @@ against a running Scope:
 | IT-6 | `createLink` whose endpoints are the same Bead is refused |
 | IT-7 | `createLink` on an occupied ordered pair, with any Dependency Type, is refused; the diagnostic names the occupying Link |
 | IT-8 | `createLink` for `blocks` A→B serves a Link with `source` A and `target` B |
-| IT-9 | `deleteLink` of the pair's generation `n` then `createLink` (or `addDependencies`) with the same endpoints, Type and new metadata succeeds and serves a Link whose `id` ends in `n+1`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken` |
+| IT-9 | `deleteLink` of a pair's live Link then `createLink` (or `addDependencies`) with the same endpoints, Type and new metadata succeeds and serves a Link with a new `id`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken` |
 | IT-10 | `updateLink` with `metadataChange` on a live Link keeps its `id` and serves a new `revision` |
 | IT-11 | `updateBead` that changes only `labels` serves a new `revision` |
 | IT-12 | `deleteBead` on an Issue with a live incident Link is refused as `incident-links-exist` |
@@ -508,10 +497,10 @@ reader infers a rule from their absence:
 - Endpoints: pinned endpoints for workflow Links, what a pin means for
   readiness, and the URI spelling of cross-repository identifiers as opaque
   targets.
-- Link recovery: extending Write's historical update and same-identity
-  recovery to Links, so that a removed Dependency can return as a later version
-  of the same identity and the generation segment of §5 can be retired for new
-  Scopes.
+- Link recovery ([issue 363](https://github.com/gastownhall/bdp/issues/363)):
+  extending Write's historical update and same-identity recovery to Links, so
+  that a removed Dependency can return as a later version of the same identity
+  and a provider need not derive a new one.
 - Properties replacement: the boundary between whole-properties replacement and
   the native writable projection.
 - Comments as Beads; the native deterministic row identifier of a Dependency,
