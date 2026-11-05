@@ -79,6 +79,7 @@ behavioral baseline. This document does not restate readiness, blocking,
 claiming or closure; those are operations and ride the Callables profile. It
 states what a record means, what a Link means, and what a provider refuses.
 
+/// aren't these bead and link types? I'm not sure why you use Identies here.
 ## 2. Identities
 
 The shared protocol identities are assigned under
@@ -197,6 +198,7 @@ Other fields: allowed
 | "title" | text | yes | — | "Nonempty title; the provider's native byte bound is a native admission rule." |
 | "updated_at" | instant | no | — | "Last change time, set by the provider on every committed change." |
 
+/// LOVE IT!!!!
 The schema additionally refuses a member named `issue_type`, so that no second
 classification authority can enter the record.
 
@@ -217,10 +219,12 @@ Rules the schema does not carry:
   not expressible in the immutable schema. `closed_at` is required exactly when
   `status` is the literal `closed`, by native validation. No closed enumeration
   is published; the policy-versioning question stays open (§11). (**preview**)
+  /// IRC the roduct defaults to P2
 - **Priority.** `0` is P0, never absence. Omitted on creation, it is refused:
   this package publishes no creation defaults, and the client supplies `status`
   and `priority` (the native CLI's own defaults of `open` and its configured
   default priority). (**preview**)
+  /// this is on my very short list of things to tackle.  IIRC, the current impementtion DOES NOT bump the revision. I've wanted this capability in general - my mental model as been a link of type label that can be pinned. Details TBD - this is a post-sprint exercise.
 - **Labels.** An array of distinct nonempty strings on the record. Label edits
   are ordinary `updateBead` property patches and version the record (§7).
 - **Timestamps.** Every instant is an RFC 3339 date-time with uppercase `T` and `Z`.
@@ -241,6 +245,7 @@ Rules the schema does not carry:
 | `/arrival_seq`, `/closed_by_session`, `/compaction_level`, `/compacted_at`, `/compacted_at_commit`, `/original_size` | `service-managed` | Native bookkeeping carried on reads |
 | every other member | `writable` | Ordinary authored data, subject to the native write boundary |
 
+/// this is awesome.  How are the service-managed properties returned, and do changes impact the revision?
 A patch that touches a `service-managed` member is refused with
 `validation-failed`. `status` is `writable`: a direct status edit over
 `updateBead` is admitted and is validated natively (a direct edit to `closed`
@@ -253,8 +258,8 @@ item (§11).
 | Native field group | Treatment in preview-1 |
 | --- | --- |
 | `metadata` (application JSON) | The record's common `metadata` member, never `properties.metadata` |
-| `dependencies`, `comments`, counts, `parent`, epic progress | Relation projections and view results; dependencies are Links (§4), comments are not modeled (§9), the rest are served by the tracker's detail Callable |
-| `lease_expires_at`, `heartbeat_at`, `lease_granted_node`, `is_blocked` | Operational observations. They are **not** properties and do not appear in Bead records, because a heartbeat changes them without changing the record's state and Core binds a revision to the complete record. They are served by the tracker's Callables (the detail read, claim and heartbeat results). Their portable placement is an open item (§11). (**preview**) |
+| `dependencies`, `comments`, counts, `parent`, epic progress | Relation projections and view results; dependencies are Links (§4), comments are not modeled (§9), the rest are served by the tracker's detail Callable /// unless the HTTP endpoint prohibits comments, I don't think we get to either. ANd for this sprint, I don't think we can change how labels and comments are implemented (but maybe...)|
+| /// this feels wierd.  I would expect bd show to show these.  Does it show them in the product? `lease_expires_at`, `heartbeat_at`, `lease_granted_node`, `is_blocked` | Operational observations. They are **not** properties and do not appear in Bead records, because a heartbeat changes them without changing the record's state and Core binds a revision to the complete record. They are served by the tracker's Callables (the detail read, claim and heartbeat results). Their portable placement is an open item (§11). (**preview**) |
 | `ephemeral`, `no_history`, `storage_class`, `wisp_type`, `pinned`, `is_template`, `bonded_from`, `mol_type`, `work_type`, `await_type`, `await_id`, `timeout`, `waiters`, `source_system`, `sender`, `source_formula`, `source_location`, `event_kind`, `actor`, `target`, `payload` | Carried as additional properties when the native record has them, with their native meanings; none is reinterpreted, promoted to a Type or made a BDP attribution. `actor` and `target` here are the event-shaped Issue's own members, not the revision actor or a Link endpoint |
 
 ## 4. Dependency Link Types
@@ -362,6 +367,8 @@ provider's own and means nothing to a client. A provider MAY refuse a supplied
 `id` under its native allocation policy, as Write permits; a supplied identity
 ever committed is `identity-taken`. (**preview**)
 
+
+/// if we haven't added it to links, we should just add it in the spec and go implement it today/tomorrow. That is, if it materially helps this scenario.
 A removed Link does not return at its old identity because Write's historical
 update and same-identity recovery cover Beads only in their first edition.
 [Extending them to Links](https://github.com/gastownhall/bdp/issues/363) is open
@@ -392,6 +399,7 @@ To remove a relationship given only its endpoints, a client uses
 `GET <source>?view=links&direction=outbound&target=<target>` (at most one item,
 by pair uniqueness), and deletes it by its `id`.
 
+/// uh, unacceptable.  We've talked about adding the three modes to bdp: fail if incident links, succeed and delete incident links, and cascading delete (with some predicate to exempt some beads from bbeing swept up)
 Deleting an Issue Bead with live incident Dependency Links is refused with
 `incident-links-exist`, as Write requires; the native cascade delete is the
 `delete-issues` Callable, which removes the Links and the Bead in one native
