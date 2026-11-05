@@ -24,12 +24,13 @@ Required order: ["description","parameters"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "atomic" | boolean | no | — | "True when the operation commits all its effects or none; false when absent. Meaningful for a CallableBatch." |
 | "cliMapping" | ref "#/$defs/cliMapping" | no | — | "Additions to the CLI form derived from parameters." |
 | "description" | text | yes | — | "Standard help for the operation; an empty string is admitted and differs from absence." |
-| "error" | ref "#/$defs/valueSchema" | no | — | "Schema of the value in a callable-error Problem's error member; absent means any JSON value." |
-| "idempotent" | boolean | no | — | "True when repeating an invocation with the same arguments has no further effect, even if the result differs; false when absent." |
+| "errorSchema" | ref "#/$defs/valueSchema" | no | — | "Schema of the value in a callable-error Problem's error member; absent means any JSON value." |
+| "idempotent" | boolean | no | — | "True when repeating an invocation with the same arguments has no further effect, even if the result differs; false when absent. Meaningful for a CallableBatch." |
 | "parameters" | array of (ref "#/$defs/parameter") | yes | — | "Declared named arguments; an empty array is admitted; names are distinct within one declaration." |
-| "result" | ref "#/$defs/valueSchema" | no | — | "Schema of the invocation result; absent means any JSON value." |
+| "resultSchema" | ref "#/$defs/valueSchema" | no | — | "Schema of the invocation result; absent means any JSON value." |
 | "title" | text | no | — | "Short human-readable name; the name itself is the local Resource ID." |
 
 ### Advanced

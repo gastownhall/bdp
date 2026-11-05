@@ -113,7 +113,7 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 
 ### CALL-PREVIEW — Callables after preview-1
 
-**Design deferred.** [Callables §12](profiles/callables/callables.md#12-deferred) lists what preview-1 leaves unselected: readable bodies and parameter binding, how an endpoint advertises what it supports (including atomic execution and result validation), registration details settled together with packages, how much of `cliMapping` survives, and paged or streamed results. CALL-O1, CALL-O2 and CALL-O3 of the experimental draft close at preview depth only as that document states, once its rulings are marked.
+**Design deferred.** [Callables §12](profiles/callables/callables.md#12-deferred) lists what preview-1 leaves unselected: readable bodies and parameter binding, how an endpoint advertises what it supports, registration details settled together with packages, the command tree, how the CLI learns what Callables exist, how much of `cliMapping` survives, and paged or streamed results. CALL-O1, CALL-O2 and CALL-O3 of the experimental draft close at preview depth only as that document states, once its rulings are marked.
 
 **Owner / revisit:** Callables owner with Donna, after the preview; the advertising exercise follows the specification work, and registration is settled with packages. The archived draft is [callables-draft-20261030](history/callables-draft-20261030/callables.md).
 
@@ -122,3 +122,9 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 **Design anticipated.** Preview-1 requires Write for a CallableBatch. Donna expects many services will want to expose commands without raw generic writes, and that is a common pattern, so the design should anticipate it when that requirement is revisited.
 
 **Owner / revisit:** Callables and Write owners with Donna, when a service asks for it or at the next Callables edition.
+
+### CALL-SYS — Reserving `sys` in Core
+
+**Design selected, text pending.** Donna ruled on 2026-11-05 that the specifications own two prefixes: `bdp` as the sideband and `sys` as the in-band home of reserved Beads and Links. Core reserves only `bdp` today; reserving `sys` changes Core and the reference's allocation checks.
+
+**Owner / revisit:** Core owner with Donna, as its own pull request.
