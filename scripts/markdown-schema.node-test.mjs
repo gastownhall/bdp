@@ -32,7 +32,7 @@ test("complete current common215-definition bundle projects losslessly", () => {
   const path = "specs/profiles/core/bdp-v0.1.schema.json";
   const before = text(path);
   const schema = JSON.parse(before);
-  assert.equal(Object.keys(schema.$defs).length, 214);
+  assert.equal(Object.keys(schema.$defs).length, 215);
   const markdown = roundTrip(schema);
   assert.equal(parseSchema(markdown).$id, schema.$id);
   assert.equal(text(path), before);
