@@ -15,6 +15,8 @@ export const profileSources = {
   "id-root": ["specs/profiles/write/write.md"],
   "historical-update": ["specs/profiles/write/write.md"],
   types: ["specs/profiles/types/types.md"],
+  callables: ["specs/profiles/callables/callables.md"],
+  "issue-callables": ["specs/types/issue/callables.md"],
 };
 const bundlePaths = [
   "specs/profiles/core/bdp-v0.1.schema.json",
@@ -216,6 +218,8 @@ function main() {
       ],
     ],
     ["types", ["specs/profiles/types/types-v1.schema.json"]],
+    ["callables", ["specs/profiles/callables/callables-v1.schema.json"]],
+    ["issue-callables", ["specs/types/issue/issue-callables-preview-1.schema.json"]],
   ];
   const outputs = [];
   for (const [bundleName, paths] of configs) {

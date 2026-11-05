@@ -1,0 +1,3467 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/issue-callables-preview-1.schema.json",
+  "title": "BDP Issue and Dependency Callables preview-1 structural projections",
+  "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish support, authorization or implementation conformance.",
+  "$defs": {
+    "issueUrl": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
+      "description": "Absolute canonical URL of an Issue Bead, as Core spells identities in records."
+    },
+    "typeUri": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
+      "description": "Absolute identity URI of an Issue or Dependency Type from the Issue and Dependency Types package, or of a configured custom classification."
+    },
+    "locator": {
+      "description": "A Scope-relative local path or absolute canonical URL naming one Issue Bead, resolved as Write resolves a mutation subject; never a fuzzy or prefix match.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "instant": {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/dateTime",
+      "description": "An RFC 3339 date-time with uppercase T and Z."
+    },
+    "metadataValue": {
+      "description": "Any JSON value, including null; typed values persist as entered."
+    },
+    "issueObservations": {
+      "description": "Operational observations about an Issue that change without minting a revision and therefore never appear inside the Bead record: the readiness projection and the claim lease.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "heartbeat_at": {
+          "$ref": "#/$defs/instant",
+          "description": "The last heartbeat the lease holder sent."
+        },
+        "is_blocked": {
+          "type": "boolean",
+          "description": "The persisted, transitive readiness projection: true while an open blocking Dependency keeps the Issue out of the ready set."
+        },
+        "lease_expires_at": {
+          "$ref": "#/$defs/instant",
+          "description": "Expiry of the current claim's lease, when one is active."
+        },
+        "lease_granted_node": {
+          "type": "string",
+          "description": "The replica that granted the lease; empty means unknown, treated as local."
+        }
+      }
+    },
+    "issueView": {
+      "description": "An Issue as a callable returns it: the complete Bead record, the operational observations beside it, and the relationship cardinalities the native listings carry. The record is the one Core serves at the Issue's URL.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bead": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/beadRecord",
+          "description": "The Issue's complete Bead record: identity, Type affiliation, revision, properties, metadata."
+        },
+        "comment_count": {
+          "type": "integer",
+          "description": "Number of comments on the Issue."
+        },
+        "comments_omitted": {
+          "type": "boolean",
+          "description": "True when comment_count is nonzero and the view carries no comments."
+        },
+        "dependency_count": {
+          "type": "integer",
+          "description": "Number of Issues this one depends on."
+        },
+        "dependent_count": {
+          "type": "integer",
+          "description": "Number of Issues that depend on this one."
+        },
+        "observations": {
+          "$ref": "#/$defs/issueObservations",
+          "description": "Lease and readiness observations; an empty object when none apply."
+        },
+        "parent": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The parent Issue, computed from the parent-child Dependency, when there is one."
+        }
+      },
+      "required": ["bead", "observations", "dependency_count", "dependent_count", "comment_count"]
+    },
+    "neighborView": {
+      "description": "An Issue on the far end of one Dependency, with the Link that leads to it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issue": {
+          "$ref": "#/$defs/issueView",
+          "description": "The neighbor."
+        },
+        "link": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/linkRecord",
+          "description": "The Dependency Link record whose Type says why the neighbor is related."
+        }
+      },
+      "required": ["link", "issue"]
+    },
+    "commentRecord": {
+      "description": "One comment on an Issue. Comments are not Beads in preview-1.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "type": "string",
+          "description": "Caller-asserted author."
+        },
+        "created_at": {
+          "$ref": "#/$defs/instant",
+          "description": "Stored creation time."
+        },
+        "id": {
+          "type": "string",
+          "description": "The comment's native identifier."
+        },
+        "issue": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The Issue the comment belongs to."
+        },
+        "text": {
+          "type": "string",
+          "description": "The comment body, verbatim."
+        }
+      },
+      "required": ["id", "issue", "author", "text", "created_at"]
+    },
+    "gateRef": {
+      "description": "One gate actively blocking an Issue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The gate Issue."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why the gate blocks, in the provider's words."
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The Dependency Type of the edge that reaches the gate."
+        }
+      },
+      "required": ["id", "type"]
+    },
+    "issueDetails": {
+      "description": "The detail view behind the native show command: an issueView plus its neighbors, comments, gates and epic progress.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "comments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/commentRecord"
+          },
+          "description": "The comment bodies; present only when include_comments was set."
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/neighborView"
+          },
+          "description": "Issues this one depends on, each with its Link; reduced to identity fields when brief_deps was set."
+        },
+        "dependents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/neighborView"
+          },
+          "description": "Issues that depend on this one; present only when include_dependents was set."
+        },
+        "epic_closeable": {
+          "type": "boolean",
+          "description": "For an epic, whether every child is closed."
+        },
+        "epic_closed_children": {
+          "type": "integer",
+          "description": "For an epic, its closed child count."
+        },
+        "epic_total_children": {
+          "type": "integer",
+          "description": "For an epic, its child count."
+        },
+        "gated_by": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gateRef"
+          },
+          "description": "The gates actively blocking this Issue."
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView",
+          "description": "The Issue itself."
+        },
+        "unresolvable_dependencies": {
+          "type": "integer",
+          "description": "Outgoing edges whose far end has no record in this Scope."
+        },
+        "unresolvable_dependents": {
+          "type": "integer",
+          "description": "Incoming edges whose far end has no record in this Scope; present only with include_dependents."
+        }
+      },
+      "required": ["issue", "dependencies"]
+    },
+    "blockedIssueView": {
+      "description": "An Issue the native blocked listing names, with its blockers.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blocked_by": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueUrl"
+          },
+          "description": "The Issues named as blockers: active blocking targets, else the parent; external references appear as opaque URIs."
+        },
+        "blocked_by_count": {
+          "type": "integer",
+          "description": "The length of blocked_by."
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView",
+          "description": "The blocked Issue."
+        }
+      },
+      "required": ["issue", "blocked_by", "blocked_by_count"]
+    },
+    "treeNode": {
+      "description": "One node of a walked Dependency tree: the Issue and where the walk reached it. The tree is flat; depth and parent rebuild it in depth-first pre-order.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deduped": {
+          "type": "boolean",
+          "description": "True on a stub recording only the edge into an Issue already expanded earlier in the answer."
+        },
+        "depth": {
+          "type": "integer",
+          "description": "Distance from the root; the root is 0."
+        },
+        "edge_from_parent": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The Dependency Type of the edge that led here; absent on the root."
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView",
+          "description": "The node."
+        },
+        "parent": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The node this one was reached from; absent on the root."
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "Always false in preview-1: a node beyond max_depth is absent, never flagged."
+        }
+      },
+      "required": ["issue", "depth", "truncated"]
+    },
+    "bondRef": {
+      "description": "A constituent of a compound molecule.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bond_point": {
+          "type": "string",
+          "description": "Where the bond attaches."
+        },
+        "bond_type": {
+          "type": "string",
+          "description": "The bond kind."
+        },
+        "source_id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The constituent."
+        }
+      },
+      "required": ["source_id", "bond_type"]
+    },
+    "dependencyEdge": {
+      "description": "One directed Dependency as a request names it: source, target and Type.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/locator",
+          "description": "The depending Issue."
+        },
+        "target": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue depended upon; an opaque external URI is admitted where the provider admits external references."
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The Dependency Type."
+        }
+      },
+      "required": ["source", "target", "type"]
+    },
+    "applyRef": {
+      "description": "Names one Issue inside an applyBatch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key of a create item in this invocation."
+        },
+        "locator": {
+          "$ref": "#/$defs/locator",
+          "description": "An existing Issue."
+        }
+      }
+    },
+    "statistics": {
+      "description": "Workspace summary counts. Two of them are DEPENDENCY-AWARE and two are structurally always zero; both facts are stated on the properties themselves, because every number here is the same JSON type and nothing else on the wire […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "average_lead_time_hours": {
+          "type": "number",
+          "description": "ALWAYS 0, for the reason above."
+        },
+        "blocked_issues": {
+          "type": ["integer", "null"],
+          "description": "Rows the dependency graph blocks — the transitive is_blocked flag, NOT the count of rows whose status is `blocked`. An open row with an unfinished blocker is counted […]"
+        },
+        "closed_issues": {
+          "type": "integer"
+        },
+        "deferred_issues": {
+          "type": "integer"
+        },
+        "epics_eligible_for_closure": {
+          "type": "integer",
+          "description": "ALWAYS 0. No implementation computes it, on any backend or either surface. It is documented rather than dropped because this schema is pinned to the struct both […]"
+        },
+        "gate_issues": {
+          "type": "integer",
+          "description": "Gate rows, which the default `bd list` suppresses on account of what they are rather than on any filter the caller passed. ALREADY INCLUDED in `total_issues`, which […]"
+        },
+        "in_progress_issues": {
+          "type": "integer"
+        },
+        "open_issues": {
+          "type": "integer"
+        },
+        "pinned_issues": {
+          "type": "integer",
+          "description": "Rows carrying the pinned flag, overlapping every status bucket. Always 0 when `assignee` is set: that answer tallies the five statuses and nothing else."
+        },
+        "ready_issues": {
+          "type": ["integer", "null"],
+          "description": "ARITHMETIC, not a query: `open_issues` minus `blocked_issues`, clamped at zero. It is NOT the cardinality of `GET /v0/beads/ready`, which applies type exclusions, the […]"
+        },
+        "template_issues": {
+          "type": "integer",
+          "description": "Template rows, suppressed by the default `bd list` on the same terms as `gate_issues` and likewise already counted in `total_issues`. Do not sum the two: a row can be […]"
+        },
+        "total_issues": {
+          "type": "integer",
+          "description": "Every row in the workspace-wide answer's scan, INCLUDING closed and pinned ones. The status counts below do not sum to it: a row whose status is none of the four […]"
+        }
+      },
+      "required": [
+        "total_issues",
+        "open_issues",
+        "in_progress_issues",
+        "closed_issues",
+        "deferred_issues",
+        "blocked_issues",
+        "ready_issues",
+        "pinned_issues",
+        "epics_eligible_for_closure",
+        "average_lead_time_hours"
+      ]
+    },
+    "cycle": {
+      "description": "One circular blocking dependency: its members in EDGE ORDER, so `members[i]` blocks on `members[i+1]` and the last member blocks on the first. The closing edge is implied and is not repeated as a final member. The rotation is canonical […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cycleMember"
+          },
+          "description": "The nodes, in edge order, starting at the lowest id. Never empty."
+        },
+        "partial": {
+          "type": "boolean",
+          "description": "True when at least one member has no `issue`. It is always present, including when false: a consumer must be able to read \"this path is complete\" from the answer […]"
+        }
+      },
+      "required": ["members", "partial"]
+    },
+    "cycleMember": {
+      "description": "One node on a dependency cycle. `id` is always present, and its presence is what proves the node is on the cycle. `issue` is the row behind it, and is ABSENT — never null — when this workspace holds no record for that id: a target in […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/issueUrl"
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView"
+        }
+      },
+      "required": ["id"]
+    },
+    "edgeCount": {
+      "description": "One anchor's edge cardinality, or the report that it is not there.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "description": "How many stored edges match, in the requested direction, after the type and status filters. Never negative. It SPANS BOTH DEPENDENCY PLANES and is a SUM over them […]"
+        },
+        "id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The anchor, spelled exactly as the request spelled it. It is not re-canonicalized: there is no fuzzy, prefix or substring resolution on this surface, so what comes […]"
+        },
+        "missing": {
+          "type": "boolean",
+          "description": "True when no issue and no wisp carries this id. ALWAYS PRESENT, including as `false`. It is the member that keeps this from being a question a caller cannot tell it […]"
+        }
+      },
+      "required": ["id", "count", "missing"]
+    },
+    "blockingAnnotation": {
+      "description": "One issue's derived blocking decoration. `blocked_by` and `blocks` are ASCENDING BY ID with repeats collapsed, and both are always present — an empty array, never null and never absent, so a client reads \"nothing blocks this\" from the […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blocked_by": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueUrl"
+          },
+          "description": "The OPEN issues this one is blocked by: the targets of its `blocks` edges whose own status is not closed."
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueUrl"
+          },
+          "description": "The issues this one blocks. Empty when this issue is itself closed, which is the same rule `blocked_by` applies from the other end."
+        },
+        "id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The annotated id, spelled exactly as the request spelled it."
+        },
+        "is_blocked": {
+          "type": "boolean",
+          "description": "The issue's stored, transitive is_blocked flag — present only when the request carried `is_blocked=true` (capability `dependencies.blocking.isBlocked`) and the id […]"
+        },
+        "parent": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "This issue's parent id. AT MOST ONE is reported; where an issue carries several `parent-child` edges, which one appears here is not specified. A client that needs […]"
+        }
+      },
+      "required": ["id", "blocked_by", "blocks"]
+    },
+    "closeOutcome": {
+      "description": "What happened to ONE requested item. `code` IS THE DISCRIMINATOR. Present means the item REFUSED and nothing was written for it; absent means it succeeded, and `issue`, `already_closed` and `open_children` are all present. A client […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "already_closed": {
+          "type": "boolean",
+          "description": "True when the issue was already closed and this item changed nothing — the idempotent re-close, spelled the way `CloseIssueResponse.already_closed` spells it. Present […]"
+        },
+        "assignee": {
+          "type": "string",
+          "description": "With `not_assignee`: the issue's assignee the refusing transaction observed, exactly as `Problem.assignee` carries it for the single close. Absent on a successful […]"
+        },
+        "auto_closed_molecule": {
+          "$ref": "#/$defs/issueView"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blocker"
+          },
+          "description": "With `not_closable` on the live-blocker refusal: the blockers that refused THIS item, exactly as `Problem.blockers` carries them for the single close, and optional […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView"
+        },
+        "issue_id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The id the caller asked for, echoed verbatim so an outcome can be read without indexing back into the request."
+        },
+        "molecule_auto_close_refusal": {
+          "type": "string",
+          "description": "`CloseIssueResponse.molecule_auto_close_refusal` for this item, under `issues.close.autoCloseMolecule`; `auto_closed_molecule` beside it is […]"
+        },
+        "open_children": {
+          "type": "integer",
+          "description": "How many open children the transaction observed for this item. ITS MEANING FOLLOWS `code`, and both readings are the ones the single close already publishes. On a […]"
+        },
+        "reason": {
+          "type": "string",
+          "description": "This item's refusal as a reason token of §6, or not-found; present means the item refused and nothing was written for it, absent means it succeeded and issue is present."
+        }
+      },
+      "required": ["issue_id"]
+    },
+    "blocker": {
+      "description": "One live blocker named by a blocked-issue refusal.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The blocker: a local issue id, or the full `external:<project>:<capability>` reference."
+        },
+        "kind": {
+          "type": "string",
+          "description": "`local` for an issue this database holds, which clears when it closes; `external` for an `external:` reference, which clears when the named project ships the […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` […]"
+        }
+      },
+      "required": ["id", "kind"]
+    },
+    "batchCloseItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/locator",
+          "description": "Exact canonical issue id, resolved across BOTH planes. No fuzzy, prefix or substring resolution — `IssueID`'s rule. A DUPLICATE is admissible; see the operation […]"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Why THIS issue is closed. It is per item rather than per request because `bd close a b c --reason x --reason y --reason z` has always mapped them positionally, and […]"
+        }
+      },
+      "required": ["id"]
+    },
+    "reclaimedLease": {
+      "description": "One row a lease sweep reverted.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The reverted issue's id."
+        },
+        "previous_owner": {
+          "type": "string",
+          "description": "The assignee the stale lease was taken from; empty when the row carried none."
+        },
+        "revision": {
+          "type": "string",
+          "description": "The row's NEW revision, minted by the revert: the optimistic-concurrency token a guarded write after the reclaim needs. A decimal string, like every `revision` on […]"
+        }
+      },
+      "required": ["id", "previous_owner", "revision"]
+    },
+    "sweepSkips": {
+      "description": "The candidates a sweep declined to delete, bucketed by WHY. They are separate counters rather than one number because they mean different things: `pinned`, `referenced`, `live_dependent` and `retention_required` are PROTECTIONS, and the […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "closed_at_or_after_cutoff": {
+          "type": "integer",
+          "description": "Candidates whose close timestamp did not satisfy `closed_before`. See `not_closed`."
+        },
+        "live_dependent": {
+          "type": "integer",
+          "description": "Candidates protected by `protect_live_dependents`. Always 0 when that member is false or absent. Present only behind the `issues.sweep.liveDependents` behavior token."
+        },
+        "not_closed": {
+          "type": "integer",
+          "description": "Candidates the tier query returned that the recheck found were not closed. A NON-ZERO VALUE HERE IS A DEFENSE FIRING, not a normal outcome: the query asked for […]"
+        },
+        "pinned": {
+          "type": "integer",
+          "description": "Candidates protected by the pinned flag. No request member overrides it — a caller who wants a pinned bead gone unpins it first."
+        },
+        "referenced": {
+          "type": "integer",
+          "description": "Candidates protected by `protect_referenced`. Always 0 when that member is false or absent, so a 0 read without having asked says nothing about whether beads are cited."
+        },
+        "retention_required": {
+          "type": "integer",
+          "description": "Candidates held back because their issue type is named in the workspace's `types.retained` setting and the request did not set `retain_ids`: such a bead's id is an […]"
+        },
+        "unknown_closed_at": {
+          "type": "integer",
+          "description": "Closed candidates carrying no close timestamp. See `not_closed`."
+        },
+        "unreadable": {
+          "type": "integer",
+          "description": "Rows the tier query returned as nothing at all. A defense of the same kind, on a shape rather than a value."
+        }
+      },
+      "required": [
+        "pinned",
+        "referenced",
+        "not_closed",
+        "unknown_closed_at",
+        "closed_at_or_after_cutoff",
+        "unreadable"
+      ]
+    },
+    "batchCreateItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_criteria": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/batchCreateDependency"
+          },
+          "description": "The edges this issue is created carrying. They are written in the same transaction as the issue, so this operation never publishes an issue whose declared […]"
+        },
+        "description": {
+          "type": "string"
+        },
+        "design": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as […]"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom […]"
+        }
+      },
+      "required": ["title"]
+    },
+    "batchCreateDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/locator",
+          "description": "The far end of the edge: an issue this workspace holds, an `external:` reference, or an id whose prefix belongs to another repository. Anything else is a `400` and […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The edge type, from the same OPEN vocabulary `Dependency.type` carries. It is spelled `type` because that is the member an edge carries everywhere else on this surface."
+        }
+      },
+      "required": ["target", "type"]
+    },
+    "applyItem": {
+      "description": "One item of a plan: a `kind` naming what it does, plus exactly one payload member matching it. IT IS A TAGGED SINGLE-SHAPE OBJECT rather than a polymorphic one, and the spelling is deliberate. This document uses no `oneOf`, `anyOf` or […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/applyCloseItem"
+        },
+        "create": {
+          "$ref": "#/$defs/applyCreateItem"
+        },
+        "dep_add": {
+          "$ref": "#/$defs/applyDepAddItem"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["create", "update", "close", "dep_add"],
+          "description": "Which member below is read. A CLOSED set, unlike a dependency `type`: every value here is a verb this operation implements, and an unknown one is a request the server […]"
+        },
+        "update": {
+          "$ref": "#/$defs/applyUpdateItem"
+        }
+      },
+      "required": ["kind"]
+    },
+    "applyCreateItem": {
+      "description": "Creates one issue and optionally NAMES it, so later items can reach the row without knowing an id the request has not minted yet. It publishes the whole create vocabulary rather than `POST /v0/beads/issues:batchCreate`'s narrow one, and […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_criteria": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "await_id": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The gate's condition identifier (a run id, a PR number, a `bead:<id>`). Opaque here; at most 255 characters, the stored column's width, and a longer value is a `400` […]"
+        },
+        "await_type": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "The gate's await condition type (`gh:run`, `gh:pr`, `timer`, `human`, `bead`, or a formula-defined type). Free-form: there is no vocabulary, and any issue type may […]"
+        },
+        "defer_until": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. The issue is hidden from ready work until then."
+        },
+        "description": {
+          "type": "string"
+        },
+        "design": {
+          "type": "string"
+        },
+        "due_at": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339."
+        },
+        "ephemeral": {
+          "type": "boolean",
+          "default": false,
+          "description": "Creates the issue on the EPHEMERAL plane rather than the durable one. Per item, exactly as it is for `POST /v0/beads/issues:batchCreate`, so one request may create […]"
+        },
+        "estimated_minutes": {
+          "type": "integer",
+          "description": "An estimate in minutes. Absent leaves it unset."
+        },
+        "external_ref": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "id": {
+          "$ref": "#/$defs/locator",
+          "description": "An explicit id for the new row, CREATE-ONLY: an id that already names a stored row is a `409` `already_exists` and the whole request is refused — never an adoption […]"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "This item's name inside the request. OPTIONAL — an item nothing refers to needs no name — and unique across the request's create items; a repeat is a `400`. It is […]"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": "The complete label set the issue is created with. Authoritative, not a patch — a create has nothing to add to."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadataValue"
+        },
+        "no_history": {
+          "type": "boolean",
+          "default": false,
+          "description": "Creates the issue on the ephemeral plane WITHOUT history, and without the garbage collection an ordinary ephemeral row is eligible for. Mutually exclusive with […]"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The human owner, which is a different member from `assignee`: the assignee is who is working it now, the owner is who it is attributed to."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as […]"
+        },
+        "sender": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Who sent this, for the message-shaped rows a plan creates. Stored verbatim and interpreted by nothing on this surface."
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The status the issue is created in, from this workspace's own configured vocabulary. Absent means the workspace default."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The gate's timeout in NANOSECONDS, the encoding `Issue.timeout` reads back. A negative value is a `400` naming this member. Requires the behavior token […]"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom […]"
+        },
+        "waiters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The addresses woken when the gate clears, stored as sent: duplicates are kept and nothing is trimmed, as a local create stores them. The list's JSON encoding must fit […]"
+        }
+      },
+      "required": ["title"]
+    },
+    "applyUpdateItem": {
+      "description": "Patches one existing issue, under `PATCH /v0/beads/issues/{id}`'s rules. The two carry the same preconditions and the same force flags; what is this operation's alone is that its guards evaluate AS-MODIFIED — against the row as earlier […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_assignee": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Requires the issue's assignee to equal this value, evaluated as-modified. A match AUTHORIZES the requested `patch.assignee` transfer: this compare-and-set replaces […]"
+        },
+        "expected_revision": {
+          "type": "string",
+          "description": "Requires the subject's current revision to equal this opaque token before anything is written; a miss is revision-mismatch and nothing is written."
+        },
+        "expected_status": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Requires the issue's status to equal this value, evaluated AS-MODIFIED — against the row as this request has already changed it at this item's position. A miss […]"
+        },
+        "force_assignee_transfer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypasses ONLY a genuine transfer away from a live foreign in-progress owner. Reasserting the exact current assignee is idempotent and needs no force. It requires […]"
+        },
+        "force_close_policy": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypasses ONLY close policy — the open-children refusal and the live blocker refusal — for a `patch.status` that crosses into the workspace's done category. It has no […]"
+        },
+        "force_notes_overwrite": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypasses ONLY the refusal on a `patch.notes` that would replace existing non-empty notes with different non-empty content (an explicit clear is not fenced). It […]"
+        },
+        "patch": {
+          "$ref": "#/$defs/applyPatch"
+        },
+        "target": {
+          "$ref": "#/$defs/applyRef"
+        }
+      },
+      "required": ["target", "patch"]
+    },
+    "applyPatch": {
+      "description": "The fields an `update` item writes. Every member is optional and PRESENCE is the signal: a member present is written, a member absent is untouched. An empty object is a `400` — a write that writes nothing is a client bug. It mirrors […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_criteria": {
+          "type": "string"
+        },
+        "append_notes": {
+          "type": "string",
+          "description": "Appends to the notes rather than replacing them. Mutually exclusive with `notes`."
+        },
+        "assignee": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The assignee. A transfer away from a live foreign in-progress owner is refused with `409 already_claimed` unless `force_assignee_transfer` is set or […]"
+        },
+        "await_id": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Replaces the gate's condition identifier; the empty string clears it. Not nullable. At most 255 characters, the stored column's width; a longer value is a `400` […]"
+        },
+        "defer_until": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Explicit `null` CLEARS the deferral."
+        },
+        "description": {
+          "type": "string"
+        },
+        "design": {
+          "type": "string"
+        },
+        "due_at": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Explicit `null` CLEARS the due date."
+        },
+        "estimated_minutes": {
+          "type": ["integer", "null"],
+          "description": "Explicit `null` CLEARS the estimate."
+        },
+        "external_ref": {
+          "type": ["string", "null"],
+          "maxLength": 255,
+          "description": "Explicit `null` CLEARS the reference."
+        },
+        "labels": {
+          "$ref": "#/$defs/labelPatch"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadataPatch"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Replaces the notes. Mutually exclusive with `append_notes`; sending both is a `400`. Replacing EXISTING non-empty notes with different non-empty content is refused […]"
+        },
+        "owner": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The issue's status, from this workspace's own configured vocabulary. A STATUS THAT CROSSES INTO THE DONE CATEGORY ANSWERS TO CLOSE POLICY: the item is refused with […]"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Must not be blank after trimming; the length bound is what the column holds."
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`."
+        },
+        "waiters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A WHOLE-VALUE replacement of the gate's waiter list; `[]` clears it. Not nullable. Stored as sent (duplicates kept: deduplicating is the caller's, as `bd gate add- […]"
+        }
+      }
+    },
+    "labelPatch": {
+      "description": "An ordered label edit: `replace` first, then `add`, then `remove`, so REMOVAL WINS when the same label appears in more than one member. It is the full patch rather than `IssuePatchBody.labels`' complete replacement because a plan edits […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": "Labels to add after any replacement."
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": "Labels to remove after replacement and addition."
+        },
+        "replace": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": "The complete starting label set. An empty array CLEARS every label; omitting the member leaves the current set as the starting point."
+        }
+      }
+    },
+    "metadataPatch": {
+      "description": "A metadata edit. `replace` is mutually exclusive with the other three; without it the edits apply as `merge`, then `set` in key order, then `unset`, so UNSETTING A KEY WINS over setting or merging it. Sending `replace` beside any of the […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "merge": {
+          "$ref": "#/$defs/metadataValue"
+        },
+        "replace": {
+          "$ref": "#/$defs/metadataValue"
+        },
+        "set": {
+          "type": "object",
+          "description": "Individual top-level keys to write, in deterministic key order. A value present holding `null` writes JSON null; a key is removed with `unset`, never by sending a […]"
+        },
+        "unset": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": "Top-level keys to remove, applied after every other edit."
+        }
+      }
+    },
+    "applyCloseItem": {
+      "description": "Closes one existing issue, under `POST /v0/beads/issues/{id}:close`'s rules including first-close-wins.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "description": "Requires the subject's current revision to equal this opaque token before anything is written; a miss is revision-mismatch and nothing is written."
+        },
+        "force": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypasses close policy — the open-children refusal and the live-blocker refusal — and the pin and the assignee guard, and nothing else: never the template guard. CLOSE […]"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Why the issue is closed, stored and read back as `close_reason`. THE FIRST CLOSE WINS: an idempotent re-close writes neither this nor `session`."
+        },
+        "session": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The working session that closed the issue, stored and read back as `closed_by_session`, under the same first-close-wins rule."
+        },
+        "target": {
+          "$ref": "#/$defs/applyRef"
+        }
+      },
+      "required": ["target"]
+    },
+    "applyDepAddItem": {
+      "description": "Asserts ONE dependency edge, under `POST /v0/beads/dependencies:add`'s rules. An edge from a row to itself is a `400`. A TARGET NEED NOT BE A ROW THIS DATABASE HOLDS: an `external:` reference and an id belonging to another repository […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_spawner": {
+          "type": "boolean",
+          "description": "Gated by `issues.batchApply.depAddLineage`. Ignored for every `type` but `waits-for`: on a `waits-for` edge, `true` stamps `metadata.spawner_id` with this item's […]"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadataValue"
+        },
+        "source": {
+          "$ref": "#/$defs/applyRef"
+        },
+        "target": {
+          "$ref": "#/$defs/applyRef"
+        },
+        "thread_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Gated by `issues.batchApply.depAddLineage`. A plain column on the stored edge, separate from `metadata`'s blob — the graph-plan thread this edge belongs to, for a […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a […]"
+        }
+      },
+      "required": ["source", "target", "type"]
+    },
+    "applyItemResult": {
+      "description": "What ONE item did, at the index the item occupied. IT IS LEAN, AND CARRIES NO ISSUE. Every other write on this surface answers with the stored row; this one answers with ids and a revision, and a client that wants the rows reads them […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "changed": {
+          "type": "boolean",
+          "description": "Whether this item persisted a semantic mutation. A `create` is always true. An `update` and a `close` follow their own operations' `changed`/`already_closed` answers, […]"
+        },
+        "depends_on": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The target of a dep_add; absent for every other kind."
+        },
+        "issue": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The Issue the item acted on: the minted or explicit identity for a create, the resolved target for an update or a close, the source for a dep_add."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["create", "update", "close", "dep_add"],
+          "description": "Echoes the item's kind, so a caller walking the results does not have to walk the request alongside them."
+        },
+        "revision": {
+          "type": "string",
+          "description": "The row's optimistic-concurrency token AFTER the item, and the value an `expected_version` guard is composed from. The same member the CLI's detail view publishes […]"
+        }
+      },
+      "required": ["kind", "issue", "changed", "revision"]
+    },
+    "setting": {
+      "description": "One entry of the workspace's stored settings plane. THIS SCHEMA IS DELIBERATELY NOT `x-go-type`-PINNED, and it is one of the two ROW schemas on this surface that is not — `Memory` is the other. (Envelopes and page wrappers are unpinned […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The setting's key, echoed verbatim."
+        },
+        "redacted": {
+          "type": "boolean",
+          "description": "True when `value` is withheld because the KEY marks the setting as credential-bearing — the name contains `token`, `secret`, `password`, or an API-key spelling. It is […]"
+        },
+        "value": {
+          "type": "string",
+          "description": "The stored value, verbatim. ABSENT MEANS ONE OF TWO THINGS, and `redacted` says which. With `redacted: false` the workspace stores nothing for this key OR stores the […]"
+        }
+      },
+      "required": ["key", "redacted"]
+    },
+    "memory": {
+      "description": "One entry of the workspace's persistent memory plane. NOT `x-go-type`-PINNED, for the reason `Setting` is not: the CLI marshals an ad-hoc map per verb, so there is no canonical Go struct whose JSON encoding is this contract, and minting […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The memory's key, echoed verbatim."
+        },
+        "value": {
+          "type": "string",
+          "description": "The stored content, verbatim: newlines, surrounding space and unicode as stored, never truncated and never withheld. Always present. It is the empty string only where […]"
+        }
+      },
+      "required": ["key", "value"]
+    },
+    "rememberedMemory": {
+      "description": "One stored memory, plus whether storing it overwrote a previous value. It is `Memory`'s shape with `replaced` added rather than a composition of it, because this document repeats property lists instead of using `allOf` (see the note at […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key the memory now lives under: the one the request supplied, or the one derived from `content`. Recall it under exactly these bytes."
+        },
+        "replaced": {
+          "type": "boolean",
+          "description": "True when a previous value existed under `key` and this request overwrote it; false when the key was new. It is observed in the same transaction as the write, so it […]"
+        },
+        "value": {
+          "type": "string",
+          "description": "The stored content, echoed verbatim. Always present, and never withheld — this plane has no redaction; see the operation description."
+        }
+      },
+      "required": ["key", "value", "replaced"]
+    },
+    "removedSetting": {
+      "description": "The outcome of removing one setting. IT CARRIES THE KEY AND NOTHING ELSE, and the absence is the contract rather than an unfinished shape. There is no `removed` flag because the storage seam discards the affected-row count on every […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key that now holds nothing, echoed verbatim."
+        }
+      },
+      "required": ["key"]
+    },
+    "eventRecord": {
+      "description": "One record of the durable events journal: a single committed issue mutation, as a replaying consumer receives it. THIS IS THE CLI'S RECORD. It is pinned to the same Go struct `bd events tail` and `bd events export` marshal one per line, […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "comment": {
+          "type": "object",
+          "description": "On `comment` only: `{\"id\",\"author\",\"text\",\"created_at\",\"source\"}`. Absent on every other op."
+        },
+        "dep": {
+          "type": "object",
+          "description": "On `dep_add` and `dep_remove` only: `{\"kind\",\"target\",\"metadata\"}` for the edge. Absent on every other op. `metadata` differs in PROVENANCE between the two: on […]"
+        },
+        "issue": {
+          "type": "object",
+          "description": "The full issue state after the mutation — the same object shape `Issue` describes — or `null` on a delete. Always present. A post-image of a wisp-plane record carries […]"
+        },
+        "issue_id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The mutated issue's canonical id."
+        },
+        "op": {
+          "type": "string",
+          "description": "What was done: `create`, `update`, `close`, `delete`, `dep_add`, `dep_remove` or `comment`. The set is closed in v0; a client MUST default-branch on an unknown value […]"
+        },
+        "seq": {
+          "type": "integer",
+          "description": "Counter-assigned inside the mutation's own transaction: gapless, strictly increasing in commit order, never reused and never reset. This is the value to pass back as […]"
+        },
+        "ts": {
+          "type": "string",
+          "description": "UTC insert time, stamped inside the committing transaction and normalized to RFC 3339. It is NOT monotone in `seq`: two writers against one SQL server, or a clock […]"
+        }
+      },
+      "required": ["seq", "ts", "op", "issue_id", "issue"]
+    },
+    "listReadyWorkArguments": {
+      "description": "Arguments of listReadyWork.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "Only issues assigned to this actor."
+        },
+        "brief": {
+          "type": "boolean",
+          "default": false,
+          "description": "Omit the free-form text from every item: `description`, `design`, `acceptance_criteria`, `notes`, `payload` and `waiters` are not selected. Filtering is unaffected, […]"
+        },
+        "exclude_label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must not be present."
+        },
+        "exclude_type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set."
+        },
+        "has_metadata_key": {
+          "type": "string",
+          "description": "Only issues carrying this top-level metadata key."
+        },
+        "include_deferred": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include issues whose `defer_until` is still in the future."
+        },
+        "include_ephemeral": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include ephemeral (non-synced) rows."
+        },
+        "label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must ALL be present (AND)."
+        },
+        "label_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels of which at least one must be present (OR)."
+        },
+        "label_pattern": {
+          "type": "string",
+          "description": "Glob matched against labels."
+        },
+        "label_regex": {
+          "type": "string",
+          "description": "Regular expression matched against labels, compiled by the database in its own dialect. A pattern it cannot compile is a 400 `invalid_value` on this parameter."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 100,
+          "description": "Maximum number of items to return. `0` means unlimited, exactly as `bd ready --limit 0` does — the two surfaces read the same shared default and the same zero […]"
+        },
+        "metadata_field": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Top-level metadata equality filter as `key=value`, split on the first `=`. Repeatable. An invalid key is a 400."
+        },
+        "parent": {
+          "$ref": "#/$defs/locator",
+          "description": "Restrict to recursive descendants of this issue."
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Exact priority (0 is a real value, not \"unset\")."
+        },
+        "sort": {
+          "type": "string",
+          "enum": ["hybrid", "priority", "oldest"],
+          "default": "priority",
+          "description": "Ready-work ordering. `priority` is priority-first; `hybrid` orders recent issues by priority and older ones by age; `oldest` is creation order. An unrecognized value […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, […]"
+        },
+        "unassigned": {
+          "type": "boolean",
+          "description": "Only issues with no assignee."
+        }
+      }
+    },
+    "readyPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "True when the limit truncated the result. There is no cursor on this operation; narrow the filters or raise the limit."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueView"
+          },
+          "description": "Empty array (never null) when nothing is ready."
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "countReadyWorkArguments": {
+      "description": "Arguments of countReadyWork.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "Only issues assigned to this actor."
+        },
+        "exclude_label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must not be present."
+        },
+        "exclude_type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set."
+        },
+        "has_metadata_key": {
+          "type": "string",
+          "description": "Only issues carrying this top-level metadata key."
+        },
+        "include_deferred": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include issues whose `defer_until` is still in the future."
+        },
+        "include_ephemeral": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include ephemeral (non-synced) rows, which the count merges exactly as the listing lists them."
+        },
+        "label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must ALL be present (AND)."
+        },
+        "label_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels of which at least one must be present (OR)."
+        },
+        "label_pattern": {
+          "type": "string",
+          "description": "Glob matched against labels."
+        },
+        "label_regex": {
+          "type": "string",
+          "description": "Regular expression matched against labels, compiled by the database in its own dialect. A pattern it cannot compile is a 400 `invalid_value` on this parameter."
+        },
+        "metadata_field": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Top-level metadata equality filter as `key=value`, split on the first `=`. Repeatable. An invalid key is a 400."
+        },
+        "parent": {
+          "$ref": "#/$defs/locator",
+          "description": "Restrict to recursive descendants of this issue."
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Exact priority (0 is a real value, not \"unset\")."
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. Setting it drops the default type […]"
+        },
+        "unassigned": {
+          "type": "boolean",
+          "description": "Only issues with no assignee."
+        }
+      }
+    },
+    "readyCount": {
+      "description": "The size of a ready set. It carries no items, no `has_more` and no cursor: this is a number about a set, and the operation that returns rows is `GET /v0/beads/ready`. It is NOT `x-go-type`-pinned, unlike the seven schemas above, and […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "description": "How many items `GET /v0/beads/ready` would return for these filters with `limit=0`. Never negative; 0 when nothing is ready, which is a 200 rather than a 404 — a […]"
+        }
+      },
+      "required": ["total"]
+    },
+    "listBlockedIssuesArguments": {
+      "description": "Arguments of listBlockedIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exclude_label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must all be absent."
+        },
+        "label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must ALL be present (AND). Each value is trimmed, and blank and repeated values are dropped, as `bd blocked --label` does."
+        },
+        "label_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels of which at least one must be present (OR)."
+        },
+        "parent": {
+          "$ref": "#/$defs/locator",
+          "description": "Only the parent's direct children (a parent-child edge) and ids under it in the dotted hierarchy, as `bd blocked --parent` narrows."
+        }
+      }
+    },
+    "blockedPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "Always false in v0: this operation takes no limit, so the listing is never truncated. Present so that adding a bound later is additive."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blockedIssueView"
+          },
+          "description": "Empty array (never null) when nothing is blocked."
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "getStatsArguments": {
+      "description": "Arguments of getStats.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "Answer for ONE ACTOR instead of the workspace. Used as written: no trimming, no case folding, no alias expansion. An empty value is a 400 — the workspace-wide […]"
+        },
+        "skip_blocked": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ask for the answer WITHOUT the blocked-set scan, which is the expensive half of this query on a large workspace — the same request `bd status --no-blocked` makes. IT […]"
+        }
+      }
+    },
+    "statsResult": {
+      "description": "The same envelope `bd status --json` prints, minus one member: the CLI also carries `recent_activity`, which every shipped code path leaves absent, so it is not published here.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blocked_count_skipped": {
+          "type": "boolean",
+          "description": "True when the summary came back without the blocked-set scan, which is exactly `summary.blocked_issues == null`. It is DERIVED from the answer rather than echoed from […]"
+        },
+        "summary": {
+          "$ref": "#/$defs/statistics"
+        }
+      },
+      "required": ["summary", "blocked_count_skipped"]
+    },
+    "listIssuesArguments": {
+      "description": "Arguments of listIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drop the default status exclusions (closed plus any custom statuses in the done/frozen categories). Redundant when `status` is set, which drops them already."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Only issues assigned to this actor."
+        },
+        "brief": {
+          "type": "boolean",
+          "default": false,
+          "description": "Omit the free-form text from every item: `description`, `design`, `acceptance_criteria`, `notes`, `payload` and `waiters` are not selected. Filtering is unaffected, […]"
+        },
+        "closed_after": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues closed strictly after this instant: `bd list --closed-after`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to the […]"
+        },
+        "closed_before": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues closed strictly before this instant: `bd list --closed-before`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to the […]"
+        },
+        "created_after": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues created strictly after this instant. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to the second before it is […]"
+        },
+        "created_before": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues created strictly before this instant. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to the second before it is […]"
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Opaque keyset position, taken verbatim from a previous response's `next_cursor`. Clients MUST NOT construct, parse or mutate it: its encoding is server-private and […]"
+        },
+        "defer_after": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues deferred until strictly after this instant: `bd list --defer-after`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to […]"
+        },
+        "defer_before": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues deferred until strictly before this instant: `bd list --defer-before`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated […]"
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only deferred issues: `bd list --deferred`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with […]"
+        },
+        "desc_contains": {
+          "type": "string",
+          "description": "Case-insensitive substring match on the description: `bd list --desc-contains`. Behind the `issues.list.filters` behavior token: an older server answers […]"
+        },
+        "due_after": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues due strictly after this instant: `bd list --due-after`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to the second […]"
+        },
+        "due_before": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues due strictly before this instant: `bd list --due-before`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to the second […]"
+        },
+        "empty_description": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues with an empty description: `bd list --empty-description`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for […]"
+        },
+        "exclude_label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must not be present."
+        },
+        "exclude_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Statuses to leave out (repeat the parameter; a value may also be comma-separated), on top of what `status` or the default exclusions select; it never re-admits a row […]"
+        },
+        "exclude_type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Issue types to leave out (repeat the parameter; a value may also be comma-separated): `bd list --exclude-type`. Normalized by the role as the local listing normalizes […]"
+        },
+        "external_contains": {
+          "type": "string",
+          "description": "Substring match on the external reference: `bd list --external-contains`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` […]"
+        },
+        "external_ref": {
+          "type": "string",
+          "description": "Exact match on the external reference: `bd list --external-ref`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this […]"
+        },
+        "has_metadata_key": {
+          "type": "string",
+          "description": "Only issues carrying this top-level metadata key."
+        },
+        "id": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "description": "Restrict to these canonical ids (repeat the parameter). AND-ed with every other filter, including the default exclusions, so a caller addressing rows regardless of […]"
+        },
+        "include_ephemeral": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include the ephemeral tier — ephemeral rows and the non-synced rows stored beside them — merged into the same order as the durable ones, whichever order `sort` named. […]"
+        },
+        "include_gates": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include gate issues."
+        },
+        "include_infra": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include the workspace's configured infrastructure issue types. This also admits the ephemeral plane those types live in, so it is strictly wider than `include_ephemeral`."
+        },
+        "include_templates": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include template molecules."
+        },
+        "label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must ALL be present (AND)."
+        },
+        "label_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels of which at least one must be present (OR)."
+        },
+        "label_pattern": {
+          "type": "string",
+          "description": "Glob label filter: `bd list --label-pattern`, with `GET /v0/beads/ready`'s spelling. Behind the `issues.list.filters` behavior token: an older server answers […]"
+        },
+        "label_regex": {
+          "type": "string",
+          "description": "Regular-expression label filter: `bd list --label-regex`, with `GET /v0/beads/ready`'s spelling. A pattern the database cannot compile is a 400 `invalid_value` on […]"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 50,
+          "description": "Maximum number of items to return. `0` means unlimited, exactly as `bd list --limit 0` does — the two surfaces read the same shared default and the same zero […]"
+        },
+        "metadata_field": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Top-level metadata equality filter as `key=value`, split on the first `=`. Repeatable. An invalid key is a 400."
+        },
+        "mol_type": {
+          "type": "string",
+          "enum": ["swarm", "patrol", "work"],
+          "description": "Only molecules of this type: `bd list --mol-type`. Any other value, including an empty one, is a 400 naming the parameter. Behind the `issues.list.filters` behavior […]"
+        },
+        "no_assignee": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues with no assignee: `bd list --no-assignee`, handed to the role as written beside the other filters. Behind the `issues.list.noAssignee` behavior token: an […]"
+        },
+        "no_labels": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues carrying no label: `bd list --no-labels`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A […]"
+        },
+        "no_parent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only top-level issues, those with no parent: `bd list --no-parent`. Sending it with `parent` is a 400 on `no_parent`, as on `GET /v0/beads/issues:count`. Behind the […]"
+        },
+        "no_pinned": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues without the pinned flag, held in place where `all` or a pinned/hooked `status` would otherwise drop that predicate: `bd list --no-pinned`. Sending it with […]"
+        },
+        "notes_contains": {
+          "type": "string",
+          "description": "Case-insensitive substring match on the notes: `bd list --notes-contains`. Behind the `issues.list.filters` behavior token: an older server answers […]"
+        },
+        "overdue": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only overdue issues, those whose due time is before now: `bd list --overdue`. Now is the SERVER's clock when the query runs, not the client's. Behind the […]"
+        },
+        "parent": {
+          "$ref": "#/$defs/locator",
+          "description": "Restrict to recursive descendants of this issue."
+        },
+        "pinned": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues carrying the pinned FLAG, at any status: `bd list --pinned`. The pinned STATUS is `status`; the flag is a separate predicate. Sending it with `no_pinned` […]"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Exact priority: `bd list --priority`. Absent means unfiltered; `0` is a real priority. Behind the `issues.list.filters` behavior token: an older server answers […]"
+        },
+        "priority_max": {
+          "type": "integer",
+          "description": "Highest priority to list, inclusive: `bd list --priority-max`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this […]"
+        },
+        "priority_min": {
+          "type": "integer",
+          "description": "Lowest priority to list, inclusive: `bd list --priority-min`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this […]"
+        },
+        "q": {
+          "type": "string",
+          "description": "`bd search`'s free text. A row matches when its title or its id contains the text, case-insensitively; a text shaped like an issue id also matches that exact id, an […]"
+        },
+        "sort": {
+          "type": "string",
+          "enum": ["created", "priority"],
+          "default": "created",
+          "description": "Which of the two served total orders this page is in. `created` is `(created_at DESC, id ASC)`; `priority` is `(priority ASC, created_at DESC, id ASC)` — `bd list`'s […]"
+        },
+        "spec": {
+          "type": "string",
+          "description": "Only issues whose spec id starts with this prefix: `bd list --spec`. Behind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for […]"
+        },
+        "status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Status filter. Repeat the parameter, or pass a comma-separated list. Custom statuses configured for the workspace are honored. Setting this REPLACES the default […]"
+        },
+        "title": {
+          "type": "string",
+          "description": "Case-insensitive substring match on the title: `bd list --title`. It narrows the listing and lifts none of its default exclusions. Behind the `issues.list.title` […]"
+        },
+        "title_contains": {
+          "type": "string",
+          "description": "Case-insensitive substring match on the title: `bd list --title-contains`, spelled as `GET /v0/beads/issues:count` spells it. It overlaps `title` deliberately: both […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "Issue type. Shorthand aliases are expanded exactly as `bd list --type` expands them (`mr`, `feat`, `mol`, `enhancement`, `dec`, `adr`); there is no plural folding. […]"
+        },
+        "updated_after": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues last updated strictly after this instant: `bd list --updated-after`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated to […]"
+        },
+        "updated_before": {
+          "$ref": "#/$defs/instant",
+          "description": "Only issues last updated strictly before this instant: `bd list --updated-before`. RFC 3339; compared strictly and at whole-second precision (the bound is truncated […]"
+        },
+        "wisp_type": {
+          "type": "string",
+          "enum": ["heartbeat", "ping", "patrol", "gc_report", "recovery", "error", "escalation"],
+          "description": "Only rows of this wisp type (a predicate on the column, not a plane selector): `bd list --wisp-type`. Any other value, including an empty one, is a 400 naming the […]"
+        }
+      }
+    },
+    "issuesPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueView"
+          },
+          "description": "Empty array (never null) when nothing matches."
+        },
+        "next_cursor": {
+          "type": "string",
+          "description": "Present if and only if `has_more` is true. Pass it back verbatim as `cursor` to fetch the next page. Opaque and server-private."
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "queryIssuesArguments": {
+      "description": "Arguments of queryIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include closed issues. Without it closed issues are excluded — unless the expression itself compares `status`, in which case the expression's own opinion stands and […]"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 50,
+          "description": "Maximum number of items to return. `0` means unlimited, exactly as `bd query --limit 0` does — the two surfaces read the same shared default […]"
+        },
+        "q": {
+          "type": "string",
+          "description": "The query expression, e.g. `status=open AND priority>1` or `type=bug OR label=urgent`. Blank, unparseable, or naming a field or operator the language does not have is […]"
+        },
+        "reverse": {
+          "type": "boolean",
+          "default": false,
+          "description": "Invert the display order. Ignored when `sort` is absent."
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "priority",
+            "created",
+            "updated",
+            "closed",
+            "status",
+            "id",
+            "title",
+            "type",
+            "assignee"
+          ],
+          "description": "Display order for the page. Absent leaves the rows in the order the query returned them, which is the same thing `bd query` without `--sort` does. WHAT IT ORDERS is […]"
+        }
+      },
+      "required": ["q"]
+    },
+    "queryPage": {
+      "description": "A page of query results. It is `ReadyPage`'s shape rather than `IssuesPage`'s, and the missing member is the point: a page of this operation carries no `next_cursor`, because a cursor is a keyset position in a database order and a […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "True when `limit` truncated the result. It is exact for every expression, including the ones evaluated outside the database: those are matched against every candidate […]"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueView"
+          },
+          "description": "Empty array (never null) when the expression matched nothing."
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "countIssuesArguments": {
+      "description": "Arguments of countIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "Only issues assigned to this actor. Sending it beside `no_assignee` is not refused: the two are handed to the filter as written and answer with the empty […]"
+        },
+        "closed_after": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Only issues closed strictly after this instant, compared at whole-second precision (the bound is truncated to the second before it is compared) and […]"
+        },
+        "closed_before": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Only issues closed strictly before this instant, compared at whole-second precision (the bound is truncated to the second before it is compared) and […]"
+        },
+        "created_after": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Only issues created strictly after this instant, compared at whole-second precision (the bound is truncated to the second before it is compared) and […]"
+        },
+        "created_before": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Only issues created strictly before this instant, compared at whole-second precision (the bound is truncated to the second before it is compared) and […]"
+        },
+        "desc_contains": {
+          "type": "string",
+          "description": "Substring match on the description."
+        },
+        "empty_description": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues with no description."
+        },
+        "exclude_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Statuses to exclude from the count. Repeat the parameter, or pass a comma-separated list; entries are taken as written (no normalization) but — UNLIKE `status` and […]"
+        },
+        "exclude_type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Issue types to exclude from the count. Repeat the parameter, or pass a comma-separated list; entries are split and trimmed inside the role and are NOT validated […]"
+        },
+        "group_by": {
+          "type": "string",
+          "enum": ["status", "priority", "type", "assignee", "label"],
+          "description": "Bucket the count by one dimension and return `groups` beside `total`. Absent, the response carries `total` alone. The set is CLOSED, and a value outside it is a `400` […]"
+        },
+        "has_metadata_key": {
+          "type": "string",
+          "description": "Only issues carrying this top-level metadata key."
+        },
+        "id": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "description": "The Issues to count among, as a list rather than the native comma-separated string."
+        },
+        "include_ephemeral": {
+          "type": "boolean",
+          "default": false,
+          "description": "Admit the EPHEMERAL PLANE — the wisps table — and nothing else. Exactly the first of `include_infra`'s four changes, with none of the other three: no type exclusion […]"
+        },
+        "include_infra": {
+          "type": "boolean",
+          "default": false,
+          "description": "Count the cardinality of `bd list --include-infra --all` instead of the durable plane. IT CHANGES FOUR THINGS AT ONCE, and they are listed rather than summarized […]"
+        },
+        "label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must ALL be present. Repeat the parameter. Entries are trimmed and de-duplicated inside the role, and a set whose entries are all blank is the same as an […]"
+        },
+        "label_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels of which at least ONE must be present. Repeat the parameter; same normalization as `label`."
+        },
+        "metadata_field": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Top-level metadata equality filter as `key=value`, split on the first `=`. Repeatable. An invalid key is a 400."
+        },
+        "no_assignee": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues with no assignee."
+        },
+        "no_labels": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues carrying no label."
+        },
+        "no_parent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only issues carrying NO parent-child dependency edge. Unlike `parent`, this does NOT consult the dotted-id convention — an issue named `X.1` with no edge to `X` is […]"
+        },
+        "notes_contains": {
+          "type": "string",
+          "description": "Substring match on the notes."
+        },
+        "parent": {
+          "$ref": "#/$defs/locator",
+          "description": "Restrict to one issue's children through one predicate with two arms: a parent-child dependency edge onto `parent`, OR — for an issue carrying no parent-child edge at […]"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Exact priority. Absent means unfiltered — the distinction matters because `0` is a real priority, which is why the role models this as a pointer."
+        },
+        "priority_max": {
+          "type": "integer",
+          "description": "Highest priority to count, inclusive."
+        },
+        "priority_min": {
+          "type": "integer",
+          "description": "Lowest priority to count, inclusive."
+        },
+        "status": {
+          "type": "string",
+          "description": "One stored status. The empty value and the literal `all` both mean EVERY status, which is what makes a bare count answer for closed rows as well as open ones. IT IS […]"
+        },
+        "title": {
+          "type": "string",
+          "description": "Case-insensitive substring match on the title."
+        },
+        "title_contains": {
+          "type": "string",
+          "description": "Substring match on the title, spelled as `GET /v0/beads/issues:query` spells it. It overlaps `title` deliberately: both reach the filter, and the two names exist […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which […]"
+        },
+        "updated_after": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Only issues last updated strictly after this instant, compared at whole-second precision (the bound is truncated to the second before it is compared) and […]"
+        },
+        "updated_before": {
+          "$ref": "#/$defs/instant",
+          "description": "RFC 3339. Only issues last updated strictly before this instant, compared at whole-second precision (the bound is truncated to the second before it is compared) and […]"
+        }
+      }
+    },
+    "issueCount": {
+      "description": "The size of a matching set, and its buckets when `group_by` asked for them. It carries no items and no cursor: this is a number about a set, and the operations that return rows are `GET /v0/beads/issues` and `GET […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "object",
+          "description": "Bucket key to cardinality, PRESENT exactly when the request carried `group_by` and ABSENT otherwise. That absence is the answer to \"you did not ask for buckets\"; an […]"
+        },
+        "total": {
+          "type": "integer",
+          "description": "How many issues match. Never negative; `0` when nothing matches, which is a 200 rather than a 404 — a question about a set has an answer even when the set is empty, […]"
+        }
+      },
+      "required": ["total"]
+    },
+    "getIssueArguments": {
+      "description": "Arguments of getIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "brief_deps": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reduce each row in `dependencies` to its identity-and-shape fields (`id`, `title`, `status`, `issue_type`, `priority`, `dependency_type`), dropping `description`, […]"
+        },
+        "include_comments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Populate `comments` with the issue's full comment bodies. When it is honored `comments_omitted` is false, so a client is never left to guess whether an absent list […]"
+        },
+        "include_dependents": {
+          "type": "boolean",
+          "default": false,
+          "description": "Populate `dependents` with the issues that depend on this one, each carrying its edge type — the shape `dependencies` already carries. Default false, for […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        }
+      },
+      "required": ["issue"]
+    },
+    "listRelatedIssuesArguments": {
+      "description": "Arguments of listRelatedIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["out", "in"],
+          "description": "Which way this issue's edges are walked. `out` answers the issues it DEPENDS ON — the `dependencies` member of `GET /v0/beads/issues/{id}`. `in` answers the issues […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        },
+        "type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Edge types to include. Repeat the parameter. Empty means every type. `GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value […]"
+        }
+      },
+      "required": ["issue", "direction"]
+    },
+    "relatedIssues": {
+      "description": "One issue's neighbors — the body of `GET /v0/beads/issues/{id}/related`. It is NOT a page: this operation has no limit and no cursor, and it names ONE anchor, so there is nothing for a `has_more` to be about. There is no `missing` […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/neighborView"
+          },
+          "description": "The neighbors, ascending by id with the edge type breaking a tie. Empty array (never null) when this issue has none in the requested direction, or when the `type` […]"
+        }
+      },
+      "required": ["items"]
+    },
+    "listDependencyCyclesArguments": {
+      "description": "Arguments of listDependencyCycles.",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "cyclesPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "Always false in v0: this operation takes no limit, so the report is never truncated. Present so that adding a bound later is additive."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cycle"
+          },
+          "description": "Empty array (never null) when the workspace has no cycles. Its LENGTH is the total: a cycle whose members this workspace cannot describe is still counted here, so the […]"
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "getDependencyTreeArguments": {
+      "description": "Arguments of getDependencyTree.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["down", "up", "both"],
+          "default": "down",
+          "description": "Which way to follow edges. `down` (the default) walks what the root DEPENDS ON; `up` walks what depends ON it; `both` walks each way and returns one list. For `both` […]"
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 50,
+          "description": "How many LEVELS to descend, counting the root as level one: `max_depth=1` is the root alone. A node beyond the bound is ABSENT rather than present and flagged. Zero […]"
+        },
+        "root": {
+          "$ref": "#/$defs/locator",
+          "description": "The issue to walk from. It must be an EXACT canonical issue id: there is no fuzzy, prefix or substring resolution on this surface, for the reason `GET […]"
+        },
+        "status": {
+          "type": "string",
+          "description": "Prune the walked tree to the nodes carrying this status AND the ancestor chain of each survivor, so the answer is still a tree. It is a POST-WALK PRUNE, not a filter […]"
+        }
+      },
+      "required": ["root"]
+    },
+    "dependencyTreePage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "Always false in v0: this operation takes no limit, so the walk is bounded by `max_depth` rather than truncated after the fact. Present so that adding a bound later is […]"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/treeNode"
+          },
+          "description": "The walked nodes in DEPTH-FIRST PRE-ORDER: a node appears before every node it led to, and a subtree is contiguous. Never null. It is empty only when a `status` […]"
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "countDependencyEdgesArguments": {
+      "description": "Arguments of countDependencyEdges.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["out", "in"],
+          "description": "Which end of the edge the anchors sit on. `out` counts what each anchor DEPENDS ON — the direction `bd dep list` reads and the number `bd show` prints as the […]"
+        },
+        "issue": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "description": "The anchors to count around. Repeat the parameter; at least one is required and at most 100 are accepted, and either bound is a 400 `invalid_argument` with `param: […]"
+        },
+        "status": {
+          "type": "string",
+          "description": "Count only edges whose DEPENDENT — the issue at the source end, the one doing the depending — is in this stored status. Empty means every status. IT IS LEGAL ONLY […]"
+        },
+        "type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Edge types to include. Repeat the parameter. Empty means every type. `GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value […]"
+        }
+      },
+      "required": ["issue", "direction"]
+    },
+    "edgeCounts": {
+      "description": "Each anchor's edge cardinality — the body of `GET /v0/beads/dependencies:count`. It is NOT a page and carries no total: the answer is per anchor, and a sum across anchors would double-count every edge whose two ends were both named. It […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edgeCount"
+          },
+          "description": "One entry per DISTINCT requested `issue_id`, in the order the request first named it. Empty array (never null) when the request named no anchors this server accepted […]"
+        }
+      },
+      "required": ["anchors"]
+    },
+    "listBlockingAnnotationsArguments": {
+      "description": "Arguments of listBlockingAnnotations.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "is_blocked": {
+          "type": "boolean",
+          "default": false,
+          "description": "`true` adds each item's `is_blocked`: the issue's stored, TRANSITIVE readiness flag — the column the ready set filters on, which a child inherits from a blocked […]"
+        },
+        "issue": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "description": "The issues to annotate. Repeat the parameter; at least one is required and at most 100 are accepted, and either bound is a 400 `invalid_argument` with `param: […]"
+        }
+      },
+      "required": ["issue"]
+    },
+    "blockingAnnotations": {
+      "description": "The blocking decoration of the named issues. It is NOT a page: this operation has no limit and no cursor, because the number of issues asked about is what bounds it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blockingAnnotation"
+          },
+          "description": "One entry per DISTINCT requested id, in the order the request first named it — so a client can zip this against the ids it sent. Empty array (never null) when the […]"
+        }
+      },
+      "required": ["items"]
+    },
+    "addDependenciesArguments": {
+      "description": "Arguments of addDependencies.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependencyEdge"
+          },
+          "description": "The edges to assert, in the caller's order. An empty array is a `400` rather than a successful no-op: a write request that writes nothing is a client bug, and […]"
+        }
+      },
+      "required": ["edges"]
+    },
+    "addDependenciesResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependencyEdge"
+          },
+          "description": "The request's edges, in REQUEST ORDER. It echoes the request because all-or-nothing means it is either every edge or the call failed, so a caller reporting what […]"
+        }
+      },
+      "required": ["added"]
+    },
+    "claimIssueArguments": {
+      "description": "Arguments of claimIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        }
+      },
+      "required": ["issue"]
+    },
+    "claimResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "already_claimed": {
+          "type": "boolean",
+          "description": "True when the caller already held the issue and this call changed nothing — the idempotent re-claim. A claim held by a DIFFERENT actor is a 409, not a 200 with this flag."
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView"
+        }
+      },
+      "required": ["issue", "already_claimed"]
+    },
+    "claimNextIssueArguments": {
+      "description": "Arguments of claimNextIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "Only issues assigned to this actor."
+        },
+        "exclude_label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must not be present."
+        },
+        "exclude_type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typeUri"
+          },
+          "description": "Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set."
+        },
+        "has_metadata_key": {
+          "type": "string",
+          "description": "Only issues carrying this top-level metadata key."
+        },
+        "include_deferred": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include issues whose `defer_until` is still in the future."
+        },
+        "include_ephemeral": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include ephemeral (non-synced) rows."
+        },
+        "label": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels that must ALL be present (AND)."
+        },
+        "label_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels of which at least one must be present (OR)."
+        },
+        "label_pattern": {
+          "type": "string",
+          "description": "Glob matched against labels."
+        },
+        "label_regex": {
+          "type": "string",
+          "description": "Regular expression matched against labels, compiled by the database in its own dialect. A pattern it cannot compile is a 400 `invalid_value` on this parameter."
+        },
+        "metadata_field": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Top-level metadata equality filter as `key=value`, split on the first `=`. Repeatable. An invalid key is a 400."
+        },
+        "parent": {
+          "$ref": "#/$defs/locator",
+          "description": "Restrict to recursive descendants of this issue."
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Exact priority (0 is a real value, not \"unset\")."
+        },
+        "sort": {
+          "type": "string",
+          "enum": ["hybrid", "priority", "oldest"],
+          "default": "priority",
+          "description": "Ready-work ordering. `priority` is priority-first; `hybrid` orders recent issues by priority and older ones by age; `oldest` is creation order. An unrecognized value […]"
+        },
+        "type": {
+          "$ref": "#/$defs/typeUri",
+          "description": "Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, […]"
+        },
+        "unassigned": {
+          "type": "boolean",
+          "description": "Only issues with no assignee."
+        }
+      }
+    },
+    "claimNextResult": {
+      "description": "The outcome of one atomic take of ready work. `claimed` IS ABSENT WHEN NOTHING WAS ELIGIBLE, and its absence is the whole signal — there is no boolean beside it, because a second member carrying the same fact is a second member that can […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claimed": {
+          "$ref": "#/$defs/issueView"
+        }
+      }
+    },
+    "releaseIssueArguments": {
+      "description": "Arguments of releaseIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_assignee": {
+          "type": "string",
+          "description": "Compare-and-set on the holder: the release proceeds only while the issue is still assigned to this actor, and otherwise refuses with `409` / `precondition_failed` […]"
+        },
+        "force": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypass the ownership fence, so an actor that is not the holder may release the claim. It is the escape hatch `bd unclaim --force` spells, for an abandoned claim whose […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        }
+      },
+      "required": ["issue"]
+    },
+    "releaseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "changed": {
+          "type": "boolean",
+          "description": "Whether the release WROTE the row. It is TRUE on every 200 this operation returns, because every shape that would not write is refused above it — an unheld row is a […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView"
+        }
+      },
+      "required": ["issue", "changed"]
+    },
+    "heartbeatIssueArguments": {
+      "description": "Arguments of heartbeatIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        }
+      },
+      "required": ["issue"]
+    },
+    "heartbeatResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "heartbeat_at": {
+          "$ref": "#/$defs/instant",
+          "description": "The server clock, in UTC, the refresh stamped on the lease."
+        },
+        "holder": {
+          "type": "string",
+          "description": "The lease holder after the refresh (the request's `actor`)."
+        },
+        "id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The issue whose lease was refreshed."
+        },
+        "lease_expires_at": {
+          "$ref": "#/$defs/instant",
+          "description": "`heartbeat_at` plus the server's lease TTL: the deadline the next heartbeat must beat before a reclaim may revert the claim."
+        },
+        "rearmed": {
+          "type": "boolean",
+          "description": "True when the actor held the claim but no lease row existed for it (a claim hand-doled through `updateIssue`), so the heartbeat granted a fresh lease instead of […]"
+        }
+      },
+      "required": ["id", "holder", "heartbeat_at", "lease_expires_at", "rearmed"]
+    },
+    "closeIssueArguments": {
+      "description": "Arguments of closeIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "auto_close_molecule": {
+          "type": "boolean",
+          "default": false,
+          "description": "Behind the `issues.close.autoCloseMolecule` behavior token: an older server answers `unknown_parameter` for this name, and a client checks the token before sending […]"
+        },
+        "expected_revision": {
+          "type": "string",
+          "description": "Requires the subject's current revision to equal this opaque token before anything is written; a miss is revision-mismatch and nothing is written."
+        },
+        "force": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypass close policy — the open-children refusal and the live-blocker refusal — and the pin and the assignee guard, and nothing else: never the template guard (see […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Why the issue is closed. Stored on the issue and read back as `close_reason`. THE FIRST CLOSE WINS: an idempotent re-close writes neither this nor `session`, so a […]"
+        },
+        "session": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The working session that closed the issue, stored and read back as `closed_by_session`, under the same first-close-wins rule and the same bounds as `reason`."
+        }
+      },
+      "required": ["issue"]
+    },
+    "closeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "already_closed": {
+          "type": "boolean",
+          "description": "True when the issue was already closed and this call changed nothing — the idempotent re-close, mirroring `ClaimResponse.already_claimed`. The response still carries […]"
+        },
+        "auto_closed_molecule": {
+          "$ref": "#/$defs/issueView"
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView"
+        },
+        "molecule_auto_close_refusal": {
+          "type": "string",
+          "description": "With `issues.close.autoCloseMolecule` and `auto_close_molecule`: why the molecule root this close completed stayed open — the root's own close policy refused it (a […]"
+        },
+        "open_children": {
+          "type": "integer",
+          "description": "How many open children the close observed. Reported by a FORCED close — including an idempotent re-close — because a caller that bypassed the guard is exactly the […]"
+        }
+      },
+      "required": ["issue", "already_closed", "open_children"]
+    },
+    "batchCloseIssuesArguments": {
+      "description": "Arguments of batchCloseIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "auto_close_molecule": {
+          "type": "boolean",
+          "default": false,
+          "description": "Behind the `issues.close.autoCloseMolecule` behavior token: an older server answers `unknown_parameter` for this name. Close each item's molecule root when the batch […]"
+        },
+        "force": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypass close policy — the open-children refusal and the live-blocker refusal — and the pin and the assignee guard for EVERY item, and nothing else. It never bypasses […]"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/batchCloseItem"
+          },
+          "description": "The issues to close, in the order the caller asked for them. Every item appears in `outcomes` at the same index. An EMPTY array is a `400` rather than an empty […]"
+        },
+        "session": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "The working session, recorded against every item that closes, under `CloseIssueRequest.session`'s first-close-wins rule and bounds."
+        }
+      },
+      "required": ["items"]
+    },
+    "batchCloseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/closeOutcome"
+          },
+          "description": "Exactly one entry per requested item, in REQUEST ORDER — including for items that refused, so a client walks this against its own argument list without matching ids […]"
+        }
+      },
+      "required": ["outcomes"]
+    },
+    "reopenIssueArguments": {
+      "description": "Arguments of reopenIssue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "description": "Requires the subject's current revision to equal this opaque token before anything is written; a miss is revision-mismatch and nothing is written."
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Why the issue is being reopened. Recorded on the `reopened` EVENT this move records — not on a field of the issue, and not carried in the response, so a caller that […]"
+        }
+      },
+      "required": ["issue"]
+    },
+    "reopenResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "already_open": {
+          "type": "boolean",
+          "description": "True when the issue was not in a done status and this call changed nothing — idempotent, mirroring `CloseIssueResponse.already_closed` and […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/issueView"
+        }
+      },
+      "required": ["issue", "already_open"]
+    },
+    "compareAndSetMetadataArguments": {
+      "description": "Arguments of compareAndSetMetadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected": {
+          "$ref": "#/$defs/metadataValue"
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "The single metadata key to read and write. It must match the workspace's metadata-key syntax — a letter or underscore, then letters, digits, underscores, dots and […]"
+        },
+        "value": {
+          "$ref": "#/$defs/metadataValue"
+        }
+      },
+      "required": ["issue", "key"]
+    },
+    "compareAndSetMetadataResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "current": {
+          "$ref": "#/$defs/metadataValue"
+        },
+        "swapped": {
+          "type": "boolean",
+          "description": "Whether the precondition held and the transition applied. THIS IS THE VERDICT and the only member to dispatch on. False is a lost race — an answer, not a failure — […]"
+        }
+      },
+      "required": ["swapped"]
+    },
+    "advanceMoleculeArguments": {
+      "description": "Arguments of advanceMolecule.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "auto_claim": {
+          "type": "boolean",
+          "default": false,
+          "description": "Claim the next ready step for `actor`. Without it the operation writes nothing and only names the step."
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        }
+      },
+      "required": ["issue"]
+    },
+    "advanceMoleculeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claimed": {
+          "type": "boolean",
+          "description": "`next_step` was claimed for `actor`, and is the post-claim row."
+        },
+        "closed_step": {
+          "$ref": "#/$defs/issueView"
+        },
+        "complete": {
+          "type": "boolean",
+          "description": "Every step of the molecule is closed; `next_step` is then absent."
+        },
+        "molecule_id": {
+          "$ref": "#/$defs/issueUrl",
+          "description": "The step's molecule root. ABSENT when the step belongs to no molecule, and then nothing else below is set."
+        },
+        "next_step": {
+          "$ref": "#/$defs/issueView"
+        }
+      },
+      "required": ["closed_step", "complete", "claimed"]
+    },
+    "reclaimIssuesArguments": {
+      "description": "Arguments of reclaimIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "any_replica": {
+          "type": "boolean",
+          "description": "Also revert leases another replica granted. The one member that WIDENS the sweep; see the operation. Absent means `false`."
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only leases held by one of these owners are eligible."
+        },
+        "exclude_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An issue carrying ANY of these labels is never eligible."
+        },
+        "ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "description": "Only these issues are eligible. An id that is not currently a stale lease is absent from the answer rather than refused. The cap is on the REQUEST, counted before […]"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only issues carrying ALL of these labels are eligible."
+        },
+        "labels_any": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only issues carrying AT LEAST ONE of these labels are eligible."
+        },
+        "older_than_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The grace window past a lease's own expiry, in seconds (fractions allowed): only a lease that expired more than this long ago is eligible. Absent means `0`, every […]"
+        }
+      }
+    },
+    "reclaimResult": {
+      "description": "Every row the sweep reverted, in the order the sweep found them.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reclaimed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reclaimedLease"
+          },
+          "description": "One entry per reverted row. Empty array (never null) when nothing was stale in scope."
+        }
+      },
+      "required": ["reclaimed"]
+    },
+    "sweepIssuesArguments": {
+      "description": "Arguments of sweepIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "closed_before": {
+          "$ref": "#/$defs/instant",
+          "description": "Keep only beads closed STRICTLY BEFORE this instant (RFC 3339). A bead closed exactly at it is kept, which is the half-open interval every other time bound on this […]"
+        },
+        "dry_run": {
+          "type": "boolean",
+          "default": false,
+          "description": "Report what the sweep WOULD do and delete nothing. The counts, the skips and the refusals are the same ones the real sweep would produce, computed against the same […]"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Cap how many beads this sweep deletes, OLDEST-CLOSED-FIRST. Absent or zero means unbounded. A negative value is a `400` invalid_argument, the same as the role's own […]"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Keep only beads whose id matches this shell glob (`*`, `?`, `[...]`, `\\` escapes; `*` also crosses `-` and `.`, since an id is not a path). Absent matches every bead […]"
+        },
+        "protect_live_dependents": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skip a closed candidate that a LIVE (not-done) bead depends on through a parent/child, tracks, or blocks edge, so closing a dependent's dependency does not erase the […]"
+        },
+        "protect_referenced": {
+          "type": "boolean",
+          "default": true,
+          "description": "Skip candidates whose id is CITED — as a literal, at word boundaries — in the description, notes or comments of any bead that is not done, so a decision trail a live […]"
+        },
+        "retain_ids": {
+          "type": "boolean",
+          "default": false,
+          "description": "RETIRE every id this sweep deletes. In the same transaction as the delete, the server writes one permanent tombstone per deleted bead — its id and its `closed_at`, […]"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["ephemeral", "durable", "wisps-plane"],
+          "description": "Which plane to clear. `ephemeral` is the wisp tier (`bd purge`) and `durable` is the issue tier (`bd prune`). The two are DISJOINT: a sweep of one can never touch a […]"
+        }
+      },
+      "required": ["tier"]
+    },
+    "sweepResult": {
+      "description": "What one sweep did. Every number describes the SAME snapshot, because the selection and the deletion ran in one transaction. It is NOT `x-go-type`-pinned, for the reason `ReadyCount` is not: there is no canonical Go struct whose JSON […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dependencies": {
+          "type": "integer",
+          "description": "Dependency edge rows removed with them. Reported because a sweep's visible effect is much larger than its bead count."
+        },
+        "dry_run": {
+          "type": "boolean",
+          "description": "Echoes the request, so a result carries whether its numbers describe beads that are gone or beads that would go."
+        },
+        "events": {
+          "type": "integer",
+          "description": "Event rows removed with the swept beads."
+        },
+        "labels": {
+          "type": "integer",
+          "description": "Label rows removed with the swept beads."
+        },
+        "referenced_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueUrl"
+          },
+          "description": "A BOUNDED SAMPLE of the ids `skipped.referenced` counts — at most 100, in the order the candidate query returned them. It is a sample, not the set: compare its length […]"
+        },
+        "remaining": {
+          "type": "integer",
+          "description": "How many beads this sweep's own selection left unswept because `limit` cut it off, oldest-closed-first. Always 0 when `limit` was absent, zero, or at least as large […]"
+        },
+        "retain_ids": {
+          "type": "boolean",
+          "description": "Echoes the request's `retain_ids`: `true` means every bead `swept` counts is now a retired id (under `dry_run`, would be). Present only behind the […]"
+        },
+        "skipped": {
+          "$ref": "#/$defs/sweepSkips"
+        },
+        "swept": {
+          "type": "integer",
+          "description": "How many beads were deleted, or under `dry_run` would be."
+        }
+      },
+      "required": ["dry_run", "swept", "dependencies", "labels", "events", "skipped"]
+    },
+    "deleteIssuesArguments": {
+      "description": "Arguments of deleteIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cascade": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also delete the named beads' parent-child descendants, at every depth. Every other dependent of the deleted set — a bead joined by any edge type other than parent- […]"
+        },
+        "dry_run": {
+          "type": "boolean",
+          "default": false,
+          "description": "Report what the deletion WOULD do and change nothing. The counts and BOTH refusals are the ones the real request would produce, computed against the same snapshot, […]"
+        },
+        "expected_revision": {
+          "type": "string",
+          "description": "Requires the subject's current revision to equal this opaque token before anything is written; a miss is revision-mismatch and nothing is written."
+        },
+        "force": {
+          "type": "boolean",
+          "default": false,
+          "description": "Delete the named beads and leave their dependents ORPHANED, reported in `orphaned`. Without it and without `cascade`, a named bead with a dependent the request did […]"
+        },
+        "ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "description": "The beads to delete, exact ids, in either plane. DUPLICATES COLLAPSE. An empty array is a `400` rather than a no-op — a caller whose id list came out empty because […]"
+        }
+      },
+      "required": ["ids"]
+    },
+    "deleteResult": {
+      "description": "What one delete did. Every number describes the SAME snapshot, because the guard, the deletion and the reference rewrite ran in one transaction. It is NOT `x-go-type`-pinned, for the reason `SweepResult` is not: there is no canonical Go […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "integer",
+          "description": "How many beads were deleted, or under `dry_run` would be. Under `cascade` this counts the whole closure, so it is normally larger than `ids` and it — not the request […]"
+        },
+        "deleted_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueUrl"
+          },
+          "description": "The beads `deleted` counts, in ascending id order without duplicates: under `cascade`, the whole parent-child closure. Under `dry_run` it names the beads that would […]"
+        },
+        "dependencies": {
+          "type": "integer",
+          "description": "Dependency edge rows removed with them, in either direction. Reported because a delete's visible effect is much larger than its bead count."
+        },
+        "dry_run": {
+          "type": "boolean",
+          "description": "Echoes the request, so a result carries whether its numbers describe beads that are gone or beads that would go."
+        },
+        "events": {
+          "type": "integer",
+          "description": "Event rows removed with the deleted beads."
+        },
+        "labels": {
+          "type": "integer",
+          "description": "Label rows removed with the deleted beads."
+        },
+        "orphaned": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueUrl"
+          },
+          "description": "The surviving beads that depended on something this request deleted, in ascending id order. Present when the request carried `cascade` (a cascade follows parent-child […]"
+        },
+        "references_updated": {
+          "type": "integer",
+          "description": "How many SURVIVING beads had their text rewritten — beads, not occurrences. Always 0 under `dry_run`, because a preview rewrites nothing."
+        }
+      },
+      "required": ["dry_run", "deleted", "dependencies", "labels", "events", "references_updated"]
+    },
+    "batchCreateIssuesArguments": {
+      "description": "Arguments of batchCreateIssues.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/batchCreateItem"
+          },
+          "description": "The issues to create, in order. An empty array is a `400` rather than a successful no-op: a write request that writes nothing is a client bug, and answering it with a […]"
+        }
+      },
+      "required": ["items"]
+    },
+    "batchCreateResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issueView"
+          },
+          "description": "One entry per requested item, in REQUEST ORDER, each the stored issue with its generated id and its labels. Never null and never shorter than the request: a partial […]"
+        }
+      },
+      "required": ["items"]
+    },
+    "applyBatchArguments": {
+      "description": "Arguments of applyBatch.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "force_id_prefix": {
+          "type": "boolean",
+          "default": false,
+          "description": "Permits an explicit `create.id` outside the workspace's configured issue prefix, for EVERY create item in the request. Without it such an id is refused by the role […]"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/applyItem"
+          },
+          "description": "The items to apply, IN THE ORDER THEY ARE TO BE APPLIED. An empty array is a `400` rather than a successful no-op: a write request that writes nothing is a client […]"
+        },
+        "provenance": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Labels the version-control history entry this request records, under `updateIssue`'s rule: it changes how the entry READS, never whether one is recorded. Empty […]"
+        },
+        "skip_per_edge_cycle_check": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drops the PER-EDGE cycle probe for a caller wiring a large graph, exactly as it does on `POST /v0/beads/dependencies:add`. IT NEVER DROPS THE END GATE, which runs […]"
+        }
+      },
+      "required": ["items"]
+    },
+    "applyBatchResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/applyItemResult"
+          },
+          "description": "One entry per requested item, in REQUEST ORDER. Never null and never shorter than the request: a batch that could not apply every item applied none, so there is no […]"
+        },
+        "keys": {
+          "type": "object",
+          "description": "Each create item's `key` mapped to the id it was bound to. It is the one fact the request cannot carry and every caller needs. It carries only the keys the request […]"
+        }
+      },
+      "required": ["keys", "items"]
+    },
+    "addCommentArguments": {
+      "description": "Arguments of addComment.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Who is signing the comment. CALLER-ASSERTED, and not the authenticated principal — see the operation description. Trimmed of surrounding space, then refused when the […]"
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The Issue the operation acts on."
+        },
+        "text": {
+          "type": "string",
+          "description": "The comment body, stored VERBATIM: newlines, surrounding space and unicode all survive, and nothing trims the value that lands in the row. NO LENGTH BOUND AND NO […]"
+        }
+      },
+      "required": ["issue", "author", "text"]
+    },
+    "removeDependencyArguments": {
+      "description": "Arguments of removeDependency.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "depends_on": {
+          "$ref": "#/$defs/locator",
+          "description": "The edge's TARGET — the issue depended upon. An exact canonical id, under `issue_id`'s rule."
+        },
+        "issue": {
+          "$ref": "#/$defs/locator",
+          "description": "The edge's SOURCE — the issue that depends on the other end. An EXACT canonical id: there is no fuzzy, prefix or substring resolution on this surface."
+        }
+      },
+      "required": ["issue", "depends_on"]
+    },
+    "removeDependencyResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "removed": {
+          "type": "boolean",
+          "description": "True when an edge was there and is now gone. FALSE IS A SUCCESS, not a refusal: it says this pair carried no such edge, which is the same graph a second removal […]"
+        }
+      },
+      "required": ["removed"]
+    },
+    "listSettingsArguments": {
+      "description": "Arguments of listSettings.",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "settingsPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "Always false in v0: the whole plane is returned in one page. It is present so that a later revision can page this collection without changing the response shape."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setting"
+          },
+          "description": "The stored settings, ordered by key. Empty array (never null) when the workspace stores none."
+        },
+        "next_cursor": {
+          "type": "string",
+          "description": "Present if and only if `has_more` is true, which is never in v0."
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "getSettingArguments": {
+      "description": "Arguments of getSetting.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key, used verbatim."
+        }
+      },
+      "required": ["key"]
+    },
+    "setSettingArguments": {
+      "description": "Arguments of setSetting.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key, used verbatim."
+        },
+        "value": {
+          "type": "string",
+          "description": "The value to store, VERBATIM. It is not trimmed and not character-filtered: two of the keys this plane holds carry structured configuration a filter would corrupt. IT […]"
+        }
+      },
+      "required": ["key", "value"]
+    },
+    "unsetSettingArguments": {
+      "description": "Arguments of unsetSetting.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key, used verbatim."
+        }
+      },
+      "required": ["key"]
+    },
+    "listMemoriesArguments": {
+      "description": "Arguments of listMemories.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "search": {
+          "type": "string",
+          "description": "Narrows the answer to memories that MATCH: a memory matches when the lowercase of its key, or the lowercase of its value, contains the lowercase of this term. Absent […]"
+        }
+      }
+    },
+    "memoriesPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "type": "boolean",
+          "description": "Always false in v0: the whole plane is returned in one page. It is present so that a later revision can page this collection without changing the response shape."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory"
+          },
+          "description": "The stored memories, ordered by key. Empty array (never null) when the workspace holds none, or when `q` matched none."
+        },
+        "next_cursor": {
+          "type": "string",
+          "description": "Present if and only if `has_more` is true, which is never in v0."
+        }
+      },
+      "required": ["items", "has_more"]
+    },
+    "getMemoryArguments": {
+      "description": "Arguments of getMemory.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key, used verbatim."
+        }
+      },
+      "required": ["key"]
+    },
+    "rememberMemoryArguments": {
+      "description": "Arguments of rememberMemory.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The memory itself, stored VERBATIM: newlines, surrounding space and unicode all survive. Flattening it to one line is what a front door does when it prints, not what […]"
+        },
+        "key": {
+          "type": "string",
+          "description": "The key to store under. OMIT IT to have the server derive one from `content`; the response's `key` is then how the caller learns where the memory landed. Supplied, it […]"
+        }
+      },
+      "required": ["content"]
+    },
+    "forgetMemoryArguments": {
+      "description": "Arguments of forgetMemory.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key, used verbatim."
+        }
+      },
+      "required": ["key"]
+    },
+    "listEventsArguments": {
+      "description": "Arguments of listEvents.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 1000,
+          "description": "Maximum number of records to return, from 1 to 10000. A value outside that range — `0` included — is a 400 `invalid_argument`. THERE IS NO UNLIMITED READ HERE, and […]"
+        },
+        "since": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Return records with `seq` strictly greater than this value. Pass `0` to read from the beginning of the retained journal. REQUIRED, and deliberately not defaulted to […]"
+        }
+      },
+      "required": ["since"]
+    },
+    "eventsPage": {
+      "description": "One page of the journal plus the position of its end. THERE IS NO `has_more`, and that is deliberate rather than an omission. Every other page on this surface reports truncation with a boolean because its ordering is a query's; here the […]",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "head": {
+          "type": "integer",
+          "description": "The highest `seq` this journal has ever assigned, read in the same transaction as the records above. It is the journal's HISTORY, not its contents: pruning deletes […]"
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eventRecord"
+          },
+          "description": "Records with `seq` strictly greater than the requested `since`, in ASCENDING `seq` order and contiguous — a gap in the retained window is a 410, never a quietly […]"
+        }
+      },
+      "required": ["records", "head"]
+    }
+  },
+  "x-bdp-schema-definitions": [
+    "addCommentArguments",
+    "addDependenciesArguments",
+    "addDependenciesResult",
+    "advanceMoleculeArguments",
+    "advanceMoleculeResult",
+    "applyBatchArguments",
+    "applyBatchResult",
+    "applyCloseItem",
+    "applyCreateItem",
+    "applyDepAddItem",
+    "applyItem",
+    "applyItemResult",
+    "applyPatch",
+    "applyRef",
+    "applyUpdateItem",
+    "batchCloseIssuesArguments",
+    "batchCloseItem",
+    "batchCloseResult",
+    "batchCreateDependency",
+    "batchCreateIssuesArguments",
+    "batchCreateItem",
+    "batchCreateResult",
+    "blockedIssueView",
+    "blockedPage",
+    "blocker",
+    "blockingAnnotation",
+    "blockingAnnotations",
+    "bondRef",
+    "claimIssueArguments",
+    "claimNextIssueArguments",
+    "claimNextResult",
+    "claimResult",
+    "closeIssueArguments",
+    "closeOutcome",
+    "closeResult",
+    "commentRecord",
+    "compareAndSetMetadataArguments",
+    "compareAndSetMetadataResult",
+    "countDependencyEdgesArguments",
+    "countIssuesArguments",
+    "countReadyWorkArguments",
+    "cycle",
+    "cycleMember",
+    "cyclesPage",
+    "deleteIssuesArguments",
+    "deleteResult",
+    "dependencyEdge",
+    "dependencyTreePage",
+    "edgeCount",
+    "edgeCounts",
+    "eventRecord",
+    "eventsPage",
+    "forgetMemoryArguments",
+    "gateRef",
+    "getDependencyTreeArguments",
+    "getIssueArguments",
+    "getMemoryArguments",
+    "getSettingArguments",
+    "getStatsArguments",
+    "heartbeatIssueArguments",
+    "heartbeatResult",
+    "instant",
+    "issueCount",
+    "issueDetails",
+    "issueObservations",
+    "issueUrl",
+    "issueView",
+    "issuesPage",
+    "labelPatch",
+    "listBlockedIssuesArguments",
+    "listBlockingAnnotationsArguments",
+    "listDependencyCyclesArguments",
+    "listEventsArguments",
+    "listIssuesArguments",
+    "listMemoriesArguments",
+    "listReadyWorkArguments",
+    "listRelatedIssuesArguments",
+    "listSettingsArguments",
+    "locator",
+    "memoriesPage",
+    "memory",
+    "metadataPatch",
+    "metadataValue",
+    "neighborView",
+    "queryIssuesArguments",
+    "queryPage",
+    "readyCount",
+    "readyPage",
+    "reclaimIssuesArguments",
+    "reclaimResult",
+    "reclaimedLease",
+    "relatedIssues",
+    "releaseIssueArguments",
+    "releaseResult",
+    "rememberMemoryArguments",
+    "rememberedMemory",
+    "removeDependencyArguments",
+    "removeDependencyResult",
+    "removedSetting",
+    "reopenIssueArguments",
+    "reopenResult",
+    "setSettingArguments",
+    "setting",
+    "settingsPage",
+    "statistics",
+    "statsResult",
+    "sweepIssuesArguments",
+    "sweepResult",
+    "sweepSkips",
+    "treeNode",
+    "typeUri",
+    "unsetSettingArguments"
+  ],
+  "x-bdp-schema-sources": {
+    "specs/types/issue/callables.md": [
+      "addCommentArguments",
+      "addDependenciesArguments",
+      "addDependenciesResult",
+      "advanceMoleculeArguments",
+      "advanceMoleculeResult",
+      "applyBatchArguments",
+      "applyBatchResult",
+      "applyCloseItem",
+      "applyCreateItem",
+      "applyDepAddItem",
+      "applyItem",
+      "applyItemResult",
+      "applyPatch",
+      "applyRef",
+      "applyUpdateItem",
+      "batchCloseIssuesArguments",
+      "batchCloseItem",
+      "batchCloseResult",
+      "batchCreateDependency",
+      "batchCreateIssuesArguments",
+      "batchCreateItem",
+      "batchCreateResult",
+      "blockedIssueView",
+      "blockedPage",
+      "blocker",
+      "blockingAnnotation",
+      "blockingAnnotations",
+      "bondRef",
+      "claimIssueArguments",
+      "claimNextIssueArguments",
+      "claimNextResult",
+      "claimResult",
+      "closeIssueArguments",
+      "closeOutcome",
+      "closeResult",
+      "commentRecord",
+      "compareAndSetMetadataArguments",
+      "compareAndSetMetadataResult",
+      "countDependencyEdgesArguments",
+      "countIssuesArguments",
+      "countReadyWorkArguments",
+      "cycle",
+      "cycleMember",
+      "cyclesPage",
+      "deleteIssuesArguments",
+      "deleteResult",
+      "dependencyEdge",
+      "dependencyTreePage",
+      "edgeCount",
+      "edgeCounts",
+      "eventRecord",
+      "eventsPage",
+      "forgetMemoryArguments",
+      "gateRef",
+      "getDependencyTreeArguments",
+      "getIssueArguments",
+      "getMemoryArguments",
+      "getSettingArguments",
+      "getStatsArguments",
+      "heartbeatIssueArguments",
+      "heartbeatResult",
+      "instant",
+      "issueCount",
+      "issueDetails",
+      "issueObservations",
+      "issueUrl",
+      "issueView",
+      "issuesPage",
+      "labelPatch",
+      "listBlockedIssuesArguments",
+      "listBlockingAnnotationsArguments",
+      "listDependencyCyclesArguments",
+      "listEventsArguments",
+      "listIssuesArguments",
+      "listMemoriesArguments",
+      "listReadyWorkArguments",
+      "listRelatedIssuesArguments",
+      "listSettingsArguments",
+      "locator",
+      "memoriesPage",
+      "memory",
+      "metadataPatch",
+      "metadataValue",
+      "neighborView",
+      "queryIssuesArguments",
+      "queryPage",
+      "readyCount",
+      "readyPage",
+      "reclaimIssuesArguments",
+      "reclaimResult",
+      "reclaimedLease",
+      "relatedIssues",
+      "releaseIssueArguments",
+      "releaseResult",
+      "rememberMemoryArguments",
+      "rememberedMemory",
+      "removeDependencyArguments",
+      "removeDependencyResult",
+      "removedSetting",
+      "reopenIssueArguments",
+      "reopenResult",
+      "setSettingArguments",
+      "setting",
+      "settingsPage",
+      "statistics",
+      "statsResult",
+      "sweepIssuesArguments",
+      "sweepResult",
+      "sweepSkips",
+      "treeNode",
+      "typeUri",
+      "unsetSettingArguments"
+    ]
+  }
+}

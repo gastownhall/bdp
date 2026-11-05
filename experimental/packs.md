@@ -19,7 +19,7 @@ This is a standalone Specification draft following the pinned [Memory authoring 
 
 ## Scope and dependency direction
 
-Packages group definitions, declare explicit imports, retain an exact member/dependency closure and provide installed CLI command trees. This Specification depends on [Callables](callables.md) and [Types](../specs/types/type-system/type-system.md). Callables can be defined and invoked without a Package; their Specification has no dependency on this one.
+Packages group definitions, declare explicit imports, retain an exact member/dependency closure and provide installed CLI command trees. This Specification depends on [Callables](../specs/profiles/callables/callables.md) and [Types](../specs/types/type-system/type-system.md). Callables can be defined and invoked without a Package; their Specification has no dependency on this one.
 
 | Specification | Owns |
 | --- | --- |
@@ -320,7 +320,7 @@ Start with a durable installation query and explicit service availability report
 
 ## Current design sequence
 
-The active design pass is Packages: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
+The active design pass is Packages: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](../specs/history/callables-draft-20261030/callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
 
 ## Installed CLI surface
 
@@ -466,7 +466,7 @@ These rows are authoring locators for candidate dependency Links. They do not as
 
 | Title | Target | Status | Body |
 | --- | --- | --- | --- |
-| Callables | [Callable Beads](callables.md) | draft | Defines the named operation, argument projection and invocation contract reused by Package command paths. |
+| Callables | [Callable Beads](../specs/profiles/callables/callables.md) | draft | Defines the named operation, argument projection and invocation contract reused by Package command paths. |
 | Types | [Type system](../specs/types/type-system/type-system.md) | — | Governs package and callable Type descriptors, References/refinement and schema resources. |
 | Effective Type validation | [Types profile](../specs/profiles/types/types.md) | — | Governs interpretation/admission of actual Type definitions rather than inventing package-local Type semantics. |
 | Existing aliases and namespace | [Core](../specs/profiles/core/core.md) | — | Existing locator/namespace limits; does not already supply package alias enumeration or invocation forwarding. |
