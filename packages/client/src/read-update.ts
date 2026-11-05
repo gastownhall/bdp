@@ -676,6 +676,9 @@ export class BdpReadUpdateClient {
         rel.value.trim() !== rel.value
       )
         continue;
+      // A Scope may also link an OpenAPI description, which is never discovery.
+      const type = entry.parameters.find((p) => p.name === "type");
+      if (type?.value.toLowerCase().includes("openapi")) continue;
       const anchor = entry.parameters.find((p) => p.name === "anchor");
       if (anchor) {
         // An anchored link describes that context, not this Scope request.

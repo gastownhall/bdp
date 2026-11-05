@@ -442,11 +442,17 @@ function serviceDescriptionTarget(header: string): string | undefined {
       relation !== undefined &&
       linkRelationTokens(relation.value, relation.quoted).some(
         (candidate) => candidate.toLowerCase() === "service-desc",
-      )
+      ) &&
+      offersBdpDiscovery(value.parameters.find((parameter) => parameter.name === "type")?.value)
     )
       return value.target;
   }
   return undefined;
+}
+
+// A Scope may also link an OpenAPI description, which is never discovery.
+function offersBdpDiscovery(type: string | undefined): boolean {
+  return !type?.toLowerCase().includes("openapi");
 }
 
 function linkRelationTokens(value: string, quoted: boolean): readonly string[] {
