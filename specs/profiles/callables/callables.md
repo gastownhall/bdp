@@ -58,17 +58,15 @@ the reverse.
 
 ## 1. Discover and select Callables1
 
-> **Open for Donna.** This section depends on Write's retained-recovery
-> capability, which is proposed and not yet in Write. Whether a Core-only Scope
-> may list a CallableBatch is also open; the proposal is that a CallableBatch
-> requires Write and a Core-only Scope lists queries only.
+> **Status.** The `idempotency` capability this document names is ruled and its
+> text is still to land in Write.
 
 | Item | Selected value |
 | --- | --- |
 | Capability identity | `https://github.com/gastownhall/bdp/capabilities/callables` |
 | Exact supported version | JSON member name `"1"` |
 | Version-1 detail | Closed object `{"directory": ABSOLUTE_HTTP_URL}` (`callablesCapabilityV1`) |
-| Base contract | BDP `"0.1"`; Core required; Write required for Write's own guarantees on a CallableBatch's effects |
+| Base contract | BDP `"0.1"`; Core required; Write required for a CallableBatch |
 | Media | `application/vnd.bdp.v0.1+json` for bodies and successful results; `application/problem+json` for problems |
 | Feature schema | `https://github.com/gastownhall/bdp/schemas/callables-v1.schema.json` |
 
@@ -76,12 +74,10 @@ A Scope advertises the capability under Core's `capabilities` map. The
 version-1 detail carries the one navigation member, `directory`, an absolute
 HTTP(S) URL served for this Scope. There is no `callables` profile literal, no
 new required discovery member and no change to Write's closed operation
-directory. A Core-only Scope MAY advertise Callables1 and list both kinds. A
-CallableBatch under a Scope that does not advertise Write commits its
-implementation's effects under the retry semantics its definition states; under
-a Scope that advertises Write, Write's allocation, non-reuse and attribution
-rules govern those effects; and under a Scope that advertises retained recovery
-(Write's optional capability), the `Idempotency-Key` is required and replayed
+directory. A Core-only Scope MAY advertise Callables1 and list CallableQuery
+entries. A CallableBatch entry requires Write, whose allocation, non-reuse and
+attribution rules govern its effects; under a Scope that also advertises Write's
+optional `idempotency` capability, the `Idempotency-Key` is required and replayed
 as §4 states. (**preview**)
 
 Advertisement states support, not authorization. A client that does not
@@ -142,8 +138,8 @@ Other fields: allowed
 implementation observes and does not mutate, and invocation changes no Resource,
 alias or retained state. `callable-batch` is a mutating operation: its
 implementation commits its effects as one atomic outcome, with Write's
-allocation, non-reuse and attribution rules when Write is advertised, and with
-the retry semantics the definition states (§4).
+allocation, non-reuse and attribution rules, and with the retry semantics the
+definition states (§4).
 
 **Conforms to.** `callable`, through one exact Refines declaration each.
 Concrete: `abstract` is absent.
@@ -341,14 +337,13 @@ not invocation members. Unknown members, duplicate JSON members and invalid
 strings are refused as `malformed-request`. `Content-Type` declares the base
 media type; a missing or generic `application/json` body is refused with 415
 `unsupported-media-type` before interpretation, as Write requires for mutations
-and as this profile requires for both kinds. When the Scope advertises retained
-recovery, a CallableBatch invocation carries exactly one `Idempotency-Key` HTTP
+and as this profile requires for both kinds. When the Scope advertises `idempotency`, a CallableBatch invocation carries exactly one `Idempotency-Key` HTTP
 field under Write's idempotency rules and a replay returns the original result.
 When it does not, the field is admitted and not retained: a repeated invocation
 follows the retry semantics the definition states (a re-claim by the holder is
 idempotent, a second removal is `removed: false`, a re-close reports
 `already_closed`), and a client that needs at-most-once execution uses a
-revision guard, supplies identities, or chooses a Scope with retained recovery.
+revision guard, supplies identities, or chooses a Scope with `idempotency`.
 A CallableQuery invocation carries no key and is refused as `malformed-request`
 if it does. (**preview**)
 
@@ -393,8 +388,8 @@ duplicate names, Unicode scalar values.
 A CallableQuery executes within one read context under the request's
 Authorization View and returns its result. A CallableBatch executes under
 Write's atomic owner: all of its effects commit or none, allocation and
-non-reuse follow Write where Write is advertised, and the retained key state
-records the outcome where retained recovery is advertised.
+non-reuse follow Write, and the retained key state records the outcome where
+`idempotency` is advertised.
 
 Success returns the closed `callableResult`, for example:
 
@@ -415,8 +410,7 @@ The provider validates `result` against the declared schema before returning
 it. A CallableBatch whose implementation produced a result that fails the schema
 or exceeds the advertised representation bound is rolled back and refused, as
 `validation-failed` or `limit-exceeded`; the profile never commits and then
-truncates or reports an unknown success. (**preview**) Under retained
-recovery, a replay of a CallableBatch key returns the original `callableResult`
+truncates or reports an unknown success. (**preview**) Under `idempotency`, a replay of a CallableBatch key returns the original `callableResult`
 under Write's rules, without re-executing and without re-resolving defaults,
 definitions or implementations.
 
@@ -510,7 +504,7 @@ The client reads the directory, follows the entry's `definition`, and projects
 input supplies the whole object when no mapping fits; `--help` after `NAME`
 prints `description` and the parameters without invoking. A CallableBatch
 invocation mints the `Idempotency-Key` as the client does for Write's
-operations when the Scope advertises retained recovery. The client never infers
+operations when the Scope advertises `idempotency`. The client never infers
 an invocation from a Bead URL and never invokes a name absent from the
 directory. The CLI design document gains a `call` section and a mismatch row,
 `CLI-09`, open until that section lands.
@@ -526,7 +520,7 @@ directory. The CLI design document gains a `call` section and a mismatch row,
 | CB-5 | A missing required parameter is refused as `validation-failed`; an omitted defaulted parameter is executed with its default |
 | CB-6 | `POST` to a mount with no directory entry is `callable-not-found` |
 | CB-7 | A `definition` guard naming another revision is `callable-revision-mismatch` |
-| CB-8 | Under retained recovery, a CallableBatch `POST` without `Idempotency-Key` is refused and a replay with the same key returns the original `callableResult` and commits nothing further; without it, a repeated invocation follows the definition's stated retry semantics |
+| CB-8 | Under `idempotency`, a CallableBatch `POST` without `Idempotency-Key` is refused and a replay with the same key returns the original `callableResult` and commits nothing further; without it, a repeated invocation follows the definition's stated retry semantics |
 | CB-9 | A CallableQuery invocation leaves every Resource revision in the Scope unchanged |
 | CB-10 | An entry whose binding is withdrawn by the provider answers `binding-unavailable` |
 | CB-11 | A CallableBatch result that fails the declared `result` schema is rolled back and refused |
@@ -549,6 +543,9 @@ Not selected in preview-1, carried from the experimental draft:
 - Registration, mount lifecycle, catalog mutation and packaging
   (`experimental/packs.md`), including installed command trees and shortcuts.
 - A family vocabulary for common domain refusals now carried by `callable-refused`.
+- A service that exposes CallableBatch commands without Write's raw generic verbs,
+  a common pattern this edition does not yet allow. It is to be anticipated when
+  the requirement that a CallableBatch needs Write is revisited.
 
 ## 13. Schemas
 
@@ -835,11 +832,11 @@ the generator.
 | problem | `"callableProblem"` |
 | codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","revision-mismatch","identity-taken","incident-links-exist","idempotency-conflict","idempotency-in-progress","idempotency-expired","callable-not-found","callable-revision-mismatch","binding-unavailable","callable-refused"]` |
 | continuation | `"none"` |
-| optional | `"Callables1 capability; Write profile for Write's guarantees on a CallableBatch"` |
+| optional | `"Callables1 capability; Write profile for a CallableBatch"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |
-| `Idempotency-Key` | header | no | `{"type":"string","minLength":1}` | Required on a CallableBatch invocation when the Scope advertises retained recovery; admitted and not retained otherwise; refused on a CallableQuery. | — |
+| `Idempotency-Key` | header | no | `{"type":"string","minLength":1}` | Required on a CallableBatch invocation when the Scope advertises `idempotency`; admitted and not retained otherwise; refused on a CallableQuery. | — |
 <!-- bdp-operation:end callableInvoke -->
 
 <!-- bdp-composition:start callables1 -->
@@ -853,7 +850,7 @@ the generator.
 | version | `"1"` |
 | operations | `["callableDirectory","callableInvoke"]` |
 | responseSchemas | `{"callableDirectory":"callableDirectory","callableInvoke":"callableResult"}` |
-| selection | `"The directory URL in the capability detail and the mount URLs in the directory are the selection; no media subtype or discovery profile literal is added. Admission, atomic execution, result validation and retained recovery remain normative prose obligations."` |
+| selection | `"The directory URL in the capability detail and the mount URLs in the directory are the selection; no media subtype or discovery profile literal is added. Admission, atomic execution, result validation and `idempotency` remain normative prose obligations."` |
 <!-- bdp-composition:end callables1 -->
 
 ## 15. Obsolescence

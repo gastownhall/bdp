@@ -122,3 +122,15 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 **Design deferred.** [Issue §11](types/issue/issue.md#11-carried-open-items) indexes the carried items: policy-dependent status meaning, operational observations, codified metadata, ownership, pinned endpoints, Link recovery, properties replacement, comments as Beads and custom classification lifecycle.
 
 **Owner / revisit:** Types and Issue package owners with Donna, after the preview. The October draft is [issue-draft-20261014](history/issue-draft-20261014/issue.md).
+
+### CALL-COMMANDS — Commands without raw generic writes
+
+**Design anticipated.** Preview-1 requires Write for a CallableBatch. Donna expects many services will want to expose commands without raw generic writes, and that is a common pattern, so the design should allow for it when a need appears. [Callables §12](profiles/callables/callables.md#12-deferred) carries it.
+
+**Owner / revisit:** Callables and Write owners with Donna, when a service asks for it or at the next Callables edition.
+
+### LINK-RECOVERY — Historical update and recovery for Links
+
+**Design open.** Donna ruled on 2026-11-05 that `--from-revision` should work on both `bd update` and `bd link update`, and that the current Bead-only text is a specification bug. [Issue 363](https://github.com/gastownhall/bdp/issues/363) lists what the extension has to settle. It is not a preview dependency.
+
+**Owner / revisit:** Write owner with Donna, after the preview.
