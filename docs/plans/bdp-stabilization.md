@@ -26,6 +26,28 @@ and Package decisions open; provider batch1 does not imply a complete batch CLI
 or richer batch2 support. External council attempts produced no verdict and are
 not recorded as completed council review.
 
+## Work order 0: the ten-day preview
+
+Since November 4, 2026 this work comes first, ahead of the sequence below, which
+is unchanged but waits. The goal is a friends-and-family private preview of OSS
+beads' current HTTP functionality over BDP, targeted for November 13, 2026. The
+OSS beads implementers build the endpoint against a pinned specification; this
+repository delivers the specification, the conformance kit and the reference
+client and service.
+
+| Step | Target | Content | Status |
+| --- | --- | --- | --- |
+| P0 | Nov 5 | Core and Write at [`d9b2dae`](https://github.com/gastownhall/bdp/commit/d9b2daee87a7e686425de83ad2599462b95aacb4), no tag, with Write's optional aliases and `idempotency` capability announced ahead of their text | Ruled by Donna; not yet sent |
+| P1 | Nov 9 | P0 plus the Issue and Dependency package, the Callables profile, the amended Write, the preview manifest and the handoff document, under one tag | Proposed |
+| P2 | Nov 12 | One re-pin, only for fixes found by implementing | Proposed |
+
+The dates after P0 and the tag are Donna's to confirm. Specification work past the
+pin continues on main unpinned; a specification edit never moves a consumer's pin.
+The next round may break the protocol. For this sprint only, an endpoint may
+advertise with documented exceptions, recorded per conformance row in the handoff
+and the conformance report; an excepted row is never reported as passed, and the
+reference service takes no exceptions.
+
 ## Work order and gates
 
 1. **Land historical-source editing urgently.** Finish the coordinated
