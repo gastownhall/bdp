@@ -90,7 +90,9 @@ export async function observeCanonicalReference(installRoot, temporaryRoot) {
     assert.equal(Object.hasOwn(discovery, "beads"), false);
     assert.equal(Object.hasOwn(discovery, "links"), false);
     assert.equal(discovery.events, undefined);
-    assert.equal(discovery.capabilities, undefined);
+    assert.deepEqual(discovery.capabilities, {
+      "https://github.com/gastownhall/bdp/capabilities/idempotency": { 1: {} },
+    });
     const binding = success(await sdk.bindWrite(scope)).value;
     const createA = binding.prepare(
       "createBead",
