@@ -388,6 +388,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/bd-domain/src/issue-callables.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
       "path": "packages/bd-domain/src/ready-output.test.ts",
       "runner": "vitest",
       "lane": "legacy",
@@ -1442,6 +1448,12 @@
       "runner": "vitest",
       "lane": "legacy",
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/generate-callable-catalog.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline artifact/generator controls; no provider qualification."
     },
     {
       "path": "scripts/markdown-contracts.node-test.mjs",

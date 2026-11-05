@@ -5,6 +5,17 @@ import {
   HistorySession,
 } from "./history-session.js";
 
+export {
+  CALLABLE_BATCH_TYPE,
+  CALLABLE_QUERY_TYPE,
+  type CallableCatalog,
+  type CallableCliMapping,
+  type CallableDeclaration,
+  type CallableParameter,
+  type CallableValueSchema,
+  createStaticCallableCatalog,
+} from "./callable.js";
+
 export type { HistoryRequest, HistoryResultFor } from "./history-session.js";
 export {
   type PreparedRetainedWrite,

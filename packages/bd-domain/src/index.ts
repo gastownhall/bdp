@@ -24,6 +24,7 @@ interface ReadinessTraversalBudget {
   remainingRequests: number;
 }
 
+export { issueCallableCatalog } from "./issue-callables.js";
 export {
   ReadyOutputCompatibilityError,
   renderReadyJson,
