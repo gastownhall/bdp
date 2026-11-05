@@ -10,7 +10,6 @@ import {
   parseReadUpdateAliasResult,
   parseReadUpdateDiscovery,
   parseReadUpdateMutationResult,
-  RETAINED_V01_MEDIA_TYPE,
   parseReadUpdateOperationDirectory,
   parseReadUpdateProblem,
   parseReadUpdateSequenceResponse,
@@ -677,10 +676,9 @@ export class BdpReadUpdateClient {
         rel.value.trim() !== rel.value
       )
         continue;
-      // A Scope may also link an OpenAPI description; only an untyped or BDP-typed Link is discovery.
+      // A Scope may also link an OpenAPI description, which is never discovery.
       const type = entry.parameters.find((p) => p.name === "type");
-      if (type && type.value.split(";")[0]?.trim().toLowerCase() !== RETAINED_V01_MEDIA_TYPE)
-        continue;
+      if (type?.value.toLowerCase().includes("openapi")) continue;
       const anchor = entry.parameters.find((p) => p.name === "anchor");
       if (anchor) {
         // An anchored link describes that context, not this Scope request.

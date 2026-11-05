@@ -260,7 +260,7 @@
     "status": "draft authoring/tooling metadata, not a wire capability",
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
-      "specs/profiles/core/core.md": "f3ffbdec07f98c456d56069cdd092f7340db4b6e3b22236d4760c0df44055c67",
+      "specs/profiles/core/core.md": "73a78131eb83975ca9a4fc9f7b4cf683cf2eaec71378ac87113185333429ccf3",
       "specs/profiles/write/write.md": "c0f2ab682b8176489fca3b7f789c46769588586a661bbd01479318f8d49783ee",
       "specs/profiles/events/events.md": "f93ec035ab3ffed107d0cad1e6080bd7fb81b62153b3bf087304a106e31724d6",
       "specs/profiles/types/types.md": "f9edcc0236d83a29b21620f1b7d22f2469cf35afa0521e04b3b2134d3dc333ef",

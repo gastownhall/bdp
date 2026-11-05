@@ -560,8 +560,8 @@ link discovery and advertised `service-doc` documentation. Clients do not scrape
 A Scope MAY serve an OpenAPI description of its surface at the fixed route
 `<scope>/bdp/openapi`. When it does, the Scope URL also carries a `service-desc` Link
 to that route with `type="application/openapi+json"`, so tools that know nothing of
-BDP can find it. Both Links then carry `type`, and a client selects discovery by its
-BDP media type; a client treats an untyped `service-desc` Link as discovery.
+BDP can find it. A client treats a `service-desc` Link as discovery unless its `type`
+says it is OpenAPI.
 
 A minimal discovery document is:
 
