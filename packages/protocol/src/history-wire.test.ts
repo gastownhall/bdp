@@ -40,8 +40,8 @@ function example(id: string): RecordValue {
   if (!found) throw new Error(`Missing independent illustration ${id}`);
   return structuredClone(found.body);
 }
-const subject = "https://work.example/scope/beads/decision";
-const link = "https://work.example/scope/links/citation";
+const subject = "https://work.example/scope/decision";
+const link = "https://work.example/scope/citation";
 
 // These are structural, parser and protocol-table checks, not observed History behavior.
 describe("History wire illustrations", () => {
@@ -193,7 +193,7 @@ describe("Historical records and pages", () => {
     const input = example("exact-bead");
     const record = parseHistoricalBeadRecord(input, { id: subject, revision: "r /?&雪" });
     expect(record.ownedLinks?.["https://work.example/types/cites"]?.[0]?.target).toEqual({
-      uri: "https://work.example/scope/beads/target",
+      uri: "https://work.example/scope/target",
       revision: "target%2Fold",
     });
     expect(record.ownedLinks?.["https://work.example/types/cites"]?.[0]?.properties).toEqual({
@@ -264,7 +264,7 @@ describe("Historical records and pages", () => {
     expect(() =>
       parseHistoryVersionsPage({
         ...original,
-        next: "https://foreign.example/beads/x?view=versions&cursor=p2",
+        next: "https://foreign.example/x?view=versions&cursor=p2",
       }),
     ).toThrow(ProtocolArtifactValidationError);
     // Empty visible rows do not imply a non-advancing snapshot cursor.

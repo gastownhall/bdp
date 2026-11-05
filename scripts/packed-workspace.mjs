@@ -559,7 +559,7 @@ async function installPackedWorkspace(signal) {
         authorizationView: "v",
         scopeEpoch: "e",
         projection: "p",
-        continuationUrl: "https://example.test/s/beads/",
+        continuationUrl: "https://example.test/s/bdp/beads",
       };
       Object.defineProperty(input, "sourceContext", {
         enumerable: true,

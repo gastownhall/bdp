@@ -199,7 +199,7 @@ describe("private atomic transaction owner", () => {
     const invalid = {
       operations: [
         batch.operations[0],
-        { operation: "createLink", type: link, source: "@a", target: "beads/missing" },
+        { operation: "createLink", type: link, source: "@a", target: "missing" },
       ],
     };
     const receipt = f.store.execute(admit(f.store, invalid));
@@ -267,16 +267,16 @@ describe("private atomic transaction owner", () => {
     const explicit = (id: string) => ({
       operations: [
         { operation: "createBead", name: "x", type: bead, id },
-        { operation: "createLink", type: link, source: "@x", target: `${scope}beads/explicit` },
+        { operation: "createLink", type: link, source: "@x", target: `${scope}explicit` },
       ],
     });
-    const direct = explicit("beads/explicit");
+    const direct = explicit("explicit");
     const directSecond = direct.operations[1];
     if (!directSecond) throw new Error("missing second operation");
-    directSecond.source = "beads/explicit";
+    directSecond.source = "explicit";
     expect(
       normalizeTransaction(
-        prepareTransaction(scope, JSON.stringify(explicit(`${scope}beads/explicit`))),
+        prepareTransaction(scope, JSON.stringify(explicit(`${scope}explicit`))),
         () => undefined,
       ).identity,
     ).toBe(
@@ -288,11 +288,11 @@ describe("private atomic transaction owner", () => {
     const f = fixture();
     for (const body of [
       { operations: [] },
-      { operations: [{ operation: "putAlias", alias: "alias/a", target: "beads/a" }] },
+      { operations: [{ operation: "putAlias", alias: "alias/a", target: "a" }] },
       { operations: [{ ...batch.operations[0], idempotencyKey: "bad" }] },
       {
         operations: [
-          { operation: "createLink", type: link, source: "@later", target: "beads/a" },
+          { operation: "createLink", type: link, source: "@later", target: "a" },
           batch.operations[0],
         ],
       },
@@ -819,11 +819,11 @@ describe("private atomic transaction owner", () => {
     const f = fixture({ clock: () => now });
     const operations = [
       batch.operations[0],
-      { operation: "createLink", type: link, source: "@a", target: "beads/later" },
+      { operation: "createLink", type: link, source: "@a", target: "later" },
     ];
     const failed = execute(f.store, operations, "failed-key");
     expect(failed.status).toBe("failed");
-    execute(f.store, [{ operation: "createBead", type: bead, id: "beads/later" }], "make-target");
+    execute(f.store, [{ operation: "createBead", type: bead, id: "later" }], "make-target");
     now = Date.parse(String(failed.expiresAt));
     expect(
       f.store.admit(
@@ -898,7 +898,7 @@ describe("private atomic transaction owner", () => {
       },
     });
     const completed = execute(f.store, batch.operations, "completed"),
-      failed = execute(f.store, [{ operation: "deleteBead", bead: "beads/missing" }], "failed");
+      failed = execute(f.store, [{ operation: "deleteBead", bead: "missing" }], "failed");
     const pending = admit(f.store, batch, "pending"),
       initial = f.store.inspect();
     now = Date.parse(String(completed.expiresAt)) + 1;
@@ -945,10 +945,10 @@ describe("private atomic transaction owner", () => {
           );
         const relative = (id: string) => id.slice(scope.length);
         const bodies: Record<typeof operation, Record<string, unknown>> = {
-          createBead: { type: bead, id: "beads/new", properties: { n: 1 } },
+          createBead: { type: bead, id: "new", properties: { n: 1 } },
           createLink: {
             type: link,
-            id: "links/new",
+            id: "new",
             source: relative(beadRecord.id),
             target: relative(beadRecord.id),
           },
@@ -1175,7 +1175,7 @@ describe("private atomic transaction owner", () => {
     const admitted = f.store.admit("principal", "expires", singleton);
     if (admitted.kind !== "owned") throw new Error("expected owner");
     const original = f.store.execute(admitted.claim);
-    const failedInput = { operation: "deleteBead", bead: "beads/missing" };
+    const failedInput = { operation: "deleteBead", bead: "missing" };
     const failed = execute(f.store, [failedInput], "failed-cross");
     now = Date.parse(String(original.expiresAt)) + 1;
     const equivalent = prepareTransaction(
@@ -1194,7 +1194,7 @@ describe("private atomic transaction owner", () => {
     const fresh = f.store.admit(
       "principal",
       "failed-cross",
-      prepareTransactionSingleton(scope, "deleteBead", JSON.stringify({ bead: "beads/missing" })),
+      prepareTransactionSingleton(scope, "deleteBead", JSON.stringify({ bead: "missing" })),
     );
     expect(fresh.kind).toBe("owned");
     if (fresh.kind !== "owned") throw new Error("expected fresh failed key");
@@ -1216,14 +1216,14 @@ describe("private atomic transaction owner", () => {
       prepareTransactionSingleton(
         scope,
         "createLink",
-        JSON.stringify({ type: link, source: "@x", target: "beads/a" }),
+        JSON.stringify({ type: link, source: "@x", target: "a" }),
       ),
     ).toThrow();
     expect(() =>
       prepareTransactionSingleton(
         scope,
         "setBead" as never,
-        JSON.stringify({ alias: "alias/a", target: "beads/a" }),
+        JSON.stringify({ alias: "alias/a", target: "a" }),
       ),
     ).toThrow("unsupported");
     expect(f.store.inspect().groups).toEqual([]);
@@ -1273,16 +1273,16 @@ describe("private atomic transaction owner", () => {
     execute(
       f.store,
       [
-        { operation: "createBead", type: bead, id: "beads/a" },
-        { operation: "createBead", type: bead, id: "beads/b" },
+        { operation: "createBead", type: bead, id: "a" },
+        { operation: "createBead", type: bead, id: "b" },
       ],
       "seed-alias",
     );
     const before = f.store.inspect();
     for (const [key, operation, input, outcome] of [
-      ["put", "putAlias", { alias: "alias/work", target: "beads/a" }, "created"],
-      ["same", "putAlias", { alias: "alias/work", target: "beads/a" }, "updated"],
-      ["repoint", "putAlias", { alias: "alias/work", target: "beads/b" }, "updated"],
+      ["put", "putAlias", { alias: "alias/work", target: "a" }, "created"],
+      ["same", "putAlias", { alias: "alias/work", target: "a" }, "updated"],
+      ["repoint", "putAlias", { alias: "alias/work", target: "b" }, "updated"],
       ["delete", "deleteAlias", { alias: "alias/work" }, "deleted"],
     ] as const) {
       const receipt = aliasExecute(f.store, operation, input, key);
@@ -1307,32 +1307,27 @@ describe("private atomic transaction owner", () => {
     execute(
       f.store,
       [
-        { operation: "createBead", type: bead, id: "beads/a" },
-        { operation: "createBead", type: bead, id: "beads/b" },
+        { operation: "createBead", type: bead, id: "a" },
+        { operation: "createBead", type: bead, id: "b" },
       ],
       "seed-alias",
     );
-    const original = aliasExecute(
-      f.store,
-      "putAlias",
-      { alias: "alias/work", target: "beads/a" },
-      "put",
-    );
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    const original = aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "b" }, "repoint");
     const canonical = aliasRequest("putAlias", {
       alias: `${scope}alias/work`,
-      target: `${scope}beads/a`,
+      target: `${scope}a`,
     });
     expect(f.store.admit("principal", "put", canonical)).toEqual({
       kind: "existing",
       receipt: original,
     });
-    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/b`);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}b`);
     expect(
       f.store.admit(
         "principal",
         "put",
-        aliasRequest("putAlias", { alias: "alias/work", target: "beads/b" }),
+        aliasRequest("putAlias", { alias: "alias/work", target: "b" }),
       ),
     ).toEqual({ kind: "conflict" });
     expect(
@@ -1343,7 +1338,7 @@ describe("private atomic transaction owner", () => {
       ),
     ).toEqual({ kind: "conflict" });
     const deleted = aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "recreate");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "recreate");
     expect(
       f.reopen().admit("principal", "delete", aliasRequest("deleteAlias", { alias: "alias/work" })),
     ).toEqual({ kind: "existing", receipt: deleted });
@@ -1351,13 +1346,13 @@ describe("private atomic transaction owner", () => {
       kind: "existing",
       receipt: original,
     });
-    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/a`);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}a`);
     expect(f.store.receipt("other", original.id)).toBeUndefined();
   });
   it("joins alias pending work, retracts its owner and fences stale execution", () => {
     const f = fixture();
-    execute(f.store, [{ operation: "createBead", type: bead, id: "beads/a" }], "seed-alias");
-    const request = aliasRequest("putAlias", { alias: "alias/work", target: "beads/a" });
+    execute(f.store, [{ operation: "createBead", type: bead, id: "a" }], "seed-alias");
+    const request = aliasRequest("putAlias", { alias: "alias/work", target: "a" });
     const first = f.store.admit("principal", "alias", request);
     if (first.kind !== "owned") throw new Error("expected owner");
     expect(f.store.admit("principal", "alias", request)).toEqual({
@@ -1370,19 +1365,14 @@ describe("private atomic transaction owner", () => {
     if (next.kind !== "owned") throw new Error("expected replacement owner");
     expect(() => f.store.execute(first.claim)).toThrow("fenced");
     expect(f.store.execute(next.claim).status).toBe("completed");
-    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/a`);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}a`);
     expect(f.store.inspect().groups).toHaveLength(1);
   });
   it("compacts alias creations/deletions with no allocations and never reexecutes their expired keys", () => {
     let now = 1000;
     const f = fixture({ clock: () => now });
-    execute(f.store, [{ operation: "createBead", type: bead, id: "beads/a" }], "seed-alias");
-    const created = aliasExecute(
-      f.store,
-      "putAlias",
-      { alias: "alias/work", target: "beads/a" },
-      "put",
-    );
+    execute(f.store, [{ operation: "createBead", type: bead, id: "a" }], "seed-alias");
+    const created = aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const deleted = aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
     const failed = aliasExecute(f.store, "deleteAlias", { alias: "alias/missing" }, "failed");
     now = Date.parse(String(created.expiresAt));
@@ -1406,11 +1396,7 @@ describe("private atomic transaction owner", () => {
     expect(f.store.receipt("principal", failed.id)).toBeUndefined();
     const replay = f
       .reopen()
-      .admit(
-        "principal",
-        "put",
-        aliasRequest("putAlias", { alias: "alias/work", target: "beads/a" }),
-      );
+      .admit("principal", "put", aliasRequest("putAlias", { alias: "alias/work", target: "a" }));
     expect(replay).toMatchObject({
       kind: "existing",
       receipt: { id: created.id, detail: "expired", allocated: [] },
@@ -1421,14 +1407,14 @@ describe("private atomic transaction owner", () => {
         .kind,
     ).toBe("owned");
   });
-  it("enforces Bead/alias uniqueness across deletion and allows Link identities with the same suffix", () => {
+  it("allows Resources and aliases to share a suffix while retaining identity tombstones", () => {
     const f = fixture();
     execute(
       f.store,
       [
-        { operation: "createBead", type: bead, id: "beads/a" },
-        { operation: "createBead", type: bead, id: "beads/reserved" },
-        { operation: "deleteBead", bead: "beads/reserved" },
+        { operation: "createBead", type: bead, id: "a" },
+        { operation: "createBead", type: bead, id: "reserved" },
+        { operation: "deleteBead", bead: "reserved" },
       ],
       "seed-alias",
     );
@@ -1436,31 +1422,31 @@ describe("private atomic transaction owner", () => {
       const receipt = aliasExecute(
         f.store,
         "putAlias",
-        { alias: `alias/${suffix}`, target: "links/invalid" },
+        { alias: `alias/${suffix}`, target: "invalid" },
         `blocked-${suffix}`,
       );
       expect(receipt).toMatchObject({
         status: "failed",
-        problem: { code: "identity-taken", operationIndex: 0 },
+        problem: { code: "resource-not-found", operationIndex: 0 },
       });
     }
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const blocked = execute(
       f.store,
-      [{ operation: "createBead", id: "beads/work", type: bead }],
+      [{ operation: "createBead", id: "work", type: bead }],
       "blocked-bead",
     );
-    expect(blocked).toMatchObject({ status: "failed", problem: { code: "alias-path-taken" } });
+    expect(blocked.status).toBe("completed");
     expect(
       execute(
         f.store,
         [
           {
             operation: "createLink",
-            id: "links/work",
+            id: "link-work",
             type: link,
-            source: "beads/a",
-            target: "beads/a",
+            source: "a",
+            target: "a",
           },
         ],
         "link",
@@ -1468,26 +1454,23 @@ describe("private atomic transaction owner", () => {
     ).toBe("completed");
     aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
     expect(
-      execute(f.store, [{ operation: "createBead", id: "beads/work", type: bead }], "released-bead")
-        .status,
-    ).toBe("completed");
+      execute(f.store, [{ operation: "createBead", id: "work", type: bead }], "released-bead"),
+    ).toMatchObject({ status: "failed", problem: { code: "identity-taken" } });
   });
   it("retains alias target failures without effects and still refuses aliases in atomic batches", () => {
     const f = fixture();
-    for (const target of [
-      "alias/other",
-      "links/other",
-      "https://external.test/beads/x",
-      "beads/missing",
-    ]) {
+    for (const target of ["alias/other", "other", "https://external.test/x", "missing"]) {
       const input = { alias: "alias/work", target };
-      const key = `bad-${["alias/other", "links/other", "https://external.test/beads/x", "beads/missing"].indexOf(target)}`;
+      const key = `bad-${["alias/other", "other", "https://external.test/x", "missing"].indexOf(target)}`;
       const receipt = aliasExecute(f.store, "putAlias", input, key);
       expect(receipt).toMatchObject({
         status: "failed",
         requiredPosition: "pos-0",
         problem: {
-          code: target === "beads/missing" ? "resource-not-found" : "validation-failed",
+          code:
+            target === "alias/other" || target.startsWith("https://")
+              ? "validation-failed"
+              : "resource-not-found",
           operationIndex: 0,
         },
       });
@@ -1506,7 +1489,7 @@ describe("private atomic transaction owner", () => {
               {
                 operation,
                 alias: "alias/work",
-                ...(operation === "putAlias" ? { target: "beads/a" } : {}),
+                ...(operation === "putAlias" ? { target: "a" } : {}),
               },
             ],
           }),
@@ -1522,8 +1505,8 @@ describe("private atomic transaction owner", () => {
           if (inject && at === stage) throw new Error("alias fault");
         },
       });
-      execute(f.store, [{ operation: "createBead", id: "beads/a", type: bead }], "seed-alias");
-      const request = aliasRequest("putAlias", { alias: "alias/work", target: "beads/a" });
+      execute(f.store, [{ operation: "createBead", id: "a", type: bead }], "seed-alias");
+      const request = aliasRequest("putAlias", { alias: "alias/work", target: "a" });
       const admitted = f.store.admit("principal", "alias", request);
       if (admitted.kind !== "owned") throw new Error("expected alias ownership");
       inject = true;
@@ -1532,20 +1515,19 @@ describe("private atomic transaction owner", () => {
       expect(f.store.receipt("principal", admitted.claim.receipt.id)).toBeUndefined();
       inject = false;
       expect(
-        aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "alias")
-          .status,
+        aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "alias").status,
       ).toBe("completed");
       expect(f.store.inspect().groups).toHaveLength(1);
     });
   for (const stage of ["after-admission", "after-effects", "after-terminal", "committed"] as const)
     it(`recovers alias process exit ${stage} with atomic locator/receipt disposition`, () => {
       const f = fixture();
-      execute(f.store, [{ operation: "createBead", id: "beads/a", type: bead }], "seed-alias");
+      execute(f.store, [{ operation: "createBead", id: "a", type: bead }], "seed-alias");
       const state = f.store.inspect();
       f.store.close();
       const moduleUrl = new URL("../dist/transaction-store.js", import.meta.url).href;
       const batchUrl = new URL("../dist/transaction-batch.js", import.meta.url).href;
-      const input = { alias: "alias/work", target: "beads/a" };
+      const input = { alias: "alias/work", target: "a" };
       const script = `import {writeSync} from 'node:fs'; import {openTransactionStore} from ${JSON.stringify(moduleUrl)}; import {prepareTransactionSingleton} from ${JSON.stringify(batchUrl)}; const s=openTransactionStore({...${JSON.stringify(f.options)}, create:false, fault(stage){if(stage===${JSON.stringify(stage)})process.exit(79)}}); const a=s.admit('principal','alias',prepareTransactionSingleton(${JSON.stringify(scope)},'putAlias',${JSON.stringify(JSON.stringify(input))}));if(a.kind!=='owned')process.exit(80);writeSync(1,JSON.stringify(s.execute(a.claim)));process.exit(79);`;
       const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
         timeout: 15000,
@@ -1555,9 +1537,7 @@ describe("private atomic transaction owner", () => {
       const recovered = f.reopen();
       expect(recovered.inspect()).toEqual(state);
       expect(recovered.recoveredPending).toBe(stage === "committed" ? 0 : 1);
-      expect(recovered.aliasTarget("work")).toBe(
-        stage === "committed" ? `${scope}beads/a` : undefined,
-      );
+      expect(recovered.aliasTarget("work")).toBe(stage === "committed" ? `${scope}a` : undefined);
       const retry = recovered.admit("principal", "alias", aliasRequest("putAlias", input));
       if (stage === "committed")
         expect(retry).toEqual({ kind: "existing", receipt: JSON.parse(child.stdout) });
@@ -1565,7 +1545,7 @@ describe("private atomic transaction owner", () => {
         if (retry.kind !== "owned") throw new Error("expected fresh alias admission");
         expect(recovered.execute(retry.claim).status).toBe("completed");
       }
-      expect(recovered.aliasTarget("work")).toBe(`${scope}beads/a`);
+      expect(recovered.aliasTarget("work")).toBe(`${scope}a`);
       expect(recovered.inspect()).toEqual(state);
     });
   it("refuses the earlier private Resource-only format before pending recovery or receipt maintenance", () => {
@@ -1599,17 +1579,12 @@ describe("private atomic transaction owner", () => {
   });
   it("keeps alias locator state when its target is deleted without treating aliases as Resource incidences", () => {
     const f = fixture();
-    execute(f.store, [{ operation: "createBead", id: "beads/a", type: bead }], "seed-alias");
-    const original = aliasExecute(
-      f.store,
-      "putAlias",
-      { alias: "alias/work", target: "beads/a" },
-      "put",
+    execute(f.store, [{ operation: "createBead", id: "a", type: bead }], "seed-alias");
+    const original = aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
+    expect(execute(f.store, [{ operation: "deleteBead", bead: "a" }], "delete-target").status).toBe(
+      "completed",
     );
-    expect(
-      execute(f.store, [{ operation: "deleteBead", bead: "beads/a" }], "delete-target").status,
-    ).toBe("completed");
-    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/a`);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}a`);
     const state = f.store.inspect();
     const failed = aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete-alias");
     expect(failed).toMatchObject({ status: "failed", problem: { code: "resource-not-found" } });
@@ -1618,7 +1593,7 @@ describe("private atomic transaction owner", () => {
       f.store.admit(
         "principal",
         "put",
-        aliasRequest("putAlias", { alias: "alias/work", target: "beads/a" }),
+        aliasRequest("putAlias", { alias: "alias/work", target: "a" }),
       ),
     ).toEqual({ kind: "existing", receipt: original });
   });
@@ -1627,8 +1602,8 @@ describe("private atomic transaction owner", () => {
     execute(
       f.store,
       [
-        { operation: "createBead", type: bead, id: "beads/a", properties: { n: 0 } },
-        { operation: "createBead", type: bead, id: "beads/b", properties: { n: 0 } },
+        { operation: "createBead", type: bead, id: "a", properties: { n: 0 } },
+        { operation: "createBead", type: bead, id: "b", properties: { n: 0 } },
       ],
       "witness-seed",
     );
@@ -1662,14 +1637,14 @@ describe("private atomic transaction owner", () => {
   }
   it("captures an admitted alias target for execution and pending/replayed singleton-batch comparison", () => {
     const f = witnessFixture();
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const input = {
       bead: "alias/work",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
     };
     const request = singleton("updateBead", input);
     const claim = owned(f.store, request, "mutate");
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "b" }, "repoint");
     const retry = prepareTransaction(
       scope,
       JSON.stringify({
@@ -1681,19 +1656,19 @@ describe("private atomic transaction owner", () => {
       receipt: claim.receipt,
     });
     expect(
-      f.store.admit("principal", "mutate", singleton("updateBead", { ...input, bead: "beads/a" })),
+      f.store.admit("principal", "mutate", singleton("updateBead", { ...input, bead: "a" })),
     ).toEqual({ kind: "existing", receipt: claim.receipt });
     expect(
-      f.store.admit("principal", "mutate", singleton("updateBead", { ...input, bead: "beads/b" })),
+      f.store.admit("principal", "mutate", singleton("updateBead", { ...input, bead: "b" })),
     ).toEqual({ kind: "conflict" });
     const receipt = f.store.execute(claim);
     expect(receipt).toMatchObject({
       status: "completed",
-      results: [{ resource: { id: `${scope}beads/a`, properties: { n: 1 } } }],
+      results: [{ resource: { id: `${scope}a`, properties: { n: 1 } } }],
     });
-    expect(latestGroup(f.store).changes.map((c) => c.resource.id)).toEqual([`${scope}beads/a`]);
+    expect(latestGroup(f.store).changes.map((c) => c.resource.id)).toEqual([`${scope}a`]);
     expect(f.store.inspect().resources).toContainEqual(
-      expect.objectContaining({ id: `${scope}beads/b`, properties: { n: 0 } }),
+      expect.objectContaining({ id: `${scope}b`, properties: { n: 0 } }),
     );
     aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
     expect(f.reopen().admit("principal", "mutate", retry)).toEqual({ kind: "existing", receipt });
@@ -1701,25 +1676,25 @@ describe("private atomic transaction owner", () => {
   });
   it("reuses original locator witnesses across endpoint slots while preserving pinned revision identity", () => {
     const f = witnessFixture();
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const a = (f.store.inspect().resources as { id: string; revision: string }[]).find(
-      (r) => r.id === `${scope}beads/a`,
+      (r) => r.id === `${scope}a`,
     );
     if (!a) throw new Error("missing target");
     const input = {
       type: link,
       source: { uri: "alias/work", revision: a.revision },
-      target: { uri: "beads/a", revision: a.revision },
+      target: { uri: "a", revision: a.revision },
     };
     const request = prepareTransaction(
       scope,
       JSON.stringify({ operations: [{ operation: "createLink", name: "original", ...input }] }),
     );
     const claim = owned(f.store, request, "pins");
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "b" }, "repoint");
     const moved = singleton("createLink", {
       ...input,
-      source: { uri: `${scope}beads/a`, revision: a.revision },
+      source: { uri: `${scope}a`, revision: a.revision },
       target: { uri: `${scope}alias/work`, revision: a.revision },
     });
     expect(f.store.admit("principal", "pins", moved)).toEqual({
@@ -1733,8 +1708,8 @@ describe("private atomic transaction owner", () => {
         {
           operationName: "original",
           resource: {
-            source: { uri: `${scope}beads/a`, revision: a.revision },
-            target: { uri: `${scope}beads/a`, revision: a.revision },
+            source: { uri: `${scope}a`, revision: a.revision },
+            target: { uri: `${scope}a`, revision: a.revision },
           },
         },
       ],
@@ -1744,7 +1719,7 @@ describe("private atomic transaction owner", () => {
       f.store.admit(
         "principal",
         "pins",
-        singleton("createLink", { ...input, target: { uri: "beads/a", revision: "different" } }),
+        singleton("createLink", { ...input, target: { uri: "a", revision: "different" } }),
       ),
     ).toEqual({ kind: "conflict" });
     expect(groupSchema(f.store.inspect().groups.at(-1)), JSON.stringify(groupSchema.errors)).toBe(
@@ -1754,10 +1729,10 @@ describe("private atomic transaction owner", () => {
   it("preserves a recorded miss after later assignment and distinguishes other misses and direct targets", () => {
     let now = 1000;
     const f = witnessFixture({ clock: () => now });
-    const input = { type: link, source: "alias/missing", target: "beads/a" };
+    const input = { type: link, source: "alias/missing", target: "a" };
     const request = singleton("createLink", input);
     const claim = owned(f.store, request, "miss");
-    aliasExecute(f.store, "putAlias", { alias: "alias/missing", target: "beads/a" }, "later-bind");
+    aliasExecute(f.store, "putAlias", { alias: "alias/missing", target: "a" }, "later-bind");
     const receipt = f.store.execute(claim);
     expect(receipt).toMatchObject({ status: "failed", problem: { code: "resource-not-found" } });
     const saved = savedKey(f, "miss");
@@ -1776,7 +1751,7 @@ describe("private atomic transaction owner", () => {
         ),
       ),
     ).toEqual({ kind: "existing", receipt });
-    for (const source of ["alias/other-missing", "beads/a"])
+    for (const source of ["alias/other-missing", "a"])
       expect(
         f.store.admit("principal", "miss", singleton("createLink", { ...input, source })),
       ).toEqual({ kind: "conflict" });
@@ -1791,7 +1766,7 @@ describe("private atomic transaction owner", () => {
   it("uses fresh retry locators transiently and preserves original witnesses through detail expiry and restart", () => {
     let now = 1000;
     const f = witnessFixture({ clock: () => now });
-    aliasExecute(f.store, "putAlias", { alias: "alias/original", target: "beads/a" }, "original");
+    aliasExecute(f.store, "putAlias", { alias: "alias/original", target: "a" }, "original");
     const input = {
       bead: "alias/original",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
@@ -1802,10 +1777,10 @@ describe("private atomic transaction owner", () => {
     const retry = singleton("updateBead", { ...input, bead: "alias/new" });
     expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "conflict" });
     expect(savedKey(f, "retained")).toEqual(saved);
-    aliasExecute(f.store, "putAlias", { alias: "alias/new", target: "beads/a" }, "new-locator");
+    aliasExecute(f.store, "putAlias", { alias: "alias/new", target: "a" }, "new-locator");
     expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "existing", receipt });
     expect(savedKey(f, "retained")).toEqual(saved);
-    aliasExecute(f.store, "putAlias", { alias: "alias/new", target: "beads/b" }, "new-repoint");
+    aliasExecute(f.store, "putAlias", { alias: "alias/new", target: "b" }, "new-repoint");
     expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "conflict" });
     aliasExecute(f.store, "deleteAlias", { alias: "alias/original" }, "old-delete");
     now = Date.parse(String(receipt.expiresAt)) + 1;
@@ -1826,23 +1801,23 @@ describe("private atomic transaction owner", () => {
       f.store.admit(
         "principal",
         "retained",
-        singleton("updateBead", { ...input, bead: `${scope}beads/a` }),
+        singleton("updateBead", { ...input, bead: `${scope}a` }),
       ),
     ).toMatchObject({ kind: "existing", receipt: { id: receipt.id, detail: "expired" } });
     expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "conflict" });
   });
   it("keeps each batch operation's original witnesses independent and preserves symbolic creator bindings", () => {
     const f = witnessFixture();
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const operations = [
       { operation: "createBead", name: "new", type: bead },
       { operation: "createLink", type: link, source: "@new", target: "alias/work" },
-      { operation: "createLink", type: link, source: "@new", target: "beads/a" },
+      { operation: "createLink", type: link, source: "@new", target: "a" },
     ];
     const request = prepareTransaction(scope, JSON.stringify({ operations }));
     const receipt = f.store.execute(owned(f.store, request, "batch-witnesses"));
     expect(receipt.status).toBe("completed");
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "b" }, "repoint");
     const renamed = operations.map((op, index) =>
       index === 0 ? { ...op, name: "renamed" } : { ...op, source: "@renamed" },
     );
@@ -1854,11 +1829,7 @@ describe("private atomic transaction owner", () => {
       ),
     ).toEqual({ kind: "existing", receipt });
     const moved = renamed.map((op, index) =>
-      index === 1
-        ? { ...op, target: "beads/a" }
-        : index === 2
-          ? { ...op, target: "alias/work" }
-          : op,
+      index === 1 ? { ...op, target: "a" } : index === 2 ? { ...op, target: "alias/work" } : op,
     );
     expect(
       f.store.admit(
@@ -1880,7 +1851,7 @@ describe("private atomic transaction owner", () => {
     ];
     const request = prepareTransaction(scope, JSON.stringify({ operations }));
     const claim = owned(f.store, request, "rollback-witness");
-    aliasExecute(f.store, "putAlias", { alias: "alias/later", target: "beads/a" }, "bind");
+    aliasExecute(f.store, "putAlias", { alias: "alias/later", target: "a" }, "bind");
     const before = f.store.inspect();
     const receipt = f.store.execute(claim);
     expect(receipt).toMatchObject({
@@ -1895,7 +1866,7 @@ describe("private atomic transaction owner", () => {
   });
   it("keeps alias mutation targets and Link subjects out of Resource alias resolution", () => {
     const f = witnessFixture();
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const put = aliasExecute(
       f.store,
       "putAlias",
@@ -1919,7 +1890,7 @@ describe("private atomic transaction owner", () => {
   it("refuses the preceding alias format byte-identically before expired receipt maintenance or pending retraction", () => {
     let now = 1000;
     const f = witnessFixture({ clock: () => now });
-    const pending = owned(f.store, singleton("deleteBead", { bead: "beads/a" }), "pending");
+    const pending = owned(f.store, singleton("deleteBead", { bead: "a" }), "pending");
     f.store.close();
     const raw = new DatabaseSync(f.options.file);
     try {
@@ -1958,20 +1929,20 @@ describe("private atomic transaction owner", () => {
         {
           operation: "createLink",
           type: link,
-          id: "links/self",
-          source: "beads/a",
-          target: "beads/a",
+          id: "self",
+          source: "a",
+          target: "a",
         },
       ],
       "self",
     );
-    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const deletion = (subject: string) =>
       prepareTransaction(
         scope,
         JSON.stringify({
           operations: [
-            { operation: "deleteLink", link: "links/self" },
+            { operation: "deleteLink", link: "self" },
             { operation: "deleteBead", bead: subject },
           ],
         }),
@@ -1980,15 +1951,15 @@ describe("private atomic transaction owner", () => {
     const receipt = f.store.execute(owned(f.store, request, "delete-through-alias"));
     expect(receipt.status).toBe("completed");
     expect(latestGroup(f.store).changes.map((c) => c.resource.id)).toEqual([
-      `${scope}links/self`,
-      `${scope}beads/a`,
+      `${scope}self`,
+      `${scope}a`,
     ]);
-    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/a`);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}a`);
     expect(f.reopen().admit("principal", "delete-through-alias", request)).toEqual({
       kind: "existing",
       receipt,
     });
-    expect(f.store.admit("principal", "delete-through-alias", deletion("beads/a"))).toEqual({
+    expect(f.store.admit("principal", "delete-through-alias", deletion("a"))).toEqual({
       kind: "existing",
       receipt,
     });
@@ -1999,7 +1970,7 @@ describe("private atomic transaction owner", () => {
   for (const stage of ["after-admission", "after-terminal", "committed"] as const)
     it(`recovers Resource alias witnesses after abrupt ${stage} without resuming stale admission`, () => {
       const f = witnessFixture();
-      aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+      aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
       f.store.close();
       const moduleUrl = new URL("../dist/transaction-store.js", import.meta.url).href;
       const batchUrl = new URL("../dist/transaction-batch.js", import.meta.url).href;
@@ -2017,7 +1988,7 @@ describe("private atomic transaction owner", () => {
       try {
         const row = raw.prepare("SELECT witnesses FROM receipts WHERE key='crashed-witness'").get();
         expect(JSON.parse(String(row?.witnesses)).operations[0].aliases).toEqual([
-          { locator: `${scope}alias/work`, target: `${scope}beads/a` },
+          { locator: `${scope}alias/work`, target: `${scope}a` },
         ]);
       } finally {
         raw.close();
@@ -2027,7 +1998,7 @@ describe("private atomic transaction owner", () => {
       aliasExecute(
         recovered,
         "putAlias",
-        { alias: "alias/work", target: "beads/b" },
+        { alias: "alias/work", target: "b" },
         "repoint-after-crash",
       );
       const retry = recovered.admit("principal", "crashed-witness", singleton("updateBead", input));
@@ -2037,29 +2008,34 @@ describe("private atomic transaction owner", () => {
         if (retry.kind !== "owned") throw new Error("expected fresh captured admission");
         expect(recovered.execute(retry.claim)).toMatchObject({
           status: "completed",
-          results: [{ resource: { id: `${scope}beads/b` } }],
+          results: [{ resource: { id: `${scope}b` } }],
         });
       }
       const resources = recovered.inspect().resources as {
         id: string;
         properties: { n: number };
       }[];
-      expect(resources.find((r) => r.id === `${scope}beads/a`)?.properties.n).toBe(
+      expect(resources.find((r) => r.id === `${scope}a`)?.properties.n).toBe(
         stage === "committed" ? 1 : 0,
       );
-      expect(resources.find((r) => r.id === `${scope}beads/b`)?.properties.n).toBe(
+      expect(resources.find((r) => r.id === `${scope}b`)?.properties.n).toBe(
         stage === "committed" ? 0 : 1,
       );
       expect(recovered.inspect().groups).toHaveLength(2);
     });
-  for (const corruption of ["duplicate", "foreign-scope", "wrong-target-root", "version"] as const)
+  for (const corruption of [
+    "duplicate",
+    "foreign-scope",
+    "reserved-target-namespace",
+    "version",
+  ] as const)
     it(`refuses ${corruption} persisted witnesses as an owner fault without rewriting the original disposition`, () => {
       const f = witnessFixture();
-      aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+      aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
       const request = singleton("createLink", {
         type: link,
         source: "alias/work",
-        target: "beads/a",
+        target: "a",
       });
       const receipt = f.store.execute(owned(f.store, request, "corrupt"));
       f.store.close();
@@ -2074,8 +2050,8 @@ describe("private atomic transaction owner", () => {
         if (corruption === "duplicate")
           data.operations[0].aliases.push({ ...data.operations[0].aliases[0] });
         if (corruption === "foreign-scope") data.scope = "https://other.test/";
-        if (corruption === "wrong-target-root")
-          data.operations[0].aliases[0].target = `${scope}links/a`;
+        if (corruption === "reserved-target-namespace")
+          data.operations[0].aliases[0].target = `${scope}bdp/a`;
         if (corruption === "version") data.format = "future";
         raw
           .prepare("UPDATE receipts SET witnesses=? WHERE key='corrupt'")
@@ -2440,7 +2416,7 @@ describe("private transaction storage failure fencing", () => {
           operations: ["a", "b", "c"].map((id) => ({
             operation: "createBead",
             idempotencyKey: `sequence-${id}`,
-            id: `beads/${id}`,
+            id: `${id}`,
             type: bead,
           })),
         }),
@@ -2527,13 +2503,13 @@ describe("Transactional numeric diagnostic documents", () => {
             f.store,
             {
               operations: [
-                { operation: "createBead", id: "beads/a", type: bead, properties: { n: 0 } },
+                { operation: "createBead", id: "a", type: bead, properties: { n: 0 } },
                 {
                   operation: "createLink",
-                  id: "links/old",
+                  id: "old",
                   type: link,
-                  source: "beads/a",
-                  target: "beads/a",
+                  source: "a",
+                  target: "a",
                 },
               ],
             },
@@ -2546,25 +2522,25 @@ describe("Transactional numeric diagnostic documents", () => {
         const input = creating
           ? {
               operation,
-              id: isLink ? "links/new" : "beads/new",
+              id: isLink ? "new" : "new",
               type: isLink ? link : bead,
-              ...(isLink ? { source: "beads/a", target: "beads/a" } : {}),
+              ...(isLink ? { source: "a", target: "a" } : {}),
               [document]: { nested: { bad: "BAD" } },
             }
           : {
               operation,
-              [isLink ? "link" : "bead"]: isLink ? "links/old" : "beads/a",
+              [isLink ? "link" : "bead"]: isLink ? "old" : "a",
               [`${document}Change`]: [{ op: "add", path: "/items/-", value: "BAD" }],
             };
         const text = JSON.stringify({
           operations: [
             {
               operation: "updateBead",
-              bead: "beads/a",
+              bead: "a",
               propertiesChange: [{ op: "add", path: "/prefix", value: true }],
             },
             { ...input, ...(creating ? { name: "bad" } : {}) },
-            { operation: "createBead", id: "beads/tail", type: bead },
+            { operation: "createBead", id: "tail", type: bead },
           ],
         }).replace('"BAD"', "1e999");
         const prepared = prepareTransaction(scope, text);
@@ -2688,11 +2664,7 @@ describe("Transactional numeric diagnostic documents", () => {
 it("counts unapplied update request locations in diagnostic message byte bounds", () => {
   const f = fixture();
   f.store.execute(
-    admit(
-      f.store,
-      { operations: [{ operation: "createBead", id: "beads/a", type: bead }] },
-      "seed",
-    ),
+    admit(f.store, { operations: [{ operation: "createBead", id: "a", type: bead }] }, "seed"),
   );
   const before = f.store.inspect();
   const bound = TRANSACTION_RUNTIME_LIMITS.diagnosticBytes;
@@ -2713,7 +2685,7 @@ it("counts unapplied update request locations in diagnostic message byte bounds"
       operations: [
         {
           operation: "updateBead",
-          bead: "beads/a",
+          bead: "a",
           propertiesChange: [
             {
               op: "add",
@@ -2757,13 +2729,13 @@ describe("maximum request numeric diagnostic feasibility", () => {
               f.store,
               {
                 operations: [
-                  { operation: "createBead", id: "beads/a", type: bead },
+                  { operation: "createBead", id: "a", type: bead },
                   {
                     operation: "createLink",
-                    id: "links/old",
+                    id: "old",
                     type: link,
-                    source: "beads/a",
-                    target: "beads/a",
+                    source: "a",
+                    target: "a",
                   },
                 ],
               },
@@ -2777,13 +2749,13 @@ describe("maximum request numeric diagnostic feasibility", () => {
             const value = { [key]: "BAD" };
             const input = creating
               ? {
-                  id: isLink ? "links/new" : "beads/new",
+                  id: isLink ? "new" : "new",
                   type: isLink ? link : bead,
-                  ...(isLink ? { source: "beads/a", target: "beads/a" } : {}),
+                  ...(isLink ? { source: "a", target: "a" } : {}),
                   [document]: value,
                 }
               : {
-                  [isLink ? "link" : "bead"]: isLink ? "links/old" : "beads/a",
+                  [isLink ? "link" : "bead"]: isLink ? "old" : "a",
                   [`${document}Change`]: [{ op: "add", path: "/items/-", value }],
                 };
             return JSON.stringify(
@@ -2793,11 +2765,11 @@ describe("maximum request numeric diagnostic feasibility", () => {
                     operations: [
                       {
                         operation: "updateBead",
-                        bead: "beads/a",
+                        bead: "a",
                         propertiesChange: [{ op: "add", path: "/prefix", value: true }],
                       },
                       { operation, ...input },
-                      { operation: "createBead", id: "beads/tail", type: bead },
+                      { operation: "createBead", id: "tail", type: bead },
                     ],
                   },
             ).replace('"BAD"', "1e999");
@@ -2876,9 +2848,9 @@ describe("private transaction reader lifetime", () => {
       if (!escaped) throw new Error("reader not captured");
       const expired = escaped;
       for (const action of [
-        () => expired.resource("beads/a"),
+        () => expired.resource("a"),
         () => expired.resources(),
-        () => expired.incidentLinks("beads/a"),
+        () => expired.incidentLinks("a"),
         () => expired.alias("a"),
         () => expired.policy("any"),
       ])
@@ -3060,7 +3032,7 @@ it("captures exact replay and execute observations inside their owner transactio
 it("captures selected observed refusals inside the owner transaction without changing unobserved admissions", () => {
   const f = fixture({ clock: () => 1000 });
   const createOne = (id: string) => ({
-    operations: [{ operation: "createBead", id: `beads/${id}`, type: bead }],
+    operations: [{ operation: "createBead", id: `${id}`, type: bead }],
   });
   const original = createOne("a");
   const pendingInput = createOne("pending");
@@ -3101,7 +3073,7 @@ it("captures selected observed refusals inside the owner transaction without cha
     {
       key: "dependent",
       input: {
-        operations: [{ operation: "createLink", type: link, source: "beads/a", target: "beads/b" }],
+        operations: [{ operation: "createLink", type: link, source: "a", target: "b" }],
       },
       controls: { acceptsJson: false, maximumOperations: 1 },
       kind: "conflict",

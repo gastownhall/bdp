@@ -42,21 +42,14 @@ it.each([
 ])("rejects invalid discovery envelope %j", (patch) => {
   expect(() => parseTransactionalDiscovery({ ...document, ...patch })).toThrow();
 });
-it.each([
-  "beads",
-  "links",
-  "types",
-  "operations",
-  "aliases",
-  "receipts",
-  "snapshot",
-  "changes",
-  "events",
-])("checks canonical navigation %s", (field) => {
-  expect(() =>
-    parseTransactionalDiscovery({ ...document, [field]: "https://EXAMPLE.test/x" }),
-  ).toThrow();
-});
+it.each(["types", "operations", "aliases", "receipts", "snapshot", "changes", "events"])(
+  "checks canonical navigation %s",
+  (field) => {
+    expect(() =>
+      parseTransactionalDiscovery({ ...document, [field]: "https://EXAMPLE.test/x" }),
+    ).toThrow();
+  },
+);
 it("accepts schema-valid optional capabilities and foreign canonical routes structurally", () => {
   const value = {
     ...document,

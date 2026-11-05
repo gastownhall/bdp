@@ -49,6 +49,12 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
         links: "https://work.example/acme/bdp/links",
       }),
     ).toBe(false);
+    expect(
+      valid("coreDiscovery", {
+        ...paper.core,
+        types: "https://work.example/acme/types/",
+      }),
+    ).toBe(true);
     const absent = { ...paper.core };
     delete absent.events;
     expect(valid("coreDiscovery", absent)).toBe(true);
@@ -103,7 +109,6 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
 
   it("rejects advanced required root fields instead of treating them as future base metadata", () => {
     for (const name of [
-      "types",
       "scopeEpoch",
       "authorizationView",
       "headPosition",

@@ -24,36 +24,40 @@
     "owned-wildcard-v1"
   ],
   "bindings": {
-    "bead.demo-a": "beads/demo-a",
-    "bead.demo-b": "beads/demo-b",
-    "bead.demo-c": "beads/demo-c",
-    "link.demo-b-a": "links/demo-b-a",
-    "bead.demo-f": "beads/demo-f",
+    "bead.demo-a": "demo-a",
+    "bead.demo-b": "demo-b",
+    "bead.demo-c": "demo-c",
+    "link.demo-b-a": "demo-b-a",
+    "bead.demo-f": "demo-f",
     "alias.decision": "alias/decision",
     "alias.releases-latest": "alias/releases/latest",
     "alias.unknown": "alias/never-created",
-    "bead.pruned": "beads/pruned-relic",
-    "bead.erased": "beads/erased-relic",
-    "link.demo-j-k": "links/demo-j-k",
-    "http.resource": "beads/demo-a",
-    "http.link": "links/demo-b-a",
-    "http.absent": "beads/http-never-created"
+    "bead.pruned": "pruned-relic",
+    "bead.erased": "erased-relic",
+    "link.demo-j-k": "demo-j-k",
+    "http.resource": "demo-a",
+    "http.link": "demo-b-a",
+    "http.absent": "http-never-created",
+    "bead-inventory": "bdp/beads",
+    "link-inventory": "bdp/links"
   },
   "aliases": {
-    "decision": "beads/demo-f",
-    "releases/latest": "beads/demo-a"
+    "decision": "demo-f",
+    "releases/latest": "demo-a"
   },
   "disclosures": [
     {
-      "localId": "beads/pruned-relic",
+      "localId": "pruned-relic",
+      "kind": "bead",
       "code": "resource-pruned",
       "archivedAt": {
-        "uri": "https://archive.example/acme/beads/pruned-relic",
+        "uri": "https://archive.example/acme/pruned-relic",
         "revision": "arch-r4 (as-written)"
       }
     },
     {
-      "localId": "beads/erased-relic",
+      "localId": "erased-relic",
+      "kind": "bead",
       "code": "resource-erased"
     }
   ],
@@ -63,37 +67,32 @@
   "oracles": {
     "external-endpoint": {
       "input": {
-        "linkIds": [
-          "links/external-target",
-          "links/external-source",
-          "links/pinned-local",
-          "links/ZZ-collation"
-        ]
+        "linkIds": ["external-target", "external-source", "pinned-local", "ZZ-collation"]
       },
       "rows": [
         [
-          "links/external-target",
+          "external-target",
           "https://work.example/types/blocks",
-          ["beads/demo-f"],
+          ["demo-f"],
           ["external:beads:mol-run-assignee", "  Cited-9F2c — α/β (draft) Å\t"]
         ],
         [
-          "links/external-source",
+          "external-source",
           "https://work.example/types/blocks",
           ["external:beads:mol-run-assignee"],
-          ["beads/demo-f"]
+          ["demo-f"]
         ],
         [
-          "links/pinned-local",
+          "pinned-local",
           "https://work.example/types/blocks",
           ["urn:external:pin-witness"],
-          ["beads/demo-f", "pin-a-r1 (as-written)"]
+          ["demo-f", "pin-a-r1 (as-written)"]
         ],
         [
-          "links/ZZ-collation",
+          "ZZ-collation",
           "https://work.example/types/blocks",
           ["urn:external:collation-witness"],
-          ["beads/demo-f"]
+          ["demo-f"]
         ]
       ],
       "externalEndpoints": 4,
@@ -102,8 +101,8 @@
     },
     "scope-restore": {
       "input": {
-        "stableId": "beads/demo-a",
-        "deletedId": "beads/demo-f",
+        "stableId": "demo-a",
+        "deletedId": "demo-f",
         "view": "restore-view",
         "epoch": "restore-epoch"
       },
@@ -132,7 +131,7 @@
             "role": "relates"
           }
         ],
-        "realizationOnlyLinkIds": ["links/pinned-local", "links/cites-local", "links/cites-witness"]
+        "realizationOnlyLinkIds": ["pinned-local", "cites-local", "cites-witness"]
       },
       "projection": {
         "beadStatuses": [
@@ -172,11 +171,11 @@
             "depth": 16,
             "nodes": 64
           },
-          "authorizationExcludedId": "beads/demo-b",
+          "authorizationExcludedId": "demo-b",
           "view": "view-a",
           "epoch": "epoch-a"
         },
-        "expectedIds": ["beads/demo-a", "beads/demo-d", "beads/demo-i", "beads/demo-j"],
+        "expectedIds": ["demo-a", "demo-d", "demo-i", "demo-j"],
         "expectedPageSizes": [2, 2]
       },
       "collection-snapshot": {
@@ -184,22 +183,22 @@
           "collection": "beads",
           "limit": 2,
           "mutation": {
-            "candidateIds": ["beads/demo-k"],
+            "candidateIds": ["demo-k"],
             "revision": "conformance-mutated-revision"
           },
           "view": "view-a",
           "epoch": "epoch-a"
         },
         "expectedIds": [
-          "beads/demo-a",
-          "beads/demo-b",
-          "beads/demo-c",
-          "beads/demo-d",
-          "beads/demo-e",
-          "beads/demo-f",
-          "beads/demo-i",
-          "beads/demo-j",
-          "beads/demo-k"
+          "demo-a",
+          "demo-b",
+          "demo-c",
+          "demo-d",
+          "demo-e",
+          "demo-f",
+          "demo-i",
+          "demo-j",
+          "demo-k"
         ],
         "expectedPageSizes": [2, 2, 2, 2, 1]
       },
@@ -221,16 +220,11 @@
       "incident-links": {
         "input": {
           "collection": "links",
-          "bead": "beads/demo-a",
+          "bead": "demo-a",
           "direction": "both",
           "limit": 1,
           "mutation": {
-            "candidateIds": [
-              "links/cites-local",
-              "links/demo-a-c",
-              "links/demo-b-a",
-              "links/demo-i-a"
-            ],
+            "candidateIds": ["cites-local", "demo-a-c", "demo-b-a", "demo-i-a"],
             "revision": "conformance-mutated-revision"
           },
           "clockAdvanceMs": 101,
@@ -238,28 +232,23 @@
           "epoch": "epoch-a"
         },
         "expectedCollectionIds": [
-          "links/ZZ-collation",
-          "links/cites-local",
-          "links/cites-witness",
-          "links/demo-a-c",
-          "links/demo-b-a",
-          "links/demo-d-c",
-          "links/demo-e-f",
-          "links/demo-f-e",
-          "links/demo-i-a",
-          "links/demo-i-c",
-          "links/demo-j-c",
-          "links/demo-j-k",
-          "links/external-source",
-          "links/external-target",
-          "links/pinned-local"
+          "ZZ-collation",
+          "cites-local",
+          "cites-witness",
+          "demo-a-c",
+          "demo-b-a",
+          "demo-d-c",
+          "demo-e-f",
+          "demo-f-e",
+          "demo-i-a",
+          "demo-i-c",
+          "demo-j-c",
+          "demo-j-k",
+          "external-source",
+          "external-target",
+          "pinned-local"
         ],
-        "expectedIncidentLinkIds": [
-          "links/cites-local",
-          "links/demo-a-c",
-          "links/demo-b-a",
-          "links/demo-i-a"
-        ],
+        "expectedIncidentLinkIds": ["cites-local", "demo-a-c", "demo-b-a", "demo-i-a"],
         "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         "expectedIncidentPageSizes": [1, 1, 1, 1],
         "publicRequests": 23
@@ -267,7 +256,7 @@
     },
     "resources": {
       "bead.demo-a": {
-        "id": "beads/demo-a",
+        "id": "demo-a",
         "properties": {
           "id": "demo-a",
           "title": "A",
@@ -294,9 +283,9 @@
         }
       },
       "link.demo-b-a": {
-        "id": "links/demo-b-a",
-        "source": "beads/demo-b",
-        "target": "beads/demo-a",
+        "id": "demo-b-a",
+        "source": "demo-b",
+        "target": "demo-a",
         "properties": {
           "constraint": "hard",
           "extension": "retained"
@@ -307,106 +296,43 @@
       "bead-titles": ["A", "B", "C", "D", "E", "F", "I", "J", "K"],
       "link-records": [
         [
-          "links/demo-b-a",
+          "demo-b-a",
           "https://work.example/types/blocks",
           "1",
-          "beads/demo-b",
+          "demo-b",
           "",
-          "beads/demo-a",
+          "demo-a",
           "",
           {
             "constraint": "hard",
             "extension": "retained"
           }
         ],
+        ["demo-a-c", "https://work.example/types/blocks", "1", "demo-a", "", "demo-c", "", {}],
+        ["demo-d-c", "https://work.example/types/blocks", "1", "demo-d", "", "demo-c", "", {}],
+        ["demo-f-e", "https://work.example/types/blocks", "1", "demo-f", "", "demo-e", "", {}],
         [
-          "links/demo-a-c",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-a",
-          "",
-          "beads/demo-c",
-          "",
-          {}
-        ],
-        [
-          "links/demo-d-c",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-d",
-          "",
-          "beads/demo-c",
-          "",
-          {}
-        ],
-        [
-          "links/demo-f-e",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-f",
-          "",
-          "beads/demo-e",
-          "",
-          {}
-        ],
-        [
-          "links/demo-e-f",
+          "demo-e-f",
           "https://work.example/types/relates",
           "1",
-          "beads/demo-e",
+          "demo-e",
           "",
-          "beads/demo-f",
+          "demo-f",
           "",
           {
             "context": "reference",
             "extension": "retained"
           }
         ],
+        ["demo-i-a", "https://work.example/types/blocks", "1", "demo-i", "", "demo-a", "", {}],
+        ["demo-i-c", "https://work.example/types/blocks", "1", "demo-i", "", "demo-c", "", {}],
+        ["demo-j-c", "https://work.example/types/blocks", "1", "demo-j", "", "demo-c", "", {}],
+        ["demo-j-k", "https://work.example/types/blocks", "1", "demo-j", "", "demo-k", "", {}],
         [
-          "links/demo-i-a",
+          "external-target",
           "https://work.example/types/blocks",
           "1",
-          "beads/demo-i",
-          "",
-          "beads/demo-a",
-          "",
-          {}
-        ],
-        [
-          "links/demo-i-c",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-i",
-          "",
-          "beads/demo-c",
-          "",
-          {}
-        ],
-        [
-          "links/demo-j-c",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-j",
-          "",
-          "beads/demo-c",
-          "",
-          {}
-        ],
-        [
-          "links/demo-j-k",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-j",
-          "",
-          "beads/demo-k",
-          "",
-          {}
-        ],
-        [
-          "links/external-target",
-          "https://work.example/types/blocks",
-          "1",
-          "beads/demo-f",
+          "demo-f",
           "",
           "external:beads:mol-run-assignee",
           "  Cited-9F2c — α/β (draft) Å\t",
@@ -420,52 +346,43 @@
           }
         ],
         [
-          "links/external-source",
+          "external-source",
           "https://work.example/types/blocks",
           "1",
           "external:beads:mol-run-assignee",
           "",
-          "beads/demo-f",
+          "demo-f",
           "",
           {}
         ],
         [
-          "links/pinned-local",
+          "pinned-local",
           "https://work.example/types/blocks",
           "1",
           "urn:external:pin-witness",
           "",
-          "beads/demo-f",
+          "demo-f",
           "pin-a-r1 (as-written)",
           {}
         ],
+        ["cites-local", "https://work.example/types/cites", "1", "demo-f", "", "demo-a", "", {}],
         [
-          "links/cites-local",
+          "cites-witness",
           "https://work.example/types/cites",
           "1",
-          "beads/demo-f",
-          "",
-          "beads/demo-a",
-          "",
-          {}
-        ],
-        [
-          "links/cites-witness",
-          "https://work.example/types/cites",
-          "1",
-          "beads/demo-f",
+          "demo-f",
           "",
           "urn:external:cites-witness",
           "w-1",
           {}
         ],
         [
-          "links/ZZ-collation",
+          "ZZ-collation",
           "https://work.example/types/blocks",
           "1",
           "urn:external:collation-witness",
           "",
-          "beads/demo-f",
+          "demo-f",
           "",
           {}
         ]
@@ -492,114 +409,104 @@
       "beads-conforms-to-declared-type": ["A", "B", "D", "I", "J", "K"],
       "beads-conforms-to": ["A", "B", "C", "D", "E", "I", "J", "K"],
       "beads-predicates-and": [],
-      "links-source-local": ["links/demo-a-c"],
-      "links-target-absolute": [
-        "links/demo-a-c",
-        "links/demo-d-c",
-        "links/demo-i-c",
-        "links/demo-j-c"
-      ],
-      "links-endpoint-or": [
-        "links/demo-b-a",
-        "links/demo-a-c",
-        "links/demo-i-a",
-        "links/cites-local"
-      ],
+      "links-source-local": ["demo-a-c"],
+      "links-target-absolute": ["demo-a-c", "demo-d-c", "demo-i-c", "demo-j-c"],
+      "links-endpoint-or": ["demo-b-a", "demo-a-c", "demo-i-a", "cites-local"],
       "links-type": [
-        "links/demo-b-a",
-        "links/demo-a-c",
-        "links/demo-d-c",
-        "links/demo-f-e",
-        "links/demo-i-a",
-        "links/demo-i-c",
-        "links/demo-j-c",
-        "links/demo-j-k",
-        "links/external-target",
-        "links/external-source",
-        "links/pinned-local",
-        "links/ZZ-collation"
+        "demo-b-a",
+        "demo-a-c",
+        "demo-d-c",
+        "demo-f-e",
+        "demo-i-a",
+        "demo-i-c",
+        "demo-j-c",
+        "demo-j-k",
+        "external-target",
+        "external-source",
+        "pinned-local",
+        "ZZ-collation"
       ],
       "links-type-is-exact": [],
       "links-conforms-to-declared-type": [
-        "links/demo-b-a",
-        "links/demo-a-c",
-        "links/demo-d-c",
-        "links/demo-f-e",
-        "links/demo-i-a",
-        "links/demo-i-c",
-        "links/demo-j-c",
-        "links/demo-j-k",
-        "links/external-target",
-        "links/external-source",
-        "links/pinned-local",
-        "links/ZZ-collation"
+        "demo-b-a",
+        "demo-a-c",
+        "demo-d-c",
+        "demo-f-e",
+        "demo-i-a",
+        "demo-i-c",
+        "demo-j-c",
+        "demo-j-k",
+        "external-target",
+        "external-source",
+        "pinned-local",
+        "ZZ-collation"
       ],
       "links-conforms-to": [
-        "links/demo-b-a",
-        "links/demo-a-c",
-        "links/demo-d-c",
-        "links/demo-f-e",
-        "links/demo-i-a",
-        "links/demo-i-c",
-        "links/demo-j-c",
-        "links/demo-j-k",
-        "links/external-target",
-        "links/external-source",
-        "links/pinned-local",
-        "links/ZZ-collation"
+        "demo-b-a",
+        "demo-a-c",
+        "demo-d-c",
+        "demo-f-e",
+        "demo-i-a",
+        "demo-i-c",
+        "demo-j-c",
+        "demo-j-k",
+        "external-target",
+        "external-source",
+        "pinned-local",
+        "ZZ-collation"
       ],
       "links-conforms-to-cross-kind": [],
-      "links-predicates-and": ["links/demo-a-c"],
+      "links-predicates-and": ["demo-a-c"],
       "links-endpoint-pinned-target": [
-        "links/demo-f-e",
-        "links/demo-e-f",
-        "links/external-target",
-        "links/external-source",
-        "links/pinned-local",
-        "links/cites-local",
-        "links/cites-witness",
-        "links/ZZ-collation"
+        "demo-f-e",
+        "demo-e-f",
+        "external-target",
+        "external-source",
+        "pinned-local",
+        "cites-local",
+        "cites-witness",
+        "ZZ-collation"
       ]
     },
     "incident-links": {
-      "demo-a-inbound": ["links/demo-b-a", "links/demo-i-a", "links/cites-local"],
-      "demo-a-outbound": ["links/demo-a-c"],
-      "demo-b-outbound": ["links/demo-b-a"],
+      "demo-a-inbound": ["demo-b-a", "demo-i-a", "cites-local"],
+      "demo-a-outbound": ["demo-a-c"],
+      "demo-b-outbound": ["demo-b-a"],
       "demo-b-inbound": [],
-      "demo-a-both": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a", "links/cites-local"],
-      "demo-a-default": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a", "links/cites-local"]
+      "demo-a-both": ["demo-b-a", "demo-a-c", "demo-i-a", "cites-local"],
+      "demo-a-default": ["demo-b-a", "demo-a-c", "demo-i-a", "cites-local"]
     },
     "alias": {
       "root": "alias/"
     },
     "ordering": {
       "beads": [
-        ["beads/demo-a"],
-        ["beads/demo-b"],
-        ["beads/demo-c"],
-        ["beads/demo-d"],
-        ["beads/demo-e"],
-        ["beads/demo-f"],
-        ["beads/demo-i"],
-        ["beads/demo-j"],
-        ["beads/demo-k"]
+        ["demo-a"],
+        ["demo-b"],
+        ["demo-c"],
+        ["demo-d"],
+        ["demo-e"],
+        ["demo-f"],
+        ["demo-i"],
+        ["demo-j"],
+        ["demo-k"]
       ],
       "links": [
-        ["links/ZZ-collation"],
-        ["links/cites-local"],
-        ["links/cites-witness"],
-        ["links/demo-a-c"],
-        ["links/demo-b-a"],
-        ["links/demo-d-c"],
-        ["links/demo-e-f"],
-        ["links/demo-f-e"],
-        ["links/demo-i-a"],
-        ["links/demo-i-c"],
-        ["links/demo-j-c"],
-        ["links/demo-j-k"],
-        ["links/external-source"],
-        ["links/external-target"],
-        ["links/pinned-local"]
+        ["ZZ-collation"],
+        ["cites-local"],
+        ["cites-witness"],
+        ["demo-a-c"],
+        ["demo-b-a"],
+        ["demo-d-c"],
+        ["demo-e-f"],
+        ["demo-f-e"],
+        ["demo-i-a"],
+        ["demo-i-c"],
+        ["demo-j-c"],
+        ["demo-j-k"],
+        ["external-source"],
+        ["external-target"],
+        ["pinned-local"]
       ],
       "order": "canonical-uri",
       "types": [
@@ -618,48 +525,43 @@
         ["https://work.example/types/work-item"]
       ],
       "links-type": [
-        ["links/ZZ-collation"],
-        ["links/demo-a-c"],
-        ["links/demo-b-a"],
-        ["links/demo-d-c"],
-        ["links/demo-f-e"],
-        ["links/demo-i-a"],
-        ["links/demo-i-c"],
-        ["links/demo-j-c"],
-        ["links/demo-j-k"],
-        ["links/external-source"],
-        ["links/external-target"],
-        ["links/pinned-local"]
+        ["ZZ-collation"],
+        ["demo-a-c"],
+        ["demo-b-a"],
+        ["demo-d-c"],
+        ["demo-f-e"],
+        ["demo-i-a"],
+        ["demo-i-c"],
+        ["demo-j-c"],
+        ["demo-j-k"],
+        ["external-source"],
+        ["external-target"],
+        ["pinned-local"]
       ],
-      "demo-a-inbound": [["links/cites-local"], ["links/demo-b-a"], ["links/demo-i-a"]],
-      "demo-a-outbound": [["links/demo-a-c"]],
-      "demo-a-both": [
-        ["links/cites-local"],
-        ["links/demo-a-c"],
-        ["links/demo-b-a"],
-        ["links/demo-i-a"]
-      ]
+      "demo-a-inbound": [["cites-local"], ["demo-b-a"], ["demo-i-a"]],
+      "demo-a-outbound": [["demo-a-c"]],
+      "demo-a-both": [["cites-local"], ["demo-a-c"], ["demo-b-a"], ["demo-i-a"]]
     },
     "owned-links": {
       "input": {
-        "bead": "beads/demo-f"
+        "bead": "demo-f"
       },
       "ownedLinks": {
         "https://work.example/types/cites": [
           {
-            "id": "https://scope.example/acme/links/cites-local",
+            "id": "https://scope.example/acme/cites-local",
             "type": "https://work.example/types/cites",
             "revision": "1",
-            "source": "https://scope.example/acme/beads/demo-f",
-            "target": "https://scope.example/acme/beads/demo-a",
+            "source": "https://scope.example/acme/demo-f",
+            "target": "https://scope.example/acme/demo-a",
             "properties": {},
             "metadata": {}
           },
           {
-            "id": "https://scope.example/acme/links/cites-witness",
+            "id": "https://scope.example/acme/cites-witness",
             "type": "https://work.example/types/cites",
             "revision": "1",
-            "source": "https://scope.example/acme/beads/demo-f",
+            "source": "https://scope.example/acme/demo-f",
             "target": {
               "uri": "urn:external:cites-witness",
               "revision": "w-1"
@@ -673,16 +575,16 @@
           {
             "type": "https://work.example/types/blocks",
             "revision": "1",
-            "source": "https://scope.example/acme/beads/demo-f",
-            "target": "https://scope.example/acme/beads/demo-e",
+            "source": "https://scope.example/acme/demo-f",
+            "target": "https://scope.example/acme/demo-e",
             "properties": {},
             "metadata": {},
-            "id": "https://scope.example/acme/links/demo-f-e"
+            "id": "https://scope.example/acme/demo-f-e"
           },
           {
             "type": "https://work.example/types/blocks",
             "revision": "1",
-            "source": "https://scope.example/acme/beads/demo-f",
+            "source": "https://scope.example/acme/demo-f",
             "target": {
               "uri": "external:beads:mol-run-assignee",
               "revision": "  Cited-9F2c — α/β (draft) Å\t"
@@ -695,7 +597,7 @@
                 }
               }
             },
-            "id": "https://scope.example/acme/links/external-target",
+            "id": "https://scope.example/acme/external-target",
             "metadata": {},
             "revisionProvenance": {
               "actor": {
@@ -1066,18 +968,18 @@
         "description": "bdptest-fixture-literal-v1 uses fixture-authored opaque revision strings. It does not derive revisions from properties or any numeric serialization. The packaged reference fixture and its portable realization carry the same literal revisions. The conditional content-derived numeric-revision obligation is not applicable to this discipline."
       },
       "input": {
-        "ids": ["beads/demo-a", "beads/demo-c", "links/demo-b-a"],
+        "ids": ["demo-a", "demo-c", "demo-b-a"],
         "numberModel": "not-content-derived"
       }
     },
     "wildcard-present": {
       "input": {
-        "owner": "beads/demo-f",
-        "empty": "beads/demo-c",
-        "nonowner": "beads/demo-a",
+        "owner": "demo-f",
+        "empty": "demo-c",
+        "nonowner": "demo-a",
         "groups": {
-          "https://work.example/types/blocks": ["links/demo-f-e", "links/external-target"],
-          "https://work.example/types/cites": ["links/cites-local", "links/cites-witness"],
+          "https://work.example/types/blocks": ["demo-f-e", "external-target"],
+          "https://work.example/types/cites": ["cites-local", "cites-witness"],
           "https://work.example/types/relates": []
         }
       }
@@ -1099,7 +1001,7 @@
   },
   "beads": [
     {
-      "localId": "beads/demo-a",
+      "localId": "demo-a",
       "type": "https://work.example/types/task",
       "revision": "1",
       "properties": {
@@ -1134,7 +1036,7 @@
       }
     },
     {
-      "localId": "beads/demo-b",
+      "localId": "demo-b",
       "type": "https://work.example/types/task",
       "revision": "1",
       "properties": {
@@ -1162,7 +1064,7 @@
       }
     },
     {
-      "localId": "beads/demo-c",
+      "localId": "demo-c",
       "type": "https://work.example/types/feature",
       "revision": "1",
       "properties": {
@@ -1180,7 +1082,7 @@
       }
     },
     {
-      "localId": "beads/demo-d",
+      "localId": "demo-d",
       "type": "https://work.example/types/task",
       "revision": "1",
       "properties": {
@@ -1208,7 +1110,7 @@
       }
     },
     {
-      "localId": "beads/demo-e",
+      "localId": "demo-e",
       "type": "https://work.example/types/bug",
       "revision": "1",
       "properties": {
@@ -1226,7 +1128,7 @@
       }
     },
     {
-      "localId": "beads/demo-f",
+      "localId": "demo-f",
       "type": "https://work.example/types/decision",
       "revision": "1",
       "properties": {
@@ -1254,7 +1156,7 @@
       }
     },
     {
-      "localId": "beads/demo-i",
+      "localId": "demo-i",
       "type": "https://work.example/types/task",
       "revision": "1",
       "properties": {
@@ -1290,7 +1192,7 @@
       }
     },
     {
-      "localId": "beads/demo-j",
+      "localId": "demo-j",
       "type": "https://work.example/types/task",
       "revision": "1",
       "properties": {
@@ -1326,7 +1228,7 @@
       }
     },
     {
-      "localId": "beads/demo-k",
+      "localId": "demo-k",
       "type": "https://work.example/types/task",
       "revision": "1",
       "properties": {
@@ -1346,81 +1248,81 @@
   ],
   "links": [
     {
-      "localId": "links/demo-b-a",
+      "localId": "demo-b-a",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-b",
-      "target": "beads/demo-a",
+      "source": "demo-b",
+      "target": "demo-a",
       "properties": {
         "constraint": "hard",
         "extension": "retained"
       }
     },
     {
-      "localId": "links/demo-a-c",
+      "localId": "demo-a-c",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-a",
-      "target": "beads/demo-c",
+      "source": "demo-a",
+      "target": "demo-c",
       "properties": {}
     },
     {
-      "localId": "links/demo-d-c",
+      "localId": "demo-d-c",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-d",
-      "target": "beads/demo-c",
+      "source": "demo-d",
+      "target": "demo-c",
       "properties": {}
     },
     {
-      "localId": "links/demo-f-e",
+      "localId": "demo-f-e",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-f",
-      "target": "beads/demo-e",
+      "source": "demo-f",
+      "target": "demo-e",
       "properties": {}
     },
     {
-      "localId": "links/demo-e-f",
+      "localId": "demo-e-f",
       "type": "https://work.example/types/relates",
       "revision": "1",
-      "source": "beads/demo-e",
-      "target": "beads/demo-f",
+      "source": "demo-e",
+      "target": "demo-f",
       "properties": {
         "context": "reference",
         "extension": "retained"
       }
     },
     {
-      "localId": "links/demo-i-a",
+      "localId": "demo-i-a",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-i",
-      "target": "beads/demo-a",
+      "source": "demo-i",
+      "target": "demo-a",
       "properties": {}
     },
     {
-      "localId": "links/demo-i-c",
+      "localId": "demo-i-c",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-i",
-      "target": "beads/demo-c",
+      "source": "demo-i",
+      "target": "demo-c",
       "properties": {}
     },
     {
-      "localId": "links/demo-j-c",
+      "localId": "demo-j-c",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-j",
-      "target": "beads/demo-c",
+      "source": "demo-j",
+      "target": "demo-c",
       "properties": {}
     },
     {
-      "localId": "links/demo-j-k",
+      "localId": "demo-j-k",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-j",
-      "target": "beads/demo-k",
+      "source": "demo-j",
+      "target": "demo-k",
       "properties": {},
       "revisionProvenance": {
         "actor": {
@@ -1430,10 +1332,10 @@
       }
     },
     {
-      "localId": "links/external-target",
+      "localId": "external-target",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "source": "beads/demo-f",
+      "source": "demo-f",
       "target": {
         "uri": "external:beads:mol-run-assignee",
         "revision": "  Cited-9F2c — α/β (draft) Å\t"
@@ -1454,37 +1356,37 @@
       }
     },
     {
-      "localId": "links/external-source",
+      "localId": "external-source",
       "type": "https://work.example/types/blocks",
       "revision": "1",
       "source": "external:beads:mol-run-assignee",
-      "target": "beads/demo-f",
+      "target": "demo-f",
       "properties": {}
     },
     {
-      "localId": "links/pinned-local",
+      "localId": "pinned-local",
       "type": "https://work.example/types/blocks",
       "revision": "1",
       "source": "urn:external:pin-witness",
       "target": {
-        "uri": "beads/demo-f",
+        "uri": "demo-f",
         "revision": "pin-a-r1 (as-written)"
       },
       "properties": {}
     },
     {
-      "localId": "links/cites-local",
+      "localId": "cites-local",
       "type": "https://work.example/types/cites",
       "revision": "1",
-      "source": "beads/demo-f",
-      "target": "beads/demo-a",
+      "source": "demo-f",
+      "target": "demo-a",
       "properties": {}
     },
     {
-      "localId": "links/cites-witness",
+      "localId": "cites-witness",
       "type": "https://work.example/types/cites",
       "revision": "1",
-      "source": "beads/demo-f",
+      "source": "demo-f",
       "target": {
         "uri": "urn:external:cites-witness",
         "revision": "w-1"
@@ -1492,11 +1394,11 @@
       "properties": {}
     },
     {
-      "localId": "links/ZZ-collation",
+      "localId": "ZZ-collation",
       "type": "https://work.example/types/blocks",
       "revision": "1",
       "source": "urn:external:collation-witness",
-      "target": "beads/demo-f",
+      "target": "demo-f",
       "properties": {}
     }
   ],

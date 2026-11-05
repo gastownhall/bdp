@@ -220,23 +220,23 @@ export async function observe(control?: {
     // Independently authored route inventory, not a second derivation from the manifest.
     expect(uniqueRoutes).toEqual([
       { method: "POST", url: `${scope}operations/batch` },
-      { method: "GET", url: `${scope}beads/?limit=32` },
+      { method: "GET", url: `${scope}bdp/beads?limit=32` },
       { method: "GET", url: `${scope}events/` },
       { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/sequence` },
       { method: "POST", url: `${scope}operations/update-bead` },
-      { method: "GET", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}links/l` },
-      { method: "GET", url: `${scope}beads/new` },
+      { method: "GET", url: `${scope}a` },
+      { method: "GET", url: `${scope}l` },
+      { method: "GET", url: `${scope}new` },
       { method: "GET", url: `${scope}changes/?after=genesis` },
-      { method: "GET", url: `${scope}links/?limit=32` },
-      { method: "GET", url: `${scope}beads/b` },
-      { method: "GET", url: `${scope}beads/c` },
+      { method: "GET", url: `${scope}bdp/links?limit=32` },
+      { method: "GET", url: `${scope}b` },
+      { method: "GET", url: `${scope}c` },
       { method: "POST", url: `${scope}operations/update-where` },
       { method: "POST", url: `${scope}operations/delete-where` },
-      { method: "HEAD", url: `${scope}beads/a` },
-      { method: "GET", url: `${scope}beads/missing` },
-      { method: "HEAD", url: `${scope}beads/missing` },
+      { method: "HEAD", url: `${scope}a` },
+      { method: "GET", url: `${scope}missing` },
+      { method: "HEAD", url: `${scope}missing` },
     ]);
     const omitted = control?.omitRoute;
     if (omitted) {

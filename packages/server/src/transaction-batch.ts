@@ -359,11 +359,18 @@ const witnessFormat = "transaction-alias-witnesses-1";
 function canonicalReference(scope: string, uri: string): string {
   return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(uri) ? uri : `${scope}${uri}`;
 }
-function witnessedReference(scope: string, value: unknown, root: "alias" | "beads"): string {
-  if (typeof value !== "string" || !value.startsWith(`${scope}${root}/`))
+function witnessedReference(scope: string, value: unknown, root: "alias" | "resource"): string {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith(scope) ||
+    (root === "alias" && !value.startsWith(`${scope}alias/`))
+  )
     throw new TypeError("invalid transaction alias witness reference");
   parseCanonicalHttpUrl(value);
-  assertCanonicalPathSegments(value.slice(scope.length), "transaction alias witness");
+  const local = value.slice(scope.length);
+  assertCanonicalPathSegments(local, "transaction alias witness");
+  if (root === "resource" && local.startsWith("bdp/"))
+    throw new TypeError("invalid transaction alias witness reference");
   return value;
 }
 /** Exact private persistence shape. Corrupt witness data is an owner fault,
@@ -399,7 +406,7 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
       if (Object.keys(alias).length !== 2) throw new TypeError("invalid transaction alias witness");
       const locator = witnessedReference(scope, alias.locator, "alias");
       const target =
-        alias.target === null ? null : witnessedReference(scope, alias.target, "beads");
+        alias.target === null ? null : witnessedReference(scope, alias.target, "resource");
       if (seen.has(locator)) throw new TypeError("duplicate transaction alias witness");
       seen.add(locator);
       return Object.freeze({ locator, target });
@@ -485,7 +492,10 @@ export function normalizeTransaction(
               ? previous.aliases.find((w) => w.locator === locator)
               : undefined;
           const target = old === undefined ? resolveAlias(locator) : old.target;
-          aliases.set(locator, target == null ? null : witnessedReference(scope, target, "beads"));
+          aliases.set(
+            locator,
+            target == null ? null : witnessedReference(scope, target, "resource"),
+          );
         }
         normalized = aliases.get(locator) ?? { unresolvedAlias: locator };
       } else normalized = uri.startsWith("@") ? creators.get(uri.slice(1)) : locator;

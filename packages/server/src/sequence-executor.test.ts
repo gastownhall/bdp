@@ -10,6 +10,7 @@ import { setImmediate as later } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   parseReadUpdateProblem,
+  ProtocolArtifactValidationError,
   parseLinkRecord,
   parseReadUpdateSequenceMemberProblem,
   parseTypeDescriptor,
@@ -35,11 +36,7 @@ import {
   snapshotMemberExecutorOptions,
   type MemberExecutorOptions,
 } from "./member-executor.js";
-import {
-  MemberMetadataError,
-  normalizeMemberIdentity,
-  serializeMemberMetadata,
-} from "./member-identity.js";
+import { normalizeMemberIdentity, serializeMemberMetadata } from "./member-identity.js";
 import * as identityModule from "./member-identity.js";
 import {
   createSequenceLifecycle,
@@ -158,18 +155,18 @@ function fixture(
     ...(settings.validate ? { propertiesSchema: "https://types.test/link-schema" } : {}),
   });
   const old = {
-    id: `${scope}links/old`,
+    id: `${scope}old`,
     type: linkType,
     revision: "l0",
-    source: `${scope}beads/a`,
-    target: `${scope}beads/b`,
+    source: `${scope}a`,
+    target: `${scope}b`,
     properties: {},
   };
   const resources: StoredResource[] = ["a", "b", "free"].map((id) => ({
     kind: "bead",
-    id: `beads/${id}`,
+    id: `${id}`,
     bodyJson: stringifyJsonValue({
-      id: `${scope}beads/${id}`,
+      id: `${scope}${id}`,
       type,
       revision: "r0",
       properties: { n: 0 },
@@ -178,9 +175,9 @@ function fixture(
   }));
   resources.push({
     kind: "link",
-    id: "links/old",
-    source: "beads/a",
-    target: "beads/b",
+    id: "old",
+    source: "a",
+    target: "b",
     bodyJson: stringifyJsonValue(old),
   });
   const types = {
@@ -297,9 +294,7 @@ const create = (key: string, extra = {}) => ({
 const sequence = (operations: unknown[]) =>
   prepareReadUpdateSequence(scope, stringifyJsonValue({ operations }));
 const five = () =>
-  sequence(
-    Array.from({ length: 5 }, (_, i) => create(`k${i}`, { id: `beads/new${i}`, name: `n${i}` })),
-  );
+  sequence(Array.from({ length: 5 }, (_, i) => create(`k${i}`, { id: `new${i}`, name: `n${i}` })));
 function submit(
   owner: SequenceLifecycle,
   carrier: PreparedReadUpdateCarrier,
@@ -353,7 +348,7 @@ function controlled(
 }
 const update = (key: string, extra = {}) => ({
   operation: "updateBead",
-  bead: "beads/free",
+  bead: "free",
   propertiesChange: [{ op: "replace", path: "", value: { n: 0 } }],
   idempotencyKey: key,
   ...extra,
@@ -602,12 +597,12 @@ describe("configuration, atomic admission and projection", () => {
     const f = fixture(),
       owner = f.owner();
     const operations = [
-      create("a", { id: "beads/new", name: "made" }),
+      create("a", { id: "new", name: "made" }),
       {
         operation: "createLink",
         type: linkType,
         source: "@made",
-        target: "beads/b",
+        target: "b",
         name: "edge",
         idempotencyKey: "l",
       },
@@ -645,18 +640,13 @@ describe("configuration, atomic admission and projection", () => {
     expect(result.response.results[0]).toMatchObject({ operationIndex: 0, operationName: "made" });
     const single = submit(
       owner,
-      prepareReadUpdateSingleton(
-        scope,
-        "createBead",
-        stringifyJsonValue({ type, id: "beads/new" }),
-        "a",
-      ),
+      prepareReadUpdateSingleton(scope, "createBead", stringifyJsonValue({ type, id: "new" }), "a"),
     );
     f.queue.drain();
     expect((await single).kind).toBe("singleton");
     const reordered = submit(
       owner,
-      sequence([update("new-key"), create("a", { id: "beads/new", name: "renamed" })]),
+      sequence([update("new-key"), create("a", { id: "new", name: "renamed" })]),
     );
     f.queue.drain();
     const retry = await reordered;
@@ -696,7 +686,7 @@ describe("configuration, atomic admission and projection", () => {
         scope,
         "updateBead",
         stringifyJsonValue({
-          bead: "beads/free",
+          bead: "free",
           propertiesChange: [{ op: "replace", path: "", value: { n: 0 } }],
         }),
         "statusless",
@@ -925,12 +915,12 @@ describe("canonical projection and real creator prefixes", () => {
         const foreign = state === "transient" ? f.store.admit("alice", ["maker"]) : undefined;
         const owner = f.owner();
         const carrier = sequence([
-          create("maker", { id: "beads/pinned", name: "made" }),
+          create("maker", { id: "pinned", name: "made" }),
           {
             operation: "createLink",
             type: linkType,
-            source: "beads/a",
-            target: "beads/b",
+            source: "a",
+            target: "b",
             [slot]: { uri: "@made", revision: "opaque-pin" },
             idempotencyKey: "dependent",
           },
@@ -964,7 +954,7 @@ describe("canonical projection and real creator prefixes", () => {
           const entry = results(completion)[1];
           if (!entry || !("resource" in entry)) throw Error("missing real pinned Link");
           expect(parseLinkRecord(entry.resource)[slot]).toEqual({
-            uri: `${scope}beads/pinned`,
+            uri: `${scope}pinned`,
             revision: "opaque-pin",
           });
         }
@@ -980,7 +970,7 @@ describe("canonical projection and real creator prefixes", () => {
     const f = fixture(),
       owner = f.owner();
     const carrier = sequence([
-      create("maker", { id: "beads/made", name: "made" }),
+      create("maker", { id: "made", name: "made" }),
       {
         operation: "updateBead",
         bead: "@made",
@@ -991,10 +981,10 @@ describe("canonical projection and real creator prefixes", () => {
     expect(codes(await execute(f, owner, carrier))).toEqual(["created", "updated"]);
     const maker = f.key("maker"),
       dependent = f.key("dependent");
-    f.state.hidden.add(`${scope}beads/made`);
+    f.state.hidden.add(`${scope}made`);
     expect(codes(await execute(f, owner, carrier))).toEqual(["forbidden", "forbidden"]);
     const unknown = sequence([
-      create("maker", { id: "beads/made", name: "renamed" }),
+      create("maker", { id: "made", name: "renamed" }),
       { operation: "deleteBead", bead: "@renamed", idempotencyKey: "unknown" },
     ]);
     expect(codes(await execute(f, owner, unknown))).toEqual(["forbidden", "resource-not-found"]);
@@ -1002,7 +992,7 @@ describe("canonical projection and real creator prefixes", () => {
     expect(f.key("dependent")).toEqual(dependent);
     f.state.hidden.clear();
     const conflict = sequence([
-      create("maker", { id: "beads/made", name: "different", properties: { changed: true } }),
+      create("maker", { id: "made", name: "different", properties: { changed: true } }),
       { operation: "deleteBead", bead: "@different", idempotencyKey: "conflict-dependent" },
     ]);
     const conflicted = submit(owner, conflict);
@@ -1018,7 +1008,7 @@ describe("canonical projection and real creator prefixes", () => {
     const next = f.owner(); // Additional startup expiry is explicit maintenance.
     expect(f.key("maker").kind).toBe("expired");
     const expired = sequence([
-      create("maker", { id: "beads/made", name: "old" }),
+      create("maker", { id: "made", name: "old" }),
       {
         operation: "updateBead",
         bead: "@old",
@@ -1034,7 +1024,7 @@ describe("canonical projection and real creator prefixes", () => {
     expect(f.key("maker")).toEqual(expiredMaker);
     f.queue.drain();
     expect(codes(await expiredDone)).toEqual(["idempotency-expired", "updated"]);
-    expect(body(f, "beads/made").properties.after).toBe(2);
+    expect(body(f, "made").properties.after).toBe(2);
     expect(f.key("maker")).not.toHaveProperty("semanticIdentityJson");
     await next.close();
   });
@@ -1045,23 +1035,23 @@ describe("canonical projection and real creator prefixes", () => {
       f,
       owner,
       sequence([
-        create("a", { id: "beads/a" }),
-        create("b", { id: "beads/b" }),
+        create("a", { id: "a" }),
+        create("b", { id: "b" }),
         {
           operation: "putAlias",
           alias: "alias/original",
-          target: "beads/a",
+          target: "a",
           idempotencyKey: "original",
         },
-        { operation: "putAlias", alias: "alias/new", target: "beads/a", idempotencyKey: "new" },
+        { operation: "putAlias", alias: "alias/new", target: "a", idempotencyKey: "new" },
       ]),
     );
     const link = {
       operation: "createLink",
       type: linkType,
-      id: "links/made",
+      id: "made",
       source: "alias/original",
-      target: "beads/a",
+      target: "a",
       idempotencyKey: "link",
       name: "made",
     };
@@ -1075,12 +1065,12 @@ describe("canonical projection and real creator prefixes", () => {
           owner,
           sequence([
             { ...link, source: "alias/missing" },
-            create("after-conflict", { id: "beads/after-conflict" }),
+            create("after-conflict", { id: "after-conflict" }),
           ]),
         ),
       ),
     ).toEqual(["idempotency-conflict", "created"]);
-    f.state.hidden.add(`${scope}links/made`);
+    f.state.hidden.add(`${scope}made`);
     expect(
       codes(
         await execute(
@@ -1088,7 +1078,7 @@ describe("canonical projection and real creator prefixes", () => {
           owner,
           sequence([
             { ...link, source: "alias/new" },
-            create("after-forbidden", { id: "beads/after-forbidden" }),
+            create("after-forbidden", { id: "after-forbidden" }),
           ]),
         ),
       ),
@@ -1116,7 +1106,7 @@ describe("canonical projection and real creator prefixes", () => {
         ),
       ),
     ).toEqual(["idempotency-expired", "updated"]);
-    expect(body(f, "links/made").properties.later).toBe(true);
+    expect(body(f, "made").properties.later).toBe(true);
     expect(f.key("link")).toEqual(tombstone);
     await owner.close();
   });
@@ -1125,8 +1115,8 @@ describe("canonical projection and real creator prefixes", () => {
     async (suffix) => {
       const f = fixture({ empty: true }),
         owner = f.owner();
-      await execute(f, owner, sequence([create("a", { id: "beads/a" })]));
-      const input = { bead: "beads/a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] };
+      await execute(f, owner, sequence([create("a", { id: "a" })]));
+      const input = { bead: "a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] };
       const originalCarrier = prepareReadUpdateSingleton(
         scope,
         "updateBead",
@@ -1136,7 +1126,7 @@ describe("canonical projection and real creator prefixes", () => {
       await execute(f, owner, originalCarrier);
       const original = f.key("update");
       const read = f.store.read.bind(f.store);
-      const alias = vi.fn(() => "links/not-a-bead");
+      const alias = vi.fn(() => `${scope}bdp/not-a-bead`);
       let originalCause: unknown;
       const normalize = identityModule.normalizePreparedMemberIdentity;
       vi.spyOn(identityModule, "normalizePreparedMemberIdentity").mockImplementation((...args) => {
@@ -1170,12 +1160,12 @@ describe("canonical projection and real creator prefixes", () => {
       expect(fault).toBeInstanceOf(SequenceLifecycleError);
       expect(fault).toMatchObject({
         phase: "member",
-        cause: expect.any(MemberMetadataError),
+        cause: expect.any(ProtocolArtifactValidationError),
         cleanup: { kind: "returned", releasedClaims: suffix ? 1 : 0 },
       });
       expect((fault as SequenceLifecycleError).cause).toBe(originalCause);
       expect((fault as SequenceLifecycleError).cause).toMatchObject({
-        message: "live alias resolution requires the canonical in-Scope Resource kind",
+        message: "live alias resolution bead Resource path has a noncanonical segment",
       });
       expect(alias).toHaveBeenCalledExactlyOnceWith("new");
       expect(f.key("update")).toEqual(original);
@@ -1216,21 +1206,21 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
       ["first", "second"].map((key) => ({
         operation: "createLink",
         type: linkType,
-        source: "beads/a",
-        target: "beads/free",
+        source: "a",
+        target: "free",
         idempotencyKey: key,
       })),
     );
     const done = submit(owner, carrier);
     f.queue.step();
     expect(aggregate[0]?.max).toBe(1);
-    expect(f.store.read((reader) => reader.outgoingLinks("beads/a"))).toHaveLength(2);
+    expect(f.store.read((reader) => reader.outgoingLinks("a"))).toHaveLength(2);
     const rule = aggregate[0];
     if (!rule) throw Error("missing aggregate fixture");
     rule.max = 3;
     f.queue.step();
     expect(codes(await done)).toEqual(["created", "created"]);
-    expect(f.store.read((reader) => reader.outgoingLinks("beads/a"))).toHaveLength(3);
+    expect(f.store.read((reader) => reader.outgoingLinks("a"))).toHaveLength(3);
     expect(f.state.contexts).toBe(2);
     await owner.close();
   });
@@ -1248,12 +1238,12 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
     expect(f.clock.mock.results.map((r) => r.value)).toEqual([start]);
     expect(expire).toHaveBeenCalledExactlyOnceWith(start);
     const carrier = sequence([
-      create("maker", { id: "beads/new" }),
+      create("maker", { id: "new" }),
       {
         operation: "createLink",
         type: linkType,
-        source: "beads/a",
-        target: "beads/new",
+        source: "a",
+        target: "new",
         idempotencyKey: "link",
       },
     ]);
@@ -1263,7 +1253,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
       f.state.now = start + 100;
     };
     f.queue.step();
-    expect(body(f, "beads/new").revisionProvenance.committedAt.value).toBe(
+    expect(body(f, "new").revisionProvenance.committedAt.value).toBe(
       new Date(start + 100).toISOString(),
     );
     expect(retained(f.key("maker")).completedAt).toBe(start + 101);
@@ -1275,7 +1265,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
     const entry = results(completion)[1];
     if (!entry || !("resource" in entry) || !entry.resource) throw Error("expected Link result");
     const link = parseLinkRecord(entry.resource);
-    const source = body(f, "beads/a");
+    const source = body(f, "a");
     expect(source.revisionProvenance).toEqual(link.revisionProvenance);
     expect(
       source.ownedLinks[linkType].find((candidate: { id: string }) => candidate.id === link.id),
@@ -1341,7 +1331,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
         {
           operation: "putAlias",
           alias: "alias/maintenance-alias",
-          target: "beads/a",
+          target: "a",
           idempotencyKey: "alias",
         },
       ]),
@@ -1818,8 +1808,8 @@ describe("scheduler contracts, drain and fault precedence", () => {
     });
     const owner = f.owner({ member });
     const before = f.store.read((reader) => reader.resources());
-    const bad = submit(owner, sequence([create("bad", { id: "beads/bad" })]));
-    const good = submit(owner, sequence([create("good", { id: "beads/good" })]));
+    const bad = submit(owner, sequence([create("bad", { id: "bad" })]));
+    const good = submit(owner, sequence([create("good", { id: "good" })]));
     f.queue.step();
     await expect(bad).rejects.toMatchObject({
       phase: "member",
@@ -1840,20 +1830,20 @@ describe("deep actual results and controlled retained extensions", () => {
     const deep = `${'{"child":'.repeat(depth)}1${"}".repeat(depth)}`;
     const carrier = prepareReadUpdateSequence(
       scope,
-      `{"operations":[{"operation":"createBead","id":"beads/deep","type":"${type}","properties":${deep},"idempotencyKey":"deep-create","name":"made"},{"operation":"updateBead","bead":"@made","propertiesChange":[{"op":"add","path":"/other","value":${deep}}],"idempotencyKey":"deep-update"}]}`,
+      `{"operations":[{"operation":"createBead","id":"deep","type":"${type}","properties":${deep},"idempotencyKey":"deep-create","name":"made"},{"operation":"updateBead","bead":"@made","propertiesChange":[{"op":"add","path":"/other","value":${deep}}],"idempotencyKey":"deep-update"}]}`,
     );
     const owner = f.owner();
     const first = await execute(f, owner, carrier);
     const rendered = stringifyJsonValue(first);
     const original = [f.key("deep-create"), f.key("deep-update")];
-    const originalBody = f.store.read((reader) => reader.resource("beads/deep")?.bodyJson);
+    const originalBody = f.store.read((reader) => reader.resource("deep")?.bodyJson);
     await owner.close();
     f.reopen();
     const next = f.owner();
     expect(stringifyJsonValue(await execute(f, next, carrier))).toBe(rendered);
     expect([f.key("deep-create"), f.key("deep-update")]).toEqual(original);
-    expect(f.store.read((reader) => reader.resource("beads/deep")?.bodyJson)).toBe(originalBody);
-    let leaf = body(f, "beads/deep").properties.other;
+    expect(f.store.read((reader) => reader.resource("deep")?.bodyJson)).toBe(originalBody);
+    let leaf = body(f, "deep").properties.other;
     for (let i = 0; i < depth; i++) leaf = leaf.child;
     expect(leaf).toBe(1);
     await next.close();
@@ -1886,7 +1876,7 @@ const emittedSequence = new URL("../dist/sequence-executor.js", import.meta.url)
 const emittedStore = new URL("../dist/recovery-store.js", import.meta.url).href;
 const emittedProtocol = new URL("../../protocol/dist/index.js", import.meta.url).href;
 const childOperations = Array.from({ length: 5 }, (_, i) =>
-  create(`k${i}`, { id: `beads/new${i}`, name: `n${i}` }),
+  create(`k${i}`, { id: `new${i}`, name: `n${i}` }),
 );
 const childRequest = stringifyJsonValue({ operations: childOperations });
 const childProgram = `
@@ -2123,10 +2113,7 @@ describe("real event loop and emitted child ownership", () => {
     const old = barrier.snapshot as typeof before;
     expect(before.keys.slice(0, 2)).toEqual(old.keys.slice(0, 2));
     expect(before.resources).toEqual(old.resources);
-    expect(before.resources.map((resource) => resource.id).sort()).toEqual([
-      "beads/new0",
-      "beads/new1",
-    ]);
+    expect(before.resources.map((resource) => resource.id).sort()).toEqual(["new0", "new1"]);
     expect(before.keys.slice(2)).toEqual(Array.from({ length: 3 }, () => ({ kind: "unknown" })));
     const real = store.executeMember.bind(store),
       observations: string[] = [];
@@ -2169,7 +2156,7 @@ describe("real event loop and emitted child ownership", () => {
     for (const resource of before.resources)
       expect(after.resources.find((candidate) => candidate.id === resource.id)).toEqual(resource);
     expect(after.resources.map((resource) => resource.id).sort()).toEqual(
-      Array.from({ length: 5 }, (_, i) => `beads/new${i}`),
+      Array.from({ length: 5 }, (_, i) => `new${i}`),
     );
     expect(after.keys.every((key) => key.kind === "retained")).toBe(true);
     await owner.close();
@@ -2199,7 +2186,7 @@ describe("real event loop and emitted child ownership", () => {
           .read((reader) => reader.resources())
           .map((resource) => resource.id)
           .sort(),
-      ).toEqual(Array.from({ length: 5 }, (_, i) => `beads/new${i}`));
+      ).toEqual(Array.from({ length: 5 }, (_, i) => `new${i}`));
       expect(
         store.read((reader) => five().keys.map((key) => reader.key("alice", key).kind)),
       ).toEqual(Array(5).fill("retained"));
@@ -2226,7 +2213,7 @@ describe("G11 actual S5 read entry and hook-free inspection", () => {
       close.mock.calls.length,
       f.clock.mock.calls.length,
     ]).toEqual([0, 0, 0, 0]);
-    const done = submit(owner, sequence([create("read-made", { id: "beads/made" })]));
+    const done = submit(owner, sequence([create("read-made", { id: "made" })]));
     f.queue.drain();
     await done;
     read.mockClear();
@@ -2234,7 +2221,7 @@ describe("G11 actual S5 read entry and hook-free inspection", () => {
     const value = { kind: "entry-refused", reason: "not-accepting" };
     const result = owner.withRead((reader) => {
       expect(owner.inspectLifecycle()).toEqual({ busy: true, accepting: true });
-      expect(reader.resource("beads/made")).toBeDefined();
+      expect(reader.resource("made")).toBeDefined();
       escaped = reader.resources;
       expect(
         owner.withRead(() => {
@@ -2476,7 +2463,7 @@ describe("explicit runtime compatibility before authority transfer", () => {
     });
     const carrier = sequence([
       create("bad-one", { properties: { bad: true } }),
-      create("good", { id: "beads/good" }),
+      create("good", { id: "good" }),
       create("bad-two", { properties: { bad: true } }),
     ]);
     const completion = await execute(f, owner, carrier);
@@ -2622,7 +2609,7 @@ describe("explicit runtime compatibility before authority transfer", () => {
         sequence([
           {
             operation: "updateLink",
-            link: "links/old",
+            link: "old",
             propertiesChange: [{ op: "add", path: "/x", value: "123456789" }],
             idempotencyKey: "large-link",
           },
@@ -2637,7 +2624,7 @@ describe("explicit runtime compatibility before authority transfer", () => {
       );
       const cap = Math.max(...ownSizes);
       if (owned) {
-        const ownerRow = before.find((r) => r.id === "beads/a");
+        const ownerRow = before.find((r) => r.id === "a");
         if (!ownerRow) throw Error("owned fixture is missing its source Bead");
         const ownerBody = JSON.parse(ownerRow.bodyJson);
         const inlineProperties = ownerBody.ownedLinks[linkType][0].properties;
@@ -2692,14 +2679,14 @@ describe("pre-admission mutation response negotiation", () => {
     const carrier = prepareReadUpdateSingleton(
       scope,
       "createBead",
-      stringifyJsonValue({ id: "beads/negotiate", type }),
+      stringifyJsonValue({ id: "negotiate", type }),
       "negotiate",
     );
     expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
       kind: "not-acceptable",
     });
     expect(f.key("negotiate")).toEqual({ kind: "unknown" });
-    expect(f.store.read((r) => r.resource("beads/negotiate"))).toBeUndefined();
+    expect(f.store.read((r) => r.resource("negotiate"))).toBeUndefined();
     const pending = submit(owner, carrier);
     expect(owner.submit(carrier, principal, { acceptsJson: false })).toMatchObject({
       kind: "refused",
@@ -2715,7 +2702,7 @@ describe("pre-admission mutation response negotiation", () => {
     const changed = prepareReadUpdateSingleton(
       scope,
       "createBead",
-      stringifyJsonValue({ id: "beads/negotiate", type, properties: { changed: true } }),
+      stringifyJsonValue({ id: "negotiate", type, properties: { changed: true } }),
       "negotiate",
     );
     expect(owner.submit(changed, principal, { acceptsJson: false })).toMatchObject({
@@ -2731,7 +2718,7 @@ describe("pre-admission mutation response negotiation", () => {
     const carrier = prepareReadUpdateSingleton(
       scope,
       "deleteBead",
-      stringifyJsonValue({ bead: "beads/missing" }),
+      stringifyJsonValue({ bead: "missing" }),
       "missing_negotiate",
     );
     const submitted = submit(owner, carrier);

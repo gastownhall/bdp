@@ -71,9 +71,9 @@ export function createInstalledExactClient(
     if (
       method === "GET" &&
       !mode.routes.some((route) => route.method === method && route.url === url.href) &&
-      (target !== url.href || !/^beads\/[^/]+$/.test(url.pathname.slice(root.pathname.length)))
+      target !== url.href
     )
-      throw Error("captured read target must be a Bead identity");
+      throw Error("captured read target must be an absolute canonical Resource identity");
     if (
       method === "POST" &&
       !mode.routes.some((route) => route.method === method && route.url === url.href)

@@ -38,7 +38,7 @@ describe("bdptest shipping server composition", () => {
   it("faults exactly the configured resource and nothing else", async () => {
     withdrawals.push(establishReadConformanceEvidenceForTesting("bdptest"));
     const scope = "https://scope.example/acme/";
-    const faulted = new URL("beads/demo-a", scope).href;
+    const faulted = new URL("demo-a", scope).href;
     const server = createConfiguredBdptestReadServer({
       scope: { url: scope },
       server: {
@@ -59,9 +59,9 @@ describe("bdptest shipping server composition", () => {
         server.perform({
           kind: "resource",
           resource: "bead",
-          id: new URL("beads/demo-b", scope).href,
+          id: new URL("demo-b", scope).href,
         }),
-      ).resolves.toMatchObject({ id: new URL("beads/demo-b", scope).href });
+      ).resolves.toMatchObject({ id: new URL("demo-b", scope).href });
     } finally {
       await server.close();
     }
@@ -86,9 +86,9 @@ describe("bdptest shipping server composition", () => {
         server.perform({
           kind: "resource",
           resource: "bead",
-          id: new URL("beads/demo-a", scope).href,
+          id: new URL("demo-a", scope).href,
         }),
-      ).resolves.toMatchObject({ id: new URL("beads/demo-a", scope).href });
+      ).resolves.toMatchObject({ id: new URL("demo-a", scope).href });
     } finally {
       await server.close();
     }

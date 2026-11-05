@@ -35,7 +35,7 @@
             {
               "idempotencyKey": "w1-task-7-status",
               "operation": "updateBead",
-              "bead": "beads/task-7",
+              "bead": "task-7",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -75,7 +75,7 @@
               "operationIndex": 1,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-7",
+                "id": "https://beads.example/acme/task-7",
                 "type": "https://work.example/types/task",
                 "revision": "task-7-r3",
                 "properties": {
@@ -149,7 +149,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -188,7 +188,7 @@
             {
               "idempotencyKey": "w1-blocks-107-delete",
               "operation": "deleteLink",
-              "link": "links/blocks-107",
+              "link": "blocks-107",
               "expectedRevision": "blocks-107-r1"
             }
           ]
@@ -232,7 +232,7 @@
             {
               "idempotencyKey": "w1-blocks-107-delete",
               "operation": "deleteLink",
-              "link": "links/blocks-107",
+              "link": "blocks-107",
               "expectedRevision": "blocks-107-r1"
             }
           ]
@@ -253,7 +253,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/acme/links/blocks-107",
+                  "id": "https://beads.example/acme/blocks-107",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-107-r1"
                 }
@@ -383,7 +383,7 @@
             {
               "idempotencyKey": "w0-epic-2-close-2026-01-05",
               "operation": "updateBead",
-              "bead": "beads/epic-2",
+              "bead": "epic-2",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -414,7 +414,7 @@
               "operationIndex": 0,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/epic-2",
+                "id": "https://beads.example/acme/epic-2",
                 "type": "https://work.example/types/epic",
                 "revision": "epic-2-r2",
                 "properties": {

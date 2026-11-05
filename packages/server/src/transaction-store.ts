@@ -1283,14 +1283,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 db.prepare("DELETE FROM aliases WHERE path=?").run(path);
               }),
             installedType: (id) => scoped(() => installed.get(id)),
-            allocateResourceId: (kind) =>
+            allocateResourceId: () =>
               scoped(() => {
                 for (let attempt = 0; attempt < 32; attempt++) {
-                  const suffix = randomUUID(),
-                    id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
+                  const id = randomUUID();
                   if (
                     !db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
-                    (kind !== "bead" || alias(suffix) === undefined)
+                    !(id.startsWith("alias/") && alias(id.slice("alias/".length)) !== undefined)
                   )
                     return id;
                 }

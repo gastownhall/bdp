@@ -51,7 +51,7 @@ it("preserves Problem-shaped properties through the public server and Fetch clie
             client.perform({
               kind: "properties",
               resource: "bead",
-              id: `${scope}beads/demo-a`,
+              id: `${scope}demo-a`,
             }),
           ).resolves.toEqual(properties);
         } finally {
@@ -79,7 +79,7 @@ it("keeps deterministic ScopePort contract faults local and non-retryable", asyn
         perform: async () =>
           scopePortSuccess({
             items: [],
-            next: `${scope}beads/?cursor=unsupported-adapter-continuation`,
+            next: `${scope}bdp/beads?cursor=unsupported-adapter-continuation`,
           } as never) as never,
       },
     });

@@ -135,7 +135,7 @@ export async function readyBeadsFromClient(
         const targetUri = referenceUri(link.target);
         if (
           link.type === options.blockingLinkType &&
-          targetUri.startsWith(discovery.beads) &&
+          targetUri.startsWith(discovery.scope) &&
           !knownIds.has(targetUri)
         ) {
           missingBlockerIds.add(targetUri);

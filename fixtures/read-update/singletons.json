@@ -16,7 +16,7 @@
         },
         "schema": "#/$defs/createBeadRequest",
         "body": {
-          "id": "beads/projects/alpha/tasks/t-1",
+          "id": "projects/alpha/tasks/t-1",
           "type": "https://work.example/types/task",
           "properties": {
             "title": "Draft the singleton fixtures",
@@ -40,7 +40,7 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+            "id": "https://beads.example/acme/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
             "properties": {
@@ -71,7 +71,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/projects/alpha/tasks/t-1",
+          "bead": "projects/alpha/tasks/t-1",
           "expectedRevision": "t-1-r1",
           "propertiesChange": [
             {
@@ -98,7 +98,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+            "id": "https://beads.example/acme/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
             "properties": {
@@ -128,7 +128,7 @@
         },
         "schema": "#/$defs/deleteBeadRequest",
         "body": {
-          "bead": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+          "bead": "https://beads.example/acme/projects/alpha/tasks/t-1",
           "expectedRevision": "t-1-r1"
         }
       },
@@ -144,7 +144,7 @@
           "deleted": {
             "resourceKind": "bead",
             "resource": {
-              "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+              "id": "https://beads.example/acme/projects/alpha/tasks/t-1",
               "type": "https://work.example/types/task",
               "revision": "t-1-r1"
             }
@@ -165,7 +165,7 @@
         "schema": "#/$defs/createLinkRequest",
         "body": {
           "type": "https://work.example/types/cites",
-          "source": "beads/decision-7",
+          "source": "decision-7",
           "target": {
             "uri": "urn:doi:10.1000/182",
             "revision": "v3"
@@ -189,10 +189,10 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/links/cites-110",
+            "id": "https://beads.example/acme/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r1",
-            "source": "https://beads.example/acme/beads/decision-7",
+            "source": "https://beads.example/acme/decision-7",
             "target": {
               "uri": "urn:doi:10.1000/182",
               "revision": "v3"
@@ -206,7 +206,7 @@
               }
             }
           },
-          "source": "https://beads.example/acme/beads/decision-7",
+          "source": "https://beads.example/acme/decision-7",
           "sourceRevision": "decision-7-r5"
         }
       }
@@ -223,7 +223,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/cites-110",
+          "link": "cites-110",
           "expectedRevision": "cites-110-r1",
           "propertiesChange": [
             {
@@ -250,10 +250,10 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/links/cites-110",
+            "id": "https://beads.example/acme/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r2",
-            "source": "https://beads.example/acme/beads/decision-7",
+            "source": "https://beads.example/acme/decision-7",
             "target": {
               "uri": "urn:doi:10.1000/182",
               "revision": "v3"
@@ -269,7 +269,7 @@
               }
             }
           },
-          "source": "https://beads.example/acme/beads/decision-7",
+          "source": "https://beads.example/acme/decision-7",
           "sourceRevision": "decision-7-r6"
         }
       }
@@ -287,7 +287,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/cites-110",
+          "link": "cites-110",
           "expectedRevision": "cites-110-r2",
           "propertiesChange": [
             {
@@ -314,10 +314,10 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/links/cites-110",
+            "id": "https://beads.example/acme/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r2",
-            "source": "https://beads.example/acme/beads/decision-7",
+            "source": "https://beads.example/acme/decision-7",
             "target": {
               "uri": "urn:doi:10.1000/182",
               "revision": "v3"
@@ -333,7 +333,7 @@
               }
             }
           },
-          "source": "https://beads.example/acme/beads/decision-7",
+          "source": "https://beads.example/acme/decision-7",
           "sourceRevision": "decision-7-r6"
         }
       }
@@ -350,7 +350,7 @@
         },
         "schema": "#/$defs/deleteLinkRequest",
         "body": {
-          "link": "links/cites-110",
+          "link": "cites-110",
           "expectedRevision": "cites-110-r2",
           "revisionProvenance": {
             "actor": {
@@ -372,12 +372,12 @@
           "deleted": {
             "resourceKind": "link",
             "resource": {
-              "id": "https://beads.example/acme/links/cites-110",
+              "id": "https://beads.example/acme/cites-110",
               "type": "https://work.example/types/cites",
               "revision": "cites-110-r2"
             }
           },
-          "source": "https://beads.example/acme/beads/decision-7",
+          "source": "https://beads.example/acme/decision-7",
           "sourceRevision": "decision-7-r7"
         }
       }
@@ -428,7 +428,7 @@
         },
         "schema": "#/$defs/createBeadRequest",
         "body": {
-          "id": "beads/projects/alpha/tasks/t-2",
+          "id": "projects/alpha/tasks/t-2",
           "type": "https://work.example/types/task",
           "properties": {
             "title": "Check the media-type parameter",
@@ -452,7 +452,7 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-2",
+            "id": "https://beads.example/acme/projects/alpha/tasks/t-2",
             "type": "https://work.example/types/task",
             "revision": "t-2-r1",
             "properties": {
@@ -689,7 +689,7 @@
         },
         "schema": "#/$defs/createBeadRequest",
         "body": {
-          "id": "beads/projects/alpha/tasks/t-1",
+          "id": "projects/alpha/tasks/t-1",
           "type": "https://work.example/types/task",
           "properties": {
             "title": "Reuse a deleted identity",
@@ -709,7 +709,7 @@
           "code": "identity-taken",
           "status": 409,
           "retry": "never",
-          "detail": "beads/projects/alpha/tasks/t-1 was previously committed in this Scope"
+          "detail": "projects/alpha/tasks/t-1 was previously committed in this Scope"
         }
       }
     },
@@ -727,8 +727,8 @@
         "schema": "#/$defs/createLinkRequest",
         "body": {
           "type": "https://work.example/types/blocks",
-          "source": "beads/task-7",
-          "target": "beads/epic-2",
+          "source": "task-7",
+          "target": "epic-2",
           "properties": {}
         }
       },
@@ -744,7 +744,7 @@
           "code": "aggregate-constraint-violation",
           "status": 409,
           "retry": "after-state-change",
-          "detail": "beads/task-7 already has the maximum of 1 Link conforming to dependency as source"
+          "detail": "task-7 already has the maximum of 1 Link conforming to dependency as source"
         }
       }
     },
@@ -767,7 +767,7 @@
         },
         "schema": "#/$defs/createBeadRequest",
         "body": {
-          "id": "beads/projects/alpha/tasks/t-1",
+          "id": "projects/alpha/tasks/t-1",
           "type": "https://work.example/types/task",
           "properties": {
             "title": "Draft the singleton fixtures",
@@ -791,7 +791,7 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+            "id": "https://beads.example/acme/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
             "properties": {

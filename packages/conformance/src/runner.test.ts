@@ -692,7 +692,7 @@ describe("black-box conformance runner", () => {
   it("normalizes a JSON pointer before comparing it with a fixture oracle", async () => {
     const fixture = {
       ...testFixture,
-      oracles: { "resource-id": "beads/target-specific-id" },
+      oracles: { "resource-id": "target-specific-id" },
     } as const satisfies ConformanceFixture;
     const runInputs = inputs(
       [
@@ -718,7 +718,7 @@ describe("black-box conformance runner", () => {
         url: "https://scope.example/",
         status: 200,
         headers: { "content-type": "application/json" },
-        bodyText: JSON.stringify({ id: "https://scope.example/beads/target-specific-id" }),
+        bodyText: JSON.stringify({ id: "https://scope.example/target-specific-id" }),
       }),
       harness: harness(),
     });
@@ -855,7 +855,7 @@ describe("black-box conformance runner", () => {
   it("compares an array projection with the bound realization's exact multiset", async () => {
     const fixture = {
       ...testFixture,
-      oracles: { "resource-ids": ["beads/target-a", "beads/target-b"] },
+      oracles: { "resource-ids": ["target-a", "target-b"] },
     } as const satisfies ConformanceFixture;
     const runInputs = inputs(
       [
@@ -883,8 +883,8 @@ describe("black-box conformance runner", () => {
         headers: { "content-type": "application/json" },
         bodyText: JSON.stringify({
           items: [
-            { id: "https://scope.example/beads/target-b" },
-            { id: "https://scope.example/beads/target-a" },
+            { id: "https://scope.example/target-b" },
+            { id: "https://scope.example/target-a" },
           ],
         }),
       }),
@@ -943,8 +943,8 @@ describe("black-box conformance runner", () => {
       ...testFixture,
       oracles: {
         "link-tuples": [
-          ["links/one", "beads/a", "https://external.example/issues/1"],
-          ["links/two", "beads/b", "beads/a"],
+          ["one", "a", "https://external.example/issues/1"],
+          ["two", "b", "a"],
         ],
       },
     } as const satisfies ConformanceFixture;
@@ -978,13 +978,13 @@ describe("black-box conformance runner", () => {
         bodyText: JSON.stringify({
           items: [
             {
-              id: "https://scope.example/links/two",
-              source: { id: "https://scope.example/beads/b" },
-              target: { id: "https://scope.example/beads/a" },
+              id: "https://scope.example/two",
+              source: { id: "https://scope.example/b" },
+              target: { id: "https://scope.example/a" },
             },
             {
-              id: "https://scope.example/links/one",
-              source: { id: "https://scope.example/beads/a" },
+              id: "https://scope.example/one",
+              source: { id: "https://scope.example/a" },
               target: { id: "https://external.example/issues/1" },
             },
           ],
@@ -1080,8 +1080,8 @@ describe("black-box conformance runner", () => {
         { pointer: "/target/id", normalize: "scope-relative-or-absolute-uri" },
       ],
       equals: [
-        ["links/one", "beads/a", "https://external.example/issues/1"],
-        ["links/two", "beads/b", "beads/a"],
+        ["one", "a", "https://external.example/issues/1"],
+        ["two", "b", "a"],
       ],
     } as const;
     const execute = async () => ({
@@ -1091,13 +1091,13 @@ describe("black-box conformance runner", () => {
       bodyText: JSON.stringify({
         items: [
           {
-            id: "https://scope.example/links/two",
-            source: { id: "https://scope.example/beads/b" },
-            target: { id: "https://scope.example/beads/a" },
+            id: "https://scope.example/two",
+            source: { id: "https://scope.example/b" },
+            target: { id: "https://scope.example/a" },
           },
           {
-            id: "https://scope.example/links/one",
-            source: { id: "https://scope.example/beads/a" },
+            id: "https://scope.example/one",
+            source: { id: "https://scope.example/a" },
             target: { id: "https://external.example/issues/1" },
           },
         ],
@@ -1118,8 +1118,8 @@ describe("black-box conformance runner", () => {
         {
           ...tupleAssertion,
           equals: [
-            ["links/one", "beads/b", "https://external.example/issues/1"],
-            ["links/two", "beads/a", "beads/a"],
+            ["one", "b", "https://external.example/issues/1"],
+            ["two", "a", "a"],
           ],
         },
       ]),
@@ -1142,14 +1142,14 @@ describe("black-box conformance runner", () => {
       pointer: "/items",
       ordered: true,
       projections: [{ pointer: "/id", normalize: "scope-relative-url" }],
-      equals: [["beads/a"], ["beads/b"]],
+      equals: [["a"], ["b"]],
     } as const;
     const reversedItems = async () => ({
       url: "https://scope.example/",
       status: 200,
       headers: { "content-type": "application/json" },
       bodyText: JSON.stringify({
-        items: [{ id: "https://scope.example/beads/b" }, { id: "https://scope.example/beads/a" }],
+        items: [{ id: "https://scope.example/b" }, { id: "https://scope.example/a" }],
       }),
     });
     const orderedResult = await runConformanceMatrix({
@@ -1265,7 +1265,7 @@ describe("black-box conformance runner", () => {
     const mismatchedBindings = harness();
     vi.mocked(mismatchedBindings.prepare).mockResolvedValue({
       capabilities: ["public-http"],
-      bindings: { "bearer-binding-secret": "beads/demo-a" },
+      bindings: { "bearer-binding-secret": "demo-a" },
     });
     const bindingResult = await runConformanceMatrix({
       ...inputs(),
@@ -1285,12 +1285,12 @@ describe("black-box conformance runner", () => {
     const swappedBinding = harness();
     vi.mocked(swappedBinding.prepare).mockResolvedValue({
       capabilities: ["public-http"],
-      bindings: { resource: "beads/demo-b" },
+      bindings: { resource: "demo-b" },
     });
     const swappedInputs = inputs();
     const swappedResult = await runConformanceMatrix({
       ...swappedInputs,
-      artifactBundle: fixtureWithBindings(swappedInputs, { resource: "beads/demo-a" }),
+      artifactBundle: fixtureWithBindings(swappedInputs, { resource: "demo-a" }),
       scope: "https://scope.example/",
       profile: "read",
       seed: 0,
@@ -1308,12 +1308,12 @@ describe("black-box conformance runner", () => {
     const resolvedBinding = harness();
     vi.mocked(resolvedBinding.prepare).mockResolvedValue({
       capabilities: ["public-http"],
-      bindings: { resource: "https://scope.example/beads/demo-a" },
+      bindings: { resource: "https://scope.example/demo-a" },
     });
     const resolvedInputs = inputs();
     const resolvedResult = await runConformanceMatrix({
       ...resolvedInputs,
-      artifactBundle: fixtureWithBindings(resolvedInputs, { resource: "beads/demo-a" }),
+      artifactBundle: fixtureWithBindings(resolvedInputs, { resource: "demo-a" }),
       scope: "https://scope.example/",
       profile: "read",
       seed: 0,
@@ -1400,9 +1400,6 @@ describe("black-box conformance runner", () => {
           bdpVersion: "0",
           profile: "read",
           scope: "https://scope.example/",
-          beads: "https://scope.example/beads/",
-          links: "https://scope.example/links/",
-          types: "https://scope.example/types/",
         }),
       });
     const result = await runConformanceMatrix({
@@ -2263,14 +2260,14 @@ describe("black-box conformance runner", () => {
         headers: { "content-type": "application/json" },
         bodyText: JSON.stringify({
           token: "opaque",
-          next: "https://scope.example/beads/?cursor=opaque",
+          next: "https://scope.example/bdp/beads?cursor=opaque",
         }),
       }),
       harness: harness(),
     });
     expect(result.scenarios[0]?.exchanges[0]?.response).toMatchObject({
       bodyKind: "json",
-      decodedBodyBytes: 70,
+      decodedBodyBytes: 73,
     });
     expect(result.scenarios[0]?.exchanges[0]?.response).not.toHaveProperty("body");
   });
@@ -3438,7 +3435,7 @@ describe("black-box conformance runner", () => {
     if (scenario === undefined || request === undefined)
       throw new Error("test manifest unexpectedly empty");
     const execute = vi.fn(async () => ({
-      url: "https://scope.example/beads/child",
+      url: "https://scope.example/child",
       status: 204,
       headers: {},
       bodyText: "",
@@ -3446,7 +3443,7 @@ describe("black-box conformance runner", () => {
     await runConformanceMatrix({
       ...base,
       artifactBundle: replaceArtifacts(base, {
-        fixture: { ...base.artifactBundle.fixture, bindings: { resource: "beads/demo-a" } },
+        fixture: { ...base.artifactBundle.fixture, bindings: { resource: "demo-a" } },
         manifest: {
           ...base.artifactBundle.manifest,
           scenarios: [
@@ -3464,13 +3461,13 @@ describe("black-box conformance runner", () => {
       harness: {
         prepare: async () => ({
           capabilities: ["public-http"],
-          bindings: { resource: "https://scope.example/beads/demo-a" },
+          bindings: { resource: "https://scope.example/demo-a" },
         }),
         cleanup: async () => undefined,
       },
     });
     expect(execute).toHaveBeenCalledWith(
-      expect.objectContaining({ url: "https://scope.example/beads/child" }),
+      expect.objectContaining({ url: "https://scope.example/child" }),
     );
   });
 
@@ -3491,7 +3488,7 @@ describe("black-box conformance runner", () => {
       artifactBundle: replaceArtifacts(base, {
         fixture: {
           ...base.artifactBundle.fixture,
-          bindings: { resource: "beads/demo-a" },
+          bindings: { resource: "demo-a" },
         },
         manifest: {
           ...base.artifactBundle.manifest,
@@ -3521,14 +3518,14 @@ describe("black-box conformance runner", () => {
       harness: {
         prepare: async () => ({
           capabilities: ["public-http"],
-          bindings: { resource: "https://scope.example/local-test/beads/demo-a" },
+          bindings: { resource: "https://scope.example/local-test/demo-a" },
         }),
         cleanup: async () => undefined,
       },
     });
     expect(execute).toHaveBeenCalledWith(
       expect.objectContaining({
-        url: "https://scope.example/local-test/?source=beads%2Fdemo-a&target=https%3A%2F%2Fscope.example%2Flocal-test%2Fbeads%2Fdemo-a",
+        url: "https://scope.example/local-test/?source=demo-a&target=https%3A%2F%2Fscope.example%2Flocal-test%2Fdemo-a",
       }),
     );
   });
@@ -3582,12 +3579,12 @@ describe("black-box conformance runner", () => {
     const escapedBinding = harness();
     vi.mocked(escapedBinding.prepare).mockResolvedValue({
       capabilities: ["public-http"],
-      bindings: { resource: "https://foreign.example/beads/demo-a" },
+      bindings: { resource: "https://foreign.example/demo-a" },
     });
     const escapedInputs = inputs();
     const escapedResult = await runConformanceMatrix({
       ...escapedInputs,
-      artifactBundle: fixtureWithBindings(escapedInputs, { resource: "beads/demo-a" }),
+      artifactBundle: fixtureWithBindings(escapedInputs, { resource: "demo-a" }),
       scope: "https://scope.example/",
       profile: "read",
       seed: 0,
@@ -3603,13 +3600,13 @@ describe("black-box conformance runner", () => {
     const secretNamedBinding = harness();
     vi.mocked(secretNamedBinding.prepare).mockResolvedValue({
       capabilities: ["public-http"],
-      bindings: { "bearer-binding-secret": "https://foreign.example/beads/demo-a" },
+      bindings: { "bearer-binding-secret": "https://foreign.example/demo-a" },
     });
     const secretInputs = inputs();
     const secretNamedResult = await runConformanceMatrix({
       ...secretInputs,
       artifactBundle: fixtureWithBindings(secretInputs, {
-        "bearer-binding-secret": "beads/demo-a",
+        "bearer-binding-secret": "demo-a",
       }),
       scope: "https://scope.example/",
       profile: "read",
@@ -3671,7 +3668,7 @@ describe("black-box conformance runner", () => {
     const unsafeName = harness();
     vi.mocked(unsafeName.prepare).mockResolvedValue({
       capabilities: ["public-http"],
-      bindings: { "Bearer BINDING-SECRET": "beads/a" },
+      bindings: { "Bearer BINDING-SECRET": "a" },
     });
     const unsafe = await runConformanceMatrix({
       ...inputs(),

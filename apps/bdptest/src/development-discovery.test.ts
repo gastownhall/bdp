@@ -139,7 +139,7 @@ describe("private canonical Read+Update composition", () => {
     const a = resource(
       await h.post(
         "createBead",
-        { id: "beads/a", type: beadType, properties: { n: 1 }, metadata: { owner: "test" } },
+        { id: "a", type: beadType, properties: { n: 1 }, metadata: { owner: "test" } },
         "a",
       ),
     );
@@ -159,7 +159,7 @@ describe("private canonical Read+Update composition", () => {
     const edge = resource(
       await h.post(
         "createLink",
-        { id: "links/l", type: linkType, source: a.id, target: a.id, metadata: { owner: "old" } },
+        { id: "l", type: linkType, source: a.id, target: a.id, metadata: { owner: "old" } },
         "link",
       ),
     );
@@ -256,7 +256,7 @@ describe("private canonical Read+Update composition", () => {
       expect(r.status).toBe(406);
       expect(r.text).toBe("");
     }
-    const a = resource(await h.post("createBead", { id: "beads/a", type: beadType }, "a"));
+    const a = resource(await h.post("createBead", { id: "a", type: beadType }, "a"));
     const get = await h.wire(a.id),
       head = await h.wire(a.id, "HEAD");
     expect(head.headers.get("etag")).toBe(get.headers.get("etag"));
@@ -271,7 +271,7 @@ describe("private canonical Read+Update composition", () => {
 
   it("preserves cross-carrier keys, guards, retained failures and independent tail outcomes", async () => {
     const h = await start();
-    const input = { id: "beads/a", type: beadType };
+    const input = { id: "a", type: beadType };
     const a = resource(await h.post("createBead", input, "same"));
     const replay = await h.post("sequence", {
       operations: [{ operation: "createBead", idempotencyKey: "same", ...input }],
@@ -285,27 +285,27 @@ describe("private canonical Read+Update composition", () => {
         expectedRevision: "wrong",
         propertiesChange: [{ op: "add", path: "/bad", value: true }],
       },
-      { operation: "createBead", idempotencyKey: "tail", id: "beads/tail", type: beadType },
+      { operation: "createBead", idempotencyKey: "tail", id: "tail", type: beadType },
     ];
     const partial = await h.post("sequence", { operations: ops });
     expect(partial.value.results[0].code).toBe("revision-mismatch");
     expect(partial.value.results[1].outcome).toBe("created");
     expect((await h.wire(a.id)).value).toEqual(a);
-    expect((await h.wire("beads/tail")).value).toEqual(partial.value.results[1].resource);
+    expect((await h.wire("tail")).value).toEqual(partial.value.results[1].resource);
     const { operation: _op, idempotencyKey: _key, ...failed } = required(ops[0]);
     expect((await h.post("updateBead", failed, "failed")).value.code).toBe("revision-mismatch");
     expect(
       (await h.post("updateBead", { ...failed, expectedRevision: a.revision }, "failed")).value
         .code,
     ).toBe("idempotency-conflict");
-    const tail = resource(await h.post("createBead", { id: "beads/tail", type: beadType }, "tail"));
+    const tail = resource(await h.post("createBead", { id: "tail", type: beadType }, "tail"));
     expect(tail).toEqual(partial.value.results[1].resource);
     expect((await h.post("sequence", { operations: ops })).value).toEqual(partial.value);
   });
 
   it("rejects receiving and negotiation failures before unknown key capture, preserving retained precedence", async () => {
     const h = await start();
-    const input = JSON.stringify({ id: "beads/a", type: beadType });
+    const input = JSON.stringify({ id: "a", type: beadType });
     const headers = { "content-type": "application/json", "idempotency-key": "a" };
     const url = h.target("createBead");
     for (const [extra, body, status] of [
@@ -316,18 +316,18 @@ describe("private canonical Read+Update composition", () => {
       [{}, "x".repeat(65537), 413],
     ] as const)
       expect((await h.wire(url, "POST", { ...headers, ...extra }, body)).status).toBe(status);
-    expect((await h.wire("beads/a")).status).toBe(404);
+    expect((await h.wire("a")).status).toBe(404);
     const a = resource(await h.post("createBead", JSON.parse(input), "a"));
     const equalRefusal = await h.wire(url, "POST", { ...headers, accept: "text/plain" }, input);
     expect(equalRefusal.status).toBe(406);
     expect(equalRefusal.text).toBe("");
-    expect((await h.wire("beads/a")).value).toEqual(a);
+    expect((await h.wire("a")).value).toEqual(a);
     expect(resource(await h.post("createBead", JSON.parse(input), "a"))).toEqual(a);
     const conflict = await h.wire(
       url,
       "POST",
       { ...headers, accept: "text/plain" },
-      JSON.stringify({ id: "beads/b", type: beadType }),
+      JSON.stringify({ id: "b", type: beadType }),
     );
     expect(conflict.status).toBe(409);
     expect(conflict.value.code).toBe("idempotency-conflict");
@@ -350,7 +350,7 @@ describe("private canonical Read+Update composition", () => {
     });
     expect(h.discovery.limits?.retention).toBeUndefined();
     expect(h.discovery.limits?.resource).toBeUndefined();
-    const base = JSON.stringify({ id: "beads/exact", type: beadType });
+    const base = JSON.stringify({ id: "exact", type: beadType });
     const padded = base + " ".repeat(65536 - Buffer.byteLength(base));
     resource(
       await h.wire(
@@ -363,20 +363,20 @@ describe("private canonical Read+Update composition", () => {
     const operations = Array.from({ length: 33 }, (_, i) => ({
       operation: "createBead",
       idempotencyKey: `many${i}`,
-      id: `beads/m${i}`,
+      id: `m${i}`,
       type: beadType,
     }));
     const refused = await h.post("sequence", { operations });
     expect(refused.status).toBe(413);
-    expect((await h.wire("beads/m0")).status).toBe(404);
-    expect((await h.wire("beads/m32")).status).toBe(404);
+    expect((await h.wire("m0")).status).toBe(404);
+    expect((await h.wire("m32")).status).toBe(404);
     const accepted = await h.post("sequence", { operations: operations.slice(0, 32) });
     expect(accepted.status).toBe(200);
     expect(accepted.value.results).toHaveLength(32);
     expect(accepted.value.results.every((r: { outcome: string }) => r.outcome === "created")).toBe(
       true,
     );
-    expect((await h.wire("beads/m31")).status).toBe(200);
+    expect((await h.wire("m31")).status).toBe(200);
   });
 
   it("serves inherited scalar, view, selector, Type inventory and immutable pagination reads from live state", async () => {
@@ -384,51 +384,51 @@ describe("private canonical Read+Update composition", () => {
     const a = resource(
       await h.post(
         "createBead",
-        { id: "beads/a", type: beadType, properties: { n: 1 }, metadata: { tag: "m" } },
+        { id: "a", type: beadType, properties: { n: 1 }, metadata: { tag: "m" } },
         "a",
       ),
     );
-    resource(await h.post("createBead", { id: "beads/b", type: beadType }, "b"));
-    const c = resource(await h.post("createBead", { id: "beads/c", type: beadType }, "c"));
-    const properties = await h.wire("beads/a?view=properties");
+    resource(await h.post("createBead", { id: "b", type: beadType }, "b"));
+    const c = resource(await h.post("createBead", { id: "c", type: beadType }, "c"));
+    const properties = await h.wire("a?view=properties");
     expect(properties.value).toEqual({ n: 1 });
     const complete = await h.wire(a.id);
     expect(properties.headers.get("etag")).toBe(complete.headers.get("etag"));
-    expect((await h.wire("beads/a?view=properties", "HEAD")).headers.get("etag")).toBe(
+    expect((await h.wire("a?view=properties", "HEAD")).headers.get("etag")).toBe(
       complete.headers.get("etag"),
     );
     expect(
       (
-        await h.wire("beads/a?view=properties", "GET", {
+        await h.wire("a?view=properties", "GET", {
           "if-none-match": required(complete.headers.get("etag")),
         })
       ).status,
     ).toBe(304);
     expect((await h.wire(a.id)).value.metadata).toEqual(a.metadata);
-    const page = await h.wire("beads/?limit=1");
+    const page = await h.wire("bdp/beads?limit=1");
     expect(page.value.items).toEqual([a]);
     expect(typeof page.value.next).toBe("string");
     await h.post("deleteBead", { bead: c.id, expectedRevision: c.revision }, "delete_c");
-    resource(await h.post("createBead", { id: "beads/d", type: beadType }, "d"));
+    resource(await h.post("createBead", { id: "d", type: beadType }, "d"));
     const second = await h.wire(page.value.next),
       third = await h.wire(second.value.next);
     expect(third.value.items).toEqual([c]);
-    const fresh = await h.wire("beads/");
+    const fresh = await h.wire("bdp/beads");
     expect(fresh.value.items.map((x: { id: string }) => x.id)).toEqual([
       a.id,
-      `${h.server.scope}beads/b`,
-      `${h.server.scope}beads/d`,
+      `${h.server.scope}b`,
+      `${h.server.scope}d`,
     ]);
     const selected = await h.wire(
-      `beads/?selector=${encodeURIComponent("$[?@.properties.n == 1]")}`,
+      `bdp/beads?selector=${encodeURIComponent("$[?@.properties.n == 1]")}`,
     );
     expect(selected.value.items).toEqual([a]);
     const types = await h.wire("types/");
     expect(types.status).toBe(200);
     expect(types.value.items.map((x: { id: string }) => x.id).sort()).toEqual([beadType, linkType]);
-    expect((await h.wire("beads/?limit=101")).status).toBe(413);
+    expect((await h.wire("bdp/beads?limit=101")).status).toBe(413);
     expect(
-      (await h.wire(`beads/?selector=${encodeURIComponent(`$${" ".repeat(4096)}`)}`)).status,
+      (await h.wire(`bdp/beads?selector=${encodeURIComponent(`$${" ".repeat(4096)}`)}`)).status,
     ).toBe(413);
   });
 
@@ -508,14 +508,14 @@ it("reads a committed prefix during a real HTTP disconnect, drains and replays e
   const h = await start(scheduler);
   const input = {
     operations: [
-      { operation: "createBead", idempotencyKey: "prefix", id: "beads/prefix", type: beadType },
+      { operation: "createBead", idempotencyKey: "prefix", id: "prefix", type: beadType },
       {
         operation: "updateBead",
         idempotencyKey: "miss",
-        bead: "beads/missing",
+        bead: "missing",
         propertiesChange: [{ op: "add", path: "/x", value: 1 }],
       },
-      { operation: "createBead", idempotencyKey: "tail", id: "beads/tail", type: beadType },
+      { operation: "createBead", idempotencyKey: "tail", id: "tail", type: beadType },
     ],
   };
   const request = httpRequest(h.target("sequence"), {
@@ -533,9 +533,9 @@ it("reads a committed prefix during a real HTTP disconnect, drains and replays e
   request.end(JSON.stringify(input));
   try {
     await bounded(parked);
-    const prefix = await h.wire("beads/prefix");
+    const prefix = await h.wire("prefix");
     expect(prefix.status).toBe(200);
-    expect((await h.wire("beads/tail")).status).toBe(404);
+    expect((await h.wire("tail")).status).toBe(404);
     request.destroy(Error("intentional client disconnect"));
     await bounded(detached);
     const closing = h.server.close();
@@ -553,7 +553,7 @@ it("reads a committed prefix during a real HTTP disconnect, drains and replays e
     expect(replay.value.results[0].resource).toEqual(prefix.value);
     expect(replay.value.results[1].code).toBe("resource-not-found");
     expect(replay.value.results[2].outcome).toBe("created");
-    expect((await h.wire("beads/tail")).value).toEqual(replay.value.results[2].resource);
+    expect((await h.wire("tail")).value).toEqual(replay.value.results[2].resource);
     expect((await h.post("sequence", input)).value).toEqual(replay.value);
   } finally {
     request.destroy();
@@ -566,7 +566,7 @@ it("uses real raw receiving gates at scoped targets without capturing rejected k
   const h = await start();
   const originScope = new URL("/", h.server.scope).href;
   const target = new URL(h.target("createBead")).pathname;
-  const input = JSON.stringify({ id: "beads/raw", type: beadType });
+  const input = JSON.stringify({ id: "raw", type: beadType });
   const fields = [
     "Host",
     new URL(h.server.scope).host,
@@ -587,7 +587,7 @@ it("uses real raw receiving gates at scoped targets without capturing rejected k
     const response = await rawPost(originScope, targetPath, [...headers], body);
     expect(response.status).toBe(400);
   }
-  expect((await h.wire("beads/raw")).status).toBe(404);
+  expect((await h.wire("raw")).status).toBe(404);
   const created = resource(await h.post("createBead", JSON.parse(input), "raw"));
   expect((await h.wire(created.id)).value).toEqual(created);
 });
@@ -595,7 +595,7 @@ it("uses real raw receiving gates at scoped targets without capturing rejected k
 it("emits bounded numeric diagnostics from current main's formatter and replays them unchanged", async () => {
   const h = await start();
   const properties = Array.from({ length: 33 }, (_, i) => `"p${i}":1e400`).join(",");
-  const input = `{"id":"beads/numeric","type":"${beadType}","properties":{${properties}}}`;
+  const input = `{"id":"numeric","type":"${beadType}","properties":{${properties}}}`;
   const response = await h.wire(
     h.target("createBead"),
     "POST",
@@ -609,7 +609,7 @@ it("emits bounded numeric diagnostics from current main's formatter and replays 
   expect(Buffer.byteLength(JSON.stringify(response.value.diagnostics))).toBeLessThanOrEqual(
     Number(required(required(h.discovery.limits).validation).diagnosticBytes),
   );
-  expect((await h.wire("beads/numeric")).status).toBe(404);
+  expect((await h.wire("numeric")).status).toBe(404);
   expect(
     (
       await h.wire(
@@ -620,7 +620,7 @@ it("emits bounded numeric diagnostics from current main's formatter and replays 
       )
     ).value,
   ).toEqual(response.value);
-  const corrected = { id: "beads/numeric", type: beadType, properties: { p0: 1 } };
+  const corrected = { id: "numeric", type: beadType, properties: { p0: 1 } };
   expect((await h.post("createBead", corrected, "numeric")).value.code).toBe(
     "idempotency-conflict",
   );
@@ -642,7 +642,7 @@ it("lets the SDK discover, mutate, alias-resolve and read without supplied opera
     });
     const created = await client.mutate(
       "createBead",
-      JSON.stringify({ id: "beads/sdk", type: beadType, properties: { title: "from SDK" } }),
+      JSON.stringify({ id: "sdk", type: beadType, properties: { title: "from SDK" } }),
       { idempotencyKey: "sdk_create" },
     );
     if (created.kind !== "success" || !created.value.resource) throw Error("SDK create failed");
@@ -667,13 +667,15 @@ it("lets the SDK discover, mutate, alias-resolve and read without supplied opera
     const edge = resource(
       await h.post(
         "createLink",
-        { id: "links/sdk-edge", type: linkType, source: a.id, target: a.id },
+        { id: "sdk-edge", type: linkType, source: a.id, target: a.id },
         "sdk_link",
       ),
     );
-    expect((await h.wire("beads/sdk?view=links&direction=both")).value.items).toEqual([edge]);
-    expect((await h.wire(`links/?source=${encodeURIComponent(a.id)}`)).value.items).toEqual([edge]);
-    const inclusion = await h.wire("beads/sdk?include=links&direction=both");
+    expect((await h.wire("sdk?view=links&direction=both")).value.items).toEqual([edge]);
+    expect((await h.wire(`bdp/links?source=${encodeURIComponent(a.id)}`)).value.items).toEqual([
+      edge,
+    ]);
+    const inclusion = await h.wire("sdk?include=links&direction=both");
     // Optional aggregate is not installed; incident-link view remains supported.
     expect(inclusion.status).toBe(400);
   } finally {

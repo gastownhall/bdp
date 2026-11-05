@@ -89,7 +89,7 @@ function fixture(descriptors: readonly TypeDescriptor[] = [beadDescriptor(), lin
     identityWasCommitted: (id) => identities.has(id),
     alias: (id) => aliases.get(id),
     installedType: (id) => installed.get(id),
-    allocateResourceId: (kind) => `${kind === "bead" ? "beads" : "links"}/generated-${++nextId}`,
+    allocateResourceId: () => `generated-${++nextId}`,
     allocateRevision: () => `revision-${++nextRevision}`,
     putResource(record) {
       records.set(record.id, record);
@@ -167,9 +167,9 @@ function fixture(descriptors: readonly TypeDescriptor[] = [beadDescriptor(), lin
   const body = (id: string): ResourceRecord =>
     JSON.parse(records.get(id)?.bodyJson ?? "null") as ResourceRecord;
   const createBead = (id: string, properties = {}, extra = {}) =>
-    execute("createBead", { id: `beads/${id}`, type: beadType, properties, ...extra });
-  const createLink = (id: string, source = "beads/a", target: unknown = "beads/b", extra = {}) =>
-    execute("createLink", { id: `links/${id}`, type: linkType, source, target, ...extra });
+    execute("createBead", { id: `${id}`, type: beadType, properties, ...extra });
+  const createLink = (id: string, source = "a", target: unknown = "b", extra = {}) =>
+    execute("createLink", { id: `${id}`, type: linkType, source, target, ...extra });
   return {
     tx,
     options,
@@ -210,11 +210,11 @@ describe("pure member Resource evaluation", () => {
       );
       f.createBead("b");
       if (kind === "link")
-        f.createLink("edge", "beads/a", "beads/b", {
+        f.createLink("edge", "a", "b", {
           properties: { keep: true, change: "old" },
           metadata: { owner: "team", stale: true },
         });
-      const id = kind === "bead" ? "beads/a" : "links/edge";
+      const id = kind === "bead" ? "a" : "edge";
       const operation = kind === "bead" ? "updateBead" : "updateLink";
       const subject = kind === "bead" ? { bead: id } : { link: id };
       const update = (propertiesChange: unknown, metadataChange: unknown) =>
@@ -267,48 +267,48 @@ describe("pure member Resource evaluation", () => {
   it("updates properties and metadata atomically, clears to empty, and preserves a no-op revision", () => {
     const f = fixture();
     f.createBead("a", { title: "before" }, { metadata: { owner: "team" } });
-    const before = f.body("beads/a");
+    const before = f.body("a");
     const writes = f.writes();
     const changed = f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       expectedRevision: before.revision,
       propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
       metadataChange: [{ op: "add", path: "/reviewed", value: true }],
     });
     expect(changed.effect).toBe("success");
     expect(f.writes()).toBe(writes + 1);
-    const after = f.body("beads/a");
+    const after = f.body("a");
     expect(after.revision).not.toBe(before.revision);
     expect(after.properties).toEqual({ title: "after" });
     expect(after.metadata).toEqual({ owner: "team", reviewed: true });
     failure(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         expectedRevision: before.revision,
         metadataChange: [{ op: "replace", path: "", value: {} }],
       }),
       "revision-mismatch",
     );
     const cleared = f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       metadataChange: [{ op: "replace", path: "", value: {} }],
     });
     expect(cleared.effect).toBe("success");
-    const empty = f.body("beads/a");
+    const empty = f.body("a");
     expect(empty.metadata).toEqual({});
     const count = f.writes();
     const noOp = f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       metadataChange: [{ op: "replace", path: "", value: {} }],
     });
     expect(noOp.effect).toBe("success");
-    expect(f.body("beads/a").revision).toBe(empty.revision);
+    expect(f.body("a").revision).toBe(empty.revision);
     expect(f.writes()).toBe(count);
   });
   it("projects legacy missing metadata without rewriting retained bytes", () => {
     const f = fixture();
     f.createBead("a", { title: "old" });
-    const current = f.records.get("beads/a");
+    const current = f.records.get("a");
     if (!current) throw new Error("missing fixture Bead");
     const legacy = {
       ...current,
@@ -320,9 +320,9 @@ describe("pure member Resource evaluation", () => {
         ),
       ),
     };
-    f.records.set("beads/a", legacy);
+    f.records.set("a", legacy);
     expect(readStoredResource(legacy, scope).metadata).toEqual({});
-    expect(f.records.get("beads/a")?.bodyJson).toBe(legacy.bodyJson);
+    expect(f.records.get("a")?.bodyJson).toBe(legacy.bodyJson);
   });
   it("versions an owned Link and its source once for a metadata-only update", () => {
     const f = fixture([
@@ -332,17 +332,17 @@ describe("pure member Resource evaluation", () => {
     f.createBead("a");
     f.createBead("b");
     f.createLink("edge");
-    const linkBefore = f.body("links/edge");
-    const sourceBefore = f.body("beads/a");
+    const linkBefore = f.body("edge");
+    const sourceBefore = f.body("a");
     const writes = f.writes();
     const result = f.execute("updateLink", {
-      link: "links/edge",
+      link: "edge",
       expectedRevision: linkBefore.revision,
       metadataChange: [{ op: "add", path: "/note", value: "reviewed" }],
     });
     expect(result.effect).toBe("success");
-    const linkAfter = f.body("links/edge");
-    const sourceAfter = f.body("beads/a");
+    const linkAfter = f.body("edge");
+    const sourceAfter = f.body("a");
     expect(linkAfter.metadata).toEqual({ note: "reviewed" });
     expect(linkAfter.revision).not.toBe(linkBefore.revision);
     expect(sourceAfter.revision).not.toBe(sourceBefore.revision);
@@ -352,7 +352,7 @@ describe("pure member Resource evaluation", () => {
     expect(f.writes()).toBe(writes + 2);
     failure(
       f.execute("updateLink", {
-        link: "links/edge",
+        link: "edge",
         expectedRevision: linkBefore.revision,
         metadataChange: [{ op: "replace", path: "", value: {} }],
       }),
@@ -360,35 +360,35 @@ describe("pure member Resource evaluation", () => {
     );
     const count = f.writes();
     const noOp = f.execute("updateLink", {
-      link: "links/edge",
+      link: "edge",
       metadataChange: [{ op: "replace", path: "/note", value: "reviewed" }],
     });
     expect(noOp.effect).toBe("success");
     expect(f.writes()).toBe(count);
-    expect(f.body("beads/a").revision).toBe(sourceAfter.revision);
+    expect(f.body("a").revision).toBe(sourceAfter.revision);
   });
   it("creates, patches and deletes both kinds, returning schema-valid final identities", () => {
     const f = fixture();
     f.createBead("a", { title: "a" });
     f.createBead("b");
-    f.createLink("edge", "beads/a", { uri: "beads/b", revision: "provenance-not-a-CAS" });
-    const link = f.body("links/edge");
+    f.createLink("edge", "a", { uri: "b", revision: "provenance-not-a-CAS" });
+    const link = f.body("edge");
     expect(link).toMatchObject({
-      source: `${scope}beads/a`,
-      target: { uri: `${scope}beads/b`, revision: "provenance-not-a-CAS" },
+      source: `${scope}a`,
+      target: { uri: `${scope}b`, revision: "provenance-not-a-CAS" },
     });
     f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       propertiesChange: [{ op: "replace", path: "/title", value: "new" }],
     });
     f.execute("updateLink", {
-      link: "links/edge",
+      link: "edge",
       propertiesChange: [{ op: "add", path: "/n", value: 1 }],
     });
-    const last = f.body("links/edge");
+    const last = f.body("edge");
     expect(last.revision).not.toBe(link.revision);
     const deletedLink = f.execute("deleteLink", {
-      link: "links/edge",
+      link: "edge",
       expectedRevision: last.revision,
     });
     expect(deletedLink.outcome).toEqual({
@@ -398,12 +398,12 @@ describe("pure member Resource evaluation", () => {
         resource: { id: last.id, type: last.type, revision: last.revision },
       },
     });
-    const lastBead = f.body("beads/a");
-    const deleted = f.execute("deleteBead", { bead: "beads/a" });
+    const lastBead = f.body("a");
+    const deleted = f.execute("deleteBead", { bead: "a" });
     expect(deleted.outcome).toMatchObject({
       deleted: { resource: { revision: lastBead.revision } },
     });
-    expect(f.records.has("beads/a")).toBe(false);
+    expect(f.records.has("a")).toBe(false);
     failure(f.createBead("a"), "identity-taken");
     failure(f.createLink("edge"), "identity-taken");
   });
@@ -419,11 +419,11 @@ describe("pure member Resource evaluation", () => {
       { n: 1, zero: 0, nested: { a: 1, b: [2] } },
       { revisionProvenance: { message: "original" } },
     );
-    const before = f.body("beads/a");
+    const before = f.body("a");
     const allocated = f.allocations();
     const writes = f.writes();
     const raw =
-      '{"bead":"beads/a","propertiesChange":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"revisionProvenance":{"message":"ignored no-op"}}';
+      '{"bead":"a","propertiesChange":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"revisionProvenance":{"message":"ignored no-op"}}';
     const admitted = admitReadUpdateOperationNumbers(parseReadUpdateRequest("updateBead", raw), {
       diagnostic: ({ pointer }) => ({
         message: "inadmissible number",
@@ -437,7 +437,7 @@ describe("pure member Resource evaluation", () => {
       f.options,
     );
     expect(result.outcome).toMatchObject({ outcome: "updated", resource: before });
-    expect(f.body("beads/a")).toEqual(before);
+    expect(f.body("a")).toEqual(before);
     expect(f.allocations()).toEqual(allocated);
     expect(f.writes()).toBe(writes);
     expect(Object.isFrozen(result.outcome)).toBe(true);
@@ -445,13 +445,13 @@ describe("pure member Resource evaluation", () => {
   it("checks authorization before CAS and keeps failed validation from staging any Resource writes", () => {
     const f = fixture();
     f.createBead("a", { n: 1 });
-    const before = f.body("beads/a");
+    const before = f.body("a");
     const writes = f.writes();
     failure(
       f.execute(
         "updateBead",
         {
-          bead: "beads/a",
+          bead: "a",
           expectedRevision: "stale",
           propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
         },
@@ -461,7 +461,7 @@ describe("pure member Resource evaluation", () => {
     );
     failure(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         expectedRevision: "stale",
         propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
       }),
@@ -469,23 +469,23 @@ describe("pure member Resource evaluation", () => {
     );
     failure(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         propertiesChange: [{ op: "replace", path: "/missing", value: 2 }],
       }),
       "validation-failed",
     );
-    expect(f.body("beads/a")).toEqual(before);
+    expect(f.body("a")).toEqual(before);
     expect(f.writes()).toBe(writes);
   });
   it("does not reveal hidden subjects or endpoints through write permission or diagnostics", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
-    f.hidden.add(`${scope}beads/b`);
+    f.hidden.add(`${scope}b`);
     f.authorized.length = 0;
     const hidden = failure(
       f.execute("updateBead", {
-        bead: "beads/b",
+        bead: "b",
         propertiesChange: [{ op: "remove", path: "/missing" }],
       }),
       "resource-not-found",
@@ -493,7 +493,7 @@ describe("pure member Resource evaluation", () => {
     expect(hidden).toEqual(
       failure(
         f.execute("updateBead", {
-          bead: "beads/unknown",
+          bead: "unknown",
           propertiesChange: [{ op: "remove", path: "/missing" }],
         }),
         "resource-not-found",
@@ -501,31 +501,34 @@ describe("pure member Resource evaluation", () => {
     );
     failure(f.createLink("edge"), "resource-not-found");
     expect(f.authorized).toEqual([]);
-    expect(f.records.has("links/edge")).toBe(false);
+    expect(f.records.has("edge")).toBe(false);
   });
   it("withholds incident Link identity while refusing deletion, and respects earlier member effects", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
     f.createLink("secret");
-    f.hidden.add(`${scope}links/secret`);
-    const problem = failure(f.execute("deleteBead", { bead: "beads/a" }), "incident-links-exist");
+    f.hidden.add(`${scope}secret`);
+    const problem = failure(f.execute("deleteBead", { bead: "a" }), "incident-links-exist");
     expect(JSON.stringify(problem)).not.toContain("secret");
     f.hidden.clear();
-    f.execute("deleteLink", { link: "links/secret" });
-    expect(f.execute("deleteBead", { bead: "beads/a" }).effect).toBe("success");
+    f.execute("deleteLink", { link: "secret" });
+    expect(f.execute("deleteBead", { bead: "a" }).effect).toBe("success");
   });
   it("keeps supplied identity/alias collision precedence and treats aliases as current locators", () => {
     const f = fixture();
     f.createBead("a");
-    f.aliases.set("taken", "beads/a");
+    f.aliases.set("taken", "a");
     failure(f.createBead("a", {}, { type: "https://missing.test/type" }), "identity-taken");
-    failure(f.createBead("taken", {}, { type: "https://missing.test/type" }), "alias-path-taken");
+    failure(
+      f.execute("createBead", { id: "alias/taken", type: "https://missing.test/type" }),
+      "alias-path-taken",
+    );
     const result = f.execute("updateBead", {
       bead: "alias/taken",
       propertiesChange: [{ op: "replace", path: "", value: {} }],
     });
-    expect(result.outcome).toMatchObject({ resource: { id: `${scope}beads/a` } });
+    expect(result.outcome).toMatchObject({ resource: { id: `${scope}a` } });
     f.aliases.delete("taken");
     failure(f.execute("deleteBead", { bead: "alias/taken" }), "resource-not-found");
   });
@@ -533,8 +536,9 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
-    failure(f.execute("deleteBead", { bead: "links/a" }), "resource-not-found");
-    failure(f.createLink("wrong", "beads/a", "links/other"), "validation-failed");
+    f.createLink("other", "a", "b");
+    failure(f.execute("deleteBead", { bead: "missing" }), "resource-not-found");
+    failure(f.createLink("wrong", "a", "other"), "validation-failed");
     failure(
       f.createBead("missing", {}, { type: "https://types.test/missing" }),
       "type-not-installed",
@@ -573,7 +577,7 @@ describe("pure member Resource evaluation", () => {
     const bounded = failure(
       f.execute(
         "createBead",
-        { id: "beads/a", type: beadType },
+        { id: "a", type: beadType },
         { limits: { diagnosticCount: 1, diagnosticBytes: 65536 } },
       ),
       "validation-failed",
@@ -617,7 +621,7 @@ describe("pure member Resource evaluation", () => {
       valid: false,
       diagnosticsComplete: emitter.emit(diagnostic),
     });
-    const input = { id: "beads/a", type: beadType };
+    const input = { id: "a", type: beadType };
 
     it("accounts actual wire bytes including Type across schemas, without false exact-bound truncation", () => {
       const expected = [beadType, parentType].map((type) => ({ ...diagnostic, type }));
@@ -1043,20 +1047,20 @@ describe("pure member Resource evaluation", () => {
       schemaLocation: `${linkType}#/target/conformsTo`,
     });
     const opaque = "urn:Outside:%2f+Literal";
-    expect(f.createLink("external", "beads/a", opaque).effect).toBe("success");
-    expect(f.body("links/external")).toMatchObject({ target: opaque });
+    expect(f.createLink("external", "a", opaque).effect).toBe("success");
+    expect(f.body("external")).toMatchObject({ target: opaque });
   });
   it("applies inherited external constraints as an intersection and never dereferences an external pin", () => {
     const parent = linkDescriptor({ id: parentType, target: { conformsTo: [], external: "bead" } });
     const f = fixture([beadDescriptor(), parent, linkDescriptor({ conformsTo: [parentType] })]);
     f.createBead("a");
-    failure(f.createLink("bad", "beads/a", "urn:opaque"), "validation-failed");
+    failure(f.createLink("bad", "a", "urn:opaque"), "validation-failed");
     failure(
-      f.createLink("bad-segment", "beads/a", "https://external.test/s/beads/a%2Fb"),
+      f.createLink("bad-segment", "a", "https://external.test/s/beads/a%2Fb"),
       "validation-failed",
     );
     expect(
-      f.createLink("good", "beads/a", {
+      f.createLink("good", "a", {
         uri: "https://external.test/s/beads/elsewhere",
         revision: "unverified-provenance",
       }).effect,
@@ -1075,7 +1079,7 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a", { list: [1, 3], "a/b": { "~x": 1 } });
     const result = f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       propertiesChange: [
         { op: "add", path: "/list/1", value: 2 },
         { op: "remove", path: "/list/0" },
@@ -1084,12 +1088,12 @@ describe("pure member Resource evaluation", () => {
       ],
     });
     expect(result.effect).toBe("success");
-    expect(f.body("beads/a").properties).toEqual(
+    expect(f.body("a").properties).toEqual(
       JSON.parse('{"list":[2,3],"a/b":{"~x":7},"__proto__":{"polluted":true}}'),
     );
     expect(Object.hasOwn(Object.prototype, "polluted")).toBe(false);
     failure(
-      f.execute("updateBead", { bead: "beads/a", propertiesChange: [{ op: "remove", path: "" }] }),
+      f.execute("updateBead", { bead: "a", propertiesChange: [{ op: "remove", path: "" }] }),
       "validation-failed",
     );
   });
@@ -1097,26 +1101,26 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a", { n: 1 });
     const limits = { ...f.options.limits, patchOperations: 0 };
-    const input = { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] };
+    const input = { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] };
     failure(
       f.execute("updateBead", { ...input, expectedRevision: "wrong" }, { limits }),
       "revision-mismatch",
     );
     const problem = failure(f.execute("updateBead", input, { limits }), "limit-exceeded");
     expect(problem.status).toBe(413);
-    expect(f.body("beads/a").properties).toEqual({ n: 1 });
+    expect(f.body("a").properties).toEqual({ n: 1 });
   });
   it("keeps reference visibility ahead of unavailable Type diagnostics", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
-    f.hidden.add(`${scope}beads/b`);
+    f.hidden.add(`${scope}b`);
     failure(
-      f.createLink("hidden", "beads/a", "beads/b", { type: "https://missing.test/type" }),
+      f.createLink("hidden", "a", "b", { type: "https://missing.test/type" }),
       "resource-not-found",
     );
     failure(
-      f.createLink("missing", "beads/a", "beads/missing", { type: "https://missing.test/type" }),
+      f.createLink("missing", "a", "missing", { type: "https://missing.test/type" }),
       "resource-not-found",
     );
   });
@@ -1124,38 +1128,38 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
-    f.aliases.set("current", "beads/a");
+    f.aliases.set("current", "a");
     const external = { uri: "urn:Exact:%2f+Bytes", revision: "opaque-pin" };
     const result = f.createLink("edge", "alias/current", external);
     expect(result.resolutions).toEqual([
-      { inputPointer: "/id", original: "links/edge", resolved: `${scope}links/edge` },
-      { inputPointer: "/source", original: "alias/current", resolved: `${scope}beads/a` },
+      { inputPointer: "/id", original: "edge", resolved: `${scope}edge` },
+      { inputPointer: "/source", original: "alias/current", resolved: `${scope}a` },
       { inputPointer: "/target", original: external, resolved: external },
     ]);
     expect(Object.hasOwn(result.outcome, "resolutions")).toBe(false);
     expect(Object.isFrozen(result.resolutions)).toBe(true);
-    f.aliases.set("current", "beads/b");
+    f.aliases.set("current", "b");
     const update = f.execute("updateBead", {
       bead: "alias/current",
       propertiesChange: [{ op: "replace", path: "", value: {} }],
     });
     expect(update.resolutions).toEqual([
-      { inputPointer: "/bead", original: "alias/current", resolved: `${scope}beads/b` },
+      { inputPointer: "/bead", original: "alias/current", resolved: `${scope}b` },
     ]);
-    expect(result.resolutions[1]?.resolved).toBe(`${scope}beads/a`);
-    f.hidden.add(`${scope}beads/b`);
+    expect(result.resolutions[1]?.resolved).toBe(`${scope}a`);
+    f.hidden.add(`${scope}b`);
     failure(f.execute("deleteBead", { bead: "alias/current" }), "resource-not-found");
   });
   it("permits omitted external policy as opaque and refuses explicit none", () => {
     const f = fixture([beadDescriptor(), linkDescriptor({ target: { conformsTo: [] } })]);
     f.createBead("a");
-    expect(f.createLink("opaque", "beads/a", "mailto:Name@Example.test").effect).toBe("success");
+    expect(f.createLink("opaque", "a", "mailto:Name@Example.test").effect).toBe("success");
     const g = fixture([
       beadDescriptor(),
       linkDescriptor({ target: { conformsTo: [], external: "none" } }),
     ]);
     g.createBead("a");
-    const problem = failure(g.createLink("none", "beads/a", "urn:outside"), "validation-failed");
+    const problem = failure(g.createLink("none", "a", "urn:outside"), "validation-failed");
     expect(problem.diagnostics?.[0]).toMatchObject({
       type: linkType,
       schemaLocation: `${linkType}#/target/external`,
@@ -1165,24 +1169,24 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a", { n: 0 });
     f.createBead("b");
-    const expectedRevision = f.body("beads/a").revision;
+    const expectedRevision = f.body("a").revision;
     expect(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         expectedRevision,
         propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
       }).effect,
     ).toBe("success");
     failure(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         expectedRevision,
         propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
       }),
       "revision-mismatch",
     );
-    expect(f.body("beads/a").properties).toEqual({ n: 1 });
-    f.execute("deleteBead", { bead: "beads/b" });
+    expect(f.body("a").properties).toEqual({ n: 1 });
+    f.execute("deleteBead", { bead: "b" });
     failure(f.createLink("late"), "resource-not-found");
     // Serialization/competing connection behavior belongs to S6; this proves
     // the evaluator reads the supplied member-turn state instead of a cache.
@@ -1195,42 +1199,41 @@ describe("pure member Resource evaluation", () => {
     });
     f.execute(
       "createBead",
-      { id: "beads/a", type: beadType, properties: { n: 1 }, revisionProvenance },
+      { id: "a", type: beadType, properties: { n: 1 }, revisionProvenance },
       { observeCommitTime: clock },
     );
     expect(clock).not.toHaveBeenCalled();
-    expect(f.body("beads/a").revisionProvenance).toEqual(revisionProvenance);
-    const before = f.body("beads/a");
+    expect(f.body("a").revisionProvenance).toEqual(revisionProvenance);
+    const before = f.body("a");
     f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
       revisionProvenance: { actor: { id: "urn:different", basis: "unknown" } },
     });
-    expect(f.body("beads/a")).toEqual(before);
+    expect(f.body("a")).toEqual(before);
     f.execute("updateBead", {
-      bead: "beads/a",
+      bead: "a",
       propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
     });
-    expect(f.body("beads/a").revisionProvenance).toBeUndefined();
+    expect(f.body("a").revisionProvenance).toBeUndefined();
   });
   it("records native context defaults only on actual minted versions", () => {
     const f = fixture();
     expect(
-      f.execute("createBead", { id: "beads/a", type: beadType }, { recordChangeContext: true })
-        .effect,
+      f.execute("createBead", { id: "a", type: beadType }, { recordChangeContext: true }).effect,
     ).toBe("success");
-    expect(f.body("beads/a").revisionProvenance).toEqual({
+    expect(f.body("a").revisionProvenance).toEqual({
       committedAt: { state: "present", value: instant },
       agent: { state: "undetermined" },
       message: { state: "undetermined" },
     });
-    const before = f.body("beads/a");
+    const before = f.body("a");
     f.execute(
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "", value: {} }] },
+      { bead: "a", propertiesChange: [{ op: "replace", path: "", value: {} }] },
       { recordChangeContext: true, observeCommitTime: () => Date.parse("2026-09-11T00:00:00Z") },
     );
-    expect(f.body("beads/a")).toEqual(before);
+    expect(f.body("a")).toEqual(before);
   });
   it("distinguishes positive unsafe allocation from unknown storage faults and rolls counters back on failure", () => {
     const f = fixture();
@@ -1262,8 +1265,8 @@ describe("owned Link and Scope aggregate effects", () => {
     ]);
     f.createBead("a");
     f.createBead("b");
-    const target = f.body("beads/b");
-    const created = f.createLink("edge", "beads/a", "beads/b", {
+    const target = f.body("b");
+    const created = f.createLink("edge", "a", "b", {
       revisionProvenance: {
         actor: { id: "human:writer", basis: "writer-supplied" },
         agent: null,
@@ -1271,11 +1274,11 @@ describe("owned Link and Scope aggregate effects", () => {
       },
     });
     expect(created.outcome).toMatchObject({
-      source: `${scope}beads/a`,
-      sourceRevision: f.body("beads/a").revision,
+      source: `${scope}a`,
+      sourceRevision: f.body("a").revision,
     });
-    const edge = f.body("links/edge");
-    const source = f.body("beads/a");
+    const edge = f.body("edge");
+    const source = f.body("a");
     expect(source).toMatchObject({
       ownedLinks: { [linkType]: [edge] },
       revisionProvenance: edge.revisionProvenance,
@@ -1288,37 +1291,37 @@ describe("owned Link and Scope aggregate effects", () => {
     });
     const counters = f.allocations();
     f.execute("updateLink", {
-      link: "links/edge",
+      link: "edge",
       propertiesChange: [{ op: "replace", path: "", value: {} }],
       revisionProvenance: {
         actor: { id: "human:ignored", basis: "unknown" },
         message: "not a version",
       },
     });
-    expect(f.body("beads/a")).toEqual(source);
+    expect(f.body("a")).toEqual(source);
     expect(f.allocations()).toEqual(counters);
     f.execute("updateLink", {
-      link: "links/edge",
+      link: "edge",
       propertiesChange: [{ op: "add", path: "/n", value: 1 }],
     });
-    expect(f.body("beads/a").revision).not.toBe(source.revision);
-    expect(f.body("links/edge").revisionProvenance).toBeUndefined();
-    const lastLink = f.body("links/edge");
+    expect(f.body("a").revision).not.toBe(source.revision);
+    expect(f.body("edge").revisionProvenance).toBeUndefined();
+    const lastLink = f.body("edge");
     const beforeDelete = f.allocations();
     const deleted = f.execute("deleteLink", {
-      link: "links/edge",
+      link: "edge",
       revisionProvenance: { message: "delete" },
     });
     expect(deleted.outcome).toMatchObject({
       deleted: { resource: { revision: lastLink.revision } },
-      sourceRevision: f.body("beads/a").revision,
+      sourceRevision: f.body("a").revision,
     });
     expect(f.allocations().nextRevision).toBe(beforeDelete.nextRevision + 1);
-    expect(f.body("beads/a")).toMatchObject({
+    expect(f.body("a")).toMatchObject({
       ownedLinks: { [linkType]: [] },
       revisionProvenance: { message: { state: "present", value: "delete" } },
     });
-    expect(f.body("beads/b")).toEqual(target);
+    expect(f.body("b")).toEqual(target);
   });
   it("uses wildcard whole-set bounds including explicit keys and leaves no staged Link on overflow", () => {
     const other = "https://types.test/other-link";
@@ -1330,8 +1333,8 @@ describe("owned Link and Scope aggregate effects", () => {
     f.createBead("a");
     f.createBead("b");
     f.createLink("z");
-    f.createLink("a", "beads/a", "beads/b", { type: other });
-    const source = f.body("beads/a");
+    f.createLink("edge-a", "a", "b", { type: other });
+    const source = f.body("a");
     const writes = f.writes();
     const problem = failure(f.createLink("overflow"), "validation-failed");
     expect(problem.diagnostics?.[0]).toMatchObject({
@@ -1339,8 +1342,8 @@ describe("owned Link and Scope aggregate effects", () => {
       schemaLocation: `${beadType}#/ownsOutgoing/*`,
     });
     expect(f.writes()).toBe(writes);
-    expect(f.body("beads/a")).toEqual(source);
-    expect(f.records.has("links/overflow")).toBe(false);
+    expect(f.body("a")).toEqual(source);
+    expect(f.records.has("overflow")).toBe(false);
     expect(Object.keys((source as { ownedLinks: object }).ownedLinks)).not.toContain("*");
   });
   it("sorts same-type owned Links by canonical ID and handles a self-Link once", () => {
@@ -1349,14 +1352,14 @@ describe("owned Link and Scope aggregate effects", () => {
       linkDescriptor(),
     ]);
     f.createBead("a");
-    f.createLink("z", "beads/a", "beads/a");
-    f.createLink("a", "beads/a", "beads/a");
-    expect(f.body("beads/a")).toMatchObject({
-      ownedLinks: { [linkType]: [{ id: `${scope}links/a` }, { id: `${scope}links/z` }] },
+    f.createLink("link-z", "a", "a");
+    f.createLink("link-a", "a", "a");
+    expect(f.body("a")).toMatchObject({
+      ownedLinks: { [linkType]: [{ id: `${scope}link-a` }, { id: `${scope}link-z` }] },
     });
     expect(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         propertiesChange: [{ op: "add", path: "/ok", value: true }],
       }).effect,
     ).toBe("success");
@@ -1369,11 +1372,11 @@ describe("owned Link and Scope aggregate effects", () => {
     f.createBead("a");
     f.createBead("b");
     f.createLink("edge");
-    f.hidden.add(`${scope}beads/b`);
+    f.hidden.add(`${scope}b`);
     f.authorized.length = 0;
     failure(
       f.execute("updateBead", {
-        bead: "beads/a",
+        bead: "a",
         propertiesChange: [{ op: "remove", path: "/missing" }],
       }),
       "resource-not-found",
@@ -1387,18 +1390,18 @@ describe("owned Link and Scope aggregate effects", () => {
     ]);
     f.createBead("a");
     f.createBead("b");
-    const before = f.body("beads/a");
+    const before = f.body("a");
     const writes = f.writes();
     failure(
       f.execute(
         "createLink",
-        { id: "links/edge", type: linkType, source: "beads/a", target: "beads/b" },
+        { id: "edge", type: linkType, source: "a", target: "b" },
         { policy: { ...f.options.policy, canWrite: () => false } },
       ),
       "forbidden",
     );
-    expect(f.body("beads/a")).toEqual(before);
-    expect(f.records.has("links/edge")).toBe(false);
+    expect(f.body("a")).toEqual(before);
+    expect(f.records.has("edge")).toBe(false);
     expect(f.writes()).toBe(writes);
   });
   it("counts subtype Links and all current member state for endpoint maxima without revealing Link identity", () => {
@@ -1409,15 +1412,15 @@ describe("owned Link and Scope aggregate effects", () => {
     ]);
     f.createBead("a");
     f.createBead("b");
-    f.createLink("child", "beads/a", "beads/b", { type: childType });
-    f.hidden.add(`${scope}links/child`);
+    f.createLink("child", "a", "b", { type: childType });
+    f.hidden.add(`${scope}child`);
     const maximumEndpointMultiplicity = [
       { linkConformsTo: linkType, endpoint: "target" as const, max: 1 },
     ];
     const problem = failure(
       f.execute(
         "createLink",
-        { id: "links/overflow", type: linkType, source: "beads/a", target: "beads/b" },
+        { id: "overflow", type: linkType, source: "a", target: "b" },
         { maximumEndpointMultiplicity },
       ),
       "aggregate-constraint-violation",
@@ -1427,15 +1430,15 @@ describe("owned Link and Scope aggregate effects", () => {
     expect(
       f.execute(
         "updateLink",
-        { link: "links/child", propertiesChange: [{ op: "replace", path: "", value: {} }] },
+        { link: "child", propertiesChange: [{ op: "replace", path: "", value: {} }] },
         { maximumEndpointMultiplicity },
       ).effect,
     ).toBe("success");
-    f.execute("deleteLink", { link: "links/child" });
+    f.execute("deleteLink", { link: "child" });
     expect(
       f.execute(
         "createLink",
-        { id: "links/new", type: linkType, source: "beads/a", target: "beads/b" },
+        { id: "new", type: linkType, source: "a", target: "b" },
         { maximumEndpointMultiplicity },
       ).effect,
     ).toBe("success");
@@ -1492,30 +1495,30 @@ describe("deep admitted Resource round trips", () => {
       return result;
     };
     try {
-      submit("create", "createBead", { id: "beads/deep", type: beadType, properties });
-      const created = store.read((tx) => tx.resource("beads/deep")?.bodyJson);
+      submit("create", "createBead", { id: "deep", type: beadType, properties });
+      const created = store.read((tx) => tx.resource("deep")?.bodyJson);
       expect(created).toContain(`"properties":{"nested":${nestedText}}`);
       store.close();
       store = openRecoveryStore(configuration);
-      expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(created);
+      expect(store.read((tx) => tx.resource("deep")?.bodyJson)).toBe(created);
       expect(
         submit("noop", "updateBead", {
-          bead: "beads/deep",
+          bead: "deep",
           propertiesChange: [{ op: "replace", path: "", value: properties }],
         }).changed,
       ).toEqual([]);
-      expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(created);
+      expect(store.read((tx) => tx.resource("deep")?.bodyJson)).toBe(created);
       submit("patch", "updateBead", {
-        bead: "beads/deep",
+        bead: "deep",
         propertiesChange: [{ op: "replace", path: `/nested${"/0".repeat(12_000)}`, value: 8 }],
       });
-      const patched = store.read((tx) => tx.resource("beads/deep")?.bodyJson);
+      const patched = store.read((tx) => tx.resource("deep")?.bodyJson);
       expect(patched).toContain(`"properties":{"nested":${nestedText.replace("7", "8")}}`);
       const retained = store.read((tx) => tx.key("alice", "patch"));
       expect(retained.kind).toBe("retained");
       store.close();
       store = openRecoveryStore(configuration);
-      expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(patched);
+      expect(store.read((tx) => tx.resource("deep")?.bodyJson)).toBe(patched);
       expect(store.read((tx) => tx.key("alice", "patch"))).toEqual(retained);
     } finally {
       store.close();
@@ -1529,44 +1532,44 @@ describe("deep admitted Resource round trips", () => {
     if (depth > 1_000) expect(() => JSON.stringify(nested)).toThrow(RangeError);
     const created = f.createBead("deep", { nested });
     expect(created.effect).toBe("success");
-    const before = f.records.get("beads/deep");
+    const before = f.records.get("deep");
     expect(before?.bodyJson).toContain(`"properties":{"nested":${nestedText}}`);
-    const revision = f.body("beads/deep").revision;
+    const revision = f.body("deep").revision;
     const noop = f.execute("updateBead", {
-      bead: "beads/deep",
+      bead: "deep",
       propertiesChange: [{ op: "replace", path: "", value: { nested } }],
     });
     expect(noop.effect).toBe("success");
     expect(noop.changed).toEqual([]);
-    expect(f.body("beads/deep").revision).toBe(revision);
+    expect(f.body("deep").revision).toBe(revision);
     const path = `/nested${"/1".repeat(depth)}/n`;
     const updated = f.execute("updateBead", {
-      bead: "beads/deep",
+      bead: "deep",
       expectedRevision: revision,
       propertiesChange: [{ op: "replace", path, value: 8 }],
     });
     expect(updated.effect).toBe("success");
-    expect(f.body("beads/deep").revision).not.toBe(revision);
-    expect(f.records.get("beads/deep")?.bodyJson).toContain(
+    expect(f.body("deep").revision).not.toBe(revision);
+    expect(f.records.get("deep")?.bodyJson).toContain(
       `"properties":{"nested":${nestedText.replace('{"n":7}', '{"n":8}')}}`,
     );
-    let cursor = f.body("beads/deep").properties.nested;
+    let cursor = f.body("deep").properties.nested;
     for (let i = 0; i < depth; i++) {
       if (!Array.isArray(cursor)) throw new Error(`missing depth ${i}`);
       expect(cursor[0]).toBe(1);
       cursor = cursor[1];
     }
     expect(cursor).toEqual({ n: 8 });
-    const retained = f.records.get("beads/deep")?.bodyJson;
+    const retained = f.records.get("deep")?.bodyJson;
     failure(
       f.execute(
         "updateBead",
-        { bead: "beads/deep", propertiesChange: [{ op: "add", path: "/small", value: true }] },
+        { bead: "deep", propertiesChange: [{ op: "add", path: "/small", value: true }] },
         { limits: { ...f.options.limits, propertiesBytes: 100 } },
       ),
       "limit-exceeded",
     );
-    expect(f.records.get("beads/deep")?.bodyJson).toBe(retained);
+    expect(f.records.get("deep")?.bodyJson).toBe(retained);
   });
   it("keeps deep first-class and inline owned Link bodies equal across read/update/delete", () => {
     const f = fixture([
@@ -1578,37 +1581,37 @@ describe("deep admitted Resource round trips", () => {
     const depth = 12_000;
     const nested: unknown = JSON.parse(`${"[1,".repeat(depth)}0${"]".repeat(depth)}`);
     expect(
-      f.createLink("deep", "beads/a", "beads/b", {
+      f.createLink("deep", "a", "b", {
         properties: { nested },
         revisionProvenance: { message: "deep native Link" },
       }).effect,
     ).toBe("success");
-    const source = f.body("beads/a");
+    const source = f.body("a");
     if (!("ownedLinks" in source)) throw new Error("expected owned Link source");
     expect(stringifyJsonValue(source.ownedLinks?.[linkType]?.[0])).toBe(
-      f.records.get("links/deep")?.bodyJson,
+      f.records.get("deep")?.bodyJson,
     );
-    const oldRevision = f.body("links/deep").revision;
+    const oldRevision = f.body("deep").revision;
     expect(
       f.execute("updateLink", {
-        link: "links/deep",
+        link: "deep",
         propertiesChange: [{ op: "replace", path: "", value: { nested } }],
       }).changed,
     ).toEqual([]);
-    expect(f.body("links/deep").revision).toBe(oldRevision);
+    expect(f.body("deep").revision).toBe(oldRevision);
     expect(
       f.execute("updateLink", {
-        link: "links/deep",
+        link: "deep",
         propertiesChange: [{ op: "add", path: "/changed", value: true }],
       }).effect,
     ).toBe("success");
-    const updatedSource = f.body("beads/a");
+    const updatedSource = f.body("a");
     if (!("ownedLinks" in updatedSource)) throw new Error("expected source");
     expect(stringifyJsonValue(updatedSource.ownedLinks?.[linkType]?.[0])).toBe(
-      f.records.get("links/deep")?.bodyJson,
+      f.records.get("deep")?.bodyJson,
     );
-    expect(f.execute("deleteLink", { link: "links/deep" }).effect).toBe("success");
-    expect(f.body("beads/a")).toMatchObject({ ownedLinks: { [linkType]: [] } });
+    expect(f.execute("deleteLink", { link: "deep" }).effect).toBe("success");
+    expect(f.body("a")).toMatchObject({ ownedLinks: { [linkType]: [] } });
   });
 });
 
@@ -1621,9 +1624,9 @@ describe("native S2 council corrections", () => {
     const f = fixture([beadDescriptor(), type]);
     f.createBead("a");
     failure(f.createLink("external-only", "urn:source", "urn:target"), "validation-failed");
-    expect(f.records.has("links/external-only")).toBe(false);
-    expect(f.createLink("local-source", "beads/a", "urn:target").effect).toBe("success");
-    expect(f.createLink("local-target", "urn:source", "beads/a").effect).toBe("success");
+    expect(f.records.has("external-only")).toBe(false);
+    expect(f.createLink("local-source", "a", "urn:target").effect).toBe("success");
+    expect(f.createLink("local-target", "urn:source", "a").effect).toBe("success");
   });
   it.each([
     [[{ op: "replace", path: "", value: { n: 2 } }], true],
@@ -1667,14 +1670,14 @@ describe("native S2 council corrections", () => {
   ])("tracks root existence independently of JSON null %#", (change, valid) => {
     const f = fixture();
     f.createBead("a", { n: 1 });
-    const before = f.records.get("beads/a")?.bodyJson;
-    const result = f.execute("updateBead", { bead: "beads/a", propertiesChange: change });
+    const before = f.records.get("a")?.bodyJson;
+    const result = f.execute("updateBead", { bead: "a", propertiesChange: change });
     if (valid) {
       expect(result.effect).toBe("success");
-      expect(f.body("beads/a").properties).toEqual({ n: 2 });
+      expect(f.body("a").properties).toEqual({ n: 2 });
     } else {
       failure(result, "validation-failed");
-      expect(f.records.get("beads/a")?.bodyJson).toBe(before);
+      expect(f.records.get("a")?.bodyJson).toBe(before);
     }
   });
 
@@ -1690,13 +1693,13 @@ describe("native S2 council corrections", () => {
     (...change) => {
       const f = fixture();
       f.createBead("a", { n: 1 });
-      const before = f.records.get("beads/a")?.bodyJson;
+      const before = f.records.get("a")?.bodyJson;
       const writes = f.writes();
       const expected = [
         { message: "resulting properties must be an object", instanceLocation: "" },
       ];
       const bytes = Buffer.byteLength(JSON.stringify(expected));
-      const input = { bead: "beads/a", propertiesChange: change };
+      const input = { bead: "a", propertiesChange: change };
       const result = failure(
         f.execute("updateBead", input, {
           limits: { diagnosticCount: 1, diagnosticBytes: bytes },
@@ -1709,7 +1712,7 @@ describe("native S2 council corrections", () => {
       expect(() =>
         f.execute("updateBead", input, { limits: { diagnosticBytes: bytes - 1 } }),
       ).toThrow("diagnostic configuration cannot retain one complete diagnostic");
-      expect(f.records.get("beads/a")?.bodyJson).toBe(before);
+      expect(f.records.get("a")?.bodyJson).toBe(before);
       expect(f.writes()).toBe(writes);
     },
   );
@@ -1737,10 +1740,10 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       lineageId: "s2-allocator-lineage",
     };
     const seed: StoredResource = {
-      id: "beads/existing",
+      id: "existing",
       kind: "bead",
       bodyJson: JSON.stringify({
-        id: `${scope}beads/existing`,
+        id: `${scope}existing`,
         type: beadType,
         revision: "initial",
         properties: {},
@@ -1779,9 +1782,9 @@ describe("allocator faults inside the durable owned-member boundary", () => {
           tx.putPolicy("rollback-marker", "true");
           tx.putResource({
             ...seed,
-            id: "beads/rollback-marker",
+            id: "rollback-marker",
             bodyJson: JSON.stringify({
-              id: `${scope}beads/rollback-marker`,
+              id: `${scope}rollback-marker`,
               type: beadType,
               revision: "marker",
               properties: {},
@@ -1800,10 +1803,10 @@ describe("allocator faults inside the durable owned-member boundary", () => {
               facade.allocateResourceId = () => seed.id;
               break;
             case "alias-id":
-              facade.allocateResourceId = () => "beads/reserved";
+              facade.allocateResourceId = () => "alias/reserved";
               break;
             case "hierarchical-id":
-              facade.allocateResourceId = () => "beads/a/b";
+              facade.allocateResourceId = () => "a/b";
               break;
             case "empty-id":
               facade.allocateResourceId = () => "";
@@ -1860,9 +1863,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       }
       expect(store.read((reader) => reader.resources())).toEqual([seed]);
       expect(store.read((reader) => reader.policy("rollback-marker"))).toBeUndefined();
-      expect(store.read((reader) => reader.identityWasCommitted("beads/rollback-marker"))).toBe(
-        false,
-      );
+      expect(store.read((reader) => reader.identityWasCommitted("rollback-marker"))).toBe(false);
       expect(store.read((reader) => reader.alias("reserved"))).toBe(seed.id);
       store.close();
       store = openRecoveryStore(configuration);
@@ -1914,7 +1915,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       const input =
         operation === "createBead"
           ? { type: beadType }
-          : { type: linkType, source: "beads/a", target: "beads/b" };
+          : { type: linkType, source: "a", target: "b" };
       f.tx.allocateResourceId = () => id;
       const writes = f.writes();
       expect(() => f.execute(operation, input)).toThrow("one opaque Resource identity segment");
@@ -1938,7 +1939,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
   it("keeps supplied-ID conflict meanings without invoking allocation", () => {
     const f = fixture();
     f.createBead("existing");
-    f.aliases.set("reserved", "beads/existing");
+    f.aliases.set("reserved", "existing");
     f.tx.allocateResourceId = () => {
       throw new Error("unexpected ID allocation");
     };
@@ -1946,7 +1947,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       throw new Error("unexpected revision allocation");
     };
     failure(f.createBead("existing"), "identity-taken");
-    failure(f.createBead("reserved"), "alias-path-taken");
+    failure(f.execute("createBead", { id: "alias/reserved", type: beadType }), "alias-path-taken");
     expect(f.records.size).toBe(1);
   });
 });
@@ -1997,7 +1998,7 @@ describe("late native context materialization", () => {
       expect(() =>
         f.execute(
           "deleteBead",
-          { bead: "beads/missing" },
+          { bead: "missing" },
           {
             observeCommitTime: invalid as never,
           },
@@ -2055,10 +2056,10 @@ describe("late native context materialization", () => {
     const result = f.execute(
       "createLink",
       {
-        id: "links/edge",
+        id: "edge",
         type: linkType,
-        source: "beads/a",
-        target: "beads/b",
+        source: "a",
+        target: "b",
         revisionProvenance: { message: "final" },
       },
       {
@@ -2085,16 +2086,16 @@ describe("late native context materialization", () => {
       "clock",
       "subject-policy",
       "source-policy",
-      "put:links/edge",
-      "put:beads/a",
+      "put:edge",
+      "put:a",
     ]);
     expect(clock).toHaveBeenCalledTimes(1);
     const source = seen[1];
     if (!source || "source" in source) throw Error("expected source Bead");
     expect(source.ownedLinks?.[linkType]?.[0]).toBe(seen[0]);
     expect(result.outcome).toMatchObject({ resource: seen[0] });
-    expect(f.body("links/edge")).toEqual(seen[0]);
-    expect(f.body("beads/a")).toEqual(source);
+    expect(f.body("edge")).toEqual(seen[0]);
+    expect(f.body("a")).toEqual(source);
   });
   it.each(["schema", "owned", "aggregate"] as const)(
     "does not observe or authorize after %s preparation refuses",
@@ -2126,7 +2127,7 @@ describe("late native context materialization", () => {
       failure(
         f.execute(
           "createLink",
-          { id: "links/edge", type: linkType, source: "beads/a", target: "beads/b" },
+          { id: "edge", type: linkType, source: "a", target: "b" },
           {
             recordChangeContext: true,
             observeCommitTime: clock,
@@ -2197,7 +2198,7 @@ describe("late native context materialization", () => {
       f.execute(
         "updateLink",
         {
-          link: "links/edge",
+          link: "edge",
           propertiesChange: change,
           ...(scenario.cas ? { expectedRevision: scenario.cas } : {}),
         },
@@ -2228,17 +2229,17 @@ describe("late native context materialization", () => {
   });
   it("measures exact final owned-source bytes including escaped context", () => {
     const input = {
-      id: "links/edge",
+      id: "edge",
       type: linkType,
-      source: "beads/a",
-      target: "beads/b",
+      source: "a",
+      target: "b",
       revisionProvenance: { agent: "worker", message: 'é "\n'.repeat(20) },
     };
     const baseline = ownedFixture();
     baseline.execute("createLink", input);
-    const sourceBytes = Buffer.byteLength(baseline.records.get("beads/a")?.bodyJson ?? "");
+    const sourceBytes = Buffer.byteLength(baseline.records.get("a")?.bodyJson ?? "");
     expect(sourceBytes).toBeGreaterThan(
-      Buffer.byteLength(baseline.records.get("links/edge")?.bodyJson ?? ""),
+      Buffer.byteLength(baseline.records.get("edge")?.bodyJson ?? ""),
     );
     for (const difference of [0, -1]) {
       const f = ownedFixture();
@@ -2248,7 +2249,7 @@ describe("late native context materialization", () => {
       });
       if (difference === 0) {
         expect(result.effect).toBe("success");
-        expect(f.records.get("beads/a")?.bodyJson).toBe(baseline.records.get("beads/a")?.bodyJson);
+        expect(f.records.get("a")?.bodyJson).toBe(baseline.records.get("a")?.bodyJson);
       } else {
         failure(result, "limit-exceeded");
         expect([...f.records.entries()]).toEqual(before);
@@ -2259,23 +2260,23 @@ describe("late native context materialization", () => {
     "preserves old inline versions, no-ops and context-free deletions with recording %s",
     (recordChangeContext) => {
       const f = ownedFixture();
-      f.createLink("old", "beads/a", "beads/b", { revisionProvenance: { message: "old version" } });
+      f.createLink("old", "a", "b", { revisionProvenance: { message: "old version" } });
       f.createLink("edge");
-      const old = f.body("links/old");
-      const target = f.body("beads/b");
+      const old = f.body("old");
+      const target = f.body("b");
       const clock = vi.fn(() => milliseconds + 1000);
       const options = { recordChangeContext, observeCommitTime: clock };
       const updated = f.execute(
         "updateLink",
-        { link: "links/edge", propertiesChange: change, revisionProvenance: { agent: null } },
+        { link: "edge", propertiesChange: change, revisionProvenance: { agent: null } },
         options,
       );
-      expect(updated).toMatchObject({ effect: "success", changed: ["links/edge", "beads/a"] });
-      const source = f.body("beads/a");
+      expect(updated).toMatchObject({ effect: "success", changed: ["edge", "a"] });
+      const source = f.body("a");
       if ("source" in source) throw Error("expected Bead");
       expect(source.ownedLinks?.[linkType]?.find((link) => link.id === old.id)).toEqual(old);
-      expect(f.body("links/old")).toEqual(old);
-      expect(f.body("beads/b")).toEqual(target);
+      expect(f.body("old")).toEqual(old);
+      expect(f.body("b")).toEqual(target);
       expect(clock).toHaveBeenCalledTimes(1);
       const before = [...f.records.entries()];
       const writes = f.writes();
@@ -2283,7 +2284,7 @@ describe("late native context materialization", () => {
         const linkNoOp = f.execute(
           "updateLink",
           {
-            link: "links/edge",
+            link: "edge",
             propertiesChange: change,
             ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
           },
@@ -2292,7 +2293,7 @@ describe("late native context materialization", () => {
         const beadNoOp = f.execute(
           "updateBead",
           {
-            bead: "beads/a",
+            bead: "a",
             propertiesChange: [{ op: "replace", path: "/source", value: "kept" }],
             ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
           },
@@ -2306,29 +2307,29 @@ describe("late native context materialization", () => {
       expect(f.writes()).toBe(writes);
       const deleted = f.execute(
         "deleteLink",
-        { link: "links/edge", revisionProvenance: { message: null } },
+        { link: "edge", revisionProvenance: { message: null } },
         options,
       );
       expect(clock).toHaveBeenCalledTimes(2);
-      expect(deleted).toMatchObject({ effect: "success", changed: ["beads/a"] });
+      expect(deleted).toMatchObject({ effect: "success", changed: ["a"] });
       expect(deleted.outcome).not.toHaveProperty("revisionProvenance");
-      expect(f.body("beads/a").revisionProvenance?.message).toEqual({ state: "absent" });
+      expect(f.body("a").revisionProvenance?.message).toEqual({ state: "absent" });
       const unowned = fixture();
       unowned.createBead("a");
       unowned.createBead("b");
       unowned.createLink("edge");
       const unownedDeletion = unowned.execute(
         "deleteLink",
-        { link: "links/edge", revisionProvenance: { message: "no version" } },
+        { link: "edge", revisionProvenance: { message: "no version" } },
         options,
       );
-      const beadDeletion = unowned.execute("deleteBead", { bead: "beads/a" }, options);
+      const beadDeletion = unowned.execute("deleteBead", { bead: "a" }, options);
       expect(unownedDeletion).toMatchObject({
         effect: "success",
         changed: [],
-        deleted: ["links/edge"],
+        deleted: ["edge"],
       });
-      expect(beadDeletion).toMatchObject({ effect: "success", changed: [], deleted: ["beads/a"] });
+      expect(beadDeletion).toMatchObject({ effect: "success", changed: [], deleted: ["a"] });
       expect(clock).toHaveBeenCalledTimes(2);
     },
   );
@@ -2403,7 +2404,7 @@ function contextStoreSeed(owned = true) {
   f.createBead("unlinked");
   f.createBead("a", { n: 0 }, { revisionProvenance: { message: "old source" } });
   f.createBead("b");
-  f.createLink("existing", "beads/a", "beads/b", { revisionProvenance: { message: "old Link" } });
+  f.createLink("existing", "a", "b", { revisionProvenance: { message: "old Link" } });
   return f;
 }
 const contextStoreConfiguration = (directory: string) => ({
@@ -2418,44 +2419,44 @@ describe("native context inside actual durable members", () => {
   // Expected minted IDs come from the operation law, independently of results.
   type ContextCase = [ResourceOperation, Record<string, unknown>, boolean, readonly string[]];
   const cases: ContextCase[] = [
-    ["createBead", { id: "beads/new", type: beadType }, true, ["beads/new"]],
+    ["createBead", { id: "new", type: beadType }, true, ["new"]],
     [
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/changed", value: true }] },
+      { bead: "a", propertiesChange: [{ op: "add", path: "/changed", value: true }] },
       true,
-      ["beads/a"],
+      ["a"],
     ],
     [
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 0 }] },
+      { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 0 }] },
       true,
       [],
     ],
     ...[true, false].flatMap((owned): ContextCase[] => [
       [
         "createLink",
-        { id: "links/new", type: linkType, source: "beads/a", target: "beads/b" },
+        { id: "new", type: linkType, source: "a", target: "b" },
         owned,
-        owned ? ["links/new", "beads/a"] : ["links/new"],
+        owned ? ["new", "a"] : ["new"],
       ],
       [
         "updateLink",
         {
-          link: "links/existing",
+          link: "existing",
           propertiesChange: [{ op: "add", path: "/changed", value: true }],
         },
         owned,
-        owned ? ["links/existing", "beads/a"] : ["links/existing"],
+        owned ? ["existing", "a"] : ["existing"],
       ],
       [
         "updateLink",
-        { link: "links/existing", propertiesChange: [{ op: "replace", path: "", value: {} }] },
+        { link: "existing", propertiesChange: [{ op: "replace", path: "", value: {} }] },
         owned,
         [],
       ],
-      ["deleteLink", { link: "links/existing" }, owned, owned ? ["beads/a"] : []],
+      ["deleteLink", { link: "existing" }, owned, owned ? ["a"] : []],
     ]),
-    ["deleteBead", { bead: "beads/unlinked" }, true, []],
+    ["deleteBead", { bead: "unlinked" }, true, []],
   ];
   for (const recordChangeContext of [false, true]) {
     it.each(cases)(
@@ -2491,7 +2492,7 @@ describe("native context inside actual durable members", () => {
                 lockingMode: "exclusive",
                 synchronous: 3,
               });
-              const previousLinkBytes = store.read((tx) => tx.resource("links/existing")?.bodyJson);
+              const previousLinkBytes = store.read((tx) => tx.resource("existing")?.bodyJson);
               expect(previousLinkBytes).toBeDefined();
               const result = submitContextMember(
                 store,
@@ -2527,17 +2528,17 @@ describe("native context inside actual durable members", () => {
               }
               if (operation === "updateBead" && owned) {
                 const source = JSON.parse(
-                  resources.find((resource) => resource.id === "beads/a")?.bodyJson ?? "null",
+                  resources.find((resource) => resource.id === "a")?.bodyJson ?? "null",
                 ) as ResourceRecord;
                 if ("source" in source) throw Error("expected updated Bead");
                 const inline = source.ownedLinks?.[linkType]?.find(
-                  (link) => link.id === `${scope}links/existing`,
+                  (link) => link.id === `${scope}existing`,
                 );
                 expect(inline).toBeDefined();
                 expect(stringifyJsonValue(inline)).toBe(previousLinkBytes);
-                expect(
-                  resources.find((resource) => resource.id === "links/existing")?.bodyJson,
-                ).toBe(previousLinkBytes);
+                expect(resources.find((resource) => resource.id === "existing")?.bodyJson).toBe(
+                  previousLinkBytes,
+                );
               }
               if (result.outcome.outcome !== "deleted") {
                 const returned = result.outcome.resource;
@@ -2615,7 +2616,7 @@ describe("native context inside actual durable members", () => {
         "key",
         "updateLink",
         {
-          link: "links/existing",
+          link: "existing",
           propertiesChange: [{ op: "add", path: "/n", value: 1 }],
           revisionProvenance: { agent: null, message: "" },
         },
@@ -2655,18 +2656,16 @@ describe("native context inside actual durable members", () => {
         "context",
         "policy",
         "policy",
-        "write:links/existing",
-        "write:beads/a",
+        "write:existing",
+        "write:a",
         "retention",
       ]);
       expect(clock).toHaveBeenCalledTimes(1);
       const records = store.read((tx) => tx.resources());
       const link = JSON.parse(
-        records.find((record) => record.id === "links/existing")?.bodyJson ?? "null",
+        records.find((record) => record.id === "existing")?.bodyJson ?? "null",
       );
-      const source = JSON.parse(
-        records.find((record) => record.id === "beads/a")?.bodyJson ?? "null",
-      );
+      const source = JSON.parse(records.find((record) => record.id === "a")?.bodyJson ?? "null");
       expect(source.ownedLinks[linkType][0]).toEqual(link);
       expect(source.revisionProvenance).toEqual(link.revisionProvenance);
       expect(link.revisionProvenance).toMatchObject({
@@ -2872,12 +2871,12 @@ describe("staged properties before endpoint constraints", () => {
       vi.spyOn(f.tx, "allocateRevision"),
     ];
     const problem = failure(
-      f.createLink("dual", "beads/a", "beads/b", { properties: { valid: false } }),
+      f.createLink("dual", "a", "b", { properties: { valid: false } }),
       "validation-failed",
     );
     expect(problem.diagnostics).toEqual([propertyDiagnostic]);
     expect(f.validate).toHaveBeenCalledTimes(1);
-    expect(f.records.has("links/dual")).toBe(false);
+    expect(f.records.has("dual")).toBe(false);
     expect(f.writes()).toBe(writes);
     expect(f.allocations()).toEqual(allocations);
     for (const effect of effects) expect(effect).not.toHaveBeenCalled();
@@ -2896,8 +2895,8 @@ describe("staged properties before endpoint constraints", () => {
       const make = (valid: boolean, goodEndpoint = false) =>
         f.createLink(
           "ordered",
-          side === "source" && goodEndpoint ? "beads/good" : "beads/a",
-          side === "target" && goodEndpoint ? "beads/good" : "beads/b",
+          side === "source" && goodEndpoint ? "good" : "a",
+          side === "target" && goodEndpoint ? "good" : "b",
           { properties: { valid } },
         );
       expect(failure(make(false), "validation-failed").diagnostics).toEqual([propertyDiagnostic]);
@@ -2913,35 +2912,49 @@ describe("staged properties before endpoint constraints", () => {
       expect(f.validate).toHaveBeenCalledTimes(1);
       expect(f.writes()).toBe(writes);
       expect(f.allocations()).toEqual(allocations);
-      expect(f.records.has("links/ordered")).toBe(false);
+      expect(f.records.has("ordered")).toBe(false);
       vi.mocked(f.validate).mockClear();
       expect(make(true, true).effect).toBe("success");
       expect(f.validate).toHaveBeenCalledTimes(1);
-      expect(f.records.has("links/ordered")).toBe(true);
+      expect(f.records.has("ordered")).toBe(true);
     },
   );
   it("keeps hidden and absent endpoints indistinguishable before properties or permission callbacks", () => {
     const f = orderedFixture();
-    f.hidden.add(`${scope}beads/b`);
+    f.hidden.add(`${scope}b`);
     f.authorized.length = 0;
     const hidden = failure(
-      f.createLink("hidden", "beads/a", "beads/b", { properties: { valid: false } }),
+      f.createLink("hidden", "a", "b", { properties: { valid: false } }),
       "resource-not-found",
     );
     const absent = failure(
-      f.createLink("absent", "beads/a", "beads/missing", { properties: { valid: false } }),
+      f.createLink("absent", "a", "missing", { properties: { valid: false } }),
       "resource-not-found",
     );
     expect(hidden).toEqual(absent);
     expect(f.validate).not.toHaveBeenCalled();
     expect(f.authorized).toEqual([]);
-    expect([...f.records.keys()]).toEqual(["beads/a", "beads/b", "beads/good"]);
+    expect([...f.records.keys()]).toEqual(["a", "b", "good"]);
   });
   it.each([
-    ["beads/a", "links/wrong"],
+    ["a", "wrong"],
     ["urn:source", "urn:target"],
   ])("retains generic endpoint failure before properties: %s / %s", (source, target) => {
     const f = orderedFixture();
+    f.tx.putResource({
+      id: "wrong",
+      kind: "link",
+      source: "a",
+      target: "b",
+      bodyJson: JSON.stringify({
+        id: `${scope}wrong`,
+        type: linkType,
+        revision: "wrong-link",
+        source: `${scope}a`,
+        target: `${scope}b`,
+        properties: {},
+      }),
+    });
     const problem = failure(
       f.createLink("generic", source, target, { properties: { valid: false } }),
       "validation-failed",
@@ -2967,13 +2980,13 @@ describe("staged properties before endpoint constraints", () => {
         f.installed.set(requiredType, JSON.stringify(descriptor));
         f.contracts.set(requiredType, { descriptor });
       }
-      for (const target of ["beads/b", "urn:outside"])
+      for (const target of ["b", "urn:outside"])
         failure(
-          f.createLink("closure", "beads/a", target, { properties: { valid: false } }),
+          f.createLink("closure", "a", target, { properties: { valid: false } }),
           "type-not-installed",
         );
       expect(f.validate).not.toHaveBeenCalled();
-      expect(f.records.has("links/closure")).toBe(false);
+      expect(f.records.has("closure")).toBe(false);
     },
   );
   it("keeps an unavailable local endpoint Type ahead of property diagnostics", () => {
@@ -2985,7 +2998,7 @@ describe("staged properties before endpoint constraints", () => {
     f.installed.set(linkType, JSON.stringify(descriptor));
     f.contracts.set(linkType, { descriptor, validateProperties: f.validate });
     failure(
-      f.createLink("actual-closure", "beads/a", "beads/good", { properties: { valid: false } }),
+      f.createLink("actual-closure", "a", "good", { properties: { valid: false } }),
       "type-not-installed",
     );
     expect(f.validate).not.toHaveBeenCalled();
@@ -3001,11 +3014,10 @@ describe("staged properties before endpoint constraints", () => {
     // Deliberately broken installed registry: the source requirement is present
     // but unsatisfied, while the later target's own Type closure is unavailable.
     f.installed.delete(laterType);
-    const make = () =>
-      f.createLink("later-closure", "beads/a", "beads/later", { properties: { valid: true } });
+    const make = () => f.createLink("later-closure", "a", "later", { properties: { valid: true } });
     failure(make(), "type-not-installed");
     expect(f.validate).not.toHaveBeenCalled();
-    expect(f.records.has("links/later-closure")).toBe(false);
+    expect(f.records.has("later-closure")).toBe(false);
     // Restoring only the missing closure exposes the earlier source mismatch.
     f.installed.set(laterType, laterArtifact);
     expect(failure(make(), "validation-failed").diagnostics).toEqual([
@@ -3020,7 +3032,7 @@ describe("staged properties before endpoint constraints", () => {
   it("validates properties before the existing external policy without dereferencing the URI", () => {
     const f = orderedFixture();
     const make = (valid: boolean) =>
-      f.createLink("external", "beads/a", "urn:outside", { properties: { valid } });
+      f.createLink("external", "a", "urn:outside", { properties: { valid } });
     expect(failure(make(false), "validation-failed").diagnostics).toEqual([propertyDiagnostic]);
     expect(failure(make(true), "validation-failed").diagnostics).toEqual([
       {
@@ -3030,32 +3042,32 @@ describe("staged properties before endpoint constraints", () => {
       },
     ]);
     expect(f.validate).toHaveBeenCalledTimes(2);
-    expect(f.records.has("links/external")).toBe(false);
+    expect(f.records.has("external")).toBe(false);
   });
   it("orders property patches on an explicitly inconsistent stored Link and preserves ordinary update/noop/delete", () => {
     const f = orderedFixture();
     // This is seeded inconsistent state, not a Link created under this contract.
-    f.records.set("links/legacy", {
+    f.records.set("legacy", {
       kind: "link",
-      id: "links/legacy",
-      source: "beads/a",
-      target: "beads/b",
+      id: "legacy",
+      source: "a",
+      target: "b",
       bodyJson: stringifyJsonValue({
-        id: `${scope}links/legacy`,
+        id: `${scope}legacy`,
         type: linkType,
         revision: "legacy",
-        source: `${scope}beads/a`,
-        target: `${scope}beads/b`,
+        source: `${scope}a`,
+        target: `${scope}b`,
         properties: { valid: true },
       }),
     });
-    f.identities.add("links/legacy");
-    const beforeBodyJson = f.records.get("links/legacy")?.bodyJson;
+    f.identities.add("legacy");
+    const beforeBodyJson = f.records.get("legacy")?.bodyJson;
     expect(beforeBodyJson).toBeTypeOf("string");
     expect(
       failure(
         f.execute("updateLink", {
-          link: "links/legacy",
+          link: "legacy",
           propertiesChange: [{ op: "replace", path: "/valid", value: false }],
         }),
         "validation-failed",
@@ -3066,42 +3078,42 @@ describe("staged properties before endpoint constraints", () => {
     expect(
       failure(
         f.execute("updateLink", {
-          link: "links/legacy",
+          link: "legacy",
           propertiesChange: [{ op: "replace", path: "", value: [] }],
         }),
         "validation-failed",
       ).diagnostics,
     ).toEqual([{ message: "resulting properties must be an object", instanceLocation: "" }]);
     expect(f.validate).not.toHaveBeenCalled();
-    expect(f.records.get("links/legacy")?.bodyJson).toBe(beforeBodyJson);
-    expect(
-      f.createLink("good", "beads/a", "beads/good", { properties: { valid: true } }).effect,
-    ).toBe("success");
+    expect(f.records.get("legacy")?.bodyJson).toBe(beforeBodyJson);
+    expect(f.createLink("link-good", "a", "good", { properties: { valid: true } }).effect).toBe(
+      "success",
+    );
     vi.mocked(f.validate).mockClear();
     expect(
       f.execute("updateLink", {
-        link: "links/good",
+        link: "link-good",
         propertiesChange: [{ op: "add", path: "/label", value: "updated" }],
       }).effect,
     ).toBe("success");
-    const revision = f.body("links/good").revision;
+    const revision = f.body("link-good").revision;
     expect(
       f.execute("updateLink", {
-        link: "links/good",
+        link: "link-good",
         propertiesChange: [{ op: "replace", path: "/label", value: "updated" }],
       }).effect,
     ).toBe("success");
-    expect(f.body("links/good").revision).toBe(revision);
+    expect(f.body("link-good").revision).toBe(revision);
     expect(f.validate).toHaveBeenCalledTimes(2);
     vi.mocked(f.validate).mockClear();
-    expect(f.execute("deleteLink", { link: "links/good" }).effect).toBe("success");
+    expect(f.execute("deleteLink", { link: "link-good" }).effect).toBe("success");
     expect(f.validate).not.toHaveBeenCalled();
   });
   it("reaches aggregate constraints only after properties and endpoint constraints pass", () => {
     const f = orderedFixture("source");
-    expect(
-      f.createLink("existing", "beads/good", "beads/b", { properties: { valid: true } }).effect,
-    ).toBe("success");
+    expect(f.createLink("existing", "good", "b", { properties: { valid: true } }).effect).toBe(
+      "success",
+    );
     const writes = f.writes(),
       allocations = f.allocations();
     const resourceEffects = [
@@ -3113,14 +3125,14 @@ describe("staged properties before endpoint constraints", () => {
     const maximumEndpointMultiplicity = [
       { endpoint: "target" as const, linkConformsTo: linkType, max: 1 },
     ];
-    const make = (valid: boolean, source = "beads/a") =>
+    const make = (valid: boolean, source = "a") =>
       f.execute(
         "createLink",
         {
-          id: "links/aggregate",
+          id: "aggregate",
           type: linkType,
           source,
-          target: "beads/b",
+          target: "b",
           properties: { valid },
         },
         { maximumEndpointMultiplicity },
@@ -3133,14 +3145,14 @@ describe("staged properties before endpoint constraints", () => {
     );
     expect(allocateRevision).not.toHaveBeenCalled();
     for (const effect of resourceEffects) expect(effect).not.toHaveBeenCalled();
-    failure(make(true, "beads/good"), "aggregate-constraint-violation");
+    failure(make(true, "good"), "aggregate-constraint-violation");
     // The existing aggregate stage follows one revision-allocation attempt.
     // Fixture rollback removes retained counter changes, not spy call history.
     expect(allocateRevision).toHaveBeenCalledTimes(1);
     for (const effect of resourceEffects) expect(effect).not.toHaveBeenCalled();
     expect(f.writes()).toBe(writes);
     expect(f.allocations()).toEqual(allocations);
-    expect(f.records.has("links/aggregate")).toBe(false);
+    expect(f.records.has("aggregate")).toBe(false);
   });
   it("retains the ordered failure through actual S6 close/reopen without graph changes", () => {
     const f = orderedFixture();
@@ -3164,10 +3176,10 @@ describe("staged properties before endpoint constraints", () => {
       const parsed = parseReadUpdateRequest(
         "createLink",
         stringifyJsonValue({
-          id: "links/durable",
+          id: "durable",
           type: linkType,
-          source: "beads/a",
-          target: "beads/b",
+          source: "a",
+          target: "b",
           properties: { valid: false },
         }),
       );
@@ -3206,13 +3218,13 @@ describe("staged properties before endpoint constraints", () => {
       });
       expect(retained.effect).toBe("failure");
       expect(store.read((r) => r.resources())).toEqual(before);
-      expect(store.read((r) => r.identityWasCommitted("links/durable"))).toBe(false);
+      expect(store.read((r) => r.identityWasCommitted("durable"))).toBe(false);
       store.abandonAttempt(admission);
       store.close();
       store = openRecoveryStore(configuration);
       expect(store.read((r) => r.key("alice", "ordered"))).toEqual(retained);
       expect(store.read((r) => r.resources())).toEqual(before);
-      expect(store.read((r) => r.identityWasCommitted("links/durable"))).toBe(false);
+      expect(store.read((r) => r.identityWasCommitted("durable"))).toBe(false);
       expect(f.validate).toHaveBeenCalledTimes(1);
     } finally {
       store?.close();
@@ -3256,11 +3268,11 @@ describe("metadata patch diagnostic document and atomicity", () => {
         f.createBead("a", { unchanged: true }, { metadata: { items: [1] } });
         f.createBead("b");
         if (kind === "link")
-          f.createLink("x", "beads/a", "beads/b", {
+          f.createLink("x", "a", "b", {
             properties: { unchanged: true },
             metadata: { items: [1] },
           });
-        const id = kind === "bead" ? "beads/a" : "links/x";
+        const id = kind === "bead" ? "a" : "x";
         const before = [...f.records.entries()];
         const writes = f.writes();
         const allocations = f.allocations();

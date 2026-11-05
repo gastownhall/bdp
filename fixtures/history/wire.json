@@ -9,9 +9,6 @@
       "body": {
         "bdpVersion": "0",
         "scope": "https://beads.example/acme/",
-        "beads": "https://beads.example/acme/beads/",
-        "links": "https://beads.example/acme/links/",
-        "types": "https://beads.example/acme/types/",
         "aliases": "https://beads.example/acme/alias/",
         "profile": "read",
         "historicalResolution": {
@@ -27,9 +24,6 @@
         "bdpVersion": "0",
         "profile": "read-update",
         "scope": "https://beads.example/acme/",
-        "beads": "https://beads.example/acme/beads/",
-        "links": "https://beads.example/acme/links/",
-        "types": "https://beads.example/acme/types/",
         "operations": "https://beads.example/acme/operations/",
         "aliases": "https://beads.example/acme/alias/",
         "limits": {
@@ -81,9 +75,6 @@
         "authorizationView": "view-a",
         "headPosition": "pos-42",
         "minimumReplayPosition": "pos-17",
-        "beads": "https://beads.example/acme/beads/",
-        "links": "https://beads.example/acme/links/",
-        "types": "https://beads.example/acme/types/",
         "operations": "https://beads.example/acme/operations/",
         "aliases": "https://beads.example/acme/alias/",
         "receipts": "https://beads.example/acme/receipts/",
@@ -124,7 +115,7 @@
       "schema": "#/$defs/historicalBeadRecord",
       "condition": "Authorized complete retained owned state; requested revision is r /?&雪, not current.",
       "body": {
-        "id": "https://work.example/scope/beads/decision",
+        "id": "https://work.example/scope/decision",
         "type": "https://work.example/types/decision",
         "revision": "r /?&雪",
         "properties": {
@@ -133,12 +124,12 @@
         "ownedLinks": {
           "https://work.example/types/cites": [
             {
-              "id": "https://work.example/scope/links/citation",
+              "id": "https://work.example/scope/citation",
               "type": "https://work.example/types/cites",
               "revision": "link-old",
-              "source": "https://work.example/scope/beads/decision",
+              "source": "https://work.example/scope/decision",
               "target": {
-                "uri": "https://work.example/scope/beads/target",
+                "uri": "https://work.example/scope/target",
                 "revision": "target%2Fold"
               },
               "properties": {
@@ -190,12 +181,12 @@
       "schema": "#/$defs/historicalLinkRecord",
       "condition": "Independent retained Link, preserving its old target pin.",
       "body": {
-        "id": "https://work.example/scope/links/citation",
+        "id": "https://work.example/scope/citation",
         "type": "https://work.example/types/cites",
         "revision": "link-old",
-        "source": "https://work.example/scope/beads/decision",
+        "source": "https://work.example/scope/decision",
         "target": {
-          "uri": "https://work.example/scope/beads/target",
+          "uri": "https://work.example/scope/target",
           "revision": "target%2Fold"
         },
         "properties": {
@@ -227,12 +218,12 @@
       "schema": "#/$defs/historicalLinkRecord",
       "condition": "Legacy has no invented attribution or context.",
       "body": {
-        "id": "https://work.example/scope/links/citation",
+        "id": "https://work.example/scope/citation",
         "type": "https://work.example/types/cites",
         "revision": "link-old",
-        "source": "https://work.example/scope/beads/decision",
+        "source": "https://work.example/scope/decision",
         "target": {
-          "uri": "https://work.example/scope/beads/target",
+          "uri": "https://work.example/scope/target",
           "revision": "target%2Fold"
         },
         "properties": {
@@ -247,7 +238,7 @@
       "schema": "#/$defs/historyVersionsPage",
       "condition": "Restore r1 after r1→r2→r3 and mint r4, retaining r2/r3; r3 stored complete but unrepresentable. No r3→r4 direct ancestry.",
       "body": {
-        "subject": "https://work.example/scope/beads/decision",
+        "subject": "https://work.example/scope/decision",
         "population": "all-retained",
         "participation": "tracked",
         "window": {
@@ -298,7 +289,7 @@
       "schema": "#/$defs/historyVersionsPage",
       "condition": "History-authorized subject; absent or expired participation evidence is not never",
       "body": {
-        "subject": "https://work.example/scope/beads/decision",
+        "subject": "https://work.example/scope/decision",
         "population": "all-retained",
         "participation": "undetermined",
         "window": {
@@ -315,7 +306,7 @@
       "schema": "#/$defs/historyVersionsPage",
       "condition": "History-authorized subject; positive non-participation evidence",
       "body": {
-        "subject": "https://work.example/scope/beads/decision",
+        "subject": "https://work.example/scope/decision",
         "population": "all-retained",
         "participation": "not-tracked",
         "window": {
@@ -332,7 +323,7 @@
       "schema": "#/$defs/historyVersionsPage",
       "condition": "One stable authorized enumeration snapshot; a cursor supplies no body retention hold.",
       "body": {
-        "subject": "https://work.example/scope/beads/decision",
+        "subject": "https://work.example/scope/decision",
         "population": "all-retained",
         "participation": "tracked",
         "window": {
@@ -365,7 +356,7 @@
             "body": "complete"
           }
         ],
-        "next": "https://work.example/scope/beads/decision?view=versions&cursor=page-2&limit=2"
+        "next": "https://work.example/scope/decision?view=versions&cursor=page-2&limit=2"
       }
     },
     {
@@ -594,7 +585,10 @@
       "body": {
         "type": "https://work.example/types/decision",
         "revisionProvenance": {
-          "actor": { "id": "human:donna", "basis": "writer-supplied" },
+          "actor": {
+            "id": "human:donna",
+            "basis": "writer-supplied"
+          },
           "agent": "assistant-a",
           "message": null
         }
@@ -605,7 +599,7 @@
       "schema": "#/$defs/deleteLinkRequest",
       "condition": "Optional operation-level provenance input; caller timestamps prohibited, an optional actor may be supplied.",
       "body": {
-        "link": "https://work.example/scope/links/citation",
+        "link": "https://work.example/scope/citation",
         "revisionProvenance": {
           "agent": null,
           "message": "removed citation"
@@ -716,12 +710,12 @@
       "body": {
         "outcome": "updated",
         "resource": {
-          "id": "https://work.example/scope/links/citation",
+          "id": "https://work.example/scope/citation",
           "type": "https://work.example/types/cites",
           "revision": "link-old",
-          "source": "https://work.example/scope/beads/decision",
+          "source": "https://work.example/scope/decision",
           "target": {
-            "uri": "https://work.example/scope/beads/target",
+            "uri": "https://work.example/scope/target",
             "revision": "target%2Fold"
           },
           "properties": {
@@ -747,7 +741,7 @@
             }
           }
         },
-        "source": "https://work.example/scope/beads/decision",
+        "source": "https://work.example/scope/decision",
         "sourceRevision": "r /?&雪"
       }
     },
@@ -759,12 +753,12 @@
         "operationIndex": 0,
         "outcome": "updated",
         "resource": {
-          "id": "https://work.example/scope/links/citation",
+          "id": "https://work.example/scope/citation",
           "type": "https://work.example/types/cites",
           "revision": "link-old",
-          "source": "https://work.example/scope/beads/decision",
+          "source": "https://work.example/scope/decision",
           "target": {
-            "uri": "https://work.example/scope/beads/target",
+            "uri": "https://work.example/scope/target",
             "revision": "target%2Fold"
           },
           "properties": {
@@ -790,7 +784,7 @@
             }
           }
         },
-        "source": "https://work.example/scope/beads/decision",
+        "source": "https://work.example/scope/decision",
         "sourceRevision": "r /?&雪"
       }
     },
@@ -799,7 +793,7 @@
       "schema": "#/$defs/ownedLinkDelta",
       "condition": "Version-bearing owned delta has Link context, alongside the new source Event context.",
       "body": {
-        "id": "https://work.example/scope/links/citation",
+        "id": "https://work.example/scope/citation",
         "type": "https://work.example/types/cites",
         "previousRevision": "link-before",
         "revision": "link-old",
@@ -830,7 +824,7 @@
       "schema": "#/$defs/historyVersionsPage",
       "condition": "Every scanned row on this page is withheld by whole-row authorization; a later page may disclose authorized rows. The cursor advances the same snapshot. Window bounds name independently authorized rows elsewhere in that snapshot, not hidden rows.",
       "body": {
-        "subject": "https://work.example/scope/beads/decision",
+        "subject": "https://work.example/scope/decision",
         "population": "all-retained",
         "participation": "tracked",
         "window": {
@@ -839,7 +833,7 @@
           "complete": true
         },
         "items": [],
-        "next": "https://work.example/scope/beads/decision?view=versions&cursor=page-2&limit=2"
+        "next": "https://work.example/scope/decision?view=versions&cursor=page-2&limit=2"
       }
     },
     {
@@ -852,7 +846,7 @@
         "ownedLink": {
           "operation": "updated",
           "link": {
-            "id": "https://work.example/scope/links/citation",
+            "id": "https://work.example/scope/citation",
             "type": "https://work.example/types/cites",
             "previousRevision": "link-before",
             "revision": "link-old",
@@ -927,7 +921,7 @@
       "schema": "#/$defs/updateBeadRequest",
       "condition": "Singleton update input supplies agent/message only; native commit time is authority-owned.",
       "body": {
-        "bead": "https://work.example/scope/beads/decision",
+        "bead": "https://work.example/scope/decision",
         "propertiesChange": [
           {
             "op": "replace",
@@ -946,7 +940,7 @@
       "schema": "#/$defs/updateLinkRequest",
       "condition": "Singleton Link update context also fans out to its source when ownership actually versions that source.",
       "body": {
-        "link": "https://work.example/scope/links/citation",
+        "link": "https://work.example/scope/citation",
         "propertiesChange": [
           {
             "op": "replace",

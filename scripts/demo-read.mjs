@@ -311,7 +311,7 @@ try {
   );
   const cliRequests = http.filter((entry) => entry.phase === "bdp-cli");
   assert(cliRequests.some((entry) => entry.target === "/local-test/bdp.json"));
-  assert(cliRequests.some((entry) => entry.target.startsWith("/local-test/beads/")));
+  assert(cliRequests.some((entry) => entry.target.startsWith("/local-test/bdp/beads")));
   assert(cliRequests.some((entry) => entry.target.includes("?view=links&direction=outbound")));
   assert(cliRequests.every((entry) => entry.method === "GET" && [200, 204].includes(entry.status)));
   say(
@@ -327,9 +327,12 @@ try {
   );
   activePhase = "public-control";
   const excessiveLimit = discovery.limits.page.maximumItems + 1;
-  const refusal = await fetch(`${discovery.beads}?limit=${excessiveLimit}`, {
-    signal: controller.signal,
-  });
+  const refusal = await fetch(
+    `${new URL("bdp/beads", discovery.scope).href}?limit=${excessiveLimit}`,
+    {
+      signal: controller.signal,
+    },
+  );
   const problem = await refusal.json();
   assert.equal(refusal.status, 413);
   assert.equal(problem.code, "limit-exceeded");

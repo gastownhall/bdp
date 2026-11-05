@@ -118,7 +118,7 @@ function text(value: unknown): string {
 function ownedUrl(value: unknown, collection: "receipts" | "beads") {
   const literal = text(value),
     url = new URL(literal),
-    prefix = `${scope}${collection}/`;
+    prefix = collection === "receipts" ? `${scope}receipts/` : scope;
   if (
     literal.length > 8192 ||
     Buffer.byteLength(literal) > 8192 ||
@@ -357,7 +357,7 @@ it("preserves one allocated effect and receipt across same-key singleton and bat
             : index === 3
               ? receiptUrl
               : index === 4
-                ? `${scope}beads/?limit=32`
+                ? `${scope}bdp/beads?limit=32`
                 : `${scope}events/`;
       if (!literal) throw new Error("same-key missing issued receipt root");
       const url = new URL(literal);

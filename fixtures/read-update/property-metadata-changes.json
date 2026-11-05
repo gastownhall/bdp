@@ -8,7 +8,7 @@
       "id": "bead-shallow-merge-both",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/beads/task-500",
+        "id": "https://beads.example/acme/task-500",
         "type": "https://work.example/types/task",
         "revision": "task-500-r1",
         "properties": {
@@ -37,7 +37,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-500",
+          "bead": "task-500",
           "expectedRevision": "task-500-r1",
           "propertiesChange": [
             {
@@ -71,7 +71,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/task-500",
+            "id": "https://beads.example/acme/task-500",
             "type": "https://work.example/types/task",
             "revision": "task-500-r2",
             "properties": {
@@ -98,7 +98,7 @@
       "id": "bead-replace-both-roots",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/beads/task-500",
+        "id": "https://beads.example/acme/task-500",
         "type": "https://work.example/types/task",
         "revision": "task-500-r2",
         "properties": {
@@ -128,7 +128,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-500",
+          "bead": "task-500",
           "expectedRevision": "task-500-r2",
           "propertiesChange": [
             {
@@ -167,7 +167,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/task-500",
+            "id": "https://beads.example/acme/task-500",
             "type": "https://work.example/types/task",
             "revision": "task-500-r3",
             "properties": {
@@ -191,7 +191,7 @@
       "id": "bead-clear-metadata",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/beads/task-500",
+        "id": "https://beads.example/acme/task-500",
         "type": "https://work.example/types/task",
         "revision": "task-500-r3",
         "properties": {
@@ -218,7 +218,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-500",
+          "bead": "task-500",
           "expectedRevision": "task-500-r3",
           "metadataChange": [
             {
@@ -245,7 +245,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/task-500",
+            "id": "https://beads.example/acme/task-500",
             "type": "https://work.example/types/task",
             "revision": "task-500-r4",
             "properties": {
@@ -267,7 +267,7 @@
       "id": "bead-equal-root-replacements-no-op",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/beads/task-500",
+        "id": "https://beads.example/acme/task-500",
         "type": "https://work.example/types/task",
         "revision": "task-500-r4",
         "properties": {
@@ -292,7 +292,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-500",
+          "bead": "task-500",
           "expectedRevision": "task-500-r4",
           "propertiesChange": [
             {
@@ -329,7 +329,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/task-500",
+            "id": "https://beads.example/acme/task-500",
             "type": "https://work.example/types/task",
             "revision": "task-500-r4",
             "properties": {
@@ -351,11 +351,11 @@
       "id": "link-shallow-merge-both",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/links/relates-501",
+        "id": "https://beads.example/acme/relates-501",
         "type": "https://work.example/types/relates",
         "revision": "relates-501-r1",
-        "source": "https://beads.example/acme/beads/task-500",
-        "target": "https://beads.example/acme/beads/task-499",
+        "source": "https://beads.example/acme/task-500",
+        "target": "https://beads.example/acme/task-499",
         "properties": {
           "note": "initial",
           "tag": "keep"
@@ -381,7 +381,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/relates-501",
+          "link": "relates-501",
           "expectedRevision": "relates-501-r1",
           "propertiesChange": [
             {
@@ -415,11 +415,11 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/links/relates-501",
+            "id": "https://beads.example/acme/relates-501",
             "type": "https://work.example/types/relates",
             "revision": "relates-501-r2",
-            "source": "https://beads.example/acme/beads/task-500",
-            "target": "https://beads.example/acme/beads/task-499",
+            "source": "https://beads.example/acme/task-500",
+            "target": "https://beads.example/acme/task-499",
             "properties": {
               "note": "revised",
               "tag": "keep"
@@ -443,11 +443,11 @@
       "id": "link-replace-both-roots",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/links/relates-501",
+        "id": "https://beads.example/acme/relates-501",
         "type": "https://work.example/types/relates",
         "revision": "relates-501-r2",
-        "source": "https://beads.example/acme/beads/task-500",
-        "target": "https://beads.example/acme/beads/task-499",
+        "source": "https://beads.example/acme/task-500",
+        "target": "https://beads.example/acme/task-499",
         "properties": {
           "note": "revised",
           "tag": "keep"
@@ -474,7 +474,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/relates-501",
+          "link": "relates-501",
           "expectedRevision": "relates-501-r2",
           "propertiesChange": [
             {
@@ -512,11 +512,11 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/links/relates-501",
+            "id": "https://beads.example/acme/relates-501",
             "type": "https://work.example/types/relates",
             "revision": "relates-501-r3",
-            "source": "https://beads.example/acme/beads/task-500",
-            "target": "https://beads.example/acme/beads/task-499",
+            "source": "https://beads.example/acme/task-500",
+            "target": "https://beads.example/acme/task-499",
             "properties": {
               "note": "final"
             },
@@ -537,11 +537,11 @@
       "id": "link-clear-both-roots",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/links/relates-501",
+        "id": "https://beads.example/acme/relates-501",
         "type": "https://work.example/types/relates",
         "revision": "relates-501-r3",
-        "source": "https://beads.example/acme/beads/task-500",
-        "target": "https://beads.example/acme/beads/task-499",
+        "source": "https://beads.example/acme/task-500",
+        "target": "https://beads.example/acme/task-499",
         "properties": {
           "note": "final"
         },
@@ -565,7 +565,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/relates-501",
+          "link": "relates-501",
           "expectedRevision": "relates-501-r3",
           "propertiesChange": [
             {
@@ -599,11 +599,11 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/links/relates-501",
+            "id": "https://beads.example/acme/relates-501",
             "type": "https://work.example/types/relates",
             "revision": "relates-501-r4",
-            "source": "https://beads.example/acme/beads/task-500",
-            "target": "https://beads.example/acme/beads/task-499",
+            "source": "https://beads.example/acme/task-500",
+            "target": "https://beads.example/acme/task-499",
             "properties": {},
             "metadata": {},
             "revisionProvenance": {
@@ -620,11 +620,11 @@
       "id": "link-equal-root-replacements-no-op",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/links/relates-501",
+        "id": "https://beads.example/acme/relates-501",
         "type": "https://work.example/types/relates",
         "revision": "relates-501-r4",
-        "source": "https://beads.example/acme/beads/task-500",
-        "target": "https://beads.example/acme/beads/task-499",
+        "source": "https://beads.example/acme/task-500",
+        "target": "https://beads.example/acme/task-499",
         "properties": {},
         "metadata": {},
         "revisionProvenance": {
@@ -644,7 +644,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/relates-501",
+          "link": "relates-501",
           "expectedRevision": "relates-501-r4",
           "propertiesChange": [
             {
@@ -678,11 +678,11 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/links/relates-501",
+            "id": "https://beads.example/acme/relates-501",
             "type": "https://work.example/types/relates",
             "revision": "relates-501-r4",
-            "source": "https://beads.example/acme/beads/task-500",
-            "target": "https://beads.example/acme/beads/task-499",
+            "source": "https://beads.example/acme/task-500",
+            "target": "https://beads.example/acme/task-499",
             "properties": {},
             "metadata": {},
             "revisionProvenance": {
@@ -699,11 +699,11 @@
       "id": "link-nonobject-properties-rejected",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/links/relates-501",
+        "id": "https://beads.example/acme/relates-501",
         "type": "https://work.example/types/relates",
         "revision": "relates-501-r4",
-        "source": "https://beads.example/acme/beads/task-500",
-        "target": "https://beads.example/acme/beads/task-499",
+        "source": "https://beads.example/acme/task-500",
+        "target": "https://beads.example/acme/task-499",
         "properties": {},
         "metadata": {},
         "revisionProvenance": {
@@ -723,7 +723,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/relates-501",
+          "link": "relates-501",
           "expectedRevision": "relates-501-r4",
           "propertiesChange": [
             {
@@ -766,11 +766,11 @@
       "id": "link-atomic-nonobject-metadata-rejected",
       "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
       "priorResource": {
-        "id": "https://beads.example/acme/links/relates-501",
+        "id": "https://beads.example/acme/relates-501",
         "type": "https://work.example/types/relates",
         "revision": "relates-501-r4",
-        "source": "https://beads.example/acme/beads/task-500",
-        "target": "https://beads.example/acme/beads/task-499",
+        "source": "https://beads.example/acme/task-500",
+        "target": "https://beads.example/acme/task-499",
         "properties": {},
         "metadata": {},
         "revisionProvenance": {
@@ -790,7 +790,7 @@
         },
         "schema": "#/$defs/updateLinkRequest",
         "body": {
-          "link": "links/relates-501",
+          "link": "relates-501",
           "expectedRevision": "relates-501-r4",
           "propertiesChange": [
             {

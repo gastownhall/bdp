@@ -72,7 +72,8 @@ it.each(cases)(
         : collection === "types"
           ? "read.types.inventory"
           : "read.resource.default-bounded";
-    const suffix = collection === "resource" ? "beads/read-a" : `${collection}/`;
+    const suffix =
+      collection === "resource" ? "read-a" : collection === "types" ? "types/" : "bdp/beads";
     const port = await helpers.availablePort();
     const dir = mkdtempSync(path.join(tmpdir(), "bdp-read-oracle-"));
     let child: Awaited<ReturnType<typeof helpers.launchInstalledReference>> | undefined;

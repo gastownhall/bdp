@@ -219,7 +219,9 @@ export function createTransactionHttpHandler(
       const result = await facet.resolveAlias(request.url, { signal: request.signal });
       const response =
         result.kind === "problem"
-          ? problem(result.problem)
+          ? result.problem.code === "resource-not-found"
+            ? undefined
+            : problem(result.problem)
           : {
               status: 307,
               headers: new Headers({
@@ -228,6 +230,7 @@ export function createTransactionHttpHandler(
                 "cache-control": "private, no-store",
               }),
             };
+      if (response === undefined) return undefined;
       return "observation" in result
         ? context(response, transactionReadContexts(result.observation).current)
         : response;

@@ -25,8 +25,8 @@ import {
 const scope = "https://example.test/s/";
 const type = "https://types.example/task";
 const linkType = "https://types.example/relation";
-const a = `${scope}beads/a`;
-const b = `${scope}beads/b`;
+const a = `${scope}a`;
+const b = `${scope}b`;
 const budget: JsonNumberDiagnosticBudget = {
   diagnostic: ({ pointer }) => ({
     message: "number does not round-trip",
@@ -72,7 +72,7 @@ const create = { operation: "createBead", idempotencyKey: "creator", name: "made
 
 describe("exact member identity normalization", () => {
   it("equates singleton/sequence, defaults, canonical relative references and renamed envelope data", () => {
-    const one = ready(singleton("createBead", { type, id: "beads/a" }, "FIRST"));
+    const one = ready(singleton("createBead", { type, id: "a" }, "FIRST"));
     const two = ready(
       sequence([
         {
@@ -103,7 +103,7 @@ describe("exact member identity normalization", () => {
   });
   it.each([
     ["createBead", { type, id: a }],
-    ["createLink", { type: linkType, id: `${scope}links/edge`, source: a, target: b }],
+    ["createLink", { type: linkType, id: `${scope}edge`, source: a, target: b }],
   ] as const)("equates omitted and empty creation metadata for %s", (operation, input) => {
     const omitted = ready(singleton(operation, input));
     const empty = ready(singleton(operation, { ...input, metadata: {} }));
@@ -133,12 +133,12 @@ describe("exact member identity normalization", () => {
   it.each<[ReadUpdateOperation, Record<string, unknown>]>([
     ["createBead", { id: a, type }],
     ["updateBead", { bead: a, propertiesChange: [{ op: "add", path: "/n", value: 1 }] }],
-    ["createLink", { id: `${scope}links/edge`, type: linkType, source: a, target: b }],
+    ["createLink", { id: `${scope}edge`, type: linkType, source: a, target: b }],
     [
       "updateLink",
-      { link: `${scope}links/edge`, propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
+      { link: `${scope}edge`, propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
     ],
-    ["deleteLink", { link: `${scope}links/edge` }],
+    ["deleteLink", { link: `${scope}edge` }],
   ])(
     "normalizes context defaults once across both S4 paths and carrier forms: %s",
     (operation, input) => {
@@ -191,7 +191,7 @@ describe("exact member identity normalization", () => {
       { op: "add", path: "/a", value: 1 },
       { op: "remove", path: "/a" },
     ];
-    const one = ready(singleton("updateBead", { bead: "beads/a", propertiesChange: change }));
+    const one = ready(singleton("updateBead", { bead: "a", propertiesChange: change }));
     const ordered = ready(singleton("updateBead", { propertiesChange: change, bead: a }));
     const reversed = ready(
       singleton("updateBead", { bead: a, propertiesChange: [...change].reverse() }),
@@ -227,7 +227,7 @@ describe("exact member identity normalization", () => {
   it.each([
     "urn:external:X",
     "https://EXTERNAL.test:443/other/%61?q=x",
-    "https://example.test/s%2fother/beads/a",
+    "https://example.test/s%2fother/a",
   ])("preserves external URI bytes %s", (uri) => {
     const member = ready(
       singleton("createLink", { type: linkType, source: a, target: { uri, revision: "opaque" } }),
@@ -246,8 +246,8 @@ describe("exact member identity normalization", () => {
     const one = ready(
       singleton("createLink", {
         type: linkType,
-        source: "beads/a",
-        target: { uri: "beads/b", revision: 'opaque\\"' },
+        source: "a",
+        target: { uri: "b", revision: 'opaque\\"' },
       }),
     );
     const two = ready(
@@ -315,7 +315,7 @@ describe("complete captured alias and creator witnesses", () => {
     const resolveAlias = vi.fn(() => a);
     const member = ready(
       singleton("createLink", {
-        id: "links/already-used",
+        id: "already-used",
         type: linkType,
         source: "alias/lead",
         target: { uri: `${scope}alias/lead`, revision: "pinned" },
@@ -325,7 +325,7 @@ describe("complete captured alias and creator witnesses", () => {
     );
     expect(resolveAlias).toHaveBeenCalledExactlyOnceWith(`${scope}alias/lead`);
     expect(member.metadata.witnesses).toEqual([
-      { slot: "/id", kind: "direct", uri: `${scope}links/already-used` },
+      { slot: "/id", kind: "direct", uri: `${scope}already-used` },
       { slot: "/source", kind: "alias", locator: `${scope}alias/lead`, target: a },
       { slot: "/target/uri", kind: "alias", locator: `${scope}alias/lead`, target: a },
     ]);
@@ -411,9 +411,9 @@ describe("complete captured alias and creator witnesses", () => {
     expect(() =>
       ready(singleton("deleteBead", { bead: "alias/new" }), 0, {
         prior: metadata(ready(singleton("deleteBead", { bead: a }))),
-        resolveAlias: () => `${scope}links/wrong-kind`,
+        resolveAlias: () => "https://foreign.test/resource",
       }),
-    ).toThrow("live alias resolution requires the canonical in-Scope Resource kind");
+    ).toThrow("live alias resolution requires a canonical in-Scope Resource identity");
   });
   it("records unresolved alias identity separately per locator and never falls through on captured misses", () => {
     const member = ready(singleton("deleteBead", { bead: "alias/missing" }), 0, {
@@ -551,7 +551,7 @@ describe("identity receiving boundaries", () => {
   it("keeps all captured witnesses when the actual Resource evaluator fails before endpoint processing", () => {
     const member = ready(
       singleton("createLink", {
-        id: "links/used",
+        id: "used",
         type: linkType,
         source: "alias/one",
         target: { uri: "alias/two", revision: "r1" },
@@ -568,7 +568,7 @@ describe("identity receiving boundaries", () => {
       resource: unexpected,
       incidentLinks: unexpected,
       outgoingLinks: unexpected,
-      identityWasCommitted: (id) => id === "links/used",
+      identityWasCommitted: (id) => id === "used",
       alias: unexpected,
       installedType: unexpected,
       allocateResourceId: unexpected,
@@ -593,7 +593,7 @@ describe("identity receiving boundaries", () => {
       resolutions: [],
     });
     expect(metadata(member).witnesses).toEqual([
-      { slot: "/id", kind: "direct", uri: `${scope}links/used` },
+      { slot: "/id", kind: "direct", uri: `${scope}used` },
       { slot: "/source", kind: "alias", locator: `${scope}alias/one`, target: a },
       { slot: "/target/uri", kind: "alias", locator: `${scope}alias/two`, target: b },
     ]);
@@ -618,9 +618,9 @@ describe("identity receiving boundaries", () => {
       },
     ]);
     const member = ready(carrier, 1, {
-      creatorBinding: () => ({ kind: "bound", id: `${scope}links/l`, resourceKind: "link" }),
+      creatorBinding: () => ({ kind: "bound", id: `${scope}l`, resourceKind: "link" }),
     });
-    expect(execution(member).input).toMatchObject({ link: `${scope}links/l` });
+    expect(execution(member).input).toMatchObject({ link: `${scope}l` });
     expect(metadata(member).witnesses).toEqual(member.metadata.witnesses);
     expect(() =>
       ready(carrier, 1, {
@@ -652,7 +652,7 @@ describe("identity receiving boundaries", () => {
       { slot: "/source", kind: "alias", locator: `${scope}alias/missing`, target: null },
       { slot: "/target", kind: "alias", locator: `${scope}alias/found`, target: b },
     ]);
-    expect(capturedMemberAlias(member, "found")).toEqual({ captured: true, target: "beads/b" });
+    expect(capturedMemberAlias(member, "found")).toEqual({ captured: true, target: "b" });
   });
   it("rejects a creation completion whose Type differs from its request", () => {
     const member = ready(singleton("createBead", { type }));
@@ -667,7 +667,7 @@ describe("identity receiving boundaries", () => {
 
 describe("versioned retained and expired metadata", () => {
   it("retains a successful creator fact alongside its witnesses without changing identity", () => {
-    const member = ready(singleton("createBead", { type, id: "beads/a" }));
+    const member = ready(singleton("createBead", { type, id: "a" }));
     const before = member.identityJson;
     const text = serializeMemberMetadata(member, {
       outcome: "created",
@@ -698,12 +698,12 @@ describe("versioned retained and expired metadata", () => {
     { outcome: "created", resource: { id: b, type, revision: "r1", properties: {} } },
     {
       outcome: "created",
-      resource: { id: "https://foreign.test/beads/a", type, revision: "r1", properties: {} },
+      resource: { id: "https://foreign.test/a", type, revision: "r1", properties: {} },
     },
     {
       outcome: "created",
       resource: {
-        id: `${scope}links/l`,
+        id: `${scope}l`,
         type: linkType,
         revision: "r1",
         properties: {},
@@ -770,7 +770,7 @@ describe("versioned retained and expired metadata", () => {
       d.witnesses[0].locator = `${scope}alias/%6Cead`;
     },
     (d: ReturnType<typeof valid>) => {
-      d.witnesses[0].target = `${scope}links/a`;
+      d.witnesses[0].target = `${scope}b`;
     },
     (d: ReturnType<typeof valid>) => {
       d.witnesses[1].target = b;
@@ -822,7 +822,7 @@ describe("versioned retained and expired metadata", () => {
       const completion = {
         outcome: "created" as const,
         resource: {
-          id: `${scope}links/l`,
+          id: `${scope}l`,
           type: linkType,
           revision: "r1",
           properties: {},
@@ -833,7 +833,7 @@ describe("versioned retained and expired metadata", () => {
       expect(() => serializeMemberMetadata(member, completion)).toThrow(MemberMetadataError);
       const corrupt = {
         ...JSON.parse(serializeMemberMetadata(member)),
-        creation: { kind: "bound", id: `${scope}links/l`, resourceKind: "link" },
+        creation: { kind: "bound", id: `${scope}l`, resourceKind: "link" },
       };
       expect(() => parseMemberMetadata(JSON.stringify(corrupt), scope)).toThrow(
         MemberMetadataError,
@@ -1058,7 +1058,7 @@ describe("prepared member dependencies", () => {
           : {
               kind: "bound",
               resourceKind: variant === "wrong-kind" ? "link" : "bead",
-              id: variant === "wrong-scope" ? "https://other.test/beads/a" : a,
+              id: variant === "wrong-scope" ? "https://other.test/a" : a,
             };
       expect(() =>
         prepareMemberDependencies(
@@ -1208,7 +1208,7 @@ describe("metadata numeric diagnostic identity and budget", () => {
             metadata: { a: "BAD", b: "BAD" },
           }
         : {
-            [link ? "link" : "bead"]: link ? "links/a" : "beads/a",
+            [link ? "link" : "bead"]: link ? "a" : "a",
             metadataChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
           };
       const raw = JSON.stringify(input).replaceAll('"BAD"', "1e400");
@@ -1399,7 +1399,7 @@ describe("paired create numeric diagnostic locations", () => {
       prepareReadUpdateSingleton(
         scope,
         "updateBead",
-        '{"bead":"beads/a","propertiesChange":[{"op":"add","path":"/items/-","value":1e400}]}',
+        '{"bead":"a","propertiesChange":[{"op":"add","path":"/items/-","value":1e400}]}',
         "update",
       ),
     );
@@ -1427,8 +1427,7 @@ describe("paired create numeric diagnostic locations", () => {
           scope,
           operation,
           JSON.stringify({
-            [operation === "updateBead" ? "bead" : "link"]:
-              operation === "updateBead" ? "beads/a" : "links/a",
+            [operation === "updateBead" ? "bead" : "link"]: operation === "updateBead" ? "a" : "a",
             propertiesChange: [{ op: "add", path: "/items/-", value: "BAD" }],
           }).replace('"BAD"', "1e400"),
           "update",
@@ -1476,8 +1475,7 @@ describe("unapplied property numeric diagnostics", () => {
     "%s discards caller/request pointers before exact diagnostic budgeting",
     (operation) => {
       const raw = JSON.stringify({
-        [operation === "updateBead" ? "bead" : "link"]:
-          operation === "updateBead" ? "beads/a" : "links/a",
+        [operation === "updateBead" ? "bead" : "link"]: operation === "updateBead" ? "a" : "a",
         propertiesChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
       }).replaceAll('"BAD"', "1e400");
       const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "property-location"));

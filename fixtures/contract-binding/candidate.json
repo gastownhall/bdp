@@ -12,18 +12,12 @@
   "legacyDiscovery": {
     "bdpVersion": "0",
     "profile": "read",
-    "scope": "https://example.test/acme/",
-    "beads": "https://example.test/acme/beads/",
-    "links": "https://example.test/acme/links/",
-    "types": "https://example.test/acme/types/"
+    "scope": "https://example.test/acme/"
   },
   "candidateDiscovery": {
     "bdpVersion": "0.1",
     "profile": "read",
     "scope": "https://example.test/acme/",
-    "beads": "https://example.test/acme/beads/",
-    "links": "https://example.test/acme/links/",
-    "types": "https://example.test/acme/types/",
     "capabilities": {
       "https://example.test/capabilities/future-feature": {
         "1": {

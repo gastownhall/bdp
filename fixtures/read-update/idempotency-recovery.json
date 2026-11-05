@@ -111,7 +111,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -180,7 +180,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-114",
+                "id": "https://beads.example/acme/decision-114",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-114-r1",
                 "properties": {
@@ -245,7 +245,7 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/beads/decision-108",
+            "id": "https://beads.example/acme/decision-108",
             "type": "https://work.example/types/decision",
             "revision": "decision-108-r1",
             "properties": {
@@ -319,7 +319,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -358,7 +358,7 @@
             {
               "idempotencyKey": "w1-relates-12-delete",
               "operation": "deleteLink",
-              "link": "links/relates-12",
+              "link": "relates-12",
               "expectedRevision": "relates-12-r1"
             }
           ]
@@ -379,7 +379,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/acme/links/relates-12",
+                  "id": "https://beads.example/acme/relates-12",
                   "type": "https://work.example/types/relates",
                   "revision": "relates-12-r1"
                 }
@@ -423,7 +423,7 @@
               "operation": "createLink",
               "type": "https://work.example/types/blocks",
               "source": "@plan",
-              "target": "beads/task-42",
+              "target": "task-42",
               "properties": {},
               "revisionProvenance": {
                 "actor": {
@@ -449,7 +449,7 @@
               "operationName": "plan",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-115",
+                "id": "https://beads.example/acme/task-115",
                 "type": "https://work.example/types/task",
                 "revision": "task-115-r1",
                 "properties": {
@@ -469,11 +469,11 @@
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/blocks-116",
+                "id": "https://beads.example/acme/blocks-116",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-116-r1",
-                "source": "https://beads.example/acme/beads/task-115",
-                "target": "https://beads.example/acme/beads/task-42",
+                "source": "https://beads.example/acme/task-115",
+                "target": "https://beads.example/acme/task-42",
                 "properties": {},
                 "metadata": {},
                 "revisionProvenance": {
@@ -535,7 +535,7 @@
               "operationName": "note",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme-restored/beads/decision-1",
+                "id": "https://beads.example/acme-restored/decision-1",
                 "type": "https://work.example/types/decision",
                 "revision": "restored-decision-1-r1",
                 "properties": {

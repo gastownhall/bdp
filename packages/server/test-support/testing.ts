@@ -38,7 +38,7 @@ export function establishReadConformanceEvidenceForTesting(target: ReadServerTar
 export function createReadResourceFaultPortForTesting(
   port: ScopePort,
   fault: {
-    readonly resource: "bead" | "link" | "type";
+    readonly resource: "bead" | "link" | "type" | "resource";
     readonly id: string;
     readonly error: Error;
   },
@@ -47,8 +47,10 @@ export function createReadResourceFaultPortForTesting(
     async perform(operation, options) {
       if (
         operation.kind === "resource" &&
-        operation.resource === fault.resource &&
-        operation.id === fault.id
+        operation.id === fault.id &&
+        (operation.resource === fault.resource ||
+          (operation.resource === "resource" &&
+            (fault.resource === "bead" || fault.resource === "link")))
       )
         throw fault.error;
       return port.perform(operation, options);
@@ -65,13 +67,13 @@ export function createReadProblemTablePortForTesting(
   port: ScopePort,
   options: { readonly scope: string; readonly pathPrefix?: string },
 ): ScopePort {
-  const pathPrefix = options.pathPrefix ?? "beads/__problem__/";
+  const pathPrefix = options.pathPrefix ?? "__problem__/";
   const prefix = new URL(pathPrefix, options.scope).href;
   return {
     async perform(operation, performOptions) {
       if (
         operation.kind === "resource" &&
-        operation.resource === "bead" &&
+        (operation.resource === "bead" || operation.resource === "resource") &&
         operation.id.startsWith(prefix)
       ) {
         const encodedCode = operation.id.slice(prefix.length);
@@ -269,7 +271,7 @@ export function createControlledReadSessionForTesting(options: {
           ...Array.from({ length: materializedLength }, (_, index) =>
             Object.freeze({
               ...template,
-              id: new URL(`beads/limit-${index}`, options.scope).href,
+              id: new URL(`limit-${index}`, options.scope).href,
               revision: `limit-${index}`,
             }),
           ),

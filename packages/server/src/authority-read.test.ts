@@ -290,21 +290,12 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     return JSON.parse(row.bodyJson) as Record<string, unknown>;
   }
   function createBead(id: string, properties: unknown = {}, type = beadType) {
-    const turn = write("createBead", { id: `beads/${id}`, type, properties }, `bead_${id}`);
+    const turn = write("createBead", { id: `${id}`, type, properties }, `bead_${id}`);
     expect(turn.disposition).toMatchObject({ outcome: "created" });
     return turn;
   }
-  function createLink(
-    id: string,
-    sourceId = "beads/a",
-    target: unknown = "beads/b",
-    type = linkType,
-  ) {
-    const turn = write(
-      "createLink",
-      { id: `links/${id}`, type, source: sourceId, target },
-      `link_${id}`,
-    );
+  function createLink(id: string, sourceId = "a", target: unknown = "b", type = linkType) {
+    const turn = write("createLink", { id: `${id}`, type, source: sourceId, target }, `link_${id}`);
     expect(turn.disposition).toMatchObject({ outcome: "created" });
     return turn;
   }
@@ -318,7 +309,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     const count = store.read(
       (r) =>
         r
-          .outgoingLinks("beads/a")
+          .outgoingLinks("a")
           .filter((row) => (JSON.parse(row.bodyJson) as { type: string }).type === linkType).length,
     );
     if (count > max) throw Error("fixture replacement would violate current graph");
@@ -349,7 +340,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
   };
 }
 function resourceRequest(id = "a"): ReadRequest {
-  return { kind: "resource", resource: "bead", id: url(`beads/${id}`) };
+  return { kind: "resource", resource: "bead", id: url(`${id}`) };
 }
 function body(result: unknown): Record<string, unknown> {
   expect(result).toMatchObject({ kind: "success" });
@@ -403,7 +394,7 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
           resource: "bead",
           get id() {
             effects++;
-            return url("beads/a");
+            return url("a");
           },
         };
       if (kind === "inherited") request = Object.create(resourceRequest());
@@ -434,13 +425,13 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
     f.createBead("a");
     f.createBead("b");
     const p = { id: "alice" },
-      request = { kind: "resource" as const, resource: "bead" as const, id: url("beads/a") };
+      request = { kind: "resource" as const, resource: "bead" as const, id: url("a") };
     const facet = f.open().readFor({ kind: "authenticated", principal: p });
     f.state.captureHook = (_r, _p, intent) => {
       expect(Object.isFrozen(intent)).toBe(true);
-      request.id = url("beads/b");
+      request.id = url("b");
     };
-    expect(body(await facet.perform(request)).id).toBe(url("beads/a"));
+    expect(body(await facet.perform(request)).id).toBe(url("a"));
     expect(Object.isFrozen(p)).toBe(false);
     p.id = "other";
     f.reset();
@@ -452,27 +443,27 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
     async (kind) => {
       const f = fixture();
       f.createBead("a", { revision: "domain-authored", n: 1 });
-      const expected = f.resource("beads/a"),
+      const expected = f.resource("a"),
         r1 = expected.revision;
       expect(r1).not.toBe("domain-authored");
       const facet = f.open().readFor({ kind: "authenticated", principal });
       f.reset();
       const firstObservation = { ...baseObservation(f), resourceRevision: r1 };
-      const pending = facet.perform({ kind, resource: "bead", id: url("beads/a") });
+      const pending = facet.perform({ kind, resource: "bead", id: url("a") });
       expect([f.state.entries, f.state.reads, f.state.captures, f.state.configurations]).toEqual([
         1, 1, 1, 1,
       ]);
       expect(f.state.calls.resources).toBe(0);
       expect(f.state.calls.resource).toBeGreaterThan(0);
       const escaped = f.state.facades[0];
-      expect(() => escaped?.resource("beads/a")).toThrow(/expired/);
+      expect(() => escaped?.resource("a")).toThrow(/expired/);
       const update = f.write(
         "updateBead",
-        { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
+        { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
         "r2",
       );
       expect(update.disposition).toMatchObject({ outcome: "updated" });
-      const next = f.resource("beads/a");
+      const next = f.resource("a");
       expect(next.revision).not.toBe(r1);
       f.state.configuration = Object.freeze({
         ...f.state.configuration,
@@ -485,7 +476,7 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
       expect(Object.keys(result).sort()).toEqual(["body", "kind", "observation"]);
       expect(Object.isFrozen(result)).toBe(true);
       expect(Object.isFrozen(body(result))).toBe(true);
-      const current = await facet.perform({ kind, resource: "bead", id: url("beads/a") });
+      const current = await facet.perform({ kind, resource: "bead", id: url("a") });
       expect(observation(current)).toEqual({
         ...baseObservation(f),
         resourceRevision: next.revision,
@@ -497,7 +488,7 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
     f.createBead("a");
     f.createBead("b");
     f.createLink("edge");
-    f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
+    f.write("putAlias", { alias: "alias/current", target: "a" }, "alias");
     const facet = f.open().readFor({ kind: "anonymous" });
     const cases: [ReadRequest, boolean, boolean][] = [
       [{ kind: "scope-discovery", scope }, false, false],
@@ -505,9 +496,9 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
       [{ kind: "collection", collection: "types" }, false, false],
       [{ kind: "collection", collection: "beads" }, true, false],
       [{ kind: "collection", collection: "links" }, true, false],
-      [{ kind: "bead-links", bead: url("beads/a") }, false, false],
-      [{ kind: "resource", resource: "link", id: url("links/edge") }, false, true],
-      [{ kind: "properties", resource: "link", id: url("links/edge") }, false, true],
+      [{ kind: "bead-links", bead: url("a") }, false, false],
+      [{ kind: "resource", resource: "link", id: url("edge") }, false, true],
+      [{ kind: "properties", resource: "link", id: url("edge") }, false, true],
     ];
     for (const [request, scan, revision] of cases) {
       f.reset();
@@ -525,7 +516,7 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
     const alias = await facet.resolveAlias(url("alias/current"));
     expect(alias).toEqual({
       kind: "target",
-      target: url("beads/a"),
+      target: url("a"),
       observation: baseObservation(f),
     });
     expect(f.state.calls.alias).toBe(1);
@@ -545,7 +536,7 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
     const invalid = await facet.perform({
       kind: "resource",
       resource: "bead",
-      id: "https://foreign.test/beads/a" as AbsoluteHttpUrl,
+      id: "https://foreign.test/a" as AbsoluteHttpUrl,
     });
     expectProblem(invalid, "invalid-parameter", "pre-context");
     f.state.captureHook = () => {
@@ -561,27 +552,27 @@ describe("G3 current values and qualified Type construction", () => {
     const f = fixture();
     f.createBead("a", { n: 1 });
     const facet = f.open().readFor({ kind: "authenticated", principal });
-    const original = f.resource("beads/a");
+    const original = f.resource("a");
     expect(body(await facet.perform(resourceRequest()))).toEqual(original);
     f.write(
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
+      { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
       "update",
     );
-    const changed = f.resource("beads/a");
+    const changed = f.resource("a");
     expect(changed.revision).not.toBe(original.revision);
     expect(body(await facet.perform(resourceRequest()))).toEqual(changed);
     f.write(
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
+      { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
       "noop",
     );
-    expect(f.resource("beads/a")).toEqual(changed);
-    f.write("deleteBead", { bead: "beads/a" }, "delete");
-    expect(f.store.read((r) => r.identityWasCommitted("beads/a"))).toBe(true);
+    expect(f.resource("a")).toEqual(changed);
+    f.write("deleteBead", { bead: "a" }, "delete");
+    expect(f.store.read((r) => r.identityWasCommitted("a"))).toBe(true);
     expectProblem(await facet.perform(resourceRequest()), "resource-not-found");
     expectProblem(
-      await facet.perform({ kind: "properties", resource: "bead", id: url("beads/a") }),
+      await facet.perform({ kind: "properties", resource: "bead", id: url("a") }),
       "resource-not-found",
     );
   });
@@ -646,44 +637,44 @@ describe("G4 complete current ownership and observed integrity", () => {
     const f = fixture(ownedDescriptors());
     f.createBead("a");
     f.createBead("b");
-    const target = f.resource("beads/b");
+    const target = f.resource("b");
     const facet = f.open().readFor({ kind: "authenticated", principal });
-    expect(f.resource("beads/a").ownedLinks).toEqual({ [linkType]: [] });
-    f.createLink("z");
-    f.createLink("a");
+    expect(f.resource("a").ownedLinks).toEqual({ [linkType]: [] });
+    f.createLink("link-z");
+    f.createLink("link-a");
     const source = body(await facet.perform(resourceRequest()));
     expect(source.ownedLinks).toEqual({
-      [linkType]: [f.resource("links/a"), f.resource("links/z")],
+      [linkType]: [f.resource("link-a"), f.resource("link-z")],
     });
-    const beforeLink = f.resource("links/a");
+    const beforeLink = f.resource("link-a");
     const changed = f.write(
       "updateLink",
-      { link: "links/a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
+      { link: "link-a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
       "edge_update",
     );
-    expect(changed.disposition).toMatchObject({ outcome: "updated", source: url("beads/a") });
+    expect(changed.disposition).toMatchObject({ outcome: "updated", source: url("a") });
     const after = body(await facet.perform(resourceRequest()));
     expect(after.revision).not.toBe(source.revision);
     expect(after.ownedLinks).toEqual({
-      [linkType]: [f.resource("links/a"), f.resource("links/z")],
+      [linkType]: [f.resource("link-a"), f.resource("link-z")],
     });
-    expect(f.resource("links/a").revision).not.toBe(beforeLink.revision);
-    expect(after.revisionProvenance).toEqual(f.resource("links/a").revisionProvenance);
-    expect(source.ownedLinks).toEqual({ [linkType]: [beforeLink, f.resource("links/z")] });
+    expect(f.resource("link-a").revision).not.toBe(beforeLink.revision);
+    expect(after.revisionProvenance).toEqual(f.resource("link-a").revisionProvenance);
+    expect(source.ownedLinks).toEqual({ [linkType]: [beforeLink, f.resource("link-z")] });
     f.write(
       "updateLink",
-      { link: "links/a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
+      { link: "link-a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
       "edge_noop",
     );
     expect(body(await facet.perform(resourceRequest()))).toEqual(after);
-    f.write("deleteLink", { link: "links/a" }, "edge_delete_a");
-    f.write("deleteLink", { link: "links/z" }, "edge_delete_z");
+    f.write("deleteLink", { link: "link-a" }, "edge_delete_a");
+    f.write("deleteLink", { link: "link-z" }, "edge_delete_z");
     const empty = body(await facet.perform(resourceRequest()));
     expect(empty.ownedLinks).toEqual({ [linkType]: [] });
     expect(empty.revision).not.toBe(after.revision);
-    expect(f.resource("beads/b")).toEqual(target);
+    expect(f.resource("b")).toEqual(target);
     expectProblem(
-      await facet.perform({ kind: "resource", resource: "link", id: url("links/a") }),
+      await facet.perform({ kind: "resource", resource: "link", id: url("link-a") }),
       "resource-not-found",
     );
   });
@@ -696,19 +687,15 @@ describe("G4 complete current ownership and observed integrity", () => {
     ]);
     f.createBead("a");
     f.createBead("b");
-    f.createLink("self", "beads/a", "beads/a");
+    f.createLink("self", "a", "a");
     f.createLink("ab");
-    f.createLink("ba", "beads/b", "beads/a", other);
+    f.createLink("ba", "b", "a", other);
     const facet = f.open().readFor({ kind: "authenticated", principal });
     const a = body(await facet.perform(resourceRequest()));
-    expect(a).toEqual(f.resource("beads/a"));
+    expect(a).toEqual(f.resource("a"));
     expect(Object.keys(a.ownedLinks as object)).not.toContain("*");
-    const incident = await facet.perform({ kind: "bead-links", bead: url("beads/a"), limit: 10 });
-    expect(items(incident).map((r) => r.id)).toEqual([
-      url("links/ab"),
-      url("links/ba"),
-      url("links/self"),
-    ]);
+    const incident = await facet.perform({ kind: "bead-links", bead: url("a"), limit: 10 });
+    expect(items(incident).map((r) => r.id)).toEqual([url("ab"), url("ba"), url("self")]);
   });
   it.each(["link", "endpoint"])(
     "withholds the entire owned root/properties/alias for hidden %s",
@@ -717,12 +704,12 @@ describe("G4 complete current ownership and observed integrity", () => {
       f.createBead("a");
       f.createBead("b");
       f.createLink("edge");
-      f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
-      f.state.hidden.add(kind === "link" ? url("links/edge") : url("beads/b"));
+      f.write("putAlias", { alias: "alias/current", target: "a" }, "alias");
+      f.state.hidden.add(kind === "link" ? url("edge") : url("b"));
       const facet = f.open().readFor({ kind: "authenticated", principal });
       expectProblem(await facet.perform(resourceRequest()), "resource-not-found");
       expectProblem(
-        await facet.perform({ kind: "properties", resource: "bead", id: url("beads/a") }),
+        await facet.perform({ kind: "properties", resource: "bead", id: url("a") }),
         "resource-not-found",
       );
       expectProblem(await facet.resolveAlias(url("alias/current")), "resource-not-found");
@@ -733,18 +720,18 @@ describe("G4 complete current ownership and observed integrity", () => {
     f.createBead("a");
     f.createBead("b");
     f.createLink("hidden");
-    f.createLink("opaque", "beads/a", "urn:opaque:outside");
-    f.createLink("pinned", "beads/a", { uri: "beads/b", revision: "provenance-only" });
-    f.state.hidden.add(url("links/hidden"));
+    f.createLink("opaque", "a", "urn:opaque:outside");
+    f.createLink("pinned", "a", { uri: "b", revision: "provenance-only" });
+    f.state.hidden.add(url("hidden"));
     const facet = f.open().readFor({ kind: "authenticated", principal });
-    expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
-    const result = await facet.perform({ kind: "bead-links", bead: url("beads/a"), limit: 10 });
-    expect(items(result).map((r) => r.id)).toEqual([url("links/opaque"), url("links/pinned")]);
-    expect(items(result)[1]?.target).toEqual({ uri: url("beads/b"), revision: "provenance-only" });
-    f.state.hidden.add(url("beads/b"));
+    expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
+    const result = await facet.perform({ kind: "bead-links", bead: url("a"), limit: 10 });
+    expect(items(result).map((r) => r.id)).toEqual([url("opaque"), url("pinned")]);
+    expect(items(result)[1]?.target).toEqual({ uri: url("b"), revision: "provenance-only" });
+    f.state.hidden.add(url("b"));
     expect(
-      items(await facet.perform({ kind: "bead-links", bead: url("beads/a") })).map((r) => r.id),
-    ).toEqual([url("links/opaque")]);
+      items(await facet.perform({ kind: "bead-links", bead: url("a") })).map((r) => r.id),
+    ).toEqual([url("opaque")]);
   });
   it.each([
     "requested-id",
@@ -759,36 +746,36 @@ describe("G4 complete current ownership and observed integrity", () => {
     for (const id of ["a", "b", "c", "d"]) f.createBead(id);
     f.createLink(
       "edge",
-      "beads/a",
-      fault === "opaque-index" ? "urn:opaque:outside" : { uri: "beads/b", revision: "pin" },
+      "a",
+      fault === "opaque-index" ? "urn:opaque:outside" : { uri: "b", revision: "pin" },
     );
-    f.createLink("other", "beads/c", "beads/d");
+    f.createLink("other", "c", "d");
     const before = f.store.read((r) => r.resources());
     f.state.wrap = (reader) => ({
       ...reader,
       resource(id) {
         const row = reader.resource(id);
-        if (!row || id !== "links/edge") return row;
-        if (fault === "requested-id") return { ...row, id: "links/other" };
+        if (!row || id !== "edge") return row;
+        if (fault === "requested-id") return { ...row, id: "other" };
         if (fault === "body-id")
           return {
             ...row,
-            bodyJson: stringifyJsonValue({ ...JSON.parse(row.bodyJson), id: url("links/other") }),
+            bodyJson: stringifyJsonValue({ ...JSON.parse(row.bodyJson), id: url("other") }),
           };
         if (fault === "kind") return { id: row.id, kind: "bead", bodyJson: row.bodyJson };
         if (["local-index", "opaque-index", "pinned-index"].includes(fault))
           return {
             ...row,
             kind: "link",
-            source: "beads/a",
-            target: fault === "opaque-index" ? "urn:opaque:different" : "beads/c",
+            source: "a",
+            target: fault === "opaque-index" ? "urn:opaque:different" : "c",
           };
         return row;
       },
       incidentLinks(id) {
         const rows = reader.incidentLinks(id);
         return fault === "nonincident"
-          ? [...rows, reader.resource("links/other") as StoredResource]
+          ? [...rows, reader.resource("other") as StoredResource]
           : rows;
       },
     });
@@ -796,8 +783,8 @@ describe("G4 complete current ownership and observed integrity", () => {
     await expect(
       facet.perform(
         fault === "nonincident"
-          ? { kind: "bead-links", bead: url("beads/a") }
-          : { kind: "resource", resource: "link", id: url("links/edge") },
+          ? { kind: "bead-links", bead: url("a") }
+          : { kind: "resource", resource: "link", id: url("edge") },
       ),
     ).rejects.toBeInstanceOf(Error);
     expect(f.store.read((r) => r.resources())).toEqual(before);
@@ -808,12 +795,12 @@ describe("G4 complete current ownership and observed integrity", () => {
       const f = fixture(ownedDescriptors());
       f.createBead("a");
       f.createBead("b");
-      f.createLink("edge", "beads/a", { uri: "beads/b", revision: "pin" });
+      f.createLink("edge", "a", { uri: "b", revision: "pin" });
       f.state.wrap = (reader) => ({
         ...reader,
         resource(id) {
           const row = reader.resource(id);
-          if (!row || id !== "links/edge") return row;
+          if (!row || id !== "edge") return row;
           if (fault === "missing") return undefined;
           const value = JSON.parse(row.bodyJson);
           if (fault === "revision") value.revision = "different";
@@ -840,7 +827,7 @@ describe("G4 complete current ownership and observed integrity", () => {
       ...reader,
       resource(id) {
         const row = reader.resource(id);
-        if (!row || id !== "links/edge") return row;
+        if (!row || id !== "edge") return row;
         return {
           ...row,
           bodyJson: stringifyJsonValue(
@@ -850,12 +837,12 @@ describe("G4 complete current ownership and observed integrity", () => {
       },
     });
     const facet = f.open().readFor({ kind: "anonymous" });
-    expect(body(await facet.perform(resourceRequest()))).toEqual(f.resource("beads/a"));
+    expect(body(await facet.perform(resourceRequest()))).toEqual(f.resource("a"));
     f.state.wrap = (reader) => ({
       ...reader,
       resource(id) {
         const row = reader.resource(id);
-        return id === "beads/b" ? undefined : row;
+        return id === "b" ? undefined : row;
       },
     });
     expectProblem(await facet.perform(resourceRequest()), "resource-not-found");
@@ -879,9 +866,9 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
     f.state.hiddenTypes = new Set([a, i, h]);
     const facet = f.open().readFor({ kind: "anonymous" });
     for (const [type, conformsTo, expected] of [
-      [a, undefined, [url("beads/b")]],
-      [undefined, h, [url("beads/b")]],
-      [a, h, [url("beads/b")]],
+      [a, undefined, [url("b")]],
+      [undefined, h, [url("b")]],
+      [a, h, [url("b")]],
       [c, h, []],
       [a, c, []],
     ] as const) {
@@ -924,9 +911,9 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
         descriptor("https://types.test/a"),
       ]);
       for (const id of ["z", "a", "m"]) f.createBead(id, { keep: id === "z" });
-      f.createLink("z", "beads/a", "beads/m");
-      f.createLink("a", "beads/m", "beads/a");
-      f.createLink("m", "beads/a", "beads/a");
+      f.createLink("link-z", "a", "m");
+      f.createLink("link-a", "m", "a");
+      f.createLink("link-m", "a", "a");
       if (permuted)
         f.state.wrap = (r) => ({
           ...r,
@@ -944,17 +931,21 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
           items(await facet.perform({ kind: "collection", collection, limit: 10 })).map(
             (r) => r.id,
           ),
-        ).toEqual([url(`${collection}/a`), url(`${collection}/m`), url(`${collection}/z`)]);
+        ).toEqual(
+          collection === "beads"
+            ? [url("a"), url("m"), url("z")]
+            : [url("link-a"), url("link-m"), url("link-z")],
+        );
       expect(
         items(await facet.perform({ kind: "collection", collection: "types", limit: 10 })).map(
           (r) => r.id,
         ),
       ).toEqual(["https://types.test/a", beadType, linkType, "https://types.test/z"]);
       expect(
-        items(await facet.perform({ kind: "bead-links", bead: url("beads/a"), limit: 10 })).map(
+        items(await facet.perform({ kind: "bead-links", bead: url("a"), limit: 10 })).map(
           (r) => r.id,
         ),
-      ).toEqual([url("links/a"), url("links/m"), url("links/z")]);
+      ).toEqual([url("link-a"), url("link-m"), url("link-z")]);
       expect(
         items(
           await facet.perform({
@@ -964,8 +955,8 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
             selector: "$[?@.properties.keep == true]",
           }),
         ).map((r) => r.id),
-      ).toEqual([url("beads/z")]);
-      f.state.hidden.add(url("beads/z"));
+      ).toEqual([url("z")]);
+      f.state.hidden.add(url("z"));
       expect(
         items(
           await facet.perform({
@@ -982,38 +973,38 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
     const f = fixture();
     for (const id of ["a", "b", "c"]) f.createBead(id);
     f.createLink("ab");
-    f.createLink("ba", "beads/b", "beads/a");
-    f.createLink("aa", "beads/a", "beads/a");
-    f.createLink("ac", "beads/a", { uri: "beads/c", revision: "pin" });
-    f.createLink("opaque", "beads/a", "urn:opaque:exact");
+    f.createLink("ba", "b", "a");
+    f.createLink("aa", "a", "a");
+    f.createLink("ac", "a", { uri: "c", revision: "pin" });
+    f.createLink("opaque", "a", "urn:opaque:exact");
     const facet = f.open().readFor({ kind: "anonymous" });
     const linkQuery = { kind: "collection" as const, collection: "links" as const, limit: 10 };
     expect(
       items(
         await facet.perform({
           ...linkQuery,
-          source: url("beads/a"),
-          target: url("beads/b"),
-          endpoint: url("beads/a"),
+          source: url("a"),
+          target: url("b"),
+          endpoint: url("a"),
         }),
       ).map((r) => r.id),
-    ).toEqual([url("links/ab")]);
+    ).toEqual([url("ab")]);
     expect(
       items(
         await facet.perform({
           ...linkQuery,
-          source: url("beads/a"),
-          target: url("beads/b"),
-          endpoint: url("beads/c"),
+          source: url("a"),
+          target: url("b"),
+          endpoint: url("c"),
         }),
       ),
     ).toEqual([]);
-    expect(
-      items(await facet.perform({ ...linkQuery, target: url("beads/c") })).map((r) => r.id),
-    ).toEqual([url("links/ac")]);
+    expect(items(await facet.perform({ ...linkQuery, target: url("c") })).map((r) => r.id)).toEqual(
+      [url("ac")],
+    );
     expect(
       items(await facet.perform({ ...linkQuery, endpoint: "urn:opaque:exact" })).map((r) => r.id),
-    ).toEqual([url("links/opaque")]);
+    ).toEqual([url("opaque")]);
     expect(items(await facet.perform({ ...linkQuery, endpoint: "urn:opaque:other" }))).toEqual([]);
     for (const [direction, ids] of [
       ["inbound", ["aa", "ba"]],
@@ -1022,9 +1013,9 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
     ] as const) {
       expect(
         items(
-          await facet.perform({ kind: "bead-links", bead: url("beads/a"), direction, limit: 10 }),
+          await facet.perform({ kind: "bead-links", bead: url("a"), direction, limit: 10 }),
         ).map((r) => r.id),
-      ).toEqual(ids.map((id) => url(`links/${id}`)));
+      ).toEqual(ids.map((id) => url(`${id}`)));
     }
   });
 });
@@ -1035,21 +1026,21 @@ describe("G6 snapshots across genuine later writes", () => {
     async (kind) => {
       const f = fixture();
       for (const id of ["a", "b", "c"]) f.createBead(id);
-      f.createLink("a");
-      f.createLink("b", "beads/a", "beads/c");
+      f.createLink("link-a");
+      f.createLink("link-b", "a", "c");
       const facet = f.open().readFor({ kind: "anonymous" });
       const request =
         kind === "incident"
-          ? { kind: "bead-links" as const, bead: url("beads/a"), limit: 1 }
+          ? { kind: "bead-links" as const, bead: url("a"), limit: 1 }
           : { kind: "collection" as const, collection: kind, limit: 1 };
       const allRequest = { ...request, limit: 10 };
       const expected = items(await facet.perform(allRequest));
       const first = body(await facet.perform(request));
       expect(first.items).toEqual(expected.slice(0, 1));
       expect(typeof first.next).toBe("string");
-      f.write("deleteLink", { link: "links/a" }, "delete_edge_a");
-      f.write("deleteLink", { link: "links/b" }, "delete_edge_b");
-      f.write("deleteBead", { bead: "beads/a" }, "delete_anchor");
+      f.write("deleteLink", { link: "link-a" }, "delete_edge_a");
+      f.write("deleteLink", { link: "link-b" }, "delete_edge_b");
+      f.write("deleteBead", { bead: "a" }, "delete_anchor");
       f.createBead("d");
       const { limit: _limit, ...navigation } = request;
       const continuation = { ...navigation, continuation: first.next as AbsoluteHttpUrl };
@@ -1071,9 +1062,9 @@ describe("G6 snapshots across genuine later writes", () => {
       if (kind === "links") expect(items(await facet.perform(allRequest))).toEqual([]);
       if (kind === "beads")
         expect(items(await facet.perform(allRequest)).map((r) => r.id)).toEqual([
-          url("beads/b"),
-          url("beads/c"),
-          url("beads/d"),
+          url("b"),
+          url("c"),
+          url("d"),
         ]);
     },
   );
@@ -1091,7 +1082,7 @@ describe("G6 snapshots across genuine later writes", () => {
     };
     // Projection-equivalent principals may share a view and token.
     const equivalent = await q.perform(request);
-    expect(items(equivalent)[0]?.id).toBe(url("beads/b"));
+    expect(items(equivalent)[0]?.id).toBe(url("b"));
     f.state.view = "distinct-view";
     expectProblem(await q.perform(request), "foreign-view");
     f.state.view = "view-1";
@@ -1126,7 +1117,7 @@ describe("G7 raw current alias and retained A versus current B", () => {
     "urn:alias:current",
     "https://other.test/s/alias/current",
     "https://authority-read.test/other/alias/current",
-    `${scope}beads/a`,
+    `${scope}a`,
     `${scope}alias/`,
     `${scope}alias/current?`,
     `${scope}alias/current?x=1`,
@@ -1169,28 +1160,28 @@ describe("G7 raw current alias and retained A versus current B", () => {
     f.createBead("b");
     const facet = f.open().readFor({ kind: "anonymous" });
     const alias = url("alias/alias/latest");
-    f.write("putAlias", { alias: "alias/alias/latest", target: "beads/a" }, "put");
-    expect(f.store.read((r) => r.alias("alias/latest"))).toBe("beads/a");
+    f.write("putAlias", { alias: "alias/alias/latest", target: "a" }, "put");
+    expect(f.store.read((r) => r.alias("alias/latest"))).toBe("a");
     expect(await facet.resolveAlias(alias)).toMatchObject({
       kind: "target",
-      target: url("beads/a"),
+      target: url("a"),
     });
-    f.write("putAlias", { alias, target: "beads/b" }, "repoint");
+    f.write("putAlias", { alias, target: "b" }, "repoint");
     expect(await facet.resolveAlias(alias)).toMatchObject({
       kind: "target",
-      target: url("beads/b"),
+      target: url("b"),
     });
     f.write("deleteAlias", { alias }, "delete_alias");
     expectProblem(await facet.resolveAlias(alias), "resource-not-found");
-    f.write("putAlias", { alias, target: "beads/b" }, "reuse_alias");
-    f.write("deleteBead", { bead: "beads/b" }, "delete_target");
+    f.write("putAlias", { alias, target: "b" }, "reuse_alias");
+    f.write("deleteBead", { bead: "b" }, "delete_target");
     expectProblem(await facet.resolveAlias(alias), "resource-not-found");
-    expect(f.store.read((r) => r.alias("alias/latest"))).toBe("beads/b");
+    expect(f.store.read((r) => r.alias("alias/latest"))).toBe("b");
     f.state.wrap = (r) => ({
       ...r,
       alias(suffix) {
         r.alias(suffix);
-        return "links/wrong-kind";
+        return "https://foreign.invalid/wrong-kind";
       },
     });
     await expect(facet.resolveAlias(alias)).rejects.toBeInstanceOf(Error);
@@ -1199,20 +1190,20 @@ describe("G7 raw current alias and retained A versus current B", () => {
     const f = fixture();
     f.createBead("a");
     f.createBead("b");
-    f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "put_alias");
+    f.write("putAlias", { alias: "alias/current", target: "a" }, "put_alias");
     const input = { type: linkType, source: "alias/current", target: "alias/current" };
     const made = f.write("createLink", input, "captured");
     expect(made.disposition).toMatchObject({
       outcome: "created",
-      resource: { source: url("beads/a"), target: url("beads/a") },
+      resource: { source: url("a"), target: url("a") },
     });
     const before = f.store.read((r) => r.key(principal.id, "captured"));
     expect(before.kind).toBe("retained");
-    f.write("putAlias", { alias: "alias/current", target: "beads/b" }, "repoint_alias");
+    f.write("putAlias", { alias: "alias/current", target: "b" }, "repoint_alias");
     const facet = f.open().readFor({ kind: "authenticated", principal });
     expect(await facet.resolveAlias(url("alias/current"))).toMatchObject({
       kind: "target",
-      target: url("beads/b"),
+      target: url("b"),
     });
     const originalRead = f.actualRead;
     let lookups = 0;
@@ -1235,7 +1226,7 @@ describe("G7 raw current alias and retained A versus current B", () => {
     expect(f.store.read((r) => r.key(principal.id, "captured"))).toEqual(before);
     expect(lookups).toBe(0);
     expect(f.memberClock).not.toHaveBeenCalled();
-    f.state.hidden.add(url("beads/a"));
+    f.state.hidden.add(url("a"));
     const withheld = f.write("createLink", input, "captured");
     expect(withheld.disposition).toMatchObject({ code: "forbidden" });
     expect(withheld.creator).toEqual(made.creator);
@@ -1244,7 +1235,7 @@ describe("G7 raw current alias and retained A versus current B", () => {
     spy.mockRestore();
     expect(await facet.resolveAlias(url("alias/current"))).toMatchObject({
       kind: "target",
-      target: url("beads/b"),
+      target: url("b"),
     });
   });
 });
@@ -1257,11 +1248,11 @@ describe("G8 lawful shared aggregate configuration", () => {
     f.replaceMaximum(2);
     f.createLink("one");
     f.createLink("two");
-    expect(f.store.read((r) => r.outgoingLinks("beads/a"))).toHaveLength(2);
+    expect(f.store.read((r) => r.outgoingLinks("a"))).toHaveLength(2);
     const before = f.state.configuration;
     expect(() => f.replaceMaximum(1)).toThrow("fixture replacement");
     expect(f.state.configuration).toBe(before);
-    f.write("deleteLink", { link: "links/two" }, "remove_two");
+    f.write("deleteLink", { link: "two" }, "remove_two");
     f.replaceMaximum(1);
     const plane = f.open(),
       facet = plane.readFor({ kind: "authenticated", principal });
@@ -1269,25 +1260,26 @@ describe("G8 lawful shared aggregate configuration", () => {
     expect(discovery1).toMatchObject({
       kind: "discovery",
       data: {
+        types: `${scope}types/`,
         maximumEndpointMultiplicity: [{ endpoint: "source", linkConformsTo: linkType, max: 1 }],
       },
       observation: baseObservation(f),
     });
     expect(discovery1).not.toHaveProperty("data.profile");
     expect(discovery1).not.toHaveProperty("data.operations");
-    f.state.hidden.add(url("links/one"));
+    f.state.hidden.add(url("one"));
     const denied = f.write(
       "createLink",
-      { id: "links/rejected", type: linkType, source: "beads/a", target: "beads/b" },
+      { id: "rejected", type: linkType, source: "a", target: "b" },
       "reject_second",
     );
     expect(denied.disposition).toMatchObject({ code: "aggregate-constraint-violation" });
     expect(f.state.memberConfigurations.at(-1)).toEqual(f.state.configuration);
-    expect(f.store.read((r) => r.outgoingLinks("beads/a"))).toHaveLength(1);
+    expect(f.store.read((r) => r.outgoingLinks("a"))).toHaveLength(1);
     f.replaceMaximum(3);
     f.createLink("new_second");
     f.createLink("new_third");
-    expect(f.store.read((r) => r.outgoingLinks("beads/a"))).toHaveLength(3);
+    expect(f.store.read((r) => r.outgoingLinks("a"))).toHaveLength(3);
     const discovery3 = await facet.perform({ kind: "scope-discovery", scope });
     expect(discovery3).toMatchObject({
       kind: "discovery",
@@ -1299,7 +1291,7 @@ describe("G8 lawful shared aggregate configuration", () => {
     expect(
       f.write(
         "createLink",
-        { id: "links/rejected", type: linkType, source: "beads/a", target: "beads/b" },
+        { id: "rejected", type: linkType, source: "a", target: "b" },
         "reject_second",
       ).disposition,
     ).toEqual(denied.disposition);
@@ -1312,26 +1304,23 @@ describe("G9 deep immutable values and existing bounded pagination", () => {
     const depth = 12_000;
     const deep = `${'{"child":'.repeat(depth)}1${"}".repeat(depth)}`;
     expect(
-      f.write(
-        "createBead",
-        `{"id":"beads/a","type":"${beadType}","properties":${deep}}`,
-        "deep_create",
-      ).disposition,
+      f.write("createBead", `{"id":"a","type":"${beadType}","properties":${deep}}`, "deep_create")
+        .disposition,
     ).toMatchObject({ outcome: "created" });
     f.createBead("b");
-    const before = f.resource("beads/a");
+    const before = f.resource("a");
     const facet = f.open().readFor({ kind: "anonymous" });
     const full = await facet.perform(resourceRequest());
     const properties = await facet.perform({
       kind: "properties",
       resource: "bead",
-      id: url("beads/a"),
+      id: url("a"),
     });
     const page = await facet.perform({
       kind: "collection",
       collection: "beads",
       limit: 1,
-      selector: '$[?@.id == "https://authority-read.test/s/beads/a"]',
+      selector: '$[?@.id == "https://authority-read.test/s/a"]',
     });
     for (const value of [body(full).properties, body(properties), items(page)[0]?.properties]) {
       let leaf = value as Record<string, unknown>;
@@ -1345,7 +1334,7 @@ describe("G9 deep immutable values and existing bounded pagination", () => {
     expect(observation(properties).resourceRevision).toBe(before.revision);
     f.write(
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/other", value: 2 }] },
+      { bead: "a", propertiesChange: [{ op: "add", path: "/other", value: 2 }] },
       "deep_update",
     );
     expect(stringifyJsonValue(body(properties))).toBe(deep);
@@ -1404,7 +1393,7 @@ describe("G9 deep immutable values and existing bounded pagination", () => {
       collection: "beads" as const,
       continuation: first.next as AbsoluteHttpUrl,
     };
-    expect(items(await facet.perform(continuation)).map((r) => r.id)).toEqual([url("beads/c")]);
+    expect(items(await facet.perform(continuation)).map((r) => r.id)).toEqual([url("c")]);
     f.state.pageNow += 1_000;
     token = "new_token";
     const fresh = body(await facet.perform({ kind: "collection", collection: "beads", limit: 2 }));
@@ -1480,12 +1469,12 @@ describe("G10 delivery, callback origin and plane-owned cleanup", () => {
       expect(() => plane.readFor({ kind: "anonymous" })).toThrow();
       expect(() => plane.close()).toThrow();
     };
-    expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+    expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
     for (const rejection of failures)
       await expect(rejection).rejects.toMatchObject({ reason: "reentrant" });
     expect(f.state.entries).toBe(1);
     f.state.captureHook = undefined;
-    expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+    expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
   });
   it.each(["before", "during", "after", "fault"] as const)(
     "owns %s abort at synchronous final settlement and removes listeners",
@@ -1508,7 +1497,7 @@ describe("G10 delivery, callback origin and plane-owned cleanup", () => {
         facet.perform(resourceRequest(), { signal: controller.signal }),
       );
       if (when === "after") controller.abort();
-      if (when === "after") expect(body(await pending).id).toBe(url("beads/a"));
+      if (when === "after") expect(body(await pending).id).toBe(url("a"));
       else
         await expect(pending).rejects[when === "fault" ? "toBe" : "toBeInstanceOf"](
           when === "fault" ? failure : ScopeServerOperationAbortedError,
@@ -1517,8 +1506,7 @@ describe("G10 delivery, callback origin and plane-owned cleanup", () => {
       expect(remove.mock.calls.filter(([name]) => name === "abort")).toHaveLength(
         add.mock.calls.filter(([name]) => name === "abort").length,
       );
-      if (when !== "before")
-        expect(() => f.state.facades[0]?.resource("beads/a")).toThrow(/expired/);
+      if (when !== "before") expect(() => f.state.facades[0]?.resource("a")).toThrow(/expired/);
     },
   );
   it.each(["not-accepting", "reentrant"] as const)(
@@ -1768,7 +1756,7 @@ describe("remaining construction, idle memory and captured-provider boundaries",
   it("captures provider callables/options and permits no external Type or endpoint fetch", async () => {
     const f = fixture();
     f.createBead("a");
-    f.createLink("opaque", "beads/a", "urn:opaque:outside");
+    f.createLink("opaque", "a", "urn:opaque:outside");
     const noFetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
       throw Error("unexpected external fetch");
     });
@@ -1788,10 +1776,10 @@ describe("remaining construction, idle memory and captured-provider boundaries",
         throw Error("late token replacement");
       },
     });
-    expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
-    expect(
-      items(await facet.perform({ kind: "bead-links", bead: url("beads/a") }))[0]?.target,
-    ).toBe("urn:opaque:outside");
+    expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
+    expect(items(await facet.perform({ kind: "bead-links", bead: url("a") }))[0]?.target).toBe(
+      "urn:opaque:outside",
+    );
     expect(
       body(
         await facet.perform({
@@ -1825,9 +1813,9 @@ describe("remaining construction, idle memory and captured-provider boundaries",
           continuation: first.next as AbsoluteHttpUrl,
         }),
       ).map((r) => r.id),
-    ).toEqual([url("beads/b")]);
+    ).toEqual([url("b")]);
     f.createBead("d");
-    expect(f.resource("beads/d").id).toBe(url("beads/d"));
+    expect(f.resource("d").id).toBe(url("d"));
   });
 });
 
@@ -1836,7 +1824,7 @@ describe("independent generic, Link conformance and deep owned-pair oracles", ()
     const f = fixture();
     f.createBead("a");
     const facet = f.open().readFor({ kind: "anonymous" });
-    const pending = facet.perform({ kind: "properties", resource: "bead", id: url("beads/a") });
+    const pending = facet.perform({ kind: "properties", resource: "bead", id: url("a") });
     type PropertiesSuccess = Extract<Awaited<typeof pending>, { kind: "success" }>;
     expectTypeOf<PropertiesSuccess["observation"]>().toEqualTypeOf<ResourceReadObservation>();
     const types = facet.perform({ kind: "collection", collection: "types" });
@@ -1870,15 +1858,15 @@ describe("independent generic, Link conformance and deep owned-pair oracles", ()
     f.createBead("a");
     f.createBead("b");
     f.createLink("parent");
-    f.createLink("child", "beads/a", "beads/b", child);
-    f.createLink("other", "beads/a", "beads/b", other);
+    f.createLink("child", "a", "b", child);
+    f.createLink("other", "a", "b", other);
     const facet = f.open().readFor({ kind: "anonymous" });
     const request = { kind: "collection" as const, collection: "links" as const, limit: 10 };
     expect(
       items(await facet.perform({ ...request, conformsTo: linkType as AbsoluteHttpUrl })).map(
         (r) => r.id,
       ),
-    ).toEqual([url("links/child"), url("links/parent")]);
+    ).toEqual([url("child"), url("parent")]);
     expect(
       items(
         await facet.perform({
@@ -1887,7 +1875,7 @@ describe("independent generic, Link conformance and deep owned-pair oracles", ()
           conformsTo: linkType as AbsoluteHttpUrl,
         }),
       ).map((r) => r.id),
-    ).toEqual([url("links/child")]);
+    ).toEqual([url("child")]);
     expect(
       items(
         await facet.perform({
@@ -1897,7 +1885,7 @@ describe("independent generic, Link conformance and deep owned-pair oracles", ()
         }),
       ),
     ).toEqual([]);
-    f.state.hidden.add(url("links/child"));
+    f.state.hidden.add(url("child"));
     expect(
       items(
         await facet.perform({
@@ -1917,20 +1905,20 @@ describe("independent generic, Link conformance and deep owned-pair oracles", ()
     expect(
       f.write(
         "createLink",
-        `{"id":"links/deep","type":"${linkType}","source":"beads/a","target":"beads/b","properties":${deep}}`,
+        `{"id":"deep","type":"${linkType}","source":"a","target":"b","properties":${deep}}`,
         "deep_link",
       ).disposition,
     ).toMatchObject({ outcome: "created" });
     const facet = f.open().readFor({ kind: "anonymous" });
     const result = body(await facet.perform(resourceRequest()));
-    expect(stringifyJsonValue(result)).toBe(stringifyJsonValue(f.resource("beads/a")));
+    expect(stringifyJsonValue(result)).toBe(stringifyJsonValue(f.resource("a")));
     const inline = (result.ownedLinks as Record<string, Record<string, unknown>[]>)[linkType]?.[0];
     expect(stringifyJsonValue(inline?.properties)).toBe(deep);
     f.state.wrap = (reader) => ({
       ...reader,
       resource(id) {
         const row = reader.resource(id);
-        if (!row || id !== "links/deep") return row;
+        if (!row || id !== "deep") return row;
         const value = JSON.parse(row.bodyJson);
         let cursor = value.properties;
         for (let i = 1; i < depth; i++) cursor = cursor.child;
@@ -1950,7 +1938,7 @@ describe("council delivery guard and actual settlement regressions", () => {
     async (method) => {
       const f = fixture();
       for (const id of ["a", "b", "c"]) f.createBead(id);
-      f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "signal_alias");
+      f.write("putAlias", { alias: "alias/current", target: "a" }, "signal_alias");
       const plane = f.open(),
         facet = plane.readFor({ kind: "anonymous" });
       const first = body(
@@ -1987,16 +1975,16 @@ describe("council delivery guard and actual settlement regressions", () => {
       );
       expect(f.state.entries).toBe(1);
       const result = await pending;
-      if (method === "perform") expect(body(result).id).toBe(url("beads/a"));
-      else expect(result).toMatchObject({ kind: "target", target: url("beads/a") });
+      if (method === "perform") expect(body(result).id).toBe(url("a"));
+      else expect(result).toMatchObject({ kind: "target", target: url("a") });
       expect(getterCalls).toBe(1); // final check uses the genuine signal state, not this override
       for (const rejection of nested) {
         await expect(rejection).rejects.toBeInstanceOf(AuthorityReadError);
         await expect(rejection).rejects.toMatchObject({ reason: "reentrant" });
       }
       expect(closed).toBe(false);
-      expect(items(await facet.perform(continuation)).map((r) => r.id)).toEqual([url("beads/b")]);
-      expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+      expect(items(await facet.perform(continuation)).map((r) => r.id)).toEqual([url("b")]);
+      expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
     },
   );
 
@@ -2005,7 +1993,7 @@ describe("council delivery guard and actual settlement regressions", () => {
     async (method) => {
       const f = fixture();
       f.createBead("a");
-      f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "cleanup_alias");
+      f.write("putAlias", { alias: "alias/current", target: "a" }, "cleanup_alias");
       const plane = f.open(),
         facet = plane.readFor({ kind: "anonymous" });
       for (const scenario of [
@@ -2043,19 +2031,19 @@ describe("council delivery guard and actual settlement regressions", () => {
             : facet.resolveAlias(url("alias/current"), { signal: controller.signal }),
         );
         expect(f.state.entries).toBe(1);
-        expect(() => f.state.facades[0]?.resource("beads/a")).toThrow(/expired/);
+        expect(() => f.state.facades[0]?.resource("a")).toThrow(/expired/);
         expect(addSpy).toHaveBeenCalledTimes(1);
         expect(removeSpy).toHaveBeenCalledTimes(1);
         if (scenario === "after-return") {
           controller.abort();
           const result = await pending;
-          if (method === "perform") expect(body(result).id).toBe(url("beads/a"));
-          else expect(result).toMatchObject({ kind: "target", target: url("beads/a") });
+          if (method === "perform") expect(body(result).id).toBe(url("a"));
+          else expect(result).toMatchObject({ kind: "target", target: url("a") });
         } else if (scenario === "work-and-cleanup") await expect(pending).rejects.toBe(workFailure);
         else if (scenario === "cleanup-fault") await expect(pending).rejects.toBe(cleanupFailure);
         else await expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
         f.state.captureHook = undefined;
-        expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+        expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
       }
     },
   );
@@ -2069,7 +2057,7 @@ describe("council immutable generated refusals and required receiving fields", (
         facet = f.open().readFor({ kind: "anonymous" });
       const request: ReadRequest =
         origin === "pre-context"
-          ? { kind: "resource", resource: "bead", id: "https://foreign.test/beads/a" }
+          ? { kind: "resource", resource: "bead", id: "https://foreign.test/a" }
           : origin === "control"
             ? { kind: "collection", collection: "beads", limit: 0 }
             : resourceRequest();
@@ -2116,12 +2104,12 @@ describe("council immutable generated refusals and required receiving fields", (
     [{ kind: "collection", collection: "beads" }, ["kind", "collection"]],
     [{ kind: "collection", collection: "links" }, ["kind", "collection"]],
     [{ kind: "collection", collection: "types" }, ["kind", "collection"]],
-    [{ kind: "resource", resource: "bead", id: url("beads/a") }, ["kind", "resource", "id"]],
-    [{ kind: "resource", resource: "link", id: url("links/a") }, ["kind", "resource", "id"]],
+    [{ kind: "resource", resource: "bead", id: url("a") }, ["kind", "resource", "id"]],
+    [{ kind: "resource", resource: "link", id: url("a") }, ["kind", "resource", "id"]],
     [{ kind: "resource", resource: "type", id: beadType }, ["kind", "resource", "id"]],
-    [{ kind: "properties", resource: "bead", id: url("beads/a") }, ["kind", "resource", "id"]],
-    [{ kind: "properties", resource: "link", id: url("links/a") }, ["kind", "resource", "id"]],
-    [{ kind: "bead-links", bead: url("beads/a") }, ["kind", "bead"]],
+    [{ kind: "properties", resource: "bead", id: url("a") }, ["kind", "resource", "id"]],
+    [{ kind: "properties", resource: "link", id: url("a") }, ["kind", "resource", "id"]],
+    [{ kind: "bead-links", bead: url("a") }, ["kind", "bead"]],
   ] as const)(
     "rejects absent/nonstring mandatory values on %j before entry",
     async (request, required) => {
@@ -2173,13 +2161,13 @@ describe("council real two-principal retained capacity coupling", () => {
         f.state.hidden = new Set(
           ["p1", "p2", "p3", "q1", "q2", "q3"]
             .filter((id) => !id.startsWith(prefix))
-            .map((id) => url(`beads/${id}`)),
+            .map((id) => url(`${id}`)),
         );
       };
       const expire = vi.spyOn(f.store, "expire");
       const request = { kind: "collection", collection: "beads", limit: 1 } as const;
       const first = body(await p.perform(request));
-      expect((first.items as { id: string }[]).map((r) => r.id)).toEqual([url("beads/p1")]);
+      expect((first.items as { id: string }[]).map((r) => r.id)).toEqual([url("p1")]);
       const continuation = {
         kind: "collection",
         collection: "beads",
@@ -2187,19 +2175,19 @@ describe("council real two-principal retained capacity coupling", () => {
       } as ReadRequest;
       const qFirst = await q.perform(request);
       if (capacity === "positions") {
-        expect(items(qFirst).map((r) => r.id)).toEqual([url("beads/q1")]);
+        expect(items(qFirst).map((r) => r.id)).toEqual([url("q1")]);
         const qNext = {
           kind: "collection",
           collection: "beads",
           continuation: body(qFirst).next,
         } as ReadRequest;
-        expect(items(await q.perform(qNext)).map((r) => r.id)).toEqual([url("beads/q2")]);
+        expect(items(await q.perform(qNext)).map((r) => r.id)).toEqual([url("q2")]);
         // Two snapshots reserve four cursor positions overall, exceeding the
         // value2 independently allowed for each. It is not a global position cap.
       } else expectProblem(qFirst, "temporarily-unavailable");
       expectProblem(await q.perform(continuation), "foreign-view");
       const pSecond = body(await p.perform(continuation));
-      expect((pSecond.items as { id: string }[]).map((r) => r.id)).toEqual([url("beads/p2")]);
+      expect((pSecond.items as { id: string }[]).map((r) => r.id)).toEqual([url("p2")]);
       expect(
         items(
           await p.perform({
@@ -2208,10 +2196,10 @@ describe("council real two-principal retained capacity coupling", () => {
             continuation: pSecond.next,
           } as ReadRequest),
         ).map((r) => r.id),
-      ).toEqual([url("beads/p3")]);
-      expect(body(await q.perform(resourceRequest("q1"))).id).toBe(url("beads/q1"));
+      ).toEqual([url("p3")]);
+      expect(body(await q.perform(resourceRequest("q1"))).id).toBe(url("q1"));
       f.state.pageNow = 2000;
-      expect(items(await q.perform(request)).map((r) => r.id)).toEqual([url("beads/q1")]);
+      expect(items(await q.perform(request)).map((r) => r.id)).toEqual([url("q1")]);
       expectProblem(await p.perform(continuation), "cursor-expired");
       expect(expire).not.toHaveBeenCalled();
     },
@@ -2354,14 +2342,14 @@ describe("council defensive callback origin and captured-row consistency", () =>
   it("captures a labeled varying row once before checks and retains the captured body", async () => {
     const f = fixture();
     f.createBead("a");
-    const original = f.resource("beads/a");
-    const wrong = { ...original, id: url("beads/forged") };
+    const original = f.resource("a");
+    const wrong = { ...original, id: url("forged") };
     let bodyReads = 0;
     f.state.wrap = (reader) => ({
       ...reader,
       resource(id) {
         const real = reader.resource(id);
-        if (!real || id !== "beads/a") return real;
+        if (!real || id !== "a") return real;
         // Deliberately non-S6 row wrapper: first captured primitive is valid,
         // subsequent reads would contradict it. No hostile-row qualification.
         return {
@@ -2408,7 +2396,7 @@ describe("council native cancellation state before observation", () => {
         expect([f.state.entries, f.state.reads, f.state.captures, f.state.configurations]).toEqual([
           0, 0, 0, 0,
         ]);
-        expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+        expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
       }
     },
   );

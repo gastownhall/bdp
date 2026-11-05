@@ -306,6 +306,8 @@ export class BdpReadUpdateClient {
         if (target === undefined || target.includes("?"))
           throw call.failure("invalid-response", http);
         parseCanonicalHttpUrl(target);
+        if (target.startsWith(`${this.scope}alias/`) || target.startsWith(`${this.scope}bdp/`))
+          throw call.failure("invalid-response", http);
         this.resourceId(target, "bead");
         return success(Object.freeze({ alias, target }), http);
       },
@@ -703,9 +705,6 @@ export class BdpReadUpdateClient {
     const discovery = parseReadUpdateDiscovery(received.body);
     if (discovery.scope !== this.scope) throw call.failure("invalid-response");
     for (const [field, suffix] of [
-      ["beads", "beads/"],
-      ["links", "links/"],
-      ["types", "types/"],
       ["operations", "operations/"],
       ["aliases", "alias/"],
     ] as const)
@@ -831,7 +830,7 @@ export class BdpReadUpdateClient {
     if (
       kind.startsWith("create") &&
       input.id === undefined &&
-      resource.id.slice(this.scope.length).split("/").length !== 2
+      resource.id.slice(this.scope.length).split("/").length !== 1
     )
       throw Error();
     if (result.resource) {

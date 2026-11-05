@@ -41,8 +41,6 @@ function expected(value: ReturnType<typeof assembleTransactionDiscovery>["discov
     bdpVersion: "0",
     profile: "transactional",
     scope,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
     types: `${scope}types/`,
     operations: `${scope}operations/`,
     aliases: `${scope}alias/`,
@@ -61,11 +59,11 @@ function expected(value: ReturnType<typeof assembleTransactionDiscovery>["discov
     },
   });
 }
-it("assembles exactly sixteen required members plus consumed limits and the one directory", () => {
+it("assembles the required discovery members plus consumed limits and the one directory", () => {
   const result = assembleTransactionDiscovery(scope, context, limits);
   expected(result.discovery);
-  expect(Object.keys(result.discovery).sort()).toEqual([...required, "limits"].sort());
-  expect(Object.keys(result.discovery)).toHaveLength(17);
+  expect(Object.keys(result.discovery).sort()).toEqual([...required, "types", "limits"].sort());
+  expect(Object.keys(result.discovery)).toHaveLength(required.length + 2);
   expect(result.directory).toEqual(literalDirectory);
   expect(TRANSACTION_HTTP_OPERATIONS).toEqual(literalDirectory);
   expect(Object.isFrozen(result)).toBe(true);
@@ -131,8 +129,12 @@ it.each([
 );
 it("routes roots through independent existing classifiers and keeps floor/checkpoint namespaces separate", () => {
   const { discovery: d } = assembleTransactionDiscovery(scope, context, limits);
-  for (const collection of ["beads", "links", "types"] as const)
-    expect(requestFromUrl(new URL(d[collection]), scope)).toMatchObject({
+  for (const [collection, path] of [
+    ["beads", "bdp/beads"],
+    ["links", "bdp/links"],
+    ["types", "types/"],
+  ] as const)
+    expect(requestFromUrl(new URL(path, scope), scope)).toMatchObject({
       kind: "collection",
       collection,
     });

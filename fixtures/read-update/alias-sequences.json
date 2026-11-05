@@ -20,7 +20,7 @@
             {
               "idempotencyKey": "w1-q-note-accept",
               "operation": "updateBead",
-              "bead": "beads/note-120",
+              "bead": "note-120",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -56,7 +56,7 @@
               "operationIndex": 0,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/note-120",
+                "id": "https://beads.example/acme/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r2",
                 "properties": {
@@ -112,7 +112,7 @@
             {
               "idempotencyKey": "w1-q-note-accept",
               "operation": "updateBead",
-              "bead": "beads/note-120",
+              "bead": "note-120",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -148,7 +148,7 @@
               "operationIndex": 0,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/note-120",
+                "id": "https://beads.example/acme/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r2",
                 "properties": {
@@ -189,7 +189,7 @@
         },
         "schema": "#/$defs/createBeadRequest",
         "body": {
-          "id": "beads/notes/alias-mutation",
+          "id": "notes/alias-mutation",
           "type": "https://work.example/types/task",
           "properties": {
             "title": "Take the released alias path",
@@ -213,7 +213,7 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/beads/notes/alias-mutation",
+            "id": "https://beads.example/acme/notes/alias-mutation",
             "type": "https://work.example/types/task",
             "revision": "alias-mutation-r1",
             "properties": {
@@ -318,7 +318,7 @@
               "idempotencyKey": "w1-q-draft-alias",
               "operation": "putAlias",
               "alias": "alias/notes/draft",
-              "target": "links/cites-7-1"
+              "target": "cites-7-1"
             }
           ]
         }
@@ -337,7 +337,7 @@
               "operationName": "second",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-119",
+                "id": "https://beads.example/acme/task-119",
                 "type": "https://work.example/types/task",
                 "revision": "task-119-r1",
                 "properties": {
@@ -362,7 +362,7 @@
               "detail": "the target is not a canonical Bead reference",
               "diagnostics": [
                 {
-                  "message": "links/cites-7-1 is a Link; an alias targets a canonical Bead URL only"
+                  "message": "cites-7-1 is a Link; an alias targets a canonical Bead URL only"
                 }
               ]
             }

@@ -18,7 +18,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/release/latest",
-          "target": "beads/task-43"
+          "target": "task-43"
         }
       },
       "response": {
@@ -45,7 +45,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
-              "target": "https://beads.example/acme/beads/task-43"
+              "target": "https://beads.example/acme/task-43"
             }
           ],
           "next": null,
@@ -68,7 +68,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/release/latest",
-          "target": "beads/task-43"
+          "target": "task-43"
         }
       },
       "response": {
@@ -95,7 +95,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
-              "target": "https://beads.example/acme/beads/task-43"
+              "target": "https://beads.example/acme/task-43"
             }
           ],
           "next": null,
@@ -216,7 +216,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/release/latest",
-          "target": "beads/task-43"
+          "target": "task-43"
         }
       },
       "response": {
@@ -300,7 +300,7 @@
               "operation": "putAlias",
               "idempotencyKey": "w1-put-alias",
               "alias": "alias/release/latest",
-              "target": "beads/task-43"
+              "target": "task-43"
             }
           ]
         }
@@ -321,7 +321,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
-              "target": "https://beads.example/acme/beads/task-43"
+              "target": "https://beads.example/acme/task-43"
             }
           ]
         }
@@ -344,7 +344,7 @@
               "operation": "putAlias",
               "idempotencyKey": "w1-put-alias",
               "alias": "alias/release/latest",
-              "target": "beads/task-43"
+              "target": "task-43"
             }
           ]
         }

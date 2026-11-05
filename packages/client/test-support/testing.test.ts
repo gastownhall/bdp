@@ -282,18 +282,18 @@ describe("BdpClient programmable conformance actions", () => {
         family: "client",
         operation: "external-link-endpoints",
         scope,
-        input: { linkIds: ["links/outbound", "links/inbound"] },
+        input: { linkIds: ["outbound", "inbound"] },
         signal: new AbortController().signal,
       }),
     ).resolves.toEqual({
       outcome: "success",
       rows: [
-        ["links/outbound", "types/related", ["beads/a"], ["external:beads:mol-run-assignee"]],
+        ["outbound", "types/related", ["a"], ["external:beads:mol-run-assignee"]],
         [
-          "links/inbound",
+          "inbound",
           "https://work.example/types/blocks",
           ["external:beads:mol-run-assignee"],
-          ["beads/a"],
+          ["a"],
         ],
       ],
       externalEndpoints: 2,
@@ -341,21 +341,19 @@ function fixtureFetch(
         bdpVersion: "0",
         profile: "read",
         scope,
-        beads: `${scope}beads/`,
-        links: `${scope}links/`,
         types: `${scope}types/`,
       });
-    if (url === `${scope}beads/`)
+    if (url === `${scope}bdp/beads`)
       return jsonAt(url, {
         items: [
           {
-            id: `${scope}beads/a`,
+            id: `${scope}a`,
             type: "https://work.example/types/task",
             revision: "1",
             properties: { title: "A", status: "open", priority: 2 },
           },
           {
-            id: `${scope}beads/b`,
+            id: `${scope}b`,
             type: "https://work.example/types/task",
             revision: "1",
             properties: { title: "B", status: "closed", priority: 1 },
@@ -363,24 +361,24 @@ function fixtureFetch(
         ],
         next: null,
       });
-    if (url === `${scope}links/`)
+    if (url === `${scope}bdp/links`)
       return jsonAt(url, {
         items: [
           {
-            id: `${scope}links/a-b`,
+            id: `${scope}a-b`,
             type: linkType,
             revision: "1",
-            source: `${scope}beads/a`,
-            target: `${scope}beads/b`,
+            source: `${scope}a`,
+            target: `${scope}b`,
             properties: {},
           },
           ...(includeExternalEndpoint
             ? [
                 {
-                  id: `${scope}links/a-external`,
+                  id: `${scope}a-external`,
                   type: linkType,
                   revision: "1",
-                  source: `${scope}beads/a`,
+                  source: `${scope}a`,
                   target: "external:beads:remote",
                   properties: {},
                 },
@@ -398,9 +396,9 @@ function externalEndpointFetch(): typeof fetch {
   return async (input, init) => {
     const url = String(input);
     const external = "external:beads:mol-run-assignee";
-    const local = `${scope}beads/a`;
+    const local = `${scope}a`;
     const remote = external;
-    if (url === `${scope}links/outbound` || url === `${scope}links/inbound`)
+    if (url === `${scope}outbound` || url === `${scope}inbound`)
       return jsonAt(url, {
         id: url,
         type: url.endsWith("outbound")

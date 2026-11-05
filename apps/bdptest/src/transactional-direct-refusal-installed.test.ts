@@ -101,7 +101,7 @@ function checked(text: string, name: string) {
   expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
   return value;
 }
-const create = (id: string) => ({ id: `beads/${id}`, type: task, properties: { title: id } });
+const create = (id: string) => ({ id: `${id}`, type: task, properties: { title: id } });
 const batch = (ids: string[]) => ({
   operations: ids.map((id) => ({ operation: "createBead", ...create(id) })),
 });
@@ -129,7 +129,7 @@ it("observes current context on installed direct refusals within14requests", asy
   const routes = [
     { method: "POST", url: `${scope}operations/create-bead` },
     { method: "POST", url: `${scope}operations/batch` },
-    { method: "GET", url: `${scope}beads/?limit=32` },
+    { method: "GET", url: `${scope}bdp/beads?limit=32` },
     { method: "GET", url: `${scope}events/` },
   ];
   let receiptUrl: string | undefined;
@@ -242,7 +242,7 @@ it("observes current context on installed direct refusals within14requests", asy
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ operationIndex: 0, outcome: "created" });
     const resource = record(result[0]!.resource);
-    expect(resource.id).toBe(`${scope}beads/${name}`);
+    expect(resource.id).toBe(`${scope}${name}`);
     expect(resource.type).toBe(task);
     expect(resource.properties).toEqual({ title: name });
     expect(resource.metadata).toEqual({});
@@ -257,7 +257,7 @@ it("observes current context on installed direct refusals within14requests", asy
     const value = checked(response.bodyText, "currentBeadCollection");
     expect(value.next).toBeNull();
     const items = records(value.items);
-    expect(items.map((r) => r.id)).toEqual(names.map((name) => `${scope}beads/${name}`));
+    expect(items.map((r) => r.id)).toEqual(names.map((name) => `${scope}${name}`));
     expect(items).toEqual(receipts.map((receipt) => records(receipt.results)[0]!.resource));
   }
   function events(response: Wire, names: string[], position: string) {
@@ -270,7 +270,7 @@ it("observes current context on installed direct refusals within14requests", asy
     for (const [i, event] of rows.entries()) {
       expect(event).toMatchObject({
         type: "created",
-        subject: `${scope}beads/${names[i]}`,
+        subject: `${scope}${names[i]}`,
         source: `${scope}events/`,
         ordinal: 0,
         transaction: receipts[i]!.transaction,

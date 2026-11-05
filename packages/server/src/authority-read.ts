@@ -153,8 +153,6 @@ export type ReadRefusal =
     };
 export interface AuthorityDiscoveryData {
   readonly scope: AbsoluteHttpUrl;
-  readonly beads: AbsoluteHttpUrl;
-  readonly links: AbsoluteHttpUrl;
   readonly types: AbsoluteHttpUrl;
   readonly aliases: AbsoluteHttpUrl;
   readonly order: "canonical-uri";
@@ -738,8 +736,6 @@ function materialize(
   if (intent.kind === "scope-discovery") {
     const data: AuthorityDiscoveryData = Object.freeze({
       scope,
-      beads: new URL("beads/", scope).href as AbsoluteHttpUrl,
-      links: new URL("links/", scope).href as AbsoluteHttpUrl,
       types: new URL("types/", scope).href as AbsoluteHttpUrl,
       aliases: new URL("alias/", scope).href as AbsoluteHttpUrl,
       order: "canonical-uri",
@@ -796,7 +792,7 @@ function materialize(
     const record = graph.point(intent.id.slice(scope.length));
     if (record === undefined) return observed(notFound(), observation);
     const isLinkRecord = "source" in record;
-    if ((intent.resource === "link") !== isLinkRecord)
+    if (intent.resource !== "resource" && (intent.resource === "link") !== isLinkRecord)
       throw new AuthorityReadError("integrity", "requested Resource kind disagrees with row");
     if (!graph.visible(record, policy)) return observed(notFound(), observation);
     return Object.freeze({

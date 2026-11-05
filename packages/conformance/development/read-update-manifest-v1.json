@@ -21,7 +21,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -67,7 +67,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -108,7 +108,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -166,7 +166,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -226,7 +226,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -269,7 +269,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -297,7 +297,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/a"
+              "bead": "a"
             },
             "key": "delete",
             "expectedRevisionBinding": "r2"
@@ -323,7 +323,7 @@
               "kind": "json-pointer",
               "pointer": "/body/deleted/resource/id",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -341,7 +341,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -385,7 +385,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -428,7 +428,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -492,7 +492,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -543,7 +543,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -584,7 +584,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -658,7 +658,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -709,7 +709,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/b",
+              "id": "b",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -752,10 +752,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/l",
+              "id": "l",
               "type": "https://bdp.example/development/link",
-              "source": "beads/a",
-              "target": "beads/b",
+              "source": "a",
+              "target": "b",
               "properties": {
                 "weight": 1
               }
@@ -791,7 +791,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -799,7 +799,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -819,7 +819,7 @@
             "method": "POST",
             "target": "development/update-link",
             "body": {
-              "link": "links/l",
+              "link": "l",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -870,7 +870,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -915,7 +915,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/a"
+              "bead": "a"
             },
             "key": "blocked"
           },
@@ -952,7 +952,7 @@
             "method": "POST",
             "target": "development/delete-link",
             "body": {
-              "link": "links/l"
+              "link": "l"
             },
             "key": "unlink"
           },
@@ -987,7 +987,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/l"
+            "target": "l"
           },
           "captures": [],
           "assertions": [
@@ -1015,7 +1015,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/a"
+              "bead": "a"
             },
             "key": "delete"
           },
@@ -1050,7 +1050,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -1078,7 +1078,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -1144,7 +1144,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -1195,7 +1195,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/b",
+              "id": "b",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -1247,7 +1247,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/latest",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "put"
           },
@@ -1280,7 +1280,7 @@
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -1300,7 +1300,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/latest",
+              "id": "alias/latest",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -1351,7 +1351,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/a",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "committed-path"
           },
@@ -1362,14 +1362,14 @@
               "kind": "json-pointer",
               "pointer": "/status",
               "exists": true,
-              "equals": 409
+              "equals": 200
             },
             {
               "id": "problem",
               "kind": "json-pointer",
-              "pointer": "/body/code",
+              "pointer": "/body/outcome",
               "exists": true,
-              "equals": "identity-taken"
+              "equals": "created"
             },
             {
               "id": "cache",
@@ -1389,7 +1389,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/latest",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "repoint"
           },
@@ -1414,7 +1414,7 @@
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -1434,10 +1434,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/latest",
+              "id": "edge-latest",
               "type": "https://bdp.example/development/link",
               "source": "alias/latest",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "via-alias"
           },
@@ -1462,7 +1462,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -1545,7 +1545,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/latest",
+              "id": "latest",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -1595,7 +1595,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -1640,7 +1640,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/b",
+              "bead": "b",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -1706,7 +1706,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "first",
                   "name": "first",
-                  "id": "beads/first",
+                  "id": "first",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
@@ -1719,7 +1719,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "bad",
                   "name": "bad",
-                  "id": "beads/first",
+                  "id": "first",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
@@ -1731,7 +1731,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -1817,7 +1817,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/first"
+            "target": "first"
           },
           "captures": [],
           "assertions": [
@@ -1836,7 +1836,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -1862,7 +1862,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "first",
                   "name": "first",
-                  "id": "beads/first",
+                  "id": "first",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
@@ -1875,7 +1875,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "bad",
                   "name": "bad",
-                  "id": "beads/first",
+                  "id": "first",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
@@ -1887,7 +1887,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -1991,7 +1991,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -2041,7 +2041,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/a"
+              "bead": "a"
             },
             "key": "delete"
           },
@@ -2071,7 +2071,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -2128,7 +2128,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -2149,7 +2149,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 2
@@ -2195,7 +2195,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "retained",
                   "name": "renamed",
-                  "id": "beads/a",
+                  "id": "a",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "n": 1
@@ -2251,7 +2251,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -2292,14 +2292,14 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "safe",
-                  "id": "beads/safe",
+                  "id": "safe",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
                   "operation": "putAlias",
                   "idempotencyKey": "bad",
                   "alias": "alias/bad?query",
-                  "target": "beads/safe"
+                  "target": "safe"
                 }
               ]
             }
@@ -2335,7 +2335,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/safe"
+            "target": "safe"
           },
           "captures": [],
           "assertions": [
@@ -2356,7 +2356,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/safe",
+              "id": "safe",
               "type": "https://bdp.example/development/bead"
             },
             "key": "safe"
@@ -2438,7 +2438,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/without-key",
+              "id": "without-key",
               "type": "https://bdp.example/development/bead"
             }
           },
@@ -2473,7 +2473,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/without-key"
+            "target": "without-key"
           },
           "captures": [],
           "assertions": [
@@ -2510,7 +2510,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -2570,7 +2570,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -2607,7 +2607,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1
@@ -2658,7 +2658,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -2670,7 +2670,7 @@
             "key": "race",
             "expectedRevisionBinding": "r1",
             "secondBody": {
-              "bead": "beads/a",
+              "bead": "a",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -2697,7 +2697,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -2734,7 +2734,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -2817,7 +2817,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -2900,7 +2900,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -2983,7 +2983,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3059,7 +3059,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3138,7 +3138,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3217,7 +3217,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3292,7 +3292,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3367,7 +3367,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3440,7 +3440,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/raw"
+            "target": "raw"
           },
           "captures": [],
           "assertions": [
@@ -3468,7 +3468,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -3509,7 +3509,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/other",
+              "id": "other",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -3566,7 +3566,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3637,7 +3637,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3712,7 +3712,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3791,7 +3791,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3867,7 +3867,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -3943,7 +3943,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4019,7 +4019,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4093,7 +4093,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/raw"
+            "target": "raw"
           },
           "captures": [],
           "assertions": [
@@ -4121,7 +4121,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -4173,7 +4173,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/raw"
+            "target": "raw"
           },
           "captures": [],
           "assertions": [
@@ -4217,7 +4217,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4293,7 +4293,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4368,7 +4368,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/raw"
+            "target": "raw"
           },
           "captures": [],
           "assertions": [
@@ -4396,7 +4396,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -4437,7 +4437,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/boundary",
+              "id": "boundary",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "unicode": "é"
@@ -4486,7 +4486,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/boundary"
+            "target": "boundary"
           },
           "captures": [],
           "assertions": [
@@ -4530,7 +4530,7 @@
             "method": "GET",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4594,7 +4594,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/raw"
+            "target": "raw"
           },
           "captures": [],
           "assertions": [
@@ -4622,7 +4622,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -4679,7 +4679,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4740,7 +4740,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/raw"
+            "target": "raw"
           },
           "captures": [],
           "assertions": [
@@ -4768,7 +4768,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -4809,7 +4809,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -4875,7 +4875,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead"
             },
             "headerLines": [
@@ -4954,7 +4954,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/raw",
+              "id": "raw",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -4995,7 +4995,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/missing"
+              "bead": "missing"
             },
             "key": "failed"
           },
@@ -5025,7 +5025,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/missing",
+              "id": "missing",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "corrected": true
@@ -5066,7 +5066,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/missing"
+              "bead": "missing"
             },
             "headerLines": [
               {
@@ -5149,7 +5149,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "raw",
                   "name": "retained",
-                  "id": "beads/raw",
+                  "id": "raw",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "corrected": true
@@ -5158,7 +5158,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -5217,7 +5217,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -5250,7 +5250,7 @@
                   "operation": "createBead",
                   "idempotencyKey": "raw",
                   "name": "retained",
-                  "id": "beads/raw",
+                  "id": "raw",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "corrected": true
@@ -5259,7 +5259,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -5296,7 +5296,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -5321,12 +5321,12 @@
                 {
                   "operation": "deleteBead",
                   "idempotencyKey": "failed",
-                  "bead": "beads/missing"
+                  "bead": "missing"
                 },
                 {
                   "operation": "createBead",
                   "idempotencyKey": "failure-tail",
-                  "id": "beads/failure-tail",
+                  "id": "failure-tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -5385,7 +5385,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/failure-tail"
+            "target": "failure-tail"
           },
           "captures": [],
           "assertions": [
@@ -5417,12 +5417,12 @@
                 {
                   "operation": "deleteBead",
                   "idempotencyKey": "failed",
-                  "bead": "beads/missing"
+                  "bead": "missing"
                 },
                 {
                   "operation": "createBead",
                   "idempotencyKey": "failure-tail",
-                  "id": "beads/failure-tail",
+                  "id": "failure-tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -5459,7 +5459,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/missing"
+            "target": "missing"
           },
           "captures": [],
           "assertions": [
@@ -5497,14 +5497,14 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "prefix",
-                "id": "beads/prefix",
+                "id": "prefix",
                 "name": "prefix",
                 "type": "https://bdp.example/development/bead"
               },
               {
                 "operation": "deleteBead",
                 "idempotencyKey": "failed-middle",
-                "bead": "beads/missing"
+                "bead": "missing"
               },
               {
                 "operation": "putAlias",
@@ -5515,7 +5515,7 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "independent-tail",
-                "id": "beads/tail",
+                "id": "tail",
                 "type": "https://bdp.example/development/bead"
               }
             ]
@@ -5555,7 +5555,7 @@
               "kind": "json-pointer",
               "pointer": "/prefix/body/id",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             }
           ]
@@ -5605,7 +5605,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -5637,7 +5637,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             }
           ]
@@ -5717,7 +5717,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/2/target",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             },
             {
@@ -5804,7 +5804,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/2/target",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             },
             {
@@ -5878,14 +5878,14 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "prefix",
-                "id": "beads/prefix",
+                "id": "prefix",
                 "name": "prefix",
                 "type": "https://bdp.example/development/bead"
               },
               {
                 "operation": "deleteBead",
                 "idempotencyKey": "failed-middle",
-                "bead": "beads/missing"
+                "bead": "missing"
               },
               {
                 "operation": "putAlias",
@@ -5896,7 +5896,7 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "independent-tail",
-                "id": "beads/tail",
+                "id": "tail",
                 "type": "https://bdp.example/development/bead"
               }
             ]
@@ -5936,7 +5936,7 @@
               "kind": "json-pointer",
               "pointer": "/prefix/body/id",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             }
           ]
@@ -6017,7 +6017,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -6049,7 +6049,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             }
           ]
@@ -6129,7 +6129,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/2/target",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             },
             {
@@ -6216,7 +6216,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/2/target",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             },
             {
@@ -6290,14 +6290,14 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "prefix",
-                "id": "beads/prefix",
+                "id": "prefix",
                 "name": "prefix",
                 "type": "https://bdp.example/development/bead"
               },
               {
                 "operation": "deleteBead",
                 "idempotencyKey": "failed-middle",
-                "bead": "beads/missing"
+                "bead": "missing"
               },
               {
                 "operation": "putAlias",
@@ -6308,7 +6308,7 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "independent-tail",
-                "id": "beads/tail",
+                "id": "tail",
                 "type": "https://bdp.example/development/bead"
               }
             ]
@@ -6348,7 +6348,7 @@
               "kind": "json-pointer",
               "pointer": "/prefix/body/id",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             }
           ]
@@ -6419,7 +6419,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             }
           ]
@@ -6430,7 +6430,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -6537,7 +6537,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/2/target",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             },
             {
@@ -6555,7 +6555,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -6643,7 +6643,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/2/target",
               "exists": true,
-              "equals": "beads/prefix",
+              "equals": "prefix",
               "normalize": "scope-relative-url"
             },
             {
@@ -6716,7 +6716,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead"
             },
             "key": "a"
@@ -6741,7 +6741,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/reserved",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "reserve"
           },
@@ -6771,7 +6771,7 @@
             },
             "key": "allocate",
             "observeIdentity": true,
-            "excludedIdentity": "beads/reserved"
+            "excludedIdentity": "alias/reserved"
           },
           "captures": [
             {
@@ -6822,15 +6822,14 @@
               "id": "root",
               "kind": "json-pointer",
               "pointer": "/identity/root",
-              "exists": true,
-              "equals": "beads"
+              "exists": true
             },
             {
               "id": "single-segment",
               "kind": "json-pointer",
               "pointer": "/identity/childSegments",
               "exists": true,
-              "equals": 1
+              "equals": 0
             },
             {
               "id": "nonempty",
@@ -6847,7 +6846,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/unused",
+            "target": "unused",
             "targetBinding": "allocated-id"
           },
           "captures": [],
@@ -6876,7 +6875,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/reserved",
+              "id": "alias/reserved",
               "type": "https://bdp.example/development/bead"
             },
             "key": "reserved-bead"
@@ -6907,10 +6906,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/reserved",
+              "id": "reserved",
               "type": "https://bdp.example/development/link",
               "source": "alias/reserved",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "alias-still-live"
           },
@@ -6928,7 +6927,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -6957,7 +6956,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead"
             },
             "key": "a"
@@ -6982,7 +6981,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/canonical",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "canonical"
           },
@@ -7135,6 +7134,32 @@
           ]
         },
         {
+          "id": "create-link-target",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "link-target",
+              "type": "https://bdp.example/development/link",
+              "source": "a",
+              "target": "a"
+            },
+            "key": "create-link-target"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
           "id": "link",
           "family": "client",
           "operation": "development.request",
@@ -7143,7 +7168,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/bad-link",
-              "target": "links/absent"
+              "target": "link-target"
             },
             "key": "link"
           },
@@ -7211,7 +7236,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/bad-external",
-              "target": "https://external.invalid/beads/a"
+              "target": "https://external.invalid/a"
             },
             "key": "external"
           },
@@ -7347,7 +7372,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/bad-local-alias",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "corrected"
           },
@@ -7413,7 +7438,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/bad-local-alias",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "local-alias"
           },
@@ -7443,10 +7468,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/bad-local-alias",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "corrected-live"
           },
@@ -7464,7 +7489,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -7493,7 +7518,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead"
             },
             "key": "a"
@@ -7518,7 +7543,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/unknown",
-              "target": "beads/missing"
+              "target": "missing"
             },
             "key": "missing-target"
           },
@@ -7578,8 +7603,8 @@
             "method": "POST",
             "target": "development/put-alias",
             "body": {
-              "alias": "beads/wrong",
-              "target": "beads/a"
+              "alias": "wrong",
+              "target": "a"
             },
             "key": "wrong-root-put"
           },
@@ -7609,7 +7634,7 @@
             "method": "POST",
             "target": "development/delete-alias",
             "body": {
-              "alias": "links/wrong"
+              "alias": "wrong"
             },
             "key": "wrong-root-delete"
           },
@@ -7658,7 +7683,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/missing",
+              "id": "missing",
               "type": "https://bdp.example/development/bead"
             },
             "key": "now-live"
@@ -7683,7 +7708,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/unknown",
-              "target": "beads/missing"
+              "target": "missing"
             },
             "key": "missing-target"
           },
@@ -7733,7 +7758,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/unknown",
-              "target": "beads/missing"
+              "target": "missing"
             },
             "key": "new-request"
           },
@@ -7793,10 +7818,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/unknown",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "alias-survives"
           },
@@ -7814,7 +7839,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/missing",
+              "equals": "missing",
               "normalize": "scope-relative-url"
             }
           ]
@@ -7825,7 +7850,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/missing"
+            "target": "missing"
           },
           "captures": [],
           "assertions": [
@@ -7862,7 +7887,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead"
             },
             "key": "a"
@@ -7886,7 +7911,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/b",
+              "id": "b",
               "type": "https://bdp.example/development/bead"
             },
             "key": "b"
@@ -7911,7 +7936,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "original"
           },
@@ -7934,10 +7959,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -7962,7 +7987,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -7970,7 +7995,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -7984,7 +8009,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/old",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "repoint"
           },
@@ -8022,7 +8047,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -8041,10 +8066,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8069,7 +8094,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8077,7 +8102,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8090,9 +8115,9 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
-              "source": "beads/a",
+              "source": "a",
               "target": "alias/old"
             },
             "key": "retained",
@@ -8119,7 +8144,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8127,7 +8152,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8190,10 +8215,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8218,7 +8243,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8226,7 +8251,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8240,7 +8265,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/fresh",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "fresh"
           },
@@ -8263,10 +8288,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/fresh",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8291,7 +8316,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8299,7 +8324,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8313,7 +8338,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/fresh",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "fresh-repoint"
           },
@@ -8351,7 +8376,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -8370,10 +8395,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/fresh",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8453,10 +8478,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/fresh",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8487,7 +8512,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/fresh",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "fresh-restored"
           },
@@ -8525,7 +8550,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8544,10 +8569,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/fresh",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8572,7 +8597,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8580,7 +8605,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8593,10 +8618,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
-              "source": "beads/a",
-              "target": "beads/a"
+              "source": "a",
+              "target": "a"
             },
             "key": "retained",
             "absoluteReferences": ["source", "target"]
@@ -8622,7 +8647,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8630,7 +8655,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8644,7 +8669,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/old",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "original-reassigned"
           },
@@ -8682,7 +8707,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -8701,10 +8726,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "retained"
           },
@@ -8729,7 +8754,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8737,7 +8762,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8750,10 +8775,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/current",
+              "id": "current",
               "type": "https://bdp.example/development/link",
               "source": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "new-request-current"
           },
@@ -8771,7 +8796,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8782,7 +8807,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/kept"
+            "target": "kept"
           },
           "captures": [],
           "assertions": [
@@ -8798,7 +8823,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -8806,7 +8831,7 @@
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             }
           ]
@@ -8817,7 +8842,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -8836,7 +8861,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/b"
+            "target": "b"
           },
           "captures": [],
           "assertions": [
@@ -8873,7 +8898,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead"
             },
             "key": "a"
@@ -8897,7 +8922,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/b",
+              "id": "b",
               "type": "https://bdp.example/development/bead"
             },
             "key": "b"
@@ -8952,7 +8977,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/missing",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "assign"
           },
@@ -8990,7 +9015,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -9100,7 +9125,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/a"
+              "bead": "a"
             },
             "key": "miss"
           },
@@ -9211,7 +9236,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/missing",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "reassign"
           },
@@ -9249,7 +9274,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -9296,7 +9321,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/a"
+            "target": "a"
           },
           "captures": [],
           "assertions": [
@@ -9315,7 +9340,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/b"
+            "target": "b"
           },
           "captures": [],
           "assertions": [
@@ -9336,10 +9361,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/link",
               "source": "alias/missing",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "current-resolution"
           },
@@ -9357,7 +9382,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             }
           ]
@@ -9386,7 +9411,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/a",
+              "id": "a",
               "type": "https://bdp.example/development/bead"
             },
             "key": "a"
@@ -9410,7 +9435,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/b",
+              "id": "b",
               "type": "https://bdp.example/development/bead"
             },
             "key": "b"
@@ -9435,7 +9460,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/old",
-              "target": "beads/a"
+              "target": "a"
             },
             "key": "old"
           },
@@ -9458,7 +9483,7 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
@@ -9492,7 +9517,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/uri",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -9523,7 +9548,7 @@
             "target": "development/put-alias",
             "body": {
               "alias": "alias/old",
-              "target": "beads/b"
+              "target": "b"
             },
             "key": "repoint"
           },
@@ -9561,7 +9586,7 @@
               "kind": "json-pointer",
               "pointer": "/headers/location",
               "exists": true,
-              "equals": "beads/b",
+              "equals": "b",
               "normalize": "scope-relative-url"
             },
             {
@@ -9580,7 +9605,7 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
@@ -9614,7 +9639,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/uri",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -9694,7 +9719,7 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
@@ -9728,7 +9753,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/uri",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -9758,10 +9783,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
               "source": {
-                "uri": "beads/a",
+                "uri": "a",
                 "revision": "past:é/%2F"
               },
               "target": {
@@ -9793,7 +9818,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/uri",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -9823,10 +9848,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
               "source": {
-                "uri": "beads/a",
+                "uri": "a",
                 "revision": "past:é/%2F"
               },
               "target": {
@@ -9862,9 +9887,9 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
-              "source": "beads/a",
+              "source": "a",
               "target": {
                 "uri": "urn:example:remote",
                 "revision": "external:opaque"
@@ -9898,7 +9923,7 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/pinned",
+              "id": "pinned",
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
@@ -9935,7 +9960,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/pinned"
+            "target": "pinned"
           },
           "captures": [],
           "assertions": [
@@ -9951,7 +9976,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source/uri",
               "exists": true,
-              "equals": "beads/a",
+              "equals": "a",
               "normalize": "scope-relative-url"
             },
             {
@@ -9986,19 +10011,19 @@
                   "operation": "createBead",
                   "idempotencyKey": "pin-creator",
                   "name": "made",
-                  "id": "beads/made",
+                  "id": "made",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
                   "operation": "createLink",
                   "idempotencyKey": "pin-dependent",
-                  "id": "links/local-pin",
+                  "id": "local-pin",
                   "type": "https://bdp.example/development/link",
                   "source": {
                     "uri": "@made",
                     "revision": "past:é/%2F"
                   },
-                  "target": "beads/a"
+                  "target": "a"
                 }
               ]
             }
@@ -10024,7 +10049,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/source/uri",
               "exists": true,
-              "equals": "beads/made",
+              "equals": "made",
               "normalize": "scope-relative-url"
             },
             {
@@ -10049,19 +10074,19 @@
                   "operation": "createBead",
                   "idempotencyKey": "pin-creator",
                   "name": "renamed",
-                  "id": "beads/made",
+                  "id": "made",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
                   "operation": "createLink",
                   "idempotencyKey": "pin-dependent",
-                  "id": "links/local-pin",
+                  "id": "local-pin",
                   "type": "https://bdp.example/development/link",
                   "source": {
                     "uri": "@renamed",
                     "revision": "past:é/%2F"
                   },
-                  "target": "beads/a"
+                  "target": "a"
                 }
               ]
             }
@@ -10087,7 +10112,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/source/uri",
               "exists": true,
-              "equals": "beads/made",
+              "equals": "made",
               "normalize": "scope-relative-url"
             },
             {
@@ -10124,7 +10149,7 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "prefix",
-                "id": "beads/prefix",
+                "id": "prefix",
                 "type": "https://bdp.example/development/bead"
               },
               {
@@ -10139,7 +10164,7 @@
               {
                 "operation": "createLink",
                 "idempotencyKey": "dependent",
-                "id": "links/edge",
+                "id": "edge",
                 "type": "https://bdp.example/development/link",
                 "source": "@made",
                 "target": "@made"
@@ -10147,7 +10172,7 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "tail",
-                "id": "beads/tail",
+                "id": "tail",
                 "type": "https://bdp.example/development/bead"
               }
             ]
@@ -10196,7 +10221,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "prefix",
-                  "id": "beads/prefix",
+                  "id": "prefix",
                   "type": "https://bdp.example/development/bead"
                 },
                 {
@@ -10211,7 +10236,7 @@
                 {
                   "operation": "createLink",
                   "idempotencyKey": "dependent",
-                  "id": "links/edge",
+                  "id": "edge",
                   "type": "https://bdp.example/development/link",
                   "source": "@made",
                   "target": "@made"
@@ -10219,7 +10244,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -10335,7 +10360,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/wrong",
+              "id": "wrong",
               "type": "https://bdp.example/development/bead"
             },
             "key": "tail"
@@ -10378,7 +10403,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -10397,7 +10422,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/edge"
+            "target": "edge"
           },
           "captures": [],
           "assertions": [
@@ -10416,7 +10441,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/wrong"
+            "target": "wrong"
           },
           "captures": [],
           "assertions": [
@@ -10450,7 +10475,7 @@
                 {
                   "operation": "createLink",
                   "idempotencyKey": "fresh-dependent",
-                  "id": "links/fresh",
+                  "id": "fresh",
                   "type": "https://bdp.example/development/link",
                   "source": "@made",
                   "target": "@made"
@@ -10458,7 +10483,7 @@
                 {
                   "operation": "createBead",
                   "idempotencyKey": "fresh-tail",
-                  "id": "beads/fresh-tail",
+                  "id": "fresh-tail",
                   "type": "https://bdp.example/development/bead"
                 }
               ]
@@ -10530,7 +10555,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/fresh"
+            "target": "fresh"
           },
           "captures": [],
           "assertions": [
@@ -10549,7 +10574,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/fresh-tail"
+            "target": "fresh-tail"
           },
           "captures": [],
           "assertions": [
@@ -10722,7 +10747,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -10793,7 +10818,7 @@
               "target": "creator-id"
             },
             "body": {
-              "id": "links/fresh",
+              "id": "fresh",
               "type": "https://bdp.example/development/link",
               "source": "placeholder",
               "target": "placeholder"
@@ -10821,7 +10846,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "links/fresh",
+              "equals": "fresh",
               "normalize": "scope-relative-url"
             }
           ]
@@ -10838,7 +10863,7 @@
               "target": "creator-id"
             },
             "body": {
-              "id": "links/fresh",
+              "id": "fresh",
               "type": "https://bdp.example/development/link",
               "source": "placeholder",
               "target": "placeholder"
@@ -10866,7 +10891,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "links/fresh",
+              "equals": "fresh",
               "normalize": "scope-relative-url"
             }
           ]
@@ -10883,7 +10908,7 @@
               "target": "creator-id"
             },
             "body": {
-              "id": "links/fresh",
+              "id": "fresh",
               "type": "https://bdp.example/development/link",
               "source": "placeholder",
               "target": "placeholder",
@@ -10917,7 +10942,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/fresh"
+            "target": "fresh"
           },
           "captures": [],
           "assertions": [
@@ -10962,13 +10987,13 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "prefix",
-                "id": "beads/prefix",
+                "id": "prefix",
                 "type": "https://bdp.example/development/bead"
               },
               {
                 "operation": "updateBead",
                 "idempotencyKey": "original-update",
-                "bead": "beads/prefix",
+                "bead": "prefix",
                 "propertiesChange": [
                   {
                     "op": "add",
@@ -10980,7 +11005,7 @@
               {
                 "operation": "createBead",
                 "idempotencyKey": "tail",
-                "id": "beads/tail",
+                "id": "tail",
                 "type": "https://bdp.example/development/bead"
               }
             ]
@@ -11025,7 +11050,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/prefix",
+              "bead": "prefix",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -11074,7 +11099,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/prefix"
+            "target": "prefix"
           },
           "captures": [],
           "assertions": [
@@ -11106,7 +11131,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -11169,7 +11194,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/prefix"
+            "target": "prefix"
           },
           "captures": [],
           "assertions": [
@@ -11201,7 +11226,7 @@
             "target": "development/update-bead",
             "expectedRevisionBinding": "intervening-revision",
             "body": {
-              "bead": "beads/prefix",
+              "bead": "prefix",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -11236,7 +11261,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/prefix"
+            "target": "prefix"
           },
           "captures": [],
           "assertions": [
@@ -11267,7 +11292,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/prefix",
+              "bead": "prefix",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -11357,7 +11382,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -11399,7 +11424,7 @@
                   "operation": "createBead",
                   "name": "candidate",
                   "idempotencyKey": "context_creator",
-                  "id": "beads/candidate",
+                  "id": "candidate",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "marker": "original"
@@ -11450,7 +11475,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/candidate"
+            "target": "candidate"
           },
           "captures": [],
           "assertions": [
@@ -11483,7 +11508,7 @@
                   "operation": "createBead",
                   "name": "candidate",
                   "idempotencyKey": "context_creator",
-                  "id": "beads/candidate",
+                  "id": "candidate",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "marker": "original"
@@ -11539,7 +11564,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/0/resource/id",
               "exists": true,
-              "equals": "beads/candidate",
+              "equals": "candidate",
               "normalize": "scope-relative-url"
             },
             {
@@ -11567,7 +11592,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/id",
               "exists": true,
-              "equals": "beads/candidate",
+              "equals": "candidate",
               "normalize": "scope-relative-url"
             },
             {
@@ -11594,7 +11619,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/candidate"
+            "target": "candidate"
           },
           "captures": [],
           "assertions": [
@@ -11610,7 +11635,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "beads/candidate",
+              "equals": "candidate",
               "normalize": "scope-relative-url"
             },
             {
@@ -11649,7 +11674,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/original",
+              "id": "original",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "marker": "original"
@@ -11678,7 +11703,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "beads/original",
+              "equals": "original",
               "normalize": "scope-relative-url"
             }
           ]
@@ -11691,10 +11716,10 @@
             "method": "POST",
             "target": "development/create-link",
             "body": {
-              "id": "links/original",
+              "id": "edge-original",
               "type": "https://bdp.example/development/link",
-              "source": "beads/original",
-              "target": "beads/original",
+              "source": "original",
+              "target": "original",
               "properties": {
                 "marker": "original"
               }
@@ -11730,7 +11755,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/id",
               "exists": true,
-              "equals": "links/original",
+              "equals": "edge-original",
               "normalize": "scope-relative-url"
             }
           ]
@@ -11747,7 +11772,7 @@
                 {
                   "operation": "updateBead",
                   "idempotencyKey": "wrong_subject",
-                  "bead": "links/original",
+                  "bead": "edge-original",
                   "propertiesChange": [
                     {
                       "op": "add",
@@ -11760,7 +11785,7 @@
                   "operation": "createBead",
                   "name": "tail",
                   "idempotencyKey": "independent_tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "tail": true
@@ -11838,7 +11863,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/id",
               "exists": true,
-              "equals": "beads/tail",
+              "equals": "tail",
               "normalize": "scope-relative-url"
             },
             {
@@ -11864,7 +11889,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/original"
+            "target": "edge-original"
           },
           "captures": [],
           "assertions": [
@@ -11880,7 +11905,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "links/original",
+              "equals": "edge-original",
               "normalize": "scope-relative-url"
             },
             {
@@ -11888,7 +11913,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "beads/original",
+              "equals": "original",
               "normalize": "scope-relative-url"
             },
             {
@@ -11896,7 +11921,7 @@
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "beads/original",
+              "equals": "original",
               "normalize": "scope-relative-url"
             },
             {
@@ -11930,7 +11955,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/tail"
+            "target": "tail"
           },
           "captures": [],
           "assertions": [
@@ -11946,7 +11971,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "beads/tail",
+              "equals": "tail",
               "normalize": "scope-relative-url"
             },
             {
@@ -11972,7 +11997,7 @@
                 {
                   "operation": "updateBead",
                   "idempotencyKey": "wrong_subject",
-                  "bead": "links/original",
+                  "bead": "edge-original",
                   "propertiesChange": [
                     {
                       "op": "add",
@@ -11985,7 +12010,7 @@
                   "operation": "createBead",
                   "name": "tail",
                   "idempotencyKey": "independent_tail",
-                  "id": "beads/tail",
+                  "id": "tail",
                   "type": "https://bdp.example/development/bead",
                   "properties": {
                     "tail": true
@@ -12063,7 +12088,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/id",
               "exists": true,
-              "equals": "beads/tail",
+              "equals": "tail",
               "normalize": "scope-relative-url"
             },
             {
@@ -12091,7 +12116,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/original",
+              "bead": "original",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -12133,7 +12158,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/original"
+            "target": "original"
           },
           "captures": [],
           "assertions": [
@@ -12163,7 +12188,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/original",
+              "bead": "original",
               "propertiesChange": [
                 {
                   "op": "add",
@@ -12208,7 +12233,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/original"
+            "target": "original"
           },
           "captures": [],
           "assertions": [
@@ -12224,7 +12249,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "beads/original",
+              "equals": "original",
               "normalize": "scope-relative-url"
             },
             {
@@ -12247,7 +12272,7 @@
             "method": "POST",
             "target": "development/update-link",
             "body": {
-              "link": "links/original",
+              "link": "edge-original",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -12292,7 +12317,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "links/original"
+            "target": "edge-original"
           },
           "captures": [],
           "assertions": [
@@ -12308,7 +12333,7 @@
               "kind": "json-pointer",
               "pointer": "/body/id",
               "exists": true,
-              "equals": "links/original",
+              "equals": "edge-original",
               "normalize": "scope-relative-url"
             },
             {
@@ -12316,7 +12341,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source",
               "exists": true,
-              "equals": "beads/original",
+              "equals": "original",
               "normalize": "scope-relative-url"
             },
             {
@@ -12324,7 +12349,7 @@
               "kind": "json-pointer",
               "pointer": "/body/target",
               "exists": true,
-              "equals": "beads/original",
+              "equals": "original",
               "normalize": "scope-relative-url"
             },
             {
@@ -12376,7 +12401,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "value": 1
@@ -12419,7 +12444,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/kept",
+              "bead": "kept",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -12473,7 +12498,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/later"
+              "bead": "later"
             },
             "key": "delete-later"
           },
@@ -12510,7 +12535,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/later",
+              "id": "later",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "live": true
@@ -12585,7 +12610,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "value": 1
@@ -12628,7 +12653,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/later"
+              "bead": "later"
             },
             "key": "delete-later"
           },
@@ -12663,7 +12688,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/later"
+            "target": "later"
           },
           "captures": [],
           "assertions": [
@@ -12691,7 +12716,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/kept"
+            "target": "kept"
           },
           "captures": [],
           "assertions": [
@@ -12753,7 +12778,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "value": 1
@@ -12806,7 +12831,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "value": 3
@@ -12847,7 +12872,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/kept",
+              "bead": "kept",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -12894,7 +12919,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/later"
+              "bead": "later"
             },
             "key": "delete-later"
           },
@@ -12919,7 +12944,7 @@
               "kind": "json-pointer",
               "pointer": "/body/deleted/resource/id",
               "exists": true,
-              "equals": "beads/later",
+              "equals": "later",
               "normalize": "scope-relative-url"
             }
           ]
@@ -12930,7 +12955,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/later"
+            "target": "later"
           },
           "captures": [],
           "assertions": [
@@ -12965,7 +12990,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/later"
+              "bead": "later"
             },
             "key": "delete-later"
           },
@@ -12990,7 +13015,7 @@
               "kind": "json-pointer",
               "pointer": "/body/deleted/resource/id",
               "exists": true,
-              "equals": "beads/later",
+              "equals": "later",
               "normalize": "scope-relative-url"
             }
           ]
@@ -13035,7 +13060,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "value": 1
@@ -13088,7 +13113,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "beads/kept",
+              "id": "kept",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "value": 3
@@ -13129,7 +13154,7 @@
             "method": "POST",
             "target": "development/delete-bead",
             "body": {
-              "bead": "beads/later"
+              "bead": "later"
             },
             "key": "delete-later"
           },
@@ -13154,7 +13179,7 @@
               "kind": "json-pointer",
               "pointer": "/body/deleted/resource/id",
               "exists": true,
-              "equals": "beads/later",
+              "equals": "later",
               "normalize": "scope-relative-url"
             }
           ]
@@ -13165,7 +13190,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/later"
+            "target": "later"
           },
           "captures": [],
           "assertions": [
@@ -13198,7 +13223,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/kept"
+            "target": "kept"
           },
           "captures": [],
           "assertions": [
@@ -13467,7 +13492,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/captured-original",
+            "target": "captured-original",
             "targetBinding": "original-id"
           },
           "captures": [],
@@ -13506,7 +13531,7 @@
             "method": "POST",
             "target": "development/update-bead",
             "body": {
-              "bead": "beads/captured-original",
+              "bead": "captured-original",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -13669,7 +13694,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/captured-original",
+            "target": "captured-original",
             "targetBinding": "original-id"
           },
           "captures": [],
@@ -13853,7 +13878,7 @@
           "operation": "development.request",
           "input": {
             "method": "GET",
-            "target": "beads/captured-original",
+            "target": "captured-original",
             "targetBinding": "original-id"
           },
           "captures": [],

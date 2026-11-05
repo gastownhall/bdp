@@ -88,14 +88,14 @@ describe("controlled authorization-closure expansion", () => {
     },
   });
   const graphSource = (gate?: { release: Promise<void>; failuresLeft: { count: number } }) => {
-    const beads = [owner("beads/citer", "links/cite", "beads/cited"), bead("beads/cited", "1")];
+    const beads = [owner("citer", "cite", "cited"), bead("cited", "1")];
     const links = [
       {
-        id: new URL("links/cite", scope).href,
+        id: new URL("cite", scope).href,
         type: "https://work.example/types/cites",
         revision: "1",
-        source: new URL("beads/citer", scope).href,
-        target: new URL("beads/cited", scope).href,
+        source: new URL("citer", scope).href,
+        target: new URL("cited", scope).href,
         properties: {},
       },
     ];
@@ -145,10 +145,10 @@ describe("controlled authorization-closure expansion", () => {
       unauthenticatedChallenge: 'Bearer realm="bdp-conformance"',
       limits,
     });
-    session.excludeResourceFromAuthorizationView("beads/cited");
+    session.excludeResourceFromAuthorizationView("cited");
     const read = () =>
       session.port.perform(
-        { kind: "resource", resource: "bead", id: new URL("beads/citer", scope).href },
+        { kind: "resource", resource: "bead", id: new URL("citer", scope).href },
         { signal: new AbortController().signal },
       );
     const first = read();
@@ -171,10 +171,10 @@ describe("controlled authorization-closure expansion", () => {
       unauthenticatedChallenge: 'Bearer realm="bdp-conformance"',
       limits,
     });
-    session.excludeResourceFromAuthorizationView("beads/cited");
+    session.excludeResourceFromAuthorizationView("cited");
     const read = () =>
       session.port.perform(
-        { kind: "resource", resource: "bead", id: new URL("beads/citer", scope).href },
+        { kind: "resource", resource: "bead", id: new URL("citer", scope).href },
         { signal: new AbortController().signal },
       );
     await expect(read()).rejects.toThrow("transient source outage");
@@ -214,7 +214,7 @@ describe("test-only Read conformance evidence", () => {
       server.perform(
         { kind: "collection", collection: "beads" },
         {
-          httpRequest: new Request(`${scope}beads/`, {
+          httpRequest: new Request(`${scope}bdp/beads`, {
             headers: { "x-view": "view-1", "x-epoch": "epoch-1" },
           }),
         },
@@ -230,17 +230,36 @@ describe("test-only Read conformance evidence", () => {
     const fault = new Error("private fault");
     const faultingPort = createReadResourceFaultPortForTesting(port, {
       resource: "bead",
-      id: "https://scope.example/beads/fault",
+      id: "https://scope.example/fault",
       error: fault,
     });
     const options = { signal: new AbortController().signal };
 
     await expect(
       faultingPort.perform(
-        { kind: "resource", resource: "bead", id: "https://scope.example/beads/fault" },
+        { kind: "resource", resource: "bead", id: "https://scope.example/fault" },
         options,
       ),
     ).rejects.toBe(fault);
+    await expect(
+      faultingPort.perform(
+        { kind: "resource", resource: "resource", id: "https://scope.example/fault" },
+        options,
+      ),
+    ).rejects.toBe(fault);
+
+    const linkFault = new Error("private Link fault");
+    const linkFaultingPort = createReadResourceFaultPortForTesting(port, {
+      resource: "link",
+      id: "https://scope.example/link-fault",
+      error: linkFault,
+    });
+    await expect(
+      linkFaultingPort.perform(
+        { kind: "resource", resource: "resource", id: "https://scope.example/link-fault" },
+        options,
+      ),
+    ).rejects.toBe(linkFault);
     await expect(
       faultingPort.perform({ kind: "collection", collection: "beads" }, options),
     ).resolves.toMatchObject({ kind: "problem" });
@@ -251,7 +270,7 @@ describe("test-only Read conformance evidence", () => {
     const wrapped: ScopePort = {
       perform: async () => {
         fallthroughs += 1;
-        return scopePortSuccess(bead("beads/fallback") as never);
+        return scopePortSuccess(bead("fallback") as never);
       },
     };
     const port = createReadProblemTablePortForTesting(wrapped, { scope });
@@ -262,7 +281,7 @@ describe("test-only Read conformance evidence", () => {
         {
           kind: "resource",
           resource: "bead",
-          id: new URL(`beads/__problem__/${definition.code}`, scope).href,
+          id: new URL(`__problem__/${definition.code}`, scope).href,
         },
         options,
       );
@@ -274,7 +293,7 @@ describe("test-only Read conformance evidence", () => {
           {
             kind: "resource",
             resource: "bead",
-            id: new URL(`beads/__problem__/${code}`, scope).href,
+            id: new URL(`__problem__/${code}`, scope).href,
           },
           options,
         ),
@@ -330,7 +349,7 @@ describe("test-only Read conformance evidence", () => {
 
   it("materializes exactly maximumItems plus one only when the scenario requests it", async () => {
     const sourceItems = Array.from({ length: limits.page.maximumItems + 1 }, (_, index) =>
-      bead(`beads/source-${index}`),
+      bead(`source-${index}`),
     );
     const session = controlledSession(sourceItems);
 
@@ -340,39 +359,36 @@ describe("test-only Read conformance evidence", () => {
     const materialized = await controlledBeadItems(session);
     expect(materialized).toHaveLength(limits.page.maximumItems + 1);
     expect(materialized.map(({ id }) => id)).toEqual(
-      Array.from(
-        { length: limits.page.maximumItems + 1 },
-        (_, index) => `${scope}beads/limit-${index}`,
-      ),
+      Array.from({ length: limits.page.maximumItems + 1 }, (_, index) => `${scope}limit-${index}`),
     );
   });
 
   it("applies authorization exclusion, deletion, and mutation after limit materialization", async () => {
-    const session = controlledSession([bead("beads/template")]);
+    const session = controlledSession([bead("template")]);
     session.materializeAdvertisedLimitFixture();
-    session.excludeResourceFromAuthorizationView("beads/limit-0");
-    session.deleteResource("beads/limit-1");
-    session.mutateSource({ id: "beads/limit-2", revision: "mutated" });
+    session.excludeResourceFromAuthorizationView("limit-0");
+    session.deleteResource("limit-1");
+    session.mutateSource({ id: "limit-2", revision: "mutated" });
 
     const items = await controlledBeadItems(session);
     expect(items.map(({ id }) => id)).toEqual([
-      `${scope}beads/limit-2`,
-      `${scope}beads/limit-3`,
-      `${scope}beads/limit-4`,
+      `${scope}limit-2`,
+      `${scope}limit-3`,
+      `${scope}limit-4`,
     ]);
     expect(items[0]?.revision).toBe("mutated");
   });
 
   it("preserves id-less source records for production validation", async () => {
     const idLess = { type: "https://work.example/types/task", revision: "1", properties: {} };
-    const session = controlledSession([idLess, bead("beads/hidden")]);
-    session.excludeResourceFromAuthorizationView("beads/hidden");
+    const session = controlledSession([idLess, bead("hidden")]);
+    session.excludeResourceFromAuthorizationView("hidden");
 
     expect(await controlledBeadItems(session)).toEqual([idLess]);
   });
 
   it("does not fabricate limit records outside the advertised-limit scenario", async () => {
-    const sourceItems = [bead("beads/a"), bead("beads/b")];
+    const sourceItems = [bead("a"), bead("b")];
     const session = controlledSession(sourceItems);
 
     expect(await controlledBeadItems(session)).toEqual(sourceItems);

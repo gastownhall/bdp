@@ -241,11 +241,11 @@ export async function observeInstalledReference(entry, directory) {
       ])
         assert.ok(id.startsWith(`${scope}types/`));
     }
-    const bead = { id: "beads/a", type: `${scope}types/task`, properties: { n: 1 } };
+    const bead = { id: "a", type: `${scope}types/task`, properties: { n: 1 } };
     const made = await post("createBead", bead, "create");
     assert.equal(made.status, 200);
     const a = made.value.resource;
-    assert.equal(a.id, `${scope}beads/a`);
+    assert.equal(a.id, `${scope}a`);
     const changed = await post(
       "updateBead",
       {
@@ -274,7 +274,7 @@ export async function observeInstalledReference(entry, directory) {
     );
     const link = await post(
       "createLink",
-      { id: "links/a", type: `${scope}types/relates`, source: a.id, target: a.id },
+      { id: "link-a", type: `${scope}types/relates`, source: a.id, target: a.id },
       "link",
     );
     assert.equal(link.status, 200);
@@ -305,29 +305,26 @@ export async function observeInstalledReference(entry, directory) {
     assert.equal((await wire(link.value.resource.id)).status, 404);
     const sequence = await post("sequence", {
       operations: [
-        { operation: "createBead", idempotencyKey: "tail", id: "beads/tail", type: bead.type },
+        { operation: "createBead", idempotencyKey: "tail", id: "tail", type: bead.type },
         {
           operation: "updateBead",
           idempotencyKey: "miss",
-          bead: "beads/missing",
+          bead: "missing",
           metadataChange: [{ op: "add", path: "/n", value: 1 }],
         },
         {
           operation: "createBead",
           idempotencyKey: "independent",
-          id: "beads/independent",
+          id: "independent",
           type: bead.type,
         },
       ],
     });
     assert.equal(sequence.status, 200);
-    assert.equal((await wire(`${scope}beads/tail`)).status, 200);
-    assert.equal((await wire(`${scope}beads/independent`)).status, 200);
-    assert.equal(
-      (await post("deleteBead", { bead: `${scope}beads/tail` }, "delete_bead")).status,
-      200,
-    );
-    assert.equal((await wire(`${scope}beads/tail`)).status, 404);
+    assert.equal((await wire(`${scope}tail`)).status, 200);
+    assert.equal((await wire(`${scope}independent`)).status, 200);
+    assert.equal((await post("deleteBead", { bead: `${scope}tail` }, "delete_bead")).status, 200);
+    assert.equal((await wire(`${scope}tail`)).status, 404);
     for (const [url, allow] of [
       [descriptor, "GET, HEAD"],
       [discovery.operations, "GET, HEAD"],
@@ -381,13 +378,13 @@ export async function observeInstalledReference(entry, directory) {
       });
     }
     assert.equal((await wire(`${scope}bdp.json`)).status, 200);
-    const malformed = await wire("/acme/beads/%2e%2e/a");
+    const malformed = await wire("/acme/%2e%2e/a");
     assert.equal(malformed.status, 400);
     assert.equal(
       (await wire(`${target("createBead")}?unexpected=1`, "POST", bead, "bad_target")).status,
       404,
     );
-    const retry = { id: "beads/retry", type: bead.type };
+    const retry = { id: "retry", type: bead.type };
     assert.equal(
       (await wire(target("createBead"), "POST", retry, "media", { "content-type": "text/plain" }))
         .status,
@@ -396,25 +393,22 @@ export async function observeInstalledReference(entry, directory) {
     assert.equal((await post("createBead", retry, "media")).status, 200);
     assert.equal(
       (
-        await wire(target("createBead"), "POST", { ...retry, id: "beads/duplicate" }, "dup", {
+        await wire(target("createBead"), "POST", { ...retry, id: "duplicate" }, "dup", {
           "idempotency-key": ["dup", "dup"],
         })
       ).status,
       400,
     );
-    assert.equal(
-      (await post("createBead", { ...retry, id: "beads/duplicate" }, "dup")).status,
-      200,
-    );
+    assert.equal((await post("createBead", { ...retry, id: "duplicate" }, "dup")).status, 200);
     assert.equal(
       (
-        await wire(target("createBead"), "POST", { ...retry, id: "beads/auth" }, "auth", {
+        await wire(target("createBead"), "POST", { ...retry, id: "auth" }, "auth", {
           authorization: [`Bearer ${token}`, `Bearer ${token}`],
         })
       ).status,
       400,
     );
-    assert.equal((await post("createBead", { ...retry, id: "beads/auth" }, "auth")).status, 200);
+    assert.equal((await post("createBead", { ...retry, id: "auth" }, "auth")).status, 200);
     assert.deepEqual(await server.close(), { code: 0, signal: null });
     assert.deepEqual(server.output(), { stdout: "", stderr: "" });
     config.create = false;

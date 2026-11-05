@@ -108,11 +108,11 @@ describe.skipIf(!entries.every((entry) => existsSync(path.join(root, entry))))(
         expect(urls.map((url) => url.pathname)).toEqual([
           "/history-demo/",
           "/history-demo/bdp.json",
-          "/history-demo/beads/decision",
-          "/history-demo/beads/decision",
-          "/history-demo/beads/decision",
-          "/history-demo/links/citation",
-          "/history-demo/beads/decision",
+          "/history-demo/decision",
+          "/history-demo/decision",
+          "/history-demo/decision",
+          "/history-demo/citation-link",
+          "/history-demo/decision",
         ]);
         expect(urls[2].search).toBe("?view=versions&limit=2");
         expect(http[3].target).toBe(
@@ -148,7 +148,7 @@ describe.skipIf(!entries.every((entry) => existsSync(path.join(root, entry))))(
         expect(values[2].ownedLinks).toBeUndefined();
         expect(values[2].revisionProvenance.agent.value).toBe("assistant-a");
         expect(values[3].target.revision).toBe("target%2Fold");
-        expect(values[3].source).toBe(`${evidence.scope}beads/decision`);
+        expect(values[3].source).toBe(`${evidence.scope}decision`);
         expect(values[4]).toMatchObject({
           status: 409,
           code: "revision-unretained",

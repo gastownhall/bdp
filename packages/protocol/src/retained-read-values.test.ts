@@ -75,6 +75,16 @@ describe("retained Core carrier values", () => {
   ])("refuses discovery %s", (_label, value) => {
     expect(() => parseRetainedDiscovery(JSON.stringify(value))).toThrow();
   });
+  it("allows Types only at its fixed optional Scope route", () => {
+    expect(
+      parseRetainedDiscovery(
+        JSON.stringify({ ...core, types: "https://records.test/work/types/" }),
+      ),
+    ).toMatchObject({ types: "https://records.test/work/types/" });
+    expect(() =>
+      parseRetainedDiscovery(JSON.stringify({ ...core, types: "https://types.test/" })),
+    ).toThrow();
+  });
   it("requires specRevision", () => {
     const { specRevision: _revision, ...withoutRevision } = core;
     expect(() => parseRetainedDiscovery(JSON.stringify(withoutRevision))).toThrow();

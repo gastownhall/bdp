@@ -102,7 +102,7 @@ it.each([
     const text = JSON.stringify({
       operations: Array.from({ length: pages ? 5 : 1 }, (_, n) => ({
         operation: "createBead",
-        id: `beads/b${n}`,
+        id: `b${n}`,
         type: fixtureType,
         ...(compiled ? { properties: { n } } : {}),
       })),
@@ -176,7 +176,7 @@ it.each([
           operations: [
             {
               operation: "createBead",
-              id: "beads/invalid",
+              id: "invalid",
               type: fixtureType,
               properties: { n: -1 },
             },
@@ -201,7 +201,7 @@ const authorizationSeed = (ids: readonly string[]) =>
   JSON.stringify({
     operations: ids.map((id) => ({
       operation: "createBead",
-      id: `beads/${id}`,
+      id: `${id}`,
       type: authorizationType,
       properties: { n: 0 },
     })),
@@ -305,7 +305,7 @@ function authorizationReceipt(
     expect(entry).toMatchObject({ operationIndex: index, outcome: "created" });
     const resource = authorizationObject(entry.resource);
     expect(resource).toEqual({
-      id: `${authorizationScope}beads/${ids[index]}`,
+      id: `${authorizationScope}${ids[index]}`,
       type: authorizationType,
       revision: authorizationText(resource.revision),
       properties: { n: 0 },
@@ -613,11 +613,11 @@ it("narrows current Transactional visibility and fences issued handles after pol
       "pos-2",
     );
     expect(second.context).toEqual({ ...first.context, scopePosition: "pos-2" });
-    expect(authorizationChecked(await f.request("beads/b00"), 200, "currentBeadRecord")).toEqual(
+    expect(authorizationChecked(await f.request("b00"), 200, "currentBeadRecord")).toEqual(
       first.resources[0],
     );
     const collection = authorizationChecked(
-      await f.request("beads/?limit=2"),
+      await f.request("bdp/beads?limit=2"),
       200,
       "currentBeadCollection",
     );
@@ -670,8 +670,8 @@ it("narrows current Transactional visibility and fences issued handles after pol
       expect(authorizationContext(response.headers)).toEqual(current);
       return value;
     };
-    await problem("beads/b00", 404, "resource-not-found");
-    const empty = await f.request("beads/?limit=2");
+    await problem("b00", 404, "resource-not-found");
+    const empty = await f.request("bdp/beads?limit=2");
     expect(authorizationChecked(empty, 200, "currentBeadCollection")).toEqual({
       items: [],
       next: null,

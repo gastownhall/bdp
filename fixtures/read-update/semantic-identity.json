@@ -24,7 +24,7 @@
         "schema": "#/$defs/createLinkRequest",
         "body": {
           "type": "https://work.example/types/cites",
-          "source": "beads/decision-108",
+          "source": "decision-108",
           "target": "https://github.example/issues/130",
           "revisionProvenance": {
             "actor": {
@@ -44,10 +44,10 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/links/cites-109",
+            "id": "https://beads.example/acme/cites-109",
             "type": "https://work.example/types/cites",
             "revision": "cites-109-r1",
-            "source": "https://beads.example/acme/beads/decision-108",
+            "source": "https://beads.example/acme/decision-108",
             "target": "https://github.example/issues/130",
             "properties": {},
             "metadata": {},
@@ -58,7 +58,7 @@
               }
             }
           },
-          "source": "https://beads.example/acme/beads/decision-108",
+          "source": "https://beads.example/acme/decision-108",
           "sourceRevision": "decision-108-r2"
         }
       }
@@ -116,7 +116,7 @@
               "operationName": "decision",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/decision-108",
+                "id": "https://beads.example/acme/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
                 "properties": {
@@ -153,7 +153,7 @@
         "schema": "#/$defs/createLinkRequest",
         "body": {
           "type": "https://work.example/types/cites",
-          "source": "beads/decision-108",
+          "source": "decision-108",
           "target": {
             "uri": "https://github.example/issues/130",
             "revision": "abc123"
@@ -197,7 +197,7 @@
         "schema": "#/$defs/createLinkRequest",
         "body": {
           "type": "https://work.example/types/cites",
-          "source": "beads/decision-108",
+          "source": "decision-108",
           "target": "https://github.example/issues/130",
           "properties": {},
           "revisionProvenance": {
@@ -236,7 +236,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-9",
+          "bead": "task-9",
           "propertiesChange": [
             {
               "op": "replace",
@@ -267,7 +267,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/task-9",
+            "id": "https://beads.example/acme/task-9",
             "type": "https://work.example/types/task",
             "revision": "task-9-r2",
             "properties": {
@@ -299,7 +299,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-9",
+          "bead": "task-9",
           "propertiesChange": [
             {
               "op": "add",
@@ -349,7 +349,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-9",
+          "bead": "task-9",
           "expectedRevision": "task-9-r1",
           "propertiesChange": [
             {

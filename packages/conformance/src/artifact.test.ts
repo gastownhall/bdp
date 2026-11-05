@@ -3,6 +3,7 @@ import {
   readHistoricalCitation692dSource,
 } from "../test-support/historical-citation-source.js";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -45,9 +46,9 @@ const readText = (relativePath: string): string => readSpecificationSource(relat
 const readBytes = (relativePath: string): Uint8Array =>
   readFileSync(resolveArtifactPath(relativePath));
 const bdLinkLocalId = (source: string, target: string, type: string): string => {
-  const opaque = (value: string): string =>
-    `b64_${Buffer.from(value, "utf8").toString("base64url")}`;
-  return `links/${opaque(source)}/${opaque(target)}/${opaque(type)}`;
+  return `link_${createHash("sha256")
+    .update(JSON.stringify([source, target, type]))
+    .digest("base64url")}`;
 };
 
 interface ReadFixture {
@@ -363,11 +364,14 @@ describe("checked-in Read matrix artifacts", () => {
     expect(invalidQuery?.setup.requires).toEqual(["public-http"]);
     expect(invalidQuery?.actions).toBeUndefined();
     expect(invalidQuery?.requests?.map(({ id, target }) => [id, target])).toEqual([
-      ["unsupported-parameter", { binding: "scope", path: "beads/", query: { unsupported: "1" } }],
-      ["repeated-limit", { binding: "scope", path: "beads/", query: { limit: ["1", "2"] } }],
+      [
+        "unsupported-parameter",
+        { binding: "scope", path: "bdp/beads", query: { unsupported: "1" } },
+      ],
+      ["repeated-limit", { binding: "scope", path: "bdp/beads", query: { limit: ["1", "2"] } }],
       [
         "repeated-selector",
-        { binding: "scope", path: "links/", query: { selector: ["$[?@.id]", "$[?@.type]"] } },
+        { binding: "scope", path: "bdp/links", query: { selector: ["$[?@.id]", "$[?@.type]"] } },
       ],
     ]);
     for (const request of invalidQuery?.requests ?? []) {
@@ -498,8 +502,8 @@ describe("checked-in Read matrix artifacts", () => {
       let localSource = 0;
       let localTarget = 0;
       for (const [rowLinkId, , source, target] of external.rows) {
-        const sourceIsExternal = !source[0].startsWith("beads/");
-        const targetIsExternal = !target[0].startsWith("beads/");
+        const sourceIsExternal = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(source[0]);
+        const targetIsExternal = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(target[0]);
         // Every Link keeps at least one in-Scope endpoint; a row with no
         // external endpoint exists to prove in-Scope pin echo.
         expect(sourceIsExternal && targetIsExternal, fixturePath).toBe(false);
@@ -525,7 +529,6 @@ describe("checked-in Read matrix artifacts", () => {
           } else if (isExternal) {
             expect(tuple, fixturePath).toEqual([opaqueExternalId]);
           }
-          if (!isExternal) expect(tuple[0], fixturePath).toMatch(/^beads\//);
         }
         externalCount += Number(sourceIsExternal) + Number(targetIsExternal);
         localSource += Number(!sourceIsExternal);
@@ -549,9 +552,10 @@ describe("checked-in Read matrix artifacts", () => {
       // endpoint pin: one external endpoint echoes a stored revision and
       // one omits the member. bd stores no pin, so bdpbd proves omission.
       const externalArities = external.rows
-        .map(([, , source, target]) =>
-          source[0].startsWith("beads/") ? target.length : source.length,
-        )
+        .map(([, , source, target]) => {
+          const sourceIsExternal = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(source[0]);
+          return sourceIsExternal ? source.length : target.length;
+        })
         .sort();
       expect(externalArities, fixturePath).toEqual(
         fixture.realization === "bdptest" ? [1, 1, 1, 2] : [1],
@@ -729,7 +733,7 @@ describe("checked-in Read matrix artifacts", () => {
     expect(requests.map(({ method }) => method)).toEqual(["GET", "HEAD"]);
     for (const request of requests) {
       expect(request.target).toEqual({ binding: "bead.demo-a" });
-      expect(request.headers).toEqual({ accept: "text/html", "if-none-match": "*" });
+      expect(request.headers).toEqual({ accept: "application/json", "if-none-match": "*" });
       expect(request.assertions).toEqual(
         expect.arrayContaining([
           { id: "status", kind: "status", equals: 500 },
@@ -925,20 +929,20 @@ describe("checked-in Read matrix artifacts", () => {
       links: { localId: string; type: string; source: string; target: string }[];
     };
     addedWildcard.links.push({
-      localId: "links/unexcluded-wildcard",
+      localId: "unexcluded-wildcard",
       type: "https://work.example/types/blocks",
-      source: "beads/demo-f",
-      target: "beads/demo-a",
+      source: "demo-f",
+      target: "demo-a",
     });
     expect(() => deriveCrossTargetProjection(addedWildcard)).toThrow();
     const removedShared = structuredClone(reference) as CrossTargetFixture & {
       links: { localId: string }[];
     };
-    removedShared.links = removedShared.links.filter(({ localId }) => localId !== "links/demo-f-e");
+    removedShared.links = removedShared.links.filter(({ localId }) => localId !== "demo-f-e");
     expect(() => deriveCrossTargetProjection(removedShared)).toThrow();
     const excludedShared = structuredClone(reference);
     (excludedShared.oracles["cross-target"].input.realizationOnlyLinkIds as string[]).push(
-      "links/demo-f-e",
+      "demo-f-e",
     );
     expect(() => deriveCrossTargetProjection(excludedShared)).toThrow();
 
@@ -1130,7 +1134,7 @@ describe("checked-in Read matrix artifacts", () => {
           status: properties.status,
         })) ??
         fixture.bd?.beads.map(({ id, type, status }) => ({
-          id: `beads/${id}`,
+          id,
           type,
           status,
         })) ??
@@ -1191,23 +1195,20 @@ describe("checked-in Read matrix artifacts", () => {
         fixture.links?.map(({ localId: id, source, target }) => ({ id, source, target })) ??
         fixture.bd?.links.map(({ source, target, type }) => ({
           id: bdLinkLocalId(source, target, type),
-          source: `beads/${source}`,
-          target: `beads/${target}`,
+          source,
+          target,
         })) ??
         [];
       expect(incident.input, fixturePath).toMatchObject({
         collection: "links",
-        bead: "beads/demo-a",
+        bead: "demo-a",
         direction: "both",
         limit: 1,
         clockAdvanceMs: 101,
       });
       const expectedCollectionIds = links.map(({ id }) => id).sort();
       const expectedIncidentLinkIds = links
-        .filter(
-          ({ source, target }) =>
-            refUri(source) === "beads/demo-a" || refUri(target) === "beads/demo-a",
-        )
+        .filter(({ source, target }) => refUri(source) === "demo-a" || refUri(target) === "demo-a")
         .map(({ id }) => id)
         .sort();
       expect(incident.expectedCollectionIds, fixturePath).toEqual(expectedCollectionIds);
@@ -1586,7 +1587,7 @@ describe("checked-in Read matrix artifacts", () => {
       const source = queryBinding(query.source);
       const target = queryBinding(query.target);
       const endpoint = queryBinding(query.endpoint);
-      if (request.target.binding === "beads") {
+      if (request.target.path === "bdp/beads") {
         const matches = fixture.beads.filter(
           (bead) =>
             (type === undefined || bead.type === type) &&
@@ -1688,8 +1689,8 @@ describe("checked-in Read matrix artifacts", () => {
     expect(relationshipIds?.kind).toBe("json-array-set");
     if (relationshipIds?.kind === "json-array-set") {
       const relationshipExpected = resolveArrayExpected(relationshipIds, fixture);
-      expect(relationshipExpected).toContain("links/demo-b-a");
-      expect(relationshipExpected).not.toContain("links/demo-e-f");
+      expect(relationshipExpected).toContain("demo-b-a");
+      expect(relationshipExpected).not.toContain("demo-e-f");
       expect(relationshipExpected.length).toBeLessThan(fixture.links.length);
     }
   });
@@ -1807,9 +1808,9 @@ describe("checked-in Read matrix artifacts", () => {
     expect(fixture.typeDescriptors).toHaveLength(fixture.types.length);
     expect(fixture.typeDescriptors.map(({ id }) => id)).toEqual(fixture.types.map(({ id }) => id));
     expect(fixture.bindings).toMatchObject({
-      "bead.demo-a": "beads/demo-a",
-      "bead.demo-c": "beads/demo-c",
-      "link.demo-b-a": "links/demo-b-a",
+      "bead.demo-a": "demo-a",
+      "bead.demo-c": "demo-c",
+      "link.demo-b-a": "demo-b-a",
     });
 
     const referenceDomain = JSON.parse(
@@ -1848,7 +1849,7 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
       priority,
     })) ??
     fixture.bd?.beads.map(({ id, title, status, priority }) => ({
-      id: `beads/${id}`,
+      id,
       title,
       status,
       priority,
@@ -1900,13 +1901,13 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
     );
     const sharedOwned = fixtureLinks.filter(
       ({ localId, source, target, type }) =>
-        localId === "links/demo-f-e" &&
-        source === "beads/demo-f" &&
-        target === "beads/demo-e" &&
+        localId === "demo-f-e" &&
+        source === "demo-f" &&
+        target === "demo-e" &&
         type === "https://work.example/types/blocks",
     );
     expect(sharedOwned).toHaveLength(1);
-    expect(authoredRealizationOnly ?? []).not.toContain("links/demo-f-e");
+    expect(authoredRealizationOnly ?? []).not.toContain("demo-f-e");
     const beadTypeByLocalId = new Map(
       fixtureShape.beads.map(({ localId, type }) => [localId, type]),
     );
@@ -1924,7 +1925,7 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
           );
         })
         .map(({ localId }) => localId)
-        .filter((id) => id !== "links/demo-f-e"),
+        .filter((id) => id !== "demo-f-e"),
     );
     // external-endpoint witnesses are excluded through their own input
     // list; the realization-only list must cover exactly the remainder.

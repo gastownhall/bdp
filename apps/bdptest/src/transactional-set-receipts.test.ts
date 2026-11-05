@@ -25,7 +25,7 @@ describe("same-run set expectation verifier controls", () => {
       assertionId: "matched",
       wrong: { operationIndex: 0, outcome: "matched", count: 3 },
     },
-    { kind: "order", actionId: "set-update", assertionId: "a-id", wrong: `${scope}beads/b` },
+    { kind: "order", actionId: "set-update", assertionId: "a-id", wrong: `${scope}b` },
     { kind: "index", actionId: "set-update", assertionId: "b-index", wrong: 1 },
     {
       kind: "poststate",
@@ -96,7 +96,7 @@ describe("same-run set expectation verifier controls", () => {
     const updates = responses.filter(
       (response) => response.url === observed.baseline.operationTargets.updateWhere,
     );
-    const targetReads = responses.filter((response) => response.url === `${scope}beads/a`);
+    const targetReads = responses.filter((response) => response.url === `${scope}a`);
     expect(updates).toHaveLength(1);
     expect(
       row.exchanges
@@ -108,7 +108,7 @@ describe("same-run set expectation verifier controls", () => {
     expect(targetReads).toHaveLength(4);
     expect(
       row.exchanges
-        .filter((exchange) => exchange.request.url === `${scope}beads/a`)
+        .filter((exchange) => exchange.request.url === `${scope}a`)
         .map((exchange) => exchange.request.id),
     ).toEqual([
       "target-a-before",
@@ -273,18 +273,18 @@ it.each([
     "metadata",
     { tag: "never-observed" },
   ],
-  ["receipt order", "transactional.set.mutation", "m-update", "a-id", `${scope}beads/b`],
+  ["receipt order", "transactional.set.mutation", "m-update", "a-id", `${scope}b`],
   [
     "Event order",
     "transactional.set.mutation",
     "m-update-events",
     "ordered-facts",
     [
-      ["created", `${scope}beads/b`, 0],
-      ["created", `${scope}beads/c`, 1],
-      ["created", `${scope}beads/a`, 2],
-      ["updated", `${scope}beads/b`, 0],
-      ["updated", `${scope}beads/a`, 1],
+      ["created", `${scope}b`, 0],
+      ["created", `${scope}c`, 1],
+      ["created", `${scope}a`, 2],
+      ["updated", `${scope}b`, 0],
+      ["updated", `${scope}a`, 1],
     ],
   ],
   [
@@ -300,8 +300,8 @@ it.each([
     "z-update-events",
     "ordered-facts",
     [
-      ["created", `${scope}beads/a`, 0],
-      ["updated", `${scope}beads/a`, 0],
+      ["created", `${scope}a`, 0],
+      ["updated", `${scope}a`, 0],
     ],
   ],
   ["no effect", "transactional.set.zero-match", "z-update", "no-effect", true],
@@ -334,8 +334,8 @@ it.each([
 
 it.each([
   ["root next", "p-root-read", "next-page", null],
-  ["inline boundary", "p-update", "p30-id", `${scope}beads/p31`],
-  ["page member", "p-page-read", "p31-id", `${scope}beads/p30`],
+  ["inline boundary", "p-update", "p30-id", `${scope}p31`],
+  ["page member", "p-page-read", "p31-id", `${scope}p30`],
   ["page parent", "p-page-read", "parent", `${scope}receipts/wrong`],
   ["historical title", "p-page-retained", "historical-title", "later"],
   ["terminal next", "p-page-read", "no-next", `${scope}receipts/wrong/pages/next`],
@@ -374,7 +374,7 @@ it.each([
     "current record",
     "c-state",
     "ordered-state",
-    [[`${scope}beads/b`, `${scope}types/task`, { title: "original" }, { tag: "conflict" }]],
+    [[`${scope}b`, `${scope}types/task`, { title: "original" }, { tag: "conflict" }]],
     200,
   ],
   ["retained replay body", "c-retry-reopened", "retained-body", {}, 200],
@@ -382,7 +382,7 @@ it.each([
     "unchanged Event",
     "c-events-reopened",
     "ordered-facts",
-    [[`${scope}events/`, "created", `${scope}beads/b`, 0]],
+    [[`${scope}events/`, "created", `${scope}b`, 0]],
     200,
   ],
 ] as const)(

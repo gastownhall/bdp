@@ -48,7 +48,7 @@ describe("offline schema validator", () => {
     const validator = createJsonSchemaValidator(schemaBundle);
     expect(
       validator.validate("#/$defs/beadRecord", {
-        id: "https://scope.example/beads/a",
+        id: "https://scope.example/a",
         type: "https://work.example/types/task",
         revision: "1",
         properties: {},
@@ -60,9 +60,7 @@ describe("offline schema validator", () => {
         bdpVersion: "0",
         profile: "read",
         scope: "https://scope.example/",
-        beads: "https://scope.example/beads/",
-        links: "https://scope.example/links/",
-        types: "https://scope.example/types/",
+
         operations: "https://scope.example/operations/",
       }),
     ).not.toHaveLength(0);

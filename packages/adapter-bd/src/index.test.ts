@@ -2,6 +2,7 @@ import { REFERENCE_TYPE_DESCRIPTORS } from "@bdp/protocol";
 import { BD_SERVED_TYPE_DESCRIPTORS } from "./index.js";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -16,9 +17,11 @@ const localComponent = (value: string): string =>
   /^[A-Za-z0-9._~-]+$/.test(value) && value !== "." && value !== ".." && !value.startsWith("b64_")
     ? value
     : opaque(value);
-const beadUrl = (id: string): string => `${scope}beads/${localComponent(id)}`;
+const beadUrl = (id: string): string => `${scope}${localComponent(id)}`;
 const linkUrl = (source: string, target: string, type: string): string =>
-  `${scope}links/${opaque(source)}/${opaque(target)}/${opaque(type)}`;
+  `${scope}link_${createHash("sha256")
+    .update(JSON.stringify([source, target, type]))
+    .digest("base64url")}`;
 const typeUrl = (type: string): string => `${scope}types/${localComponent(type)}`;
 
 afterEach(async () => {
@@ -204,6 +207,41 @@ describe("bd process Scope port", () => {
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
+    });
+  });
+
+  it("resolves prefix-free generic Resource and Properties requests by exact identity", async () => {
+    const { port } = await createPort();
+    const beadId = beadUrl("a");
+    const linkId = linkUrl("a", "b", "blocks");
+
+    await expect(
+      port.perform({ kind: "resource", resource: "resource", id: beadId }, options),
+    ).resolves.toMatchObject({ kind: "success", body: { id: beadId, properties: { id: "a" } } });
+    await expect(
+      port.perform({ kind: "resource", resource: "resource", id: linkId }, options),
+    ).resolves.toMatchObject({ kind: "success", body: { id: linkId, source: beadUrl("a") } });
+    await expect(
+      port.perform({ kind: "properties", resource: "resource", id: beadId }, options),
+    ).resolves.toEqual({ kind: "success", body: expect.objectContaining({ id: "a" }) });
+    await expect(
+      port.perform({ kind: "properties", resource: "resource", id: linkId }, options),
+    ).resolves.toEqual({ kind: "success", body: {} });
+    await expect(
+      port.perform({ kind: "resource", resource: "resource", id: beadUrl("missing") }, options),
+    ).resolves.toMatchObject({
+      kind: "problem",
+      problem: { code: "resource-not-found", status: 404 },
+    });
+  });
+
+  it("rejects snapshots that collide across globally unique Bead and Link identities", async () => {
+    const { port } = await createPort("resource-identity-collision");
+    await expect(
+      port.perform({ kind: "collection", collection: "beads" }, options),
+    ).resolves.toMatchObject({
+      kind: "problem",
+      problem: { code: "temporarily-unavailable", status: 503 },
     });
   });
 
@@ -837,6 +875,7 @@ async function createPort(
     | "dependency-conflicting-type"
     | "external-degenerate"
     | "external-degenerate-capability"
+    | "resource-identity-collision"
     | "slow"
     | "changing"
     | "changing-dependent-count"
@@ -924,6 +963,8 @@ async function createPort(
       bdRow("b-c", { dependencies: [] }),
       bdRow("b64_YQ", { dependencies: [] }),
     ];
+  } else if (mode === "resource-identity-collision") {
+    rows.push(bdRow(linkUrl("a", "b", "blocks").slice(scope.length), { dependencies: [] }));
   } else if (mode === "local-external-spelling") {
     rows = [
       bdRow("a", {

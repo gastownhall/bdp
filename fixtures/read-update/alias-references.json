@@ -18,7 +18,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/tasks/current",
-          "target": "beads/task-13"
+          "target": "task-13"
         }
       },
       "response": {
@@ -31,7 +31,7 @@
         "body": {
           "outcome": "created",
           "alias": "https://beads.example/acme/alias/tasks/current",
-          "target": "https://beads.example/acme/beads/task-13"
+          "target": "https://beads.example/acme/task-13"
         }
       }
     },
@@ -74,7 +74,7 @@
         "body": {
           "outcome": "updated",
           "resource": {
-            "id": "https://beads.example/acme/beads/task-13",
+            "id": "https://beads.example/acme/task-13",
             "type": "https://work.example/types/task",
             "revision": "task-13-r2",
             "properties": {
@@ -107,7 +107,7 @@
         "body": {
           "type": "https://work.example/types/relates",
           "source": "alias/tasks/current",
-          "target": "beads/task-14",
+          "target": "task-14",
           "properties": {},
           "revisionProvenance": {
             "actor": {
@@ -127,11 +127,11 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/links/relates-117",
+            "id": "https://beads.example/acme/relates-117",
             "type": "https://work.example/types/relates",
             "revision": "relates-117-r1",
-            "source": "https://beads.example/acme/beads/task-13",
-            "target": "https://beads.example/acme/beads/task-14",
+            "source": "https://beads.example/acme/task-13",
+            "target": "https://beads.example/acme/task-14",
             "properties": {},
             "metadata": {},
             "revisionProvenance": {
@@ -161,14 +161,14 @@
               "idempotencyKey": "w1-r-current-repoint",
               "operation": "putAlias",
               "alias": "alias/tasks/current",
-              "target": "beads/task-14"
+              "target": "task-14"
             },
             {
               "idempotencyKey": "w1-r-current-relates-back",
               "operation": "createLink",
               "type": "https://work.example/types/relates",
               "source": "alias/tasks/current",
-              "target": "beads/task-13",
+              "target": "task-13",
               "properties": {},
               "revisionProvenance": {
                 "actor": {
@@ -193,17 +193,17 @@
               "operationIndex": 0,
               "outcome": "updated",
               "alias": "https://beads.example/acme/alias/tasks/current",
-              "target": "https://beads.example/acme/beads/task-14"
+              "target": "https://beads.example/acme/task-14"
             },
             {
               "operationIndex": 1,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/links/relates-118",
+                "id": "https://beads.example/acme/relates-118",
                 "type": "https://work.example/types/relates",
                 "revision": "relates-118-r1",
-                "source": "https://beads.example/acme/beads/task-14",
-                "target": "https://beads.example/acme/beads/task-13",
+                "source": "https://beads.example/acme/task-14",
+                "target": "https://beads.example/acme/task-13",
                 "properties": {},
                 "metadata": {},
                 "revisionProvenance": {
@@ -239,7 +239,7 @@
         "body": {
           "type": "https://work.example/types/relates",
           "source": "alias/tasks/current",
-          "target": "beads/task-14",
+          "target": "task-14",
           "properties": {},
           "revisionProvenance": {
             "actor": {
@@ -259,11 +259,11 @@
         "body": {
           "outcome": "created",
           "resource": {
-            "id": "https://beads.example/acme/links/relates-117",
+            "id": "https://beads.example/acme/relates-117",
             "type": "https://work.example/types/relates",
             "revision": "relates-117-r1",
-            "source": "https://beads.example/acme/beads/task-13",
-            "target": "https://beads.example/acme/beads/task-14",
+            "source": "https://beads.example/acme/task-13",
+            "target": "https://beads.example/acme/task-14",
             "properties": {},
             "metadata": {},
             "revisionProvenance": {
