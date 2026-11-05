@@ -511,9 +511,9 @@ reader infers a rule from their absence:
 ## 12. Companions and obsolescence
 
 The package's companions, all beside this document: `descriptors/issue.md`,
-`descriptors/task.md`, `descriptors/dependency.md` and `descriptors/blocks.md`
-in the Type-definition notation (authoring mode; the remaining concrete
-children follow the two patterns and are still to be added),
+`descriptors/task.md`, `descriptors/dependency.md`, `descriptors/blocks.md` and
+one document per remaining concrete child, in the Type-definition notation
+(authoring mode),
 `issue-properties.md` and `dependency-properties.md` in the Markdown JSON Schema
 notation, and [`callables.md`](callables.md), the operations half of the
 package. Being descriptor companions, the properties schemas are not members of
