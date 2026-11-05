@@ -30,6 +30,13 @@ import {
   stringifyJsonValue,
 } from "@bdp/protocol";
 import {
+  CALLABLE_QUERY_TYPE,
+  type CallableDeclaration,
+  callableMount,
+  parseCallableProblem,
+  parseCallableResult,
+} from "./callable.js";
+import {
   type RetainedHttpContext,
   type RetainedHttpResponse,
   type RetainedTransport,
@@ -115,6 +122,89 @@ export class RetainedClientError extends Error {
     super(`retained client ${code} (${submission})`);
   }
 }
+const CALLABLES_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/callables";
+const IDEMPOTENCY_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/idempotency";
+const KEY = /^[A-Za-z0-9_-]{1,256}$/;
+
+function advertises(discovery: RetainedDiscovery, capability: string): boolean {
+  const capabilities = discovery.capabilities;
+  if (capabilities === null || typeof capabilities !== "object" || Array.isArray(capabilities))
+    return false;
+  const versions = (capabilities as RetainedJsonObject)[capability];
+  return (
+    versions !== null &&
+    typeof versions === "object" &&
+    !Array.isArray(versions) &&
+    Object.hasOwn(versions, "1")
+  );
+}
+
+export interface CallableInvocationInput {
+  readonly declaration: CallableDeclaration;
+  readonly arguments: RetainedJsonObject;
+  /** Write's attribution input; a CallableBatch only. */
+  readonly revisionProvenance?: RetainedJsonObject;
+  /** A CallableBatch under `idempotency` only; one is minted when this is absent. */
+  readonly idempotencyKey?: string;
+}
+export interface PreparedCallableInvocation {
+  readonly kind: "query" | "batch";
+  readonly url: string;
+  readonly method: "POST";
+  readonly bodyText: string;
+  readonly idempotencyKey?: string;
+}
+
+/** What one verified discovery admits for invocation. Preparing an invocation performs no
+ * IO, so a caller holds the exact key before anything is transmitted. */
+export class CallableBinding {
+  readonly #scope: string;
+  readonly #write: boolean;
+  /** Whether the Scope advertises Write's `idempotency` capability at version 1. */
+  readonly idempotencyAdvertised: boolean;
+
+  constructor(scope: string, discovery: RetainedDiscovery) {
+    if (!advertises(discovery, CALLABLES_CAPABILITY))
+      throw new RetainedClientError("unsupported-feature");
+    this.#scope = scope;
+    this.#write = discovery.profile === "write";
+    this.idempotencyAdvertised = advertises(discovery, IDEMPOTENCY_CAPABILITY);
+    Object.freeze(this);
+  }
+
+  prepare(input: CallableInvocationInput): PreparedCallableInvocation {
+    const { declaration, revisionProvenance, idempotencyKey } = input;
+    const query = declaration.type === CALLABLE_QUERY_TYPE;
+    if (query && (revisionProvenance !== undefined || idempotencyKey !== undefined))
+      throw new RetainedClientError("invalid-input");
+    if (!query && !this.#write) throw new RetainedClientError("unsupported-feature");
+    if (idempotencyKey !== undefined) {
+      if (!KEY.test(idempotencyKey)) throw new RetainedClientError("invalid-input");
+      if (!this.idempotencyAdvertised) throw new RetainedClientError("unsupported-feature");
+    }
+    let url: string;
+    try {
+      url = callableMount(this.#scope, declaration.name);
+    } catch {
+      throw new RetainedClientError("invalid-input");
+    }
+    const key =
+      !query && this.idempotencyAdvertised
+        ? (idempotencyKey ?? globalThis.crypto.randomUUID())
+        : undefined;
+    return Object.freeze({
+      kind: query ? ("query" as const) : ("batch" as const),
+      url,
+      method: "POST" as const,
+      bodyText: stringifyJsonValue({
+        arguments: input.arguments,
+        ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
+      }),
+      ...(key === undefined ? {} : { idempotencyKey: key }),
+    });
+  }
+}
+
 const media = (value: string | null): string | undefined =>
   value?.split(";", 1)[0]?.trim().toLowerCase();
 const invalid = (): never => {
@@ -214,6 +304,50 @@ export class RetainedClient {
           maximumRequestBodyBytes: this.#requestBytes,
         }),
       });
+    });
+  }
+
+  /** Discovery for invoking Callables. Refuses a Scope without Callables1. */
+  async bindCallables(
+    scope: string,
+    call: RetainedClientCallOptions = {},
+  ): Promise<RetainedReply<CallableBinding>> {
+    const selected = parseCanonicalScope(scope);
+    const discovery = await this.inspectScope(selected, call);
+    if (discovery.kind !== "success") return discovery;
+    return Object.freeze({ ...discovery, value: new CallableBinding(selected, discovery.value) });
+  }
+
+  /** One POST to the prepared mount. A Problem is a reply; an unusable response leaves the
+   * invocation's disposition unknown. The result is not checked against any schema. */
+  invokeCallable(
+    prepared: PreparedCallableInvocation,
+    call: RetainedClientCallOptions = {},
+  ): Promise<RetainedReply<RetainedJsonObject>> {
+    const { kind, url, method, bodyText, idempotencyKey } = prepared;
+    if (method !== "POST" || (kind !== "query" && kind !== "batch"))
+      throw new RetainedClientError("invalid-input");
+    parseCanonicalHttpUrl(url);
+    const callerSignal = signalOnly(call);
+    return this.#run(callerSignal, async (signal, markSubmitted) => {
+      markSubmitted();
+      const response = await this.#transport.post(url, {
+        signal,
+        bodyText,
+        ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+      });
+      try {
+        const refused = failure(response, false, parseCallableProblem);
+        if (refused) return refused;
+        return Object.freeze({
+          kind: "success",
+          value: parseCallableResult(this.#document(response), kind),
+          http: context(response),
+          nativeBody: nativeBody(response),
+        });
+      } catch {
+        throw new RetainedClientError("invalid-response", "unknown", context(response));
+      }
     });
   }
 
@@ -587,7 +721,7 @@ export class RetainedClient {
     return this.#run(options.signal, async (signal) => {
       const response = await transport.get(uri + (terminal ? "?view=terminal" : ""), { signal });
       this.#check(signal);
-      const refused = failure(response, false, true);
+      const refused = failure(response, false, parseHistoricalUpdateProblem);
       if (
         refused?.kind === "problem" &&
         refused.problem.code === "capability-not-supported" &&
@@ -671,7 +805,11 @@ export class RetainedClient {
         idempotencyKey: savedHeaders["idempotency-key"],
       });
       try {
-        const refused = failure(response, false, historical);
+        const refused = failure(
+          response,
+          false,
+          historical ? parseHistoricalUpdateProblem : parseRetainedProblem,
+        );
         if (
           historical &&
           refused?.kind === "problem" &&
@@ -829,7 +967,7 @@ function failure(
     readonly bodyBytes?: Uint8Array;
   },
   head = false,
-  historical = false,
+  parseProblem: (text: string, status: number) => RetainedJsonObject = parseRetainedProblem,
 ): Exclude<RetainedReply<never>, { kind: "success" }> | undefined {
   if (response.status < 400) return undefined;
   if (response.kind === "empty" && (head || [405, 406, 412, 500].includes(response.status)))
@@ -842,9 +980,7 @@ function failure(
     return invalid();
   return Object.freeze({
     kind: "problem",
-    problem: historical
-      ? parseHistoricalUpdateProblem(response.bodyText, response.status)
-      : parseRetainedProblem(response.bodyText, response.status),
+    problem: parseProblem(response.bodyText, response.status),
     http: context(response),
     nativeBody: nativeBody(response),
   });

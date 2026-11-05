@@ -400,6 +400,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/client/src/callable.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
       "path": "packages/client/src/historical-update.test.ts",
       "runner": "vitest",
       "lane": "current",

@@ -13,7 +13,10 @@ export {
   type CallableDeclaration,
   type CallableParameter,
   type CallableValueSchema,
+  callableMount,
   createStaticCallableCatalog,
+  parseCallableProblem,
+  parseCallableResult,
 } from "./callable.js";
 
 export type { HistoryRequest, HistoryResultFor } from "./history-session.js";
@@ -1626,6 +1629,9 @@ function legacyReadSession<T>(action: () => T): T {
 }
 
 export {
+  CallableBinding,
+  type CallableInvocationInput,
+  type PreparedCallableInvocation,
   RetainedClient,
   type RetainedClientCallOptions,
   RetainedClientError,
