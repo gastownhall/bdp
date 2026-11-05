@@ -16,12 +16,8 @@ Mode: authoring
 
 | Field | Value (JSON) |
 | --- | --- |
-| description | "A read-only Callable: its implementation observes and does not mutate." |
+| description | "A read-only Callable: invoking it changes no Resource, alias or retained state." |
 | version | "preview-1" |
-
-## Properties schema
-
-Source: Markdown: ../callable-extern-properties.md
 
 ## Refines
 

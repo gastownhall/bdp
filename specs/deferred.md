@@ -72,7 +72,7 @@ A change that introduces, resolves or changes a recorded deferral should update 
 
 **Design deferred where explicitly unselected.** Types retains exact definition/registration/Scope-wide interpretation requirements. Its [existing unselected-mechanism boundary](profiles/types/types.md#8-conformance-and-unselected-mechanisms) is authoritative. Experimental Package global/local Type correspondence, portable graph packaging, public lifecycle/acquisition commands and publisher/version/closure binding must be deliberately specified; provenance or available bytes alone do not establish nominal equality, registration or installation.
 
-**Owner / revisit:** Types plus Callable/Package owners with Donna, in the selected next Callable AND Package design work. [Experimental Callables](profiles/callables/callables.md) and [Packages](../experimental/packs.md) retain their selected direction and explicitly open questions. Publication on main does not make them adopted runtime capabilities or decide generic Scope identity. See the [Types appendix](profiles/types/types.md#appendix-open-design-questions).
+**Owner / revisit:** Types plus Callable/Package owners with Donna, in the selected next Callable AND Package design work. [Callables](profiles/callables/callables.md) and [Packages](../experimental/packs.md) retain their selected direction and explicitly open questions. Publication on main does not make them adopted runtime capabilities or decide generic Scope identity. See the [Types appendix](profiles/types/types.md#appendix-open-design-questions).
 
 ## Memory
 
@@ -113,21 +113,21 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 
 ### CALL-PREVIEW — Callables after preview-1
 
-**Design deferred.** [Callables §12](profiles/callables/callables.md#12-deferred) lists what preview-1 leaves unselected: stored bodies and parameter binding, the canonical-URL invocation mode, paged or streamed results, definition closure beyond the pinned revision, registration and packaging, and a family vocabulary for domain refusals. CALL-O1, CALL-O2 and CALL-O3 of the experimental draft close at preview depth only as that document states, once its rulings are marked.
+**Design deferred.** [Callables §12](profiles/callables/callables.md#12-deferred) lists what preview-1 leaves unselected: readable bodies and parameter binding, how an endpoint advertises what it supports (including atomic execution and result validation), registration details settled together with packages, how much of `cliMapping` survives, and paged or streamed results. CALL-O1, CALL-O2 and CALL-O3 of the experimental draft close at preview depth only as that document states, once its rulings are marked.
 
-**Owner / revisit:** Callables owner with Donna, after the preview. The archived draft is [callables-draft-20261030](history/callables-draft-20261030/callables.md).
+**Owner / revisit:** Callables owner with Donna, after the preview; the advertising exercise follows the specification work, and registration is settled with packages. The archived draft is [callables-draft-20261030](history/callables-draft-20261030/callables.md).
+
+### CALL-COMMANDS — Commands without raw generic writes
+
+**Design anticipated.** Preview-1 requires Write for a CallableBatch. Donna expects many services will want to expose commands without raw generic writes, and that is a common pattern, so the design should anticipate it when that requirement is revisited.
+
+**Owner / revisit:** Callables and Write owners with Donna, when a service asks for it or at the next Callables edition.
 
 ### ISSUE-PREVIEW — Issue and Dependency Types after preview-1
 
 **Design deferred.** [Issue §11](types/issue/issue.md#11-carried-open-items) indexes the carried items: policy-dependent status meaning, operational observations, codified metadata, ownership, pinned endpoints, Link recovery, properties replacement, comments as Beads and custom classification lifecycle.
 
 **Owner / revisit:** Types and Issue package owners with Donna, after the preview. The October draft is [issue-draft-20261014](history/issue-draft-20261014/issue.md).
-
-### CALL-COMMANDS — Commands without raw generic writes
-
-**Design anticipated.** Preview-1 requires Write for a CallableBatch. Donna expects many services will want to expose commands without raw generic writes, and that is a common pattern, so the design should allow for it when a need appears. [Callables §12](profiles/callables/callables.md#12-deferred) carries it.
-
-**Owner / revisit:** Callables and Write owners with Donna, when a service asks for it or at the next Callables edition.
 
 ### LINK-RECOVERY — Historical update and recovery for Links
 

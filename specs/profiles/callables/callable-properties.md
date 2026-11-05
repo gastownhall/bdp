@@ -17,17 +17,28 @@ Required order: ["description","parameters"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "The properties object of every Callable definition Bead: help, declared parameters, the result schema and the optional CLI projection. The root is open so that refinements add their implementation member." |
+| description | "The properties object of every Callable declaration Bead: help, declared parameters, the result and error schemas, and any CLI additions. The root is open; a body is refused in this edition, and the binding from a name to an implementation is no part of a declaration." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "cliMapping" | ref "#/$defs/cliMapping" | no | — | "Declarative CLI projection; it chooses no command route and grants nothing." |
+| "cliMapping" | ref "#/$defs/cliMapping" | no | — | "Additions to the CLI form derived from parameters." |
 | "description" | text | yes | — | "Standard help for the operation; an empty string is admitted and differs from absence." |
-| "parameters" | array of (ref "#/$defs/parameter") | yes | — | "Declared named arguments; an empty array is admitted; names are distinct within one definition." |
+| "error" | ref "#/$defs/valueSchema" | no | — | "Schema of the value in a callable-error Problem's error member; absent means any JSON value." |
+| "idempotent" | boolean | no | — | "True when repeating an invocation with the same arguments has no further effect, even if the result differs; false when absent." |
+| "parameters" | array of (ref "#/$defs/parameter") | yes | — | "Declared named arguments; an empty array is admitted; names are distinct within one declaration." |
 | "result" | ref "#/$defs/valueSchema" | no | — | "Schema of the invocation result; absent means any JSON value." |
+| "title" | text | no | — | "Short human-readable name; the name itself is the local Resource ID." |
+
+### Advanced
+
+```json-schema
+{
+  "not": {"required": ["body"]}
+}
+```
 
 <a id="schema-def-InZhbHVlU2NoZW1hIg"></a>
 ## Schema: "valueSchema"
@@ -38,7 +49,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "An embedded JSON Schema Draft 2020-12 value: an object or a boolean. It validates one argument or one result; it establishes no Resource kind, Type membership or authorization." |
+| description | "An embedded JSON Schema Draft 2020-12 value: an object or a boolean. It validates one argument, one result or one error value; it establishes no Resource kind, Type membership or authorization. Every $ref resolves inside the document that carries it." |
 | type | ["object","boolean"] |
 
 <a id="schema-def-InBhcmFtZXRlciI"></a>
@@ -54,18 +65,18 @@ Required order: ["name","schema"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "One declared argument of a Callable. Names are distinct within one definition; a required parameter carries no default." |
+| description | "One declared argument of a Callable. Names are distinct within one declaration; a required parameter carries no default." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "default" | any | no | — | "The value substituted for an omitted argument; it must satisfy schema. Omission of this member is distinguishable from an explicit null default." |
-| "description" | text | no | — | "Parameter help, reused by CLI mappings." |
+| "default" | any | no | — | "The value supplied for an omitted argument; it must satisfy schema. Omission of this member is distinguishable from an explicit null default." |
+| "description" | text | no | — | "Parameter help, reused by the CLI and OpenAPI projections." |
 | "name" | schema | yes | — | "Nonempty exact argument name." |
 | "required" | boolean | no | — | "Whether the argument must be supplied; false when absent." |
-| "schema" | ref "#/$defs/valueSchema" | yes | — | "The argument's value schema; the selected parameter decision of October 30, 2026." |
+| "schema" | ref "#/$defs/valueSchema" | yes | — | "The argument's value schema." |
 
 ### Advanced
 
@@ -90,15 +101,15 @@ Required order: ["names","parameter"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Maps one or more CLI flag spellings onto a declared parameter." |
+| description | "Adds one or more CLI flag spellings for a declared parameter." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "names" | schema | yes | — | "Distinct nonempty flag spellings, such as --limit and -l." |
-| "parameter" | schema | yes | — | "The name of a declared parameter of the same definition." |
+| "names" | schema | yes | — | "Distinct nonempty flag spellings, such as -l." |
+| "parameter" | schema | yes | — | "The name of a declared parameter of the same declaration." |
 
 ### Advanced
 
@@ -131,7 +142,7 @@ Required order: ["position","parameter"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "parameter" | schema | yes | — | "The name of a declared parameter of the same definition." |
+| "parameter" | schema | yes | — | "The name of a declared parameter of the same declaration." |
 | "position" | schema | yes | — | "Zero-based argument position." |
 
 ### Advanced
@@ -156,12 +167,12 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Declarative flag and positional projection for clients. It chooses no command route and grants nothing; duplicate flags or positions refuse registration." |
+| description | "Additions to the CLI form derived from parameters. It chooses no command route and grants nothing; duplicate flags or positions make a declaration invalid." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "flags" | array of (ref "#/$defs/flagMapping") | no | — | "Flag spellings mapped onto parameters." |
+| "flags" | array of (ref "#/$defs/flagMapping") | no | — | "Additional flag spellings for parameters." |
 | "positionals" | array of (ref "#/$defs/positionalMapping") | no | — | "Positions mapped onto parameters." |

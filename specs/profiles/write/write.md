@@ -44,12 +44,18 @@ authorization, atomicity, retention or conformance.
 ## Discover and select Write
 
 A Write Scope advertises `bdpVersion:"0.1"` and `profile:"write"`. Its closed
-machine discovery requires `scope`, `operations` and `aliases`, in addition to
-those two identity members and the Core-required `specRevision`. Bead and Link inventories use the fixed Core routes
+machine discovery requires `scope` and `operations`, in addition to those two
+identity members and the Core-required `specRevision`. `aliases` is optional; when
+present it promises Core's alias resolution and the two alias operations below.
+Bead and Link inventories use the fixed Core routes
 `<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
 optional common members are `events`, `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
+Optional capabilities under `capabilities` are atomic batch, rooted allocation,
+historical update and [idempotency](#idempotency-and-recovery). `atomic-batch1` and
+`historical-update1` require `idempotency`; a Scope advertising either without it
+is invalid and a client refuses it.
 The operation-directory URL is absolute HTTP(S) navigation. Clients use the fixed
 inventory paths and follow the discovered operation-directory members, verifying
 the owning Scope, Resource kind and selected contract; they MUST NOT infer an
@@ -57,26 +63,31 @@ operation from a Resource, Type or endpoint path.
 
 <a id="operation-directory-and-singleton-targets"></a>
 
-### Eight distinct ordinary targets
+<a id="eight-distinct-ordinary-targets"></a>
+
+### Ordinary targets
 
 A GET of `operations` returns a closed `writeOperationDirectory` object with exactly
-these members:
+these members: the six Resource members always, and the two alias members exactly
+when discovery advertises `aliases`:
 
-| Member | Decision |
-| --- | --- |
-| `createBead` | Create one Bead |
-| `updateBead` | Edit one Bead |
-| `deleteBead` | Delete one Bead |
-| `createLink` | Create one Link |
-| `updateLink` | Edit one Link, including either endpoint |
-| `deleteLink` | Delete one Link |
-| `putAlias` | Create or repoint one alias |
-| `deleteAlias` | Remove one alias |
+| Member | Decision | Present |
+| --- | --- | --- |
+| `createBead` | Create one Bead | Always |
+| `updateBead` | Edit one Bead | Always |
+| `deleteBead` | Delete one Bead | Always |
+| `createLink` | Create one Link | Always |
+| `updateLink` | Edit one Link, including either endpoint | Always |
+| `deleteLink` | Delete one Link | Always |
+| `putAlias` | Create or repoint one alias | With `aliases` |
+| `deleteAlias` | Remove one alias | With `aliases` |
 
 Every value is a distinct absolute HTTP(S) operation URL served for this Scope.
-An ambiguous directory MUST be refused before dispatch. Sharing an implementation
-handler does not merge the eight wire addresses. No fixed URL suffix is required.
-Atomic batch is separately advertised; it is not a ninth directory member. There
+A directory missing a required member, carrying an alias member without advertised
+`aliases`, or omitting one when `aliases` is advertised is ambiguous and MUST be
+refused before dispatch. Sharing an implementation handler does not merge the wire
+addresses. No fixed URL suffix is required.
+Atomic batch is separately advertised; it is not a directory member. There
 is no sequence, set-write or public-receipt operation in this directory.
 
 Each ordinary target accepts POST. The target URL supplies its operation kind;
@@ -149,8 +160,8 @@ an ordinary singleton body, including inside a pinned endpoint Reference.
 | `createLink` | `type`, `source`, `target` | `id`, `properties`, `metadata`, `revisionProvenance` |
 | `updateLink` | `link` and at least one edit member | `type`, `source`, `target`, `properties`, `propertiesChange`, `metadata`, `metadataChange`, `expectedRevision`, `revisionProvenance` |
 | `deleteLink` | `link` | `expectedRevision`, `revisionProvenance` |
-| `putAlias` | `alias`, `target` | none |
-| `deleteAlias` | `alias` | none |
+| `putAlias` (with `aliases`) | `alias`, `target` | none |
+| `deleteAlias` (with `aliases`) | `alias` | none |
 
 The edit members for a Bead are the five Type/object members in its row; a Link
 also admits either endpoint. Guard or provenance alone is not an update. An empty
@@ -182,8 +193,10 @@ registration/fetch request. `properties.type` remains ordinary authored data.
 
 Creation initializes omitted `properties` and `metadata` to `{}`. Each supplied
 value must be a JSON object. Updates distinguish omission, replacement and patch
-as specified below. Every operation carries exactly one valid `Idempotency-Key`
-HTTP field under [Idempotency and recovery](#idempotency-and-recovery).
+as specified below. Under `idempotency`, every operation carries exactly one valid
+`Idempotency-Key` HTTP field under [Idempotency and recovery](#idempotency-and-recovery).
+Without it, [Repetition without idempotency](#repetition-without-idempotency) governs
+the field and a repeated request.
 
 ## Creation and identity allocation
 
@@ -210,8 +223,8 @@ is instead `alias-path-taken`; removing the alias can clear that condition. A
 committed creation/deletion in one atomic batch still consumes its identity.
 Rollback commits no allocation or non-reuse claim.
 
-Allocation, all Resource/owner effects, facts required by advertised Events and durable terminal key
-state commit together or none. Concurrent distinct invocations cannot commit the
+Allocation, all Resource/owner effects, facts required by advertised Events and, under
+`idempotency`, durable terminal key state commit together or none. Concurrent distinct invocations cannot commit the
 same canonical identity. The provider may reject unsupported allocation under
 native policies/bounds, but MUST NOT silently allocate elsewhere in place of an
 explicit supplied identity or root.
@@ -230,8 +243,8 @@ owners. Deletion is not controlled-content erasure.
 
 A carrier-level refusal creates no idempotency disposition. Authentication,
 non-disclosure, transport/request bounds, media negotiation, exact JSON/string
-syntax and key admission occur before fresh execution. Under the admitted
-carrier/key, retained-key handling precedes fresh liveness, guards, Type defaults,
+syntax and, under `idempotency`, key admission occur before fresh execution. Under
+`idempotency` and the admitted carrier/key, retained-key handling precedes fresh liveness, guards, Type defaults,
 feature support and execution bounds; it must not mistake an issued invocation
 for new work. A supported closed grammar is checked without reevaluating live
 operands before that retained comparison.
@@ -726,7 +739,8 @@ JSON equality, not serialized member order.
 After all admission checks, an equal complete covered state is a genuine no-op:
 return successful updated outcome with unchanged revision and entire recorded
 envelope, no new provenance and no lifecycle Event. Context alone cannot force a
-version. No-op still records successful durable retry state and witnesses. Batch
+version. Under `idempotency`, a no-op still records successful durable retry state
+and witnesses. Batch
 uses the final-versus-initial rule below, not a version for every staged edit.
 
 An update or deletion MAY carry `expectedRevision`. It applies only if the target
@@ -849,6 +863,10 @@ its actual endpoints.
 <a id="explicit-alias-operations"></a>
 <a id="alias-targets"></a>
 
+This section binds a Scope that advertises `aliases`. A Scope without it serves no
+alias operations, answers alias URLs as Core says for an authority that does not
+advertise `aliases`, and keeps every other Write rule unchanged.
+
 An alias is a reusable locator to one canonical in-Scope Bead, not a Resource,
 revision, owned state or member of the target's properties. Put creates or repoints
 it; delete removes it. A put at an existing alias repoints it rather than treating
@@ -883,8 +901,8 @@ The closed alias result is:
 | `target` | Absolute canonical Bead URL for created/updated; absent for deleted |
 
 A put to the same target succeeds as `updated` without a state change. Alias
-results carry no `changed`, Resource revision or provenance. They still retain
-successful anti-reexecution state. Alias mutation emits no Resource Event.
+results carry no `changed`, Resource revision or provenance. Under `idempotency`,
+they still retain successful anti-reexecution state. Alias mutation emits no Resource Event.
 
 An admitted alias spelling may be used as an update/delete Bead subject or either
 Link endpoint, bare or as the uri of a pinned Reference. Resolve it to the current
@@ -895,6 +913,14 @@ alias to become a Link. A put's own target never admits an alias. Retried locato
 use the frozen comparison witnesses below instead of rebinding a known locator.
 
 ## Idempotency and recovery
+
+This section binds a Scope that advertises the `idempotency` capability,
+`https://github.com/gastownhall/bdp/capabilities/idempotency` at version `"1"` with
+closed empty detail. Only Write advertises it. Advertisement promises the complete
+contract below. Throughout
+this document, a duty stated in terms of an idempotency key, a retained disposition,
+a witness, replay or compact key state applies only under this capability. A Scope
+without it owes only [Repetition without idempotency](#repetition-without-idempotency).
 
 <a id="idempotency-keys"></a>
 
@@ -1021,6 +1047,25 @@ Replay does not require a feature to remain open for new work. Inability to
 compare/serve the original decision is truthful service failure, never permission
 for new admission, truncation or silent fallback.
 
+### Repetition without idempotency
+
+A Scope that does not advertise `idempotency` executes every admitted request under
+the ordinary rules, including a request a client repeats. It retains no disposition
+and replays nothing. It ignores `Idempotency-Key`: the field is not validated, a
+missing, repeated or malformed field is not refused, and it is never reinterpreted
+as a selector. The Scope does not advertise `limits.retention.idempotency`.
+
+The ordinary rules are the client's recovery. Once a first execution has changed
+its target, a repeated `updateBead` or `updateLink` carrying the prior
+`expectedRevision` fails `revision-mismatch`; if the first execution was a genuine
+no-op, the repeat is one too. A repeated `deleteBead` or `deleteLink` of a target
+the first execution deleted is `resource-not-found`. A repeated creation carrying
+`id` is `identity-taken`. A repeated creation without `id` allocates a second
+identity. A client that needs at-most-once creation SHOULD supply an unguessable
+`id` where the provider admits one and, on `identity-taken`, read that identity to
+establish whether its own request committed. A client MUST NOT infer replay from a
+200 that happens to match an earlier result.
+
 ## Problems and diagnostics
 
 <a id="readupdate-problem-details"></a>
@@ -1045,7 +1090,8 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `idempotency-expired` | `gone` | 410 | `never` |
 | `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
 
-The eight singleton operations have no sequence-only `binding-unavailable` case.
+The `idempotency-*` codes arise only under `idempotency`. The singleton operations
+have no sequence-only `binding-unavailable` case.
 The presence of an inherited helper in a schema artifact does not select it.
 `retryAfter`, when present, is a nonnegative integer transient-delay advice only
 for `after-delay`, alongside applicable HTTP `Retry-After`. Ordinary Problems may
@@ -1442,9 +1488,11 @@ sequence feature and no partial/chunked execution.
 
 ## Conformance boundary
 
-A Write provider must implement all eight ordinary operations, their complete
-outcomes, fact production required by advertised Events, native/admitted Types constraints,
-authorization, concurrency safety and durable key/recovery duties. Optional
+A Write provider must implement the six Resource operations, the two alias
+operations when it advertises `aliases`, their complete outcomes, fact production required by advertised Events, native/admitted Types constraints,
+authorization, concurrency safety and, under `idempotency`, durable key/recovery
+duties. Without it, the rows of [Repetition without idempotency](#repetition-without-idempotency)
+apply. Optional
 capability advertisement requires its complete selected behavior and bounds; it
 never replaces ordinary obligations. Ordinary reads retain Core meaning: an
 authoritative result does not promise that another replica immediately observes
@@ -2743,6 +2791,20 @@ Value: object
 | minLength | 1 |
 | type | "string" |
 <!-- bdp-schema:end expectedRevision -->
+
+<!-- bdp-schema:start idempotencyCapabilityV1 -->
+### Schema: "idempotencyCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+<!-- bdp-schema:end idempotencyCapabilityV1 -->
 
 <!-- bdp-schema:start inputPinnedReference -->
 ### Schema: "inputPinnedReference"
@@ -4395,7 +4457,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","specRevision","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","specRevision","operations"]
 
 #### Keywords
 
@@ -4407,7 +4469,7 @@ Required order: ["bdpVersion","profile","scope","specRevision","operations","ali
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
@@ -4445,12 +4507,13 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink","putAlias","deleteAlias"]
+Required order: ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| dependentRequired | {"putAlias":["deleteAlias"],"deleteAlias":["putAlias"]} |
 | type | "object" |
 
 #### Properties
@@ -4459,10 +4522,10 @@ Required order: ["createBead","updateBead","deleteBead","createLink","updateLink
 | --- | --- | --- | --- | --- |
 | "createBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "createLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "deleteAlias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "deleteAlias" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "deleteBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "deleteLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "putAlias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "putAlias" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "updateBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "updateLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 <!-- bdp-schema:end writeOperationDirectory -->
@@ -5232,7 +5295,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | problem | `"readUpdateProblem"` |
 | codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
 | continuation | `"none"` |
-| optional | `"Write profile"` |
+| optional | `"Write profile with aliases advertised"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |
@@ -5251,7 +5314,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | problem | `"readUpdateProblem"` |
 | codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
 | continuation | `"none"` |
-| optional | `"Write profile"` |
+| optional | `"Write profile with aliases advertised"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |

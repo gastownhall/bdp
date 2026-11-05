@@ -24,25 +24,24 @@ reference class may be pinned; the URI alone is identity.
 _Avoid_: external Type, remote Bead Type
 
 **Callable / CallableQuery / CallableBatch**:
-A Callable is a Bead describing one named operation: help, parameters, result
-schema and the implementation it binds to. A CallableQuery is read-only; a
-CallableBatch mutates.
+A Callable is a Bead declaring one named operation: help, parameters and the
+schemas of its result and errors. Its name is its local Resource ID. A
+CallableQuery is read-only; a CallableBatch mutates.
 _Avoid_: procedure, command (a command is a client spelling)
 
-**Callable directory**:
-The object at the URL a Scope advertises in its Callables capability, mapping
-each invocable name to its pinned definition and its mount. Only a directory
-entry makes a name invocable.
-_Avoid_: catalog, registry
+**Declaration / definition**:
+A declaration says how to call an operation and nothing about how it works; a
+definition is a declaration with a readable body. Preview-1 has declarations only.
+_Avoid_: extern, which named the implementation form
+
+**Registry Bead**:
+A real Bead whose typed outgoing Links name a Scope's reachable Callables. A live
+Link is the whole fact. Registration is optional in preview-1.
+_Avoid_: directory, catalog
 
 **Mount**:
-The URL a directory entry names for invoking one Callable.
+The URL that invokes one Callable: the advertised invoke base, a slash and its name.
 _Avoid_: route
-
-**Extern binding**:
-An opaque name in the provider's own registry that says which implementation a
-definition runs.
-_Avoid_: plugin
 
 **View**:
 A callable result built over complete Bead or Link records with added

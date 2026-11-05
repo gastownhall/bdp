@@ -6,47 +6,48 @@ version: "preview-1"
 
 # Beads Protocol — Callables
 
-Editorial draft preview-1 · November 4, 2026 · lifted from the experimental draft of October 30, 2026
+Editorial draft preview-1 · November 5, 2026 · lifted from the experimental draft of October 30, 2026
 
 Callables is the optional capability by which a Scope exposes named,
-parameterized operations that are defined as Beads and invoked over BDP. A
-**Callable** is a Bead describing one such operation: its help, its declared
-parameters, the schema of its result and, in this edition, the service-side
-implementation it binds to. A **CallableQuery** is read-only; a
-**CallableBatch** mutates. Either can be defined and invoked without any
-package. [Core](../core/core.md) supplies identity, records, reads,
-authorization, discovery and HTTP; [Write](../write/write.md) supplies the
-mutation, allocation and attribution contracts a CallableBatch inherits;
+parameterized operations over BDP. A **Callable** is a Bead that declares one
+such operation: its help, its parameters, the schema of its result and the
+schema of its errors. A **CallableQuery** is read-only; a **CallableBatch**
+mutates. Either can be declared and invoked without any package.
+[Core](../core/core.md) supplies identity, records, reads, authorization,
+discovery and HTTP; [Write](../write/write.md) supplies the mutation, allocation
+and attribution contracts a CallableBatch inherits;
 [Types](../types/types.md) supplies the descriptor language of the three
-definitions below. The [Issue and Dependency Callables](../../types/issue/callables.md)
-are the first operations specified under this profile.
+definitions below.
 
-The three definitions are authored as descriptor documents in the
+This edition specifies **declarations**, in the sense that a C header declares a
+function: enough to call the operation and to project an OpenAPI operation and a
+CLI command from it, and nothing about how it is implemented. A provider's
+implementation might be native code or a stored batch whose body it never
+publishes; a client cannot tell and does not need to. A later edition can add a
+readable `body`, which makes a declaration a **definition**, without changing how
+anything is invoked.
+
+The three Types are authored as descriptor documents in the
 [Type-definition notation](../../formats/markdown-type-definitions.md) under
-`descriptors/`, with their properties schemas as sibling documents in the
+`descriptors/`, with their properties schema as a sibling document in the
 [Markdown JSON Schema notation](../../formats/markdown-json-schema.md),
-`callable-properties.md` and `callable-extern-properties.md`. The wire shapes of
-the capability, the directory, the invocation, the result and the problems are
-fragments in the Schemas appendix (§13), bundle `callables`. The prose reads
-both; it restates neither as JSON.
+`callable-properties.md`. The wire shapes of the capability, the invocation, the
+result and the problems are fragments in the Schemas appendix (§13), bundle
+`callables`. The prose reads both; it restates neither as JSON.
 
-This is the preview-1 edition selected for the friends-and-family preview pin.
-It selects the **extern** implementation form, in which the definition names an
-implementation in the provider's registry, and defers stored Query AST and Batch
-bodies, parameter binding into bodies, and packaging. Rules marked **preview**
-may change in a later edition without a compatibility promise. Packages
-(`experimental/packs.md`) remain experimental and depend on this profile, not
-the reverse.
+Rules marked **preview** may change in a later edition without a compatibility
+promise. Packages (`experimental/packs.md`) remain experimental and depend on
+this profile, not the reverse.
 
 ## Contents
 
 1. [Discover and select Callables1](#1-discover-and-select-callables1)
-2. [Definitions](#2-definitions)
-3. [The directory](#3-the-directory)
+2. [Declarations](#2-declarations)
+3. [Registration](#3-registration)
 4. [Invocation](#4-invocation)
-5. [Argument admission](#5-argument-admission)
+5. [Checking arguments](#5-checking-arguments)
 6. [Execution and results](#6-execution-and-results)
-7. [Externs and definition closure](#7-externs-and-definition-closure)
+7. [What a declaration promises](#7-what-a-declaration-promises)
 8. [Authorization](#8-authorization)
 9. [Problems](#9-problems)
 10. [CLI correspondence](#10-cli-correspondence)
@@ -58,39 +59,34 @@ the reverse.
 
 ## 1. Discover and select Callables1
 
-> **Status.** The `idempotency` capability this document names is ruled and its
-> text is still to land in Write.
-
 | Item | Selected value |
 | --- | --- |
 | Capability identity | `https://github.com/gastownhall/bdp/capabilities/callables` |
 | Exact supported version | JSON member name `"1"` |
-| Version-1 detail | Closed object `{"directory": ABSOLUTE_HTTP_URL}` (`callablesCapabilityV1`) |
+| Version-1 detail | Closed object `{"invoke": ABSOLUTE_HTTP_URL}`, with an optional `registry` member (`callablesCapabilityV1`) |
 | Base contract | BDP `"0.1"`; Core required; Write required for a CallableBatch |
 | Media | `application/vnd.bdp.v0.1+json` for bodies and successful results; `application/problem+json` for problems |
 | Feature schema | `https://github.com/gastownhall/bdp/schemas/callables-v1.schema.json` |
 
-A Scope advertises the capability under Core's `capabilities` map. The
-version-1 detail carries the one navigation member, `directory`, an absolute
-HTTP(S) URL served for this Scope. There is no `callables` profile literal, no
-new required discovery member and no change to Write's closed operation
-directory. A Core-only Scope MAY advertise Callables1 and list CallableQuery
-entries. A CallableBatch entry requires Write, whose allocation, non-reuse and
-attribution rules govern its effects; under a Scope that also advertises Write's
-optional `idempotency` capability, the `Idempotency-Key` is required and replayed
-as §4 states. (**preview**)
+A Scope advertises the capability under Core's `capabilities` map. `invoke` is
+the absolute HTTP(S) base URL under which this Scope's Callables are invoked
+(§4). `registry`, when present, is the URL of the Scope's registry Bead (§3).
+There is no `callables` profile literal, no new required discovery member and no
+change to Write's closed operation directory. A Core-only Scope MAY advertise
+Callables1 and offer CallableQuery operations. A CallableBatch requires Write,
+whose allocation, non-reuse and attribution rules govern its effects; under a
+Scope that also advertises Write's optional `idempotency` capability, the
+`Idempotency-Key` is required and replayed as §4 states. (**preview**)
 
 Advertisement states support, not authorization. A client that does not
-understand the capability ignores it and keeps using base behavior. The
-directory, mount and definition addresses are protocol navigation reserved from
-Resource and alias allocation under Core's navigation-collision rule; the
-conventional spellings `<scope>/bdp/callables` for the directory and
-`<scope>/bdp/callables/NAME` for a mount are recommended and not required.
-(**preview**)
+understand the capability ignores it and keeps using base behavior. The `invoke`
+base and everything beneath it are protocol navigation, reserved from Resource
+and alias allocation under Core's navigation-collision rule; the conventional
+spelling is `<scope>/bdp/callables`, recommended and not required. (**preview**)
 
-## 2. Definitions
+## 2. Declarations
 
-### 2.1 Identities
+### 2.1 Identities and names
 
 Three Bead Types are published under `https://github.com/gastownhall/bdp/types/callable/`:
 
@@ -100,105 +96,109 @@ Three Bead Types are published under `https://github.com/gastownhall/bdp/types/c
 | `callable-query` | `callable-query-preview-1` | `type-system/bead-type` | `callable` at `callable-preview-1` | absent | [`descriptors/callable-query.md`](descriptors/callable-query.md) |
 | `callable-batch` | `callable-batch-preview-1` | `type-system/bead-type` | `callable` at `callable-preview-1` | absent | [`descriptors/callable-batch.md`](descriptors/callable-batch.md) |
 
-A definition is an ordinary Bead affiliated with `callable-query` or
-`callable-batch`, readable by point read and present in the Bead inventory with
-`type` selection. Its properties object is the definition. The three Types are
-carried under Core alone, as [Issue and Dependency Types](../../types/issue/issue.md) §1
-describes for that package; a Scope advertising Types1 serves them as definition
-Beads unchanged.
+A declaration is an ordinary Bead affiliated with `callable-query` or
+`callable-batch`. Its properties object is the declaration. It is readable by
+point read and appears in the Bead inventory like any other Bead, so a client
+that wants only other records selects by `type` or `conformsTo`. The three Types
+are a fixed catalog: a provider may enforce them as native Scope policy under
+Core alone, and a Scope advertising Types1 serves them as definition Beads
+unchanged.
+
+**A Callable's name is its full local Resource ID**, its canonical URL relative
+to the Scope: `reserve-room`, or `rooms/reserve`. There is no separate name
+member. The name is unique because the identity is, and it follows the
+identity's rules: it never changes, and it is not reused after the Bead is
+deleted, so renaming an operation means declaring a new Bead. A declaration
+intended for people or generators is created with a chosen `id`; an allocated
+opaque identity gives an equally valid and meaningless name. Aliases name nothing
+here: an alias is a repointable locator, not part of the record. (**preview**)
 
 ### 2.2 callable — Bead Type
 
-**Meaning and use.** The common contract of a named operation: help, declared
-parameters, the result schema and an optional CLI projection. Abstract: a
-definition affiliates with one of the two concrete refinements, never with
-`callable` itself. A Callable's operation identity is independent of its CLI
-spelling and of the mount that invokes it.
+**Meaning and use.** The common contract of a named operation: help, parameters,
+the result and error schemas, and any CLI additions. Abstract: a declaration
+affiliates with one of the two concrete refinements, never with `callable`
+itself.
 
 **Conforms to.** None within this profile; it is the parent of `callable-query`
 and `callable-batch`.
 
-**Properties** (`callable-properties.md`, root). The root is open so that the
-refinements add their implementation member.
+**Properties** (`callable-properties.md`, root). The root is open. A `body` is
+rejected in this edition; a later edition defines it. The binding from a name to
+an implementation is the provider's own and is no part of a declaration.
 
 Other fields: allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "cliMapping" | cliMapping | no | callable | "Declarative CLI projection; it chooses no command route and grants nothing." |
+| "cliMapping" | cliMapping | no | callable | "Additions to the CLI form derived from parameters (§10)." |
 | "description" | text | yes | callable | "Standard help for the operation; an empty string is admitted and differs from absence." |
-| "parameters" | array of parameter | yes | callable | "Declared named arguments; an empty array is admitted; names are distinct within one definition." |
-| "result" | valueSchema | no | callable | "Schema of the invocation result; absent means any JSON value. (preview: new in this edition)" |
+| "error" | valueSchema | no | callable | "Schema of the value in a callable-error Problem's error member; absent means any JSON value." |
+| "idempotent" | boolean | no | callable | "True when repeating an invocation with the same arguments has no further effect, even if the result differs; false when absent." |
+| "parameters" | array of parameter | yes | callable | "Declared named arguments; an empty array is admitted; names are distinct within one declaration." |
+| "result" | valueSchema | no | callable | "Schema of the invocation result; absent means any JSON value." |
+| "title" | text | no | callable | "Short human-readable name; the name itself is the local Resource ID." |
 
 **Owned outgoing Link Types.** None.
 
 ### 2.3 callable-query and callable-batch — Bead Types
 
-**Meaning and use.** `callable-query` is a read-only operation: its
-implementation observes and does not mutate, and invocation changes no Resource,
-alias or retained state. `callable-batch` is a mutating operation: its
-implementation commits its effects as one atomic outcome, with Write's
-allocation, non-reuse and attribution rules, and with the retry semantics the
-definition states (§4).
+**Meaning and use.** `callable-query` declares a read-only operation: invoking it
+changes no Resource, alias or retained state. `callable-batch` declares a
+mutating operation, with Write's allocation, non-reuse and attribution rules for
+its effects. Nothing else differs between them in this edition; the distinction
+decides which invocation members and fields apply (§4).
 
 **Conforms to.** `callable`, through one exact Refines declaration each.
-Concrete: `abstract` is absent.
-
-**Properties** (`callable-extern-properties.md`, root), conjoined with the
-`callable` properties on the same object under Types' refinement rule. A stored
-`body` is refused in preview-1: the body form, a selected Query AST or a literal
-Batch request, and the body-XOR-extern rule return in a later edition.
-(**preview**)
-
-Other fields: allowed
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "extern" | externBinding | yes | callable-query, callable-batch | "The implementation this definition invokes." |
+Concrete: `abstract` is absent. Neither adds properties.
 
 **Owned outgoing Link Types.** None.
 
 ### 2.4 Value shapes
 
 These are property value shapes, not Bead Types; each is a named definition of
-the sibling schema documents.
+the sibling schema document.
 
-**parameter** — one declared argument. Names are distinct within one
-definition; a required parameter carries no default.
+**parameter** — one declared argument. Names are distinct within one declaration;
+a required parameter carries no default.
 
 Other fields: not allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "default" | any | no | parameter | "The value substituted for an omitted argument; it must satisfy schema. Omission of this member is distinguishable from an explicit null default." |
-| "description" | text | no | parameter | "Parameter help, reused by CLI mappings." |
+| "default" | any | no | parameter | "The value supplied for an omitted argument; it must satisfy schema. Omission of this member is distinguishable from an explicit null default." |
+| "description" | text | no | parameter | "Parameter help, reused by the CLI and OpenAPI projections." |
 | "name" | text | yes | parameter | "Nonempty exact argument name." |
 | "required" | boolean | no | parameter | "Whether the argument must be supplied; false when absent." |
-| "schema" | valueSchema | yes | parameter | "The argument's value schema; the selected parameter decision of October 30, 2026." |
+| "schema" | valueSchema | yes | parameter | "The argument's value schema." |
 
 **valueSchema** — an embedded JSON Schema Draft 2020-12 value, an object or a
-boolean. It validates one argument or one result; it establishes no Resource
-kind, Type membership or authorization.
+boolean. It validates one argument, one result or one error value; it establishes
+no Resource kind, Type membership or authorization. **Every `$ref` in a
+valueSchema resolves inside the document that carries it**, so a client holding a
+declaration needs nothing else to read it: in a declaration Bead, each valueSchema
+is its own root and shared parts sit in its own `$defs`, and a `$ref` naming
+another document is invalid. Authoring tools may keep shared schemas and copy
+them in when they generate a declaration. (**preview**)
 
-**cliMapping** — declarative flag and positional projection for clients. It
-chooses no command route and grants nothing; duplicate flags or positions refuse
-registration.
+**cliMapping** — additions to the CLI form derived from parameters (§10). It
+chooses no command route and grants nothing.
 
 Other fields: not allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "flags" | array of flagMapping | no | cliMapping | "Flag spellings mapped onto parameters." |
+| "flags" | array of flagMapping | no | cliMapping | "Additional flag spellings for parameters." |
 | "positionals" | array of positionalMapping | no | cliMapping | "Positions mapped onto parameters." |
 
-**flagMapping** — maps one or more CLI flag spellings onto a declared parameter.
+**flagMapping** — adds one or more CLI flag spellings for a declared parameter.
 
 Other fields: not allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "names" | array of text | yes | flagMapping | "Distinct nonempty flag spellings, such as --limit and -l; at least one." |
-| "parameter" | text | yes | flagMapping | "The nonempty name of a declared parameter of the same definition." |
+| "names" | array of text | yes | flagMapping | "Distinct nonempty flag spellings, such as -l; at least one." |
+| "parameter" | text | yes | flagMapping | "The nonempty name of a declared parameter of the same declaration." |
 
 **positionalMapping** — maps one zero-based CLI position onto a declared
 parameter.
@@ -207,356 +207,377 @@ Other fields: not allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "parameter" | text | yes | positionalMapping | "The nonempty name of a declared parameter of the same definition." |
+| "parameter" | text | yes | positionalMapping | "The nonempty name of a declared parameter of the same declaration." |
 | "position" | integer | yes | positionalMapping | "Zero-based argument position; at least 0." |
 
-**externBinding** — the service-side implementation a definition binds to. The
-binding is an opaque name in the provider's registry; it freezes no behavior by
-itself (§7).
+### 2.5 Valid declarations and a worked example
 
-Other fields: not allowed
+A declaration is invalid when it has duplicate parameter names, a flag or
+positional mapping naming an undeclared parameter, duplicate flag spellings
+(derived or added), duplicate positions, a `default` that fails its `schema`,
+`required` together with `default`, or a `$ref` that does not resolve inside its
+document. These are semantic checks the structural schema cannot express. A
+provider does not serve an invalid declaration.
 
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "binding" | text | yes | externBinding | "Nonempty name in the provider's implementation registry." |
-| "version" | text | no | externBinding | "Nonempty informational label distinguishing implementation editions; no ordering or compatibility meaning." |
-
-### 2.5 Registration admission and a worked example
-
-Registration-time admission refuses duplicate parameter names, a flag or
-positional mapping naming an undeclared parameter, duplicate flag names across
-mappings, duplicate positions, a `default` that fails its `schema`, and
-`required` together with `default`. These are semantic checks the structural
-schema cannot express.
-
-Informative: a complete definition Bead, the `claimIssue` of the
-[Issue and Dependency Callables](../../types/issue/callables.md), as a point read
-of its canonical URL returns it. The record is an ordinary Bead; the definition is
-its properties object; `parameters` derive from that document's
-`claimIssueArguments` schema one parameter per property, and `result` names its
-`claimResult` schema.
+Informative: a complete declaration Bead, as a point read of its canonical URL
+returns it. The record is an ordinary Bead and the declaration is its properties
+object. The `reason` member inside `error` is this declaration's own choice;
+Callables gives it no meaning.
 
 ```json
 {
-  "id": "https://beads.example/acme/callables/claim-issue",
+  "id": "https://beads.example/acme/reserve-room",
   "type": "https://github.com/gastownhall/bdp/types/callable/callable-batch",
   "revision": "r1",
   "properties": {
-    "description": "Claim an Issue for the invocation's actor; a re-claim by the holder is idempotent.",
+    "title": "Reserve a room",
+    "description": "Reserve a room for one day. Reserving a room you already hold changes nothing.",
+    "idempotent": true,
     "parameters": [
       {
-        "name": "issue",
+        "name": "room",
         "schema": {"type": "string", "minLength": 1},
         "required": true,
-        "description": "The Issue the operation acts on, as a Scope-relative path or absolute URL."
+        "description": "The room to reserve."
+      },
+      {
+        "name": "day",
+        "schema": {"type": "string", "format": "date"},
+        "required": true,
+        "description": "The day to reserve it for."
       }
     ],
-    "result": {"$ref": "https://github.com/gastownhall/bdp/schemas/issue-callables-preview-1.schema.json#/$defs/claimResult"},
-    "extern": {"binding": "issueops.Claimer"}
+    "result": {
+      "type": "object",
+      "properties": {
+        "reservation": {"type": "string"},
+        "already_held": {"type": "boolean"}
+      },
+      "required": ["reservation", "already_held"]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "reason": {"const": "room-taken"},
+            "holder": {"type": "string"}
+          },
+          "required": ["reason", "holder"]
+        },
+        {
+          "type": "object",
+          "properties": {"reason": {"const": "room-closed"}},
+          "required": ["reason"]
+        }
+      ]
+    },
+    "cliMapping": {"positionals": [{"position": 0, "parameter": "room"}]}
   },
   "metadata": {}
 }
 ```
 
-The directory entry that makes it callable, the invocation and the result then
-read, in order:
+The invocation, a success and a `callable-error` then read, in order:
 
 ```json
-{"claimIssue": {"definition": {"uri": "https://beads.example/acme/callables/claim-issue", "revision": "r1"}, "invoke": "https://beads.example/acme/bdp/callables/claimIssue"}}
+{"arguments": {"room": "cedar", "day": "2026-11-20"}, "revisionProvenance": {"actor": {"id": "sam", "basis": "writer-supplied"}}}
 ```
 
 ```json
-{"arguments": {"issue": "bd-a1b2"}, "revisionProvenance": {"actor": {"id": "sam", "basis": "writer-supplied"}}}
+{"callable": {"uri": "https://beads.example/acme/reserve-room", "revision": "r1"}, "changed": true, "result": {"reservation": "res-81", "already_held": false}}
 ```
 
 ```json
-{"callable": {"uri": "https://beads.example/acme/callables/claim-issue", "revision": "r1"}, "changed": true, "result": {"issue": {"bead": {"id": "https://beads.example/acme/bd-a1b2", "type": "https://github.com/gastownhall/bdp/types/issue/task", "revision": "r9", "properties": {"title": "Specify BDP mutation", "status": "in_progress", "priority": 2, "assignee": "sam"}, "metadata": {}}, "observations": {"lease_expires_at": "2026-11-05T21:10:00Z"}, "dependency_count": 0, "dependent_count": 1, "comment_count": 0}, "already_claimed": false}}
+{"type": "https://github.com/gastownhall/bdp/problems/conflict", "status": 409, "code": "callable-error", "retry": "after-state-change", "error": {"reason": "room-taken", "holder": "kim"}}
 ```
 
-## 3. The directory
+## 3. Registration
 
-In plain terms, the directory is the list of what this Scope lets a client
-call. A client does not guess where to send an invocation, any more than it
-guesses the URL of Write's `createBead`: it reads the capability detail,
-follows `directory`, and finds each callable's name beside the exact definition
-revision it will execute and the URL that invokes it. Write's operation
-directory does the same for the mutation verbs; this is the callables'
-counterpart, and it is the only place a name becomes callable.
+Registration answers one question: which of this Scope's Callables are reachable?
+A declaration existing in the Scope does not make it reachable, because creating
+a Bead must not create an endpoint. **Registration is optional in this edition.**
 
-`GET` of the advertised `directory` returns the closed `callableDirectory`
-object, for example:
+A Scope that registers advertises `registry`, the URL of a real **registry Bead**,
+conventionally at `sys/callables`. The registry Bead has one typed outgoing Link
+to each reachable declaration:
 
-```json
-{
-  "callables": {
-    "listReadyWork": {
-      "definition": {"uri": "https://beads.example/acme/callables/list-ready-work", "revision": "r3"},
-      "invoke": "https://beads.example/acme/bdp/callables/listReadyWork"
-    }
-  }
-}
+```text
+sys/callables [registry Bead]
+    --exposes [Link, own identity and revision]-->
+    reserve-room [declaration Bead]
 ```
 
-| Member | Meaning |
-| --- | --- |
-| `callables` | Object mapping each invocable name to its entry; an empty object means nothing is invocable |
-| `callables[NAME].definition` | Pinned Reference to the exact definition revision the name is bound to |
-| `callables[NAME].invoke` | Absolute HTTP(S) mount URL that invokes it |
+A live Link is the whole fact: its presence means the Callable is reachable, and
+its absence means it is not. There is no boolean on the declaration and no hidden
+table. A client lists what is reachable with Core's ordinary read,
+`GET <registry>?view=links&direction=outbound`, and follows each `target` to its
+declaration. On a Scope that advertises `registry`, invoking a Callable with no
+live Link is `callable-not-found`. A Link's target is unpinned, so the
+declaration's current revision is what is exposed. A Link promises neither that
+an implementation is currently available (`callable-unavailable`, §9) nor that
+the caller is authorized (§8).
 
-`NAME` is one nonempty safe segment, compared exactly, unique within the
-directory. The directory is the authority for what is invocable: a definition
-Bead's presence in the Scope, a registered Type and an available implementation
-are separate facts, and only a directory entry makes the operation callable. A
-name bound to a definition revision stays bound to it until the provider changes
-the directory; changing the directory never reinterprets a retained invocation.
+On a Scope that does not advertise `registry`, which Callables are reachable is
+the provider's own, and a client learns them some other way, such as a published
+contract.
 
-The directory allows `GET` and `HEAD` and answers other methods with a bodyless
-405 and `Allow: GET, HEAD`. It carries `Cache-Control: private, no-store` in
-preview-1. (**preview**)
+The registry's Types, the Link Type's final name, the discovery of `sys/` and how
+a package's Callables join the registry are settled with packages, because the
+installed-package registry is the same pattern and the two are designed together
+(§12). (**preview**)
 
 ## 4. Invocation
 
-An invocation is `POST` to a mount with the closed `callableInvocation` body,
-for example:
+An invocation is `POST` to the Callable's **mount**: the advertised `invoke` base,
+a `/`, and the Callable's name, each segment encoded as in its canonical URL.
+`reserve-room` under `https://beads.example/acme/bdp/callables` is
+`https://beads.example/acme/bdp/callables/reserve-room`. A mount admits `POST`
+only and answers other methods with a bodyless 405 and `Allow: POST`. `GET` of a
+declaration's canonical URL is always the ordinary record read and never an
+invocation.
 
-```json
-{
-  "arguments": {"assignee": "sam", "limit": 10},
-  "definition": {"uri": "https://beads.example/acme/callables/list-ready-work", "revision": "r3"}
-}
-```
+The body is the closed `callableInvocation` object:
 
 | Member | Required | Meaning |
 | --- | --- | --- |
-| `arguments` | yes | Object keyed by parameter name; `{}` when the definition declares no parameters |
-| `definition` | no | Pinned Reference to the definition revision the client parsed; a mismatch with the directory's binding is refused as `callable-revision-mismatch` |
-| `revisionProvenance` | no, CallableBatch only | Write's attribution input, carried onto every revision the batch commits; refused on a CallableQuery |
+| `arguments` | yes | Object keyed by parameter name; `{}` when the declaration has no parameters |
+| `definition` | no | Pinned Reference to the declaration revision the client parsed; a mismatch with the current revision is rejected as `callable-revision-mismatch` |
+| `revisionProvenance` | no, CallableBatch only | Write's attribution input, carried onto every revision the batch commits; rejected on a CallableQuery |
 
 The mount supplies the operation; `operation`, `name` and a body-level key are
 not invocation members. Unknown members, duplicate JSON members and invalid
-strings are refused as `malformed-request`. `Content-Type` declares the base
-media type; a missing or generic `application/json` body is refused with 415
-`unsupported-media-type` before interpretation, as Write requires for mutations
-and as this profile requires for both kinds. When the Scope advertises `idempotency`, a CallableBatch invocation carries exactly one `Idempotency-Key` HTTP
-field under Write's idempotency rules and a replay returns the original result.
-When it does not, the field is admitted and not retained: a repeated invocation
-follows the retry semantics the definition states (a re-claim by the holder is
-idempotent, a second removal is `removed: false`, a re-close reports
-`already_closed`), and a client that needs at-most-once execution uses a
-revision guard, supplies identities, or chooses a Scope with `idempotency`.
-A CallableQuery invocation carries no key and is refused as `malformed-request`
-if it does. (**preview**)
+strings are rejected as `malformed-request`. `Content-Type` declares the base
+media type; a missing or generic `application/json` body is rejected with 415
+`unsupported-media-type` before interpretation, for both kinds.
 
-A CallableQuery mount additionally admits `GET` with one query member,
-`arguments`, holding the percent-encoded JSON argument object, when the provider
-chooses to support it; a provider that does not answers `GET` with a bodyless
-405 and `Allow: POST`. A CallableBatch mount admits `POST` only. `GET` of a
-definition Bead's canonical URL is always the ordinary record read and never an
-invocation; the query-string invocation mode at the canonical URL selected in the
-experimental draft is deferred, because mounts make it unnecessary for this
-edition. (**preview**)
+When the Scope advertises `idempotency`, a CallableBatch invocation carries
+exactly one `Idempotency-Key` HTTP field under Write's idempotency rules and a
+replay returns the original result. When it does not, the field is admitted and
+not retained: repeating an invocation is safe exactly when the declaration says
+`idempotent`, and otherwise a client that needs at-most-once execution uses a
+revision guard, supplies identities, or chooses a Scope with `idempotency`. A
+CallableQuery invocation carries no key and is rejected as `malformed-request` if
+it does. (**preview**)
 
-Success is HTTP 200 with the `callableResult` body (§6), `Cache-Control:
-private, no-store`, and no `ETag` or `Location`. Failure is the applicable
-Problem at its status (§9).
+Success is HTTP 200 with the `callableResult` body (§6), `Cache-Control: private,
+no-store`, and no `ETag` or `Location`. Failure is the applicable Problem at its
+status (§9).
 
-## 5. Argument admission
+## 5. Checking arguments
 
-The provider admits `arguments` against the bound definition revision before
-execution:
+The provider checks `arguments` against the declaration before running the
+operation:
 
-- A member whose name is no declared parameter is refused.
+- A member whose name is no declared parameter is rejected.
 - A declared parameter that is `required` and neither supplied nor defaulted is
-  refused.
+  rejected.
 - An omitted parameter with a `default` is supplied that value; an omitted
-  parameter without one is absent from the executed arguments, and the
-  implementation sees absence, never a fabricated `null`.
+  parameter without one is absent, and the implementation sees absence, never a
+  fabricated `null`.
 - `null` is a supplied value and is validated like any other.
 - Every supplied value is validated against the parameter's `schema`; failure is
-  refused.
-- A value whose schema says it is a URI or Reference is validated as a value
-  only; admission acquires nothing and establishes neither Resource kind nor
-  Type membership. Resolution, if any, is the implementation's and follows the
-  ordinary authorization and non-disclosure rules.
+  rejected.
+- A value whose schema says it is a URI or Reference is validated as a value only;
+  checking it acquires nothing and establishes neither Resource kind nor Type
+  membership. Resolution, if any, is the implementation's and follows the ordinary
+  authorization and non-disclosure rules.
 
-Every refusal above is `validation-failed` with a diagnostic naming the
-parameter. Admission uses Core's JSON value model: exact decimal numbers, no
+Every rejection above is `validation-failed` with a diagnostic naming the
+parameter. Checking uses Core's JSON value model: exact decimal numbers, no
 duplicate names, Unicode scalar values.
 
 ## 6. Execution and results
 
-A CallableQuery executes within one read context under the request's
-Authorization View and returns its result. A CallableBatch executes under
-Write's atomic owner: all of its effects commit or none, allocation and
-non-reuse follow Write, and the retained key state records the outcome where
-`idempotency` is advertised.
+A CallableQuery runs under the request's Authorization View and returns its
+result. A CallableBatch runs under Write's allocation, non-reuse and attribution
+rules, and the retained key state records the outcome where `idempotency` is
+advertised.
+
+**This edition does not promise atomic execution or result validation.** A
+provider MAY commit a batch's effects as one atomic outcome and MAY validate a
+result against its schema before returning it, but it is not required to, and a
+client cannot yet discover whether it does (§12). So a Problem from a CallableBatch
+does not by itself establish that nothing committed. (**preview**)
 
 Success returns the closed `callableResult`, for example:
 
 ```json
 {
-  "callable": {"uri": "https://beads.example/acme/callables/list-ready-work", "revision": "r3"},
-  "result": {"items": [], "has_more": false}
+  "callable": {"uri": "https://beads.example/acme/reserve-room", "revision": "r1"},
+  "changed": true,
+  "result": {"reservation": "res-81", "already_held": false}
 }
 ```
 
 | Member | Meaning |
 | --- | --- |
-| `callable` | Pinned Reference to the exact definition revision executed |
-| `result` | Any JSON value, valid against the definition's `result` schema when one is declared |
+| `callable` | Pinned Reference to the exact declaration revision that ran |
+| `result` | Any JSON value; the declaration's `result` schema, when there is one, says what to expect |
 | `changed` | CallableBatch only, required: `true` when the batch committed any durable effect, else `false`; it promises nothing about revisions, and an implementation may commit a durable effect that mints none |
 
-The provider validates `result` against the declared schema before returning
-it. A CallableBatch whose implementation produced a result that fails the schema
-or exceeds the advertised representation bound is rolled back and refused, as
-`validation-failed` or `limit-exceeded`; the profile never commits and then
-truncates or reports an unknown success. (**preview**) Under `idempotency`, a replay of a CallableBatch key returns the original `callableResult`
-under Write's rules, without re-executing and without re-resolving defaults,
-definitions or implementations.
+Under `idempotency`, a replay of a CallableBatch key returns the original
+`callableResult` under Write's rules, without running again and without
+re-resolving defaults, declarations or implementations.
 
 Resource records inside `result` are ordinary records when the implementation
 chooses to return them; nothing in this profile makes a result a collection,
-grants a cursor or issues a revision. A query that pages does so through its
-own declared parameters and result shape.
+grants a cursor or issues a revision. A query that pages does so through its own
+declared parameters and result shape.
 
-## 7. Externs and definition closure
+## 7. What a declaration promises
 
-The provider promises, for each directory entry:
+A declaration states a contract and the provider stands behind it:
 
-- the bound definition revision is retained and served for as long as the entry
-  exists, and the `callable` member of every result names it;
-- `extern.binding` resolves in the provider's registry to one implementation
-  whose input is the admitted arguments of §5 and whose output satisfies the
-  declared `result`; the registry is the provider's own and is not a Bead;
-- an entry whose binding does not resolve is refused as `binding-unavailable`,
-  never served as a no-op, a stale success or an unknown Bead;
-- the implementation of a CallableQuery observes and does not mutate; the
-  implementation of a CallableBatch mutates only within the request's atomic
-  outcome.
+- `result` and `error` describe what the operation returns; absent, they promise
+  only some JSON value.
+- `idempotent`, when true, is a promise a client may rely on when deciding to
+  retry.
+- The implementation of a CallableQuery observes and does not mutate.
+- A reachable Callable with no working implementation answers
+  `callable-unavailable`, never a no-op, a stale success or an unknown Bead.
 
-Preview-1 pins the definition and leaves implementation identity to the
-binding name and the informational `extern.version`. A client that cached a
-definition and its `cliMapping` guards its invocation with `definition`; on
-`callable-revision-mismatch` it re-reads the directory and the definition. A
-retained successful key replays its original result even after the definition or
-the implementation changed. The experimental draft's remaining closure
-questions, in particular pinning schema resources and implementation editions
-inside the result, are deferred (§12).
+How a name finds its implementation is the provider's own. That binding is not a
+Bead, is not named in a declaration and is no part of this protocol.
+
+A client that cached a declaration and its `cliMapping` guards its invocation with
+`definition`; on `callable-revision-mismatch` it reads the declaration again. A
+retained successful key replays its original result even after the declaration or
+the implementation changed.
 
 ## 8. Authorization
 
 A CallableQuery requires read authorization for the Scope under Core; a
 CallableBatch requires write authorization under Write. An implementation MAY
-require more and refuses with `forbidden`. A directory entry, a readable
-definition and a CLI projection grant nothing. Non-disclosure follows Core: an
-unauthorized caller receives the same `callable-not-found` for an entry it may
-not see as for a name that does not exist. (**preview**)
+require more and answers `forbidden`. A registry Link, a readable declaration and
+a CLI projection grant nothing. Non-disclosure follows Core: an unauthorized
+caller receives the same `callable-not-found` for a Callable it may not see as for
+a name that does not exist. (**preview**)
 
 ## 9. Problems
 
-Callables uses Core's and Write's applicable codes, families, non-disclosure and
-retry meanings, with these additions. A family suffix means
+Every failure of an invocation is an HTTP error status with a Problem body; a 200
+always means the operation succeeded. A client tells them apart by `code`, which
+is BDP's closed list. Callables uses Core's and Write's applicable codes, families,
+non-disclosure and retry meanings, with these additions. A family suffix means
 `https://github.com/gastownhall/bdp/problems/SUFFIX`.
 
 | Code | Family suffix | Status | Retry | Condition |
 | --- | --- | --- | --- | --- |
-| `callable-not-found` | `not-found` | 404 | `after-state-change` | No visible directory entry for the mount |
-| `callable-revision-mismatch` | `conflict` | 409 | `after-state-change` | The invocation's `definition` guard does not match the entry's binding |
-| `binding-unavailable` | `unavailable` | 503 | `after-state-change` | The entry's `extern.binding` resolves to no implementation |
-| `callable-refused` | `conflict` | 409 | `after-state-change` | The implementation refused for a domain reason that maps to no Core or Write code; the required `reason` member carries the implementation's token |
+| `callable-not-found` | `not-found` | 404 | `after-state-change` | No visible, reachable Callable at the mount |
+| `callable-revision-mismatch` | `conflict` | 409 | `after-state-change` | The invocation's `definition` guard does not match the declaration's current revision |
+| `callable-unavailable` | `unavailable` | 503 | `after-state-change` | The Callable is reachable but has no working implementation |
+| `callable-error` | `conflict` | 409 | `after-state-change` | The operation ran and returned an error of its own; the required `error` member carries its value |
 
-A Problem answered by the directory or a mount is a Core or Write Problem, or
-one carrying a code above with `type`, `code` and `retry` required and, for
-`callable-refused`, a nonempty `reason`; the shapes are `callableProblemMembers`
-and `callableProblem` in §13.
+**`callable-error` means the operation was successfully dispatched and returned
+normally, reporting an error of its own, and was not terminated from outside or by
+a system error.** It is the `Err` of a `Result<T, E>`, where `result` is the `T`.
+The `error` member is one JSON value, valid against the declaration's `error`
+schema when there is one, and Callables gives its contents no meaning: a package
+chooses its own shape, typically a union discriminated by a member of its choosing.
+The status is always 409. (**preview**)
+
+A failure that is not the operation's own answer is not `callable-error`. An
+implementation that crashes, is terminated or hits a system failure answers a
+standard 5xx Problem, such as `temporarily-unavailable`, with no `error` member.
+Where an operation's failure meets the condition of a Core or Write code, it uses
+that code rather than `callable-error`: `revision-mismatch` for a stale guard,
+`resource-not-found` for a Resource named by an argument that it could not resolve.
 
 Reused as they stand: `malformed-request` (carrier syntax, a key on a query),
-`invalid-parameter` (`GET` query members), `unsupported-media-type`,
-`validation-failed` (argument admission, result validation),
-`unauthenticated`, `forbidden`, `resource-not-found` (a Resource named by an
-argument that the implementation could not resolve), `request-too-large`,
-`limit-exceeded`, `rate-limited`, `temporarily-unavailable`, and Write's
-`idempotency-conflict`, `idempotency-in-progress`, `idempotency-expired`,
-`revision-mismatch`, `identity-taken` and `incident-links-exist` for the effects
-a CallableBatch commits.
-
-An implementation maps each of its outcomes to exactly one code under this
-rule: a Core or Write code whose condition it meets, else `callable-refused`
-with `reason`. `callable-refused` MAY carry RFC 9457 extension members the
-implementation defines; `reason` is required and is a nonempty token compared
-exactly. `binding-unavailable` is already a member of Write's problem-code
-enumeration and keeps its meaning here. (**preview**: the `callable-refused`
-carrier is the one place a native tracker's refusal vocabulary crosses the wire;
-a later edition may select families for the common ones.)
+`invalid-parameter`, `unsupported-media-type`, `validation-failed` (checking
+arguments), `unauthenticated`, `forbidden`, `resource-not-found`,
+`request-too-large`, `limit-exceeded`, `rate-limited`, `temporarily-unavailable`,
+and Write's `idempotency-conflict`, `idempotency-in-progress`,
+`idempotency-expired`, `revision-mismatch`, `identity-taken` and
+`incident-links-exist` for the effects a CallableBatch commits.
 
 ## 10. CLI correspondence
 
-The canonical client invokes a callable with the selected direct form, client
-options before the verb and the callable's own arguments after it:
+The canonical client invokes a Callable by its name, with client options before
+the verb and the Callable's own arguments after it:
 
 ```text
 bdp [client options] call NAME [callable arguments]
 ```
 
-The client reads the directory, follows the entry's `definition`, and projects
-`cliMapping` flags and positionals onto `arguments`, preserving omission,
-`null`, defaults and the declared value schemas. A generic `--arguments JSON`
-input supplies the whole object when no mapping fits; `--help` after `NAME`
-prints `description` and the parameters without invoking. A CallableBatch
-invocation mints the `Idempotency-Key` as the client does for Write's
-operations when the Scope advertises `idempotency`. The client never infers
-an invocation from a Bead URL and never invokes a name absent from the
-directory. The CLI design document gains a `call` section and a mismatch row,
-`CLI-09`, open until that section lands.
+Flags derive from the declaration, so most declarations need no CLI section:
+
+| Declared | CLI form |
+| --- | --- |
+| Any parameter | `--kebab-name`, from the parameter name split at `_`, `-` and lower-to-upper boundaries, lowercased and joined with `-` |
+| `schema` of type `boolean` | `--flag` and `--no-flag` |
+| `schema` of type `array` | The flag repeats, one item each |
+| Any other non-string `schema` | The flag's value is parsed as JSON |
+
+`cliMapping` only adds to this: `flags` adds spellings such as `-l`, and
+`positionals` lets a position stand for a flag. A generic `--arguments JSON` input
+supplies the whole object, and explicit flags override its members. `--help` after
+`NAME` prints `title`, `description`, the parameters and any declared errors
+without invoking.
+
+The client preserves omission, `null` and defaults. A CallableBatch invocation
+mints the `Idempotency-Key` as the client does for Write's operations when the
+Scope advertises `idempotency`. The client never infers an invocation from a Bead
+URL. The CLI design document gains a `call` section and closes its mismatch row,
+`CLI-09`, when that section lands.
+
+```sh
+bdp call reserve-room --room cedar --day 2026-11-20
+bdp call reserve-room cedar --day 2026-11-20
+```
 
 ## 11. Conformance rows for preview-1
 
 | Row | Expectation |
 | --- | --- |
-| CB-1 | Discovery advertises the capability at version `"1"` with a `directory` URL that serves `callableDirectory` |
-| CB-2 | Each entry's `definition` resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.4 |
-| CB-3 | `POST` to an entry's mount with valid `arguments` returns 200 and a `callableResult` whose `callable` equals the entry's `definition` |
-| CB-4 | An unknown argument member is refused as `validation-failed` naming it |
-| CB-5 | A missing required parameter is refused as `validation-failed`; an omitted defaulted parameter is executed with its default |
-| CB-6 | `POST` to a mount with no directory entry is `callable-not-found` |
+| CB-1 | Discovery advertises the capability at version `"1"` with an `invoke` URL; a `registry` member, when present, names a readable Bead |
+| CB-2 | Each reachable name resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.5 |
+| CB-3 | `POST` to a mount with valid `arguments` returns 200 and a `callableResult` whose `callable` names the declaration's current revision |
+| CB-4 | An unknown argument member is rejected as `validation-failed` naming it |
+| CB-5 | A missing required parameter is rejected as `validation-failed`; an omitted defaulted parameter runs with its default |
+| CB-6 | `POST` to a mount with no reachable Callable is `callable-not-found` |
 | CB-7 | A `definition` guard naming another revision is `callable-revision-mismatch` |
-| CB-8 | Under `idempotency`, a CallableBatch `POST` without `Idempotency-Key` is refused and a replay with the same key returns the original `callableResult` and commits nothing further; without it, a repeated invocation follows the definition's stated retry semantics |
+| CB-8 | Under `idempotency`, a CallableBatch `POST` without `Idempotency-Key` is rejected and a replay with the same key returns the original `callableResult`. Without it, repeating an invocation of a declaration marked `idempotent` has no further effect |
 | CB-9 | A CallableQuery invocation leaves every Resource revision in the Scope unchanged |
-| CB-10 | An entry whose binding is withdrawn by the provider answers `binding-unavailable` |
-| CB-11 | A CallableBatch result that fails the declared `result` schema is rolled back and refused |
-| CB-12 | `GET` of a definition's canonical URL returns the ordinary Bead record |
+| CB-10 | A reachable Callable with no working implementation answers `callable-unavailable` |
+| CB-11 | A `callable-error` is HTTP 409 with an `error` member, valid against the declaration's `error` schema when there is one |
+| CB-12 | `GET` of a declaration's canonical URL returns the ordinary Bead record |
+| CB-13 | On a Scope advertising `registry`, a declaration with no live Link from the registry Bead is `callable-not-found`, and creating that Link makes it reachable |
 
 ## 12. Deferred
 
-Not selected in preview-1, carried from the experimental draft:
+Not selected in preview-1:
 
-- Stored bodies: a CallableQuery implemented by a selected Query AST and a
-  CallableBatch implemented by a literal atomic-batch request, with the
-  body-XOR-extern rule and a versioned parameter-binding form (CALL-O1's
-  binding half).
-- The query-string invocation mode at a definition's canonical URL and its
-  control-key grammar.
+- Stored bodies: a readable `body`, such as a selected Query AST or a literal
+  atomic-batch request, which makes a declaration a definition, with a versioned
+  parameter-binding form (CALL-O1's binding half).
+- How an endpoint advertises what it does and does not support, including whether
+  a CallableBatch is atomic and whether results are validated. Donna's direction is
+  that these are optional and discoverable; the exercise follows this specification
+  work.
+- Registration details, settled together with packages: the registry's Types, the
+  Link Type's final name, the discovery and reservation of `sys/`, per-Callable
+  projection choices carried on the Link, and how a package's Callables join the
+  registry (`experimental/packs.md`, including installed command trees and
+  shortcuts).
+- How much of `cliMapping` survives. It is judged during the detailed design of the
+  first package, and a parameter annotation for positionals may be all that is
+  needed.
 - Result carriers beyond one JSON value: paged results, streamed results,
   collection-kind metadata.
-- Definition closure beyond the pinned revision: schema resources and
-  implementation editions witnessed in the result (CALL-O3's remainder).
-- Registration, mount lifecycle, catalog mutation and packaging
-  (`experimental/packs.md`), including installed command trees and shortcuts.
-- A family vocabulary for common domain refusals now carried by `callable-refused`.
 - A service that exposes CallableBatch commands without Write's raw generic verbs,
   a common pattern this edition does not yet allow. It is to be anticipated when
   the requirement that a CallableBatch needs Write is revisited.
 
 ## 13. Schemas
 
-The following markdown-json-schema/0.6 fragments, bundle `callables`, are the
-wire shapes the prose above reads from; `scripts/spec-schema-fragments.mjs`
-gains the `callables` bundle and extracts them into
-`specs/profiles/callables/callables-v1.schema.json`, the feature schema of §1,
-beside the Types feature schema. References into the common bundle use its
-full schema identity, as the Types feature schema does. The three Types'
-property schemas are the descriptor companions `callable-properties.md` and
-`callable-extern-properties.md`, not members of this bundle.
+The following markdown-json-schema/0.6 fragments, bundle `callables`, are the wire
+shapes the prose above reads from; `scripts/spec-schema-fragments.mjs` extracts them
+into `specs/profiles/callables/callables-v1.schema.json`, the feature schema of §1,
+beside the Types feature schema. References into the common bundle use its full
+schema identity, as the Types feature schema does. The Types' property schema is
+the descriptor companion `callable-properties.md`, not a member of this bundle.
 
 <!-- bdp-schema:start callablesCapabilityV1 bundle=callables -->
 ### Schema: "callablesCapabilityV1"
@@ -565,20 +586,21 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["directory"]
+Required order: ["invoke"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Version-1 detail of the Callables capability: the one navigation member a client follows to learn what is invocable." |
+| description | "Version-1 detail of the Callables capability: where this Scope's Callables are invoked, and its registry Bead when it registers them." |
 | type | "object" |
 
 #### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "directory" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | "Absolute HTTP(S) URL of the callable directory served for this Scope." |
+| "invoke" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | "Absolute HTTP(S) base URL; a Callable's mount is this base, a slash and its name." |
+| "registry" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | no | — | "URL of the Scope's registry Bead, when it registers its Callables." |
 <!-- bdp-schema:end callablesCapabilityV1 bundle=callables -->
 
 <!-- bdp-schema:start callablesDiscovery bundle=callables -->
@@ -620,67 +642,6 @@ Value: object
 ```
 <!-- bdp-schema:end callablesDiscovery bundle=callables -->
 
-<!-- bdp-schema:start callableDirectoryEntry bundle=callables -->
-### Schema: "callableDirectoryEntry"
-
-Value: object
-
-Other fields: not allowed
-
-Required order: ["definition","invoke"]
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| description | "One invocable name's binding: the exact definition revision it is bound to and the mount that invokes it." |
-| type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "definition" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | yes | — | "Pinned Reference to the exact definition revision the name is bound to." |
-| "invoke" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | "Absolute HTTP(S) mount URL that invokes the Callable." |
-<!-- bdp-schema:end callableDirectoryEntry bundle=callables -->
-
-<!-- bdp-schema:start callableDirectory bundle=callables -->
-### Schema: "callableDirectory"
-
-Value: object
-
-Other fields: not allowed
-
-Required order: ["callables"]
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| description | "The authority for what is invocable in a Scope: a closed map from invocable name to its binding. An empty map means nothing is invocable." |
-| type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "callables" | schema | yes | — | "Map from name, one nonempty safe segment compared exactly, to its directory entry." |
-
-#### Advanced
-
-```json-schema
-{
-  "properties": {
-    "callables": {
-      "type": "object",
-      "propertyNames": {"type": "string", "minLength": 1, "pattern": "^[^/]+$"},
-      "additionalProperties": {"$ref": "#/$defs/callableDirectoryEntry"}
-    }
-  }
-}
-```
-<!-- bdp-schema:end callableDirectory bundle=callables -->
-
 <!-- bdp-schema:start callableInvocation bundle=callables -->
 ### Schema: "callableInvocation"
 
@@ -701,9 +662,9 @@ Required order: ["arguments"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "arguments" | object | yes | — | "Object keyed by parameter name; an empty object when the definition declares no parameters." |
-| "definition" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | no | — | "The definition revision the client parsed; a mismatch with the directory's binding is callable-revision-mismatch." |
-| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; refused on a CallableQuery." |
+| "arguments" | object | yes | — | "Object keyed by parameter name; an empty object when the declaration has no parameters." |
+| "definition" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | no | — | "The declaration revision the client parsed; a mismatch with the current revision is callable-revision-mismatch." |
+| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; rejected on a CallableQuery." |
 <!-- bdp-schema:end callableInvocation bundle=callables -->
 
 <!-- bdp-schema:start callableResult bundle=callables -->
@@ -719,16 +680,16 @@ Required order: ["callable","result"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "The closed success body of an invocation: the exact definition revision executed, the result value, and for a CallableBatch whether anything committed." |
+| description | "The closed success body of an invocation: the exact declaration revision that ran, the result value, and for a CallableBatch whether anything committed." |
 | type | "object" |
 
 #### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "callable" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | yes | — | "Pinned Reference to the exact definition revision executed." |
-| "changed" | boolean | no | — | "CallableBatch only, then required: true when the batch committed any Resource, alias or retained-state effect, else false." |
-| "result" | any | yes | — | "Any JSON value, valid against the definition's result schema when one is declared." |
+| "callable" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | yes | — | "Pinned Reference to the exact declaration revision that ran." |
+| "changed" | boolean | no | — | "CallableBatch only, then required: true when the batch committed any durable effect, else false." |
+| "result" | any | yes | — | "Any JSON value; the declaration's result schema, when there is one, says what to expect." |
 <!-- bdp-schema:end callableResult bundle=callables -->
 
 <!-- bdp-schema:start callableProblemMembers bundle=callables -->
@@ -750,7 +711,7 @@ Required order: ["type","code","retry"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "code" | schema | yes | — | "One of the four codes this profile adds." |
-| "reason" | schema | no | — | "Required with callable-refused: the implementation's nonempty refusal token, compared exactly." |
+| "error" | any | no | — | "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's error schema when there is one." |
 | "retry" | schema | yes | — | "Always after-state-change for these four codes." |
 | "type" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri" | yes | — | "The BDP problem-family URI." |
 
@@ -759,12 +720,12 @@ Required order: ["type","code","retry"]
 ```json-schema
 {
   "properties": {
-    "code": {"enum": ["callable-not-found", "callable-revision-mismatch", "binding-unavailable", "callable-refused"]},
-    "reason": {"type": "string", "minLength": 1},
+    "code": {"enum": ["callable-not-found", "callable-revision-mismatch", "callable-unavailable", "callable-error"]},
     "retry": {"const": "after-state-change"}
   },
-  "if": {"properties": {"code": {"const": "callable-refused"}}},
-  "then": {"required": ["reason"]}
+  "if": {"properties": {"code": {"const": "callable-error"}}},
+  "then": {"required": ["error"]},
+  "else": {"not": {"required": ["error"]}}
 }
 ```
 <!-- bdp-schema:end callableProblemMembers bundle=callables -->
@@ -778,7 +739,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "A Problem answered by the directory or a mount: a Core or Write Problem, or one carrying a code this profile adds." |
+| description | "A Problem answered by a mount: a Core or Write Problem, or one carrying a code this profile adds." |
 
 #### Advanced
 
@@ -794,30 +755,28 @@ Value: object
 
 ## 14. OpenAPI
 
-The following visible operation tables are the authoring source for the generated
-catalog, using the BDP Markdown OpenAPI notation. Targets are navigated URLs: the
-directory from the capability detail, the mounts from the directory. These
-tables are not yet in the generated catalog: the navigation role
-`capability-detail-member` and a second composition are still to be added to
-the generator.
+**Each Callable projects to one typed OpenAPI operation by a fixed rule**, so a
+declaration needs no HTTP mapping of its own:
 
-<!-- bdp-operation:start callableDirectory -->
-### Operation: callableDirectory
-
-| Field | JSON value |
+| OpenAPI | Comes from |
 | --- | --- |
-| id | `"callableDirectory"` |
-| navigation | `{"role":"capability-detail-member","capability":"https://github.com/gastownhall/bdp/capabilities/callables","version":"1","member":"directory"}` |
-| response | `"callableDirectory"` |
-| methods | `["get","head"]` |
-| problem | `"readProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable"]` |
-| continuation | `"none"` |
-| optional | `"Callables1 capability"` |
+| Path and method | `POST` at the Callable's mount (§4) |
+| `operationId` | The name, split at `/`, `-`, `_` and `.`, joined in lower camel case: `rooms/reserve` is `roomsReserve` |
+| `summary`, `description` | `title`, `description` |
+| Request body | `callableInvocation`, with `arguments` as a closed object: one property per parameter carrying its `schema`, `description` and `default`, and `required` listing the required parameters |
+| `Idempotency-Key` header | CallableBatch only, as §4 states |
+| 200 response | `callableResult`, with `result` as the declaration's `result` schema |
+| 409 response | `callableProblem`, with `error` as the declaration's `error` schema on `callable-error` |
+| `default` response | `callableProblem` |
 
-| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
-| --- | --- | --- | --- | --- | --- |
-<!-- bdp-operation:end callableDirectory -->
+A `oneOf` in `error` whose branches each fix one member to a constant may project
+OpenAPI's `discriminator` on that member. Two Callables whose names give the same
+`operationId` are a generator error.
+
+The following visible operation table is the shared envelope that rule fills in,
+using the BDP Markdown OpenAPI notation. Targets are navigated URLs, built from the
+capability detail. This table is not yet in the generated catalog: a navigation role
+for mounts and a second composition are still to be added to the generator.
 
 <!-- bdp-operation:start callableInvoke -->
 ### Operation: callableInvoke
@@ -825,18 +784,18 @@ the generator.
 | Field | JSON value |
 | --- | --- |
 | id | `"callableInvoke"` |
-| navigation | `{"role":"callable-directory-member","member":"invoke"}` |
+| navigation | `{"role":"callable-mount","capability":"https://github.com/gastownhall/bdp/capabilities/callables","version":"1","member":"invoke"}` |
 | methods | `["post"]` |
 | request | `"callableInvocation"` |
 | response | `"callableResult"` |
 | problem | `"callableProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","revision-mismatch","identity-taken","incident-links-exist","idempotency-conflict","idempotency-in-progress","idempotency-expired","callable-not-found","callable-revision-mismatch","binding-unavailable","callable-refused"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","revision-mismatch","identity-taken","incident-links-exist","idempotency-conflict","idempotency-in-progress","idempotency-expired","callable-not-found","callable-revision-mismatch","callable-unavailable","callable-error"]` |
 | continuation | `"none"` |
 | optional | `"Callables1 capability; Write profile for a CallableBatch"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |
-| `Idempotency-Key` | header | no | `{"type":"string","minLength":1}` | Required on a CallableBatch invocation when the Scope advertises `idempotency`; admitted and not retained otherwise; refused on a CallableQuery. | — |
+| `Idempotency-Key` | header | no | `{"type":"string","minLength":1}` | Required on a CallableBatch invocation when the Scope advertises `idempotency`; admitted and not retained otherwise; rejected on a CallableQuery. | — |
 <!-- bdp-operation:end callableInvoke -->
 
 <!-- bdp-composition:start callables1 -->
@@ -848,19 +807,19 @@ the generator.
 | media | `"application/vnd.bdp.v0.1+json"` |
 | capability | `"https://github.com/gastownhall/bdp/capabilities/callables"` |
 | version | `"1"` |
-| operations | `["callableDirectory","callableInvoke"]` |
-| responseSchemas | `{"callableDirectory":"callableDirectory","callableInvoke":"callableResult"}` |
-| selection | `"The directory URL in the capability detail and the mount URLs in the directory are the selection; no media subtype or discovery profile literal is added. Admission, atomic execution, result validation and `idempotency` remain normative prose obligations."` |
+| operations | `["callableInvoke"]` |
+| responseSchemas | `{"callableInvoke":"callableResult"}` |
+| selection | `"The invoke URL in the capability detail is the selection; no media subtype or discovery profile literal is added. Checking arguments and idempotency remain normative prose obligations."` |
 <!-- bdp-composition:end callables1 -->
 
 ## 15. Obsolescence
 
 This edition replaces the protocol outline, the Bead Types and the shared value
-shapes of `experimental/callables.md` (October 30, 2026); its scenarios S1–S6
-become the conformance rows above or the deferred items, its "Open issues" table
-is closed at preview depth as stated in §§5–7 and reopened only for what §12
-lists, and its "Depends on" table is replaced by this document's references.
-`experimental/callables/` (the JSON companion, examples and checker) is retired
-in favor of the descriptor companions and the extracted feature schema.
-`experimental/packs.md` keeps its experimental status and repoints its callable
-references here.
+shapes of the experimental draft of October 30, 2026, archived at
+`specs/history/callables-draft-20261030/`. Its scenarios S1–S6 become the
+conformance rows above or the deferred items, its "Open issues" table is closed at
+preview depth as stated in §§5–7 and reopened only for what §12 lists, and its
+"Depends on" table is replaced by this document's references. The JSON companion,
+examples and checker are retired in favor of the descriptor companion and the
+extracted feature schema. `experimental/packs.md` keeps its experimental status and
+repoints its callable references here.

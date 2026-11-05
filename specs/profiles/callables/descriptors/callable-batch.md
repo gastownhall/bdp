@@ -16,12 +16,8 @@ Mode: authoring
 
 | Field | Value (JSON) |
 | --- | --- |
-| description | "A mutating Callable: its implementation commits its effects as one atomic outcome under the retry semantics the definition states." |
+| description | "A mutating Callable. Whether its effects commit atomically is not promised in this edition." |
 | version | "preview-1" |
-
-## Properties schema
-
-Source: Markdown: ../callable-extern-properties.md
 
 ## Refines
 
