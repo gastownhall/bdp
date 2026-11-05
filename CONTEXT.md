@@ -34,13 +34,14 @@ A declaration says how to call an operation and nothing about how it works; a
 definition is a declaration with a readable body. Preview-1 has declarations only.
 _Avoid_: extern, which named the implementation form
 
-**Registry Bead**:
-A real Bead whose typed outgoing Links name a Scope's reachable Callables. A live
-Link is the whole fact. Registration is optional in preview-1.
-_Avoid_: directory, catalog
+**Root Bead**:
+A real Bead under `sys` whose typed outgoing Links name what a Scope exposes; for
+Callables, `sys/callables`. A live Link is the whole fact. Registration is optional
+in preview-1.
+_Avoid_: registry, directory, catalog
 
 **Mount**:
-The URL that invokes one Callable: the advertised invoke base, a slash and its name.
+The URL that invokes one Callable: `<scope>/bdp/call/` followed by its name.
 _Avoid_: route
 
 **View**:

@@ -5,20 +5,9 @@
   "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish support, authorization or implementation conformance.",
   "$defs": {
     "callablesCapabilityV1": {
-      "description": "Version-1 detail of the Callables capability: where this Scope's Callables are invoked, and its registry Bead when it registers them.",
+      "description": "Version-1 detail of the Callables capability: closed and empty, because invocation lives in a fixed namespace.",
       "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "invoke": {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
-          "description": "Absolute HTTP(S) base URL; a Callable's mount is this base, a slash and its name."
-        },
-        "registry": {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
-          "description": "URL of the Scope's registry Bead, when it registers its Callables."
-        }
-      },
-      "required": ["invoke"]
+      "additionalProperties": false
     },
     "callablesDiscovery": {
       "description": "A Core or Write discovery document that advertises Callables version 1 with its closed detail.",
@@ -83,7 +72,7 @@
           "description": "CallableBatch only, then required: true when the batch committed any durable effect, else false."
         },
         "result": {
-          "description": "Any JSON value; the declaration's result schema, when there is one, says what to expect."
+          "description": "Any JSON value; the declaration's resultSchema, when there is one, says what to expect."
         }
       },
       "required": ["callable", "result"]
@@ -117,7 +106,7 @@
           "description": "One of the four codes this profile adds."
         },
         "error": {
-          "description": "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's error schema when there is one."
+          "description": "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's errorSchema when there is one."
         },
         "retry": {
           "const": "after-state-change",
