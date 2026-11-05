@@ -87,11 +87,11 @@ the capability ignores it and keeps using base behavior. (**preview**)
 
 Three Bead Types are published under `https://github.com/gastownhall/bdp/types/callable/`:
 
-| Identity suffix | Exact revision | Type of the definition | Refines | `abstract` | Descriptor |
-| --- | --- | --- | --- | --- | --- |
-| `callable` | `callable-preview-1` | `type-system/bead-type` | none | `true` | [`descriptors/callable.md`](descriptors/callable.md) |
-| `callable-query` | `callable-query-preview-1` | `type-system/bead-type` | `callable` at `callable-preview-1` | absent | [`descriptors/callable-query.md`](descriptors/callable-query.md) |
-| `callable-batch` | `callable-batch-preview-1` | `type-system/bead-type` | `callable` at `callable-preview-1` | absent | [`descriptors/callable-batch.md`](descriptors/callable-batch.md) |
+| Identity suffix | Exact revision | Refines | `abstract` | Descriptor |
+| --- | --- | --- | --- | --- |
+| `callable` | `callable-preview-1` | none | `true` | [`descriptors/callable.md`](descriptors/callable.md) |
+| `callable-query` | `callable-query-preview-1` | `callable` at `callable-preview-1` | absent | [`descriptors/callable-query.md`](descriptors/callable-query.md) |
+| `callable-batch` | `callable-batch-preview-1` | `callable` at `callable-preview-1` | absent | [`descriptors/callable-batch.md`](descriptors/callable-batch.md) |
 
 A declaration is an ordinary Bead affiliated with `callable-query` or
 `callable-batch`. Its properties object is the declaration. It is readable by
@@ -286,7 +286,7 @@ The invocation, a success and a `callable-error` then read, in order:
 ```
 
 ```json
-{"callable": {"uri": "https://beads.example/acme/reserve-room", "revision": "r1"}, "changed": true, "result": {"reservation": "res-81", "already_held": false}}
+{"changed": true, "result": {"reservation": "res-81", "already_held": false}}
 ```
 
 ```json
@@ -311,7 +311,6 @@ The body is the closed `callableInvocation` object:
 | Member | Required | Meaning |
 | --- | --- | --- |
 | `arguments` | yes | Object keyed by parameter name; `{}` when the declaration has no parameters |
-| `definition` | no | Guard for a client that cached a declaration: a Pinned Reference to the revision it built `arguments` from. If the declaration has changed since, the call is rejected as `callable-revision-mismatch` and nothing runs |
 | `revisionProvenance` | no, CallableBatch only | Write's attribution input, carried onto every revision the batch commits; rejected on a CallableQuery |
 
 The mount supplies the operation; `operation`, `name` and a body-level key are
@@ -376,7 +375,6 @@ Success returns the closed `callableResult`, for example:
 
 ```json
 {
-  "callable": {"uri": "https://beads.example/acme/reserve-room", "revision": "r1"},
   "changed": true,
   "result": {"reservation": "res-81", "already_held": false}
 }
@@ -384,7 +382,6 @@ Success returns the closed `callableResult`, for example:
 
 | Member | Meaning |
 | --- | --- |
-| `callable` | Pinned Reference to the exact declaration revision that ran |
 | `result` | Any JSON value; the declaration's `resultSchema`, when there is one, says what to expect |
 | `changed` | CallableBatch only, required: `true` when the batch committed any durable effect, else `false`; it promises nothing about revisions, and an implementation may commit a durable effect that mints none |
 
@@ -412,9 +409,7 @@ A declaration states a contract and the provider stands behind it:
 How a name finds its implementation is the provider's own. That binding is not a
 Bead, is not named in a declaration and is no part of this protocol.
 
-A client that cached a declaration and its `cliMapping` guards its invocation with
-`definition`; on `callable-revision-mismatch` it reads the declaration again. A
-retained successful key replays its original result even after the declaration or
+A retained successful key replays its original result even after the declaration or
 the implementation changed.
 
 ## 7. Registration
@@ -480,7 +475,6 @@ non-disclosure and retry meanings, with these additions. A family suffix means
 | Code | Family suffix | Status | Retry | Condition |
 | --- | --- | --- | --- | --- |
 | `callable-not-found` | `not-found` | 404 | `after-state-change` | No visible, reachable Callable at the mount |
-| `callable-revision-mismatch` | `conflict` | 409 | `after-state-change` | The invocation's `definition` guard does not match the declaration's current revision |
 | `callable-unavailable` | `unavailable` | 503 | `after-state-change` | The Callable is reachable but has no working implementation |
 | `callable-error` | `conflict` | 409 | `after-state-change` | The operation ran and returned an error of its own; the required `error` member carries its value |
 
@@ -553,18 +547,17 @@ bdp call reserve-room cedar --day 2026-11-20
 | --- | --- |
 | CB-1 | Discovery advertises the capability at version `"1"` with empty detail |
 | CB-2 | Each reachable name resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.5 |
-| CB-3 | `POST` to a mount with valid `arguments` returns 200 and a `callableResult` whose `callable` names the declaration's current revision |
+| CB-3 | `POST` to a mount with valid `arguments` returns 200 and a `callableResult` |
 | CB-4 | An unknown argument member is rejected as `validation-failed` naming it |
 | CB-5 | A missing required parameter is rejected as `validation-failed`; an omitted defaulted parameter runs with its default |
 | CB-6 | `POST` to a mount with no reachable Callable is `callable-not-found` |
-| CB-7 | A `definition` guard naming another revision is `callable-revision-mismatch` |
-| CB-8 | Under `idempotency`, a CallableBatch `POST` without `Idempotency-Key` is rejected and a replay with the same key returns the original `callableResult`. Without it, repeating an invocation of a declaration marked `idempotent` has no further effect |
-| CB-9 | A CallableQuery invocation leaves every Resource revision in the Scope unchanged |
-| CB-10 | A reachable Callable with no working implementation answers `callable-unavailable` |
-| CB-11 | A `callable-error` is HTTP 409 with an `error` member, valid against the declaration's `errorSchema` when there is one |
-| CB-12 | `GET` of a declaration's canonical URL returns the ordinary Bead record |
-| CB-13 | On a Scope with a root Bead at `sys/callables`, a declaration with no live Link from it is `callable-not-found`, and creating that Link makes it reachable |
-| CB-14 | A Problem from a declaration marked `atomic` leaves every Resource revision in the Scope unchanged |
+| CB-7 | Under `idempotency`, a CallableBatch `POST` without `Idempotency-Key` is rejected and a replay with the same key returns the original `callableResult`. Without it, repeating an invocation of a declaration marked `idempotent` has no further effect |
+| CB-8 | A CallableQuery invocation leaves every Resource revision in the Scope unchanged |
+| CB-9 | A reachable Callable with no working implementation answers `callable-unavailable` |
+| CB-10 | A `callable-error` is HTTP 409 with an `error` member, valid against the declaration's `errorSchema` when there is one |
+| CB-11 | `GET` of a declaration's canonical URL returns the ordinary Bead record |
+| CB-12 | On a Scope with a root Bead at `sys/callables`, a declaration with no live Link from it is `callable-not-found`, and creating that Link makes it reachable |
+| CB-13 | A Problem from a declaration marked `atomic` leaves every Resource revision in the Scope unchanged |
 
 ## 12. Deferred
 
@@ -589,6 +582,8 @@ Not selected in preview-1:
   needed.
 - Result carriers beyond one JSON value: paged results, streamed results,
   collection-kind metadata.
+- A revision guard on an invocation. A general scrub of provenance, actor and
+  `--if-revision` comes first, and `call` could use the same mechanism.
 - A service that exposes CallableBatch commands without Write's raw generic verbs,
   a common pattern this edition does not yet allow. It is to be anticipated when
   the requirement that a CallableBatch needs Write is revisited.
@@ -677,7 +672,6 @@ Required order: ["arguments"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "arguments" | object | yes | — | "Object keyed by parameter name; an empty object when the declaration has no parameters." |
-| "definition" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | no | — | "The declaration revision the client parsed; a mismatch with the current revision is callable-revision-mismatch." |
 | "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; rejected on a CallableQuery." |
 <!-- bdp-schema:end callableInvocation bundle=callables -->
 
@@ -688,20 +682,19 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["callable","result"]
+Required order: ["result"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "The closed success body of an invocation: the exact declaration revision that ran, the result value, and for a CallableBatch whether anything committed." |
+| description | "The closed success body of an invocation: the result value and, for a CallableBatch, whether anything committed." |
 | type | "object" |
 
 #### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "callable" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference" | yes | — | "Pinned Reference to the exact declaration revision that ran." |
 | "changed" | boolean | no | — | "CallableBatch only, then required: true when the batch committed any durable effect, else false." |
 | "result" | any | yes | — | "Any JSON value; the declaration's resultSchema, when there is one, says what to expect." |
 <!-- bdp-schema:end callableResult bundle=callables -->
@@ -724,9 +717,9 @@ Required order: ["type","code","retry"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "code" | schema | yes | — | "One of the four codes this profile adds." |
+| "code" | schema | yes | — | "One of the three codes this profile adds." |
 | "error" | any | no | — | "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's errorSchema when there is one." |
-| "retry" | schema | yes | — | "Always after-state-change for these four codes." |
+| "retry" | schema | yes | — | "Always after-state-change for these three codes." |
 | "type" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri" | yes | — | "The BDP problem-family URI." |
 
 #### Advanced
@@ -734,7 +727,7 @@ Required order: ["type","code","retry"]
 ```json-schema
 {
   "properties": {
-    "code": {"enum": ["callable-not-found", "callable-revision-mismatch", "callable-unavailable", "callable-error"]},
+    "code": {"enum": ["callable-not-found", "callable-unavailable", "callable-error"]},
     "retry": {"const": "after-state-change"}
   },
   "if": {"properties": {"code": {"const": "callable-error"}}},
@@ -804,7 +797,7 @@ to be added to the generator.
 | request | `"callableInvocation"` |
 | response | `"callableResult"` |
 | problem | `"callableProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","revision-mismatch","identity-taken","incident-links-exist","idempotency-conflict","idempotency-in-progress","idempotency-expired","callable-not-found","callable-revision-mismatch","callable-unavailable","callable-error"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","revision-mismatch","identity-taken","incident-links-exist","idempotency-conflict","idempotency-in-progress","idempotency-expired","callable-not-found","callable-unavailable","callable-error"]` |
 | continuation | `"none"` |
 | optional | `"Callables1 capability; Write profile for a CallableBatch"` |
 
