@@ -5,14 +5,13 @@ import {
   HistorySession,
 } from "./history-session.js";
 
-export {
-  RetainedWriteBinding,
-  type RetainedWriteDocument,
-  type RetainedWriteBindingOptions,
-  type PreparedRetainedWrite,
-} from "./retained-write.js";
-
 export type { HistoryRequest, HistoryResultFor } from "./history-session.js";
+export {
+  type PreparedRetainedWrite,
+  RetainedWriteBinding,
+  type RetainedWriteBindingOptions,
+  type RetainedWriteDocument,
+} from "./retained-write.js";
 
 import { SessionCore } from "./continuations.js";
 import {
@@ -1616,26 +1615,26 @@ function legacyReadSession<T>(action: () => T): T {
 }
 
 export {
-  createHistoricalUpdateFetchTransport,
-  createRetainedFetchTransport,
-  RetainedTransportError,
-  type RetainedFetchTransportOptions,
-  type RetainedTransport,
-  type RetainedTransportLimits,
-  type RetainedAbortSettlement,
-  type RetainedTransportCallOptions,
-  type RetainedHttpContext,
-  type RetainedHttpResponse,
-} from "./retained-transport.js";
-export {
   RetainedClient,
+  type RetainedClientCallOptions,
   RetainedClientError,
   type RetainedClientOptions,
-  type RetainedClientCallOptions,
-  type RetainedPointReadOptions,
   type RetainedCollectionFilters,
   type RetainedPageReadOptions,
   type RetainedPageValue,
+  type RetainedPointReadOptions,
   type RetainedPointValue,
   type RetainedReply,
 } from "./retained-read.js";
+export {
+  createHistoricalUpdateFetchTransport,
+  createRetainedFetchTransport,
+  type RetainedAbortSettlement,
+  type RetainedFetchTransportOptions,
+  type RetainedHttpContext,
+  type RetainedHttpResponse,
+  type RetainedTransport,
+  type RetainedTransportCallOptions,
+  RetainedTransportError,
+  type RetainedTransportLimits,
+} from "./retained-transport.js";

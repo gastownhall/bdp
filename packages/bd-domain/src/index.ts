@@ -1,15 +1,15 @@
+import { type BdpClient, type BdpContinuationScope, isBdpClientProblem } from "@bdp/client";
 import {
-  referenceUri,
-  isReadProblem,
-  readProblem,
-  REFERENCE_BLOCKING_LINK_TYPE_ID,
   type AbsoluteHttpUrl,
   type BeadRecord,
+  isReadProblem,
   type LinkCollection,
   type LinkRecord,
+  REFERENCE_BLOCKING_LINK_TYPE_ID,
   type ReadProblem,
+  readProblem,
+  referenceUri,
 } from "@bdp/protocol";
-import { isBdpClientProblem, type BdpClient, type BdpContinuationScope } from "@bdp/client";
 
 /** Identifies the bd-domain package without defining domain mappings or commands. */
 export const packageName = "@bdp/bd-domain";

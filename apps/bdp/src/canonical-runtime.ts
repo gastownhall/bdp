@@ -3,9 +3,9 @@ import {
   BdpClient,
   BdpClientLocalError,
   createFetchTransport,
-  isBdpClientProblem,
   createHistoricalUpdateFetchTransport,
   createRetainedFetchTransport,
+  isBdpClientProblem,
   type PreparedRetainedWrite,
   RetainedClient,
   RetainedClientError,
@@ -17,14 +17,14 @@ import type { CanonicalCliConfig } from "@bdp/config";
 import {
   admitJsonNumbers,
   decodeJsonDocument,
+  type HistoryVersionRow,
+  type HistoryVersionsPage,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   RETAINED_V01_SPECIFICATION,
   RETAINED_WRITE_OPERATIONS,
   type RetainedJsonObject,
   type RetainedResourceKind,
-  type HistoryVersionRow,
-  type HistoryVersionsPage,
 } from "@bdp/protocol";
 import type { CanonicalInvocation } from "./canonical-command.js";
 import {
