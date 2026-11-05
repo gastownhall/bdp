@@ -300,11 +300,16 @@ the Callable's name, each segment encoded as in its canonical URL. `reserve-room
 the Scope `https://beads.example/acme/` is
 `https://beads.example/acme/bdp/call/reserve-room`. The namespace is fixed, as
 `<scope>/bdp/beads` and `<scope>/bdp/links` are, and Core already reserves `bdp` and
-its descendants against Resources and aliases. A provider MAY serve a listing at
-`<scope>/bdp/call` itself; this edition specifies none. A mount admits `POST` only
+its descendants against Resources and aliases. A mount admits `POST` only
 and answers other methods with a bodyless 405 and `Allow: POST`. `GET` of a
 declaration's canonical URL is always the ordinary record read and never an
 invocation.
+
+`GET` of `<scope>/bdp/call` itself says what can be called: it returns an OpenAPI
+document for this Scope's reachable Callables, as §14 projects them, and allows `HEAD`.
+It is the Scope's aggregate OpenAPI description at `<scope>/bdp/openapi`, when there
+is one, filtered to its mounts. Like every read it answers for the caller's
+Authorization View, so a Callable the caller may not see is absent. (**preview**)
 
 The body is the closed `callableInvocation` object:
 
@@ -440,16 +445,16 @@ sys/callables [root Bead]
 
 A live Link is the whole fact: its presence means the Callable is reachable, and its
 absence means it is not. There is no boolean on the declaration and no hidden table.
-A client lists what is reachable with Core's ordinary read,
-`GET <scope>/sys/callables?view=links&direction=outbound`, and follows each `target`
-to its declaration. On a Scope with a root Bead, invoking a Callable with no live Link
+A client lists what is reachable with `GET <scope>/bdp/call`, or with Core's ordinary
+read, `GET <scope>/sys/callables?view=links&direction=outbound`, following each
+`target` to its declaration. On a Scope with a root Bead, invoking a Callable with no live Link
 is `callable-not-found`. A Link's target is unpinned, so the declaration's current
 revision is what is exposed. A Link promises neither that an implementation is
 currently available (`callable-unavailable`, §9) nor that the caller is authorized
 (§8).
 
 On a Scope without a root Bead, which Callables are reachable is the provider's own,
-and a client learns them from a published contract such as its OpenAPI document.
+and `GET <scope>/bdp/call` reports them.
 
 The root Bead's Type, the Link Type's final name and how a package's Callables join it
 are settled with packages, because the installed-package root is the same pattern and
@@ -504,7 +509,8 @@ and Write's `idempotency-conflict`, `idempotency-in-progress`,
 
 ## 10. CLI correspondence
 
-The canonical client invokes a Callable by its name, with client options before
+The canonical client learns what can be called from `GET <scope>/bdp/call` (§3), with
+its CLI additions carried in `x-bdp-callable` (§14). It invokes a Callable by its name, with client options before
 the verb and the Callable's own arguments after it:
 
 ```text
@@ -558,6 +564,7 @@ bdp call reserve-room cedar --day 2026-11-20
 | CB-11 | `GET` of a declaration's canonical URL returns the ordinary Bead record |
 | CB-12 | On a Scope with a root Bead at `sys/callables`, a declaration with no live Link from it is `callable-not-found`, and creating that Link makes it reachable |
 | CB-13 | A Problem from a declaration marked `atomic` leaves every Resource revision in the Scope unchanged |
+| CB-14 | `GET <scope>/bdp/call` returns an OpenAPI document with one operation per Callable reachable by the caller, each matching its declaration under §14 |
 
 ## 12. Deferred
 
@@ -575,8 +582,6 @@ Not selected in preview-1:
 - The command tree: whether it stays derived from the name, is declared, or is built
   from a Bead graph, and whether a package can add parameters to an existing command,
   such as `--title` on `bd create`.
-- How the CLI learns what Callables exist: something Bead-specific, or the OpenAPI
-  document with CLI customizations carried in its extension members.
 - How much of `cliMapping` survives. It is judged during the detailed design of the
   first package, and a parameter annotation for positionals may be all that is
   needed.
@@ -763,7 +768,8 @@ Value: object
 ## 14. OpenAPI
 
 **Each Callable projects to one typed OpenAPI operation by a fixed rule**, so a
-declaration needs no HTTP mapping of its own:
+declaration needs no HTTP mapping of its own, and a client can rebuild the declaration
+from the operation. `GET <scope>/bdp/call` serves these operations (§3):
 
 | OpenAPI | Comes from |
 | --- | --- |
