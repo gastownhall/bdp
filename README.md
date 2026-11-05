@@ -23,6 +23,41 @@ The [editing routine](docs/spec-review/README.md) explains the VS Code comment/p
 
 [Stabilization plan](docs/plans/bdp-stabilization.md) · [Specification status and supporting schemas](specs/README.md) · [CLI design](docs/cli-design/bdp-cli.md) · [Historical inputs](specs/history/pre-canonical-20261101/README.md)
 
+## Conformance tests: where to look and how to run them
+
+Start with the [conformance testing guide](docs/conformance-testing.md). It
+separates three kinds of evidence that answer different questions:
+
+1. **Specification artifact checks** verify that schemas, generated projections,
+   and authored specification contracts agree. Run `pnpm test:markdown` and
+   `pnpm openapi:check`; the broader `pnpm test` also runs catalog and boundary
+   checks.
+2. **Endpoint interoperability checks** exercise behavior through public HTTP.
+   The current [Core/ordinary Write provider kit](docs/current-provider-kit.md)
+   runs against the reference endpoint with:
+
+   ```sh
+   pnpm install --frozen-lockfile
+   pnpm build
+   node scripts/current-provider-kit.mjs --provider "$PWD/scripts/current-provider-reference-adapter.mjs"
+   ```
+
+   To use another endpoint, provide a trusted adapter module that provisions an
+   isolated Scope and fixture and owns its cleanup; the runner discovers the
+   service routes and sends real HTTP requests to that Scope. This is a partial
+   19-case slice, reports incomplete qualification, and is not a provider
+   certification. There is not yet a one-flag `--scope <url>` mode or a complete
+   standalone service/client conformance release.
+3. **Implementation tests** exercise this repository's client, reference
+   service, and supporting packages. Run `pnpm build && pnpm test`; the reference
+   performance trend runner is documented in
+   [`scripts/perf/README.md`](scripts/perf/README.md). These tests establish
+   implementation behavior and reliability, not interoperability of an
+   arbitrary implementation.
+
+The guide links the normative obligations, executable matrices, current runner,
+and each command's limits. Use it when preparing an endpoint for external review.
+
 ## Try the installed CLI during review
 
 Use the [disposable reference review lab](docs/spec-review/reference-lab.md) for a
