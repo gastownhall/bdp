@@ -47,10 +47,6 @@
           "type": "object",
           "description": "Object keyed by parameter name; an empty object when the declaration has no parameters."
         },
-        "definition": {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference",
-          "description": "The declaration revision the client parsed; a mismatch with the current revision is callable-revision-mismatch."
-        },
         "revisionProvenance": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput",
           "description": "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; rejected on a CallableQuery."
@@ -59,14 +55,10 @@
       "required": ["arguments"]
     },
     "callableResult": {
-      "description": "The closed success body of an invocation: the exact declaration revision that ran, the result value, and for a CallableBatch whether anything committed.",
+      "description": "The closed success body of an invocation: the result value and, for a CallableBatch, whether anything committed.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "callable": {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference",
-          "description": "Pinned Reference to the exact declaration revision that ran."
-        },
         "changed": {
           "type": "boolean",
           "description": "CallableBatch only, then required: true when the batch committed any durable effect, else false."
@@ -75,7 +67,7 @@
           "description": "Any JSON value; the declaration's resultSchema, when there is one, says what to expect."
         }
       },
-      "required": ["callable", "result"]
+      "required": ["result"]
     },
     "callableProblemMembers": {
       "description": "The members of a Problem whose code this profile adds. Core's and Write's codes keep their own shapes; an invocation Problem is one or the other.",
@@ -97,20 +89,15 @@
       },
       "properties": {
         "code": {
-          "enum": [
-            "callable-not-found",
-            "callable-revision-mismatch",
-            "callable-unavailable",
-            "callable-error"
-          ],
-          "description": "One of the four codes this profile adds."
+          "enum": ["callable-not-found", "callable-unavailable", "callable-error"],
+          "description": "One of the three codes this profile adds."
         },
         "error": {
           "description": "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's errorSchema when there is one."
         },
         "retry": {
           "const": "after-state-change",
-          "description": "Always after-state-change for these four codes."
+          "description": "Always after-state-change for these three codes."
         },
         "type": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri",
