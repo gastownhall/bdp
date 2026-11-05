@@ -303,7 +303,7 @@
       "required": ["source", "target", "type"]
     },
     "applyRef": {
-      "description": "Names one Issue inside an applyBatch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set.",
+      "description": "Names one Issue inside an apply-batch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1209,7 +1209,7 @@
       "required": ["seq", "ts", "op", "issue_id", "issue"]
     },
     "listReadyWorkArguments": {
-      "description": "Arguments of listReadyWork.",
+      "description": "Arguments of list-ready-work.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1328,7 +1328,7 @@
       "required": ["items", "has_more"]
     },
     "countReadyWorkArguments": {
-      "description": "Arguments of countReadyWork.",
+      "description": "Arguments of count-ready-work.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1424,7 +1424,7 @@
       "required": ["total"]
     },
     "listBlockedIssuesArguments": {
-      "description": "Arguments of listBlockedIssues.",
+      "description": "Arguments of list-blocked-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1474,7 +1474,7 @@
       "required": ["items", "has_more"]
     },
     "getStatsArguments": {
-      "description": "Arguments of getStats.",
+      "description": "Arguments of get-stats.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1505,7 +1505,7 @@
       "required": ["summary", "blocked_count_skipped"]
     },
     "listIssuesArguments": {
-      "description": "Arguments of listIssues.",
+      "description": "Arguments of list-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1793,7 +1793,7 @@
       "required": ["items", "has_more"]
     },
     "queryIssuesArguments": {
-      "description": "Arguments of queryIssues.",
+      "description": "Arguments of query-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1855,7 +1855,7 @@
       "required": ["items", "has_more"]
     },
     "countIssuesArguments": {
-      "description": "Arguments of countIssues.",
+      "description": "Arguments of count-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2027,7 +2027,7 @@
       "required": ["total"]
     },
     "getIssueArguments": {
-      "description": "Arguments of getIssue.",
+      "description": "Arguments of get-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2054,7 +2054,7 @@
       "required": ["issue"]
     },
     "listRelatedIssuesArguments": {
-      "description": "Arguments of listRelatedIssues.",
+      "description": "Arguments of list-related-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2093,7 +2093,7 @@
       "required": ["items"]
     },
     "listDependencyCyclesArguments": {
-      "description": "Arguments of listDependencyCycles.",
+      "description": "Arguments of list-dependency-cycles.",
       "type": "object",
       "additionalProperties": false
     },
@@ -2116,7 +2116,7 @@
       "required": ["items", "has_more"]
     },
     "getDependencyTreeArguments": {
-      "description": "Arguments of getDependencyTree.",
+      "description": "Arguments of get-dependency-tree.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2162,7 +2162,7 @@
       "required": ["items", "has_more"]
     },
     "countDependencyEdgesArguments": {
-      "description": "Arguments of countDependencyEdges.",
+      "description": "Arguments of count-dependency-edges.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2208,7 +2208,7 @@
       "required": ["anchors"]
     },
     "listBlockingAnnotationsArguments": {
-      "description": "Arguments of listBlockingAnnotations.",
+      "description": "Arguments of list-blocking-annotations.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2243,7 +2243,7 @@
       "required": ["items"]
     },
     "addDependenciesArguments": {
-      "description": "Arguments of addDependencies.",
+      "description": "Arguments of add-dependencies.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2272,7 +2272,7 @@
       "required": ["added"]
     },
     "claimIssueArguments": {
-      "description": "Arguments of claimIssue.",
+      "description": "Arguments of claim-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2298,7 +2298,7 @@
       "required": ["issue", "already_claimed"]
     },
     "claimNextIssueArguments": {
-      "description": "Arguments of claimNextIssue.",
+      "description": "Arguments of claim-next-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2398,7 +2398,7 @@
       }
     },
     "releaseIssueArguments": {
-      "description": "Arguments of releaseIssue.",
+      "description": "Arguments of release-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2433,7 +2433,7 @@
       "required": ["issue", "changed"]
     },
     "heartbeatIssueArguments": {
-      "description": "Arguments of heartbeatIssue.",
+      "description": "Arguments of heartbeat-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2472,7 +2472,7 @@
       "required": ["id", "holder", "heartbeat_at", "lease_expires_at", "rearmed"]
     },
     "closeIssueArguments": {
-      "description": "Arguments of closeIssue.",
+      "description": "Arguments of close-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2533,7 +2533,7 @@
       "required": ["issue", "already_closed", "open_children"]
     },
     "batchCloseIssuesArguments": {
-      "description": "Arguments of batchCloseIssues.",
+      "description": "Arguments of batch-close-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2577,7 +2577,7 @@
       "required": ["outcomes"]
     },
     "reopenIssueArguments": {
-      "description": "Arguments of reopenIssue.",
+      "description": "Arguments of reopen-issue.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2612,7 +2612,7 @@
       "required": ["issue", "already_open"]
     },
     "compareAndSetMetadataArguments": {
-      "description": "Arguments of compareAndSetMetadata.",
+      "description": "Arguments of compare-and-set-metadata.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2650,7 +2650,7 @@
       "required": ["swapped"]
     },
     "advanceMoleculeArguments": {
-      "description": "Arguments of advanceMolecule.",
+      "description": "Arguments of advance-molecule.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2692,7 +2692,7 @@
       "required": ["closed_step", "complete", "claimed"]
     },
     "reclaimIssuesArguments": {
-      "description": "Arguments of reclaimIssues.",
+      "description": "Arguments of reclaim-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2758,7 +2758,7 @@
       "required": ["reclaimed"]
     },
     "sweepIssuesArguments": {
-      "description": "Arguments of sweepIssues.",
+      "description": "Arguments of sweep-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2849,7 +2849,7 @@
       "required": ["dry_run", "swept", "dependencies", "labels", "events", "skipped"]
     },
     "deleteIssuesArguments": {
-      "description": "Arguments of deleteIssues.",
+      "description": "Arguments of delete-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2929,7 +2929,7 @@
       "required": ["dry_run", "deleted", "dependencies", "labels", "events", "references_updated"]
     },
     "batchCreateIssuesArguments": {
-      "description": "Arguments of batchCreateIssues.",
+      "description": "Arguments of batch-create-issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -2958,7 +2958,7 @@
       "required": ["items"]
     },
     "applyBatchArguments": {
-      "description": "Arguments of applyBatch.",
+      "description": "Arguments of apply-batch.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3006,7 +3006,7 @@
       "required": ["keys", "items"]
     },
     "addCommentArguments": {
-      "description": "Arguments of addComment.",
+      "description": "Arguments of add-comment.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3028,7 +3028,7 @@
       "required": ["issue", "author", "text"]
     },
     "removeDependencyArguments": {
-      "description": "Arguments of removeDependency.",
+      "description": "Arguments of remove-dependency.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3055,7 +3055,7 @@
       "required": ["removed"]
     },
     "listSettingsArguments": {
-      "description": "Arguments of listSettings.",
+      "description": "Arguments of list-settings.",
       "type": "object",
       "additionalProperties": false
     },
@@ -3082,7 +3082,7 @@
       "required": ["items", "has_more"]
     },
     "getSettingArguments": {
-      "description": "Arguments of getSetting.",
+      "description": "Arguments of get-setting.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3094,7 +3094,7 @@
       "required": ["key"]
     },
     "setSettingArguments": {
-      "description": "Arguments of setSetting.",
+      "description": "Arguments of set-setting.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3110,7 +3110,7 @@
       "required": ["key", "value"]
     },
     "unsetSettingArguments": {
-      "description": "Arguments of unsetSetting.",
+      "description": "Arguments of unset-setting.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3122,7 +3122,7 @@
       "required": ["key"]
     },
     "listMemoriesArguments": {
-      "description": "Arguments of listMemories.",
+      "description": "Arguments of list-memories.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3155,7 +3155,7 @@
       "required": ["items", "has_more"]
     },
     "getMemoryArguments": {
-      "description": "Arguments of getMemory.",
+      "description": "Arguments of get-memory.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3167,7 +3167,7 @@
       "required": ["key"]
     },
     "rememberMemoryArguments": {
-      "description": "Arguments of rememberMemory.",
+      "description": "Arguments of remember-memory.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3183,7 +3183,7 @@
       "required": ["content"]
     },
     "forgetMemoryArguments": {
-      "description": "Arguments of forgetMemory.",
+      "description": "Arguments of forget-memory.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3195,7 +3195,7 @@
       "required": ["key"]
     },
     "listEventsArguments": {
-      "description": "Arguments of listEvents.",
+      "description": "Arguments of list-events.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -3232,15 +3232,328 @@
         }
       },
       "required": ["records", "head"]
+    },
+    "alreadyClaimedError": {
+      "description": "Another actor holds the Issue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "The actor holding the Issue."
+        },
+        "issue_status": {
+          "type": "string",
+          "description": "The Issue's current status."
+        },
+        "reason": {
+          "const": "already-claimed",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason", "assignee"]
+    },
+    "notClaimableError": {
+      "description": "The Issue is in a state that cannot be claimed.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issue_status": {
+          "type": "string",
+          "description": "The Issue's current status."
+        },
+        "reason": {
+          "const": "not-claimable",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "notReleasableError": {
+      "description": "The Issue is not in a releasable state.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "not-releasable",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "notAssigneeError": {
+      "description": "The actor is not the holder and did not force.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assignee": {
+          "type": "string",
+          "description": "The actor holding the Issue."
+        },
+        "reason": {
+          "const": "not-assignee",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "leaseNotHeldError": {
+      "description": "The actor holds no lease on the Issue.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "lease-not-held",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "notClosableError": {
+      "description": "Close policy stopped the close: open children or live blockers.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blocker"
+          },
+          "description": "The live blockers, on a blocker failure."
+        },
+        "open_children": {
+          "type": "integer",
+          "description": "How many open children were observed, on an open-children failure."
+        },
+        "reason": {
+          "const": "not-closable",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "notesOverwriteRefusedError": {
+      "description": "A notes replacement would overwrite existing non-empty notes without force_notes_overwrite.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "notes-overwrite-refused",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "templateReadOnlyError": {
+      "description": "The Issue is a template.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "template-read-only",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "issuePinnedError": {
+      "description": "The Issue carries the pinned flag.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "issue-pinned",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "dependencyCycleError": {
+      "description": "The requested edges can never make progress.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "dependency-cycle",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "dependencyExistsError": {
+      "description": "The ordered pair already carries a Dependency of another Type.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "dependency-exists",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "journalDisabledError": {
+      "description": "The durable events journal is not enabled on this Scope.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "journal-disabled",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "journalTruncatedError": {
+      "description": "The checkpoint fell below the retained window; retrying the same since cannot succeed.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "const": "journal-truncated",
+          "description": "Which error this is."
+        }
+      },
+      "required": ["reason"]
+    },
+    "addDependenciesError": {
+      "description": "The error values add-dependencies can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/dependencyExistsError"
+        }
+      ]
+    },
+    "applyBatchError": {
+      "description": "The error values apply-batch can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/alreadyClaimedError"
+        },
+        {
+          "$ref": "#/$defs/notClosableError"
+        },
+        {
+          "$ref": "#/$defs/notesOverwriteRefusedError"
+        },
+        {
+          "$ref": "#/$defs/templateReadOnlyError"
+        },
+        {
+          "$ref": "#/$defs/dependencyCycleError"
+        },
+        {
+          "$ref": "#/$defs/dependencyExistsError"
+        }
+      ]
+    },
+    "batchCreateIssuesError": {
+      "description": "The error values batch-create-issues can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/dependencyCycleError"
+        },
+        {
+          "$ref": "#/$defs/dependencyExistsError"
+        }
+      ]
+    },
+    "claimIssueError": {
+      "description": "The error values claim-issue can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/alreadyClaimedError"
+        },
+        {
+          "$ref": "#/$defs/notClaimableError"
+        }
+      ]
+    },
+    "claimNextIssueError": {
+      "description": "The error values claim-next-issue can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/notClaimableError"
+        }
+      ]
+    },
+    "closeIssueError": {
+      "description": "The error values close-issue can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/notAssigneeError"
+        },
+        {
+          "$ref": "#/$defs/notClosableError"
+        },
+        {
+          "$ref": "#/$defs/templateReadOnlyError"
+        },
+        {
+          "$ref": "#/$defs/issuePinnedError"
+        }
+      ]
+    },
+    "deleteIssuesError": {
+      "description": "The error values delete-issues can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/issuePinnedError"
+        }
+      ]
+    },
+    "heartbeatIssueError": {
+      "description": "The error values heartbeat-issue can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/alreadyClaimedError"
+        },
+        {
+          "$ref": "#/$defs/leaseNotHeldError"
+        }
+      ]
+    },
+    "listEventsError": {
+      "description": "The error values list-events can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/journalDisabledError"
+        },
+        {
+          "$ref": "#/$defs/journalTruncatedError"
+        }
+      ]
+    },
+    "releaseIssueError": {
+      "description": "The error values release-issue can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/notReleasableError"
+        },
+        {
+          "$ref": "#/$defs/notAssigneeError"
+        }
+      ]
+    },
+    "sweepIssuesError": {
+      "description": "The error values sweep-issues can return, discriminated by reason.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/issuePinnedError"
+        }
+      ]
     }
   },
   "x-bdp-schema-definitions": [
     "addCommentArguments",
     "addDependenciesArguments",
+    "addDependenciesError",
     "addDependenciesResult",
     "advanceMoleculeArguments",
     "advanceMoleculeResult",
+    "alreadyClaimedError",
     "applyBatchArguments",
+    "applyBatchError",
     "applyBatchResult",
     "applyCloseItem",
     "applyCreateItem",
@@ -3255,6 +3568,7 @@
     "batchCloseResult",
     "batchCreateDependency",
     "batchCreateIssuesArguments",
+    "batchCreateIssuesError",
     "batchCreateItem",
     "batchCreateResult",
     "blockedIssueView",
@@ -3264,10 +3578,13 @@
     "blockingAnnotations",
     "bondRef",
     "claimIssueArguments",
+    "claimIssueError",
     "claimNextIssueArguments",
+    "claimNextIssueError",
     "claimNextResult",
     "claimResult",
     "closeIssueArguments",
+    "closeIssueError",
     "closeOutcome",
     "closeResult",
     "commentRecord",
@@ -3280,8 +3597,11 @@
     "cycleMember",
     "cyclesPage",
     "deleteIssuesArguments",
+    "deleteIssuesError",
     "deleteResult",
+    "dependencyCycleError",
     "dependencyEdge",
+    "dependencyExistsError",
     "dependencyTreePage",
     "edgeCount",
     "edgeCounts",
@@ -3295,19 +3615,25 @@
     "getSettingArguments",
     "getStatsArguments",
     "heartbeatIssueArguments",
+    "heartbeatIssueError",
     "heartbeatResult",
     "instant",
     "issueCount",
     "issueDetails",
     "issueObservations",
+    "issuePinnedError",
     "issueUrl",
     "issueView",
     "issuesPage",
+    "journalDisabledError",
+    "journalTruncatedError",
     "labelPatch",
+    "leaseNotHeldError",
     "listBlockedIssuesArguments",
     "listBlockingAnnotationsArguments",
     "listDependencyCyclesArguments",
     "listEventsArguments",
+    "listEventsError",
     "listIssuesArguments",
     "listMemoriesArguments",
     "listReadyWorkArguments",
@@ -3319,6 +3645,11 @@
     "metadataPatch",
     "metadataValue",
     "neighborView",
+    "notAssigneeError",
+    "notClaimableError",
+    "notClosableError",
+    "notReleasableError",
+    "notesOverwriteRefusedError",
     "queryIssuesArguments",
     "queryPage",
     "readyCount",
@@ -3328,6 +3659,7 @@
     "reclaimedLease",
     "relatedIssues",
     "releaseIssueArguments",
+    "releaseIssueError",
     "releaseResult",
     "rememberMemoryArguments",
     "rememberedMemory",
@@ -3342,8 +3674,10 @@
     "statistics",
     "statsResult",
     "sweepIssuesArguments",
+    "sweepIssuesError",
     "sweepResult",
     "sweepSkips",
+    "templateReadOnlyError",
     "treeNode",
     "typeUri",
     "unsetSettingArguments"
@@ -3352,10 +3686,13 @@
     "specs/types/issue/callables.md": [
       "addCommentArguments",
       "addDependenciesArguments",
+      "addDependenciesError",
       "addDependenciesResult",
       "advanceMoleculeArguments",
       "advanceMoleculeResult",
+      "alreadyClaimedError",
       "applyBatchArguments",
+      "applyBatchError",
       "applyBatchResult",
       "applyCloseItem",
       "applyCreateItem",
@@ -3370,6 +3707,7 @@
       "batchCloseResult",
       "batchCreateDependency",
       "batchCreateIssuesArguments",
+      "batchCreateIssuesError",
       "batchCreateItem",
       "batchCreateResult",
       "blockedIssueView",
@@ -3379,10 +3717,13 @@
       "blockingAnnotations",
       "bondRef",
       "claimIssueArguments",
+      "claimIssueError",
       "claimNextIssueArguments",
+      "claimNextIssueError",
       "claimNextResult",
       "claimResult",
       "closeIssueArguments",
+      "closeIssueError",
       "closeOutcome",
       "closeResult",
       "commentRecord",
@@ -3395,8 +3736,11 @@
       "cycleMember",
       "cyclesPage",
       "deleteIssuesArguments",
+      "deleteIssuesError",
       "deleteResult",
+      "dependencyCycleError",
       "dependencyEdge",
+      "dependencyExistsError",
       "dependencyTreePage",
       "edgeCount",
       "edgeCounts",
@@ -3410,19 +3754,25 @@
       "getSettingArguments",
       "getStatsArguments",
       "heartbeatIssueArguments",
+      "heartbeatIssueError",
       "heartbeatResult",
       "instant",
       "issueCount",
       "issueDetails",
       "issueObservations",
+      "issuePinnedError",
       "issueUrl",
       "issueView",
       "issuesPage",
+      "journalDisabledError",
+      "journalTruncatedError",
       "labelPatch",
+      "leaseNotHeldError",
       "listBlockedIssuesArguments",
       "listBlockingAnnotationsArguments",
       "listDependencyCyclesArguments",
       "listEventsArguments",
+      "listEventsError",
       "listIssuesArguments",
       "listMemoriesArguments",
       "listReadyWorkArguments",
@@ -3434,6 +3784,11 @@
       "metadataPatch",
       "metadataValue",
       "neighborView",
+      "notAssigneeError",
+      "notClaimableError",
+      "notClosableError",
+      "notReleasableError",
+      "notesOverwriteRefusedError",
       "queryIssuesArguments",
       "queryPage",
       "readyCount",
@@ -3443,6 +3798,7 @@
       "reclaimedLease",
       "relatedIssues",
       "releaseIssueArguments",
+      "releaseIssueError",
       "releaseResult",
       "rememberMemoryArguments",
       "rememberedMemory",
@@ -3457,8 +3813,10 @@
       "statistics",
       "statsResult",
       "sweepIssuesArguments",
+      "sweepIssuesError",
       "sweepResult",
       "sweepSkips",
+      "templateReadOnlyError",
       "treeNode",
       "typeUri",
       "unsetSettingArguments"

@@ -11,10 +11,9 @@ Editorial draft preview-1 · November 4, 2026 · generated from the v0 HTTP cont
 This document is the operations half of the [Issue and Dependency Types](issue.md)
 package: the named operations a tracker exposes over the [Callables](../../profiles/callables/callables.md)
 profile so that its command surface runs the right way over BDP while its
-implementation stays its own. Every operation below is a Callable definition Bead
-bound in the Scope's callable directory to a service-side implementation; the
-definitions, their arguments and their results are specified here, the
-implementation is the tracker's `issueops` role the extern names.
+implementation stays its own. Every operation below is a Callable declaration Bead: its
+arguments, its result and its errors are specified here, and how the tracker
+implements it is no part of the protocol.
 
 The reads a BDP client can make natively (point reads, the inventories, incident
 Link views) and the six native mutations (`createBead`, `updateBead`, `deleteBead`,
@@ -30,7 +29,7 @@ in a later edition without a compatibility promise.
 3. [Shared shapes](#3-shared-shapes)
 4. [Queries](#4-queries)
 5. [Batches](#5-batches)
-6. [Problems and reasons](#6-problems-and-reasons)
+6. [Errors and reasons](#6-errors-and-reasons)
 7. [Conformance rows for preview-1](#7-conformance-rows-for-preview-1)
 8. [Appendix: tracker callables outside the package](#8-appendix-tracker-callables-outside-the-package)
 9. [Schemas](#9-schemas)
@@ -39,12 +38,14 @@ in a later edition without a compatibility promise.
 ## 1. Selection and boundary
 
 Thirty Issue and Dependency Callables are selected at preview depth: thirteen
-CallableQuery definitions and seventeen CallableBatch definitions, named by the v0
-operation identifiers so that the native client's one door maps each role to one
-directory entry. A Scope serving the Issue and Dependency Types package and
-advertising Callables1 lists them in its directory under these names. The
+CallableQuery declarations and seventeen CallableBatch declarations. Each one's
+name, its local Resource ID, is the v0 operation identifier in kebab case
+(`claimIssue` is `claim-issue`), so the native client's one door maps each role to
+one name, and the [OpenAPI rule](../../profiles/callables/callables.md#14-openapi)
+gives the v0 identifier back as its `operationId`. A Scope serving the Issue and
+Dependency Types package and advertising Callables1 offers them under these names. The
 Dependency pair is both a native verb and a Callable: `createLink` and
-`deleteLink` for generic clients, `addDependencies` and `removeDependency` for
+`deleteLink` for generic clients, `add-dependencies` and `remove-dependency` for
 the native upsert idiom by endpoints.
 
 Native operations that are **not** Callables because Core or Write already
@@ -52,9 +53,9 @@ carries them the right way:
 
 | Native v0 operation | BDP form |
 | --- | --- |
-| `getContext` | Core discovery, the capability advertisements and the callable directory |
+| `getContext` | Core discovery and the capability advertisements |
 | `createIssue` | `createBead` with the Issue Type and properties, then `createLink` for `parent_id` and each declared dependency; not one transaction until atomic batch is advertised, an exception the sprint documents |
-| `updateIssue` | `updateBead` with a properties patch and `expectedRevision`; labels through the patch; `parent_id` through `createLink` and `deleteLink`; the `claim` flag through `claimIssue`; the native policy refusals (close policy on a status that crosses into done, notes overwrite, assignee transfer) apply as native invalidity |
+| `updateIssue` | `updateBead` with a properties patch and `expectedRevision`; labels through the patch; `parent_id` through `createLink` and `deleteLink`; the `claim` flag through `claim-issue`; the native policy refusals (close policy on a status that crosses into done, notes overwrite, assignee transfer) apply as native invalidity |
 | `listDependencies` | the Link inventory with endpoint selection, or `?view=links` on the Bead |
 | `batchGetIssues` | the Bead inventory selected by identity |
 | `health`, `watchEvents` | outside BDP: transport liveness and a server-sent stream |
@@ -86,7 +87,7 @@ so the native client is complete.
   mutation is not a parameter: a CallableBatch invocation carries it as
   `revisionProvenance.actor` with `basis: "writer-supplied"`, and the tracker
   refuses a batch invocation without one as `validation-failed`. `author` on
-  `addComment` stays a parameter because it is content, not attribution.
+  `add-comment` stays a parameter because it is content, not attribution.
 - **K-5 Guards.** `expected_version` becomes `expected_revision`, the Bead's opaque
   revision token as served; a miss is Write's `revision-mismatch` and nothing is
   written. Separate `revision` members of v0 results are dropped where the result
@@ -94,26 +95,30 @@ so the native client is complete.
   record.
 - **K-12 Link identity and the Dependency pair.** A Dependency Link's identity is
   opaque, as [Issue and Dependency Types](issue.md) §5 states. A removed identity
-  stays consumed, as Core requires; `addDependencies` is an upsert over the pair's
-  live Link; `removeDependency` removes it. Clients never compute the identity;
+  stays consumed, as Core requires; `add-dependencies` is an upsert over the pair's
+  live Link; `remove-dependency` removes it. Clients never compute the identity;
   records carry it.
 - **K-6 Pagination and bounds.** `limit`, `cursor`, `has_more` and `next_cursor`
   keep their native meanings; `limit: 0` means unbounded only where v0 admitted it.
   The item caps v0 enforced (one hundred anchors, a thousand identifiers) are the
   tracker's advertised limits and refuse as `limit-exceeded`.
-- **K-7 Definitions from argument schemas.** Each Callable's definition Bead is
-  derived from its arguments schema: every property becomes one parameter with that
-  property's schema, its `required` flag and, when the schema carries one, its
-  `default`; the `description` is the Meaning cell. The invocation's `arguments`
-  object is therefore exactly an instance of the arguments schema, and Callables §5
-  admits it. The `result` schema of the definition is the result fragment named for
-  the Callable.
-- **K-8 Problems.** Each Callable maps its native refusals to Core and Write codes
+- **K-7 Declarations from the fragments.** Each Callable's declaration Bead is
+  derived from the fragments named for it. Every property of its arguments schema
+  becomes one parameter with that property's schema, its `required` flag and, when
+  the schema carries one, its `default`; the `description` is the prose under its
+  heading. The invocation's `arguments` object is therefore exactly an instance of
+  the arguments schema, and Callables §5 checks it. `result` is the result fragment
+  named for the Callable, `error` the error fragment when its section names one, and
+  `idempotent` is true when its section says so. The fragments are authoring source:
+  Callables requires every `$ref` in a declaration to resolve inside its own
+  document, so a generator copies in what each one references.
+- **K-8 Errors.** Each Callable maps its native failures to Core and Write codes
   where one applies (`resource-not-found`, `validation-failed`, `revision-mismatch`,
-  `identity-taken`, `incident-links-exist`, `limit-exceeded`) and otherwise to
-  `callable-refused` with the `reason` tokens of §6, carrying the same extension
-  members v0 carried (`assignee`, `issue_status`, `blockers`, `open_children`).
-- **K-9 Destructive operations.** `sweepIssues` and `deleteIssues` erase; nothing
+  `identity-taken`, `incident-links-exist`, `limit-exceeded`) and otherwise answers
+  `callable-error`, whose `error` value is one arm of the union §6 gives it,
+  carrying the same members v0 carried (`assignee`, `issue_status`, `blockers`,
+  `open_children`).
+- **K-9 Destructive operations.** `sweep-issues` and `delete-issues` erase; nothing
   they remove comes back through BDP, and Write's lifetime non-reuse of identity
   applies to every identity they consume, including identities retired with
   `retain_ids`, which afterwards answer `identity-taken` to a supplied id.
@@ -121,7 +126,7 @@ so the native client is complete.
   the views they qualify; the Bead records inside such a view are then projections,
   not complete records, and carry no `revision` guarantee beyond equality.
   (**preview**)
-- **K-11 Observations.** `heartbeatIssue` writes only the lease and mints no
+- **K-11 Observations.** `heartbeat-issue` writes only the lease and mints no
   revision; its result carries the lease, not a record. A view's `observations`
   member is current at the read and may change under an unchanged `bead.revision`.
 
@@ -256,7 +261,7 @@ Other fields: not allowed
 | "target" | ref "#/$defs/locator" | yes | — | "The Issue depended upon; an opaque external URI is admitted where the provider admits external references." |
 | "type" | ref "#/$defs/typeUri" | yes | — | "The Dependency Type." |
 
-**`applyRef`** — Names one Issue inside an applyBatch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set.
+**`applyRef`** — Names one Issue inside an apply-batch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set.
 
 Other fields: not allowed
 
@@ -608,11 +613,11 @@ Other fields: not allowed
 
 ## 4. Queries
 
-### listReadyWork (CallableQuery)
+### list-ready-work (CallableQuery)
 
-Extern: `issueops.Reader (ready)`. Unblocked open work, ordered by the requested sort policy, with the native default type exclusions. The result is always restricted to open Issues; there is no cursor, so a client narrows the filters or raises the limit.
+Unblocked open work, ordered by the requested sort policy, with the native default type exclusions. The result is always restricted to open Issues; there is no cursor, so a client narrows the filters or raises the limit.
 
-**`listReadyWorkArguments`** — Arguments of listReadyWork.
+**`listReadyWorkArguments`** — Arguments of list-ready-work.
 
 Other fields: not allowed
 
@@ -646,11 +651,11 @@ Other fields: not allowed
 | "has_more" | boolean | yes | — | "True when the limit truncated the result. There is no cursor on this operation; narrow the filters or raise the limit." |
 | "items" | array of (ref "#/$defs/issueView") | yes | — | "Empty array (never null) when nothing is ready." |
 
-### countReadyWork (CallableQuery)
+### count-ready-work (CallableQuery)
 
-Extern: `issueops.ReadyCounter`. How many Issues listReadyWork would return for the same filters with limit 0, from the same predicate; an identity, not an estimate.
+How many Issues list-ready-work would return for the same filters with limit 0, from the same predicate; an identity, not an estimate.
 
-**`countReadyWorkArguments`** — Arguments of countReadyWork.
+**`countReadyWorkArguments`** — Arguments of count-ready-work.
 
 Other fields: not allowed
 
@@ -680,11 +685,11 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "total" | integer | yes | — | "How many items `GET /v0/beads/ready` would return for these filters with `limit=0`. Never negative; 0 when nothing is ready, which is a 200 rather than a 404 — a […]" |
 
-### listBlockedIssues (CallableQuery)
+### list-blocked-issues (CallableQuery)
 
-Extern: `issueops.BlockedLister`. The blocked Issues and the blockers the tracker names for each, seeded from the stored transitive readiness flag with closed and pinned rows excluded.
+The blocked Issues and the blockers the tracker names for each, seeded from the stored transitive readiness flag with closed and pinned rows excluded.
 
-**`listBlockedIssuesArguments`** — Arguments of listBlockedIssues.
+**`listBlockedIssuesArguments`** — Arguments of list-blocked-issues.
 
 Other fields: not allowed
 
@@ -704,11 +709,11 @@ Other fields: not allowed
 | "has_more" | boolean | yes | — | "Always false in v0: this operation takes no limit, so the listing is never truncated. Present so that adding a bound later is additive." |
 | "items" | array of (ref "#/$defs/blockedIssueView") | yes | — | "Empty array (never null) when nothing is blocked." |
 
-### getStats (CallableQuery)
+### get-stats (CallableQuery)
 
-Extern: `issueops.StatsReporter`. The workspace summary the native status command prints: rows by status plus the two dependency-aware numbers, the blocked count and the readiness derived from it.
+The workspace summary the native status command prints: rows by status plus the two dependency-aware numbers, the blocked count and the readiness derived from it.
 
-**`getStatsArguments`** — Arguments of getStats.
+**`getStatsArguments`** — Arguments of get-stats.
 
 Other fields: not allowed
 
@@ -726,11 +731,11 @@ Other fields: not allowed
 | "blocked_count_skipped" | boolean | yes | — | "True when the summary came back without the blocked-set scan, which is exactly `summary.blocked_issues == null`. It is DERIVED from the answer rather than echoed from […]" |
 | "summary" | ref "#/$defs/statistics" | yes | — | — |
 
-### listIssues (CallableQuery)
+### list-issues (CallableQuery)
 
-Extern: `issueops.Reader (list)`. Issues under the native default exclusions, each with its cardinalities, in one of two served total orders, paged by an opaque cursor. This is the listing the native list and search commands ride; the Core inventory and Selector serve generic clients over the same records.
+Issues under the native default exclusions, each with its cardinalities, in one of two served total orders, paged by an opaque cursor. This is the listing the native list and search commands ride; the Core inventory and Selector serve generic clients over the same records.
 
-**`listIssuesArguments`** — Arguments of listIssues.
+**`listIssuesArguments`** — Arguments of list-issues.
 
 Other fields: not allowed
 
@@ -801,11 +806,11 @@ Other fields: not allowed
 | "items" | array of (ref "#/$defs/issueView") | yes | — | "Empty array (never null) when nothing matches." |
 | "next_cursor" | text | no | — | "Present if and only if `has_more` is true. Pass it back verbatim as `cursor` to fetch the next page. Opaque and server-private." |
 
-### queryIssues (CallableQuery)
+### query-issues (CallableQuery)
 
-Extern: `issueops.Querier`. The native query expression language: field comparisons combined with AND, OR, NOT and parentheses. The one operation that takes a disjunction; not a passthrough to storage.
+The native query expression language: field comparisons combined with AND, OR, NOT and parentheses. The one operation that takes a disjunction; not a passthrough to storage.
 
-**`queryIssuesArguments`** — Arguments of queryIssues.
+**`queryIssuesArguments`** — Arguments of query-issues.
 
 Other fields: not allowed
 
@@ -826,11 +831,11 @@ Other fields: not allowed
 | "has_more" | boolean | yes | — | "True when `limit` truncated the result. It is exact for every expression, including the ones evaluated outside the database: those are matched against every candidate […]" |
 | "items" | array of (ref "#/$defs/issueView") | yes | — | "Empty array (never null) when the expression matched nothing." |
 
-### countIssues (CallableQuery)
+### count-issues (CallableQuery)
 
-Extern: `issueops.Counter`. How many Issues match a predicate, and with group_by how many in each bucket. It answers about every status by default, unlike the listing.
+How many Issues match a predicate, and with group_by how many in each bucket. It answers about every status by default, unlike the listing.
 
-**`countIssuesArguments`** — Arguments of countIssues.
+**`countIssuesArguments`** — Arguments of count-issues.
 
 Other fields: not allowed
 
@@ -877,11 +882,11 @@ Other fields: not allowed
 | "groups" | object | no | — | "Bucket key to cardinality, PRESENT exactly when the request carried `group_by` and ABSENT otherwise. That absence is the answer to \\"you did not ask for buckets\\"; an […]" |
 | "total" | integer | yes | — | "How many issues match. Never negative; `0` when nothing matches, which is a 200 rather than a 404 — a question about a set has an answer even when the set is empty, […]" |
 
-### getIssue (CallableQuery)
+### get-issue (CallableQuery)
 
-Extern: `issueops.Reader (details)`. One Issue with its labels, Dependencies and cardinalities: the detail view behind the native show command. Comment bodies and dependents are asked for, never volunteered. The Core point read of the Issue's URL serves the record alone.
+One Issue with its labels, Dependencies and cardinalities: the detail view behind the native show command. Comment bodies and dependents are asked for, never volunteered. The Core point read of the Issue's URL serves the record alone.
 
-**`getIssueArguments`** — Arguments of getIssue.
+**`getIssueArguments`** — Arguments of get-issue.
 
 Other fields: not allowed
 
@@ -894,11 +899,11 @@ Other fields: not allowed
 
 Result: `issueDetails` (§3).
 
-### listRelatedIssues (CallableQuery)
+### list-related-issues (CallableQuery)
 
-Extern: `issueops.Relations`. The Issues on the far end of one Issue's Dependencies in a named direction, each with the Link that leads to it.
+The Issues on the far end of one Issue's Dependencies in a named direction, each with the Link that leads to it.
 
-**`listRelatedIssuesArguments`** — Arguments of listRelatedIssues.
+**`listRelatedIssuesArguments`** — Arguments of list-related-issues.
 
 Other fields: not allowed
 
@@ -916,11 +921,11 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "items" | array of (ref "#/$defs/neighborView") | yes | — | "The neighbors, ascending by id with the edge type breaking a tie. Empty array (never null) when this issue has none in the requested direction, or when the `type` […]" |
 
-### listDependencyCycles (CallableQuery)
+### list-dependency-cycles (CallableQuery)
 
-Extern: `issueops.CycleDetector`. Every circular blocking Dependency, canonically ordered so two reads of an unchanged workspace return the same bytes; the walk follows blocks and conditional-blocks only.
+Every circular blocking Dependency, canonically ordered so two reads of an unchanged workspace return the same bytes; the walk follows blocks and conditional-blocks only.
 
-**`listDependencyCyclesArguments`** — Arguments of listDependencyCycles.
+**`listDependencyCyclesArguments`** — Arguments of list-dependency-cycles.
 
 **`cyclesPage`**
 
@@ -931,11 +936,11 @@ Other fields: not allowed
 | "has_more" | boolean | yes | — | "Always false in v0: this operation takes no limit, so the report is never truncated. Present so that adding a bound later is additive." |
 | "items" | array of (ref "#/$defs/cycle") | yes | — | "Empty array (never null) when the workspace has no cycles. Its LENGTH is the total: a cycle whose members this workspace cannot describe is still counted here, so the […]" |
 
-### getDependencyTree (CallableQuery)
+### get-dependency-tree (CallableQuery)
 
-Extern: `issueops.TreeWalker`. The Dependency graph walked from one root, flat, in depth-first pre-order; each node is expanded at most once and a cycle terminates the walk rather than failing it.
+The Dependency graph walked from one root, flat, in depth-first pre-order; each node is expanded at most once and a cycle terminates the walk rather than failing it.
 
-**`getDependencyTreeArguments`** — Arguments of getDependencyTree.
+**`getDependencyTreeArguments`** — Arguments of get-dependency-tree.
 
 Other fields: not allowed
 
@@ -955,11 +960,11 @@ Other fields: not allowed
 | "has_more" | boolean | yes | — | "Always false in v0: this operation takes no limit, so the walk is bounded by `max_depth` rather than truncated after the fact. Present so that adding a bound later is […]" |
 | "items" | array of (ref "#/$defs/treeNode") | yes | — | "The walked nodes in DEPTH-FIRST PRE-ORDER: a node appears before every node it led to, and a subtree is contiguous. Never null. It is empty only when a `status` […]" |
 
-### countDependencyEdges (CallableQuery)
+### count-dependency-edges (CallableQuery)
 
-Extern: `issueops.GraphCounter`. How many Dependencies each named Issue has in one direction after the Type and status filters, without materializing them.
+How many Dependencies each named Issue has in one direction after the Type and status filters, without materializing them.
 
-**`countDependencyEdgesArguments`** — Arguments of countDependencyEdges.
+**`countDependencyEdgesArguments`** — Arguments of count-dependency-edges.
 
 Other fields: not allowed
 
@@ -978,11 +983,11 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "anchors" | array of (ref "#/$defs/edgeCount") | yes | — | "One entry per DISTINCT requested `issue_id`, in the order the request first named it. Empty array (never null) when the request named no anchors this server accepted […]" |
 
-### listBlockingAnnotations (CallableQuery)
+### list-blocking-annotations (CallableQuery)
 
-Extern: `issueops.BlockingAnnotator`. The derived blocking decoration the native listing prints beside each row: open blockers, the Issues blocked, the parent, and optionally the stored readiness flag.
+The derived blocking decoration the native listing prints beside each row: open blockers, the Issues blocked, the parent, and optionally the stored readiness flag.
 
-**`listBlockingAnnotationsArguments`** — Arguments of listBlockingAnnotations.
+**`listBlockingAnnotationsArguments`** — Arguments of list-blocking-annotations.
 
 Other fields: not allowed
 
@@ -1001,11 +1006,13 @@ Other fields: not allowed
 
 ## 5. Batches
 
-### addDependencies (CallableBatch)
+### add-dependencies (CallableBatch)
 
-Extern: `issueops.DependencyEditor`. Asserts Dependencies by endpoints as an upsert, all edges or none. For a pair with no live Dependency a new Link is created with the given Type and metadata; for a live Dependency of the same Type the metadata and thread are updated in place as a new revision, or nothing is written when nothing differs; for a live Dependency of another Type the call is refused with reason dependency-exists, as the native path refuses it, and the kind is changed with updateLink or by remove and add. The whole set is cycle-checked at the end. A generic client may use createLink instead; this callable is the native idiom.
+Asserts Dependencies by endpoints as an upsert, all edges or none. For a pair with no live Dependency a new Link is created with the given Type and metadata; for a live Dependency of the same Type the metadata and thread are updated in place as a new revision, or nothing is written when nothing differs; for a live Dependency of another Type the call fails with reason dependency-exists, as the native path refuses it, and the kind is changed with updateLink or by remove and add. The whole set is cycle-checked at the end. A generic client may use createLink instead; this callable is the native idiom.
 
-**`addDependenciesArguments`** — Arguments of addDependencies.
+Declared `idempotent`. Its `error` is `addDependenciesError`.
+
+**`addDependenciesArguments`** — Arguments of add-dependencies.
 
 Other fields: not allowed
 
@@ -1021,11 +1028,13 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "added" | array of (ref "#/$defs/dependencyEdge") | yes | — | "The request's edges, in REQUEST ORDER. It echoes the request because all-or-nothing means it is either every edge or the call failed, so a caller reporting what […]" |
 
-### claimIssue (CallableBatch)
+### claim-issue (CallableBatch)
 
-Extern: `issueops.Claimer`. Compare-and-set claim for the invocation's actor. A re-claim by the current holder is idempotent and reports already_claimed; a claim held by another actor refuses with reason already-claimed and the holder in assignee; a non-claimable state refuses with reason not-claimable and the status in issue_status.
+Compare-and-set claim for the invocation's actor. A re-claim by the current holder is idempotent and reports already_claimed; a claim held by another actor fails with reason already-claimed and the holder in assignee; a non-claimable state fails with reason not-claimable and the status in issue_status.
 
-**`claimIssueArguments`** — Arguments of claimIssue.
+Declared `idempotent`. Its `error` is `claimIssueError`.
+
+**`claimIssueArguments`** — Arguments of claim-issue.
 
 Other fields: not allowed
 
@@ -1042,11 +1051,13 @@ Other fields: not allowed
 | "already_claimed" | boolean | yes | — | "True when the caller already held the issue and this call changed nothing — the idempotent re-claim. A claim held by a DIFFERENT actor is a 409, not a 200 with this flag." |
 | "issue" | ref "#/$defs/issueView" | yes | — | — |
 
-### claimNextIssue (CallableBatch)
+### claim-next-issue (CallableBatch)
 
-Extern: `issueops.ReadyClaimer`. Takes one ready Issue under the given filters and returns it claimed for the actor, in one transaction; an empty answer means nothing was eligible, and claimed is absent rather than null.
+Takes one ready Issue under the given filters and returns it claimed for the actor, in one transaction; an empty answer means nothing was eligible, and claimed is absent rather than null.
 
-**`claimNextIssueArguments`** — Arguments of claimNextIssue.
+Its `error` is `claimNextIssueError`.
+
+**`claimNextIssueArguments`** — Arguments of claim-next-issue.
 
 Other fields: not allowed
 
@@ -1077,11 +1088,13 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "claimed" | ref "#/$defs/issueView" | no | — | — |
 
-### releaseIssue (CallableBatch)
+### release-issue (CallableBatch)
 
-Extern: `issueops.Releaser`. Gives back the claim: the assignee is cleared, the status becomes the literal open, started_at is cleared, the lease is dropped and the record is reversioned. Refuses with reason not-releasable or not-assignee as the native guards decide, in the native order.
+Gives back the claim: the assignee is cleared, the status becomes the literal open, started_at is cleared, the lease is dropped and the record is reversioned. Fails with reason not-releasable or not-assignee as the native guards decide, in the native order.
 
-**`releaseIssueArguments`** — Arguments of releaseIssue.
+Its `error` is `releaseIssueError`.
+
+**`releaseIssueArguments`** — Arguments of release-issue.
 
 Other fields: not allowed
 
@@ -1100,11 +1113,13 @@ Other fields: not allowed
 | "changed" | boolean | yes | — | "Whether the release WROTE the row. It is TRUE on every 200 this operation returns, because every shape that would not write is refused above it — an unheld row is a […]" |
 | "issue" | ref "#/$defs/issueView" | yes | — | — |
 
-### heartbeatIssue (CallableBatch)
+### heartbeat-issue (CallableBatch)
 
-Extern: `issueops.Heartbeater`. Refreshes the actor's lease on an Issue it holds and stamps heartbeat_at; it writes only the lease, mints no revision and records no Event. Refuses with reason already-claimed when another actor holds the lease, or lease-not-held.
+Refreshes the actor's lease on an Issue it holds and stamps heartbeat_at; it writes only the lease, mints no revision and records no Event. Fails with reason already-claimed when another actor holds the lease, or lease-not-held.
 
-**`heartbeatIssueArguments`** — Arguments of heartbeatIssue.
+Its `error` is `heartbeatIssueError`.
+
+**`heartbeatIssueArguments`** — Arguments of heartbeat-issue.
 
 Other fields: not allowed
 
@@ -1124,11 +1139,13 @@ Other fields: not allowed
 | "lease_expires_at" | ref "#/$defs/instant" | yes | — | "`heartbeat_at` plus the server's lease TTL: the deadline the next heartbeat must beat before a reclaim may revert the claim." |
 | "rearmed" | boolean | yes | — | "True when the actor held the claim but no lease row existed for it (a claim hand-doled through `updateIssue`), so the heartbeat granted a fresh lease instead of […]" |
 
-### closeIssue (CallableBatch)
+### close-issue (CallableBatch)
 
-Extern: `issueops.Lifecycle (close)`. Closes one Issue to the literal closed status, including from a configured done status, recording reason and session under first-close-wins; a re-close is idempotent and reports already_closed. Close policy refuses with reason not-closable and names the blockers; the assignee guard with reason not-assignee.
+Closes one Issue to the literal closed status, including from a configured done status, recording reason and session under first-close-wins; a re-close is idempotent and reports already_closed. Close policy fails with reason not-closable and names the blockers; the assignee guard with reason not-assignee.
 
-**`closeIssueArguments`** — Arguments of closeIssue.
+Declared `idempotent`. Its `error` is `closeIssueError`.
+
+**`closeIssueArguments`** — Arguments of close-issue.
 
 Other fields: not allowed
 
@@ -1153,11 +1170,11 @@ Other fields: not allowed
 | "molecule_auto_close_refusal" | text | no | — | "With `issues.close.autoCloseMolecule` and `auto_close_molecule`: why the molecule root this close completed stayed open — the root's own close policy refused it (a […]" |
 | "open_children" | integer | yes | — | "How many open children the close observed. Reported by a FORCED close — including an idempotent re-close — because a caller that bypassed the guard is exactly the […]" |
 
-### batchCloseIssues (CallableBatch)
+### batch-close-issues (CallableBatch)
 
-Extern: `issueops.BatchCloser`. Closes every item it can and commits them together, with one outcome per item in request order; an item's refusal is carried in its outcome's reason and writes nothing for that item.
+Closes every item it can and commits them together, with one outcome per item in request order; an item's refusal is carried in its outcome's reason and writes nothing for that item.
 
-**`batchCloseIssuesArguments`** — Arguments of batchCloseIssues.
+**`batchCloseIssuesArguments`** — Arguments of batch-close-issues.
 
 Other fields: not allowed
 
@@ -1176,11 +1193,13 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "outcomes" | array of (ref "#/$defs/closeOutcome") | yes | — | "Exactly one entry per requested item, in REQUEST ORDER — including for items that refused, so a client walks this against its own argument list without matching ids […]" |
 
-### reopenIssue (CallableBatch)
+### reopen-issue (CallableBatch)
 
-Extern: `issueops.Lifecycle (reopen)`. Moves a closed or done-status Issue back to open; a reopen of an Issue that is not done changes nothing and reports already_open.
+Moves a closed or done-status Issue back to open; a reopen of an Issue that is not done changes nothing and reports already_open.
 
-**`reopenIssueArguments`** — Arguments of reopenIssue.
+Declared `idempotent`.
+
+**`reopenIssueArguments`** — Arguments of reopen-issue.
 
 Other fields: not allowed
 
@@ -1199,11 +1218,11 @@ Other fields: not allowed
 | "already_open" | boolean | yes | — | "True when the issue was not in a done status and this call changed nothing — idempotent, mirroring `CloseIssueResponse.already_closed` and […]" |
 | "issue" | ref "#/$defs/issueView" | yes | — | — |
 
-### compareAndSetMetadata (CallableBatch)
+### compare-and-set-metadata (CallableBatch)
 
-Extern: `issueops.MetadataCAS`. Sets one metadata key if and only if it currently holds the expected value, and reports the current value either way; omitting expected or value means the key is absent before or after. A lost race is swapped false, an answer rather than a refusal.
+Sets one metadata key if and only if it currently holds the expected value, and reports the current value either way; omitting expected or value means the key is absent before or after. A lost race is swapped false, an answer rather than an error.
 
-**`compareAndSetMetadataArguments`** — Arguments of compareAndSetMetadata.
+**`compareAndSetMetadataArguments`** — Arguments of compare-and-set-metadata.
 
 Other fields: not allowed
 
@@ -1223,11 +1242,11 @@ Other fields: not allowed
 | "current" | ref "#/$defs/metadataValue" | no | — | — |
 | "swapped" | boolean | yes | — | "Whether the precondition held and the transition applied. THIS IS THE VERDICT and the only member to dispatch on. False is a lost race — an answer, not a failure — […]" |
 
-### advanceMolecule (CallableBatch)
+### advance-molecule (CallableBatch)
 
-Extern: `issueops.MoleculeStepper`. After the named step closed, finds where its molecule stands and, with auto_claim, claims the next ready step for the actor.
+After the named step closed, finds where its molecule stands and, with auto_claim, claims the next ready step for the actor.
 
-**`advanceMoleculeArguments`** — Arguments of advanceMolecule.
+**`advanceMoleculeArguments`** — Arguments of advance-molecule.
 
 Other fields: not allowed
 
@@ -1248,11 +1267,11 @@ Other fields: not allowed
 | "molecule_id" | ref "#/$defs/issueUrl" | no | — | "The step's molecule root. ABSENT when the step belongs to no molecule, and then nothing else below is set." |
 | "next_step" | ref "#/$defs/issueView" | no | — | — |
 
-### reclaimIssues (CallableBatch)
+### reclaim-issues (CallableBatch)
 
-Extern: `issueops.LeaseReclaimer`. Reverts every in-progress Issue whose lease went stale back to open, clearing the assignee and started_at and recording a recovery Event naming the former holder; every scope member narrows the sweep.
+Reverts every in-progress Issue whose lease went stale back to open, clearing the assignee and started_at and recording a recovery Event naming the former holder; every scope member narrows the sweep.
 
-**`reclaimIssuesArguments`** — Arguments of reclaimIssues.
+**`reclaimIssuesArguments`** — Arguments of reclaim-issues.
 
 Other fields: not allowed
 
@@ -1274,11 +1293,13 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "reclaimed" | array of (ref "#/$defs/reclaimedLease") | yes | — | "One entry per reverted row. Empty array (never null) when nothing was stale in scope." |
 
-### sweepIssues (CallableBatch)
+### sweep-issues (CallableBatch)
 
-Extern: `issueops.Sweeper`. Bulk clearance of closed Issues from one tier, the operation behind the native purge and prune commands; destructive, with the counts of what went and what was protected.
+Bulk clearance of closed Issues from one tier, the operation behind the native purge and prune commands; destructive, with the counts of what went and what was protected.
 
-**`sweepIssuesArguments`** — Arguments of sweepIssues.
+Its `error` is `sweepIssuesError`.
+
+**`sweepIssuesArguments`** — Arguments of sweep-issues.
 
 Other fields: not allowed
 
@@ -1309,11 +1330,13 @@ Other fields: not allowed
 | "skipped" | ref "#/$defs/sweepSkips" | yes | — | — |
 | "swept" | integer | yes | — | "How many beads were deleted, or under `dry_run` would be." |
 
-### deleteIssues (CallableBatch)
+### delete-issues (CallableBatch)
 
-Extern: `issueops.Deleter`. Erases the Issues named and, under cascade, their parent-child descendants, in one transaction with the reference rewrite; the plain single delete rides the native deleteBead instead.
+Erases the Issues named and, under cascade, their parent-child descendants, in one transaction with the reference rewrite; the plain single delete rides the native deleteBead instead.
 
-**`deleteIssuesArguments`** — Arguments of deleteIssues.
+Its `error` is `deleteIssuesError`.
+
+**`deleteIssuesArguments`** — Arguments of delete-issues.
 
 Other fields: not allowed
 
@@ -1340,11 +1363,13 @@ Other fields: not allowed
 | "orphaned" | array of (ref "#/$defs/issueUrl") | no | — | "The surviving beads that depended on something this request deleted, in ascending id order. Present when the request carried `cascade` (a cascade follows parent-child […]" |
 | "references_updated" | integer | yes | — | "How many SURVIVING beads had their text rewritten — beads, not occurrences. Always 0 under `dry_run`, because a preview rewrites nothing." |
 
-### batchCreateIssues (CallableBatch)
+### batch-create-issues (CallableBatch)
 
-Extern: `issueops.BatchCreator`. Creates every item or none of them, each item carrying the Dependencies it is created with, in one transaction.
+Creates every item or none of them, each item carrying the Dependencies it is created with, in one transaction.
 
-**`batchCreateIssuesArguments`** — Arguments of batchCreateIssues.
+Its `error` is `batchCreateIssuesError`.
+
+**`batchCreateIssuesArguments`** — Arguments of batch-create-issues.
 
 Other fields: not allowed
 
@@ -1360,11 +1385,13 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "items" | array of (ref "#/$defs/issueView") | yes | — | "One entry per requested item, in REQUEST ORDER, each the stored issue with its generated id and its labels. Never null and never shorter than the request: a partial […]" |
 
-### applyBatch (CallableBatch)
+### apply-batch (CallableBatch)
 
-Extern: `issueops.BatchApplier`. Applies an ordered plan of creates, updates, closes and Dependency additions as one transaction or none of it; a create item may name itself with a key that later items reference.
+Applies an ordered plan of creates, updates, closes and Dependency additions as one transaction or none of it; a create item may name itself with a key that later items reference.
 
-**`applyBatchArguments`** — Arguments of applyBatch.
+Its `error` is `applyBatchError`.
+
+**`applyBatchArguments`** — Arguments of apply-batch.
 
 Other fields: not allowed
 
@@ -1384,11 +1411,11 @@ Other fields: not allowed
 | "items" | array of (ref "#/$defs/applyItemResult") | yes | — | "One entry per requested item, in REQUEST ORDER. Never null and never shorter than the request: a batch that could not apply every item applied none, so there is no […]" |
 | "keys" | object | yes | — | "Each create item's `key` mapped to the id it was bound to. It is the one fact the request cannot carry and every caller needs. It carries only the keys the request […]" |
 
-### addComment (CallableBatch)
+### add-comment (CallableBatch)
 
-Extern: `issueops.Commenter`. Appends one comment to an Issue's thread as one atomic mutation, leaving every field of the Issue untouched.
+Appends one comment to an Issue's thread as one atomic mutation, leaving every field of the Issue untouched.
 
-**`addCommentArguments`** — Arguments of addComment.
+**`addCommentArguments`** — Arguments of add-comment.
 
 Other fields: not allowed
 
@@ -1400,11 +1427,13 @@ Other fields: not allowed
 
 Result: `commentRecord` (§3).
 
-### removeDependency (CallableBatch)
+### remove-dependency (CallableBatch)
 
-Extern: `issueops.DependencyEditor`. Removes the live Dependency between the named source and target, by endpoints: its Link identity is consumed for good, and a later addDependencies of the same pair creates a Link with a new identity. removed false is a success, not a refusal, so a replayed teardown needs no error handling. The native deleteLink by identity is the generic way to the same effect.
+Removes the live Dependency between the named source and target, by endpoints: its Link identity is consumed for good, and a later add-dependencies of the same pair creates a Link with a new identity. removed false is a success, not an error, so a replayed teardown needs no error handling. The native deleteLink by identity is the generic way to the same effect.
 
-**`removeDependencyArguments`** — Arguments of removeDependency.
+Declared `idempotent`.
+
+**`removeDependencyArguments`** — Arguments of remove-dependency.
 
 Other fields: not allowed
 
@@ -1421,48 +1450,57 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "removed" | boolean | yes | — | "True when an edge was there and is now gone. FALSE IS A SUCCESS, not a refusal: it says this pair carried no such edge, which is the same graph a second removal […]" |
 
-## 6. Problems and reasons
+## 6. Errors and reasons
 
-A Callable's refusal is a Core or Write code when one applies (§2, K-8). The
-remaining native refusals are `callable-refused` with these `reason` tokens:
+A Callable's failure is a Core or Write code when one applies (§2, K-8). Otherwise
+it answers `callable-error` at HTTP 409, and its `error` value is one of the arms
+below, discriminated by `reason`:
 
-| Reason | Raised by | Condition |
-| --- | --- | --- |
+```json
+{"code": "callable-error", "error": {"reason": "already-claimed", "assignee": "sam", "issue_status": "in_progress"}}
+```
 
-| `already-claimed` | claimIssue, heartbeatIssue, applyBatch (assignee transfer) | Another actor holds the Issue; the assignee and issue_status extension members carry the holder and the status. |
-| `not-claimable` | claimIssue, claimNextIssue | The Issue is in a state that cannot be claimed; issue_status carries it. |
-| `not-releasable` | releaseIssue | The Issue is not in a releasable state. |
-| `not-assignee` | releaseIssue, closeIssue, batchCloseIssues (per item) | The actor is not the holder and did not force; assignee carries the holder. |
-| `lease-not-held` | heartbeatIssue | The actor holds no lease on the Issue. |
-| `not-closable` | closeIssue, batchCloseIssues (per item), applyBatch | Close policy refused: open children or live blockers; blockers and open_children carry them. |
-| `notes-overwrite-refused` | applyBatch | A notes replacement would overwrite existing non-empty notes without force_notes_overwrite. |
-| `template-read-only` | closeIssue, applyBatch | The Issue is a template. |
-| `issue-pinned` | closeIssue, deleteIssues, sweepIssues | The Issue carries the pinned flag. |
-| `dependency-cycle` | applyBatch, batchCreateIssues | The requested edges can never make progress. |
-| `dependency-exists` | applyBatch, batchCreateIssues | The ordered pair already carries a Dependency. |
-| `journal-disabled` | listEvents | The durable events journal is not enabled on this Scope. |
-| `journal-truncated` | listEvents | The checkpoint fell below the retained window; retrying the same since cannot succeed. |
+`reason` is this package's own vocabulary; Callables gives it no meaning. Each
+Callable's section names its `error` fragment, the union of the arms it can raise,
+and §9 defines them.
+
+| Reason | Arm | Raised by | Condition |
+| --- | --- | --- | --- |
+| `already-claimed` | `alreadyClaimedError` | claim-issue, heartbeat-issue, apply-batch (assignee transfer) | Another actor holds the Issue. |
+| `not-claimable` | `notClaimableError` | claim-issue, claim-next-issue | The Issue is in a state that cannot be claimed. |
+| `not-releasable` | `notReleasableError` | release-issue | The Issue is not in a releasable state. |
+| `not-assignee` | `notAssigneeError` | release-issue, close-issue | The actor is not the holder and did not force. |
+| `lease-not-held` | `leaseNotHeldError` | heartbeat-issue | The actor holds no lease on the Issue. |
+| `not-closable` | `notClosableError` | close-issue, apply-batch | Close policy stopped the close: open children or live blockers. |
+| `notes-overwrite-refused` | `notesOverwriteRefusedError` | apply-batch | A notes replacement would overwrite existing non-empty notes without force_notes_overwrite. |
+| `template-read-only` | `templateReadOnlyError` | close-issue, apply-batch | The Issue is a template. |
+| `issue-pinned` | `issuePinnedError` | close-issue, delete-issues, sweep-issues | The Issue carries the pinned flag. |
+| `dependency-cycle` | `dependencyCycleError` | apply-batch, batch-create-issues | The requested edges can never make progress. |
+| `dependency-exists` | `dependencyExistsError` | add-dependencies, apply-batch, batch-create-issues | The ordered pair already carries a Dependency of another Type. |
+| `journal-disabled` | `journalDisabledError` | list-events | The durable events journal is not enabled on this Scope. |
+| `journal-truncated` | `journalTruncatedError` | list-events | The checkpoint fell below the retained window; retrying the same since cannot succeed. |
 
 Native `not_found` is `resource-not-found`; `precondition_failed` is
 `revision-mismatch`; `already_exists` on an explicit create identity and
 `idempotency_expired` on a retired identity are both `identity-taken`; argument
 faults are `validation-failed` naming the parameter; over-cap item lists are
 `limit-exceeded`. A per-item outcome inside `batchCloseResult` carries its reason in
-the item, never as a Problem, because the invocation succeeded.
+the item, never as a Problem, because the invocation succeeded, so `not-assignee`
+and `not-closable` reach `batch-close-issues` callers there.
 
 ## 7. Conformance rows for preview-1
 
 | Row | Expectation |
 | --- | --- |
-| IC-1 | The directory lists the twenty-nine names of §§4–5, each bound to a definition Bead whose properties derive from the arguments schema (K-7) |
-| IC-2 | `listReadyWork` with no arguments returns a `readyPage` whose items are `issueView`s with complete Bead records and the observations member |
-| IC-3 | `getIssue` on an Issue URL returns an `issueDetails` whose `issue.bead` equals the Core point read of the same URL |
-| IC-4 | `claimIssue` without `revisionProvenance.actor` is refused as `validation-failed`; with it, the Issue's record gains a new revision and `assignee` |
-| IC-5 | `claimIssue` by a second actor is `callable-refused` with reason `already-claimed` and the `assignee` member |
-| IC-6 | `closeIssue` with a stale `expected_revision` is `revision-mismatch` and the record is unchanged |
-| IC-7 | `removeDependency` on a pair with no Dependency returns `removed: false` with HTTP 200 |
-| IC-8 | `heartbeatIssue` by the holder leaves the Issue's `bead.revision` unchanged and changes `observations.heartbeat_at` on the next view |
-| IC-9 | `deleteIssues` of an Issue with a live incident Dependency and neither `cascade` nor `force` is refused; with `cascade` the descendants are erased and their identities answer `identity-taken` to a supplied id |
+| IC-1 | The thirty names of §§4–5 are each invocable, and each declaration's properties derive from its fragments (K-7) |
+| IC-2 | `list-ready-work` with no arguments returns a `readyPage` whose items are `issueView`s with complete Bead records and the observations member |
+| IC-3 | `get-issue` on an Issue URL returns an `issueDetails` whose `issue.bead` equals the Core point read of the same URL |
+| IC-4 | `claim-issue` without `revisionProvenance.actor` is refused as `validation-failed`; with it, the Issue's record gains a new revision and `assignee` |
+| IC-5 | `claim-issue` by a second actor is `callable-error` at HTTP 409, whose `error` has `reason` `already-claimed` and the `assignee` member |
+| IC-6 | `close-issue` with a stale `expected_revision` is `revision-mismatch` and the record is unchanged |
+| IC-7 | `remove-dependency` on a pair with no Dependency returns `removed: false` with HTTP 200 |
+| IC-8 | `heartbeat-issue` by the holder leaves the Issue's `bead.revision` unchanged and changes `observations.heartbeat_at` on the next view |
+| IC-9 | `delete-issues` of an Issue with a live incident Dependency and neither `cascade` nor `force` is refused; with `cascade` the descendants are erased and their identities answer `identity-taken` to a supplied id |
 | IC-10 | Under `idempotency`, a replay of any CallableBatch under the same `Idempotency-Key` returns the original result and commits nothing |
 
 ## 8. Appendix: tracker callables outside the package
@@ -1472,11 +1510,11 @@ nine Callables are specified here so the native client is complete, under the
 same conventions. Memories are the native key and value plane in preview-1; their
 modeling as Beads is the Memory package's work, not this document's.
 
-### listSettings (CallableQuery)
+### list-settings (CallableQuery)
 
-Extern: `issueops.WorkspaceConfig`. The settings stored in the workspace database, by key.
+The settings stored in the workspace database, by key.
 
-**`listSettingsArguments`** — Arguments of listSettings.
+**`listSettingsArguments`** — Arguments of list-settings.
 
 **`settingsPage`**
 
@@ -1488,11 +1526,11 @@ Other fields: not allowed
 | "items" | array of (ref "#/$defs/setting") | yes | — | "The stored settings, ordered by key. Empty array (never null) when the workspace stores none." |
 | "next_cursor" | text | no | — | "Present if and only if `has_more` is true, which is never in v0." |
 
-### getSetting (CallableQuery)
+### get-setting (CallableQuery)
 
-Extern: `issueops.WorkspaceConfig`. The value stored under one key, verbatim; a key nothing stored and a key stored empty are the same answer.
+The value stored under one key, verbatim; a key nothing stored and a key stored empty are the same answer.
 
-**`getSettingArguments`** — Arguments of getSetting.
+**`getSettingArguments`** — Arguments of get-setting.
 
 Other fields: not allowed
 
@@ -1502,11 +1540,11 @@ Other fields: not allowed
 
 Result: `setting` (§3).
 
-### setSetting (CallableBatch)
+### set-setting (CallableBatch)
 
-Extern: `issueops.WorkspaceConfig`. Stores one setting, replacing any value already there.
+Stores one setting, replacing any value already there.
 
-**`setSettingArguments`** — Arguments of setSetting.
+**`setSettingArguments`** — Arguments of set-setting.
 
 Other fields: not allowed
 
@@ -1517,11 +1555,11 @@ Other fields: not allowed
 
 Result: `setting` (§3).
 
-### unsetSetting (CallableBatch)
+### unset-setting (CallableBatch)
 
-Extern: `issueops.WorkspaceConfig`. Removes the setting stored under one key; removing a key nothing set succeeds.
+Removes the setting stored under one key; removing a key nothing set succeeds.
 
-**`unsetSettingArguments`** — Arguments of unsetSetting.
+**`unsetSettingArguments`** — Arguments of unset-setting.
 
 Other fields: not allowed
 
@@ -1531,11 +1569,11 @@ Other fields: not allowed
 
 Result: `removedSetting` (§3).
 
-### listMemories (CallableQuery)
+### list-memories (CallableQuery)
 
-Extern: `memoryops.Memories`. Every memory the workspace holds, optionally narrowed by search.
+Every memory the workspace holds, optionally narrowed by search.
 
-**`listMemoriesArguments`** — Arguments of listMemories.
+**`listMemoriesArguments`** — Arguments of list-memories.
 
 Other fields: not allowed
 
@@ -1553,11 +1591,11 @@ Other fields: not allowed
 | "items" | array of (ref "#/$defs/memory") | yes | — | "The stored memories, ordered by key. Empty array (never null) when the workspace holds none, or when `q` matched none." |
 | "next_cursor" | text | no | — | "Present if and only if `has_more` is true, which is never in v0." |
 
-### getMemory (CallableQuery)
+### get-memory (CallableQuery)
 
-Extern: `memoryops.Memories`. The memory stored under one key; a missing key is resource-not-found.
+The memory stored under one key; a missing key is resource-not-found.
 
-**`getMemoryArguments`** — Arguments of getMemory.
+**`getMemoryArguments`** — Arguments of get-memory.
 
 Other fields: not allowed
 
@@ -1567,11 +1605,11 @@ Other fields: not allowed
 
 Result: `memory` (§3).
 
-### rememberMemory (CallableBatch)
+### remember-memory (CallableBatch)
 
-Extern: `memoryops.Memories`. Stores one memory, upserting by key; the key is derived from the content when omitted.
+Stores one memory, upserting by key; the key is derived from the content when omitted.
 
-**`rememberMemoryArguments`** — Arguments of rememberMemory.
+**`rememberMemoryArguments`** — Arguments of remember-memory.
 
 Other fields: not allowed
 
@@ -1582,11 +1620,11 @@ Other fields: not allowed
 
 Result: `rememberedMemory` (§3).
 
-### forgetMemory (CallableBatch)
+### forget-memory (CallableBatch)
 
-Extern: `memoryops.Memories`. Removes the memory stored under one key and returns what it held.
+Removes the memory stored under one key and returns what it held.
 
-**`forgetMemoryArguments`** — Arguments of forgetMemory.
+**`forgetMemoryArguments`** — Arguments of forget-memory.
 
 Other fields: not allowed
 
@@ -1596,11 +1634,13 @@ Other fields: not allowed
 
 Result: `memory` (§3).
 
-### listEvents (CallableQuery)
+### list-events (CallableQuery)
 
-Extern: `storage.EventsJournalCursor`. The durable events journal paged from a caller-held checkpoint; the records are the native journal's records.
+The durable events journal paged from a caller-held checkpoint; the records are the native journal's records.
 
-**`listEventsArguments`** — Arguments of listEvents.
+Its `error` is `listEventsError`.
+
+**`listEventsArguments`** — Arguments of list-events.
 
 Other fields: not allowed
 
@@ -1962,7 +2002,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Names one Issue inside an applyBatch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set." |
+| description | "Names one Issue inside an apply-batch invocation: either a locator of an existing Issue or the key a create item earlier in the same invocation gave itself. Exactly one member is set." |
 | type | "object" |
 
 #### Properties
@@ -3056,7 +3096,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listReadyWork." |
+| description | "Arguments of list-ready-work." |
 | type | "object" |
 
 #### Properties
@@ -3152,7 +3192,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of countReadyWork." |
+| description | "Arguments of count-ready-work." |
 | type | "object" |
 
 #### Properties
@@ -3239,7 +3279,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listBlockedIssues." |
+| description | "Arguments of list-blocked-issues." |
 | type | "object" |
 
 #### Properties
@@ -3286,7 +3326,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of getStats." |
+| description | "Arguments of get-stats." |
 | type | "object" |
 
 #### Properties
@@ -3345,7 +3385,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listIssues." |
+| description | "Arguments of list-issues." |
 | type | "object" |
 
 #### Properties
@@ -3543,7 +3583,7 @@ Required order: ["q"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of queryIssues." |
+| description | "Arguments of query-issues." |
 | type | "object" |
 
 #### Properties
@@ -3628,7 +3668,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of countIssues." |
+| description | "Arguments of count-issues." |
 | type | "object" |
 
 #### Properties
@@ -3760,7 +3800,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of getIssue." |
+| description | "Arguments of get-issue." |
 | type | "object" |
 
 #### Properties
@@ -3807,7 +3847,7 @@ Required order: ["issue", "direction"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listRelatedIssues." |
+| description | "Arguments of list-related-issues." |
 | type | "object" |
 
 #### Properties
@@ -3869,7 +3909,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listDependencyCycles." |
+| description | "Arguments of list-dependency-cycles." |
 | type | "object" |
 <!-- bdp-schema:end listDependencyCyclesArguments bundle=issue-callables -->
 
@@ -3909,7 +3949,7 @@ Required order: ["root"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of getDependencyTree." |
+| description | "Arguments of get-dependency-tree." |
 | type | "object" |
 
 #### Properties
@@ -3981,7 +4021,7 @@ Required order: ["issue", "direction"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of countDependencyEdges." |
+| description | "Arguments of count-dependency-edges." |
 | type | "object" |
 
 #### Properties
@@ -4046,7 +4086,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listBlockingAnnotations." |
+| description | "Arguments of list-blocking-annotations." |
 | type | "object" |
 
 #### Properties
@@ -4106,7 +4146,7 @@ Required order: ["edges"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of addDependencies." |
+| description | "Arguments of add-dependencies." |
 | type | "object" |
 
 #### Properties
@@ -4151,7 +4191,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of claimIssue." |
+| description | "Arguments of claim-issue." |
 | type | "object" |
 
 #### Properties
@@ -4195,7 +4235,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of claimNextIssue." |
+| description | "Arguments of claim-next-issue." |
 | type | "object" |
 
 #### Properties
@@ -4280,7 +4320,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of releaseIssue." |
+| description | "Arguments of release-issue." |
 | type | "object" |
 
 #### Properties
@@ -4341,7 +4381,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of heartbeatIssue." |
+| description | "Arguments of heartbeat-issue." |
 | type | "object" |
 
 #### Properties
@@ -4390,7 +4430,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of closeIssue." |
+| description | "Arguments of close-issue." |
 | type | "object" |
 
 #### Properties
@@ -4469,7 +4509,7 @@ Required order: ["items"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of batchCloseIssues." |
+| description | "Arguments of batch-close-issues." |
 | type | "object" |
 
 #### Properties
@@ -4538,7 +4578,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of reopenIssue." |
+| description | "Arguments of reopen-issue." |
 | type | "object" |
 
 #### Properties
@@ -4599,7 +4639,7 @@ Required order: ["issue", "key"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of compareAndSetMetadata." |
+| description | "Arguments of compare-and-set-metadata." |
 | type | "object" |
 
 #### Properties
@@ -4662,7 +4702,7 @@ Required order: ["issue"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of advanceMolecule." |
+| description | "Arguments of advance-molecule." |
 | type | "object" |
 
 #### Properties
@@ -4723,7 +4763,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of reclaimIssues." |
+| description | "Arguments of reclaim-issues." |
 | type | "object" |
 
 #### Properties
@@ -4788,7 +4828,7 @@ Required order: ["tier"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of sweepIssues." |
+| description | "Arguments of sweep-issues." |
 | type | "object" |
 
 #### Properties
@@ -4897,7 +4937,7 @@ Required order: ["ids"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of deleteIssues." |
+| description | "Arguments of delete-issues." |
 | type | "object" |
 
 #### Properties
@@ -4975,7 +5015,7 @@ Required order: ["items"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of batchCreateIssues." |
+| description | "Arguments of batch-create-issues." |
 | type | "object" |
 
 #### Properties
@@ -5020,7 +5060,7 @@ Required order: ["items"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of applyBatch." |
+| description | "Arguments of apply-batch." |
 | type | "object" |
 
 #### Properties
@@ -5090,7 +5130,7 @@ Required order: ["issue", "author", "text"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of addComment." |
+| description | "Arguments of add-comment." |
 | type | "object" |
 
 #### Properties
@@ -5129,7 +5169,7 @@ Required order: ["issue", "depends_on"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of removeDependency." |
+| description | "Arguments of remove-dependency." |
 | type | "object" |
 
 #### Properties
@@ -5173,7 +5213,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listSettings." |
+| description | "Arguments of list-settings." |
 | type | "object" |
 <!-- bdp-schema:end listSettingsArguments bundle=issue-callables -->
 
@@ -5214,7 +5254,7 @@ Required order: ["key"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of getSetting." |
+| description | "Arguments of get-setting." |
 | type | "object" |
 
 #### Properties
@@ -5237,7 +5277,7 @@ Required order: ["key", "value"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of setSetting." |
+| description | "Arguments of set-setting." |
 | type | "object" |
 
 #### Properties
@@ -5261,7 +5301,7 @@ Required order: ["key"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of unsetSetting." |
+| description | "Arguments of unset-setting." |
 | type | "object" |
 
 #### Properties
@@ -5282,7 +5322,7 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listMemories." |
+| description | "Arguments of list-memories." |
 | type | "object" |
 
 #### Properties
@@ -5329,7 +5369,7 @@ Required order: ["key"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of getMemory." |
+| description | "Arguments of get-memory." |
 | type | "object" |
 
 #### Properties
@@ -5352,7 +5392,7 @@ Required order: ["content"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of rememberMemory." |
+| description | "Arguments of remember-memory." |
 | type | "object" |
 
 #### Properties
@@ -5376,7 +5416,7 @@ Required order: ["key"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of forgetMemory." |
+| description | "Arguments of forget-memory." |
 | type | "object" |
 
 #### Properties
@@ -5399,7 +5439,7 @@ Required order: ["since"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Arguments of listEvents." |
+| description | "Arguments of list-events." |
 | type | "object" |
 
 #### Properties
@@ -5464,6 +5504,770 @@ Required order: ["records", "head"]
 }
 ```
 <!-- bdp-schema:end eventsPage bundle=issue-callables -->
+<!-- bdp-schema:start alreadyClaimedError bundle=issue-callables -->
+### Schema: "alreadyClaimedError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason","assignee"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Another actor holds the Issue." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "assignee" | text | yes | — | "The actor holding the Issue." |
+| "issue_status" | text | no | — | "The Issue's current status." |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "already-claimed"
+    }
+  }
+}
+```
+<!-- bdp-schema:end alreadyClaimedError bundle=issue-callables -->
+
+<!-- bdp-schema:start notClaimableError bundle=issue-callables -->
+### Schema: "notClaimableError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The Issue is in a state that cannot be claimed." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "issue_status" | text | no | — | "The Issue's current status." |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "not-claimable"
+    }
+  }
+}
+```
+<!-- bdp-schema:end notClaimableError bundle=issue-callables -->
+
+<!-- bdp-schema:start notReleasableError bundle=issue-callables -->
+### Schema: "notReleasableError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The Issue is not in a releasable state." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "not-releasable"
+    }
+  }
+}
+```
+<!-- bdp-schema:end notReleasableError bundle=issue-callables -->
+
+<!-- bdp-schema:start notAssigneeError bundle=issue-callables -->
+### Schema: "notAssigneeError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The actor is not the holder and did not force." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "assignee" | text | no | — | "The actor holding the Issue." |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "not-assignee"
+    }
+  }
+}
+```
+<!-- bdp-schema:end notAssigneeError bundle=issue-callables -->
+
+<!-- bdp-schema:start leaseNotHeldError bundle=issue-callables -->
+### Schema: "leaseNotHeldError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The actor holds no lease on the Issue." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "lease-not-held"
+    }
+  }
+}
+```
+<!-- bdp-schema:end leaseNotHeldError bundle=issue-callables -->
+
+<!-- bdp-schema:start notClosableError bundle=issue-callables -->
+### Schema: "notClosableError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Close policy stopped the close: open children or live blockers." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "blockers" | array of (ref "#/$defs/blocker") | no | — | "The live blockers, on a blocker failure." |
+| "open_children" | integer | no | — | "How many open children were observed, on an open-children failure." |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "not-closable"
+    }
+  }
+}
+```
+<!-- bdp-schema:end notClosableError bundle=issue-callables -->
+
+<!-- bdp-schema:start notesOverwriteRefusedError bundle=issue-callables -->
+### Schema: "notesOverwriteRefusedError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A notes replacement would overwrite existing non-empty notes without force_notes_overwrite." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "notes-overwrite-refused"
+    }
+  }
+}
+```
+<!-- bdp-schema:end notesOverwriteRefusedError bundle=issue-callables -->
+
+<!-- bdp-schema:start templateReadOnlyError bundle=issue-callables -->
+### Schema: "templateReadOnlyError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The Issue is a template." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "template-read-only"
+    }
+  }
+}
+```
+<!-- bdp-schema:end templateReadOnlyError bundle=issue-callables -->
+
+<!-- bdp-schema:start issuePinnedError bundle=issue-callables -->
+### Schema: "issuePinnedError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The Issue carries the pinned flag." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "issue-pinned"
+    }
+  }
+}
+```
+<!-- bdp-schema:end issuePinnedError bundle=issue-callables -->
+
+<!-- bdp-schema:start dependencyCycleError bundle=issue-callables -->
+### Schema: "dependencyCycleError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The requested edges can never make progress." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "dependency-cycle"
+    }
+  }
+}
+```
+<!-- bdp-schema:end dependencyCycleError bundle=issue-callables -->
+
+<!-- bdp-schema:start dependencyExistsError bundle=issue-callables -->
+### Schema: "dependencyExistsError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The ordered pair already carries a Dependency of another Type." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "dependency-exists"
+    }
+  }
+}
+```
+<!-- bdp-schema:end dependencyExistsError bundle=issue-callables -->
+
+<!-- bdp-schema:start journalDisabledError bundle=issue-callables -->
+### Schema: "journalDisabledError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The durable events journal is not enabled on this Scope." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "journal-disabled"
+    }
+  }
+}
+```
+<!-- bdp-schema:end journalDisabledError bundle=issue-callables -->
+
+<!-- bdp-schema:start journalTruncatedError bundle=issue-callables -->
+### Schema: "journalTruncatedError"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["reason"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The checkpoint fell below the retained window; retrying the same since cannot succeed." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "reason" | schema | yes | — | "Which error this is." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "reason": {
+      "const": "journal-truncated"
+    }
+  }
+}
+```
+<!-- bdp-schema:end journalTruncatedError bundle=issue-callables -->
+
+<!-- bdp-schema:start addDependenciesError bundle=issue-callables -->
+### Schema: "addDependenciesError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values add-dependencies can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/dependencyExistsError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end addDependenciesError bundle=issue-callables -->
+
+<!-- bdp-schema:start applyBatchError bundle=issue-callables -->
+### Schema: "applyBatchError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values apply-batch can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/alreadyClaimedError"
+    },
+    {
+      "$ref": "#/$defs/notClosableError"
+    },
+    {
+      "$ref": "#/$defs/notesOverwriteRefusedError"
+    },
+    {
+      "$ref": "#/$defs/templateReadOnlyError"
+    },
+    {
+      "$ref": "#/$defs/dependencyCycleError"
+    },
+    {
+      "$ref": "#/$defs/dependencyExistsError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end applyBatchError bundle=issue-callables -->
+
+<!-- bdp-schema:start batchCreateIssuesError bundle=issue-callables -->
+### Schema: "batchCreateIssuesError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values batch-create-issues can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/dependencyCycleError"
+    },
+    {
+      "$ref": "#/$defs/dependencyExistsError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end batchCreateIssuesError bundle=issue-callables -->
+
+<!-- bdp-schema:start claimIssueError bundle=issue-callables -->
+### Schema: "claimIssueError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values claim-issue can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/alreadyClaimedError"
+    },
+    {
+      "$ref": "#/$defs/notClaimableError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end claimIssueError bundle=issue-callables -->
+
+<!-- bdp-schema:start claimNextIssueError bundle=issue-callables -->
+### Schema: "claimNextIssueError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values claim-next-issue can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/notClaimableError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end claimNextIssueError bundle=issue-callables -->
+
+<!-- bdp-schema:start closeIssueError bundle=issue-callables -->
+### Schema: "closeIssueError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values close-issue can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/notAssigneeError"
+    },
+    {
+      "$ref": "#/$defs/notClosableError"
+    },
+    {
+      "$ref": "#/$defs/templateReadOnlyError"
+    },
+    {
+      "$ref": "#/$defs/issuePinnedError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end closeIssueError bundle=issue-callables -->
+
+<!-- bdp-schema:start deleteIssuesError bundle=issue-callables -->
+### Schema: "deleteIssuesError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values delete-issues can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/issuePinnedError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end deleteIssuesError bundle=issue-callables -->
+
+<!-- bdp-schema:start heartbeatIssueError bundle=issue-callables -->
+### Schema: "heartbeatIssueError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values heartbeat-issue can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/alreadyClaimedError"
+    },
+    {
+      "$ref": "#/$defs/leaseNotHeldError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end heartbeatIssueError bundle=issue-callables -->
+
+<!-- bdp-schema:start listEventsError bundle=issue-callables -->
+### Schema: "listEventsError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values list-events can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/journalDisabledError"
+    },
+    {
+      "$ref": "#/$defs/journalTruncatedError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end listEventsError bundle=issue-callables -->
+
+<!-- bdp-schema:start releaseIssueError bundle=issue-callables -->
+### Schema: "releaseIssueError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values release-issue can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/notReleasableError"
+    },
+    {
+      "$ref": "#/$defs/notAssigneeError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end releaseIssueError bundle=issue-callables -->
+
+<!-- bdp-schema:start sweepIssuesError bundle=issue-callables -->
+### Schema: "sweepIssuesError"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The error values sweep-issues can return, discriminated by reason." |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "$ref": "#/$defs/issuePinnedError"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end sweepIssuesError bundle=issue-callables -->
+
 ## 10. Obsolescence
 
 This document is new. It takes the operation semantics of the v0 HTTP contract of

@@ -371,15 +371,15 @@ The native remove-and-add idiom carries over unchanged. The native way to
 change a relationship's metadata is to remove the row and add it again with the
 same endpoints and new metadata; over BDP that is the removal of the live Link
 followed by the creation of a new one with the new metadata, whether a client
-spells it as `removeDependency` and `addDependencies` or as `deleteLink` and
+spells it as `remove-dependency` and `add-dependencies` or as `deleteLink` and
 `createLink`.
 
-`addDependencies`, in the [Issue and Dependency Callables](callables.md), is an
+`add-dependencies`, in the [Issue and Dependency Callables](callables.md), is an
 **upsert over the live Link**: a pair with no live Link gets a new Link with the
 given Type and metadata; a live Link of the same Type has its metadata and
 thread updated in place as a new revision, or nothing is written when nothing
-differs; a live Link of another Type refuses with the reason dependency-exists,
-as the native path refuses it. A relationship's kind changes with `updateLink`
+differs; a live Link of another Type fails with `callable-error` and the reason
+`dependency-exists`, as the native path refuses it. A relationship's kind changes with `updateLink`
 carrying `type`, validated against the pair, cycle and hierarchy rules as a
 whole, or by remove and add. A BDP-aware client MAY use `createLink` (refused on
 an occupied pair by pair uniqueness), `updateLink` with `metadata` or
@@ -387,13 +387,13 @@ an occupied pair by pair uniqueness), `updateLink` with `metadata` or
 path into the other.
 
 To remove a relationship given only its endpoints, a client uses
-`removeDependency`, or reads the one live Link of the pair,
+`remove-dependency`, or reads the one live Link of the pair,
 `GET <source>?view=links&direction=outbound&target=<target>` (at most one item,
 by pair uniqueness), and deletes it by its `id`.
 
 Deleting an Issue Bead with live incident Dependency Links is refused with
 `incident-links-exist`, as Write requires; the native cascade delete is the
-`deleteIssues` Callable, which removes the Links and the Bead in one native
+`delete-issues` Callable, which removes the Links and the Bead in one native
 transaction.
 
 A native local rename of an Issue identifier, which no HTTP surface offers,
@@ -472,7 +472,7 @@ against a running Scope:
 | IT-6 | `createLink` whose endpoints are the same Bead is refused |
 | IT-7 | `createLink` on an occupied ordered pair, with any Dependency Type, is refused; the diagnostic names the occupying Link |
 | IT-8 | `createLink` for `blocks` A→B serves a Link with `source` A and `target` B |
-| IT-9 | `deleteLink` of a pair's live Link then `createLink` (or `addDependencies`) with the same endpoints, Type and new metadata succeeds and serves a Link with a new `id`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken` |
+| IT-9 | `deleteLink` of a pair's live Link then `createLink` (or `add-dependencies`) with the same endpoints, Type and new metadata succeeds and serves a Link with a new `id`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken` |
 | IT-10 | `updateLink` with `metadataChange` on a live Link keeps its `id` and serves a new `revision` |
 | IT-11 | `updateBead` that changes only `labels` serves a new `revision` |
 | IT-12 | `deleteBead` on an Issue with a live incident Link is refused as `incident-links-exist` |
