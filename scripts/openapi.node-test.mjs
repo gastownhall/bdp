@@ -143,10 +143,17 @@ test("every schema reference resolves without rewriting or staging imports", () 
     assert(selected.has(name));
 });
 
-test("exact closed eight Write directory, singleton requests, media and operation guards", () => {
+test("closed Write directory with optional aliases, singleton requests, media and operation guards", () => {
   const names = Object.keys(canonical.$defs.writeOperationDirectory.properties).sort();
   assert.equal(canonical.$defs.writeOperationDirectory.additionalProperties, false);
-  assert.deepEqual([...canonical.$defs.writeOperationDirectory.required].sort(), names);
+  assert.deepEqual(
+    [...canonical.$defs.writeOperationDirectory.required].sort(),
+    names.filter((name) => !["putAlias", "deleteAlias"].includes(name)),
+  );
+  assert.deepEqual(canonical.$defs.writeOperationDirectory.dependentRequired, {
+    putAlias: ["deleteAlias"],
+    deleteAlias: ["putAlias"],
+  });
   assert.equal(names.length, 8);
   const actual = rows
     .filter((row) => row.navigation.role === "write-directory-member")
@@ -158,7 +165,13 @@ test("exact closed eight Write directory, singleton requests, media and operatio
     const schema = op.requestBody.content[media].schema;
     assert.equal((schema.oneOf?.[0] || schema).$ref.endsWith(`/${name}Request`), true);
     assert(
-      op.parameters.some((p) => p.in === "header" && p.name === "Idempotency-Key" && p.required),
+      op.parameters.some(
+        (p) =>
+          p.in === "header" &&
+          p.name === "Idempotency-Key" &&
+          p.required === false &&
+          /idempotency capability/.test(p.description),
+      ),
     );
     assert.deepEqual(op["x-bdp-forbidden-response-headers"], ["ETag", "Location"]);
     assert(!op["x-bdp-applicable-problem-codes"].includes("binding-unavailable"));
@@ -851,7 +864,14 @@ test("historical feature catalogs five explicitly selected methods without widen
         assert(
           op.requestBody.content[historicalMedia].schema.$ref.endsWith("/historicalUpdateRequest"),
         );
-        assert(op.parameters.some((p) => p.name === "Idempotency-Key" && p.required));
+        assert(
+          op.parameters.some(
+            (p) =>
+              p.name === "Idempotency-Key" &&
+              p.required === false &&
+              /idempotency capability/.test(p.description),
+          ),
+        );
         assert.deepEqual(op["x-bdp-forbidden-response-headers"], ["ETag", "Location"]);
         assert.match(op.responses["415"].description, /before admission/);
         assert.equal(

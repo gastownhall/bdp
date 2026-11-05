@@ -916,7 +916,8 @@ use the frozen comparison witnesses below instead of rebinding a known locator.
 
 This section binds a Scope that advertises the `idempotency` capability,
 `https://github.com/gastownhall/bdp/capabilities/idempotency` at version `"1"` with
-closed empty detail. Advertisement promises the complete contract below. Throughout
+closed empty detail. Only Write advertises it. Advertisement promises the complete
+contract below. Throughout
 this document, a duty stated in terms of an idempotency key, a retained disposition,
 a witness, replay or compact key state applies only under this capability. A Scope
 without it owes only [Repetition without idempotency](#repetition-without-idempotency).
@@ -2791,6 +2792,20 @@ Value: object
 | type | "string" |
 <!-- bdp-schema:end expectedRevision -->
 
+<!-- bdp-schema:start idempotencyCapabilityV1 -->
+### Schema: "idempotencyCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+<!-- bdp-schema:end idempotencyCapabilityV1 -->
+
 <!-- bdp-schema:start inputPinnedReference -->
 ### Schema: "inputPinnedReference"
 
@@ -4442,7 +4457,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","specRevision","operations","aliases"]
+Required order: ["bdpVersion","profile","scope","specRevision","operations"]
 
 #### Keywords
 
@@ -4454,7 +4469,7 @@ Required order: ["bdpVersion","profile","scope","specRevision","operations","ali
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "aliases" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
@@ -4492,12 +4507,13 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink","putAlias","deleteAlias"]
+Required order: ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| dependentRequired | {"putAlias":["deleteAlias"],"deleteAlias":["putAlias"]} |
 | type | "object" |
 
 #### Properties
@@ -4506,10 +4522,10 @@ Required order: ["createBead","updateBead","deleteBead","createLink","updateLink
 | --- | --- | --- | --- | --- |
 | "createBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "createLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "deleteAlias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "deleteAlias" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "deleteBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "deleteLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "putAlias" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "putAlias" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "updateBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "updateLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 <!-- bdp-schema:end writeOperationDirectory -->

@@ -674,7 +674,9 @@ export function pathItem(row) {
               {
                 name: "Idempotency-Key",
                 in: "header",
-                required: true,
+                required: false,
+                description:
+                  "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
                 schema: ref("idempotencyKey"),
               },
             ]

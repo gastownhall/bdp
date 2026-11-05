@@ -260,19 +260,19 @@
     "status": "draft authoring/tooling metadata, not a wire capability",
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
-      "specs/profiles/core/core.md": "ed0c81ab7bbe077dfe94eec308604f5f4c49b09d4d6a6056819bf9f9f36061e7",
-      "specs/profiles/write/write.md": "da3f4d32ce2e31a56cfbc2819b6b1f9e4d3803097a8a57ff73ec587a51a19e7c",
+      "specs/profiles/core/core.md": "97a12684c08d60adf075cb84cee10b8c6ea052b1fb1c35ebf2b0c8b253e87b5b",
+      "specs/profiles/write/write.md": "c0f2ab682b8176489fca3b7f789c46769588586a661bbd01479318f8d49783ee",
       "specs/profiles/events/events.md": "f93ec035ab3ffed107d0cad1e6080bd7fb81b62153b3bf087304a106e31724d6",
-      "specs/profiles/types/types.md": "2bc3c0eec8e260314757d15ac083297e04d94032dd0259f19c7e23991409a52f",
+      "specs/profiles/types/types.md": "f9edcc0236d83a29b21620f1b7d22f2469cf35afa0521e04b3b2134d3dc333ef",
       "specs/profiles/transfer/transfer.md": "a6e95bb471e6c307f17edeb40e2d466be1fa0d97730f8fb60eb58a85c65dc1c7",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
       "docs/cli-design/bdp-cli.md": "b2bd61ed0a90ad3d16dedc64996f4cdf7d7e7d6c5474e0a67aa5bc74c67e24d5",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
-      "scripts/generate-openapi.mjs": "f6a5e78ed64196c390ff4f8e8de16d7259a443658be7f675fac85bfb34b93bc0",
+      "scripts/generate-openapi.mjs": "40645cf6f6703a058178cfd6e8e3ab4fbb2ce32ff59289679520519014df4b6c",
       "scripts/spec-schema-fragments.mjs": "ec234c9e9a0c289dcb7294f2d00fcc528bc2aa6df64a474907d9c3792e80eeff",
       "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
-      "packages/protocol/schemas/bdp-v0.1.schema.json": "906b543847b152897391ce795631d712c858891b7b876f6f54d25d725c48094d",
-      "specs/profiles/core/bdp-v0.1.schema.json": "906b543847b152897391ce795631d712c858891b7b876f6f54d25d725c48094d",
+      "packages/protocol/schemas/bdp-v0.1.schema.json": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
+      "specs/profiles/core/bdp-v0.1.schema.json": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
       "specs/profiles/write/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
       "packages/protocol/schemas/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e"
@@ -305,7 +305,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5505
+              "line": 5522
             }
           ],
           "x-bdp-cli": {
@@ -516,7 +516,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5505
+              "line": 5522
             }
           ],
           "x-bdp-cli": {
@@ -722,7 +722,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5523
+              "line": 5540
             }
           ],
           "x-bdp-cli": {
@@ -907,7 +907,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5523
+              "line": 5540
             }
           ],
           "x-bdp-cli": {
@@ -1081,7 +1081,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5540
+              "line": 5557
             }
           ],
           "x-bdp-cli": {
@@ -1314,7 +1314,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5540
+              "line": 5557
             }
           ],
           "x-bdp-cli": {
@@ -1526,7 +1526,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5558
+              "line": 5575
             }
           ],
           "x-bdp-cli": {
@@ -1764,7 +1764,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5558
+              "line": 5575
             }
           ],
           "x-bdp-cli": {
@@ -1982,7 +1982,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5577
+              "line": 5594
             }
           ],
           "x-bdp-cli": {
@@ -2262,7 +2262,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5577
+              "line": 5594
             }
           ],
           "x-bdp-cli": {
@@ -2519,7 +2519,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5600
+              "line": 5617
             }
           ],
           "x-bdp-cli": {
@@ -2781,7 +2781,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5600
+              "line": 5617
             }
           ],
           "x-bdp-cli": {
@@ -3022,7 +3022,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5621
+              "line": 5638
             }
           ],
           "x-bdp-cli": {
@@ -3259,7 +3259,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5621
+              "line": 5638
             }
           ],
           "x-bdp-cli": {
@@ -3483,7 +3483,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5643
+              "line": 5660
             }
           ],
           "x-bdp-cli": {
@@ -3764,7 +3764,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5643
+              "line": 5660
             }
           ],
           "x-bdp-cli": {
@@ -4015,7 +4015,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5665
+              "line": 5682
             }
           ],
           "x-bdp-cli": {
@@ -4325,7 +4325,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5665
+              "line": 5682
             }
           ],
           "x-bdp-cli": {
@@ -4604,7 +4604,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5689
+              "line": 5706
             }
           ],
           "x-bdp-cli": {
@@ -4933,7 +4933,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5689
+              "line": 5706
             }
           ],
           "x-bdp-cli": {
@@ -5227,7 +5227,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5716
+              "line": 5733
             }
           ],
           "x-bdp-cli": {
@@ -5460,7 +5460,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5716
+              "line": 5733
             }
           ],
           "x-bdp-cli": {
@@ -5672,7 +5672,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5734
+              "line": 5751
             }
           ],
           "x-bdp-cli": {
@@ -5910,7 +5910,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5734
+              "line": 5751
             }
           ],
           "x-bdp-cli": {
@@ -6128,7 +6128,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5753
+              "line": 5770
             }
           ],
           "x-bdp-cli": {
@@ -6438,7 +6438,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5753
+              "line": 5770
             }
           ],
           "x-bdp-cli": {
@@ -6725,7 +6725,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5779
+              "line": 5796
             }
           ],
           "x-bdp-cli": {
@@ -6987,7 +6987,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5779
+              "line": 5796
             }
           ],
           "x-bdp-cli": {
@@ -7228,7 +7228,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5800
+              "line": 5817
             }
           ],
           "x-bdp-cli": {
@@ -7465,7 +7465,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5800
+              "line": 5817
             }
           ],
           "x-bdp-cli": {
@@ -7689,7 +7689,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5822
+              "line": 5839
             }
           ],
           "x-bdp-cli": {
@@ -7970,7 +7970,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5822
+              "line": 5839
             }
           ],
           "x-bdp-cli": {
@@ -8221,7 +8221,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5844
+              "line": 5861
             }
           ],
           "x-bdp-cli": {
@@ -8531,7 +8531,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5844
+              "line": 5861
             }
           ],
           "x-bdp-cli": {
@@ -8810,7 +8810,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5868
+              "line": 5885
             }
           ],
           "x-bdp-cli": {
@@ -9169,7 +9169,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5868
+              "line": 5885
             }
           ],
           "x-bdp-cli": {
@@ -9496,7 +9496,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5898
+              "line": 5915
             }
           ],
           "x-bdp-cli": {
@@ -9842,7 +9842,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5898
+              "line": 5915
             }
           ],
           "x-bdp-cli": {
@@ -10164,7 +10164,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5927
+              "line": 5944
             }
           ],
           "x-bdp-cli": {
@@ -10437,7 +10437,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5927
+              "line": 5944
             }
           ],
           "x-bdp-cli": {
@@ -10673,7 +10673,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5950
+              "line": 5967
             }
           ],
           "x-bdp-cli": {
@@ -10787,7 +10787,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5950
+              "line": 5967
             }
           ],
           "x-bdp-cli": {
@@ -10898,7 +10898,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5969
+              "line": 5986
             }
           ],
           "x-bdp-cli": {
@@ -11113,7 +11113,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5969
+              "line": 5986
             }
           ],
           "x-bdp-cli": {
@@ -11315,7 +11315,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5090
+              "line": 5153
             }
           ],
           "x-bdp-cli": {
@@ -11501,7 +11501,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5090
+              "line": 5153
             }
           ],
           "x-bdp-cli": {
@@ -11675,7 +11675,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5108
+              "line": 5171
             }
           ],
           "x-bdp-cli": {
@@ -11721,7 +11721,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -11866,7 +11867,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5127
+              "line": 5190
             }
           ],
           "x-bdp-cli": {
@@ -11911,7 +11912,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -12033,7 +12035,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5146
+              "line": 5209
             }
           ],
           "x-bdp-cli": {
@@ -12078,7 +12080,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -12200,7 +12203,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5165
+              "line": 5228
             }
           ],
           "x-bdp-cli": {
@@ -12246,7 +12249,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -12391,7 +12395,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5184
+              "line": 5247
             }
           ],
           "x-bdp-cli": {
@@ -12436,7 +12440,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -12558,7 +12563,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5203
+              "line": 5266
             }
           ],
           "x-bdp-cli": {
@@ -12603,7 +12608,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -12725,14 +12731,14 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5222
+              "line": 5285
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
             "line": 2400
           },
-          "x-bdp-support": "Write profile",
+          "x-bdp-support": "Write profile with aliases advertised",
           "x-bdp-request-media": {
             "accept": "application/vnd.bdp.v0.1+json",
             "contentType": "application/vnd.bdp.v0.1+json"
@@ -12770,7 +12776,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -12875,14 +12882,14 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5241
+              "line": 5304
             }
           ],
           "x-bdp-cli": {
             "file": "docs/cli-design/bdp-cli.md",
             "line": 2479
           },
-          "x-bdp-support": "Write profile",
+          "x-bdp-support": "Write profile with aliases advertised",
           "x-bdp-request-media": {
             "accept": "application/vnd.bdp.v0.1+json",
             "contentType": "application/vnd.bdp.v0.1+json"
@@ -12920,7 +12927,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -13026,7 +13034,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5260
+              "line": 5323
             }
           ],
           "x-bdp-cli": {
@@ -13073,7 +13081,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -13224,7 +13233,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5867
+              "line": 5930
             }
           ],
           "x-bdp-cli": {
@@ -13268,7 +13277,8 @@
             {
               "name": "Idempotency-Key",
               "in": "header",
-              "required": true,
+              "required": false,
+              "description": "Required under the idempotency capability; ignored, without validation, on a Scope that does not advertise it.",
               "schema": {
                 "$ref": "../../specs/profiles/core/bdp-v0.1.schema.json#/$defs/idempotencyKey"
               }
@@ -13435,7 +13445,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5886
+              "line": 5949
             }
           ],
           "x-bdp-cli": {
@@ -13693,7 +13703,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5886
+              "line": 5949
             }
           ],
           "x-bdp-cli": {
@@ -13921,7 +13931,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5905
+              "line": 5968
             }
           ],
           "x-bdp-cli": {
@@ -14188,7 +14198,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 5905
+              "line": 5968
             }
           ],
           "x-bdp-cli": {

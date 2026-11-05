@@ -5821,6 +5821,22 @@
           ],
           "description": "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1."
         },
+        "https://github.com/gastownhall/bdp/capabilities/idempotency": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/idempotencyCapabilityV1"
+                }
+              }
+            }
+          ],
+          "description": "Supported Write idempotency versions, each with closed empty detail."
+        },
         "https://github.com/gastownhall/bdp/capabilities/resource-projection": {
           "allOf": [
             {
@@ -6557,13 +6573,13 @@
           "$ref": "#/$defs/absoluteHttpUrl",
           "description": "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation."
         },
-        "types": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
-        },
         "specRevision": {
           "$ref": "#/$defs/specRevision",
           "description": "Exact canonical protocol source commit represented by this discovery document."
+        },
+        "types": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         }
       },
       "required": ["bdpVersion", "profile", "scope", "specRevision"]
@@ -6613,7 +6629,7 @@
           "description": "Exact canonical protocol source commit represented by this discovery document."
         }
       },
-      "required": ["bdpVersion", "profile", "scope", "specRevision", "operations", "aliases"]
+      "required": ["bdpVersion", "profile", "scope", "specRevision", "operations"]
     },
     "retainedDiscovery": {
       "title": "Selected retained Core or Write discovery",
@@ -6627,6 +6643,10 @@
       ]
     },
     "writeOperationDirectory": {
+      "dependentRequired": {
+        "putAlias": ["deleteAlias"],
+        "deleteAlias": ["putAlias"]
+      },
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -6661,9 +6681,7 @@
         "deleteBead",
         "createLink",
         "updateLink",
-        "deleteLink",
-        "putAlias",
-        "deleteAlias"
+        "deleteLink"
       ]
     },
     "retainedEventQuery": {
@@ -8355,6 +8373,10 @@
       "description": "Full lowercase SHA-1 Git commit object ID for the latest change to any canonical BDP protocol source: Core, Write, Types or Events.",
       "pattern": "^[0-9a-f]{40}$",
       "type": "string"
+    },
+    "idempotencyCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false
     }
   },
   "x-bdp-schema-definitions": [
@@ -8417,6 +8439,7 @@
     "historyVersionRow",
     "historyVersionsPage",
     "historyWindow",
+    "idempotencyCapabilityV1",
     "inputPinnedReference",
     "inputReference",
     "iso8601Duration",
@@ -8620,6 +8643,7 @@
       "durableInputReference",
       "durableResourceReference",
       "expectedRevision",
+      "idempotencyCapabilityV1",
       "inputPinnedReference",
       "inputReference",
       "localBindingReference",
