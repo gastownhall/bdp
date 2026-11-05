@@ -44,6 +44,32 @@ const repeated = new Set([
   "omit",
 ]);
 
+/** `bdp [client options] call NAME [callable arguments]`: everything after NAME is the
+ * Callable's own, even a spelling a client option also uses. Returns the options before NAME and
+ * the operands from NAME on, or undefined when the first command word is not `call`. */
+export function splitCallArguments(
+  args: readonly string[],
+  arities: ReadonlyMap<string, boolean>,
+): { readonly client: readonly string[]; readonly operands: readonly string[] } | undefined {
+  const client: string[] = [];
+  let verb = false;
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index] ?? "";
+    if (argument === "--") return verb ? { client, operands: args.slice(index + 1) } : undefined;
+    if (argument.length > 1 && argument.startsWith("-")) {
+      client.push(argument);
+      const at = argument.indexOf("=");
+      if (at < 0 && arities.get(argument) === true && index + 1 < args.length)
+        client.push(args[++index] ?? "");
+      continue;
+    }
+    if (verb) return { client, operands: args.slice(index) };
+    if (argument !== "call") return undefined;
+    verb = true;
+  }
+  return verb ? { client, operands: [] } : undefined;
+}
+
 /** No storage, input-file reading, credentials, or network access occurs here. */
 export function createCanonicalCommand(settings: CanonicalCommandOptions): Command {
   const groups = new Map<Command, string>();
@@ -178,6 +204,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   function execute(
     command: Command,
     validate?: (options: Record<string, unknown>, args: string[], explicit: Set<string>) => void,
+    operands: (command: Command) => string[] = (selected) => selected.processedArgs as string[],
   ): void {
     command.action(async () => {
       const options: Record<string, unknown> = command.optsWithGlobals();
@@ -197,7 +224,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
           )
           .map(({ name }) => (name === "from_revision" ? "fromRevision" : name)),
       );
-      const args = command.processedArgs as string[];
+      const args = operands(command);
       if (options.cliProfile !== undefined && options.cliProfile !== settings.profile)
         command.error("select the CLI profile before constructing its command tree");
       if (options.retryFile !== undefined) {
@@ -560,5 +587,14 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       "emission conflicts with display controls and execution keys",
     );
   });
+
+  const call = add(root, "call", "Invoke a named Callable.", "Callable Commands", ["[name]"])
+    .usage("[client options] [NAME] [callable arguments]")
+    .allowExcessArguments(true);
+  flag(call, ["--idempotency-key <key>", "Use this exact key on a CallableBatch."]);
+  flag(call, ["--revision-provenance <json>", "Supply admitted per-version provenance input."]);
+  flag(call, ["--actor <actor>", "Supply caller actor input; never authentication or authority."]);
+  outputFlags(call, false, false, false);
+  execute(call, undefined, (selected) => selected.args);
   return root;
 }

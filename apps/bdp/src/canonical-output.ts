@@ -229,6 +229,13 @@ export function renderCanonicalOutput(
       ? items.map((item) => document(item, scope, options.long === true)).join("\n")
       : resourceRows(items, scope, options.long === true);
   }
+  if (output.result_kind === "callable_catalog") {
+    const items = record(output.data).items;
+    if (!Array.isArray(items)) return "";
+    const rows = items.map((item) => record(item));
+    const width = Math.max(0, ...rows.map((row) => String(row.name).length));
+    return rows.map((row) => `${String(row.name).padEnd(width)}  ${String(row.kind)}\n`).join("");
+  }
   if (output.result_kind === "mutation") {
     const data = record(output.data);
     const result = data.result === undefined ? data : record(data.result);

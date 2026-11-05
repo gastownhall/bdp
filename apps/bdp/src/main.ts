@@ -6,12 +6,18 @@ import { fileURLToPath } from "node:url";
 import {
   BLOCKING_LINK_TYPE_ID,
   isReadinessProblem,
+  issueCallableCatalog,
   ReadyOutputCompatibilityError,
   readyBeadsFromClient,
   renderReadyJson,
   renderReadyText,
 } from "@bdp/bd-domain";
-import { BdpClient, BdpClientLocalError, createFetchTransport } from "@bdp/client";
+import {
+  BdpClient,
+  BdpClientLocalError,
+  type CallableCatalog,
+  createFetchTransport,
+} from "@bdp/client";
 import {
   ConfigError,
   formatConfigError,
@@ -23,7 +29,7 @@ import {
 } from "@bdp/config";
 import { parseCanonicalScope, RETAINED_V01_SPECIFICATION, type ReadProblem } from "@bdp/protocol";
 import { type Command, CommanderError } from "commander";
-import { createCanonicalCommand } from "./canonical-command.js";
+import { createCanonicalCommand, splitCallArguments } from "./canonical-command.js";
 import {
   defaultCliConfigPath,
   readBoundedFile,
@@ -75,7 +81,10 @@ class CliOperationError extends Error {}
 
 /** Bootstrap registration policy using the declared option arities. No
  * command-specific parsing or network activity occurs until the profile is known. */
-export async function runBdp(args: readonly string[]): Promise<number> {
+export async function runBdp(
+  args: readonly string[],
+  overrides: { readonly callableCatalog?: CallableCatalog } = {},
+): Promise<number> {
   if (args.length === 0) return runNoArgumentHelp();
   let status = 0;
   try {
@@ -96,14 +105,17 @@ export async function runBdp(args: readonly string[]): Promise<number> {
     let configFile: string | undefined, explicitProfile: "canonical" | "compat" | undefined;
     let configSeen = false,
       profileSeen = false;
-    for (let index = 0; index < args.length; index++) {
-      const argument = args[index] ?? "";
+    // Nothing after a Callable's NAME is ours to read, including a --config it may declare.
+    const callSplit = splitCallArguments(args, arities);
+    const clientArguments = callSplit?.client ?? args;
+    for (let index = 0; index < clientArguments.length; index++) {
+      const argument = clientArguments[index] ?? "";
       if (argument === "--") break;
       const at = argument.indexOf("=");
       const name = at < 0 ? argument : argument.slice(0, at);
       if (!arities.has(name)) continue;
       const value =
-        at >= 0 ? argument.slice(at + 1) : arities.get(name) ? args[++index] : undefined;
+        at >= 0 ? argument.slice(at + 1) : arities.get(name) ? clientArguments[++index] : undefined;
       if (name === "--config") {
         if (value === undefined || (at < 0 && value.startsWith("--")))
           throw new BootstrapConfigUsageError("missing");
@@ -241,17 +253,28 @@ export async function runBdp(args: readonly string[]): Promise<number> {
         const interrupt = () => interruption.abort();
         process.on("SIGINT", interrupt);
         try {
-          status = await runCanonicalInvocation(invocation, config, {
-            signal: interruption.signal,
-            stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
-            stderr: (text, signal) => writeCanonicalOutput(process.stderr, text, signal),
-          });
+          status = await runCanonicalInvocation(
+            invocation,
+            config,
+            {
+              signal: interruption.signal,
+              stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
+              stderr: (text, signal) => writeCanonicalOutput(process.stderr, text, signal),
+            },
+            overrides.callableCatalog ?? issueCallableCatalog(),
+          );
         } finally {
           process.removeListener("SIGINT", interrupt);
         }
       },
     });
-    await tree.parseAsync([...args], { from: "user" });
+    // Under `--`, Commander leaves a Callable's arguments to its declaration.
+    await tree.parseAsync(
+      callSplit === undefined || selectedProfile !== "canonical"
+        ? [...args]
+        : ["call", ...callSplit.client, "--", ...callSplit.operands],
+      { from: "user" },
+    );
     return status;
   } catch (error) {
     if (error instanceof CommanderError && error.exitCode === 0) return 0;
