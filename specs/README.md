@@ -9,6 +9,8 @@ The editorial review corpus contains four selected protocol documents, the propo
 5. [Transfer — proposed](profiles/transfer/transfer.md) — complete retained-data packages and original-state admission; [remaining design work](../docs/spec-review/transfer-review.md) is explicit.
 6. [CLI](../docs/cli-design/bdp-cli.md) — shared command behavior, output and protocol correspondence. The [mismatch audit](../docs/spec-review/cli-mismatches.md) records its current reconciliation work.
 
+Editorial draft for the preview pin, not selected until Donna marks it: [Callables](profiles/callables/callables.md).
+
 Each document states its current rules directly. No retained-profile wrapper, amendment list, source map or historical document is required to reconstruct a rule. Core works without Write or Types. Write and Types add their stated responsibilities without changing Core identity or read meanings.
 
 ## Editorial review status

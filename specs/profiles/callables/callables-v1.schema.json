@@ -5,16 +5,20 @@
   "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish support, authorization or implementation conformance.",
   "$defs": {
     "callablesCapabilityV1": {
-      "description": "Version-1 detail of the Callables capability: the one navigation member a client follows to learn what is invocable.",
+      "description": "Version-1 detail of the Callables capability: where this Scope's Callables are invoked, and its registry Bead when it registers them.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "directory": {
+        "invoke": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
-          "description": "Absolute HTTP(S) URL of the callable directory served for this Scope."
+          "description": "Absolute HTTP(S) base URL; a Callable's mount is this base, a slash and its name."
+        },
+        "registry": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
+          "description": "URL of the Scope's registry Bead, when it registers its Callables."
         }
       },
-      "required": ["directory"]
+      "required": ["invoke"]
     },
     "callablesDiscovery": {
       "description": "A Core or Write discovery document that advertises Callables version 1 with its closed detail.",
@@ -45,42 +49,6 @@
         }
       ]
     },
-    "callableDirectoryEntry": {
-      "description": "One invocable name's binding: the exact definition revision it is bound to and the mount that invokes it.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "definition": {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference",
-          "description": "Pinned Reference to the exact definition revision the name is bound to."
-        },
-        "invoke": {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl",
-          "description": "Absolute HTTP(S) mount URL that invokes the Callable."
-        }
-      },
-      "required": ["definition", "invoke"]
-    },
-    "callableDirectory": {
-      "description": "The authority for what is invocable in a Scope: a closed map from invocable name to its binding. An empty map means nothing is invocable.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "callables": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^[^/]+$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/callableDirectoryEntry"
-          },
-          "description": "Map from name, one nonempty safe segment compared exactly, to its directory entry."
-        }
-      },
-      "required": ["callables"]
-    },
     "callableInvocation": {
       "description": "The closed invocation body. The mount supplies the operation; no operation, name or key member rides in the body.",
       "type": "object",
@@ -88,34 +56,34 @@
       "properties": {
         "arguments": {
           "type": "object",
-          "description": "Object keyed by parameter name; an empty object when the definition declares no parameters."
+          "description": "Object keyed by parameter name; an empty object when the declaration has no parameters."
         },
         "definition": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference",
-          "description": "The definition revision the client parsed; a mismatch with the directory's binding is callable-revision-mismatch."
+          "description": "The declaration revision the client parsed; a mismatch with the current revision is callable-revision-mismatch."
         },
         "revisionProvenance": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput",
-          "description": "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; refused on a CallableQuery."
+          "description": "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; rejected on a CallableQuery."
         }
       },
       "required": ["arguments"]
     },
     "callableResult": {
-      "description": "The closed success body of an invocation: the exact definition revision executed, the result value, and for a CallableBatch whether anything committed.",
+      "description": "The closed success body of an invocation: the exact declaration revision that ran, the result value, and for a CallableBatch whether anything committed.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "callable": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/pinnedReference",
-          "description": "Pinned Reference to the exact definition revision executed."
+          "description": "Pinned Reference to the exact declaration revision that ran."
         },
         "changed": {
           "type": "boolean",
-          "description": "CallableBatch only, then required: true when the batch committed any Resource, alias or retained-state effect, else false."
+          "description": "CallableBatch only, then required: true when the batch committed any durable effect, else false."
         },
         "result": {
-          "description": "Any JSON value, valid against the definition's result schema when one is declared."
+          "description": "Any JSON value; the declaration's result schema, when there is one, says what to expect."
         }
       },
       "required": ["callable", "result"]
@@ -126,27 +94,30 @@
       "if": {
         "properties": {
           "code": {
-            "const": "callable-refused"
+            "const": "callable-error"
           }
         }
       },
       "then": {
-        "required": ["reason"]
+        "required": ["error"]
+      },
+      "else": {
+        "not": {
+          "required": ["error"]
+        }
       },
       "properties": {
         "code": {
           "enum": [
             "callable-not-found",
             "callable-revision-mismatch",
-            "binding-unavailable",
-            "callable-refused"
+            "callable-unavailable",
+            "callable-error"
           ],
           "description": "One of the four codes this profile adds."
         },
-        "reason": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Required with callable-refused: the implementation's nonempty refusal token, compared exactly."
+        "error": {
+          "description": "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's error schema when there is one."
         },
         "retry": {
           "const": "after-state-change",
@@ -160,7 +131,7 @@
       "required": ["type", "code", "retry"]
     },
     "callableProblem": {
-      "description": "A Problem answered by the directory or a mount: a Core or Write Problem, or one carrying a code this profile adds.",
+      "description": "A Problem answered by a mount: a Core or Write Problem, or one carrying a code this profile adds.",
       "anyOf": [
         {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
@@ -172,8 +143,6 @@
     }
   },
   "x-bdp-schema-definitions": [
-    "callableDirectory",
-    "callableDirectoryEntry",
     "callableInvocation",
     "callableProblem",
     "callableProblemMembers",
@@ -183,8 +152,6 @@
   ],
   "x-bdp-schema-sources": {
     "specs/profiles/callables/callables.md": [
-      "callableDirectory",
-      "callableDirectoryEntry",
       "callableInvocation",
       "callableProblem",
       "callableProblemMembers",
