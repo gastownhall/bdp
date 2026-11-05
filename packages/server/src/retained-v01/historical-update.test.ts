@@ -304,3 +304,20 @@ it.each(["delete-one", "delete-two"])(
     );
   },
 );
+
+it("refuses a supplied identity under the reserved sys and bdp names", () => {
+  const { store } = setup();
+  for (const [index, id] of ["sys", "sys/x", "bdp", "bdp/x"].entries()) {
+    const reply = store.create(
+      "p",
+      prepareCreate(
+        scope,
+        JSON.stringify({ id, type: `${scope}TypeA`, properties: { title: "t" }, metadata: {} }),
+        `reserved-${index}`,
+      ),
+    );
+    expect(reply.status).toBe(409);
+    expect(JSON.parse(reply.text).code).toBe("identity-taken");
+  }
+  expect(create(store, "system/x").id).toBe(`${scope}system/x`);
+});

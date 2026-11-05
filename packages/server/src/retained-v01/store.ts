@@ -164,7 +164,10 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
   const isReserved = (uri: string) =>
     reserved.includes(uri) ||
     (options.referenceCore === true &&
-      (uri === navigation.scope + "bdp" || uri.startsWith(navigation.scope + "bdp/")));
+      (uri === navigation.scope + "bdp" ||
+        uri.startsWith(navigation.scope + "bdp/") ||
+        uri === navigation.scope + "sys" ||
+        uri.startsWith(navigation.scope + "sys/")));
   const clock = options.clock ?? Date.now;
   if (
     !path.isAbsolute(options.directory) ||
