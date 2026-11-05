@@ -52,6 +52,10 @@ Bead and Link inventories use the fixed Core routes
 optional common members are `events`, `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
+Optional capabilities under `capabilities` are atomic batch, rooted allocation,
+historical update and [idempotency](#idempotency-and-recovery). `atomic-batch1` and
+`historical-update1` require `idempotency`; a Scope advertising either without it
+is invalid and a client refuses it.
 The operation-directory URL is absolute HTTP(S) navigation. Clients use the fixed
 inventory paths and follow the discovered operation-directory members, verifying
 the owning Scope, Resource kind and selected contract; they MUST NOT infer an
@@ -189,8 +193,10 @@ registration/fetch request. `properties.type` remains ordinary authored data.
 
 Creation initializes omitted `properties` and `metadata` to `{}`. Each supplied
 value must be a JSON object. Updates distinguish omission, replacement and patch
-as specified below. Every operation carries exactly one valid `Idempotency-Key`
-HTTP field under [Idempotency and recovery](#idempotency-and-recovery).
+as specified below. Under `idempotency`, every operation carries exactly one valid
+`Idempotency-Key` HTTP field under [Idempotency and recovery](#idempotency-and-recovery).
+Without it, [Repetition without idempotency](#repetition-without-idempotency) governs
+the field and a repeated request.
 
 ## Creation and identity allocation
 
@@ -217,8 +223,8 @@ is instead `alias-path-taken`; removing the alias can clear that condition. A
 committed creation/deletion in one atomic batch still consumes its identity.
 Rollback commits no allocation or non-reuse claim.
 
-Allocation, all Resource/owner effects, facts required by advertised Events and durable terminal key
-state commit together or none. Concurrent distinct invocations cannot commit the
+Allocation, all Resource/owner effects, facts required by advertised Events and, under
+`idempotency`, durable terminal key state commit together or none. Concurrent distinct invocations cannot commit the
 same canonical identity. The provider may reject unsupported allocation under
 native policies/bounds, but MUST NOT silently allocate elsewhere in place of an
 explicit supplied identity or root.
@@ -237,8 +243,8 @@ owners. Deletion is not controlled-content erasure.
 
 A carrier-level refusal creates no idempotency disposition. Authentication,
 non-disclosure, transport/request bounds, media negotiation, exact JSON/string
-syntax and key admission occur before fresh execution. Under the admitted
-carrier/key, retained-key handling precedes fresh liveness, guards, Type defaults,
+syntax and, under `idempotency`, key admission occur before fresh execution. Under
+`idempotency` and the admitted carrier/key, retained-key handling precedes fresh liveness, guards, Type defaults,
 feature support and execution bounds; it must not mistake an issued invocation
 for new work. A supported closed grammar is checked without reevaluating live
 operands before that retained comparison.
@@ -733,7 +739,8 @@ JSON equality, not serialized member order.
 After all admission checks, an equal complete covered state is a genuine no-op:
 return successful updated outcome with unchanged revision and entire recorded
 envelope, no new provenance and no lifecycle Event. Context alone cannot force a
-version. No-op still records successful durable retry state and witnesses. Batch
+version. Under `idempotency`, a no-op still records successful durable retry state
+and witnesses. Batch
 uses the final-versus-initial rule below, not a version for every staged edit.
 
 An update or deletion MAY carry `expectedRevision`. It applies only if the target
@@ -894,8 +901,8 @@ The closed alias result is:
 | `target` | Absolute canonical Bead URL for created/updated; absent for deleted |
 
 A put to the same target succeeds as `updated` without a state change. Alias
-results carry no `changed`, Resource revision or provenance. They still retain
-successful anti-reexecution state. Alias mutation emits no Resource Event.
+results carry no `changed`, Resource revision or provenance. Under `idempotency`,
+they still retain successful anti-reexecution state. Alias mutation emits no Resource Event.
 
 An admitted alias spelling may be used as an update/delete Bead subject or either
 Link endpoint, bare or as the uri of a pinned Reference. Resolve it to the current
@@ -906,6 +913,13 @@ alias to become a Link. A put's own target never admits an alias. Retried locato
 use the frozen comparison witnesses below instead of rebinding a known locator.
 
 ## Idempotency and recovery
+
+This section binds a Scope that advertises the `idempotency` capability,
+`https://github.com/gastownhall/bdp/capabilities/idempotency` at version `"1"` with
+closed empty detail. Advertisement promises the complete contract below. Throughout
+this document, a duty stated in terms of an idempotency key, a retained disposition,
+a witness, replay or compact key state applies only under this capability. A Scope
+without it owes only [Repetition without idempotency](#repetition-without-idempotency).
 
 <a id="idempotency-keys"></a>
 
@@ -1032,6 +1046,25 @@ Replay does not require a feature to remain open for new work. Inability to
 compare/serve the original decision is truthful service failure, never permission
 for new admission, truncation or silent fallback.
 
+### Repetition without idempotency
+
+A Scope that does not advertise `idempotency` executes every admitted request under
+the ordinary rules, including a request a client repeats. It retains no disposition
+and replays nothing. It ignores `Idempotency-Key`: the field is not validated, a
+missing, repeated or malformed field is not refused, and it is never reinterpreted
+as a selector. The Scope does not advertise `limits.retention.idempotency`.
+
+The ordinary rules are the client's recovery. Once a first execution has changed
+its target, a repeated `updateBead` or `updateLink` carrying the prior
+`expectedRevision` fails `revision-mismatch`; if the first execution was a genuine
+no-op, the repeat is one too. A repeated `deleteBead` or `deleteLink` of a target
+the first execution deleted is `resource-not-found`. A repeated creation carrying
+`id` is `identity-taken`. A repeated creation without `id` allocates a second
+identity. A client that needs at-most-once creation SHOULD supply an unguessable
+`id` where the provider admits one and, on `identity-taken`, read that identity to
+establish whether its own request committed. A client MUST NOT infer replay from a
+200 that happens to match an earlier result.
+
 ## Problems and diagnostics
 
 <a id="readupdate-problem-details"></a>
@@ -1056,7 +1089,8 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `idempotency-expired` | `gone` | 410 | `never` |
 | `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
 
-The singleton operations have no sequence-only `binding-unavailable` case.
+The `idempotency-*` codes arise only under `idempotency`. The singleton operations
+have no sequence-only `binding-unavailable` case.
 The presence of an inherited helper in a schema artifact does not select it.
 `retryAfter`, when present, is a nonnegative integer transient-delay advice only
 for `after-delay`, alongside applicable HTTP `Retry-After`. Ordinary Problems may
@@ -1455,7 +1489,9 @@ sequence feature and no partial/chunked execution.
 
 A Write provider must implement the six Resource operations, the two alias
 operations when it advertises `aliases`, their complete outcomes, fact production required by advertised Events, native/admitted Types constraints,
-authorization, concurrency safety and durable key/recovery duties. Optional
+authorization, concurrency safety and, under `idempotency`, durable key/recovery
+duties. Without it, the rows of [Repetition without idempotency](#repetition-without-idempotency)
+apply. Optional
 capability advertisement requires its complete selected behavior and bounds; it
 never replaces ordinary obligations. Ordinary reads retain Core meaning: an
 authoritative result does not promise that another replica immediately observes

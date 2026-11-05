@@ -14,8 +14,8 @@ which are Resources with immutable identities and independently versioned state.
 Generic clients use the same carriers and operations across application domains.
 Storage layout and implementation technology are not prescribed.
 
-[Write](../write/write.md) adds mutation admission, actions, atomic effects and
-durable retry outcomes. [Types](../types/types.md) is optional: it interprets definitions,
+[Write](../write/write.md) adds mutation admission, actions and atomic effects, with
+durable retry outcomes under its optional `idempotency` capability. [Types](../types/types.md) is optional: it interprets definitions,
 conformance, installation and property/graph constraints. Carrying a `type` field
 in Core does not require that interpretation, a Type inventory or a descriptor
 engine. Native endpoint, ownership, authorization and retained-address invariants
@@ -662,7 +662,8 @@ or refuse explicitly. A flag alone is insufficient. This is no general executabl
 extension mechanism or permission to add undeclared base envelope fields.
 
 Mutation execution identity freezes selected contract, capability versions, Scope,
-semantic operation, authored operands/values and key. Retry MUST NOT rebind it to
+semantic operation, authored operands/values and, under Write's `idempotency`, key.
+Retry MUST NOT rebind it to
 another contract, media type, feature version, fresh Type default or fresh key.
 Changing advertisement cannot erase durable no-reexecution obligations. Continuations,
 conditions and Event resumes likewise retain selected context. Refusal/unavailable
