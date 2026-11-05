@@ -40,7 +40,7 @@ archive and are not restated here.
 ## Contents
 
 1. [Selection and boundary](#1-selection-and-boundary)
-2. [Identities](#2-identities)
+2. [Bead and Link Types](#2-bead-and-link-types)
 3. [Issue Bead Types](#3-issue-bead-types)
 4. [Dependency Link Types](#4-dependency-link-types)
 5. [Link identity, uniqueness and the remove-and-add cycle](#5-link-identity-uniqueness-and-the-remove-and-add-cycle)
@@ -79,8 +79,7 @@ behavioral baseline. This document does not restate readiness, blocking,
 claiming or closure; those are operations and ride the Callables profile. It
 states what a record means, what a Link means, and what a provider refuses.
 
-/// aren't these bead and link types? I'm not sure why you use Identies here.
-## 2. Identities
+## 2. Bead and Link Types
 
 The shared protocol identities are assigned under
 `https://github.com/gastownhall/bdp/types/issue/` for Bead Types and
@@ -198,7 +197,6 @@ Other fields: allowed
 | "title" | text | yes | — | "Nonempty title; the provider's native byte bound is a native admission rule." |
 | "updated_at" | instant | no | — | "Last change time, set by the provider on every committed change." |
 
-/// LOVE IT!!!!
 The schema additionally refuses a member named `issue_type`, so that no second
 classification authority can enter the record.
 
@@ -219,12 +217,10 @@ Rules the schema does not carry:
   not expressible in the immutable schema. `closed_at` is required exactly when
   `status` is the literal `closed`, by native validation. No closed enumeration
   is published; the policy-versioning question stays open (§11). (**preview**)
-  /// IRC the roduct defaults to P2
-- **Priority.** `0` is P0, never absence. Omitted on creation, it is refused:
-  this package publishes no creation defaults, and the client supplies `status`
-  and `priority` (the native CLI's own defaults of `open` and its configured
-  default priority). (**preview**)
-  /// this is on my very short list of things to tackle.  IIRC, the current impementtion DOES NOT bump the revision. I've wanted this capability in general - my mental model as been a link of type label that can be pinned. Details TBD - this is a post-sprint exercise.
+- **Priority.** `0` is P0, never absence. Omitted on `createBead`, it is refused:
+  this package publishes no creation defaults for the generic mechanism. The
+  tracker's create Callable applies the product's own defaults, `open` and P2.
+  (**preview**)
 - **Labels.** An array of distinct nonempty strings on the record. Label edits
   are ordinary `updateBead` property patches and version the record (§7).
 - **Timestamps.** Every instant is an RFC 3339 date-time with uppercase `T` and `Z`.
@@ -245,7 +241,9 @@ Rules the schema does not carry:
 | `/arrival_seq`, `/closed_by_session`, `/compaction_level`, `/compacted_at`, `/compacted_at_commit`, `/original_size` | `service-managed` | Native bookkeeping carried on reads |
 | every other member | `writable` | Ordinary authored data, subject to the native write boundary |
 
-/// this is awesome.  How are the service-managed properties returned, and do changes impact the revision?
+A `service-managed` member is returned on reads as an ordinary property of the
+record, and a change to it mints a new revision like any other change (§7).
+
 A patch that touches a `service-managed` member is refused with
 `validation-failed`. `status` is `writable`: a direct status edit over
 `updateBead` is admitted and is validated natively (a direct edit to `closed`
@@ -258,8 +256,8 @@ item (§11).
 | Native field group | Treatment in preview-1 |
 | --- | --- |
 | `metadata` (application JSON) | The record's common `metadata` member, never `properties.metadata` |
-| `dependencies`, `comments`, counts, `parent`, epic progress | Relation projections and view results; dependencies are Links (§4), comments are not modeled (§9), the rest are served by the tracker's detail Callable /// unless the HTTP endpoint prohibits comments, I don't think we get to either. ANd for this sprint, I don't think we can change how labels and comments are implemented (but maybe...)|
-| /// this feels wierd.  I would expect bd show to show these.  Does it show them in the product? `lease_expires_at`, `heartbeat_at`, `lease_granted_node`, `is_blocked` | Operational observations. They are **not** properties and do not appear in Bead records, because a heartbeat changes them without changing the record's state and Core binds a revision to the complete record. They are served by the tracker's Callables (the detail read, claim and heartbeat results). Their portable placement is an open item (§11). (**preview**) |
+| `dependencies`, `comments`, counts, `parent`, epic progress | Relation projections and view results; dependencies are Links (§4), comments stay as the product serves them, through `get-issue` and `add-comment` (§9), and the rest are served by the tracker's detail Callable |
+| `lease_expires_at`, `heartbeat_at`, `lease_granted_node`, `is_blocked` | Operational observations. They are **not** properties and do not appear in Bead records, because a heartbeat changes them without changing the record's state and Core binds a revision to the complete record. They are served by the tracker's Callables (the detail read, claim and heartbeat results), so the tracker's show command keeps the lease line the product's `bd show` prints, and the generic `bd show` does not carry them. The product prints no `is_blocked`, which it keeps to journal snapshots. Their portable placement is an open item (§11). (**preview**) |
 | `ephemeral`, `no_history`, `storage_class`, `wisp_type`, `pinned`, `is_template`, `bonded_from`, `mol_type`, `work_type`, `await_type`, `await_id`, `timeout`, `waiters`, `source_system`, `sender`, `source_formula`, `source_location`, `event_kind`, `actor`, `target`, `payload` | Carried as additional properties when the native record has them, with their native meanings; none is reinterpreted, promoted to a Type or made a BDP attribution. `actor` and `target` here are the event-shaped Issue's own members, not the revision actor or a Link endpoint |
 
 ## 4. Dependency Link Types
@@ -512,6 +510,9 @@ reader infers a rule from their absence:
   and a provider need not derive a new one.
 - Properties replacement: the boundary between whole-properties replacement and
   the native writable projection.
+- Labels as Links: a label modeled as a Link of a label Type, which could then be
+  pinned, in place of a property on the record; details to be determined after
+  the sprint.
 - Comments as Beads; the native deterministic row identifier of a Dependency,
   if it is ever to be carried.
 - Custom classification lifecycle: serving definition Beads for configured names,
@@ -531,7 +532,7 @@ changes for a client that does. Rows marked **open** rest on a question not yet 
 | HD-2 | Discovery | `GET /v0/beads/context`, with capability tokens | Core discovery with capability advertisements, and the OpenAPI document at `<scope>/bdp/openapi` |
 | HD-3 | Identity | The native identifier, such as `bd-1a2b` | The canonical URL, `<scope>bd-1a2b`; arguments accept a Scope-relative path or the URL |
 | HD-4 | Classification | Short names, such as `task` and `blocks`, with aliases like `feat` | Absolute Type URIs; the client expands aliases before sending |
-| HD-5 | Revision | A label-only write does not advance the row version | Every committed change mints a revision, label-only writes included (§7); it is opaque and compared for equality only |
+| HD-5 | Revision | A label-only write does not advance the row version | Every committed change mints a revision, label-only writes included (§7); it is opaque and compared for equality only. The sprint keeps the product's behavior, excepted from IT-11 in the sprint's ledger, not by this document |
 | HD-6 | Guards | `expected_version` | `expected_revision` on Callables, `expectedRevision` on Write; a miss is `revision-mismatch` at 409 and writes nothing |
 | HD-7 | Lease and readiness | Fields of the flat issue struct | Outside the record, in a Callable view's `observations` member; a client reading only the record does not see them (§3.4) |
 | HD-8 | Dependencies | Rows addressed by their endpoints | Links with their own opaque identity, read from records and never computed. Removing one consumes its identity, and re-adding the pair creates a new one (§5) |
@@ -546,8 +547,8 @@ changes for a client that does. Rows marked **open** rest on a question not yet 
 | HD-17 | Listing | The native list hides closed, template, gate and infrastructure rows by default | `<scope>/bdp/beads` hides nothing; the native defaults live in `list-issues` |
 | HD-18 | `limit: 0` | Unbounded where v0 admitted it | Unchanged in those Callables; Core's `limit` is a positive bound |
 | HD-19 | Comments | Returned with the issue detail and added by a route | Not Beads and not in the record; reached through `get-issue` and `add-comment` (§9) |
-| HD-20 | Creating an Issue | The server defaults status to `open` and priority to P2 | `createBead` requires both, and `bd create` sends them. **Open: F-17** |
-| HD-21 | Creating with edges | One native transaction | `createBead` then one `createLink` per edge, because atomic batch is not advertised, so a failure can leave the Bead without all its edges |
+| HD-20 | Creating an Issue | The server defaults status to `open` and priority to P2 | The tracker's create Callable keeps the product's defaults. `createBead` requires both. **Open for `createBead`: F-17** |
+| HD-21 | Creating with edges | One native transaction | The tracker's create Callable keeps the one transaction. `createBead` then one `createLink` per edge is the generic form, and a failure there can leave the Bead without all its edges |
 | HD-22 | Cursors | A keyset over live rows | Core says a continuation walks one logical snapshot; the preview keeps the keyset. **Open: F-5** |
 
 The preview's own departures from this specification are kept in its exceptions ledger
