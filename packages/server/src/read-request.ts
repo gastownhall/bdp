@@ -145,23 +145,13 @@ export function requestFromUrl(url: URL, scope: AbsoluteHttpUrl): ReadRequest | 
   if (!url.pathname.startsWith(scopeUrl.pathname)) return notFound();
   const relative = url.pathname.slice(scopeUrl.pathname.length);
   const segments = relative.split("/").filter(Boolean);
-  if (segments.length === 1 && ["beads", "links", "types"].includes(segments[0] ?? "")) {
-    const collection = segments[0] as "beads" | "links" | "types";
-    if (relative !== `${collection}/`) return notFound();
+  if (relative === "bdp/beads" || relative === "bdp/links") {
+    const collection = relative.endsWith("beads") ? "beads" : "links";
     const parameterIssue = validateCollectionParameters(url, collection);
     if (parameterIssue !== undefined) return parameterIssue;
     const parameter = (name: string): string | undefined => url.searchParams.get(name) ?? undefined;
     const limit = parseOptionalLimit(parameter("limit"));
     if (isReadProblem(limit)) return limit;
-    if (collection === "types") {
-      if (parameter("cursor") !== undefined)
-        return { kind: "collection", collection, continuation: url.href };
-      return {
-        kind: "collection",
-        collection,
-        ...(limit === undefined ? {} : { limit }),
-      };
-    }
     const type = parseOptionalTypeParameter(parameter("type"), scope);
     if (isReadProblem(type)) return type;
     const conformsTo = parseOptionalTypeParameter(parameter("conformsTo"), scope);
@@ -174,19 +164,15 @@ export function requestFromUrl(url: URL, scope: AbsoluteHttpUrl): ReadRequest | 
       ...(limit === undefined ? {} : { limit }),
       ...(parameter("selector") === undefined ? {} : { selector: parameter("selector") as string }),
     };
-    if (collection === "beads") {
-      if (parameter("cursor") !== undefined)
-        return { kind: "collection", collection, continuation: url.href };
-      return { kind: "collection", collection, ...filters, ...controls };
-    }
+    if (parameter("cursor") !== undefined)
+      return { kind: "collection", collection, continuation: url.href };
+    if (collection === "beads") return { kind: "collection", collection, ...filters, ...controls };
     const source = normalizeEndpointParameter(parameter("source"), scope);
     if (isReadProblem(source)) return source;
     const target = normalizeEndpointParameter(parameter("target"), scope);
     if (isReadProblem(target)) return target;
     const endpoint = normalizeEndpointParameter(parameter("endpoint"), scope);
     if (isReadProblem(endpoint)) return endpoint;
-    if (parameter("cursor") !== undefined)
-      return { kind: "collection", collection, continuation: url.href };
     return {
       kind: "collection",
       collection,
@@ -197,43 +183,44 @@ export function requestFromUrl(url: URL, scope: AbsoluteHttpUrl): ReadRequest | 
       ...controls,
     } as ReadRequest;
   }
-  if (
-    segments.length >= 2 &&
-    (segments[0] === "beads" || segments[0] === "links" || segments[0] === "types")
-  ) {
-    const resourceRoot = segments[0];
-    const localId = `${resourceRoot}/${segments.slice(1).join("/")}`;
-    if (relative !== localId) return notFound();
-    let id: AbsoluteHttpUrl;
+  if (relative === "types/") {
+    const collection = "types" as const;
+    const parameterIssue = validateCollectionParameters(url, collection);
+    if (parameterIssue !== undefined) return parameterIssue;
+    const parameter = (name: string): string | undefined => url.searchParams.get(name) ?? undefined;
+    const limit = parseOptionalLimit(parameter("limit"));
+    if (isReadProblem(limit)) return limit;
+    if (parameter("cursor") !== undefined)
+      return { kind: "collection", collection, continuation: url.href };
+    return {
+      kind: "collection",
+      collection,
+      ...(limit === undefined ? {} : { limit }),
+    };
+  }
+  if (segments[0] === "types" && segments.length >= 2) {
+    if (url.searchParams.size > 0 || url.hash) return invalidParameter();
+    const localId = segments.join("/");
     try {
-      id = resolveCanonicalLocalResourceId(
-        scope,
-        resourceRoot === "beads" ? "bead" : resourceRoot === "links" ? "link" : "type",
-        localId,
-      );
+      const id = resolveCanonicalLocalResourceId(scope, "type", localId);
+      return { kind: "resource", resource: "type", id };
     } catch (error) {
       if (error instanceof ProtocolArtifactValidationError) return notFound();
       throw error;
     }
-    if (resourceRoot === "types")
-      return validateParameters(url, []) ?? { kind: "resource", resource: "type", id };
-    const view = url.searchParams.get("view") ?? undefined;
-    if (view === undefined)
-      return (validateParameters(url, []) ?? {
-        kind: "resource",
-        resource: resourceRoot === "beads" ? "bead" : "link",
-        id,
-      }) as ReadRequest;
-    if (view === "properties") {
-      const parameterIssue = validateParameters(url, ["view"]);
-      if (parameterIssue !== undefined) return parameterIssue;
-      return {
-        kind: "properties",
-        resource: resourceRoot === "beads" ? "bead" : "link",
-        id,
-      } as ReadRequest;
+  }
+  if (segments.length >= 1 && segments[0] !== "bdp") {
+    const localId = segments.join("/");
+    if (relative !== localId) return notFound();
+    let id: AbsoluteHttpUrl;
+    try {
+      id = resolveCanonicalLocalResourceId(scope, "bead", localId);
+    } catch (error) {
+      if (error instanceof ProtocolArtifactValidationError) return notFound();
+      throw error;
     }
-    if (view === "links" && resourceRoot === "beads") {
+    const view = url.searchParams.get("view") ?? undefined;
+    if (view === "links") {
       const parameterIssue = validateParameters(url, ["view", "direction", "limit", "cursor"]);
       if (parameterIssue !== undefined) return parameterIssue;
       const direction = url.searchParams.get("direction") ?? "both";
@@ -243,12 +230,18 @@ export function requestFromUrl(url: URL, scope: AbsoluteHttpUrl): ReadRequest | 
       if (isReadProblem(limit)) return limit;
       if (url.searchParams.has("cursor"))
         return { kind: "bead-links", bead: id, continuation: url.href };
+      return { kind: "bead-links", bead: id, direction, ...(limit === undefined ? {} : { limit }) };
+    }
+    if (view === undefined)
+      return validateParameters(url, []) ?? { kind: "resource", resource: "resource", id };
+    if (view === "properties") {
+      const parameterIssue = validateParameters(url, ["view"]);
+      if (parameterIssue !== undefined) return parameterIssue;
       return {
-        kind: "bead-links",
-        bead: id,
-        direction,
-        ...(limit === undefined ? {} : { limit }),
-      };
+        kind: "properties",
+        resource: "resource",
+        id,
+      } as ReadRequest;
     }
     return invalidParameter();
   }
@@ -411,7 +404,14 @@ export function continuationUrlFor(operation: PageOperation, scope: AbsoluteHttp
   const url =
     operation.kind === "bead-links"
       ? new URL(operation.bead)
-      : new URL(`${operation.collection}/`, scope);
+      : new URL(
+          operation.collection === "types"
+            ? "types/"
+            : operation.collection === "beads"
+              ? "bdp/beads"
+              : "bdp/links",
+          scope,
+        );
   if (operation.kind === "bead-links") {
     url.searchParams.set("view", "links");
     if (operation.direction !== undefined) url.searchParams.set("direction", operation.direction);
@@ -528,6 +528,10 @@ type TypeResourceOperation = Extract<
   ScopeReadOperation,
   { readonly kind: "resource"; readonly resource: "type" }
 >;
+type ResourceOperation = Extract<
+  ScopeReadOperation,
+  { readonly kind: "resource"; readonly resource: "resource" }
+>;
 type BeadPropertiesOperation = Extract<
   ScopeReadOperation,
   { readonly kind: "properties"; readonly resource: "bead" }
@@ -535,6 +539,10 @@ type BeadPropertiesOperation = Extract<
 type LinkPropertiesOperation = Extract<
   ScopeReadOperation,
   { readonly kind: "properties"; readonly resource: "link" }
+>;
+type ResourcePropertiesOperation = Extract<
+  ScopeReadOperation,
+  { readonly kind: "properties"; readonly resource: "resource" }
 >;
 type BeadLinksOperation = Extract<ScopeReadOperation, { readonly kind: "bead-links" }>;
 
@@ -614,6 +622,33 @@ const READ_REQUEST_VARIANTS = Object.freeze({
     },
     validateBody: validateTypeResourceBody,
   }),
+  "resource:resource": defineScopeReadVariant<ResourceOperation>({
+    required: ["kind", "resource", "id"],
+    matches: readRequestDiscriminant("resource", ["resource", "resource"]),
+    fields: ["kind", "resource", "id"],
+    validate: (operation, options) =>
+      validateLocalResourceIdentity(operation.id, options.scope, "bead"),
+    validateBody(operation, value, scope) {
+      const candidate =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : undefined;
+      if (candidate === undefined)
+        throw new ProtocolArtifactValidationError("invalid Resource record");
+      if ("source" in candidate) {
+        const link = parseLinkRecord(candidate, "ScopePort Link");
+        validateServerLink(link, scope);
+        if (link.id !== operation.id)
+          throw new ProtocolArtifactValidationError("ScopePort returned the wrong Resource ID");
+        return link;
+      }
+      const bead = parseBeadRecord(candidate, "ScopePort Bead");
+      validateServerBead(bead, scope);
+      if (bead.id !== operation.id)
+        throw new ProtocolArtifactValidationError("ScopePort returned the wrong Resource ID");
+      return bead;
+    },
+  }),
   "properties:bead": defineScopeReadVariant<BeadPropertiesOperation>({
     required: ["kind", "resource", "id"],
     matches: readRequestDiscriminant("properties", ["resource", "bead"]),
@@ -626,6 +661,14 @@ const READ_REQUEST_VARIANTS = Object.freeze({
     matches: readRequestDiscriminant("properties", ["resource", "link"]),
     fields: ["kind", "resource", "id"],
     validate: (operation, options) => localResourceIssue(operation, options.scope),
+    validateBody: validatePropertiesBody,
+  }),
+  "properties:resource": defineScopeReadVariant<ResourcePropertiesOperation>({
+    required: ["kind", "resource", "id"],
+    matches: readRequestDiscriminant("properties", ["resource", "resource"]),
+    fields: ["kind", "resource", "id"],
+    validate: (operation, options) =>
+      validateLocalResourceIdentity(operation.id, options.scope, "bead"),
     validateBody: validatePropertiesBody,
   }),
   "bead-links": defineScopeReadVariant<BeadLinksOperation>({
@@ -753,7 +796,7 @@ function validateTypeResourceBody(
 }
 
 function validatePropertiesBody(
-  _operation: BeadPropertiesOperation | LinkPropertiesOperation,
+  _operation: BeadPropertiesOperation | LinkPropertiesOperation | ResourcePropertiesOperation,
   value: unknown,
 ): ReadBodyFor<BeadPropertiesOperation | LinkPropertiesOperation> {
   return parsePropertiesRecord(value, "ScopePort properties");

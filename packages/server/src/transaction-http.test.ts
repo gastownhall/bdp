@@ -73,7 +73,7 @@ async function body(response: Response) {
 }
 const create = (name = "a") => ({
   operation: "createBead",
-  id: `beads/${name}`,
+  id: `${name}`,
   type: bead,
   properties: { title: name },
 });
@@ -225,12 +225,12 @@ describe("source-private actual Transactional HTTP", () => {
       status: "completed",
       next: null,
       requiredPosition: "pos-1",
-      results: [{ outcome: "created", resource: { id: `${f.runtime.scope}beads/a` } }],
+      results: [{ outcome: "created", resource: { id: `${f.runtime.scope}a` } }],
     });
-    const read = await f.get(`${f.runtime.scope}beads/a`);
+    const read = await f.get(`${f.runtime.scope}a`);
     expect(read.status).toBe(200);
     expect(await body(read)).toMatchObject({
-      id: `${f.runtime.scope}beads/a`,
+      id: `${f.runtime.scope}a`,
       properties: { title: "a" },
     });
     expect(context(read)).toEqual(context(result));
@@ -263,7 +263,7 @@ describe("source-private actual Transactional HTTP", () => {
       expect(response.status).toBe(status);
       expect(await body(response)).toMatchObject({ code });
     }
-    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+    expect((await f.get(`${f.runtime.scope}a`)).status).toBe(404);
     expect((await f.post()).status).toBe(200);
   });
   it("preserves conflict-before-negotiation and replay-before-capacity without binding refused keys", async () => {
@@ -297,10 +297,7 @@ describe("source-private actual Transactional HTTP", () => {
     });
     expect(response.status).toBe(200);
     expect(response.headers.has("etag")).toBe(false);
-    const failure = await f.post(
-      batch([{ operation: "deleteBead", bead: "beads/missing" }]),
-      "bad",
-    );
+    const failure = await f.post(batch([{ operation: "deleteBead", bead: "missing" }]), "bad");
     expect(failure.status).toBe(200);
     expect(await body(failure)).toMatchObject({
       status: "failed",
@@ -363,15 +360,11 @@ describe("source-private actual Transactional HTTP", () => {
   it("fails minimum controls closed before ordinary Read and expired cursor conditional decisions", async () => {
     const f = await fixture();
     await f.post(batch([create("a"), create("b"), create("c")]));
-    const page = await body(await f.get(`${f.runtime.scope}beads/`));
+    const page = await body(await f.get(`${f.runtime.scope}bdp/beads`));
     expect(typeof page.next).toBe("string");
     f.setTime(3000);
     const headers = { "bdp-minimum-scope-position": "pos-1", "if-none-match": "*" };
-    for (const url of [
-      `${f.runtime.scope}beads/a`,
-      `${f.runtime.scope}beads/`,
-      String(page.next),
-    ]) {
+    for (const url of [`${f.runtime.scope}a`, `${f.runtime.scope}bdp/beads`, String(page.next)]) {
       const response = await f.get(url, { headers });
       expect(response.status).toBe(400);
       expect(checkedProblem(await body(response)).code).toBe("malformed-request");
@@ -412,7 +405,7 @@ describe("source-private actual Transactional HTTP", () => {
     ).toBe(404);
     expect(
       (
-        await f.get(`${f.runtime.scope}beads/a`, {
+        await f.get(`${f.runtime.scope}a`, {
           headers: { authorization: `Bearer ${readToken}` },
         })
       ).status,
@@ -426,7 +419,7 @@ describe("source-private actual Transactional HTTP", () => {
     const f = await fixture();
     const text = batch([
       { ...create("a"), name: "a", idempotencyKey: "creator" },
-      { operation: "deleteBead", bead: "beads/missing", idempotencyKey: "failure" },
+      { operation: "deleteBead", bead: "missing", idempotencyKey: "failure" },
       { operation: "createLink", type: link, source: "@a", target: "@a", idempotencyKey: "link" },
     ]);
     const response = await f.post(text, null, "sequence");
@@ -461,7 +454,7 @@ describe("source-private actual Transactional HTTP", () => {
       ).status,
     ).toBe(400);
     expect((await f.post(batch([create("changed")]), "member")).status).toBe(200);
-    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+    expect((await f.get(`${f.runtime.scope}a`)).status).toBe(404);
   });
   it("commits a prefix and independent tail around a retained alias member failure", async () => {
     const f = await fixture();
@@ -478,18 +471,18 @@ describe("source-private actual Transactional HTTP", () => {
     expect(validateSequence(result), JSON.stringify(validateSequence.errors)).toBe(true);
     expect(result).toMatchObject({
       results: [
-        { operationIndex: 0, outcome: "created", resource: { id: `${f.runtime.scope}beads/a` } },
+        { operationIndex: 0, outcome: "created", resource: { id: `${f.runtime.scope}a` } },
         { operationIndex: 1, code: "resource-not-found", status: 404 },
-        { operationIndex: 2, outcome: "created", resource: { id: `${f.runtime.scope}beads/b` } },
+        { operationIndex: 2, outcome: "created", resource: { id: `${f.runtime.scope}b` } },
       ],
     });
     for (const name of ["a", "b"]) {
-      const read = await f.get(`${f.runtime.scope}beads/${name}`);
+      const read = await f.get(`${f.runtime.scope}${name}`);
       expect(read.status).toBe(200);
       expect(await body(read)).toMatchObject({ properties: { title: name } });
     }
     const put = await f.post(
-      JSON.stringify({ alias: "alias/latest", target: "beads/b" }),
+      JSON.stringify({ alias: "alias/latest", target: "b" }),
       "put",
       "putAlias",
     );
@@ -499,7 +492,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(replay.status).toBe(200);
     expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
     expect(await body(replay)).toEqual(result);
-    expect((await f.get(`${f.runtime.scope}beads/b`)).status).toBe(200);
+    expect((await f.get(`${f.runtime.scope}b`)).status).toBe(200);
     await f.reopen();
     const recovered = await f.post(aliases, null, "sequence");
     expect(recovered.status).toBe(200);
@@ -514,9 +507,9 @@ describe("source-private actual Transactional HTTP", () => {
     expect(fresh.headers.get("bdp-scope-position")).toBe("pos-3");
     expect(await body(fresh)).toMatchObject({
       status: "completed",
-      results: [{ outcome: "deleted", deleted: { resource: { id: `${f.runtime.scope}beads/b` } } }],
+      results: [{ outcome: "deleted", deleted: { resource: { id: `${f.runtime.scope}b` } } }],
     });
-    expect((await f.get(`${f.runtime.scope}beads/b`)).status).toBe(404);
+    expect((await f.get(`${f.runtime.scope}b`)).status).toBe(404);
   });
   it("resolves earlier alias writes and mixed allocated/pinned operands at HTTP member turns", async () => {
     const f = await fixture();
@@ -525,7 +518,7 @@ describe("source-private actual Transactional HTTP", () => {
       { operation: "putAlias", alias: "alias/work", target: "@made", idempotencyKey: "put" },
       {
         operation: "createLink",
-        id: "links/edge",
+        id: "edge",
         type: link,
         source: "@made",
         target: { uri: "alias/work", revision: "opaque-pin" },
@@ -533,7 +526,7 @@ describe("source-private actual Transactional HTTP", () => {
       },
     ];
     const response = await f.post(batch(operations), null, "sequence");
-    expect(response.status).toBe(200);
+    expect(response.status, await response.clone().text()).toBe(200);
     expect(response.headers.get("bdp-scope-position")).toBe("pos-2");
     const result = await body(response),
       entries = result.results as Record<string, unknown>[];
@@ -551,19 +544,19 @@ describe("source-private actual Transactional HTTP", () => {
     expect(entries[2]).toMatchObject({
       outcome: "created",
       resource: {
-        id: `${f.runtime.scope}links/edge`,
+        id: `${f.runtime.scope}edge`,
         source: created,
         target: { uri: created, revision: "opaque-pin" },
       },
     });
-    const edge = await f.get(`${f.runtime.scope}links/edge`);
+    const edge = await f.get(`${f.runtime.scope}edge`);
     expect(edge.status).toBe(200);
     expect(await body(edge)).toEqual(entries[2]?.resource);
     const other = await f.post(batch([create("other")]), "other");
     expect(other.status).toBe(200);
     expect(other.headers.get("bdp-scope-position")).toBe("pos-3");
     const repoint = await f.post(
-      JSON.stringify({ alias: "alias/work", target: "beads/other" }),
+      JSON.stringify({ alias: "alias/work", target: "other" }),
       "repoint",
       "putAlias",
     );
@@ -571,15 +564,15 @@ describe("source-private actual Transactional HTTP", () => {
     expect(repoint.headers.get("bdp-scope-position")).toBe("pos-3");
     const before = await f.get(`${f.runtime.scope}alias/work`);
     expect(before.status).toBe(307);
-    expect(before.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
+    expect(before.headers.get("location")).toBe(`${f.runtime.scope}other`);
     const liveReplay = await f.post(batch(operations), null, "sequence");
     expect(liveReplay.status).toBe(200);
     expect(liveReplay.headers.get("bdp-scope-position")).toBe("pos-3");
     expect(await body(liveReplay)).toEqual(result);
     const liveAlias = await f.get(`${f.runtime.scope}alias/work`);
     expect(liveAlias.status).toBe(307);
-    expect(liveAlias.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
-    const liveEdge = await f.get(`${f.runtime.scope}links/edge`);
+    expect(liveAlias.headers.get("location")).toBe(`${f.runtime.scope}other`);
+    const liveEdge = await f.get(`${f.runtime.scope}edge`);
     expect(liveEdge.status).toBe(200);
     expect(await body(liveEdge)).toEqual(entries[2]?.resource);
     await f.reopen();
@@ -589,7 +582,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(await body(replay)).toEqual(result);
     const after = await f.get(`${f.runtime.scope}alias/work`);
     expect(after.status).toBe(307);
-    expect(after.headers.get("location")).toBe(`${f.runtime.scope}beads/other`);
+    expect(after.headers.get("location")).toBe(`${f.runtime.scope}other`);
   });
   it("rejects invalid set Selector grammar and admits valid deep content without partial effects", async () => {
     const f = await fixture();
@@ -621,7 +614,7 @@ describe("source-private actual Transactional HTTP", () => {
       status: "completed",
       results: [{ outcome: "created", resource: { properties: { nested } } }],
     });
-    expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(200);
+    expect((await f.get(`${f.runtime.scope}c`)).status).toBe(200);
     expect((await f.post(batch([create("c")]), "deep")).status).toBe(409);
   });
   it("preserves retained receipt identities across actual listener close/reopen and detail expiry", async () => {
@@ -634,7 +627,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(compact).toMatchObject({
       status: "completed",
       detail: "expired",
-      allocated: [{ id: `${f.runtime.scope}beads/a` }],
+      allocated: [{ id: `${f.runtime.scope}a` }],
     });
     await f.reopen();
     expect(await body(await f.post())).toEqual(compact);
@@ -669,8 +662,8 @@ describe("source-private actual Transactional HTTP", () => {
     callbacks.shift()?.();
     await closing;
     await f.reopen({});
-    expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(200);
-    expect((await f.get(`${f.runtime.scope}beads/b`)).status).toBe(200);
+    expect((await f.get(`${f.runtime.scope}a`)).status).toBe(200);
+    expect((await f.get(`${f.runtime.scope}b`)).status).toBe(200);
     const recovered = await f.post(text, null, "sequence");
     expect(recovered.status).toBe(200);
     expect(recovered.headers.get("bdp-scope-position")).toBe("pos-2");
@@ -717,23 +710,18 @@ describe("source-private actual Transactional HTTP", () => {
     const f = await fixture();
     await f.post();
     expect(
-      (
-        await f.post(
-          JSON.stringify({ alias: "alias/latest", target: "beads/a" }),
-          "alias",
-          "putAlias",
-        )
-      ).status,
+      (await f.post(JSON.stringify({ alias: "alias/latest", target: "a" }), "alias", "putAlias"))
+        .status,
     ).toBe(200);
     const alias = await f.get(`${f.runtime.scope}alias/latest`);
     expect(alias.status).toBe(307);
-    expect(alias.headers.get("location")).toBe(`${f.runtime.scope}beads/a`);
+    expect(alias.headers.get("location")).toBe(`${f.runtime.scope}a`);
     expect(alias.headers.get("bdp-scope-position")).toBe("pos-1");
-    const properties = await f.get(`${f.runtime.scope}beads/a?view=properties`);
+    const properties = await f.get(`${f.runtime.scope}a?view=properties`);
     expect(properties.status).toBe(200);
     const etag = properties.headers.get("etag");
     expect(etag).toBeTruthy();
-    const conditional = await f.get(`${f.runtime.scope}beads/a?view=properties`, {
+    const conditional = await f.get(`${f.runtime.scope}a?view=properties`, {
       headers: { "if-none-match": etag ?? "" },
     });
     expect(conditional.status).toBe(304);
@@ -823,7 +811,7 @@ it("keeps a configured canonical identity across different loopback listener por
   runtime = await startTransactionRuntime({ ...options, create: false });
   expect(await body(await mutation())).toEqual(first);
   expect(await body(await send(id(first)))).toEqual(first);
-  expect((await send(`${options.scope}beads/a`)).status).toBe(200);
+  expect((await send(`${options.scope}a`)).status).toBe(200);
 });
 
 it("maps a finite unresolved comparison to temporary refusal without disclosing or executing it", async () => {
@@ -855,20 +843,20 @@ it("maps a finite unresolved comparison to temporary refusal without disclosing 
   for (let attempt = 0; callbacks.length === 0 && attempt < 100; attempt++) await setImmediate();
   expect(callbacks).toHaveLength(1);
   const retry = await f.post(
-    batch([{ operation: "createLink", type: link, source: "beads/a", target: "beads/a" }]),
+    batch([{ operation: "createLink", type: link, source: "a", target: "a" }]),
     "dependent",
   );
   expect(retry.status).toBe(503);
   expect(retry.headers.get("retry-after")).toBe("1");
   expect(retry.headers.has("location")).toBe(false);
   expect(await body(retry)).toMatchObject({ code: "temporarily-unavailable" });
-  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  expect((await f.get(`${f.runtime.scope}a`)).status).toBe(404);
   callbacks.shift()?.();
   await setImmediate();
   callbacks.shift()?.();
   expect((await sequence).status).toBe(200);
   const replay = await f.post(
-    batch([{ operation: "createLink", type: link, source: "beads/a", target: "beads/a" }]),
+    batch([{ operation: "createLink", type: link, source: "a", target: "a" }]),
     "dependent",
   );
   expect(replay.status).toBe(200);
@@ -922,7 +910,7 @@ it("preserves maintenance faults as bodyless internal errors before direct admis
         operationIndex: 0,
         outcome: "created",
         resource: expect.objectContaining({
-          id: `${f.runtime.scope}beads/maintenance-seed`,
+          id: `${f.runtime.scope}maintenance-seed`,
           type: bead,
           properties: { title: "maintenance-seed" },
           metadata: {},
@@ -1016,7 +1004,7 @@ it("keeps a live listener from serving through an owner fenced by injected commi
   expect(failed.status).toBe(500);
   expect(await failed.text()).toBe("");
   spy.mockRestore();
-  const fenced = await f.get(`${f.runtime.scope}beads/`);
+  const fenced = await f.get(`${f.runtime.scope}bdp/beads`);
   expect(fenced.status).toBe(500);
   expect(await fenced.text()).toBe("");
   await f.reopen();
@@ -1178,13 +1166,13 @@ it("ignores partial and malformed copied read controls on each mutation carrier"
       const entries = commandEntries(value);
       expect(entries).toHaveLength(1);
       const resource = commandResource(entries[0]!.resource, {
-        id: `${f.runtime.scope}beads/${key}`,
+        id: `${f.runtime.scope}${key}`,
         type: bead,
         properties: { title: key },
       });
       expect(entries).toEqual([{ operationIndex: 0, outcome: "created", resource }]);
       requests++;
-      const read = await f.get(`${f.runtime.scope}beads/${key}`);
+      const read = await f.get(`${f.runtime.scope}${key}`);
       expect(read.status).toBe(200);
       expect(await body(read)).toEqual(resource);
       expect(context(read)).toEqual(context(response));
@@ -1232,10 +1220,10 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
       create("b"),
       {
         operation: "createLink",
-        id: "links/victim",
+        id: "victim",
         type: link,
-        source: "beads/a",
-        target: "beads/b",
+        source: "a",
+        target: "b",
       },
     ]),
     "all-seed",
@@ -1246,18 +1234,18 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
   expect(seeded).toHaveLength(3);
   for (const [index, name] of ["a", "b"].entries()) {
     const resource = commandResource(seeded[index]!.resource, {
-      id: `${f.runtime.scope}beads/${name}`,
+      id: `${f.runtime.scope}${name}`,
       type: bead,
       properties: { title: name },
     });
     expect(seeded[index]).toEqual({ operationIndex: index, outcome: "created", resource });
   }
   const victim = commandResource(seeded[2]!.resource, {
-    id: `${f.runtime.scope}links/victim`,
+    id: `${f.runtime.scope}victim`,
     type: link,
     properties: {},
-    source: `${f.runtime.scope}beads/a`,
-    target: `${f.runtime.scope}beads/b`,
+    source: `${f.runtime.scope}a`,
+    target: `${f.runtime.scope}b`,
   });
   expect(seeded[2]).toEqual({ operationIndex: 2, outcome: "created", resource: victim });
   let count = 1;
@@ -1290,7 +1278,7 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
   ) {
     expect(entries).toHaveLength(1);
     const resource = commandResource(entries[0]!.resource, {
-      id: `${f.runtime.scope}beads/${name}`,
+      id: `${f.runtime.scope}${name}`,
       type: bead,
       properties: { title },
     });
@@ -1299,14 +1287,14 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
     return resource;
   }
   beadResult(
-    await post("createBead", { id: "beads/c", type: bead, properties: { title: "c" } }),
+    await post("createBead", { id: "c", type: bead, properties: { title: "c" } }),
     "c",
     "c",
     "created",
   );
   beadResult(
     await post("updateBead", {
-      bead: "beads/c",
+      bead: "c",
       propertiesChange: [{ op: "replace", path: "/title", value: "c2" }],
     }),
     "c",
@@ -1314,39 +1302,39 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
     "updated",
   );
   const createdLink = await post("createLink", {
-    id: "links/l",
+    id: "l",
     type: link,
-    source: "beads/a",
-    target: "beads/b",
+    source: "a",
+    target: "b",
     properties: { title: "l" },
   });
   const firstLink = commandResource(createdLink[0]!.resource, {
-    id: `${f.runtime.scope}links/l`,
+    id: `${f.runtime.scope}l`,
     type: link,
-    source: `${f.runtime.scope}beads/a`,
-    target: `${f.runtime.scope}beads/b`,
+    source: `${f.runtime.scope}a`,
+    target: `${f.runtime.scope}b`,
     properties: { title: "l" },
   });
   expect(createdLink).toEqual([{ operationIndex: 0, outcome: "created", resource: firstLink }]);
   const updatedLink = await post("updateLink", {
-    link: "links/l",
+    link: "l",
     propertiesChange: [{ op: "replace", path: "/title", value: "l2" }],
   });
   const lastLink = commandResource(updatedLink[0]!.resource, {
-    id: `${f.runtime.scope}links/l`,
+    id: `${f.runtime.scope}l`,
     type: link,
-    source: `${f.runtime.scope}beads/a`,
-    target: `${f.runtime.scope}beads/b`,
+    source: `${f.runtime.scope}a`,
+    target: `${f.runtime.scope}b`,
     properties: { title: "l2" },
   });
   expect(lastLink.revision).not.toBe(firstLink.revision);
   expect(updatedLink).toEqual([{ operationIndex: 0, outcome: "updated", resource: lastLink }]);
-  expect(await post("putAlias", { alias: "alias/work", target: "beads/c" })).toEqual([
+  expect(await post("putAlias", { alias: "alias/work", target: "c" })).toEqual([
     {
       operationIndex: 0,
       outcome: "created",
       alias: `${f.runtime.scope}alias/work`,
-      target: `${f.runtime.scope}beads/c`,
+      target: `${f.runtime.scope}c`,
     },
   ]);
   const selected = await post("updateWhere", {
@@ -1358,7 +1346,7 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
   expect(selected[0]).toEqual({ operationIndex: 0, outcome: "matched", count: 3 });
   for (const [index, name] of ["a", "b", "c"].entries()) {
     const resource = commandResource(selected[index + 1]!.resource, {
-      id: `${f.runtime.scope}beads/${name}`,
+      id: `${f.runtime.scope}${name}`,
       type: bead,
       properties: { title: name === "c" ? "c2" : name, marked: true },
     });
@@ -1378,7 +1366,7 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
       },
     };
   }
-  expect(await post("deleteLink", { link: "links/l" })).toEqual([deleted(lastLink, "link")]);
+  expect(await post("deleteLink", { link: "l" })).toEqual([deleted(lastLink, "link")]);
   const d = beadResult(await post("batch", { operations: [create("d")] }), "d", "d", "created");
   beadResult(
     await post("sequence", {
@@ -1388,7 +1376,7 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
     "e",
     "created",
   );
-  expect(await post("deleteBead", { bead: "beads/d" })).toEqual([deleted(d, "bead")]);
+  expect(await post("deleteBead", { bead: "d" })).toEqual([deleted(d, "bead")]);
   finalBeads.delete("d");
   expect(await post("deleteWhere", { collection: "links", selector: "$[?@.id]" })).toEqual([
     { operationIndex: 0, outcome: "matched", count: 1 },
@@ -1400,7 +1388,7 @@ it("ignores complete copied tuples on every Transactional mutation target", asyn
     ["links", []],
   ] as const) {
     count++;
-    const response = await f.get(`${f.runtime.scope}${collection}/?limit=32`);
+    const response = await f.get(`${f.runtime.scope}bdp/${collection}?limit=32`);
     expect(response.status).toBe(200);
     expect(await body(response)).toEqual({ items, next: null });
   }
@@ -1428,7 +1416,7 @@ it("copied read controls preserve key revision and negotiation admission", async
   }
   async function read(name: string) {
     count++;
-    const response = await f.get(`${f.runtime.scope}beads/${name}`);
+    const response = await f.get(`${f.runtime.scope}${name}`);
     expect(response.status).toBe(200);
     return body(response);
   }
@@ -1436,12 +1424,12 @@ it("copied read controls preserve key revision and negotiation admission", async
   const seed = commandEntries(await commandResponse(seedResponse));
   expect(seed).toHaveLength(1);
   const original = commandResource(seed[0]!.resource, {
-    id: `${f.runtime.scope}beads/a`,
+    id: `${f.runtime.scope}a`,
     type: bead,
     properties: { title: "a" },
   });
   expect(seed).toEqual([{ operationIndex: 0, outcome: "created", resource: original }]);
-  const fresh = { id: "beads/key-corrected", type: bead, properties: { title: "key-corrected" } };
+  const fresh = { id: "key-corrected", type: bead, properties: { title: "key-corrected" } };
   const invalid = await post(fresh, "bad key", "createBead");
   expect(invalid.status).toBe(400);
   expect(checkedProblem(await body(invalid))).toEqual({
@@ -1455,7 +1443,7 @@ it("copied read controls preserve key revision and negotiation admission", async
   );
   expect(corrected).toHaveLength(1);
   const correctedResource = commandResource(corrected[0]!.resource, {
-    id: `${f.runtime.scope}beads/key-corrected`,
+    id: `${f.runtime.scope}key-corrected`,
     type: bead,
     properties: { title: "key-corrected" },
   });
@@ -1463,7 +1451,7 @@ it("copied read controls preserve key revision and negotiation admission", async
     { operationIndex: 0, outcome: "created", resource: correctedResource },
   ]);
   const stale = {
-    bead: "beads/a",
+    bead: "a",
     expectedRevision: "wrong",
     propertiesChange: [{ op: "replace", path: "/title", value: "changed" }],
   };
@@ -1490,14 +1478,14 @@ it("copied read controls preserve key revision and negotiation admission", async
   );
   expect(updated).toHaveLength(1);
   const changed = commandResource(updated[0]!.resource, {
-    id: `${f.runtime.scope}beads/a`,
+    id: `${f.runtime.scope}a`,
     type: bead,
     properties: { title: "changed" },
   });
   expect(changed.revision).not.toBe(original.revision);
   expect(updated).toEqual([{ operationIndex: 0, outcome: "updated", resource: changed }]);
   expect(await read("a")).toEqual(changed);
-  const negotiated = { id: "beads/negotiated", type: bead, properties: { title: "negotiated" } };
+  const negotiated = { id: "negotiated", type: bead, properties: { title: "negotiated" } };
   const refused = await post(negotiated, "negotiate", "createBead", { accept: "text/plain" });
   expect(refused.status).toBe(406);
   expect(await refused.text()).toBe("");
@@ -1507,7 +1495,7 @@ it("copied read controls preserve key revision and negotiation admission", async
   );
   expect(admitted).toHaveLength(1);
   const made = commandResource(admitted[0]!.resource, {
-    id: `${f.runtime.scope}beads/negotiated`,
+    id: `${f.runtime.scope}negotiated`,
     type: bead,
     properties: { title: "negotiated" },
   });
@@ -1529,7 +1517,7 @@ it("copied read controls preserve key revision and negotiation admission", async
   );
   expect(accepted).toHaveLength(1);
   const tail = commandResource(accepted[0]!.resource, {
-    id: `${f.runtime.scope}beads/sequence-corrected`,
+    id: `${f.runtime.scope}sequence-corrected`,
     type: bead,
     properties: { title: "sequence-corrected" },
   });
@@ -1547,7 +1535,7 @@ it("keeps receipt minimum enforcement after commands ignore copied controls", as
   const rows = commandEntries(receipt);
   expect(rows).toHaveLength(1);
   const resource = commandResource(rows[0]!.resource, {
-    id: `${f.runtime.scope}beads/a`,
+    id: `${f.runtime.scope}a`,
     type: bead,
     properties: { title: "a" },
   });
@@ -1637,7 +1625,7 @@ it("accepts byte-bounded deep sequences and keeps sequence capacity distinct fro
   expect(await body(refused)).toMatchObject({
     results: [{ outcome: "created", resource: { properties: { nested } } }],
   });
-  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(200);
+  expect((await f.get(`${f.runtime.scope}a`)).status).toBe(200);
   const sequence = await f.post(
     batch([
       { ...create("a"), idempotencyKey: "deep_sequence" },
@@ -1653,7 +1641,7 @@ it("accepts byte-bounded deep sequences and keeps sequence capacity distinct fro
   expect(await body(sequence)).toMatchObject({
     results: [
       { code: "idempotency-conflict", status: 409 },
-      { outcome: "created", resource: { id: `${f.runtime.scope}beads/b` } },
+      { outcome: "created", resource: { id: `${f.runtime.scope}b` } },
     ],
   });
   const direct = await f.post(batch([create("c"), create("d")]), "direct");
@@ -1679,16 +1667,16 @@ it("honors complete minimum tuples on point/properties/receipt GET and HEAD befo
   await f.post(
     batch([
       create("b"),
-      { operation: "createLink", id: "links/l", type: link, source: "beads/a", target: "beads/b" },
+      { operation: "createLink", id: "l", type: link, source: "a", target: "b" },
     ]),
     "second",
   );
   const headers = minimumHeaders(created);
   for (const target of [
-    `${f.runtime.scope}beads/a`,
-    `${f.runtime.scope}beads/a?view=properties`,
-    `${f.runtime.scope}links/l`,
-    `${f.runtime.scope}links/l?view=properties`,
+    `${f.runtime.scope}a`,
+    `${f.runtime.scope}a?view=properties`,
+    `${f.runtime.scope}l`,
+    `${f.runtime.scope}l?view=properties`,
     id(receipt),
   ]) {
     for (const method of ["GET", "HEAD"]) {
@@ -1698,7 +1686,7 @@ it("honors complete minimum tuples on point/properties/receipt GET and HEAD befo
         [{ "if-match": '"wrong"' }, 412],
       ] as const) {
         const result = await f.get(target, { method, headers: { ...headers, ...condition } });
-        expect(result.status).toBe(status);
+        expect(result.status, await result.clone().text()).toBe(status);
         expect(result.headers.get("bdp-scope-position")).toBe("pos-2");
         expect(result.headers.get("bdp-scope-epoch")).toBe(headers["bdp-scope-epoch"]);
         if (status !== 200 || method === "HEAD") expect(await result.text()).toBe("");
@@ -1726,14 +1714,14 @@ it("waits outside the owner until a real concurrent HTTP commit satisfies a poin
   fixtureValue = f;
   const created = await f.post(),
     receipt = await body(created);
-  const result = await f.get(`${f.runtime.scope}beads/a`, {
+  const result = await f.get(`${f.runtime.scope}a`, {
     headers: minimumHeaders(created, "pos-2"),
   });
   expect(result.status).toBe(200);
   expect(result.headers.get("bdp-scope-position")).toBe("pos-2");
   expect(waits).toBe(1);
   expect(await body(result)).toMatchObject({
-    id: `${f.runtime.scope}beads/a`,
+    id: `${f.runtime.scope}a`,
     properties: { title: "a" },
   });
   const receiptRead = await f.get(id(receipt), { headers: minimumHeaders(created, "pos-3") });
@@ -1751,7 +1739,7 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
   const created = await f.post(),
     receipt = await body(created),
     headers = minimumHeaders(created, "pos-99");
-  for (const target of [`${f.runtime.scope}beads/a`, id(receipt)]) {
+  for (const target of [`${f.runtime.scope}a`, id(receipt)]) {
     const timeout = await f.get(target, { headers: { ...headers, "if-none-match": "*" } });
     expect(timeout.status).toBe(503);
     expect(timeout.headers.get("retry-after")).toBe("1");
@@ -1778,19 +1766,19 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
   });
   expect(hidden.status).toBe(404);
   expect(hidden.headers.get("bdp-scope-position")).toBe("pos-1");
-  for (const suffix of [
-    "links/?cursor=missing",
-    "",
-    "bdp.json",
-    "operations/",
-    "beads/?cursor=missing",
-  ]) {
+  for (const [suffix, feature] of [
+    ["bdp/links?cursor=missing", "minimum-position-route"],
+    ["", "minimum-position-route"],
+    ["bdp.json", "transactional-discovery"],
+    ["operations/", "minimum-position-route"],
+    ["bdp/beads?cursor=missing", "minimum-position-route"],
+  ] as const) {
     const target = `${f.runtime.scope}${suffix}`;
     const unsupported = await f.get(target, { headers });
     expect(unsupported.status).toBe(500);
-    expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position-route");
+    expect(unsupported.headers.get("x-bdp-development-limit"), suffix).toBe(feature);
   }
-  const unknown = await f.get(f.runtime.scope + "beads/a", {
+  const unknown = await f.get(f.runtime.scope + "a", {
     headers: { ...headers, "bdp-minimum-scope-position": "opaque-unknown" },
   });
   expect(unknown.status).toBe(503);
@@ -1827,7 +1815,7 @@ it("preserves authentication on commands carrying copied read controls without r
       expect(response.status).toBe(status);
       expect(response.headers.has("www-authenticate")).toBe(status === 401);
       expect(response.headers.has("x-bdp-development-limit")).toBe(false);
-      expect((await f.get(`${f.runtime.scope}beads/${key}`)).status).toBe(404);
+      expect((await f.get(`${f.runtime.scope}${key}`)).status).toBe(404);
       expect(await f.receiptRows(key)).toEqual([]);
       expect((await f.post(batch([create(`${key}_replacement`)]), key)).status).toBe(200);
     }
@@ -1841,20 +1829,20 @@ it("serves missing Resource404 with current context before semantic minimum comp
     batch([
       create("a"),
       create("b"),
-      { operation: "createLink", id: "links/l", type: link, source: "beads/a", target: "beads/b" },
+      { operation: "createLink", id: "l", type: link, source: "a", target: "b" },
     ]),
   );
   expect(created.status).toBe(200);
   const removed = await f.post(
     batch([
-      { operation: "deleteLink", link: "links/l" },
-      { operation: "deleteBead", bead: "beads/a" },
+      { operation: "deleteLink", link: "l" },
+      { operation: "deleteBead", bead: "a" },
     ]),
     "removed",
   );
   expect(removed.status).toBe(200);
   expect(removed.headers.get("bdp-scope-position")).toBe("pos-2");
-  for (const id of ["beads/missing", "links/missing", "beads/a", "links/l"])
+  for (const id of ["missing", "missing", "a", "l"])
     for (const view of ["", "?view=properties"])
       for (const method of ["GET", "HEAD"])
         for (const earlier of [true, false]) {
@@ -1882,7 +1870,7 @@ it("serves missing Resource404 with current context before semantic minimum comp
             });
         }
   for (const method of ["GET", "HEAD"]) {
-    const response = await f.get(`${f.runtime.scope}beads/missing`, {
+    const response = await f.get(`${f.runtime.scope}missing`, {
       method,
       headers: minimumHeaders(removed),
     });
@@ -1901,12 +1889,7 @@ it("serves missing Resource404 with current context before semantic minimum comp
         status: 404,
       });
   }
-  for (const suffix of [
-    "beads/missing",
-    "links/missing",
-    "beads/missing?view=properties",
-    "links/missing?view=properties",
-  ])
+  for (const suffix of ["missing", "missing", "missing?view=properties", "missing?view=properties"])
     for (const method of ["GET", "HEAD"])
       for (const extra of [
         { "bdp-scope-epoch": "foreign" },
@@ -1929,7 +1912,7 @@ it("serves missing Resource404 with current context before semantic minimum comp
           });
       }
   expect(wait).not.toHaveBeenCalled();
-  const malformed = await f.get(`${f.runtime.scope}beads/missing`, {
+  const malformed = await f.get(`${f.runtime.scope}missing`, {
     headers: minimumHeaders(removed, "unissued"),
   });
   expect(malformed.status).toBe(404);
@@ -1938,7 +1921,7 @@ it("serves missing Resource404 with current context before semantic minimum comp
     code: "resource-not-found",
     status: 404,
   });
-  const anonymous = await f.get(`${f.runtime.scope}beads/missing`, {
+  const anonymous = await f.get(`${f.runtime.scope}missing`, {
     headers: { ...minimumHeaders(removed), authorization: "" },
   });
   expect(anonymous.status).toBe(401);
@@ -1963,7 +1946,7 @@ it("uses the final actual attempt context for GET and HEAD timeouts after real p
   });
   const created = await f.post(),
     receipt = await body(created);
-  for (const target of [`${f.runtime.scope}beads/a`, id(receipt)]) {
+  for (const target of [`${f.runtime.scope}a`, id(receipt)]) {
     for (const method of ["GET", "HEAD"]) {
       const response = await f.get(target, { method, headers: minimumHeaders(created, "pos-99") });
       expect(response.status).toBe(503);
@@ -1980,12 +1963,8 @@ it("preserves concrete query syntax failures and accepts the reserved genesis mi
   const f = await fixture(),
     created = await f.post();
   const headers = minimumHeaders(created, "genesis");
-  expect((await f.get(`${f.runtime.scope}beads/a`, { headers })).status).toBe(200);
-  for (const suffix of [
-    "beads/a?unknown=1",
-    "beads/a?view=bogus",
-    "beads/a?view=properties&unknown=2",
-  ]) {
+  expect((await f.get(`${f.runtime.scope}a`, { headers })).status).toBe(200);
+  for (const suffix of ["a?unknown=1", "a?view=bogus", "a?view=properties&unknown=2"]) {
     const response = await f.get(`${f.runtime.scope}${suffix}`, { headers });
     expect(response.status).toBe(400);
     expect(checkedProblem(await body(response)).code).toBe("invalid-parameter");
@@ -2118,7 +2097,7 @@ it("keeps singleton, alias, no-op, failed and sequence outcomes valid with a pag
   const created = await body(await f.post());
   expect(created.next).toBeNull();
   const alias = await body(
-    await f.post(JSON.stringify({ alias: "alias/latest", target: "beads/a" }), "alias", "putAlias"),
+    await f.post(JSON.stringify({ alias: "alias/latest", target: "a" }), "alias", "putAlias"),
   );
   expect(alias).toMatchObject({ next: null, results: [{ outcome: "created" }] });
   const noop = await body(
@@ -2126,7 +2105,7 @@ it("keeps singleton, alias, no-op, failed and sequence outcomes valid with a pag
       batch([
         {
           operation: "updateBead",
-          bead: "beads/a",
+          bead: "a",
           propertiesChange: [{ op: "replace", path: "/title", value: "a" }],
         },
       ]),
@@ -2140,7 +2119,7 @@ it("keeps singleton, alias, no-op, failed and sequence outcomes valid with a pag
   });
   expect(noop.effectPosition).toBeUndefined();
   const failed = await body(
-    await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]), "failed"),
+    await f.post(batch([{ operation: "deleteBead", bead: "missing" }]), "failed"),
   );
   expect(failed.status).toBe("failed");
   expect(failed.next).toBeUndefined();
@@ -2162,7 +2141,7 @@ it("checks a stored failed receipt minimum before read-triggered retention dispo
       },
     },
   });
-  const created = await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]));
+  const created = await f.post(batch([{ operation: "deleteBead", bead: "missing" }]));
   const failed = await body(created);
   const result = await f.get(id(failed), { headers: minimumHeaders(created, "pos-99") });
   expect(result.status).toBe(503);
@@ -2175,7 +2154,7 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
   const f = await fixture({ maintenanceIntervalMs: 60000 });
   const completed = await body(await f.post());
   const failed = await body(
-    await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]), "failed"),
+    await f.post(batch([{ operation: "deleteBead", bead: "missing" }]), "failed"),
   );
   f.setTime(86401001);
   // Cross the ordinary one-second sweep interval using real timers/sockets.
@@ -2211,7 +2190,7 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
 
 it("keeps failed parent rows unchanged for nonexistent page reads with any controls", async () => {
   const f = await fixture({ maintenanceIntervalMs: 60000 });
-  const created = await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]));
+  const created = await f.post(batch([{ operation: "deleteBead", bead: "missing" }]));
   const failed = await body(created);
   f.setTime(86401001);
   for (const method of ["GET", "HEAD"]) {
@@ -2272,7 +2251,7 @@ it("serves both set targets with method/auth/shape precedence and no unsupported
         expect(response.status).toBe(status);
         expect(response.headers.has("x-bdp-development-limit")).toBe(false);
         expect(await f.receiptRows(key)).toEqual([]);
-        expect((await f.get(`${f.runtime.scope}beads/late`)).status).toBe(404);
+        expect((await f.get(`${f.runtime.scope}late`)).status).toBe(404);
         expect((await f.post(batch([create(key)]), key)).status).toBe(200);
       }
       const gapKey = `${target}_${carrier}_gap`;
@@ -2336,7 +2315,7 @@ it("shares set singleton/batch receipts and preserves original numeric pointers 
   expect(await body(await f.post(batch([{ operation: "updateWhere", ...input }]), "set"))).toEqual(
     first,
   );
-  expect((await body(await f.get(`${f.runtime.scope}beads/later`))).properties).toEqual({
+  expect((await body(await f.get(`${f.runtime.scope}later`))).properties).toEqual({
     title: "later",
   });
   const raw = '{"collection":"beads","selector":"$[?@.id]","cardinality":{"min":9007199254740993}}';
@@ -2394,7 +2373,7 @@ it("evaluates each served set against staged state and rolls back a late failed 
       { outcome: "updated", resource: { properties: { n: 2 } } },
     ],
   });
-  const before = await body(await f.get(`${f.runtime.scope}beads/a`));
+  const before = await body(await f.get(`${f.runtime.scope}a`));
   const failed = await body(
     await f.post(
       batch([
@@ -2418,32 +2397,32 @@ it("evaluates each served set against staged state and rolls back a late failed 
       pointer: "/operations/2/change/0/path",
     },
   });
-  expect(await body(await f.get(`${f.runtime.scope}beads/a`))).toEqual(before);
-  expect((await f.get(`${f.runtime.scope}beads/tentative`)).status).toBe(404);
+  expect(await body(await f.get(`${f.runtime.scope}a`))).toEqual(before);
+  expect((await f.get(`${f.runtime.scope}tentative`)).status).toBe(404);
 });
 
 it("does not implicitly match pinned endpoints and atomically rolls back the incomplete cascade", async () => {
   const f = await fixture();
   await f.post(batch([create("a"), create("b")]));
-  const a = await body(await f.get(`${f.runtime.scope}beads/a`));
-  const linkInput = { operation: "createLink", type: link, target: "beads/b" };
+  const a = await body(await f.get(`${f.runtime.scope}a`));
+  const linkInput = { operation: "createLink", type: link, target: "b" };
   const seeded = await f.post(
     batch([
-      { ...linkInput, id: "links/bare", source: "beads/a" },
-      { ...linkInput, id: "links/pinned", source: { uri: "beads/a", revision: a.revision } },
+      { ...linkInput, id: "bare", source: "a" },
+      { ...linkInput, id: "pinned", source: { uri: "a", revision: a.revision } },
     ]),
     "links",
   );
   const beforeContext = context(seeded);
   expect(await body(seeded)).toMatchObject({ status: "completed" });
-  const bare = await body(await f.get(`${f.runtime.scope}links/bare`));
-  const pinned = await body(await f.get(`${f.runtime.scope}links/pinned`));
+  const bare = await body(await f.get(`${f.runtime.scope}bare`));
+  const pinned = await body(await f.get(`${f.runtime.scope}pinned`));
   // Exact stored-value semantics select only the bare endpoint, not its pinned peer.
-  const selector = `$[?@.source == "${f.runtime.scope}beads/a"]`;
+  const selector = `$[?@.source == "${f.runtime.scope}a"]`;
   const failed = await f.post(
     batch([
       { operation: "deleteWhere", collection: "links", selector, cardinality: { min: 1, max: 1 } },
-      { operation: "deleteBead", bead: "beads/a", expectedRevision: a.revision },
+      { operation: "deleteBead", bead: "a", expectedRevision: a.revision },
     ]),
     "cascade",
   );
@@ -2452,9 +2431,9 @@ it("does not implicitly match pinned endpoints and atomically rolls back the inc
     status: "failed",
     problem: { code: "incident-links-exist", operationIndex: 1 },
   });
-  expect(await body(await f.get(`${f.runtime.scope}links/bare`))).toEqual(bare);
-  expect(await body(await f.get(`${f.runtime.scope}links/pinned`))).toEqual(pinned);
-  expect(await body(await f.get(`${f.runtime.scope}beads/a`))).toEqual(a);
+  expect(await body(await f.get(`${f.runtime.scope}bare`))).toEqual(bare);
+  expect(await body(await f.get(`${f.runtime.scope}pinned`))).toEqual(pinned);
+  expect(await body(await f.get(`${f.runtime.scope}a`))).toEqual(a);
 });
 
 it("finishes an admitted set after actual client disconnect and replays it after reopen", async () => {
@@ -2519,7 +2498,7 @@ it("finishes an admitted set after actual client disconnect and replays it after
   expect(
     await body(await f.post(JSON.stringify(input), "disconnected_set", "updateWhere")),
   ).toEqual(replay);
-  expect((await body(await f.get(`${f.runtime.scope}beads/a`))).properties).toEqual({
+  expect((await body(await f.get(`${f.runtime.scope}a`))).properties).toEqual({
     title: "a",
     n: 1,
   });
@@ -2556,7 +2535,7 @@ it.each(["root", "member", "member-key", "set-patch", "later-member"] as const)(
       expect(checkedProblem(await body(response)).code).toBe("malformed-request");
       expect(response.headers.has("x-bdp-development-limit")).toBe(false);
       expect(await f.receiptRows("depth_shape")).toEqual([]);
-      expect((await f.get(`${f.runtime.scope}beads/deep`)).status).toBe(404);
+      expect((await f.get(`${f.runtime.scope}deep`)).status).toBe(404);
     }
     expect((await f.post(batch([create()]), "depth_shape")).status).toBe(200);
   },
@@ -2584,7 +2563,7 @@ it.each(["updateWhere", "deleteWhere"] as const)(
     expect(checkedProblem(await body(response)).code).toBe("malformed-request");
     expect(await f.receiptRows("before")).toEqual([]);
     expect(await f.receiptRows("set_member")).toEqual([]);
-    expect((await f.get(`${f.runtime.scope}beads/before`)).status).toBe(404);
+    expect((await f.get(`${f.runtime.scope}before`)).status).toBe(404);
     expect((await f.post(batch([create("before")]), "before")).status).toBe(200);
   },
 );
@@ -2674,12 +2653,12 @@ it.each(["beads", "links"])(
             collection === "beads"
               ? {
                   operation: "updateBead",
-                  bead: "beads/a",
+                  bead: "a",
                   propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
                 }
               : {
                   operation: "updateLink",
-                  link: "links/l",
+                  link: "l",
                   propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
                 };
           expect(
@@ -2694,15 +2673,15 @@ it.each(["beads", "links"])(
         create(),
         {
           operation: "createLink",
-          id: "links/l",
+          id: "l",
           type: link,
-          source: "beads/a",
-          target: "beads/a",
+          source: "a",
+          target: "a",
           properties: { title: "before" },
         },
       ]),
     );
-    const response = await f.get(`${f.runtime.scope}${collection}/`, {
+    const response = await f.get(`${f.runtime.scope}bdp/${collection}`, {
       headers: minimumHeaders(seed, "pos-2"),
     });
     expect(waits).toBe(1);
@@ -2712,7 +2691,7 @@ it.each(["beads", "links"])(
     const rows = (await body(response)).items as Record<string, unknown>[];
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      id: `${f.runtime.scope}${collection}/${collection === "beads" ? "a" : "l"}`,
+      id: `${f.runtime.scope}${collection === "beads" ? "a" : "l"}`,
       properties: { title: "after" },
     });
     expect(typeof rows[0]?.revision).toBe("string");
@@ -2735,20 +2714,20 @@ it("preserves materialized collection control Problems before a behind minimum w
     ["limit=0", 400, "invalid-parameter"],
     ["limit=1&limit=2", 400, "invalid-parameter"],
   ] as const) {
-    const response = await f.get(`${f.runtime.scope}beads/?${query}`, { headers });
+    const response = await f.get(`${f.runtime.scope}bdp/beads?${query}`, { headers });
     expect(response.status).toBe(status);
     expect(checkedProblem(await body(response))).toMatchObject({ status, code, retry: "never" });
   }
   expect(wait).not.toHaveBeenCalled();
-  const result = await f.get(`${f.runtime.scope}beads/?limit=1`, {
+  const result = await f.get(`${f.runtime.scope}bdp/beads?limit=1`, {
     headers: minimumHeaders(seed, "pos-1"),
   });
   expect(result.status).toBe(200);
 });
 
 it.each([
-  ["beads/", "GET"],
-  ["beads/a", "GET"],
+  ["bdp/beads", "GET"],
+  ["a", "GET"],
   ["snapshot", "GET"],
   ["snapshot", "HEAD"],
 ])("stops %s %s retries after synchronized actual Node disconnect", async (suffix, method) => {
@@ -2919,10 +2898,10 @@ it("serves canonical current Type and incident minimums with truthful context an
       create("b"),
       {
         operation: "createLink",
-        id: "links/l",
+        id: "l",
         type: link,
-        source: "beads/a",
-        target: "beads/b",
+        source: "a",
+        target: "b",
         properties: { n: 1 },
         metadata: { tag: "actual" },
       },
@@ -2942,7 +2921,7 @@ it("serves canonical current Type and incident minimums with truthful context an
     expect(response.headers.get("bdp-scope-position")).toBe("pos-1");
     expect(response.headers.has("etag")).toBe(false);
   };
-  for (const suffix of ["types/task", "types/?limit=3", "beads/a?view=links"]) {
+  for (const suffix of ["types/task", "types/?limit=3", "a?view=links"]) {
     const response = await send(suffix, headers);
     expect(response.status).toBe(200);
     assertContext(response);
@@ -2959,10 +2938,10 @@ it("serves canonical current Type and incident minimums with truthful context an
       expect(value).toEqual({
         items: [
           {
-            id: `${scope}links/l`,
+            id: `${scope}l`,
             type: link,
-            source: `${scope}beads/a`,
-            target: `${scope}beads/b`,
+            source: `${scope}a`,
+            target: `${scope}b`,
             properties: { n: 1 },
             metadata: { tag: "actual" },
             revision: expect.any(String),
@@ -3014,7 +2993,7 @@ it("serves canonical current Type and incident minimums with truthful context an
     expect(unauthorized.status).toBe(401);
     expect(unauthorized.headers.has("bdp-scope-position")).toBe(false);
   }
-  for (const suffix of ["types/?limit=33", "beads/a?view=links&limit=33"]) {
+  for (const suffix of ["types/?limit=33", "a?view=links&limit=33"]) {
     const refused = await send(suffix, { ...headers, "bdp-minimum-scope-position": "pos-2" });
     expect(refused.status).toBe(413);
     expect(await body(refused)).toMatchObject({ code: "limit-exceeded" });
@@ -3022,16 +3001,16 @@ it("serves canonical current Type and incident minimums with truthful context an
   for (const suffix of [
     "types/task?view=properties",
     "types/?limit=nope",
-    "beads/a?view=links&limit=nope",
+    "a?view=links&limit=nope",
     "types/?selector=x",
-    "beads/a?view=links&selector=x",
+    "a?view=links&selector=x",
     "types/?limit=1&limit=2",
   ]) {
     const refused = await send(suffix, headers);
     expect(refused.status).toBe(400);
     expect(await body(refused)).toMatchObject({ code: "invalid-parameter" });
   }
-  for (const suffix of ["types/absent", "beads/missing?view=links"]) {
+  for (const suffix of ["types/absent", "missing?view=links"]) {
     const missing = await send(suffix, headers);
     expect(missing.status).toBe(404);
     assertContext(missing);
@@ -3065,7 +3044,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
   const headers = minimumHeaders(created, "pos-1"),
     target = `${f.runtime.scope}alias/work`;
   const put = await f.post(
-    JSON.stringify({ alias: "alias/work", target: "beads/a" }),
+    JSON.stringify({ alias: "alias/work", target: "a" }),
     "alias-min-put",
     "putAlias",
   );
@@ -3081,7 +3060,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
         headers: { ...headers, ...extra, authorization: `Bearer ${readToken}` },
       });
       expect(response.status).toBe(307);
-      expect(response.headers.get("location")).toBe(`${f.runtime.scope}beads/a`);
+      expect(response.headers.get("location")).toBe(`${f.runtime.scope}a`);
       expect(response.headers.get("content-length")).toBe("0");
       expect(response.headers.get("cache-control")).toBe("private, no-store");
       expect(response.headers.has("etag")).toBe(false);
@@ -3161,7 +3140,7 @@ it("serves conditioned live aliases and preserves bodyless redirects, refusal co
 
 it("carries current owner context on direct conflict, operation-limit and both negotiation refusals", async () => {
   const f = await fixture();
-  const singleton = JSON.stringify({ id: "beads/a", type: bead, properties: { title: "a" } });
+  const singleton = JSON.stringify({ id: "a", type: bead, properties: { title: "a" } });
   const seedResponse = await f.post(singleton, "retained", "createBead");
   expect(seedResponse.status).toBe(200);
   const seed = await body(seedResponse);
@@ -3182,7 +3161,7 @@ it("carries current owner context on direct conflict, operation-limit and both n
     expect(response.headers.get("vary")).toBe("Accept");
   }
   for (const response of [
-    await f.post(JSON.stringify({ id: "beads/x", type: bead }), "retained", "createBead"),
+    await f.post(JSON.stringify({ id: "x", type: bead }), "retained", "createBead"),
     await f.post(batch([create("x")]), "retained", "batch", { accept: "text/plain" }),
   ]) {
     expect(response.status).toBe(409);
@@ -3193,7 +3172,7 @@ it("carries current owner context on direct conflict, operation-limit and both n
       retry: "never",
     });
   }
-  const fresh = JSON.stringify({ id: "beads/c", type: bead, properties: { title: "c" } });
+  const fresh = JSON.stringify({ id: "c", type: bead, properties: { title: "c" } });
   for (const response of [
     await f.post(singleton, "retained", "createBead", { accept: "text/plain" }),
     await f.post(fresh, "fresh-negotiation", "createBead", { accept: "text/plain" }),
@@ -3220,10 +3199,10 @@ it("carries current owner context on direct conflict, operation-limit and both n
   expect(retained.status).toBe(200);
   expect(retained.headers.get("bdp-scope-position")).toBe("pos-2");
   expect(await body(retained)).toEqual(seed);
-  const collection = await body(await f.get(`${f.runtime.scope}beads/?limit=32`));
+  const collection = await body(await f.get(`${f.runtime.scope}bdp/beads?limit=32`));
   expect((collection.items as Record<string, unknown>[]).map((r) => [r.id, r.properties])).toEqual([
-    [`${f.runtime.scope}beads/a`, { title: "a" }],
-    [`${f.runtime.scope}beads/b`, { title: "b" }],
+    [`${f.runtime.scope}a`, { title: "a" }],
+    [`${f.runtime.scope}b`, { title: "b" }],
   ]);
   expect(collection.next).toBeNull();
   const events = await body(await f.get(`${f.runtime.scope}events/`));
@@ -3255,7 +3234,7 @@ it("preserves absent context on excluded direct receiving and authorization refu
         false,
       );
   }
-  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  expect((await f.get(`${f.runtime.scope}a`)).status).toBe(404);
   expect((await f.post(batch(), "excluded")).status).toBe(200);
 });
 
@@ -3325,9 +3304,7 @@ it("serves current comparison deadline context without timeout effects or receip
     ),
   );
   void sequence.catch(() => {});
-  const candidate = batch([
-    { operation: "createLink", type: link, source: "beads/a", target: "beads/a" },
-  ]);
+  const candidate = batch([{ operation: "createLink", type: link, source: "a", target: "a" }]);
   const failures: unknown[] = [];
   let original: Record<string, unknown> | undefined;
   function resource(receipt: Record<string, unknown>, index = 0) {
@@ -3335,7 +3312,7 @@ it("serves current comparison deadline context without timeout effects or receip
   }
   function beadContent(value: Record<string, unknown>, name: string) {
     expect(value).toMatchObject({
-      id: `${f.runtime.scope}beads/${name}`,
+      id: `${f.runtime.scope}${name}`,
       type: bead,
       properties: { title: name },
       metadata: {},
@@ -3348,7 +3325,7 @@ it("serves current comparison deadline context without timeout effects or receip
     expect(value).not.toHaveProperty("ownedLinks");
   }
   async function collection(kind: "beads" | "links", expected: unknown[]) {
-    const response = await send(() => f.get(`${f.runtime.scope}${kind}/?limit=32`));
+    const response = await send(() => f.get(`${f.runtime.scope}bdp/${kind}?limit=32`));
     expect(response.status).toBe(200);
     const page = await body(response);
     expect(page.items, `complete ${kind} afterstate`).toEqual(expected);
@@ -3410,7 +3387,7 @@ it("serves current comparison deadline context without timeout effects or receip
     await collection("beads", [b]);
     await collection("links", []);
     await events([["created", b.id, bead, createdData(b)]]);
-    expect((await send(() => f.get(`${f.runtime.scope}beads/a`))).status).toBe(404);
+    expect((await send(() => f.get(`${f.runtime.scope}a`))).status).toBe(404);
   } catch (error) {
     failures.push(error);
   } finally {
@@ -3453,7 +3430,8 @@ it("serves current comparison deadline context without timeout effects or receip
   expect(edge.properties).toEqual({});
   expect(edge.metadata).toEqual({});
   expect(typeof edge.id).toBe("string");
-  expect(String(edge.id).startsWith(`${f.runtime.scope}links/`)).toBe(true);
+  expect(String(edge.id).startsWith(f.runtime.scope)).toBe(true);
+  expect(String(edge.id).startsWith(`${f.runtime.scope}bdp/`)).toBe(false);
   expect(resource(replay), "retained original dependent result").toEqual(edge);
   await collection("beads", [a, b]);
   await collection("links", [edge]);
@@ -3535,7 +3513,7 @@ it.each([413, 406])(
       expect(response.headers.get("cache-control")).toBe("private, no-store");
     }
     async function state(names: string[], position: string) {
-      const response = await f.get(`${f.runtime.scope}beads/?limit=32`);
+      const response = await f.get(`${f.runtime.scope}bdp/beads?limit=32`);
       expect(response.status).toBe(200);
       expect(response.headers.get("bdp-scope-position")).toBe(position);
       const collection = await body(response);
@@ -3549,11 +3527,11 @@ it.each([413, 406])(
           item.properties,
           item.metadata,
         ]),
-      ).toEqual(names.map((name) => [`${f.runtime.scope}beads/${name}`, { title: name }, {}]));
+      ).toEqual(names.map((name) => [`${f.runtime.scope}${name}`, { title: name }, {}]));
       const events = await body(await f.get(`${f.runtime.scope}events/`));
       expect(events.next).toBeNull();
       expect((events.events as Record<string, unknown>[]).map((event) => event.subject)).toEqual(
-        names.map((name) => `${f.runtime.scope}beads/${name}`),
+        names.map((name) => `${f.runtime.scope}${name}`),
       );
     }
     for (const status of [first, first === 413 ? 406 : 413])
@@ -3605,13 +3583,13 @@ it("reuses refused sequence member keys for different identities without extra r
   const d = await body(await f.post(batch([create("new-d")]), "over-0"));
   expect(c).toMatchObject({ status: "completed", effectPosition: "pos-1" });
   expect(d).toMatchObject({ status: "completed", effectPosition: "pos-2" });
-  const collection = await body(await f.get(`${f.runtime.scope}beads/?limit=32`));
+  const collection = await body(await f.get(`${f.runtime.scope}bdp/beads?limit=32`));
   expect(collection.next).toBeNull();
   expect(
     (collection.items as Record<string, unknown>[]).map((item) => [item.id, item.properties]),
   ).toEqual([
-    [`${f.runtime.scope}beads/new-c`, { title: "new-c" }],
-    [`${f.runtime.scope}beads/new-d`, { title: "new-d" }],
+    [`${f.runtime.scope}new-c`, { title: "new-c" }],
+    [`${f.runtime.scope}new-d`, { title: "new-d" }],
   ]);
   const events = await body(await f.get(`${f.runtime.scope}events/`));
   expect(events.events).toHaveLength(2);
@@ -3825,7 +3803,7 @@ it("serves Selector syntax and prior-key precedence over capacity", async () => 
   });
   expect(context(reuse)).toEqual(expectedContext);
   const later = await f.post(
-    batch([{ operation: "deleteBead", bead: "beads/missing" }, set(selectorHttpNodes(3))]),
+    batch([{ operation: "deleteBead", bead: "missing" }, set(selectorHttpNodes(3))]),
     "later",
   );
   await selectorHttpProblem(later, 413, "/operations/1/selector", "selector.nodes");
@@ -4041,7 +4019,7 @@ it("serves current missing receipt root and page context without changing nondis
       f.runtime.targets.createBead,
       "POST",
       token,
-      JSON.stringify({ id: "beads/later", type: bead, properties: { title: "later" } }),
+      JSON.stringify({ id: "later", type: bead, properties: { title: "later" } }),
       "receipt-context-advance",
     );
     expect(later.status).toBe(200);
@@ -4157,9 +4135,9 @@ it("serves retained direct key conflicts and genuine fresh deep effects", async 
     const routes = [
       ["POST", f.runtime.targets.batch],
       ["POST", f.runtime.targets.createBead],
-      ["GET", `${f.runtime.scope}beads/depth-b-a`],
-      ["GET", `${f.runtime.scope}beads/depth-s-a`],
-      ["GET", `${f.runtime.scope}beads/?limit=32`],
+      ["GET", `${f.runtime.scope}depth-b-a`],
+      ["GET", `${f.runtime.scope}depth-s-a`],
+      ["GET", `${f.runtime.scope}bdp/beads?limit=32`],
     ];
     expect(
       routes.some(([m, target]) => m === method && target === url),
@@ -4289,7 +4267,7 @@ it("serves retained direct key conflicts and genuine fresh deep effects", async 
     expect(typeof resource.revision).toBe("string");
     expect(resource.revision).not.toBe("");
     expect(resource).toEqual({
-      id: `${f?.runtime.scope}beads/${name}`,
+      id: `${f?.runtime.scope}${name}`,
       type: bead,
       properties: { title: name },
       metadata,
@@ -4324,7 +4302,7 @@ it("serves retained direct key conflicts and genuine fresh deep effects", async 
         fresh = `${stem}-fresh`;
       const input = (name: string, deep = false) => {
         const value = {
-          id: `beads/${name}`,
+          id: `${name}`,
           type: bead,
           properties: { title: name },
           metadata: deep ? { nested } : {},
@@ -4376,7 +4354,7 @@ it("serves retained direct key conflicts and genuine fresh deep effects", async 
         `pos-${position + 1}`,
         { nested },
       );
-      const point = await exchange(`${kind}-point-unchanged`, `${f.runtime.scope}beads/${a}`);
+      const point = await exchange(`${kind}-point-unchanged`, `${f.runtime.scope}${a}`);
       expect(point.status).toBe(200);
       const pointBody: unknown = JSON.parse(point.text);
       expect(validBead(pointBody), JSON.stringify(validBead.errors)).toBe(true);
@@ -4385,7 +4363,7 @@ it("serves retained direct key conflicts and genuine fresh deep effects", async 
     }
     const collection = await exchange(
       "final-complete-collection",
-      `${f.runtime.scope}beads/?limit=32`,
+      `${f.runtime.scope}bdp/beads?limit=32`,
     );
     expect(collection.status).toBe(200);
     const collectionBody: unknown = JSON.parse(collection.text);
@@ -4519,14 +4497,14 @@ it("rejects malformed minimum tuples across read routes without entering the act
       "",
       "bdp.json",
       "operations/",
-      "beads/",
-      "beads/missing",
-      "links/missing",
+      "bdp/beads",
+      "missing",
+      "missing",
       "alias/missing",
       "snapshot",
       "changes/",
-      "beads/missing?view=events",
-      "links/missing?view=events",
+      "missing?view=events",
+      "missing?view=events",
       "events/",
       "receipts/",
       "receipts/unknown",
@@ -4743,7 +4721,7 @@ it("rejects raw repeated minimum fields and keeps receiving HEAD and SSE refusal
                 "genesis",
                 ...(index === 5 ? ["Accept", "text/event-stream"] : []),
               ];
-      const response = await minimumReceivingWire(scope, method, "beads/", fields, signal);
+      const response = await minimumReceivingWire(scope, method, "bdp/beads", fields, signal);
       observations.push({
         method,
         status: response.status,
@@ -4793,7 +4771,7 @@ it("enforces the minimum-receiving-malformed-request boundary over the emitted l
     const response = await minimumReceivingWire(
       scope,
       "GET",
-      "beads/",
+      "bdp/beads",
       ["BDP-Minimum-Scope-Position", "genesis"],
       signal,
     );
@@ -4838,7 +4816,7 @@ it("waits for current Resources and initial collections with unknown minima and 
   expect(seedReceipt).toMatchObject({ status: "completed", requiredPosition: "pos-1" });
 
   const tuple = minimumHeaders(seed, "opaque");
-  for (const suffix of ["beads/a", "beads/a?view=properties"]) {
+  for (const suffix of ["a", "a?view=properties"]) {
     const response = await f.get(f.runtime.scope + suffix, {
       headers: { ...tuple, "if-none-match": "*" },
     });
@@ -4861,7 +4839,7 @@ it("waits for current Resources and initial collections with unknown minima and 
   for (const collection of ["beads", "links"]) {
     let getBody = "";
     for (const method of ["GET", "HEAD"] as const) {
-      const response = await f.get(`${f.runtime.scope}${collection}/?limit=1`, {
+      const response = await f.get(`${f.runtime.scope}bdp/${collection}?limit=1`, {
         method,
         headers: {
           ...tuple,
@@ -4884,7 +4862,7 @@ it("waits for current Resources and initial collections with unknown minima and 
     }
   }
   for (const token of ["pos-01", "pos-9007199254740992"]) {
-    const response = await f.get(`${f.runtime.scope}beads/?limit=1`, {
+    const response = await f.get(`${f.runtime.scope}bdp/beads?limit=1`, {
       headers: { ...minimumHeaders(seed, token), "if-none-match": "*" },
     });
     expect(response.status).toBe(503);
@@ -4898,7 +4876,7 @@ it("waits for current Resources and initial collections with unknown minima and 
   expect(waits).toBe(8);
   // Type routes stop at the strict unknown-token guard; incident-Link refusal
   // follows owner classification. Both retain the private label.
-  for (const suffix of ["types/", "beads/a?view=links"]) {
+  for (const suffix of ["a?view=links"]) {
     const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
     expect(response.status).toBe(500);
     expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
@@ -4907,7 +4885,7 @@ it("waits for current Resources and initial collections with unknown minima and 
   }
   // Repeated parameters are normative 400; limit=0 preserves existing parser parity.
   // Both parser refusals precede semantic minimum support classification.
-  for (const suffix of ["beads/?limit=0", "beads/?limit=1&limit=2"]) {
+  for (const suffix of ["bdp/beads?limit=0", "bdp/beads?limit=1&limit=2"]) {
     const response = await f.get(f.runtime.scope + suffix, { headers: tuple });
     expect(response.status).toBe(400);
     // Exact reference response parity; protocol extension members remain permitted.
@@ -4925,7 +4903,7 @@ it("waits for current Resources and initial collections with unknown minima and 
     ["limit=33", 413, "limit-exceeded"],
     [`selector=${encodeURIComponent("$[?")}`, 400, "invalid-parameter"],
   ] as const) {
-    const response = await f.get(`${f.runtime.scope}beads/?${query}`, { headers: tuple });
+    const response = await f.get(`${f.runtime.scope}bdp/beads?${query}`, { headers: tuple });
     expect(response.status).toBe(status);
     expect(checkedProblem(await body(response))).toMatchObject({ status, code, retry: "never" });
     expect(response.headers.get("bdp-scope-epoch")).toBe(tuple["bdp-scope-epoch"]);
@@ -4936,7 +4914,7 @@ it("waits for current Resources and initial collections with unknown minima and 
   expect(waits).toBe(8);
   const published = await f.runtime.replaceAuthorizationPolicy({ timeoutMs: 1000 });
   let expectedBody: unknown;
-  for (const suffix of ["beads/a", "beads/missing", "beads/a?view=links"]) {
+  for (const suffix of ["a", "missing", "a?view=links"]) {
     const response = await f.get(f.runtime.scope + suffix, {
       headers: {
         ...tuple,
@@ -4989,7 +4967,7 @@ it("compares retained sequence members and accepts deep input while preserving r
     expect(typeof result.revision).toBe("string");
     expect(result.revision).not.toBe("");
     expect(result).toStrictEqual({
-      id: `${f!.runtime.scope}beads/${name}`,
+      id: `${f!.runtime.scope}${name}`,
       type: bead,
       revision: result.revision,
       properties: { title: name },
@@ -5013,7 +4991,7 @@ it("compares retained sequence members and accepts deep input while preserving r
       [
         ["POST", f.runtime.targets.createBead],
         ["POST", f.runtime.targets.sequence],
-        ["GET", `${f.runtime.scope}beads/sequence-a`],
+        ["GET", `${f.runtime.scope}sequence-a`],
       ].some(([m, target]) => m === method && target === url),
     ).toBe(true);
     const headers = {
@@ -5113,7 +5091,7 @@ it("compares retained sequence members and accepts deep input while preserving r
     let nested: unknown = "leaf";
     for (let i = 0; i < 40; i++) nested = { nested };
     const input = (name: string, deep = false) => ({
-      id: `beads/${name}`,
+      id: `${name}`,
       type: bead,
       properties: { title: name },
       metadata: deep ? { nested } : {},
@@ -5184,7 +5162,7 @@ it("compares retained sequence members and accepts deep input while preserving r
     expect(replay.status).toBe(200);
     expect(parse(replay, validateSelectorReceipt)).toStrictEqual(receipt);
     tuple(replay, "pos-1");
-    const point = await exchange("original-resource", `${f.runtime.scope}beads/sequence-a`);
+    const point = await exchange("original-resource", `${f.runtime.scope}sequence-a`);
     expect(point.status).toBe(200);
     expect(parse(point, validBead)).toStrictEqual(savedResource);
     tuple(point, "pos-1");
@@ -5435,7 +5413,7 @@ async function withParserRefusalOwner(
     const handler = createTransactionHttpHandler(service, scope);
     const authorization = { kind: "authenticated", principal: "p", canMutate: true } as const;
     const beforeSetupEntries = entries.length;
-    const setup = await handler.handle(new Request(`${scope}beads/`), authorization);
+    const setup = await handler.handle(new Request(`${scope}bdp/beads`), authorization);
     calls++;
     expect(setup.kind).toBe("finite");
     expect(setup.status).toBe(200);
@@ -5567,7 +5545,7 @@ it("rejects collection parser errors before unknown minimum support checks", asy
     // Unsupported/repeated parameters are normative 400; limit=0 is parser parity.
     for (const collection of ["beads", "links"])
       for (const query of ["unsupported=x", "limit=1&limit=2", "limit=0"])
-        for (const headers of controls) await f.problemPair(`${collection}/?${query}`, headers);
+        for (const headers of controls) await f.problemPair(`bdp/${collection}?${query}`, headers);
   });
 });
 
@@ -5576,18 +5554,18 @@ it("preserves parser refusal parity on noncollection and excluded query routes",
     for (const suffix of [
       "types/?limit=1&limit=2",
       "types/task?view=properties",
-      "beads/a?view=links&direction=sideways",
-      "beads/a?unsupported=x",
-      "links/a?view=properties&unsupported=x",
-      "beads/missing?view=bogus",
+      "a?view=links&direction=sideways",
+      "a?unsupported=x",
+      "a?view=properties&unsupported=x",
+      "missing?view=bogus",
     ])
       await f.problemPair(suffix, f.opaque);
   });
 });
 
 it("preserves receiving and HTTP error precedence for parser refusals", async () => {
-  await withParserRefusalOwner(17, async (f) => {
-    const suffix = "beads/?unsupported=x";
+  await withParserRefusalOwner(15, async (f) => {
+    const suffix = "bdp/beads?unsupported=x";
     await f.problemPair(suffix, f.opaque, "unauthenticated");
     await f.problemPair(
       suffix,
@@ -5604,7 +5582,7 @@ it("preserves receiving and HTTP error precedence for parser refusals", async ()
     ];
     for (const overlay of overlays) await f.problemPair(suffix, { ...f.opaque, ...overlay });
     // Strict Type requests and parser 404 residue retain the old private refusal.
-    // beads/a?view=links is excluded: it observes the owner, so is not a pre-owner refusal.
-    for (const excluded of ["types/", "types/task", "beads/a/"]) await f.gapPair(excluded);
+    // a?view=links is excluded: it observes the owner, so is not a pre-owner refusal.
+    for (const excluded of ["types/task", "a/"]) await f.gapPair(excluded);
   });
 });

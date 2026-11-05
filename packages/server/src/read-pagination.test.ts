@@ -47,7 +47,7 @@ function firstInput(items: readonly unknown[], limit?: number) {
     items,
     ...(limit === undefined ? {} : { limit }),
     ...identity,
-    continuationUrl: "https://beads.example/acme/beads/?type=task",
+    continuationUrl: "https://beads.example/acme/bdp/beads?type=task",
   };
 }
 
@@ -85,7 +85,7 @@ describe("Read snapshot pagination", () => {
     const first = pagination.firstPage({
       items: [{ id: "a" }, { id: "b" }],
       ...identity,
-      continuationUrl: "https://beads.example/acme/beads/",
+      continuationUrl: "https://beads.example/acme/bdp/beads/",
     });
     const second = pagination.continuePage({ token: tokenFrom(first.next), ...identity });
 
@@ -100,7 +100,7 @@ describe("Read snapshot pagination", () => {
     const first = pagination.firstPage(firstInput([{ id: 1 }, { id: 2 }, { id: 3 }]));
     expect(first).toEqual({
       items: [{ id: 1 }, { id: 2 }],
-      next: "https://beads.example/acme/beads/?type=task&cursor=token_1",
+      next: "https://beads.example/acme/bdp/beads?type=task&cursor=token_1",
     });
 
     const second = pagination.continuePage({ token: tokenFrom(first.next), ...identity });
@@ -359,22 +359,22 @@ describe("Read snapshot pagination", () => {
     const { pagination } = harness();
     const first = pagination.firstPage({
       ...firstInput([1, 2, 3]),
-      continuationUrl: "https://beads.example/acme/beads/task-42?view=links&direction=both&limit=2",
+      continuationUrl: "https://beads.example/acme/task-42?view=links&direction=both&limit=2",
       projection: "incident-links:task-42:both",
     });
     expect(first.next).toBe(
-      "https://beads.example/acme/beads/task-42?view=links&direction=both&limit=2&cursor=token_1",
+      "https://beads.example/acme/task-42?view=links&direction=both&limit=2&cursor=token_1",
     );
     expect(new URL(first.next ?? "").username).toBe("");
     expect(new URL(first.next ?? "").password).toBe("");
 
     for (const continuationUrl of [
-      "/acme/beads/",
-      "https://other.example/acme/beads/",
-      "https://beads.example/outside/beads/",
-      "https://user:secret@beads.example/acme/beads/",
-      "https://beads.example/acme/beads/#fragment",
-      "https://beads.example/acme/beads/?cursor=already-present",
+      "/acme/bdp/beads/",
+      "https://other.example/acme/bdp/beads/",
+      "https://beads.example/outside/bdp/beads/",
+      "https://user:secret@beads.example/acme/bdp/beads/",
+      "https://beads.example/acme/#fragment",
+      "https://beads.example/acme/bdp/beads?cursor=already-present",
     ]) {
       expectPaginationError(
         () => pagination.firstPage({ ...firstInput([1, 2, 3]), continuationUrl }),

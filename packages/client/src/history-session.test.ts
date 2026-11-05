@@ -5,15 +5,13 @@ import { type HistoryRequest, HistorySession, type PreparedHistory } from "./his
 import { ReadSession } from "./read-session.js";
 
 const scope = "https://example.com/scope/";
-const id = `${scope}beads/a`;
+const id = `${scope}a`;
 const request = { kind: "versions", resource: "bead", id } as const;
 const metadata: ReadDiscovery = {
   bdpVersion: "0",
   profile: "read",
   scope,
-  beads: `${scope}beads/`,
-  links: `${scope}links/`,
-  types: `${scope}types/`,
+
   historicalResolution: { version: 1 },
 };
 const cursor = (n: number) => `${id}?view=versions&cursor=${n}`;
@@ -56,7 +54,7 @@ describe("shared Read/History continuation core", () => {
     const owner = core.createContinuationScope();
     for (let n = 0; n < 1023; n++) finish(history, undefined, cursor(n), owner);
     const prepared = read.prepare({ kind: "collection", collection: "beads" });
-    const staged = prepared.validate({ items: [], next: `${scope}beads/?cursor=read` });
+    const staged = prepared.validate({ items: [], next: `${scope}bdp/beads?cursor=read` });
     if (staged.kind !== "success") throw new Error("Read stage");
     prepared.commit(staged.value);
     prepared.release();
@@ -101,7 +99,7 @@ describe("shared Read/History continuation core", () => {
     const owner = core.createContinuationScope();
     finish(history, undefined, cursor(1), owner);
     for (const bad of [
-      { ...request, id: `${scope}beads/b` },
+      { ...request, id: `${scope}b` },
       { ...request, resource: "link" as const },
     ])
       expect(() => history.prepare({ ...bad, continuation: cursor(1) }, owner)).toThrow(

@@ -17,7 +17,7 @@ const record = (v: unknown): Record<string, unknown> => {
   return v as Record<string, unknown>;
 };
 const localId = (v: unknown, scope: string): string => {
-  if (typeof v !== "string" || !/^(beads|links)\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(v))
+  if (typeof v !== "string" || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(v))
     throw new Error("expected a fixture-local Resource identity");
   return new URL(v, scope).href;
 };
@@ -208,9 +208,19 @@ export async function observeSuccessorRead(
         numbers = 0;
       const kinds = new Set<string>();
       const rows = [];
+      const beads = await read({ kind: "collection", collection: "beads" });
+      const links = await read({ kind: "collection", collection: "links" });
+      const beadIds = new Set((beads.items as Record<string, unknown>[]).map((item) => item.id));
+      const linkIds = new Set((links.items as Record<string, unknown>[]).map((item) => item.id));
       for (const id of ids) {
         const canonical = localId(id, execution.scope);
-        const resource = String(id).startsWith("beads/") ? "bead" : "link";
+        const resource = beadIds.has(canonical)
+          ? "bead"
+          : linkIds.has(canonical)
+            ? "link"
+            : undefined;
+        if (resource === undefined)
+          throw new Error("numeric observer ID is absent from both inventories");
         kinds.add(resource);
         const body = await read({ kind: "resource", resource, id: canonical });
         JSON.stringify(body, (_key, value: unknown) => {

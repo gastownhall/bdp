@@ -90,10 +90,10 @@ if (output !== undefined && !path.isAbsolute(output))
 const contextNames = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"] as const;
 const routeBindings: { method: HttpMethod; url: string }[] = [
   { method: "POST", url: `${scope}operations/batch` },
-  { method: "GET", url: `${scope}beads/?limit=32` },
+  { method: "GET", url: `${scope}bdp/beads?limit=32` },
   { method: "GET", url: `${scope}events/` },
 ];
-const routeSha256 = "40b5131d96ba76a7a77212c92b9336148142f8afb648caac0107f1dc9af3a837";
+const routeSha256 = "c521b218906c8b7494946fbfb547cfb58da27a3dc1eaa73fb7832781b86bd14f";
 // Independent reviewed literals; no dynamic extra receipt fetches or credential probes.
 const requests = [
   {
@@ -116,9 +116,9 @@ const requests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    body: '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "016a02e9491b047cd02811b54f318db837ed6c3495c767243e7d29f4280bd450",
     status: 200,
     currentPosition: "pos-1",
   },
@@ -142,9 +142,9 @@ const requests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    body: '{"operations":[{"operation":"createBead","id":"b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "01c23f1f4683908e66fcf4b5b42434a4b232cad9cfe6e99267e6dcd47fb4b9fd",
     status: 200,
     currentPosition: "pos-2",
   },
@@ -168,9 +168,9 @@ const requests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
+    body: '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "016a02e9491b047cd02811b54f318db837ed6c3495c767243e7d29f4280bd450",
     status: 200,
     currentPosition: "pos-2",
   },
@@ -194,9 +194,9 @@ const requests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
+    body: '{"operations":[{"operation":"createBead","id":"b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "01c23f1f4683908e66fcf4b5b42434a4b232cad9cfe6e99267e6dcd47fb4b9fd",
     status: 200,
     currentPosition: "pos-2",
   },
@@ -220,9 +220,9 @@ const requests = [
         value: "principal-shared",
       },
     ],
-    body: '{"operations":[{"operation":"createBead","id":"beads/c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
-    bodyBytes: 150,
-    bodySha256: "3de2f9bb5fb4b4b0537d252ba722b05a3385414129cf35fc6ab0355720f9ff62",
+    body: '{"operations":[{"operation":"createBead","id":"c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
+    bodyBytes: 144,
+    bodySha256: "6822e7fab4103d0fb527d3fb9c50c615b3cad52c55def50d01112186bb2e6760",
     status: 409,
     currentPosition: "pos-2",
   },
@@ -230,7 +230,7 @@ const requests = [
     index: 6,
     label: "current-complete",
     method: "GET",
-    url: "https://reference.invalid/acme/beads/?limit=32",
+    url: "https://reference.invalid/acme/bdp/beads?limit=32",
     credentialRef: "a",
     headerLines: [
       {
@@ -372,7 +372,7 @@ it("observes independent principal keys and same-principal credential rotation t
       "GET",
       "GET",
     ]);
-    expect(requests.reduce((sum, r) => sum + r.bodyBytes, 0)).toBe(750);
+    expect(requests.reduce((sum, r) => sum + r.bodyBytes, 0)).toBe(720);
     expect(digest(JSON.stringify(routeBindings))).toBe(routeSha256);
     for (const row of requests) {
       expect(Buffer.byteLength(row.body ?? ""), row.label).toBe(row.bodyBytes);
@@ -577,7 +577,7 @@ it("observes independent principal keys and same-principal credential rotation t
       expect(typeof resource.revision).toBe("string");
       expect(resource.revision).not.toBe("");
       expect(resource).toStrictEqual({
-        id: `${scope}beads/${name}`,
+        id: `${scope}${name}`,
         type: beadType,
         revision: resource.revision,
         properties: { title: name },

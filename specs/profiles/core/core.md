@@ -111,11 +111,12 @@ nested Scopes. A Scope exists only when it is identified by its own root BDP
 description, and the URI spaces owned by different Scopes do not overlap.
 
 A local Resource ID consists of one or more safe URI-path segments forming
-opaque identity within its Scope. The namespace is Scope-defined: BDP reserves
-no `beads/`, `links/` or `types/` prefix for Resource identity. A Scope MAY
-choose those spellings, put both kinds beneath one path, or use unrelated
-paths. A client MUST NOT prepend a kind segment or infer Resource kind from
-an identifier's path. The operation and resolved Resource determine kind.
+opaque identity within its Scope. Bead and Link IDs share the Scope-relative
+identity space: BDP assigns, adds, or strips no kind prefix. The `bdp/` path is
+reserved for protocol navigation. The optional Types profile retains its own
+Type identity and inventory rules. A client MUST NOT prepend a kind segment or
+infer Resource kind from an identifier's path. The operation and resolved
+Resource determine kind.
 
 Resolution against the canonical Scope URL produces one absolute canonical
 Resource URL. That URL is immutable. Once committed for either kind, it is
@@ -271,7 +272,7 @@ A Bead record is:
 
 ```json
 {
-  "id": "https://beads.example/acme/beads/task-42",
+  "id": "https://beads.example/acme/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
   "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
@@ -287,11 +288,11 @@ A Link record is:
 
 ```json
 {
-  "id": "https://beads.example/acme/links/assigned-to-81",
+  "id": "https://beads.example/acme/assigned-to-81",
   "type": "https://work.example/types/assigned-to",
   "revision": "opaque-link-revision",
-  "source": "https://beads.example/acme/beads/task-42",
-  "target": "https://beads.example/acme/beads/person-7",
+  "source": "https://beads.example/acme/task-42",
+  "target": "https://beads.example/acme/person-7",
   "properties": {
     "since": "2026-08-04"
   },
@@ -340,7 +341,7 @@ and pinning an in-Scope Bead:
 
 ```json
 {
-  "uri": "https://beads.example/acme/beads/task-42",
+  "uri": "https://beads.example/acme/task-42",
   "revision": "opaque-task-revision"
 }
 ```
@@ -570,16 +571,23 @@ it were represented by the prior commit. Optional members are `events`, `aliases
 `capabilities`.
 Write uses the same Core meaning with `profile:"write"` and required `operations`
 and `aliases` navigation. Its operation directory belongs to Write. These discovery
-objects are closed; there is no required or guessed `types` member. Unknown optional
+objects are closed; there is no required or guessed `beads` or `links` member.
+When a Scope supports Types, its optional `types` member identifies the fixed
+`<scope>/types/` inventory. Unknown optional
 capabilities use the declared extension map, not arbitrary discovery members.
 
 Core and Write use the fixed in-Scope collection routes `<scope>/bdp/beads` and
 `<scope>/bdp/links`; discovery does not advertise those routes. They are collection
 entry points, not base URIs for Resource identity, and do not divide the Resource
-namespace. All Beads and Links may share one Scope-relative ID space,
+namespace. When the optional Types profile is enabled, discovery MAY include
+`types: <scope>/types/`; its Type inventory is at that fixed route, and a
+Scope-local Type descriptor is identified and read at `<scope>/types/<local-id>`.
+All Beads and
+Links may share one Scope-relative ID space,
 such as `https://beads.example/acme/task-42` and
-`https://beads.example/acme/relation-81`. No `beads/` or `links/` identity prefix is
-required. Events and operation navigation are discovered absolute HTTP(S) URLs.
+`https://beads.example/acme/relation-81`. The `bdp/` route namespace is reserved
+for protocol navigation. Events and operation navigation are discovered absolute
+HTTP(S) URLs.
 Aliases navigation is an in-Scope base, possibly the Scope itself, not authority
 for arbitrary paths without a binding. Clients MUST NOT infer Resource kind by
 stripping/prefixing path segments. No `order` means `canonical-uri`.
@@ -790,7 +798,7 @@ GET {bead}?include=links&direction=inbound|outbound|both&limit={count}
 complete stored `properties` object:
 
 ```http
-GET /acme/beads/task-42?view=properties HTTP/1.1
+GET /acme/task-42?view=properties HTTP/1.1
 Host: beads.example
 Accept: application/vnd.bdp.v0.1+json
 
@@ -819,7 +827,7 @@ page of the same result exposed by `view=links`:
 
 ```json
 {
-  "id": "https://beads.example/acme/beads/task-42",
+  "id": "https://beads.example/acme/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
   "properties": {
@@ -830,18 +838,18 @@ page of the same result exposed by `view=links`:
   "links": {
     "items": [
       {
-        "id": "https://beads.example/acme/links/assigned-to-81",
+        "id": "https://beads.example/acme/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": "https://beads.example/acme/beads/task-42",
-        "target": "https://beads.example/acme/beads/person-7",
+        "source": "https://beads.example/acme/task-42",
+        "target": "https://beads.example/acme/person-7",
         "properties": {
           "since": "2026-08-04"
         },
         "metadata": {}
       }
     ],
-    "next": "https://beads.example/acme/beads/task-42?view=links&direction=both&cursor=opaque-cursor"
+    "next": "https://beads.example/acme/task-42?view=links&direction=both&cursor=opaque-cursor"
   }
 }
 ```
@@ -914,19 +922,19 @@ its required recorded owned state is separate. A client selects the Link
 view directly on the Bead URL and supplies a direction:
 
 ```http
-GET /acme/beads/task-42?view=links&direction=outbound HTTP/1.1
+GET /acme/task-42?view=links&direction=outbound HTTP/1.1
 Host: beads.example
 Accept: application/vnd.bdp.v0.1+json
 ```
 
 ```http
-GET /acme/beads/task-42?view=links&direction=inbound HTTP/1.1
+GET /acme/task-42?view=links&direction=inbound HTTP/1.1
 Host: beads.example
 Accept: application/vnd.bdp.v0.1+json
 ```
 
 ```http
-GET /acme/beads/task-42?view=links&direction=both HTTP/1.1
+GET /acme/task-42?view=links&direction=both HTTP/1.1
 Host: beads.example
 Accept: application/vnd.bdp.v0.1+json
 ```
@@ -949,7 +957,7 @@ filters to the optional `include=links` aggregate. Collection-kind metadata and
 continuation resizing follow [collections and pagination](#collections-and-pagination).
 
 BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
-path segments, so `beads/task-42/links` could already be the ID of a different
+path segments, so `task-42/links` could already be the ID of a different
 Bead. A suffix subpath would require BDP to reserve and visibly mangle a
 control segment such as `/-/` or `/.bdp/` throughout the local-ID grammar. The
 `view` query parameter avoids that collision while keeping the request visibly
@@ -1040,7 +1048,7 @@ $[?@.properties.status == "closed"]
 The following minimal positive case is also supported for either collection:
 
 ```text
-$[?@.id == "https://beads.example/acme/beads/task-42"]
+$[?@.id == "https://beads.example/acme/task-42"]
 ```
 
 When sent to the fixed Bead inventory route, this Selector returns the complete
@@ -3261,6 +3269,7 @@ Required order: ["bdpVersion","profile","scope","specRevision"]
 | "profile" | schema | yes | — | "Base Core/Write profile discriminator, independent of optional capabilities." |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation." |
 | "specRevision" | ref "#/$defs/specRevision" | yes | — | "Exact canonical protocol source commit represented by this discovery document." |
+| "types" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support." |
 
 #### Advanced
 

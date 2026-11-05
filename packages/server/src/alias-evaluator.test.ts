@@ -36,12 +36,15 @@ afterEach(() => {
   for (const directory of roots.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 function bead(id: string, extra = {}): StoredResource {
+  return beadAt(`${id}`, extra);
+}
+function beadAt(id: string, extra = {}): StoredResource {
   return {
-    id: `beads/${id}`,
+    id,
     kind: "bead",
     bodyJson: JSON.stringify(
       parseBeadRecord({
-        id: `${scope}beads/${id}`,
+        id: `${scope}${id}`,
         type: beadType,
         revision: `revision-${id}`,
         properties: {},
@@ -52,17 +55,17 @@ function bead(id: string, extra = {}): StoredResource {
 }
 function link(id: string, source: string, target: string): StoredResource {
   return {
-    id: `links/${id}`,
+    id: `${id}`,
     kind: "link",
-    source: `beads/${source}`,
-    target: `beads/${target}`,
+    source: `${source}`,
+    target: `${target}`,
     bodyJson: JSON.stringify(
       parseLinkRecord({
-        id: `${scope}links/${id}`,
+        id: `${scope}${id}`,
         type: linkType,
         revision: `revision-${id}`,
-        source: `${scope}beads/${source}`,
-        target: `${scope}beads/${target}`,
+        source: `${scope}${source}`,
+        target: `${scope}${target}`,
         properties: {},
       }),
     ),
@@ -188,27 +191,26 @@ describe("owned-member alias evaluator", () => {
   it("creates, repoints, no-ops, deletes and reuses hierarchical paths without changing Resource bytes", () => {
     const f = fixture();
     const before = f.resources();
-    const input = { alias: "alias/team/latest", target: "beads/a" };
+    const input = { alias: "alias/team/latest", target: "a" };
     expect(f.execute("putAlias", input)).toEqual({
       effect: "success",
       outcome: {
         outcome: "created",
         alias: `${scope}alias/team/latest`,
-        target: `${scope}beads/a`,
+        target: `${scope}a`,
       },
     });
-    expect(f.alias("team/latest")).toBe("beads/a");
+    expect(f.alias("team/latest")).toBe("a");
     expect(
-      f.execute("putAlias", { alias: `${scope}alias/team/latest`, target: `${scope}beads/b` })
-        .outcome,
+      f.execute("putAlias", { alias: `${scope}alias/team/latest`, target: `${scope}b` }).outcome,
     ).toEqual({
       outcome: "updated",
       alias: `${scope}alias/team/latest`,
-      target: `${scope}beads/b`,
+      target: `${scope}b`,
     });
     const writes = f.writes();
     expect(
-      f.execute("putAlias", { alias: "alias/team/latest", target: "beads/b" }).outcome,
+      f.execute("putAlias", { alias: "alias/team/latest", target: "b" }).outcome,
     ).toMatchObject({ outcome: "updated" });
     expect(f.writes()).toBe(writes);
     expect(f.execute("deleteAlias", { alias: "alias/team/latest" }).outcome).toEqual({
@@ -222,23 +224,23 @@ describe("owned-member alias evaluator", () => {
     expect(Object.isFrozen(noOp)).toBe(true);
     expect(Object.isFrozen(noOp.outcome)).toBe(true);
     f.reopen();
-    expect(f.alias("team/latest")).toBe("beads/a");
+    expect(f.alias("team/latest")).toBe("a");
     expect(f.resources()).toEqual(before);
   });
 
   it("preserves an alias-named first suffix segment without stripping it twice", () => {
     const f = fixture();
-    const result = f.execute("putAlias", { alias: "alias/alias/latest", target: "beads/a" });
+    const result = f.execute("putAlias", { alias: "alias/alias/latest", target: "a" });
     expect(result.outcome).toMatchObject({ alias: `${scope}alias/alias/latest` });
-    expect(f.alias("alias/latest")).toBe("beads/a");
+    expect(f.alias("alias/latest")).toBe("a");
     expect(f.alias("latest")).toBeUndefined();
     f.execute("deleteAlias", { alias: `${scope}alias/alias/latest` });
     expect(f.alias("alias/latest")).toBeUndefined();
   });
 
   it.each([
-    "beads/latest",
-    "links/latest",
+    "latest",
+    "latest",
     "latest",
     `${scope}other/latest`,
     "https://elsewhere.test/alias/latest",
@@ -246,7 +248,7 @@ describe("owned-member alias evaluator", () => {
     const f = fixture();
     for (const operation of ["putAlias", "deleteAlias"] as const)
       failure(
-        f.execute(operation, { alias, ...(operation === "putAlias" ? { target: "beads/a" } : {}) }),
+        f.execute(operation, { alias, ...(operation === "putAlias" ? { target: "a" } : {}) }),
         "resource-not-found",
       );
     expect(f.writes()).toBe(0);
@@ -256,12 +258,12 @@ describe("owned-member alias evaluator", () => {
   it.each([
     "alias/elsewhere",
     `${scope}alias/elsewhere`,
-    "links/edge",
-    "https://elsewhere.test/beads/a",
+    "edge",
+    "https://elsewhere.test/a",
     "urn:example:bead",
   ])("refuses noncanonical target %s with one diagnostic and no alias chain", (target) => {
-    const f = fixture();
-    f.mutate((tx) => tx.putAlias("elsewhere", "beads/a"));
+    const f = fixture([bead("a"), bead("b"), link("edge", "a", "b")]);
+    f.mutate((tx) => tx.putAlias("elsewhere", "a"));
     const result = f.execute("putAlias", { alias: "alias/new", target });
     failure(result, "validation-failed");
     expect(result.outcome).toMatchObject({
@@ -286,12 +288,13 @@ describe("owned-member alias evaluator", () => {
     "checks permanent Bead identity before unknown/invalid target and authorization (deleted=%s)",
     (deleted) => {
       const f = fixture();
+      f.mutate((tx) => tx.putResource(beadAt("alias/a")));
       if (deleted) {
-        f.mutate((tx) => tx.deleteResource("beads/a"));
+        f.mutate((tx) => tx.deleteResource("alias/a"));
         f.reopen();
       }
       const policy = { canRead: vi.fn(() => false), canWriteBead: vi.fn(() => false) };
-      for (const target of ["beads/missing", "alias/missing"])
+      for (const target of ["missing", "alias/missing"])
         failure(f.execute("putAlias", { alias: "alias/a", target }, { policy }), "identity-taken");
       expect(policy.canRead).not.toHaveBeenCalled();
       expect(policy.canWriteBead).not.toHaveBeenCalled();
@@ -302,32 +305,24 @@ describe("owned-member alias evaluator", () => {
   it("allows a Link and alias to share an id path", () => {
     const f = fixture([bead("a"), bead("b"), link("shared", "a", "b")]);
     const before = f.resources();
-    expect(f.execute("putAlias", { alias: "alias/shared", target: "beads/a" }).effect).toBe(
-      "success",
-    );
+    expect(f.execute("putAlias", { alias: "alias/shared", target: "a" }).effect).toBe("success");
     expect(f.resources()).toEqual(before);
-    expect(f.alias("shared")).toBe("beads/a");
+    expect(f.alias("shared")).toBe("a");
   });
 
-  it("allows Link creation at an already live alias path", () => {
+  it("allows a distinct Link path that shares the alias's final segment", () => {
     const f = fixture();
-    f.execute("putAlias", { alias: "alias/shared", target: "beads/a" });
+    f.execute("putAlias", { alias: "alias/shared", target: "a" });
     f.mutate((tx) => tx.putResource(link("shared", "a", "b")));
-    expect(f.alias("shared")).toBe("beads/a");
-    expect(f.resources().some(({ id, kind }) => id === "links/shared" && kind === "link")).toBe(
-      true,
-    );
+    expect(f.alias("shared")).toBe("a");
+    expect(f.resources().some(({ id, kind }) => id === "shared" && kind === "link")).toBe(true);
   });
 
   it("keeps unknown/invisible subjects indistinguishable before write authorization", () => {
     const f = fixture();
     const policy = { canRead: () => false, canWriteBead: vi.fn(() => false) };
-    const hidden = f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }, { policy });
-    const missing = f.execute(
-      "putAlias",
-      { alias: "alias/latest", target: "beads/missing" },
-      { policy },
-    );
+    const hidden = f.execute("putAlias", { alias: "alias/latest", target: "a" }, { policy });
+    const missing = f.execute("putAlias", { alias: "alias/latest", target: "missing" }, { policy });
     expect(hidden).toEqual(missing);
     failure(hidden, "resource-not-found");
     failure(f.execute("deleteAlias", { alias: "alias/missing" }, { policy }), "resource-not-found");
@@ -335,47 +330,44 @@ describe("owned-member alias evaluator", () => {
     expect(f.writes()).toBe(0);
   });
 
-  it.each(["beads/a", "beads/b"])(
+  it.each(["a", "b"])(
     "requires write permission on both targets of a repoint: denied %s",
     (denied) => {
       const f = fixture();
-      f.mutate((tx) => tx.putAlias("latest", "beads/a"));
+      f.mutate((tx) => tx.putAlias("latest", "a"));
       const policy = {
         canRead: () => true,
         canWriteBead: (record: { id: string }) => record.id !== `${scope}${denied}`,
       };
       failure(
-        f.execute("putAlias", { alias: "alias/latest", target: "beads/b" }, { policy }),
+        f.execute("putAlias", { alias: "alias/latest", target: "b" }, { policy }),
         "forbidden",
       );
-      expect(f.alias("latest")).toBe("beads/a");
+      expect(f.alias("latest")).toBe("a");
       expect(f.writes()).toBe(0);
     },
   );
 
   it("authorizes delete against its current target and same-target put against the unchanged Bead", () => {
     const f = fixture();
-    f.mutate((tx) => tx.putAlias("latest", "beads/a"));
+    f.mutate((tx) => tx.putAlias("latest", "a"));
     const policy = { canRead: () => true, canWriteBead: vi.fn(() => false) };
     failure(f.execute("deleteAlias", { alias: "alias/latest" }, { policy }), "forbidden");
-    failure(
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }, { policy }),
-      "forbidden",
-    );
+    failure(f.execute("putAlias", { alias: "alias/latest", target: "a" }, { policy }), "forbidden");
     expect(policy.canWriteBead).toHaveBeenCalledTimes(2);
-    expect(f.alias("latest")).toBe("beads/a");
+    expect(f.alias("latest")).toBe("a");
     expect(f.writes()).toBe(0);
   });
 
   it("does not disclose a hidden current target through a forbidden proposed target", () => {
     const f = fixture();
-    f.mutate((tx) => tx.putAlias("latest", "beads/a"));
+    f.mutate((tx) => tx.putAlias("latest", "a"));
     const policy = {
-      canRead: (record: { id: string }) => record.id !== `${scope}beads/a`,
+      canRead: (record: { id: string }) => record.id !== `${scope}a`,
       canWriteBead: vi.fn(() => false),
     };
     failure(
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/b" }, { policy }),
+      f.execute("putAlias", { alias: "alias/latest", target: "b" }, { policy }),
       "resource-not-found",
     );
     failure(f.execute("deleteAlias", { alias: "alias/latest" }, { policy }), "resource-not-found");
@@ -392,20 +384,18 @@ describe("owned-member alias evaluator", () => {
         bead("b"),
         edge,
       ]);
-      expect(f.execute("putAlias", { alias: "alias/control", target: "beads/a" }).effect).toBe(
-        "success",
-      );
+      expect(f.execute("putAlias", { alias: "alias/control", target: "a" }).effect).toBe("success");
       const writes = f.writes();
       const policy = {
         canRead: (record: { id: string }) =>
-          record.id !== `${scope}${hidden === "owned-link" ? "links/edge" : "beads/b"}`,
+          record.id !== `${scope}${hidden === "owned-link" ? "edge" : "b"}`,
         canWriteBead: vi.fn(() => true),
       };
       failure(
-        f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }, { policy }),
+        f.execute("putAlias", { alias: "alias/latest", target: "a" }, { policy }),
         "resource-not-found",
       );
-      f.mutate((tx) => tx.putAlias("latest", "beads/a"));
+      f.mutate((tx) => tx.putAlias("latest", "a"));
       failure(
         f.execute("deleteAlias", { alias: "alias/latest" }, { policy }),
         "resource-not-found",
@@ -417,25 +407,22 @@ describe("owned-member alias evaluator", () => {
 
   it("does not cascade aliases on Bead deletion or reuse their old target as authorization", () => {
     const f = fixture();
-    f.execute("putAlias", { alias: "alias/latest", target: "beads/a" });
-    f.mutate((tx) => tx.deleteResource("beads/a"));
+    f.execute("putAlias", { alias: "alias/latest", target: "a" });
+    f.mutate((tx) => tx.deleteResource("a"));
     const writes = f.writes();
     failure(f.execute("deleteAlias", { alias: "alias/latest" }), "resource-not-found");
-    failure(
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/b" }),
-      "resource-not-found",
-    );
-    expect(f.alias("latest")).toBe("beads/a");
+    failure(f.execute("putAlias", { alias: "alias/latest", target: "b" }), "resource-not-found");
+    expect(f.alias("latest")).toBe("a");
     expect(f.writes()).toBe(writes);
   });
 
   it.each([
-    { alias: "alias/latest", target: { uri: "beads/a", revision: "pin" } },
-    { alias: "alias/latest", target: "beads/a", revisionProvenance: { actor: {} } },
-    { alias: "alias/latest", target: "beads/a", expectedRevision: "r" },
-    { alias: "alias/latest", target: "beads/a", name: "bound" },
+    { alias: "alias/latest", target: { uri: "a", revision: "pin" } },
+    { alias: "alias/latest", target: "a", revisionProvenance: { actor: {} } },
+    { alias: "alias/latest", target: "a", expectedRevision: "r" },
+    { alias: "alias/latest", target: "a", name: "bound" },
     { alias: "alias/latest", target: "@earlier" },
-    { alias: "alias//bad", target: "beads/a" },
+    { alias: "alias//bad", target: "a" },
   ])("leaves prohibited carrier shape %j to S1 before any owned member", (input) => {
     const f = fixture();
     expect(() => f.execute("putAlias", input)).toThrow(ReadUpdateCarrierError);
@@ -452,19 +439,17 @@ describe("owned-member alias evaluator", () => {
       canWriteBead: () => true,
     };
     expect(() =>
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }, { policy: bad }),
+      f.execute("putAlias", { alias: "alias/latest", target: "a" }, { policy: bad }),
     ).toThrow("policy unavailable");
     expect(f.alias("latest")).toBeUndefined();
-    expect(f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }).effect).toBe(
-      "success",
-    );
+    expect(f.execute("putAlias", { alias: "alias/latest", target: "a" }).effect).toBe("success");
   });
 
   it("rolls the alias write back when its owned-member disposition cannot commit", () => {
     const f = fixture();
     const before = f.resources();
     expect(() =>
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }, {}, () => {
+      f.execute("putAlias", { alias: "alias/latest", target: "a" }, {}, () => {
         throw new Error("injected pre-disposition failure");
       }),
     ).toThrow("injected pre-disposition failure");
@@ -473,21 +458,16 @@ describe("owned-member alias evaluator", () => {
     expect(f.resources()).toEqual(before);
     f.reopen();
     expect(f.alias("latest")).toBeUndefined();
-    expect(f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }).effect).toBe(
-      "success",
-    );
+    expect(f.execute("putAlias", { alias: "alias/latest", target: "a" }).effect).toBe("success");
   });
 
   it("allows Bead creation at a path only after its alias was deleted", () => {
     const f = fixture();
-    f.execute("putAlias", { alias: "alias/reusable", target: "beads/a" });
-    expect(() => f.mutate((tx) => tx.putResource(bead("reusable")))).toThrow();
+    f.execute("putAlias", { alias: "alias/reusable", target: "a" });
+    expect(() => f.mutate((tx) => tx.putResource(beadAt("alias/reusable")))).toThrow();
     f.execute("deleteAlias", { alias: "alias/reusable" });
-    f.mutate((tx) => tx.putResource(bead("reusable")));
-    failure(
-      f.execute("putAlias", { alias: "alias/reusable", target: "beads/a" }),
-      "identity-taken",
-    );
+    f.mutate((tx) => tx.putResource(beadAt("alias/reusable")));
+    failure(f.execute("putAlias", { alias: "alias/reusable", target: "a" }), "identity-taken");
   });
 
   it("requires a usable first diagnostic budget without substituting a new wire failure", () => {
@@ -495,14 +475,14 @@ describe("owned-member alias evaluator", () => {
     expect(() =>
       f.execute(
         "putAlias",
-        { alias: "alias/latest", target: "links/no" },
+        { alias: "alias/latest", target: "no" },
         { limits: { diagnosticBytes: 1 } },
       ),
     ).toThrow("one complete diagnostic");
     expect(() =>
       f.execute(
         "putAlias",
-        { alias: "alias/latest", target: "beads/a" },
+        { alias: "alias/latest", target: "a" },
         { limits: { diagnosticCount: 0 } },
       ),
     ).toThrow("positive usable");
@@ -517,10 +497,7 @@ describe("owned-member alias evaluator", () => {
       canWrite: vi.fn((before: unknown, after: unknown) => before === after),
       canWriteBead: vi.fn(() => false),
     };
-    failure(
-      f.execute("putAlias", { alias: "alias/new", target: "beads/a" }, { policy }),
-      "forbidden",
-    );
+    failure(f.execute("putAlias", { alias: "alias/new", target: "a" }, { policy }), "forbidden");
     expect(policy.canWrite).not.toHaveBeenCalled();
     expect(policy.canWriteBead).toHaveBeenCalledTimes(1);
     expect(policy.canWriteBead.mock.calls[0]).toHaveLength(1);
@@ -529,28 +506,25 @@ describe("owned-member alias evaluator", () => {
 
   it("withholds a hidden current target even with permissive Bead write permission", () => {
     const f = fixture();
-    f.mutate((tx) => tx.putAlias("latest", "beads/a"));
+    f.mutate((tx) => tx.putAlias("latest", "a"));
     const policy = {
-      canRead: (record: { id: string }) => record.id !== `${scope}beads/a`,
+      canRead: (record: { id: string }) => record.id !== `${scope}a`,
       canWriteBead: vi.fn(() => true),
     };
     failure(
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/b" }, { policy }),
+      f.execute("putAlias", { alias: "alias/latest", target: "b" }, { policy }),
       "resource-not-found",
     );
     expect(policy.canWriteBead).not.toHaveBeenCalled();
-    expect(f.alias("latest")).toBe("beads/a");
+    expect(f.alias("latest")).toBe("a");
     expect(f.writes()).toBe(0);
   });
 
   it("refuses a committed but deleted proposed target as not found", () => {
     const f = fixture();
-    f.mutate((tx) => tx.deleteResource("beads/a"));
+    f.mutate((tx) => tx.deleteResource("a"));
     f.reopen();
-    failure(
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }),
-      "resource-not-found",
-    );
+    failure(f.execute("putAlias", { alias: "alias/latest", target: "a" }), "resource-not-found");
     expect(f.canWriteBead).not.toHaveBeenCalled();
     expect(f.alias("latest")).toBeUndefined();
     expect(f.writes()).toBe(0);
@@ -558,7 +532,7 @@ describe("owned-member alias evaluator", () => {
 
   it("returns the complete unbounded diagnostic and admits exactly its byte bound", () => {
     const f = fixture();
-    const input = { alias: "alias/new", target: "links/no" };
+    const input = { alias: "alias/new", target: "alias/not-a-target" };
     const result = f.execute("putAlias", input, { limits: {} });
     failure(result, "validation-failed");
     if (result.effect !== "failure") throw new Error("missing diagnostic");
@@ -580,7 +554,7 @@ describe("owned-member alias evaluator", () => {
     ).toEqual(result);
     const writes = f.writes();
     for (const [operation, record] of [
-      ["putAlias", { alias: "alias/latest", target: "beads/a" }],
+      ["putAlias", { alias: "alias/latest", target: "a" }],
       ["deleteAlias", { alias: "alias/missing" }],
     ] as const) {
       expect(() =>
@@ -591,7 +565,7 @@ describe("owned-member alias evaluator", () => {
     expect(f.canWriteBead).not.toHaveBeenCalled();
     expect(f.writes()).toBe(writes);
     expect(
-      f.execute("putAlias", { alias: "alias/latest", target: "beads/a" }, { limits: {} }).effect,
+      f.execute("putAlias", { alias: "alias/latest", target: "a" }, { limits: {} }).effect,
     ).toBe("success");
     const deleted = f.execute("deleteAlias", { alias: "alias/latest" }, { limits: {} });
     expect(deleted.effect).toBe("success");
@@ -599,9 +573,9 @@ describe("owned-member alias evaluator", () => {
   });
 
   it.each([
-    { alias: "alias/x?query=1", target: "beads/a" },
-    { alias: `${scope}alias/x?query=1`, target: "beads/a" },
-    { alias: `${scope}alias/x#fragment`, target: "beads/a" },
+    { alias: "alias/x?query=1", target: "a" },
+    { alias: `${scope}alias/x?query=1`, target: "a" },
+    { alias: `${scope}alias/x#fragment`, target: "a" },
   ])("rejects query/fragment alias spelling at actual S1 before admission: %j", (input) => {
     const f = fixture();
     expect(() => f.execute("putAlias", input)).toThrow(ReadUpdateCarrierError);
@@ -610,12 +584,12 @@ describe("owned-member alias evaluator", () => {
   });
 
   it.each([
-    { alias: "alias//bad", target: "beads/a" },
-    { alias: `${scope}alias//bad`, target: "beads/a" },
-    { alias: `${scope}alias/x?query=1`, target: "beads/a" },
-    { alias: `${scope}alias/x#fragment`, target: "beads/a" },
-    { alias: "alias/latest", target: "beads//bad" },
-    { alias: "alias/latest", target: `${scope}beads//bad` },
+    { alias: "alias//bad", target: "a" },
+    { alias: `${scope}alias//bad`, target: "a" },
+    { alias: `${scope}alias/x?query=1`, target: "a" },
+    { alias: `${scope}alias/x#fragment`, target: "a" },
+    { alias: "alias/latest", target: "a//bad" },
+    { alias: "alias/latest", target: `${scope}a//bad` },
   ])(
     "throws an internal preflight breach if malformed grammar bypasses the caller: %j",
     (input) => {

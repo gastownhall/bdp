@@ -32,7 +32,11 @@ export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: str
   switch (request.kind) {
     case "resource": {
       if (request.resource !== "type")
-        return request.resource === "bead" || request.resource === "link";
+        return (
+          request.resource === "bead" ||
+          request.resource === "link" ||
+          request.resource === "resource"
+        );
       // Locality is checked before Read captures the request. Do not execute
       // an ID getter or method here; canonical syntax remains Read's decision.
       const id = Object.getOwnPropertyDescriptor(request, "id");
@@ -44,7 +48,11 @@ export function isCurrentTransactionMinimumRead(request: ReadRequest, scope: str
       );
     }
     case "properties":
-      return request.resource === "bead" || request.resource === "link";
+      return (
+        request.resource === "bead" ||
+        request.resource === "link" ||
+        request.resource === "resource"
+      );
     case "collection":
       return (
         (request.collection === "beads" ||
@@ -94,13 +102,15 @@ export function currentReadMinimumKind(
   };
   if (
     (data("kind") === "resource" || data("kind") === "properties") &&
-    (data("resource") === "bead" || data("resource") === "link")
+    (data("resource") === "bead" || data("resource") === "link" || data("resource") === "resource")
   )
     return "resource";
   if (data("kind") === "bead-links" && data("continuation") === undefined) return "missing";
   if (
     data("kind") === "collection" &&
-    (data("collection") === "beads" || data("collection") === "links") &&
+    (data("collection") === "beads" ||
+      data("collection") === "links" ||
+      data("collection") === "types") &&
     data("continuation") === undefined
   )
     return "initial-collection";

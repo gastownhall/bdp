@@ -23,16 +23,14 @@ function fixture<T>(id: string): T {
   return structuredClone(examples.examples.find((e) => e.id === id)?.body) as T;
 }
 const scope = "https://work.example/scope/";
-const id = `${scope}beads/decision`;
+const id = `${scope}decision`;
 const versions = { kind: "versions", resource: "bead", id } as const;
 const exact = { kind: "revision", resource: "bead", id, revision: "old" } as const;
 function discovery(): ReadDiscovery {
   return {
     ...fixture<ReadDiscovery>("discovery-read"),
     scope,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
+
     aliases: `${scope}alias/`,
   };
 }
@@ -316,7 +314,7 @@ describe("explicit body-only History client", () => {
       const body = fixture<BeadRecord>("exact-bead");
       const invalid =
         mode === "wrong-id"
-          ? { ...body, id: `${scope}beads/other` }
+          ? { ...body, id: "https://outside.invalid/other" }
           : mode === "wrong-revision"
             ? { ...body, revision: "other" }
             : mode === "current-links"
@@ -340,7 +338,7 @@ describe("explicit body-only History client", () => {
     },
   );
 
-  it("refuses both-external historical Link and local alias identities", async () => {
+  it("refuses an external historical Link and reserved or external Resource identities", async () => {
     const link = fixture<LinkRecord>("exact-link");
     const { client, calls } = clientWith(() => ({
       ...link,
@@ -357,11 +355,10 @@ describe("explicit body-only History client", () => {
     ).toMatchObject({ code: "temporarily-unavailable" });
     const count = calls.length;
     for (const [bad, code] of [
-      [`${scope}alias/decision`, "invalid-parameter"],
-      [`${scope}types/memory`, "invalid-parameter"],
-      ["https://other.example/beads/x", "forbidden"],
+      [`${scope}bdp/types/memory`, "invalid-parameter"],
+      ["https://other.example/x", "forbidden"],
     ] as const)
-      expect(await client.performHistory({ ...exact, id: bad })).toMatchObject({ code });
+      expect(await client.performHistory({ ...exact, id: bad }), bad).toMatchObject({ code });
     expect(calls).toHaveLength(count);
   });
 

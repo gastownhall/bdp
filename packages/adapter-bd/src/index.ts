@@ -23,6 +23,8 @@ import {
   REFERENCE_TYPE_SUMMARIES,
   type ReadProblem,
   readProblem,
+  type ResourcePropertiesRequest as ResourcePropertiesOperation,
+  type ResourceRequest as ResourceOperation,
   resolveCanonicalLocalResourceId,
   type ScopeReadOperation,
   type TypeDescriptor,
@@ -125,6 +127,8 @@ export function createBdProcessScopePort(
   if (!typeIds.has("task")) throw new Error("reference domain does not define task");
   let beads: BeadRecord[] | undefined;
   let links: LinkRecord[] | undefined;
+  let beadsById: ReadonlyMap<string, BeadRecord> | undefined;
+  let linksById: ReadonlyMap<string, LinkRecord> | undefined;
   const referenceDescriptorsById = new Map(
     BD_SERVED_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
   );
@@ -143,14 +147,16 @@ export function createBdProcessScopePort(
       ? value
       : opaqueComponent(value);
   const beadId = (id: string): AbsoluteHttpUrl =>
-    resolveCanonicalLocalResourceId(scope, "bead", `beads/${localComponent(id)}`);
+    resolveCanonicalLocalResourceId(scope, "bead", localComponent(id));
   const mintedTypeId = (type: string): AbsoluteHttpUrl =>
     parseCanonicalTypeId(new URL(`types/${localComponent(type)}`, scope).href, "minted bd Type");
   const linkId = (source: string, target: string, type: string): AbsoluteHttpUrl =>
     resolveCanonicalLocalResourceId(
       scope,
       "link",
-      `links/${opaqueComponent(source)}/${opaqueComponent(target)}/${opaqueComponent(type)}`,
+      `link_${createHash("sha256")
+        .update(JSON.stringify([source, target, type]))
+        .digest("base64url")}`,
     );
   const run = (args: readonly string[], signal: AbortSignal): Promise<unknown> =>
     new Promise((resolve, reject) => {
@@ -372,6 +378,10 @@ export function createBdProcessScopePort(
         "Link IDs",
       );
       nextLinks.sort(compareResourceIds);
+      requireUniqueProjection(
+        [...nextBeads.map(({ id }) => id), ...nextLinks.map(({ id }) => id)],
+        "Resource IDs",
+      );
       const nextObservedTypes = [...extraTypes.values()];
       nextObservedTypes.sort(compareResourceIds);
       const nextObservedDescriptors = nextObservedTypes.map(
@@ -391,6 +401,8 @@ export function createBdProcessScopePort(
       const nextTypeConformance = createTypeConformanceIndex(nextObservedDescriptors);
       beads = nextBeads;
       links = nextLinks;
+      beadsById = new Map(nextBeads.map((bead) => [bead.id, bead]));
+      linksById = new Map(nextLinks.map((link) => [link.id, link]));
       observedTypes = nextObservedTypes;
       observedDescriptors = nextObservedDescriptors;
       typeConformance = nextTypeConformance;
@@ -488,16 +500,24 @@ export function createBdProcessScopePort(
       }
       case "resource": {
         if (operation.resource === "bead") {
-          const item = allBeads.find((candidate) => candidate.id === operation.id);
+          const item = beadsById?.get(operation.id);
           return item === undefined
             ? scopePortProblem<BeadResourceOperation>(adapterNotFound())
             : scopePortSuccess<BeadResourceOperation>(item);
         }
         if (operation.resource === "link") {
-          const item = allLinks.find((candidate) => candidate.id === operation.id);
+          const item = linksById?.get(operation.id);
           return item === undefined
             ? scopePortProblem<LinkResourceOperation>(adapterNotFound())
             : scopePortSuccess<LinkResourceOperation>(item);
+        }
+        if (operation.resource === "resource") {
+          const bead = beadsById?.get(operation.id);
+          if (bead !== undefined) return scopePortSuccess<ResourceOperation>(bead);
+          const link = linksById?.get(operation.id);
+          return link === undefined
+            ? scopePortProblem<ResourceOperation>(adapterNotFound())
+            : scopePortSuccess<ResourceOperation>(link);
         }
         try {
           new URL(operation.id);
@@ -516,12 +536,21 @@ export function createBdProcessScopePort(
       }
       case "properties": {
         if (operation.resource === "bead") {
-          const item = allBeads.find((candidate) => candidate.id === operation.id);
+          const item = beadsById?.get(operation.id);
           return item === undefined
             ? scopePortProblem<BeadPropertiesOperation>(adapterNotFound())
             : scopePortSuccess<BeadPropertiesOperation>(item.properties);
         }
-        const item = allLinks.find((candidate) => candidate.id === operation.id);
+        if (operation.resource === "resource") {
+          const bead = beadsById?.get(operation.id);
+          if (bead !== undefined)
+            return scopePortSuccess<ResourcePropertiesOperation>(bead.properties);
+          const link = linksById?.get(operation.id);
+          return link === undefined
+            ? scopePortProblem<ResourcePropertiesOperation>(adapterNotFound())
+            : scopePortSuccess<ResourcePropertiesOperation>(link.properties);
+        }
+        const item = linksById?.get(operation.id);
         return item === undefined
           ? scopePortProblem<LinkPropertiesOperation>(adapterNotFound())
           : scopePortSuccess<LinkPropertiesOperation>(item.properties);

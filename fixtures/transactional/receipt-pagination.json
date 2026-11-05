@@ -31,9 +31,6 @@
           "authorizationView": "view-pagination",
           "headPosition": "pagination-initial",
           "minimumReplayPosition": "pagination-retained-start",
-          "beads": "https://beads.example/receipt-pagination/beads/",
-          "links": "https://beads.example/receipt-pagination/links/",
-          "types": "https://beads.example/receipt-pagination/types/",
           "operations": "https://beads.example/receipt-pagination/operations/",
           "aliases": "https://beads.example/receipt-pagination/alias/",
           "receipts": "https://beads.example/receipt-pagination/receipts/",
@@ -84,7 +81,7 @@
             {
               "operation": "deleteWhere",
               "collection": "links",
-              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/task-42\" || @.target == \"https://beads.example/receipt-pagination/task-42\"]",
               "cardinality": {
                 "max": 1000
               },
@@ -97,13 +94,13 @@
             },
             {
               "operation": "deleteBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "expectedRevision": "task-42-r9"
             },
             {
               "operation": "createLink",
               "type": "https://work.example/types/relates",
-              "source": "beads/task-43",
+              "source": "task-43",
               "target": {
                 "uri": "https://github.example/issues/123",
                 "revision": "8f0e2b"
@@ -145,12 +142,12 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "id": "https://beads.example/receipt-pagination/9c1e",
                   "type": "https://work.example/types/cites",
                   "revision": "9c1e-r1"
                 }
               },
-              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "source": "https://beads.example/receipt-pagination/dec-9",
               "sourceRevision": "dec-9-r3"
             }
           ],
@@ -188,7 +185,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "id": "https://beads.example/receipt-pagination/blocks-3",
                   "type": "https://work.example/types/blocks",
                   "revision": "blocks-3-r1"
                 }
@@ -200,7 +197,7 @@
               "deleted": {
                 "resourceKind": "bead",
                 "resource": {
-                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "id": "https://beads.example/receipt-pagination/task-42",
                   "type": "https://work.example/types/task",
                   "revision": "task-42-r9"
                 }
@@ -210,10 +207,10 @@
               "operationIndex": 2,
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "id": "https://beads.example/receipt-pagination/2d4f",
                 "type": "https://work.example/types/relates",
                 "revision": "2d4f-r1",
-                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "source": "https://beads.example/receipt-pagination/task-43",
                 "target": {
                   "uri": "https://github.example/issues/123",
                   "revision": "8f0e2b"

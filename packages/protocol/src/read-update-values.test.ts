@@ -32,7 +32,7 @@ const admitReadUpdateOperationNumbers = (value: UnadmittedReadUpdateOperation) =
 
 const type = "https://types.example/task";
 const bead = {
-  id: "https://example.test/s/beads/a",
+  id: "https://example.test/s/a",
   type,
   revision: "r1",
   properties: {},
@@ -51,15 +51,12 @@ const create = { operation: "createBead", idempotencyKey: "create", name: "a", t
 describe("RU unadmitted carriers", () => {
   it.each([
     ["createBead", { type, revisionProvenance: { agent: null, message: "" } }],
-    [
-      "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
-    ],
-    ["deleteBead", { bead: "beads/a" }],
-    ["createLink", { type, source: "beads/a", target: { uri: "urn:outside", revision: "old" } }],
-    ["updateLink", { link: "links/a", propertiesChange: [{ op: "remove", path: "/n" }] }],
-    ["deleteLink", { link: "links/a", revisionProvenance: { message: "removed" } }],
-    ["putAlias", { alias: "alias/a", target: "beads/a" }],
+    ["updateBead", { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] }],
+    ["deleteBead", { bead: "a" }],
+    ["createLink", { type, source: "a", target: { uri: "urn:outside", revision: "old" } }],
+    ["updateLink", { link: "a", propertiesChange: [{ op: "remove", path: "/n" }] }],
+    ["deleteLink", { link: "a", revisionProvenance: { message: "removed" } }],
+    ["putAlias", { alias: "alias/a", target: "a" }],
     ["deleteAlias", { alias: "alias/a" }],
   ] as const)("parses %s using its actual singleton schema", (kind, input) => {
     const result = parseReadUpdateRequest(kind, JSON.stringify(input));
@@ -91,7 +88,7 @@ describe("RU unadmitted carriers", () => {
   it("reports patch value pointers without turning semantic number refusal into syntax", () => {
     const parsed = parseReadUpdateRequest(
       "updateBead",
-      '{"bead":"beads/a","propertiesChange":[{"op":"add","path":"/x","value":{"a/b":[1e-9999]}}]}',
+      '{"bead":"a","propertiesChange":[{"op":"add","path":"/x","value":{"a/b":[1e-9999]}}]}',
     );
     expect(admitReadUpdateOperationNumbers(parsed)).toMatchObject({
       ok: false,
@@ -154,18 +151,15 @@ describe("RU unadmitted carriers", () => {
     ).toHaveLength(1);
   });
   it.each([
-    ["deleteBead", { bead: "beads/a", revisionProvenance: {} }],
-    ["putAlias", { alias: "alias/a", target: "beads/a", revisionProvenance: {} }],
+    ["deleteBead", { bead: "a", revisionProvenance: {} }],
+    ["putAlias", { alias: "alias/a", target: "a", revisionProvenance: {} }],
     ["deleteBead", { bead: "@a" }],
     ["createBead", { type, name: "a" }],
     ["createBead", { type, operation: "createBead" }],
     ["createBead", { type, idempotencyKey: "body-key" }],
     ["createBead", { type, revisionProvenance: { committedAt: "now" } }],
-    [
-      "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/bad~2", value: 1 }] },
-    ],
-    ["updateBead", { bead: "beads/a", propertiesChange: [{ op: "test", path: "/n", value: 1 }] }],
+    ["updateBead", { bead: "a", propertiesChange: [{ op: "add", path: "/bad~2", value: 1 }] }],
+    ["updateBead", { bead: "a", propertiesChange: [{ op: "test", path: "/n", value: 1 }] }],
   ] as const)("rejects closed/static singleton syntax %#", (kind, input) => {
     expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
       ReadUpdateCarrierError,
@@ -175,7 +169,7 @@ describe("RU unadmitted carriers", () => {
     const prefix = `{"operations":[${JSON.stringify(create)},`;
     expect(() =>
       parseReadUpdateSequenceRequest(
-        `${prefix}{"operation":"deleteBead","idempotencyKey":"d","bead":"beads/a","bead":"beads/b"}]}`,
+        `${prefix}{"operation":"deleteBead","idempotencyKey":"d","bead":"a","bead":"b"}]}`,
       ),
     ).toThrow(JsonSyntaxError);
     expect(() =>
@@ -217,7 +211,7 @@ describe("RU parser boundary regressions", () => {
     [
       "createLink",
       "id",
-      (reference: string) => ({ type, id: reference, source: "beads/a", target: "beads/b" }),
+      (reference: string) => ({ type, id: reference, source: "a", target: "b" }),
     ],
     [
       "updateBead",
@@ -237,23 +231,15 @@ describe("RU parser boundary regressions", () => {
       }),
     ],
     ["deleteLink", "link", (reference: string) => ({ link: reference })],
-    [
-      "createLink",
-      "source",
-      (reference: string) => ({ type, source: reference, target: "beads/b" }),
-    ],
-    [
-      "createLink",
-      "target",
-      (reference: string) => ({ type, source: "beads/a", target: reference }),
-    ],
+    ["createLink", "source", (reference: string) => ({ type, source: reference, target: "b" })],
+    ["createLink", "target", (reference: string) => ({ type, source: "a", target: reference })],
     [
       "createLink",
       "source.uri",
       (reference: string) => ({
         type,
         source: { uri: reference, revision: "pin" },
-        target: "beads/b",
+        target: "b",
       }),
     ],
     [
@@ -261,7 +247,7 @@ describe("RU parser boundary regressions", () => {
       "target.uri",
       (reference: string) => ({
         type,
-        source: "beads/a",
+        source: "a",
         target: { uri: reference, revision: "pin" },
       }),
     ],
@@ -272,56 +258,44 @@ describe("RU parser boundary regressions", () => {
     "checks %s %s reference spelling before returning a carrier",
     (kind, field, input) => {
       for (const reference of [
-        "beads/bad space",
-        "beads/%",
-        "beads/%FF",
-        "beads/a\\b",
-        "beads/a\u0001",
-        "beads/../b",
-        "beads/./b",
-        "beads//b",
-        "beads/a/",
-        "beads/%2F",
-        "beads/%5C",
-        "beads/%61",
-        "beads/%c3%a9",
-        "//host/beads/a",
-        "/beads/a",
-        "beads/a?x=1",
-        "beads/a#part",
+        "bad space",
+        "%",
+        "%FF",
+        "a\\b",
+        "a\u0001",
+        "../b",
+        "./b",
+        "a//b",
+        "a/",
+        "%2F",
+        "%5C",
+        "%61",
+        "%c3%a9",
+        "//host/a",
+        "/a",
+        "a?x=1",
+        "a#part",
         "https://outside.test/bad space",
         "https://outside.test/%",
         "urn:bad\\reference",
       ]) {
-        const spelling =
-          field === "id" && kind === "createLink"
-            ? reference.replace(/^beads\//, "links/")
-            : reference;
+        const spelling = reference;
         expect(
           () => parseReadUpdateRequest(kind, JSON.stringify(input(spelling))),
           spelling,
         ).toThrow(ReadUpdateCarrierError);
       }
-      const root = kind === "createLink" ? "links" : "beads";
       const references =
         field === "id"
           ? [
-              `${root}/a`,
-              `${root}/a:b`,
-              `${root}/%C3%A9`,
-              `${root}/a%20b`,
-              `https://example.test/s/${root}/a`,
+              "nested/a",
+              "nested/a:b",
+              "nested/%C3%A9",
+              "nested/a%20b",
+              "https://example.test/s/nested/a",
             ]
-          : [
-              "beads/a",
-              "links/a",
-              "alias/a",
-              "wrong-root/a",
-              "beads/a:b",
-              "beads/%C3%A9",
-              "beads/a%20b",
-            ];
-      // Non-creation subjects/endpoints retain member-time root/kind checks.
+          : ["a", "a", "alias/a", "wrong-root/a", "a:b", "%C3%A9", "a%20b"];
+      // Non-creation subjects/endpoints retain member-time identity/kind checks.
       for (const reference of references)
         expect(parseReadUpdateRequest(kind, JSON.stringify(input(reference))).input).toEqual(
           input(reference),
@@ -333,10 +307,7 @@ describe("RU parser boundary regressions", () => {
     for (const [kind, _field, input] of referenceInputs) {
       expect(() =>
         parseReadUpdateSequenceRequest(
-          sequence([
-            create,
-            { operation: kind, idempotencyKey: "second", ...input("beads/bad space") },
-          ]),
+          sequence([create, { operation: kind, idempotencyKey: "second", ...input("bad space") }]),
         ),
       ).toThrow(ReadUpdateCarrierError);
     }
@@ -356,34 +327,23 @@ describe("RU parser boundary regressions", () => {
       }
     }
     const properties = {
-      subject: "beads/bad space",
-      nested: { uri: "beads/%", target: "@unknown" },
+      subject: "bad space",
+      nested: { uri: "%", target: "@unknown" },
     };
     const parsed = parseReadUpdateRequest("createBead", JSON.stringify({ type, properties }));
     expect(parsed.input.properties).toEqual(properties);
     const patch = [{ op: "add", path: "/reference", value: properties }];
     expect(
-      parseReadUpdateRequest(
-        "updateBead",
-        JSON.stringify({ bead: "beads/a", propertiesChange: patch }),
-      ).input.propertiesChange,
+      parseReadUpdateRequest("updateBead", JSON.stringify({ bead: "a", propertiesChange: patch }))
+        .input.propertiesChange,
     ).toEqual(patch);
   });
 
   it.each(["createBead", "createLink"] as const)(
-    "rejects wrong-root and non-HTTP creation IDs for %s",
+    "rejects non-HTTP or noncanonical absolute creation IDs for %s",
     (kind) => {
-      const fields =
-        kind === "createBead" ? { type } : { type, source: "beads/a", target: "beads/b" };
-      for (const id of [
-        kind === "createBead" ? "links/a" : "beads/a",
-        "wrong-root/a",
-        "alias/a",
-        "beads",
-        "links",
-        "urn:example:opaque",
-        "https://EXAMPLE.test/s/beads/a",
-      ]) {
+      const fields = kind === "createBead" ? { type } : { type, source: "a", target: "b" };
+      for (const id of ["urn:example:opaque", "https://EXAMPLE.test/s/a"]) {
         const input = { ...fields, id };
         expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
           ReadUpdateCarrierError,
@@ -393,6 +353,23 @@ describe("RU parser boundary regressions", () => {
             sequence([create, { ...input, operation: kind, idempotencyKey: "second" }]),
           ),
         ).toThrow(ReadUpdateCarrierError);
+      }
+    },
+  );
+
+  it.each(["createBead", "createLink"] as const)(
+    "accepts kind-independent local creation IDs for %s",
+    (kind) => {
+      const fields =
+        kind === "createBead" ? { type } : { type, source: "source", target: "target" };
+      for (const id of ["task-42", "ordinary", "ordinary", "sys/system-record"]) {
+        const input = { ...fields, id };
+        expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).not.toThrow();
+        expect(() =>
+          parseReadUpdateSequenceRequest(
+            sequence([create, { ...input, operation: kind, idempotencyKey: "second" }]),
+          ),
+        ).not.toThrow();
       }
     },
   );
@@ -412,9 +389,7 @@ describe("RU parser boundary regressions", () => {
     );
   });
   it("leaves well-formed wrong-root aliases for member-time resource-not-found", () => {
-    expect(parseReadUpdateRequest("deleteAlias", '{"alias":"beads/a"}').input.alias).toBe(
-      "beads/a",
-    );
+    expect(parseReadUpdateRequest("deleteAlias", '{"alias":"a"}').input.alias).toBe("a");
   });
   it("rejects invalid Unicode in a received nested response extension", () => {
     expect(() => parseReadUpdateProblem({ ...problem, trace: { bad: "\ud800" } })).toThrow(
@@ -531,9 +506,6 @@ describe("canonical RU response parsers", () => {
       bdpVersion: "0.1",
       profile: "read-update",
       scope: "https://example.test/s/",
-      beads: "https://example.test/s/beads/",
-      links: "https://example.test/s/links/",
-      types: "https://example.test/s/types/",
       operations: "https://example.test/s/operations/",
       aliases: "https://example.test/s/alias/",
     };

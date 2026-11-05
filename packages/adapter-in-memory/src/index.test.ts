@@ -15,10 +15,7 @@ describe("reference fixture Scope port", () => {
     const port = createReferenceFixturePort(scope);
 
     await expect(
-      port.perform(
-        { kind: "resource", resource: "bead", id: `${scope}beads/nested/demo-a` },
-        options,
-      ),
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}nested/demo-a` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
@@ -47,22 +44,19 @@ describe("reference fixture Scope port", () => {
     const port = createReferenceFixturePort(scope);
 
     await expect(
-      port.perform({ kind: "properties", resource: "bead", id: `${scope}beads/missing` }, options),
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}missing` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
     });
     await expect(
-      port.perform({ kind: "properties", resource: "link", id: `${scope}links/missing` }, options),
+      port.perform({ kind: "properties", resource: "link", id: `${scope}missing` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
     });
     await expect(
-      port.perform(
-        { kind: "bead-links", bead: `${scope}beads/missing`, direction: "both" },
-        options,
-      ),
+      port.perform({ kind: "bead-links", bead: `${scope}missing`, direction: "both" }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
@@ -104,7 +98,7 @@ describe("reference fixture Scope port", () => {
       typeDescriptors: [{ ...task, conformsTo: [] }],
       beads: [
         {
-          localId: "beads/reviewed",
+          localId: "reviewed",
           type: task.id,
           revision: "7",
           properties: { title: "Reviewed fixture", status: "open" },
@@ -120,7 +114,7 @@ describe("reference fixture Scope port", () => {
       body: {
         items: [
           {
-            id: `${scope}beads/reviewed`,
+            id: `${scope}reviewed`,
             type: task.id,
             revision: "7",
             properties: { title: "Reviewed fixture", status: "open" },
@@ -167,9 +161,9 @@ describe("reference fixture Scope port", () => {
         },
       ],
       beads: [
-        { localId: "beads/a", type: task.id, revision: "1", properties: { title: "A" } },
+        { localId: "a", type: task.id, revision: "1", properties: { title: "A" } },
         {
-          localId: "beads/b",
+          localId: "b",
           type: decision.id,
           revision: "1",
           properties: { title: "B" },
@@ -177,11 +171,11 @@ describe("reference fixture Scope port", () => {
       ],
       links: [
         {
-          localId: "links/a-b",
+          localId: "a-b",
           type: blocks.id,
           revision: "1",
-          source: "beads/a",
-          target: "beads/b",
+          source: "a",
+          target: "b",
           properties: {},
         },
       ],
@@ -210,14 +204,14 @@ describe("reference fixture Scope port", () => {
           kind: "collection",
           collection: "links",
           type: blocks.id,
-          source: `${scope}beads/a`,
-          endpoint: `${scope}beads/b`,
+          source: `${scope}a`,
+          endpoint: `${scope}b`,
         },
         options,
       ),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { items: [{ id: `${scope}links/a-b` }], next: null },
+      body: { items: [{ id: `${scope}a-b` }], next: null },
     });
     await expect(
       port.perform(
@@ -243,7 +237,7 @@ describe("reference fixture Scope port", () => {
       typeDescriptors: [{ ...task, conformsTo: [] }],
       beads: [
         {
-          localId: "beads/reviewed",
+          localId: "reviewed",
           type: task.id,
           revision: "1",
           properties,
@@ -256,7 +250,7 @@ describe("reference fixture Scope port", () => {
     properties.title = "Mutated";
     properties.metadata.labels.push("late");
     const resultOutcome = await port.perform(
-      { kind: "resource", resource: "bead", id: `${scope}beads/reviewed` },
+      { kind: "resource", resource: "bead", id: `${scope}reviewed` },
       options,
     );
     const collectionOutcome = await port.perform(
@@ -328,7 +322,7 @@ describe("reference fixture Scope port", () => {
       ],
       beads: [
         {
-          localId: "beads/projects/alpha/task-42",
+          localId: "projects/alpha/task-42",
           type: task.id,
           revision: "1",
           properties: {},
@@ -342,12 +336,12 @@ describe("reference fixture Scope port", () => {
     ).resolves.toEqual({ kind: "success", body: descriptor });
     await expect(
       port.perform(
-        { kind: "resource", resource: "bead", id: `${scope}beads/projects/alpha/task-42` },
+        { kind: "resource", resource: "bead", id: `${scope}projects/alpha/task-42` },
         options,
       ),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { id: `${scope}beads/projects/alpha/task-42` },
+      body: { id: `${scope}projects/alpha/task-42` },
     });
   });
 
@@ -381,26 +375,26 @@ describe("reference fixture Scope port", () => {
       expect((error as Error).cause).toBeInstanceOf(ProtocolArtifactValidationError);
     }
     expect(() =>
-      createPortableReferenceFixturePort(scope, fixture("links/not-a-bead", type.id)),
-    ).toThrow("must begin with beads/");
-    expect(() => createPortableReferenceFixturePort(scope, fixture("beads/..", type.id))).toThrow(
-      "forbidden segment",
+      createPortableReferenceFixturePort(scope, fixture("not-a-bead", type.id)),
+    ).not.toThrow();
+    expect(() => createPortableReferenceFixturePort(scope, fixture("..", type.id))).toThrow(
+      "noncanonical segment",
     );
     expect(() =>
       createPortableReferenceFixturePort(
         scope,
-        fixture("beads/demo-a", "https://work.example/types/unknown"),
+        fixture("demo-a", "https://work.example/types/unknown"),
       ),
     ).toThrow("must name a declared bead Type");
     expect(() =>
       createPortableReferenceFixturePort(scope, {
-        ...fixture("beads/demo-a", type.id),
+        ...fixture("demo-a", type.id),
         typeDescriptors: [{ ...type, conformsTo: ["https://work.example/types/missing-parent"] }],
       }),
     ).toThrow(ProtocolArtifactValidationError);
   });
 
-  it("validates Link IDs and endpoint references as canonical IDs of the expected kind", () => {
+  it("validates Link IDs and endpoint references without inferring kind from path", () => {
     const task = {
       id: "https://work.example/types/task",
       name: "Task",
@@ -411,7 +405,7 @@ describe("reference fixture Scope port", () => {
       name: "Blocks",
       describes: "link",
     } as const;
-    const fixture = (localId: string, source = "beads/a") => ({
+    const fixture = (localId: string, source = "a") => ({
       types: [task, blocks],
       typeDescriptors: [
         { ...task, conformsTo: [] },
@@ -423,8 +417,8 @@ describe("reference fixture Scope port", () => {
         },
       ],
       beads: [
-        { localId: "beads/a", type: task.id, revision: "1", properties: {} },
-        { localId: "beads/b", type: task.id, revision: "1", properties: {} },
+        { localId: "a", type: task.id, revision: "1", properties: {} },
+        { localId: "b", type: task.id, revision: "1", properties: {} },
       ],
       links: [
         {
@@ -432,18 +426,14 @@ describe("reference fixture Scope port", () => {
           type: blocks.id,
           revision: "1",
           source,
-          target: "beads/b",
+          target: "b",
           properties: {},
         },
       ],
     });
 
-    expect(() => createPortableReferenceFixturePort(scope, fixture("beads/not-a-link"))).toThrow(
-      "must begin with links/",
-    );
-    expect(() =>
-      createPortableReferenceFixturePort(scope, fixture("links/blocks", "links/a")),
-    ).toThrow("must begin with beads/");
+    expect(() => createPortableReferenceFixturePort(scope, fixture("not-a-link"))).not.toThrow();
+    expect(() => createPortableReferenceFixturePort(scope, fixture("blocks", "a"))).not.toThrow();
   });
 
   it("preserves exact external endpoint identities in either Link orientation", async () => {
@@ -469,22 +459,22 @@ describe("reference fixture Scope port", () => {
           target: { conformsTo: [] },
         },
       ],
-      beads: [{ localId: "beads/a", type: task.id, revision: "1", properties: {} }],
+      beads: [{ localId: "a", type: task.id, revision: "1", properties: {} }],
       links: [
         {
-          localId: "links/outbound",
+          localId: "outbound",
           type: blocks.id,
           revision: "1",
-          source: "beads/a",
+          source: "a",
           target: external,
           properties: {},
         },
         {
-          localId: "links/inbound",
+          localId: "inbound",
           type: blocks.id,
           revision: "1",
           source: external,
-          target: "beads/a",
+          target: "a",
           properties: {},
         },
       ],
@@ -497,11 +487,11 @@ describe("reference fixture Scope port", () => {
       body: {
         items: [
           expect.objectContaining({
-            id: `${scope}links/outbound`,
+            id: `${scope}outbound`,
             target: external,
           }),
           expect.objectContaining({
-            id: `${scope}links/inbound`,
+            id: `${scope}inbound`,
             source: external,
           }),
         ],
@@ -511,9 +501,9 @@ describe("reference fixture Scope port", () => {
   });
 
   it.each([
-    ["uppercase scheme", "HTTPS://scope.example/acme/beads/alias"],
-    ["default-port alias", "https://scope.example:443/acme/beads/alias"],
-    ["percent-encoded Scope path", "https://scope.example/%61cme/beads/alias"],
+    ["uppercase scheme", "HTTPS://scope.example/acme/alias"],
+    ["default-port alias", "https://scope.example:443/acme/alias"],
+    ["percent-encoded Scope path", "https://scope.example/%61cme/alias"],
   ] as const)("rejects a canonical local Scope alias using %s", (_label, external) => {
     expect(() =>
       createPortableReferenceFixturePort(scope, externalEndpointFixture(external)),
@@ -532,7 +522,7 @@ describe("reference fixture Scope port", () => {
   it.each(["source", "target"] as const)(
     "accepts a canonical external HTTP endpoint in the %s orientation",
     async (orientation) => {
-      const external = "https://outside.example/beads/reviewed";
+      const external = "https://outside.example/reviewed";
       const port = createPortableReferenceFixturePort(
         scope,
         externalEndpointFixture(external, orientation),
@@ -575,7 +565,7 @@ describe("reference fixture Scope port", () => {
     const port = createPortableReferenceFixturePort(
       scope,
       externalEndpointFixture("urn:external:bare", "target", {
-        uri: "beads/a",
+        uri: "a",
         revision: "pinned-3",
       }),
     );
@@ -584,7 +574,7 @@ describe("reference fixture Scope port", () => {
     ).resolves.toMatchObject({
       kind: "success",
       body: {
-        items: [{ source: { uri: `${scope}beads/a`, revision: "pinned-3" } }],
+        items: [{ source: { uri: `${scope}a`, revision: "pinned-3" } }],
         next: null,
       },
     });
@@ -634,23 +624,23 @@ describe("reference fixture Scope port", () => {
         { ...cites, conformsTo: [], source: { conformsTo: [] }, target: { conformsTo: [] } },
       ],
       beads: [
-        { localId: "beads/d", type: decision.id, revision: "1", properties: { title: "D" } },
-        { localId: "beads/e", type: decision.id, revision: "1", properties: { title: "E" } },
+        { localId: "d", type: decision.id, revision: "1", properties: { title: "D" } },
+        { localId: "e", type: decision.id, revision: "1", properties: { title: "E" } },
       ],
       links: [
         {
-          localId: "links/one",
+          localId: "one",
           type: cites.id,
           revision: "1",
-          source: "beads/d",
-          target: "beads/e",
+          source: "d",
+          target: "e",
           properties: {},
         },
         {
-          localId: "links/two",
+          localId: "two",
           type: cites.id,
           revision: "1",
-          source: "beads/d",
+          source: "d",
           target: { uri: "urn:external:w", revision: "w-9" },
           properties: {},
         },
@@ -669,19 +659,19 @@ describe("reference fixture Scope port", () => {
     expect(d?.ownedLinks).toEqual({
       [cites.id]: [
         {
-          id: `${scope}links/one`,
+          id: `${scope}one`,
           type: cites.id,
           revision: "1",
-          source: `${scope}beads/d`,
-          target: `${scope}beads/e`,
+          source: `${scope}d`,
+          target: `${scope}e`,
           properties: {},
           metadata: {},
         },
         {
-          id: `${scope}links/two`,
+          id: `${scope}two`,
           type: cites.id,
           revision: "1",
-          source: `${scope}beads/d`,
+          source: `${scope}d`,
           target: { uri: "urn:external:w", revision: "w-9" },
           properties: {},
           metadata: {},
@@ -691,7 +681,7 @@ describe("reference fixture Scope port", () => {
     expect(e?.ownedLinks).toEqual({ [cites.id]: [] });
     // The properties view stays authored JSON alone.
     await expect(
-      port.perform({ kind: "properties", resource: "bead", id: `${scope}beads/d` }, options),
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}d` }, options),
     ).resolves.toEqual({ kind: "success", body: { title: "D" } });
     // The declared bound is enforced.
     expect(() =>
@@ -700,11 +690,11 @@ describe("reference fixture Scope port", () => {
         links: [
           ...base.links,
           {
-            localId: "links/three",
+            localId: "three",
             type: cites.id,
             revision: "1",
-            source: "beads/d",
-            target: "beads/e",
+            source: "d",
+            target: "e",
             properties: {},
           },
         ],
@@ -721,7 +711,7 @@ describe("reference fixture Scope port", () => {
       links: [],
     };
     const bead = (revisionProvenance: unknown) => ({
-      localId: "beads/attributed",
+      localId: "attributed",
       type: "https://work.example/types/task",
       revision: "1",
       properties: {},
@@ -734,14 +724,14 @@ describe("reference fixture Scope port", () => {
     const odd = " Ångström\u0301 \t";
     const port = load({ actor: { id: odd, basis: "unknown" } })();
     await expect(
-      port.perform({ kind: "resource", resource: "bead", id: `${scope}beads/attributed` }, options),
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}attributed` }, options),
     ).resolves.toMatchObject({
       kind: "success",
       body: { revisionProvenance: { actor: { id: odd, basis: "unknown" } } },
     });
     await expect(
       load(undefined)().perform(
-        { kind: "resource", resource: "bead", id: `${scope}beads/attributed` },
+        { kind: "resource", resource: "bead", id: `${scope}attributed` },
         options,
       ),
     ).resolves.toSatisfy(
@@ -766,7 +756,7 @@ describe("reference fixture Scope port", () => {
       ],
       beads: [
         {
-          localId: "beads/live",
+          localId: "live",
           type: "https://work.example/types/task",
           revision: "1",
           properties: {},
@@ -779,32 +769,47 @@ describe("reference fixture Scope port", () => {
     // String-form archivedAt is a valid Reference; junk shapes are not.
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-pruned", archivedAt: "urn:archive:relic" },
+        {
+          localId: "gone",
+          kind: "bead",
+          code: "resource-pruned",
+          archivedAt: "urn:archive:relic",
+        },
       ]),
     ).not.toThrow();
     expect(
-      withDisclosures([{ localId: "beads/gone", code: "resource-pruned", archivedAt: {} }]),
+      withDisclosures([{ localId: "gone", kind: "bead", code: "resource-pruned", archivedAt: {} }]),
     ).toThrow();
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-pruned", archivedAt: { banana: 42 } },
+        {
+          localId: "gone",
+          kind: "bead",
+          code: "resource-pruned",
+          archivedAt: { banana: 42 },
+        },
       ]),
     ).toThrow();
     // Duplicates and live overlap refuse.
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-erased" },
-        { localId: "beads/gone", code: "resource-pruned" },
+        { localId: "gone", kind: "bead", code: "resource-erased" },
+        { localId: "gone", kind: "bead", code: "resource-pruned" },
       ]),
     ).toThrow("duplicates");
-    expect(withDisclosures([{ localId: "beads/live", code: "resource-erased" }])).toThrow(
+    expect(withDisclosures([{ localId: "live", kind: "bead", code: "resource-erased" }])).toThrow(
       "gone or live",
     );
     // Unknown codes and erased-with-pointer refuse.
-    expect(withDisclosures([{ localId: "beads/gone", code: "cursor-expired" }])).toThrow();
+    expect(withDisclosures([{ localId: "gone", kind: "bead", code: "cursor-expired" }])).toThrow();
     expect(
       withDisclosures([
-        { localId: "beads/gone", code: "resource-erased", archivedAt: "urn:archive:x" },
+        {
+          localId: "gone",
+          kind: "bead",
+          code: "resource-erased",
+          archivedAt: "urn:archive:x",
+        },
       ]),
     ).toThrow("condition-specific");
   });
@@ -830,59 +835,51 @@ describe("reference fixture Scope port", () => {
       links: [],
       disclosures: [
         {
-          localId: "beads/gone",
+          localId: "gone",
+          kind: "bead",
           code: "resource-pruned",
           archivedAt: { uri: "urn:archive:gone", revision: "arch-1" },
         },
-        { localId: "links/gone-edge", code: "resource-erased" },
+        { localId: "gone-edge", kind: "link", code: "resource-erased" },
       ],
     });
     const pruned = { code: "resource-pruned", status: 410 };
     await expect(
-      port.perform({ kind: "resource", resource: "bead", id: `${scope}beads/gone` }, options),
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}gone` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { ...pruned, archivedAt: { uri: "urn:archive:gone", revision: "arch-1" } },
     });
     await expect(
-      port.perform({ kind: "properties", resource: "bead", id: `${scope}beads/gone` }, options),
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}gone` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: pruned });
     await expect(
-      port.perform({ kind: "bead-links", bead: `${scope}beads/gone`, direction: "both" }, options),
+      port.perform({ kind: "bead-links", bead: `${scope}gone`, direction: "both" }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: pruned });
     await expect(
-      port.perform({ kind: "resource", resource: "link", id: `${scope}links/gone-edge` }, options),
+      port.perform({ kind: "resource", resource: "link", id: `${scope}gone-edge` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: { code: "resource-erased" } });
     // A cross-kind request never leaks the disclosure: the wrong plane at
     // the same address answers the uniform not-found.
     const notFound = { code: "resource-not-found", status: 404 };
     await expect(
-      port.perform({ kind: "resource", resource: "bead", id: `${scope}links/gone-edge` }, options),
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}gone-edge` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
-      port.perform({ kind: "resource", resource: "link", id: `${scope}beads/gone` }, options),
+      port.perform({ kind: "resource", resource: "link", id: `${scope}gone` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
-      port.perform(
-        { kind: "properties", resource: "bead", id: `${scope}links/gone-edge` },
-        options,
-      ),
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}gone-edge` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
-      port.perform({ kind: "properties", resource: "link", id: `${scope}beads/gone` }, options),
+      port.perform({ kind: "properties", resource: "link", id: `${scope}gone` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
-      port.perform(
-        { kind: "bead-links", bead: `${scope}links/gone-edge`, direction: "both" },
-        options,
-      ),
+      port.perform({ kind: "bead-links", bead: `${scope}gone-edge`, direction: "both" }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     // The correct plane still discloses, properties included.
     await expect(
-      port.perform(
-        { kind: "properties", resource: "link", id: `${scope}links/gone-edge` },
-        options,
-      ),
+      port.perform({ kind: "properties", resource: "link", id: `${scope}gone-edge` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-erased", status: 410 },
@@ -909,7 +906,7 @@ describe("reference fixture Scope port", () => {
         beads: [],
         links: [
           {
-            localId: "links/external-only",
+            localId: "external-only",
             type: blocks.id,
             revision: "1",
             source: "external:alpha:one",
@@ -925,7 +922,7 @@ describe("reference fixture Scope port", () => {
 function externalEndpointFixture(
   external: string | { uri: string; revision: string },
   orientation: "source" | "target" = "target",
-  local: string | { uri: string; revision: string } = "beads/a",
+  local: string | { uri: string; revision: string } = "a",
 ) {
   const task = {
     id: "https://work.example/types/task",
@@ -948,10 +945,10 @@ function externalEndpointFixture(
         target: { conformsTo: [] },
       },
     ],
-    beads: [{ localId: "beads/a", type: task.id, revision: "1", properties: {} }],
+    beads: [{ localId: "a", type: task.id, revision: "1", properties: {} }],
     links: [
       {
-        localId: "links/external",
+        localId: "external",
         type: blocks.id,
         revision: "1",
         source: orientation === "source" ? external : local,

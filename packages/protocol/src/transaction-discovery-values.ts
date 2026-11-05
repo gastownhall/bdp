@@ -57,8 +57,6 @@ export function parseTransactionalDiscovery(value: unknown): TransactionalDiscov
   const result = parse(value, "discovery");
   parseCanonicalScope(result.scope);
   for (const field of [
-    "beads",
-    "links",
     "types",
     "operations",
     "aliases",
@@ -67,7 +65,7 @@ export function parseTransactionalDiscovery(value: unknown): TransactionalDiscov
     "changes",
     "events",
   ])
-    parseCanonicalHttpUrl(result[field], field);
+    if (result[field] !== undefined) parseCanonicalHttpUrl(result[field], field);
   for (const policy of (result.maximumEndpointMultiplicity as
     | readonly { linkConformsTo: string }[]
     | undefined) ?? [])

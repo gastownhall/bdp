@@ -200,7 +200,7 @@ function access(value: DevelopmentAccess): DevelopmentAccessSnapshot {
     throw new TypeError("invalid access flags");
   const ids = (v: unknown): readonly string[] => {
     const values = administrativeArray(v, 1000).map((id) => {
-      if (typeof id !== "string" || (!id.startsWith("beads/") && !id.startsWith("links/")))
+      if (typeof id !== "string" || id.length === 0)
         throw new TypeError("invalid access resource identity");
       assertCanonicalPathSegments(id, "access resource identity");
       return id;

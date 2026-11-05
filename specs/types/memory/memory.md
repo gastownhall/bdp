@@ -10,7 +10,7 @@ subjects:
 
 # [Memory] Memory Bead and Link Types
 
-This proposal defines Memory Bead and Link Types and their common constraint-system behavior. It is a published design draft; the [publication scope](#publication-scope-and-deferred-specification-work) separates the selected model from deferred mechanics and implementation qualification. It builds on [Chris's Memory Beads proposal](https://github.com/gastownhall/beads/issues/5877).
+This proposal defines Memory Bead and Link Types and their common constraint-system behavior. It is a published design draft; the [publication scope](#publication-scope-and-deferred-specification-work) separates the selected model from deferred mechanics and implementation qualification. It builds on [Chris's Memory Beads proposal](https://github.com/gastownhall/issues/5877).
 
 Sections marked **informative**, including their subsections and examples, explain the design without adding requirements. The CLI sketch is also informative. All other contract text is **normative for this proposed design**. Normative status does not imply adoption or implementation; the publication-scope table identifies deferred work.
 
@@ -359,8 +359,8 @@ Every owned claim concerns the whole subject group collectively. The first accep
 
 ```json
 [
-  {"uri": "https://beads.example/acme/beads/web-app", "revision": "web-r2"},
-  {"uri": "https://beads.example/acme/beads/api", "revision": "api-r7"}
+  {"uri": "https://beads.example/acme/web-app", "revision": "web-r2"},
+  {"uri": "https://beads.example/acme/api", "revision": "api-r7"}
 ]
 ```
 
@@ -925,7 +925,7 @@ The following specification work is deliberately deferred and does not block pub
 | Exact query/CLI grammar and presentation | Generic discovery must expose obligations, supporting paths, contribution/full/breach claims, and unresolved results. Domain-tuned CRUD, command/flag spelling, listing defaults, and ordering/bounds remain separate interface design. |
 | Detailed shared write/lifecycle integration | Source ownership, family graph rules, and refusal to silently manufacture evidence remain selected. Exact retype/edit/move/delete, recovery, and transaction integration must reconcile with accepted shared semantics. Non-Memory source definitions, including Issue, need Subject To ownership and must not acquire ownership of assessment claims about themselves; widening endpoints alone does not install those rules. Evaluation ownership, one full collective group bound to the Bead identity from its first accepted Evaluation state across retyping, and the uniform claim form are selected. Ordinary pre-Evaluation `subjects` extras do not bind the identity. Exact cleanup/retention operations remain design work; ownership alone selects no cascade. |
 
-A deferred feature is not implicitly supported. Implementations must state the exact catalog revision and supported behavior, preserve existing accepted shared contracts, and report unavailable or unresolved behavior truthfully. An implementation omission of a selected rule requires a separate explicit scope decision and must not be represented as enforcement. Historical schemas, example corpora, and their passing results do not validate this revised catalog unless deliberately regenerated and checked against this revision. [Decision MEM-DEC-009](https://github.com/gastownhall/beads/issues/7656#mem-dec-009-constraint-applicability-and-independent-assessments) records the accepted applicability, assessment, and workflow boundaries. The older MEM-DEC-008 remains historical; its source-owned-by-subject assessment rule and undecided direct Conformance authoring are superseded. [MEM-DEC-010](https://github.com/gastownhall/beads/issues/7656#mem-dec-010-evaluation-owned-collective-conformance-claims) selects the uniform evaluation-owned collective claim model; this draft propagates that accepted behavior and the subsequent accepted Evaluation carrier/exact-subject-reference selection, while keeping remaining mechanics explicit.
+A deferred feature is not implicitly supported. Implementations must state the exact catalog revision and supported behavior, preserve existing accepted shared contracts, and report unavailable or unresolved behavior truthfully. An implementation omission of a selected rule requires a separate explicit scope decision and must not be represented as enforcement. Historical schemas, example corpora, and their passing results do not validate this revised catalog unless deliberately regenerated and checked against this revision. [Decision MEM-DEC-009](https://github.com/gastownhall/issues/7656#mem-dec-009-constraint-applicability-and-independent-assessments) records the accepted applicability, assessment, and workflow boundaries. The older MEM-DEC-008 remains historical; its source-owned-by-subject assessment rule and undecided direct Conformance authoring are superseded. [MEM-DEC-010](https://github.com/gastownhall/issues/7656#mem-dec-010-evaluation-owned-collective-conformance-claims) selects the uniform evaluation-owned collective claim model; this draft propagates that accepted behavior and the subsequent accepted Evaluation carrier/exact-subject-reference selection, while keeping remaining mechanics explicit.
 
 ## Appendix: open design questions
 

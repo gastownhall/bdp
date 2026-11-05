@@ -102,7 +102,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
   it("persists create/read/guarded update/delete and retained replay across reopen", async () => {
     const h = await start();
     const create = {
-      id: "beads/a",
+      id: "a",
       type: DEVELOPMENT_BEAD_TYPE,
       properties: { title: "before" },
       metadata: { origin: "test" },
@@ -114,13 +114,13 @@ describe("non-attesting bdptest HTTP development authority", () => {
       metadata: { origin: "test" },
       revisionProvenance: { actor: { id: "writer", basis: "writer-supplied" } },
     });
-    expect(jsonBody(await h.get("beads/a"))).toEqual(created);
+    expect(jsonBody(await h.get("a"))).toEqual(created);
     expect(resource(await h.post("create-bead", create, "create_a"))).toEqual(created);
     expect(
       await h.post("create-bead", { ...create, properties: { title: "conflict" } }, "create_a"),
     ).toMatchObject({ status: 409, body: { code: "idempotency-conflict" } });
     const update = {
-      bead: "beads/a",
+      bead: "a",
       expectedRevision: created.revision,
       propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
       metadataChange: [{ op: "add", path: "/reviewed", value: true }],
@@ -135,7 +135,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       status: 409,
       body: { code: "revision-mismatch" },
     });
-    expect(jsonBody(await h.get("beads/a"))).toEqual(updated);
+    expect(jsonBody(await h.get("a"))).toEqual(updated);
     const noop = resource(
       await h.post("update-bead", { ...update, expectedRevision: updated.revision }, "noop_a"),
     );
@@ -143,16 +143,16 @@ describe("non-attesting bdptest HTTP development authority", () => {
     const port = Number(new URL(h.server.scope).port);
     await h.server.close();
     const reopened = await start(h.dir, port, false);
-    expect(jsonBody(await reopened.get("beads/a"))).toEqual(updated);
+    expect(jsonBody(await reopened.get("a"))).toEqual(updated);
     expect(resource(await reopened.post("update-bead", update, "update_a"))).toEqual(updated);
     expect(await reopened.post("update-bead", update, "stale_a")).toMatchObject({
       status: 409,
       body: { code: "revision-mismatch" },
     });
-    const deletion = { bead: "beads/a", expectedRevision: updated.revision };
+    const deletion = { bead: "a", expectedRevision: updated.revision };
     const deleted = await reopened.post("delete-bead", deletion, "delete_a");
     expect(deleted).toMatchObject({ status: 200, body: { outcome: "deleted" } });
-    expect(await reopened.get("beads/a")).toMatchObject({ status: 404 });
+    expect(await reopened.get("a")).toMatchObject({ status: 404 });
     expect(jsonBody(await reopened.post("delete-bead", deletion, "delete_a"))).toEqual(
       jsonBody(deleted),
     );
@@ -165,13 +165,13 @@ describe("non-attesting bdptest HTTP development authority", () => {
   it("shares live Link state with reads and atomically rejects unsafe Bead deletion", async () => {
     const h = await start();
     const bead = resource(
-      await h.post("create-bead", { id: "beads/a", type: DEVELOPMENT_BEAD_TYPE }, "bead"),
+      await h.post("create-bead", { id: "a", type: DEVELOPMENT_BEAD_TYPE }, "bead"),
     );
     const link = resource(
       await h.post(
         "create-link",
         {
-          id: "links/l",
+          id: "l",
           type: DEVELOPMENT_LINK_TYPE,
           source: bead.id,
           target: bead.id,
@@ -181,11 +181,11 @@ describe("non-attesting bdptest HTTP development authority", () => {
         "link",
       ),
     );
-    expect(jsonBody(await h.get("links/l"))).toEqual(link);
+    expect(jsonBody(await h.get("l"))).toEqual(link);
     expect(
       await h.post("delete-bead", { bead: bead.id, expectedRevision: bead.revision }, "unsafe"),
     ).toMatchObject({ status: 409, body: { code: "incident-links-exist" } });
-    expect(jsonBody(await h.get("beads/a"))).toEqual(bead);
+    expect(jsonBody(await h.get("a"))).toEqual(bead);
     const changed = resource(
       await h.post(
         "update-link",
@@ -199,7 +199,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     );
     expect(changed.metadata).toEqual({});
     expect(changed.properties).toEqual({ weight: 1 });
-    expect(jsonBody(await h.get("links/l"))).toEqual(changed);
+    expect(jsonBody(await h.get("l"))).toEqual(changed);
     expect(
       await h.post("delete-link", { link: link.id, expectedRevision: changed.revision }, "unlink"),
     ).toMatchObject({ status: 200 });
@@ -242,7 +242,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect((await fetch(endpoint, { method: "POST", headers, body: "{" })).status).toBe(400);
     const valid = await h.post(
       "create-bead",
-      { id: "beads/receiving", type: DEVELOPMENT_BEAD_TYPE },
+      { id: "receiving", type: DEVELOPMENT_BEAD_TYPE },
       "receiving",
     );
     expect(valid.status).toBe(200); // Every refusal above left the key unclaimed.
@@ -250,7 +250,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
 
   it("rejects duplicate singleton keys before admission", async () => {
     const h = await start();
-    const input = JSON.stringify({ id: "beads/raw", type: DEVELOPMENT_BEAD_TYPE });
+    const input = JSON.stringify({ id: "raw", type: DEVELOPMENT_BEAD_TYPE });
     const status = await new Promise<number>((resolve, reject) => {
       const request = httpRequest(
         `${h.server.scope}development/create-bead`,
@@ -286,13 +286,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
 
   it("puts, retargets, resolves and deletes aliases without changing Bead revisions", async () => {
     const h = await start();
-    const a = resource(
-      await h.post("create-bead", { id: "beads/a", type: DEVELOPMENT_BEAD_TYPE }, "a"),
-    );
-    const b = resource(
-      await h.post("create-bead", { id: "beads/b", type: DEVELOPMENT_BEAD_TYPE }, "b"),
-    );
-    const put = { alias: "alias/latest", target: "beads/a" };
+    const a = resource(await h.post("create-bead", { id: "a", type: DEVELOPMENT_BEAD_TYPE }, "a"));
+    const b = resource(await h.post("create-bead", { id: "b", type: DEVELOPMENT_BEAD_TYPE }, "b"));
+    const put = { alias: "alias/latest", target: "a" };
     const first = await h.post("put-alias", put, "alias_first");
     expect(first).toMatchObject({
       status: 200,
@@ -308,13 +304,18 @@ describe("non-attesting bdptest HTTP development authority", () => {
     await redirect.body?.cancel();
     const retarget = await h.post("put-alias", { ...put, target: b.id }, "alias_second");
     expect(retarget).toMatchObject({ status: 200, body: { target: b.id } });
-    expect(jsonBody(await h.get("beads/a"))).toEqual(a);
-    expect(jsonBody(await h.get("beads/b"))).toEqual(b);
+    expect(jsonBody(await h.get("a"))).toEqual(a);
+    expect(jsonBody(await h.get("b"))).toEqual(b);
     expect(jsonBody(await h.post("put-alias", put, "alias_first"))).toEqual(jsonBody(first));
     expect(await h.post("put-alias", { ...put, target: b.id }, "alias_first")).toMatchObject({
       status: 409,
       body: { code: "idempotency-conflict" },
     });
+    await h.post(
+      "create-bead",
+      { id: "alias/a", type: DEVELOPMENT_BEAD_TYPE },
+      "alias_path_resource",
+    );
     expect(
       await h.post("put-alias", { alias: "alias/a", target: b.id }, "collision"),
     ).toMatchObject({ status: 409, body: { code: "identity-taken" } });
@@ -399,7 +400,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
 
   it("shares retained keys between singleton and sequence carriers", async () => {
     const h = await start();
-    const create = { id: "beads/shared", type: DEVELOPMENT_BEAD_TYPE };
+    const create = { id: "shared", type: DEVELOPMENT_BEAD_TYPE };
     const singleton = resource(await h.post("create-bead", create, "shared_create"));
     const operations = [
       { ...create, operation: "createBead", idempotencyKey: "shared_create", name: "shared" },
@@ -434,7 +435,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
   it("retains successful prefixes, reports failures in order and continues independent members", async () => {
     const h = await start();
     const a = resource(
-      await h.post("create-bead", { id: "beads/a", type: DEVELOPMENT_BEAD_TYPE }, "seed"),
+      await h.post("create-bead", { id: "a", type: DEVELOPMENT_BEAD_TYPE }, "seed"),
     );
     const input = {
       operations: [
@@ -456,14 +457,14 @@ describe("non-attesting bdptest HTTP development authority", () => {
           operation: "createBead",
           idempotencyKey: "bad_create",
           name: "bad",
-          id: "beads/a",
+          id: "a",
           type: DEVELOPMENT_BEAD_TYPE,
         },
         { operation: "putAlias", idempotencyKey: "dependent", alias: "alias/bad", target: "@bad" },
         {
           operation: "createBead",
           idempotencyKey: "last",
-          id: "beads/last",
+          id: "last",
           type: DEVELOPMENT_BEAD_TYPE,
         },
       ],
@@ -479,7 +480,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       { operationIndex: 4, outcome: "created" },
     ]);
     expect(jsonBody(await h.get(a.id))).toMatchObject({ properties: { n: 1 } });
-    expect(await h.get("beads/last")).toMatchObject({ status: 200 });
+    expect(await h.get("last")).toMatchObject({ status: 200 });
     expect(await h.get("alias/bad")).toMatchObject({ status: 404 });
     expect(jsonBody(await h.sequence(input))).toEqual(result);
     await h.server.close();
@@ -548,33 +549,33 @@ describe("non-attesting bdptest HTTP development authority", () => {
     const first = {
       operation: "createBead",
       idempotencyKey: "first",
-      id: "beads/first",
+      id: "first",
       type: DEVELOPMENT_BEAD_TYPE,
     };
     const bad = {
       operation: "putAlias",
       idempotencyKey: "bad",
       alias: "alias/bad?query",
-      target: "beads/first",
+      target: "first",
     };
     expect(await h.sequence({ operations: [first, bad] })).toMatchObject({ status: 400 });
     expect(await h.post("sequence", { operations: [first] }, "stray")).toMatchObject({
       status: 400,
     });
-    expect(
-      await h.sequence({ operations: [first, { ...first, id: "beads/other" }] }),
-    ).toMatchObject({ status: 400 });
+    expect(await h.sequence({ operations: [first, { ...first, id: "other" }] })).toMatchObject({
+      status: 400,
+    });
     expect(
       await h.sequence({
         operations: Array.from({ length: 33 }, (_, i) => ({
           ...first,
-          id: `beads/item${i}`,
+          id: `item${i}`,
           idempotencyKey: `item${i}`,
         })),
       }),
     ).toMatchObject({ status: 413 });
-    expect(await h.get("beads/first")).toMatchObject({ status: 404 });
-    expect(await h.get("beads/item0")).toMatchObject({ status: 404 });
+    expect(await h.get("first")).toMatchObject({ status: 404 });
+    expect(await h.get("item0")).toMatchObject({ status: 404 });
     const result = parseReadUpdateSequenceResponse(
       jsonBody(await h.sequence({ operations: [first] })),
     );
@@ -584,9 +585,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
   it("serves conditional GET/HEAD with Resource ETags and ordinary refusals first", async () => {
     const h = await start();
     const created = resource(
-      await h.post("create-bead", { id: "beads/http", type: DEVELOPMENT_BEAD_TYPE }, "http"),
+      await h.post("create-bead", { id: "http", type: DEVELOPMENT_BEAD_TYPE }, "http"),
     );
-    const url = `${h.server.scope}beads/http`;
+    const url = `${h.server.scope}http`;
     const headers = { authorization: `Bearer ${token}` };
     const get = await fetch(url, { headers });
     const etag = get.headers.get("etag");
@@ -615,7 +616,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       expect(mismatch.status).toBe(412);
       expect(await mismatch.text()).toBe("");
     }
-    const absent = await fetch(`${h.server.scope}beads/missing`, {
+    const absent = await fetch(`${h.server.scope}missing`, {
       headers: { ...headers, "if-none-match": "*", accept: "text/plain" },
     });
     expect(absent.status).toBe(404);
@@ -623,7 +624,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     const denied = await fetch(url, { headers: { "if-none-match": "*" } });
     expect(denied.status).toBe(401);
     expect(parseReadUpdateProblem(await denied.json()).code).toBe("unauthenticated");
-    const noTag = await fetch(`${h.server.scope}beads/`, {
+    const noTag = await fetch(`${h.server.scope}bdp/beads`, {
       headers: { ...headers, "if-none-match": "*" },
     });
     expect(noTag.status).toBe(304);
@@ -639,7 +640,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       ["application/*;q=0.5", 200],
       ["application/json; charset=utf-8", 406],
     ] as const) {
-      const response = await fetch(`${h.server.scope}beads/`, {
+      const response = await fetch(`${h.server.scope}bdp/beads`, {
         headers: { authorization: `Bearer ${token}`, accept },
       });
       expect(response.status).toBe(status);
@@ -649,7 +650,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
         expect(await response.text()).toBe("");
       } else await response.body?.cancel();
     }
-    const head = await fetch(`${h.server.scope}beads/missing`, {
+    const head = await fetch(`${h.server.scope}missing`, {
       method: "HEAD",
       headers: { authorization: `Bearer ${token}` },
     });
@@ -657,9 +658,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(head.headers.get("content-type")).toBe("application/problem+json");
     expect(await head.text()).toBe("");
     for (const [target, method, allow] of [
-      ["beads/", "POST", "GET, HEAD"],
+      ["bdp/beads", "POST", "GET, HEAD"],
       ["development/create-bead", "GET", "POST"],
-      ["beads/", "OPTIONS", "GET, HEAD"],
+      ["bdp/beads", "OPTIONS", "GET, HEAD"],
     ] as const) {
       const response = await fetch(`${h.server.scope}${target}`, {
         method,
@@ -673,7 +674,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
 
   it("refuses unknown development operations before method or key admission", async () => {
     const h = await start();
-    const input = { id: "beads/unknown-route", type: DEVELOPMENT_BEAD_TYPE };
+    const input = { id: "unknown-route", type: DEVELOPMENT_BEAD_TYPE };
     const unknown = await h.post("not-an-operation", input, "unknown_route");
     expect(unknown.status).toBe(404);
     expect(parseReadUpdateProblem(jsonBody(unknown))).toMatchObject({
@@ -702,7 +703,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
   it("returns BDP receiving Problems without capturing keys and ignores request media parameters", async () => {
     const h = await start();
     const url = `${h.server.scope}development/create-bead`;
-    const input = { id: "beads/media", type: DEVELOPMENT_BEAD_TYPE };
+    const input = { id: "media", type: DEVELOPMENT_BEAD_TYPE };
     const headers = { authorization: `Bearer ${token}`, "idempotency-key": "media" };
     for (const contentType of [undefined, "text/plain"]) {
       const response = await fetch(url, {
@@ -754,7 +755,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
 
   it("rejects hostile raw targets, wrong Host and duplicate credentials before key capture", async () => {
     const h = await start();
-    const body = JSON.stringify({ id: "beads/raw-safe", type: DEVELOPMENT_BEAD_TYPE });
+    const body = JSON.stringify({ id: "raw-safe", type: DEVELOPMENT_BEAD_TYPE });
     const host = new URL(h.server.scope).host;
     const base = [
       "Host",
@@ -798,7 +799,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       (await rawPost(h.server.scope, "/development/create-bead", [...base, "Host", host], body))
         .status,
     ).toBe(400);
-    expect(await h.get("beads/raw-safe")).toMatchObject({ status: 404 });
+    expect(await h.get("raw-safe")).toMatchObject({ status: 404 });
     expect(await h.post("create-bead", JSON.parse(body), "raw_safe")).toMatchObject({
       status: 200,
     });
@@ -845,17 +846,13 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(huge.status).toBe(413);
     expect(parseReadUpdateProblem(JSON.parse(huge.body)).code).toBe("request-too-large");
     expect(
-      await h.post(
-        "create-bead",
-        { id: "beads/scalar", type: DEVELOPMENT_BEAD_TYPE },
-        "bad_scalar",
-      ),
+      await h.post("create-bead", { id: "scalar", type: DEVELOPMENT_BEAD_TYPE }, "bad_scalar"),
     ).toMatchObject({ status: 200 });
   });
 
   it("negotiates mutation JSON before admission while preserving retained conflict and failure", async () => {
     const h = await start();
-    const input = { id: "beads/accept", type: DEVELOPMENT_BEAD_TYPE };
+    const input = { id: "accept", type: DEVELOPMENT_BEAD_TYPE };
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
@@ -880,13 +877,13 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(conflict.status).toBe(409);
     expect(parseReadUpdateProblem(await conflict.json()).code).toBe("idempotency-conflict");
     expect(resource(await h.post("create-bead", input, "accept"))).toEqual(created);
-    expect(await h.post("delete-bead", { bead: "beads/missing" }, "missing_accept")).toMatchObject({
+    expect(await h.post("delete-bead", { bead: "missing" }, "missing_accept")).toMatchObject({
       status: 404,
     });
     const failed = await fetch(`${h.server.scope}development/delete-bead`, {
       method: "POST",
       headers: { ...headers, "idempotency-key": "missing_accept" },
-      body: JSON.stringify({ bead: "beads/missing" }),
+      body: JSON.stringify({ bead: "missing" }),
     });
     expect(failed.status).toBe(404);
     expect(parseReadUpdateProblem(await failed.json()).code).toBe("resource-not-found");
@@ -894,7 +891,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       operations: [
         {
           ...input,
-          id: "beads/sequence-accept",
+          id: "sequence-accept",
           operation: "createBead",
           idempotencyKey: "sequence_accept",
         },
@@ -911,7 +908,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     });
     expect(seq.status).toBe(406);
     expect(await seq.text()).toBe("");
-    expect(await h.get("beads/sequence-accept")).toMatchObject({ status: 404 });
+    expect(await h.get("sequence-accept")).toMatchObject({ status: 404 });
     expect(await h.sequence(sequence)).toMatchObject({ status: 200 });
   });
 
@@ -922,7 +919,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     await h.server.close();
     await expect(start(dir, Number(new URL(h.server.scope).port), true)).rejects.toThrow();
     const reopened = await start(dir, Number(new URL(h.server.scope).port), false);
-    expect((await reopened.get("beads/")).status).toBe(200);
+    expect((await reopened.get("bdp/beads")).status).toBe(200);
   });
 });
 

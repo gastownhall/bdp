@@ -107,19 +107,18 @@ function preflightOperation(scope: URL, { operation, input }: UnadmittedReadUpda
     if (value === undefined) continue;
     const reference = typeof value === "string" ? value : (value as { readonly uri: string }).uri;
     if (reference.startsWith("@")) continue; // S1 already checked binding location/kind/order.
-    const creationRoot =
-      field === "id" ? (operation === "createBead" ? "beads" : "links") : undefined;
+    const isCreationId =
+      field === "id" && (operation === "createBead" || operation === "createLink");
     try {
       if (!/^[A-Za-z][A-Za-z0-9+.-]*:/.test(reference)) {
         assertCanonicalPathSegments(reference, field);
-        if (creationRoot !== undefined) assertCreationRoot(reference, creationRoot);
         continue;
       }
       // S1 has validated an absolute RFC URI. WHATWG URL is used only for
       // locality classification, not as an additional external-URI grammar.
       const parsed = URL.canParse(reference) ? new URL(reference) : undefined;
       const inScope = parsed !== undefined && isHttpScopeCandidate(scope, parsed, reference);
-      if (!inScope && creationRoot === undefined) continue; // External references remain byte-exact.
+      if (!inScope && !isCreationId) continue; // External references remain byte-exact.
       if (!inScope || parsed === undefined)
         throw new Error("creation ID is outside the configured Scope");
       parseCanonicalHttpUrl(reference, field);
@@ -127,16 +126,10 @@ function preflightOperation(scope: URL, { operation, input }: UnadmittedReadUpda
         throw new Error("in-Scope reference must use its canonical Scope spelling");
       const local = reference.slice(scope.href.length);
       assertCanonicalPathSegments(local, field);
-      if (creationRoot !== undefined) assertCreationRoot(local, creationRoot);
     } catch (cause) {
       throw new ReadUpdateCarrierError(`malformed Scope-relative ${field} reference`, { cause });
     }
   }
-}
-
-function assertCreationRoot(local: string, root: string): void {
-  if (!local.startsWith(`${root}/`) || local.length === root.length + 1)
-    throw new Error("creation ID requires its Resource root and a nonempty ID path");
 }
 
 /** Classification is intentionally more permissive than acceptance, so URL

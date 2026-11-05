@@ -94,13 +94,13 @@ function fixture(s = scope, owned = false, maximum = 2) {
 }
 const bead = (id: string, s = scope) => ({
   operation: "createBead",
-  id: `beads/${id}`,
+  id: `${id}`,
   type: `${s}types/bead`,
   properties: { n: 0 },
 });
-const link = (id = "l", source = "beads/a", target: unknown = "beads/b", s = scope) => ({
+const link = (id = "l", source = "a", target: unknown = "b", s = scope) => ({
   operation: "createLink",
-  id: `links/${id}`,
+  id: `${id}`,
   type: `${s}types/link`,
   source,
   target,
@@ -108,10 +108,10 @@ const link = (id = "l", source = "beads/a", target: unknown = "beads/b", s = sco
 });
 const patch = {
   operation: "updateLink",
-  link: "links/l",
+  link: "l",
   propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
 };
-const remove = { operation: "deleteLink", link: "links/l" };
+const remove = { operation: "deleteLink", link: "l" };
 const ajv = new Ajv2020({ strict: true, allErrors: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
@@ -145,25 +145,25 @@ it.each([false, true])(
     f.run([bead("a"), bead("b"), link()]);
     f.run([patch, remove]);
     const global = collect(f.owner, `${scope}events/`),
-      a = collect(f.owner, `${scope}beads/a?view=events`),
-      l = collect(f.owner, `${scope}links/l?view=events`);
+      a = collect(f.owner, `${scope}a?view=events`),
+      l = collect(f.owner, `${scope}l?view=events`);
     expect(l.events.map((e) => e.type)).toEqual(["created", "updated", "deleted"]);
     expect(a.events.map((e) => [e.type, e.subject])).toEqual(
       owned
         ? [
-            ["created", `${scope}beads/a`],
-            ["linked", `${scope}links/l`],
-            ["updated", `${scope}beads/a`],
-            ["updated", `${scope}links/l`],
-            ["updated", `${scope}beads/a`],
-            ["unlinked", `${scope}links/l`],
-            ["updated", `${scope}beads/a`],
+            ["created", `${scope}a`],
+            ["linked", `${scope}l`],
+            ["updated", `${scope}a`],
+            ["updated", `${scope}l`],
+            ["updated", `${scope}a`],
+            ["unlinked", `${scope}l`],
+            ["updated", `${scope}a`],
           ]
         : [
-            ["created", `${scope}beads/a`],
-            ["linked", `${scope}links/l`],
-            ["updated", `${scope}links/l`],
-            ["unlinked", `${scope}links/l`],
+            ["created", `${scope}a`],
+            ["linked", `${scope}l`],
+            ["updated", `${scope}l`],
+            ["unlinked", `${scope}l`],
           ],
     );
     expect(l.events[1]?.data).toMatchObject({ change: patch.propertiesChange });
@@ -177,8 +177,8 @@ it.each([false, true])(
       expect(event.id).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
     }
     f.reopen();
-    expect(collect(f.owner, `${scope}beads/a?view=events`)).toEqual(a);
-    expect(collect(f.owner, `${scope}links/l?view=events`)).toEqual(l);
+    expect(collect(f.owner, `${scope}a?view=events`)).toEqual(a);
+    expect(collect(f.owner, `${scope}l?view=events`)).toEqual(l);
   },
 );
 it.each([false, true])(
@@ -186,8 +186,8 @@ it.each([false, true])(
   (owned) => {
     const f = fixture(scope, owned);
     f.run([bead("a")]);
-    f.run([link("l", "beads/a", "beads/a"), patch, remove]);
-    const events = collect(f.owner, `${scope}beads/a?view=events`).events;
+    f.run([link("l", "a", "a"), patch, remove]);
+    const events = collect(f.owner, `${scope}a?view=events`).events;
     const incidence = events.filter((e) => e.type === "linked" || e.type === "unlinked");
     expect(incidence.map((e) => (e.data as { endpoint: string }).endpoint)).toEqual([
       "source",
@@ -195,15 +195,13 @@ it.each([false, true])(
       "source",
       "target",
     ]);
-    expect(
-      events.filter((e) => e.type === "updated" && e.subject === `${scope}links/l`),
-    ).toHaveLength(1);
+    expect(events.filter((e) => e.type === "updated" && e.subject === `${scope}l`)).toHaveLength(1);
     expect(f.owner.inspect().groups.at(-1)).toMatchObject({
       changes: expect.arrayContaining([
         {
           operation: "tombstone",
           resourceKind: "link",
-          resource: expect.objectContaining({ id: `${scope}links/l` }),
+          resource: expect.objectContaining({ id: `${scope}l` }),
         },
       ]),
     });
@@ -214,13 +212,13 @@ it("preserves endpoint pins, omits external sources and does not mutate Beads fo
   f.run([bead("a")]);
   const before = f.owner.inspect().resources[0];
   const pin = { uri: "https://external.invalid/resource", revision: "r-external" };
-  expect(f.run([link("l", "beads/a", pin)]).status).toBe("completed");
-  const events = collect(f.owner, `${scope}beads/a?view=events`).events;
+  expect(f.run([link("l", "a", pin)]).status).toBe("completed");
+  const events = collect(f.owner, `${scope}a?view=events`).events;
   expect(events).toHaveLength(2);
   expect(events[1]?.data).toMatchObject({ target: pin, endpoint: "source" });
   expect(f.owner.inspect().resources[0]).toEqual(before);
   const config = f.owner.readConfiguration();
-  expect(f.owner.readEvents(`${scope}beads/missing?view=events`)).toStrictEqual({
+  expect(f.owner.readEvents(`${scope}missing?view=events`)).toStrictEqual({
     kind: "missing",
     context: {
       scopeEpoch: config.scopeEpoch,
@@ -232,7 +230,7 @@ it("preserves endpoint pins, omits external sources and does not mutate Beads fo
 it("pages within groups, continues exclusively after end and rejects unrelated/fabricated cursors", () => {
   const f = fixture();
   f.run([bead("a"), bead("b"), link()]);
-  const source = `${scope}beads/a?view=events`,
+  const source = `${scope}a?view=events`,
     data = collect(f.owner, source),
     all = collect(f.owner, `${scope}events/`);
   const last = data.events.at(-1),
@@ -289,16 +287,14 @@ it("keeps unknown sources nondisclosing before minimum and refuses older success
     authorizationView: config.authorizationView,
     minimumPosition: "pos-2",
   };
-  expect(f.owner.readEvents(`${scope}beads/unknown?view=events`, undefined, minimum)).toStrictEqual(
-    {
-      kind: "missing",
-      context: {
-        scopeEpoch: config.scopeEpoch,
-        authorizationView: config.authorizationView,
-        scopePosition: "pos-1",
-      },
+  expect(f.owner.readEvents(`${scope}unknown?view=events`, undefined, minimum)).toStrictEqual({
+    kind: "missing",
+    context: {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      scopePosition: "pos-1",
     },
-  );
+  });
   expect(() => f.owner.readEvents(`${scope}events/`, undefined, minimum)).toThrow(
     TransactionMinimumFailure,
   );
@@ -321,7 +317,7 @@ it("does not emit failed/no-op transactions and does not expire Events with rece
     patch,
     {
       operation: "updateBead",
-      bead: "beads/missing",
+      bead: "missing",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
     },
   ]);
@@ -337,41 +333,37 @@ it("isolates unresolved metadata-only incident membership while Scope/Link sourc
   const f = fixture();
   f.run([bead("a"), bead("b"), link()]);
   const metadataChange = [{ op: "add", path: "/note", value: "own" }];
-  expect(f.run([{ operation: "updateBead", bead: "beads/a", metadataChange }]).status).toBe(
-    "completed",
-  );
-  expect(collect(f.owner, `${scope}beads/a?view=events`).events.at(-1)).toMatchObject({
-    subject: `${scope}beads/a`,
+  expect(f.run([{ operation: "updateBead", bead: "a", metadataChange }]).status).toBe("completed");
+  expect(collect(f.owner, `${scope}a?view=events`).events.at(-1)).toMatchObject({
+    subject: `${scope}a`,
     type: "updated",
     data: { metadataChange },
   });
   expect(f.run([{ ...patch, metadataChange }]).status).toBe("completed");
-  expect(collect(f.owner, `${scope}beads/a?view=events`).events.at(-1)).toMatchObject({
-    subject: `${scope}links/l`,
+  expect(collect(f.owner, `${scope}a?view=events`).events.at(-1)).toMatchObject({
+    subject: `${scope}l`,
     type: "updated",
     data: { change: patch.propertiesChange, metadataChange },
   });
   f.run([
     {
       operation: "updateLink",
-      link: "links/l",
+      link: "l",
       metadataChange: [{ op: "add", path: "/n", value: 1 }],
     },
   ]);
-  expect(collect(f.owner, `${scope}links/l?view=events`).events.at(-1)?.data).toHaveProperty(
+  expect(collect(f.owner, `${scope}l?view=events`).events.at(-1)?.data).toHaveProperty(
     "metadataChange",
   );
   expect(collect(f.owner, `${scope}events/`).events.at(-1)?.data).toHaveProperty("metadataChange");
-  expect(() => collect(f.owner, `${scope}beads/a?view=events`)).toThrow(
-    TransactionEventProjectionGap,
-  );
+  expect(() => collect(f.owner, `${scope}a?view=events`)).toThrow(TransactionEventProjectionGap);
 });
 it("bounds actual finite page bytes with long canonical sources and emits no partial Event", () => {
   const s = `https://example.test/${"s".repeat(60000)}/`,
     f = fixture(s, false, 32);
   f.run([bead("a", s)]);
   f.run([bead("b", s)]);
-  for (let i = 0; i < 12; i++) f.run([link(`l${i}`, "beads/a", "beads/b", s)]);
+  for (let i = 0; i < 12; i++) f.run([link(`l${i}`, "a", "b", s)]);
   const result = collect(f.owner, `${s}events/`);
   expect(result.events).toHaveLength(38);
   expect(result.pages.length).toBeGreaterThan(1);
@@ -379,13 +371,13 @@ it("bounds actual finite page bytes with long canonical sources and emits no par
   expect(new Set(result.events.map((e) => e.id)).size).toBe(38);
 });
 it("keeps Event route/query validation private and closed", () => {
-  expect(transactionEventRequest(new URL(`${scope}beads/a`), scope)).toBeUndefined();
+  expect(transactionEventRequest(new URL(`${scope}a`), scope)).toBeUndefined();
   for (const target of [
     "events/?limit=1",
     "events/?after=genesis",
-    "beads/a?view=events&view=events",
-    "beads/a?view=events&after=",
-    "types/a?view=events",
+    "a?view=events&view=events",
+    "a?view=events&after=",
+    "bdp/beads?view=events",
   ])
     expect(() => transactionEventRequest(new URL(target, scope), scope)).toThrow(
       TransactionEventParameterError,
@@ -472,7 +464,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     });
     expect(timeout.status).toBe(503);
     expect(await timeout.json()).toMatchObject({ code: "catch-up-timeout" });
-    const unknown = await get("beads/unknown?view=events", {
+    const unknown = await get("unknown?view=events", {
       ...headers,
       "bdp-minimum-scope-position": "pos-99",
     });
@@ -492,9 +484,9 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       expect(r.status).toBe(406);
       expect(await r.text()).toBe("");
     }
-    const correspondingGet = await get("beads/a?view=events");
+    const correspondingGet = await get("a?view=events");
     const correspondingText = await correspondingGet.text();
-    const head = await get("beads/a?view=events", {}, "HEAD");
+    const head = await get("a?view=events", {}, "HEAD");
     expect(head.status).toBe(200);
     expect(head.headers.get("content-length")).toBe(String(Buffer.byteLength(correspondingText)));
     expect(head.headers.get("content-length")).not.toBe(String(correspondingText.length));
@@ -502,12 +494,12 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     expect(await head.text()).toBe("");
     const neverMember = renderTransactionEvent(
       { scopeEpoch: epoch, authorizationView: view },
-      `${scope}beads/a?view=events`,
+      `${scope}a?view=events`,
       "pos-1",
       secondEvent,
     );
     for (const after of ["malformed", firstEvent.id, neverMember.id]) {
-      const route = `beads/a?view=events&after=${encodeURIComponent(after)}`;
+      const route = `a?view=events&after=${encodeURIComponent(after)}`;
       const invalid = await get(route);
       expect(invalid.status).toBe(400);
       expect(await invalid.json()).toMatchObject({ code: "invalid-parameter" });
@@ -516,7 +508,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       expect(await invalidHead.text()).toBe("");
     }
     // Existing canonical Resource-path validation refuses this alternate spelling.
-    const noncanonical = await get("beads/%61?view=events");
+    const noncanonical = await get("%61?view=events");
     expect(noncanonical.status).toBe(400);
     expect(await noncanonical.json()).toMatchObject({ code: "invalid-parameter" });
     for (const route of [
@@ -542,12 +534,11 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     expect((await get("events/", { origin: "https://other.invalid" })).status).toBe(403);
     expect((await get("events/", { authorization: "" })).status).toBe(401);
     expect((await get("events/", {}, "DELETE")).status).toBe(405);
-    await post([remove, { operation: "deleteBead", bead: "beads/a" }], "delete");
-    expect((await get("beads/a")).status).toBe(404);
-    expect((await get("beads/a?view=events")).status).toBe(200);
+    await post([remove, { operation: "deleteBead", bead: "a" }], "delete");
+    expect((await get("a")).status).toBe(404);
+    expect((await get("a?view=events")).status).toBe(200);
     expect(
-      (await post([bead("c"), bead("d"), link("metadata", "beads/c", "beads/d")], "metadata-seed"))
-        .status,
+      (await post([bead("c"), bead("d"), link("metadata", "c", "d")], "metadata-seed")).status,
     ).toBe(200);
     expect(
       (
@@ -555,7 +546,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
           [
             {
               operation: "updateLink",
-              link: "links/metadata",
+              link: "metadata",
               metadataChange: [{ op: "add", path: "/note", value: "pending-ruling" }],
             },
           ],
@@ -564,13 +555,13 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       ).status,
     ).toBe(200);
     for (const method of ["GET", "HEAD"]) {
-      const gap = await get("beads/c?view=events", {}, method);
+      const gap = await get("c?view=events", {}, method);
       expect(gap.status).toBe(500);
       expect(gap.headers.get("x-bdp-development-limit")).toBe("incident-link-metadata");
       expect(gap.headers.get("x-bdp-development")).toBe("non-attesting");
       expect(await gap.text()).toBe("");
     }
-    expect((await get("links/metadata?view=events")).status).toBe(200);
+    expect((await get("metadata?view=events")).status).toBe(200);
     expect((await get("events/")).status).toBe(200);
   } finally {
     await runtime.close();
@@ -638,7 +629,7 @@ it("checks minimum position before any retained group scan or body materializati
 it("continues a Resource cursor across groups with zero contributions and observes the true end", () => {
   const f = fixture();
   f.run([bead("a"), bead("b")]);
-  const source = `${scope}beads/a?view=events`;
+  const source = `${scope}a?view=events`;
   const first = collect(f.owner, source).events[0];
   if (!first) throw new Error("expected a created fact");
   for (let n = 1; n <= 12; n++) {
@@ -646,7 +637,7 @@ it("continues a Resource cursor across groups with zero contributions and observ
       f.run([
         {
           operation: "updateBead",
-          bead: "beads/b",
+          bead: "b",
           propertiesChange: [{ op: "replace", path: "/n", value: n }],
         },
       ]).status,
@@ -663,16 +654,14 @@ it("continues a Resource cursor across groups with zero contributions and observ
   f.run([
     {
       operation: "updateBead",
-      bead: "beads/a",
+      bead: "a",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
     },
   ]);
   expect(f.owner.readEvents(source, first.id)).toMatchObject({
     kind: "page",
     page: {
-      events: [
-        expect.objectContaining({ subject: `${scope}beads/a`, type: "updated", ordinal: 0 }),
-      ],
+      events: [expect.objectContaining({ subject: `${scope}a`, type: "updated", ordinal: 0 })],
       next: null,
     },
     context: { scopePosition: "pos-14" },
@@ -790,12 +779,8 @@ function scanEvents(
 it("private one-group scans preserve self-Link ordinals, partial packets and immutable replay", () => {
   const f = fixture(scope, true, 1);
   f.run([bead("a")]);
-  f.run([link("l", "beads/a", "beads/a"), patch, remove]);
-  for (const source of [
-    `${scope}events/`,
-    `${scope}beads/a?view=events`,
-    `${scope}links/l?view=events`,
-  ]) {
+  f.run([link("l", "a", "a"), patch, remove]);
+  for (const source of [`${scope}events/`, `${scope}a?view=events`, `${scope}l?view=events`]) {
     const finite = collect(f.owner, source).events;
     const scanned = scanEvents(f.owner, source);
     expect(scanned.events).toEqual(finite);
@@ -811,13 +796,13 @@ it("private one-group scans preserve self-Link ordinals, partial packets and imm
 it("idle scan advances do not construct group readers or reread unrelated historical bodies", () => {
   const f = fixture();
   f.run([bead("a"), bead("b")]);
-  const source = `${scope}beads/a?view=events`,
+  const source = `${scope}a?view=events`,
     first = collect(f.owner, source).events[0]!;
   for (let n = 1; n <= 12; n++)
     f.run([
       {
         operation: "updateBead",
-        bead: "beads/b",
+        bead: "b",
         propertiesChange: [{ op: "replace", path: "/n", value: n }],
       },
     ]);
@@ -859,7 +844,7 @@ it("idle scan advances do not construct group readers or reread unrelated histor
   f.run([
     {
       operation: "updateBead",
-      bead: "beads/b",
+      bead: "b",
       propertiesChange: [{ op: "replace", path: "/n", value: 99 }],
     },
   ]);
@@ -870,7 +855,7 @@ it("idle scan advances do not construct group readers or reread unrelated histor
   f.run([
     {
       operation: "updateBead",
-      bead: "beads/a",
+      bead: "a",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
     },
   ]);
@@ -906,10 +891,11 @@ it("scan initial identity and minimum precede reconnect validity; contextual err
     authorizationView: current.context.authorizationView,
     minimumPosition: "pos-9",
   };
-  expect(f.owner.beginEventScan(`${scope}beads/missing?view=events`, "bad", minimum, true)).toEqual(
-    { kind: "missing", context: current.context },
-  );
-  expect(() => f.owner.beginEventScan(`${scope}beads/a?view=events`, "bad", minimum, true)).toThrow(
+  expect(f.owner.beginEventScan(`${scope}missing?view=events`, "bad", minimum, true)).toEqual({
+    kind: "missing",
+    context: current.context,
+  });
+  expect(() => f.owner.beginEventScan(`${scope}a?view=events`, "bad", minimum, true)).toThrow(
     expect.objectContaining({ reason: "behind", context: current.context }),
   );
   for (const after of ["", "genesis", current.events[0]!.id.replace(/pos-1_/, "pos-99_")]) {
@@ -917,7 +903,7 @@ it("scan initial identity and minimum precede reconnect validity; contextual err
       expect.objectContaining({ context: current.context }),
     );
   }
-  expect(() => f.owner.readEvents(`${scope}beads/a?view=events`, current.events[0]!.id)).toThrow(
+  expect(() => f.owner.readEvents(`${scope}a?view=events`, current.events[0]!.id)).toThrow(
     expect.objectContaining({ context: current.context }),
   );
 });
@@ -931,7 +917,7 @@ it("byte-bound scan packets preserve the exact finite reservation and within-gro
     f.run(
       Array.from({ length: 32 }, (_, n) => ({
         operation: "updateBead",
-        bead: "beads/a",
+        bead: "a",
         propertiesChange: [{ op: "replace", path: "/n", value: n + 1 }],
       })),
     ),
@@ -1008,10 +994,10 @@ it("refuses configuration whose group step differs from the structural owner imp
 });
 
 it.each([
-  { mode: "finite", kind: "Bead", id: "beads/missing" },
-  { mode: "finite", kind: "Link", id: "links/missing" },
-  { mode: "SSE", kind: "Bead", id: "beads/missing" },
-  { mode: "SSE", kind: "Link", id: "links/missing" },
+  { mode: "finite", kind: "Bead", id: "missing" },
+  { mode: "finite", kind: "Link", id: "missing" },
+  { mode: "SSE", kind: "Bead", id: "missing" },
+  { mode: "SSE", kind: "Link", id: "missing" },
 ] as const)(
   "captures immutable current context for missing $mode $kind Event source",
   ({ mode, id }) => {
@@ -1204,7 +1190,7 @@ it("serves contextual missing Event responses for Bead and Link JSON and SSE GET
     expect(page.source).toBe(`${scope}events/`);
     expect(page.next).toBe(null);
     expect(page.events).toHaveLength(1);
-    expect(page.events[0]).toMatchObject({ type: "created", subject: `${scope}beads/known` });
+    expect(page.events[0]).toMatchObject({ type: "created", subject: `${scope}known` });
     const expected = [
       known.headers["bdp-scope-epoch"],
       known.headers["bdp-authorization-view"],
@@ -1263,7 +1249,7 @@ it("serves contextual missing Event responses for Bead and Link JSON and SSE GET
       }
     }
     const anonymous = await exchange(
-      "beads/missing?view=events",
+      "missing?view=events",
       "GET",
       "text/event-stream",
       undefined,

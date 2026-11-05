@@ -98,8 +98,9 @@ export interface ReadUpdateInputs {
  * These parsers check Scope-independent carrier syntax only. Before any key
  * claim or execution, the transport must preflight the WHOLE carrier against
  * its actual Scope: absolute in-Scope references need canonical local-path
- * checks, and absolute creation IDs need the correct fixed root. This is not
- * deferred member-time validation; opaque external endpoints stay unchanged.
+ * checks, and creation IDs must belong to that Scope. Kind-specific identity
+ * prefixes are not part of the contract. This is not deferred member-time
+ * validation; opaque external endpoints stay unchanged.
  */
 export interface UnadmittedReadUpdateOperation<
   K extends ReadUpdateOperation = ReadUpdateOperation,
@@ -274,11 +275,6 @@ function validateReferenceSyntax(
     } else {
       try {
         assertCanonicalPathSegments(reference, `${field} reference`);
-        if (field === "id") {
-          const [root, firstIdSegment] = reference.split("/");
-          if (root !== (kind === "createBead" ? "beads" : "links") || firstIdSegment === undefined)
-            throw new Error("creation id requires the correct fixed root and an id path");
-        }
       } catch (cause) {
         throw new ReadUpdateCarrierError(`malformed ${field} local reference`, { cause });
       }
@@ -409,8 +405,14 @@ export interface ReadUpdateSequenceResponse {
 }
 export function parseReadUpdateDiscovery(value: unknown): ReadUpdateDiscovery {
   const result = parseReadUpdateShape(value, "discovery");
-  for (const name of ["scope", "beads", "links", "types", "operations", "aliases"])
-    parseCanonicalHttpUrl(result[name], name);
+  for (const name of ["scope", "operations", "aliases"]) parseCanonicalHttpUrl(result[name], name);
+  if (result.types !== undefined) {
+    parseCanonicalHttpUrl(result.types, "types");
+    if (result.types !== new URL("types/", result.scope as string).href)
+      throw new ProtocolArtifactValidationError(
+        "types must identify the fixed Scope Type-inventory route",
+      );
+  }
   for (const policy of (result.maximumEndpointMultiplicity as readonly {
     linkConformsTo: string;
   }[]) ?? [])

@@ -36,7 +36,7 @@
             {
               "idempotencyKey": "w1-task-42-close",
               "operation": "updateBead",
-              "bead": "beads/task-42",
+              "bead": "task-42",
               "propertiesChange": [
                 {
                   "op": "replace",
@@ -75,7 +75,7 @@
               "operationName": "adr",
               "outcome": "created",
               "resource": {
-                "id": "https://beads.example/acme/beads/adr-104",
+                "id": "https://beads.example/acme/adr-104",
                 "type": "https://work.example/types/decision",
                 "revision": "adr-104-r1",
                 "properties": {
@@ -111,7 +111,7 @@
               "operationIndex": 2,
               "operationName": "task",
               "allocated": {
-                "id": "https://beads.example/acme/beads/task-77",
+                "id": "https://beads.example/acme/task-77",
                 "type": "https://work.example/types/task"
               }
             }
@@ -249,7 +249,7 @@
               "status": 410,
               "retry": "never",
               "allocated": {
-                "id": "https://beads.example/acme/beads/task-77",
+                "id": "https://beads.example/acme/task-77",
                 "type": "https://work.example/types/task"
               }
             },

@@ -687,16 +687,17 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       return isReadServerProblem(result) ? problemResponse(result) : jsonResponse(result);
     },
     async alias(aliasPath, request) {
-      // Gate before consulting the static table, even for invalid alias paths.
+      // Gate before consulting the static table.
       const gate = await server.perform(
         { kind: "scope-discovery", scope: server.scope },
         { signal: request.signal, httpRequest: request },
       );
       if (isReadServerProblem(gate)) return problemResponse(gate);
-      if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
       const target = server.aliases?.get(aliasPath) ?? notFound();
       return isReadProblem(target)
-        ? problemResponse(target)
+        ? target.code === "resource-not-found"
+          ? undefined
+          : problemResponse(target)
         : { status: 307, headers: new Headers({ location: target, "content-length": "0" }) };
     },
     async perform(parsed, request) {
@@ -1156,7 +1157,7 @@ async function drainServerOperations(
 function validateConfiguredScope(scope: unknown): asserts scope is AbsoluteHttpUrl {
   try {
     if (typeof scope !== "string") throw new TypeError("Scope must be a string");
-    resolveCanonicalLocalResourceId(scope as AbsoluteHttpUrl, "bead", "beads/scope-validation");
+    resolveCanonicalLocalResourceId(scope as AbsoluteHttpUrl, "bead", "scope-validation");
   } catch (cause) {
     throw new TypeError("createReadServer scope must be a canonical HTTP(S) URL ending in /", {
       cause,
@@ -1417,7 +1418,7 @@ function assertExactScopePortFields(
  * Validates the alias table at composition time, fail-closed: every alias
  * path is one-or-more canonical safe segments (the Resource-ID grammar),
  * and every target is a canonical in-Scope Bead URL. Alias-to-alias is
- * structurally impossible because targets must live beneath `beads/`.
+ * structurally impossible because targets must be canonical Bead identities.
  */
 function validateAliasTable(
   aliases: Readonly<Record<string, AbsoluteHttpUrl>> | undefined,
@@ -1433,7 +1434,7 @@ function validateAliasTable(
   if (aliases === undefined) return undefined;
   const table = new Map<string, AbsoluteHttpUrl>();
   for (const [path, target] of Object.entries(aliases)) {
-    // The exact Resource-ID segment grammar, shared with beads/ and links/:
+    // The exact Resource-ID segment grammar, shared with Resource identities:
     // canonical encodings only, one valid spelling per name.
     try {
       assertCanonicalPathSegments(path, "alias path");
@@ -1458,8 +1459,6 @@ function discoveryFor(options: ServerOptions): ReadDiscovery {
     bdpVersion: "0",
     profile: options.admittedProfile.profile,
     scope: options.scope,
-    beads: new URL("beads/", options.scope).href,
-    links: new URL("links/", options.scope).href,
     types: new URL("types/", options.scope).href,
     ...(options.aliases === undefined ? {} : { aliases: new URL("alias/", options.scope).href }),
     order: "canonical-uri",

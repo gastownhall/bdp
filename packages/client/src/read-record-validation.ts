@@ -15,7 +15,7 @@ import {
 export function resourceUrl(
   scope: AbsoluteHttpUrl,
   candidate: AbsoluteHttpUrl,
-  resource: "bead" | "link" | "type",
+  resource: "bead" | "link" | "type" | "resource",
   externalTypeDescriptorIds: ReadonlySet<string> = new Set<string>(),
 ): AbsoluteHttpUrl | ReadSessionRefusal {
   let parsed: AbsoluteHttpUrl;
@@ -36,7 +36,8 @@ export function resourceUrl(
   if (typeof confined !== "string") return confined;
   try {
     const localId = parsed.slice(scope.length);
-    if (resolveCanonicalLocalResourceId(scope, resource, localId) !== parsed)
+    const expectedKind = resource === "resource" ? "bead" : resource;
+    if (resolveCanonicalLocalResourceId(scope, expectedKind, localId) !== parsed)
       throw new Error("Resource identity did not resolve canonically");
   } catch {
     return localRefusal(

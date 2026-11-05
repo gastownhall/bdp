@@ -38,7 +38,7 @@ const SCOPE = "https://beads.example/acme/";
 describe("alias resolution", () => {
   const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
   const port: ScopePort = {
-    perform: () => Promise.reject(new Error("alias tests never reach the port")),
+    perform: () => Promise.resolve(scopePortProblem(readProblem("resource-not-found"))),
   };
   function aliasServer(aliases?: Readonly<Record<string, AbsoluteHttpUrl>>) {
     return createReadServer({
@@ -50,8 +50,8 @@ describe("alias resolution", () => {
     });
   }
   const table = Object.freeze({
-    decision: `${scope}beads/demo-f` as AbsoluteHttpUrl,
-    "releases/latest": `${scope}beads/demo-a` as AbsoluteHttpUrl,
+    decision: `${scope}demo-f` as AbsoluteHttpUrl,
+    "releases/latest": `${scope}demo-a` as AbsoluteHttpUrl,
   });
   const request = (url: string, method: "GET" | "HEAD" = "GET") => new Request(url, { method });
 
@@ -60,12 +60,12 @@ describe("alias resolution", () => {
     for (const method of ["GET", "HEAD"] as const) {
       const response = await handler(request(`${scope}alias/decision`, method));
       expect(response.status).toBe(307);
-      expect(response.headers.get("location")).toBe(`${scope}beads/demo-f`);
+      expect(response.headers.get("location")).toBe(`${scope}demo-f`);
       expect(response.body).toBeUndefined();
     }
     const nested = await handler(request(`${scope}alias/releases/latest`));
     expect(nested.status).toBe(307);
-    expect(nested.headers.get("location")).toBe(`${scope}beads/demo-a`);
+    expect(nested.headers.get("location")).toBe(`${scope}demo-a`);
   });
 
   it("returns the uniform 404 for unknown aliases, query-bearing alias URLs, and alias-less authorities", async () => {
@@ -95,10 +95,7 @@ describe("alias resolution", () => {
 
   it("rejects every noncanonical alias-path encoding the ID grammar forbids", () => {
     for (const path of ["a%2Fb", "%61", "%e2%82%ac", "%FF", "a/./b", "a/../b"]) {
-      expect(
-        () => aliasServer({ [path]: `${scope}beads/demo-f` as AbsoluteHttpUrl }),
-        path,
-      ).toThrow();
+      expect(() => aliasServer({ [path]: `${scope}demo-f` as AbsoluteHttpUrl }), path).toThrow();
     }
   });
 
@@ -115,13 +112,11 @@ describe("alias resolution", () => {
     ).toThrow("serviceDescription must not live beneath the alias root");
   });
 
-  it("refuses composition with a noncanonical alias path or a non-Bead target", () => {
-    expect(() => aliasServer({ "bad//path": `${scope}beads/demo-f` as AbsoluteHttpUrl })).toThrow();
-    expect(() => aliasServer({ ok: `${scope}links/demo-b-a` as AbsoluteHttpUrl })).toThrow();
-    expect(() => aliasServer({ ok: `${scope}alias/other` as AbsoluteHttpUrl })).toThrow();
-    expect(() =>
-      aliasServer({ ok: "https://elsewhere.example/beads/x" as AbsoluteHttpUrl }),
-    ).toThrow();
+  it("refuses composition with a noncanonical alias path or a noncanonical target", () => {
+    expect(() => aliasServer({ "bad//path": `${scope}demo-f` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: `${scope}demo-b//a` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: `${scope}alias//other` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: "https://elsewhere.example/x" as AbsoluteHttpUrl })).toThrow();
   });
 });
 
@@ -146,15 +141,15 @@ describe("Read server contract", () => {
       { kind: "collection", collection: "beads" },
       { kind: "collection", collection: "links" },
       { kind: "collection", collection: "types" },
-      { kind: "resource", resource: "bead", id: `${SCOPE}beads/a` },
-      { kind: "resource", resource: "link", id: `${SCOPE}links/a-b` },
+      { kind: "resource", resource: "bead", id: `${SCOPE}a` },
+      { kind: "resource", resource: "link", id: `${SCOPE}a-b` },
       { kind: "resource", resource: "type", id: "https://work.example/types/task" },
       { kind: "resource", resource: "type", id: `${SCOPE}types/task` },
-      { kind: "properties", resource: "bead", id: `${SCOPE}beads/a` },
-      { kind: "properties", resource: "link", id: `${SCOPE}links/a-b` },
+      { kind: "properties", resource: "bead", id: `${SCOPE}a` },
+      { kind: "properties", resource: "link", id: `${SCOPE}a-b` },
       {
         kind: "bead-links",
-        bead: `${SCOPE}beads/a`,
+        bead: `${SCOPE}a`,
         direction: "outbound",
       },
     ];
@@ -197,7 +192,7 @@ describe("Read server contract", () => {
         cursorTtlMilliseconds: 100,
       };
       const items = ["a", "b", "c"].map((id) => ({
-        id: `${SCOPE}beads/${id}`,
+        id: `${SCOPE}${id}`,
         type: "https://work.example/types/task",
         revision: "1",
         properties: { status: "open" },
@@ -445,7 +440,7 @@ describe("Read server contract", () => {
       await expect(
         server.perform(
           { kind: "collection", collection: "beads" },
-          { httpRequest: new Request(`${SCOPE}beads/`, { headers }) },
+          { httpRequest: new Request(`${SCOPE}bdp/beads`, { headers }) },
         ),
       ).resolves.toEqual(readProblem("forbidden"));
       await expect(
@@ -470,11 +465,11 @@ describe("Read server contract", () => {
     });
     const operations = [
       { kind: "scope-discovery", scope: SCOPE },
-      { kind: "resource", resource: "bead", id: `${SCOPE}beads/a` },
-      { kind: "resource", resource: "link", id: `${SCOPE}links/a-b` },
+      { kind: "resource", resource: "bead", id: `${SCOPE}a` },
+      { kind: "resource", resource: "link", id: `${SCOPE}a-b` },
       { kind: "resource", resource: "type", id: `${SCOPE}types/task` },
-      { kind: "properties", resource: "bead", id: `${SCOPE}beads/a` },
-      { kind: "properties", resource: "link", id: `${SCOPE}links/a-b` },
+      { kind: "properties", resource: "bead", id: `${SCOPE}a` },
+      { kind: "properties", resource: "link", id: `${SCOPE}a-b` },
     ] as const satisfies readonly ReadRequest[];
 
     for (const operation of operations) {
@@ -501,7 +496,7 @@ describe("Read server contract", () => {
     const result = await server.perform({
       kind: "resource",
       resource: "bead",
-      id: `${SCOPE}beads/missing`,
+      id: `${SCOPE}missing`,
     });
     expect(result).toEqual(problem);
     expect(isReadServerProblem(result)).toBe(true);
@@ -509,7 +504,7 @@ describe("Read server contract", () => {
   });
 
   it("owns and validates ScopePort success bodies before exposing them", async () => {
-    const beadId = `${SCOPE}beads/a`;
+    const beadId = `${SCOPE}a`;
     const source = {
       id: beadId,
       type: "https://work.example/types/task",
@@ -535,7 +530,7 @@ describe("Read server contract", () => {
     ["malformed collection", { kind: "success", body: { items: [], next: "not-a-url" } }],
     [
       "unsupported adapter continuation",
-      { kind: "success", body: { items: [], next: `${SCOPE}beads/?cursor=opaque` } },
+      { kind: "success", body: { items: [], next: `${SCOPE}bdp/beads?cursor=opaque` } },
     ],
   ])("fails closed for a %s ScopePort result", async (_label, result) => {
     const server = readServer({
@@ -545,22 +540,22 @@ describe("Read server contract", () => {
   });
 
   it.each([
-    ["foreign Link ID", { id: "https://outside.example/links/x" }],
-    ["noncanonical local target", { target: `${SCOPE}beads/%61` }],
+    ["foreign Link ID", { id: "https://outside.example/x" }],
+    ["noncanonical local target", { target: `${SCOPE}%61` }],
   ] as const)(
     "rejects inline owned Links that violate the ScopePort boundary: %s",
     async (_label, overrides) => {
       const link = {
-        id: `${SCOPE}links/x`,
+        id: `${SCOPE}x`,
         type: "https://work.example/types/blocks",
         revision: "1",
-        source: `${SCOPE}beads/a`,
-        target: `${SCOPE}beads/b`,
+        source: `${SCOPE}a`,
+        target: `${SCOPE}b`,
         properties: {},
         ...overrides,
       };
       const bead = {
-        id: `${SCOPE}beads/a`,
+        id: `${SCOPE}a`,
         type: "https://work.example/types/task",
         revision: "1",
         properties: {},
@@ -590,18 +585,18 @@ describe("Read server contract", () => {
   );
 
   it("enforces request identity and incident direction at the ScopePort seam", async () => {
-    const beadId = `${SCOPE}beads/a`;
+    const beadId = `${SCOPE}a`;
     const wrongBead = {
-      id: `${SCOPE}beads/other`,
+      id: `${SCOPE}other`,
       type: "https://work.example/types/task",
       revision: "r1",
       properties: { status: "open" },
     };
     const wrongLink = {
-      id: `${SCOPE}links/a-b`,
+      id: `${SCOPE}a-b`,
       type: "https://work.example/types/blocks",
       revision: "r1",
-      source: `${SCOPE}beads/b`,
+      source: `${SCOPE}b`,
       target: beadId,
       properties: {},
     };
@@ -632,12 +627,12 @@ describe("Read server contract", () => {
       perform: async () =>
         calls++ === 0 ? scopePortProblem(problem) : scopePortSuccess(branded as never),
     });
-    branded = await server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}beads/a` });
+    branded = await server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}a` });
     expect(isReadServerProblem(branded)).toBe(true);
     const success = await server.perform({
       kind: "properties",
       resource: "bead",
-      id: `${SCOPE}beads/a`,
+      id: `${SCOPE}a`,
     });
     expect(success).toEqual(problem);
     expect(isReadServerProblem(success)).toBe(false);
@@ -670,22 +665,22 @@ describe("Read server contract", () => {
       { kind: "collection", collection: "beads", limit: 1 },
       { kind: "collection", collection: "links", selector: "$" },
       { kind: "collection", collection: "types", continuation: `${SCOPE}types/?cursor=x` },
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, direction: "both", limit: 1 },
+      { kind: "bead-links", bead: `${SCOPE}a`, direction: "both", limit: 1 },
       {
         kind: "bead-links",
-        bead: `${SCOPE}beads/a`,
+        bead: `${SCOPE}a`,
         direction: "both",
-        continuation: `${SCOPE}beads/a?view=links&cursor=x`,
+        continuation: `${SCOPE}a?view=links&cursor=x`,
       },
       {
         kind: "collection",
         collection: "links",
-        source: `${SCOPE}links/a-b`,
+        source: `${SCOPE}a//b`,
       },
       {
         kind: "collection",
         collection: "links",
-        endpoint: `${SCOPE}beads/%61`,
+        endpoint: `${SCOPE}%61`,
       },
       {
         kind: "collection",
@@ -697,8 +692,8 @@ describe("Read server contract", () => {
         collection: "beads",
         conformsTo: "not a url" as never,
       },
-      { kind: "collection", collection: "beads", type: `${SCOPE}beads/a` },
-      { kind: "collection", collection: "links", conformsTo: `${SCOPE}links/a-b` },
+      { kind: "collection", collection: "beads", type: "not a URL" as never },
+      { kind: "collection", collection: "links", conformsTo: "not a URL" as never },
     ];
 
     for (const request of cases)
@@ -713,19 +708,19 @@ describe("Read server contract", () => {
     const type = "https://work.example/types/task";
     const records = [
       {
-        id: `${SCOPE}beads/a`,
+        id: `${SCOPE}a`,
         type,
         revision: "r1",
         properties: { status: "ready" },
       },
       {
-        id: `${SCOPE}beads/b`,
+        id: `${SCOPE}b`,
         type,
         revision: "r2",
         properties: { status: "blocked" },
       },
       {
-        id: `${SCOPE}beads/c`,
+        id: `${SCOPE}c`,
         type,
         revision: "r3",
         properties: { status: "ready" },
@@ -754,8 +749,8 @@ describe("Read server contract", () => {
       continuation: first.next,
     });
 
-    expect(first.items.map((item) => item.id)).toEqual([`${SCOPE}beads/a`]);
-    expect(second).toMatchObject({ items: [{ id: `${SCOPE}beads/c` }], next: null });
+    expect(first.items.map((item) => item.id)).toEqual([`${SCOPE}a`]);
+    expect(second).toMatchObject({ items: [{ id: `${SCOPE}c` }], next: null });
     expect(perform).toHaveBeenCalledOnce();
     expect(perform).toHaveBeenCalledWith(
       { kind: "collection", collection: "beads", type },
@@ -768,11 +763,11 @@ describe("Read server contract", () => {
       label: "Link collection",
       operation: { kind: "collection", collection: "links", limit: 1 } as const,
       items: ["one", "two"].map((local) => ({
-        id: `${SCOPE}links/${local}`,
+        id: `${SCOPE}${local}`,
         type: "https://work.example/types/blocks",
         revision: `r-${local}`,
-        source: `${SCOPE}beads/a`,
-        target: `${SCOPE}beads/b`,
+        source: `${SCOPE}a`,
+        target: `${SCOPE}b`,
         properties: {},
       })),
       continue: (next: string) =>
@@ -794,20 +789,20 @@ describe("Read server contract", () => {
       label: "incident Links",
       operation: {
         kind: "bead-links",
-        bead: `${SCOPE}beads/a`,
+        bead: `${SCOPE}a`,
         direction: "both",
         limit: 1,
       } as const,
       items: ["one", "two"].map((local) => ({
-        id: `${SCOPE}links/${local}`,
+        id: `${SCOPE}${local}`,
         type: "https://work.example/types/blocks",
         revision: `r-${local}`,
-        source: `${SCOPE}beads/a`,
-        target: `${SCOPE}beads/b`,
+        source: `${SCOPE}a`,
+        target: `${SCOPE}b`,
         properties: {},
       })),
       continue: (next: string) =>
-        ({ kind: "bead-links", bead: `${SCOPE}beads/a`, continuation: next }) as const,
+        ({ kind: "bead-links", bead: `${SCOPE}a`, continuation: next }) as const,
     },
   ])("snapshot-pages the $label without a continuation port read", async (testCase) => {
     const perform = vi.fn(async () =>
@@ -860,16 +855,16 @@ describe("Read server contract", () => {
     const request: ReadRequest = Object.create({
       kind: "resource",
       resource: "bead",
-      id: `${SCOPE}beads/inherited`,
+      id: `${SCOPE}inherited`,
     });
-    await expect(server.perform(request)).resolves.toMatchObject({ id: `${SCOPE}beads/inherited` });
+    await expect(server.perform(request)).resolves.toMatchObject({ id: `${SCOPE}inherited` });
     expect(requests[0]).toBe(request);
     expect(Object.hasOwn(request, "kind")).toBe(false);
     await server.close();
   });
 
   it("preserves static accessor rereads across validation, identity and response validation", async () => {
-    let id = `${SCOPE}beads/before`;
+    let id = `${SCOPE}before`;
     const observations: string[] = [];
     const request: ReadRequest = {
       kind: "resource",
@@ -888,14 +883,14 @@ describe("Read server contract", () => {
       readControls: {
         ...testReadControls(),
         identityFor: () => {
-          id = `${SCOPE}beads/after`;
+          id = `${SCOPE}after`;
           return { authorizationView: "view", scopeEpoch: "epoch" };
         },
       },
     });
-    await expect(server.perform(request)).resolves.toMatchObject({ id: `${SCOPE}beads/after` });
-    expect(observations[0]).toBe(`${SCOPE}beads/before`);
-    expect(observations.slice(1)).toContain(`${SCOPE}beads/after`);
+    await expect(server.perform(request)).resolves.toMatchObject({ id: `${SCOPE}after` });
+    expect(observations[0]).toBe(`${SCOPE}before`);
+    expect(observations.slice(1)).toContain(`${SCOPE}after`);
     expect(requests[0]).toBe(request);
     expect(Object.getOwnPropertyDescriptor(request, "id")?.get).toBeTypeOf("function");
     await server.close();
@@ -931,43 +926,43 @@ describe("Read server contract", () => {
       {
         kind: "resource",
         resource: "bead",
-        id: `${SCOPE}beads/a`,
+        id: `${SCOPE}a`,
         direction: "both",
       } as never,
       { kind: "properties", resource: "type", id: `${SCOPE}types/task` } as never,
       {
         kind: "properties",
         resource: "bead",
-        id: `${SCOPE}beads/a`,
+        id: `${SCOPE}a`,
         type: `${SCOPE}types/task`,
       } as never,
       { kind: "collection", collection: "widgets" } as never,
-      { kind: "collection", collection: "beads", source: `${SCOPE}beads/a` } as never,
-      { kind: "collection", collection: "beads", target: `${SCOPE}beads/a` } as never,
-      { kind: "collection", collection: "beads", endpoint: `${SCOPE}beads/a` } as never,
+      { kind: "collection", collection: "beads", source: `${SCOPE}a` } as never,
+      { kind: "collection", collection: "beads", target: `${SCOPE}a` } as never,
+      { kind: "collection", collection: "beads", endpoint: `${SCOPE}a` } as never,
       { kind: "collection", collection: "beads", unknown: "value" } as never,
-      { kind: "collection", collection: "links", bead: `${SCOPE}beads/a` } as never,
+      { kind: "collection", collection: "links", bead: `${SCOPE}a` } as never,
       { kind: "collection", collection: "types", type: `${SCOPE}types/task` } as never,
       {
         kind: "collection",
         collection: "types",
         conformsTo: `${SCOPE}types/base`,
       } as never,
-      { kind: "collection", collection: "types", source: `${SCOPE}beads/a` } as never,
-      { kind: "collection", collection: "types", target: `${SCOPE}beads/a` } as never,
-      { kind: "collection", collection: "types", endpoint: `${SCOPE}beads/a` } as never,
+      { kind: "collection", collection: "types", source: `${SCOPE}a` } as never,
+      { kind: "collection", collection: "types", target: `${SCOPE}a` } as never,
+      { kind: "collection", collection: "types", endpoint: `${SCOPE}a` } as never,
       { kind: "collection", collection: "types", selector: "$" } as never,
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, direction: "sideways" } as never,
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, type: `${SCOPE}types/task` } as never,
+      { kind: "bead-links", bead: `${SCOPE}a`, direction: "sideways" } as never,
+      { kind: "bead-links", bead: `${SCOPE}a`, type: `${SCOPE}types/task` } as never,
       {
         kind: "bead-links",
-        bead: `${SCOPE}beads/a`,
+        bead: `${SCOPE}a`,
         conformsTo: `${SCOPE}types/work-item`,
       } as never,
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, source: `${SCOPE}beads/a` } as never,
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, target: `${SCOPE}beads/a` } as never,
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, endpoint: `${SCOPE}beads/a` } as never,
-      { kind: "bead-links", bead: `${SCOPE}beads/a`, selector: "$" } as never,
+      { kind: "bead-links", bead: `${SCOPE}a`, source: `${SCOPE}a` } as never,
+      { kind: "bead-links", bead: `${SCOPE}a`, target: `${SCOPE}a` } as never,
+      { kind: "bead-links", bead: `${SCOPE}a`, endpoint: `${SCOPE}a` } as never,
+      { kind: "bead-links", bead: `${SCOPE}a`, selector: "$" } as never,
     ];
 
     for (const request of cases)
@@ -983,14 +978,14 @@ describe("Read server contract", () => {
     const server = readServer(new ResultPort(requests));
     const cases: readonly ReadRequest[] = [
       { kind: "resource", resource: "bead", id: "not a URL" as never },
-      { kind: "resource", resource: "bead", id: `${SCOPE}beads/%61` },
-      { kind: "resource", resource: "bead", id: `${SCOPE}links/a-b` },
+      { kind: "resource", resource: "bead", id: `${SCOPE}%61` },
+      { kind: "resource", resource: "bead", id: `${SCOPE}a//b` },
       {
         kind: "resource",
         resource: "link",
-        id: "https://other.example/acme/links/a-b",
+        id: "https://other.example/acme/a-b",
       },
-      { kind: "resource", resource: "link", id: `${SCOPE}beads/a` },
+      { kind: "resource", resource: "link", id: `${SCOPE}b//a` },
     ];
 
     for (const request of cases)
@@ -1017,8 +1012,8 @@ describe("Read server contract", () => {
         resource: "type",
         id: "https://user:password@work.example/types/task" as never,
       },
-      { kind: "resource", resource: "type", id: `${SCOPE}beads/a` },
-      { kind: "resource", resource: "type", id: `${SCOPE}links/a-b` },
+      { kind: "resource", resource: "type", id: `${SCOPE}a` },
+      { kind: "resource", resource: "type", id: `${SCOPE}a-b` },
       { kind: "resource", resource: "type", id: `${SCOPE}other/task` },
       { kind: "resource", resource: "type", id: `${SCOPE}types/%61` },
       { kind: "resource", resource: "type", id: `${SCOPE}types/a%2Fb` },
@@ -1039,14 +1034,14 @@ describe("Read server contract", () => {
       {
         kind: "properties",
         resource: "bead",
-        id: "https://other.example/acme/beads/a",
+        id: "https://other.example/acme/a",
       },
-      { kind: "properties", resource: "bead", id: `${SCOPE}links/a-b` },
-      { kind: "properties", resource: "link", id: `${SCOPE}links/%61-b` },
+      { kind: "properties", resource: "bead", id: `${SCOPE}a//b` },
+      { kind: "properties", resource: "link", id: `${SCOPE}%61-b` },
       {
         kind: "properties",
         resource: "link",
-        id: "https://other.example/acme/links/a-b",
+        id: "https://other.example/acme/a-b",
       },
     ];
 
@@ -1062,11 +1057,11 @@ describe("Read server contract", () => {
     const requests: unknown[] = [];
     const server = readServer(new ResultPort(requests));
     const cases: readonly ReadRequest[] = [
-      { kind: "bead-links", bead: `${SCOPE}beads/%61`, direction: "both" },
-      { kind: "bead-links", bead: `${SCOPE}links/a-b`, direction: "both" },
+      { kind: "bead-links", bead: `${SCOPE}%61`, direction: "both" },
+      { kind: "bead-links", bead: `${SCOPE}a//b`, direction: "both" },
       {
         kind: "bead-links",
-        bead: "https://other.example/acme/beads/a",
+        bead: "https://other.example/acme/a",
         direction: "both",
       },
     ];
@@ -1097,19 +1092,19 @@ describe("Read server contract", () => {
       const unsorted = Object.freeze({
         items: Object.freeze([
           Object.freeze({
-            id: `${SCOPE}beads/b`,
+            id: `${SCOPE}b`,
             type: "https://work.example/types/task",
             revision: "1",
             properties: {},
           }),
           Object.freeze({
-            id: `${SCOPE}beads/Z`,
+            id: `${SCOPE}Z`,
             type: "https://work.example/types/task",
             revision: "1",
             properties: {},
           }),
           Object.freeze({
-            id: `${SCOPE}beads/a`,
+            id: `${SCOPE}a`,
             type: "https://work.example/types/task",
             revision: "1",
             properties: {},
@@ -1140,11 +1135,7 @@ describe("Read server contract", () => {
           readonly items: readonly { readonly id: string }[];
         };
         // Code-unit order: uppercase Z sorts before lowercase a and b.
-        expect(result.items.map(({ id }) => id)).toEqual([
-          `${SCOPE}beads/Z`,
-          `${SCOPE}beads/a`,
-          `${SCOPE}beads/b`,
-        ]);
+        expect(result.items.map(({ id }) => id)).toEqual([`${SCOPE}Z`, `${SCOPE}a`, `${SCOPE}b`]);
       } finally {
         await server.close();
       }
@@ -1175,13 +1166,13 @@ describe("Read server contract", () => {
           return scopePortSuccess({
             items: [
               {
-                id: `${SCOPE}beads/a`,
+                id: `${SCOPE}a`,
                 type: "https://work.example/types/task",
                 revision: "r1",
                 properties: {},
               },
               {
-                id: `${SCOPE}beads/b`,
+                id: `${SCOPE}b`,
                 type: "https://work.example/types/task",
                 revision: "r2",
                 properties: {},
@@ -1222,7 +1213,7 @@ describe("Read server contract", () => {
   it("close lets admitted work finish during the grace period", async () => {
     const port = new DrainingPort();
     const server = readServer(port);
-    const operation = server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}beads/a` });
+    const operation = server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}a` });
     await port.started;
 
     let closeFinished = false;
@@ -1236,14 +1227,14 @@ describe("Read server contract", () => {
     );
 
     port.finish();
-    await expect(operation).resolves.toMatchObject({ id: `${SCOPE}beads/a` });
+    await expect(operation).resolves.toMatchObject({ id: `${SCOPE}a` });
     await close;
   });
 
   it("releases retained pagination state when the server closes", async () => {
     const controls = testReadControls();
     const items = ["a", "b", "c"].map((id) => ({
-      id: `${SCOPE}beads/${id}`,
+      id: `${SCOPE}${id}`,
       type: "https://work.example/types/task",
       revision: "1",
       properties: {},
@@ -1266,7 +1257,7 @@ describe("Read server contract", () => {
         token,
         authorizationView: "test-view",
         scopeEpoch: "test-epoch",
-        projection: `${SCOPE}beads/?limit=1`,
+        projection: `${SCOPE}bdp/beads?limit=1`,
       }),
     ).toThrowError(expect.objectContaining({ code: "configuration-error" }));
   });
@@ -1274,7 +1265,7 @@ describe("Read server contract", () => {
   it("close cancels admitted Read work after the grace period", async () => {
     const port = new DrainingPort(true);
     const server = readServer(port, { closeGraceMs: 0, closeTimeoutMs: 1_000 });
-    const operation = server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}beads/a` });
+    const operation = server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}a` });
     await port.started;
     const operationRejection = expect(operation).rejects.toBeInstanceOf(
       ScopeServerOperationAbortedError,
@@ -1290,7 +1281,7 @@ describe("Read server contract", () => {
   it("close abandons a Scope port that ignores cancellation after the total bound", async () => {
     const port = new DrainingPort();
     const server = readServer(port, { closeGraceMs: 0, closeTimeoutMs: 20 });
-    const operation = server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}beads/a` });
+    const operation = server.perform({ kind: "resource", resource: "bead", id: `${SCOPE}a` });
     await port.started;
     const operationRejection = expect(operation).rejects.toBeInstanceOf(
       ScopeServerOperationAbortedError,
@@ -1473,7 +1464,7 @@ describe("Read server contract", () => {
           scopePortSuccess({
             items: [
               {
-                id: `${SCOPE}beads/a`,
+                id: `${SCOPE}a`,
                 type: "https://work.example/types/task",
                 revision: "r1",
                 properties: { ready: true },
@@ -1502,7 +1493,7 @@ describe("Read server contract", () => {
         collection: "beads",
         selector: "$[?@.properties.ready]",
       }),
-    ).resolves.toMatchObject({ items: [{ id: `${SCOPE}beads/a` }], next: null });
+    ).resolves.toMatchObject({ items: [{ id: `${SCOPE}a` }], next: null });
   });
 
   it.each(["ServerOptions", "ServerReadControls"] as const)(
@@ -1644,9 +1635,6 @@ function resultFor<Request extends ReadRequest>(request: Request): ReadBodyFor<R
         bdpVersion: "0",
         profile: "read",
         scope: SCOPE,
-        beads: `${SCOPE}beads/`,
-        links: `${SCOPE}links/`,
-        types: `${SCOPE}types/`,
       } satisfies ReadBodyFor<ScopeDiscoveryRequest>;
       break;
     case "collection":
@@ -1671,8 +1659,8 @@ function resultFor<Request extends ReadRequest>(request: Request): ReadBodyFor<R
           id: request.id,
           type: "https://work.example/types/blocks",
           revision: "1",
-          source: `${SCOPE}beads/a`,
-          target: `${SCOPE}beads/b`,
+          source: `${SCOPE}a`,
+          target: `${SCOPE}b`,
           properties: {},
         };
       }

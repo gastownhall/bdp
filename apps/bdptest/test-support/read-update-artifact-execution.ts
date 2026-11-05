@@ -26,9 +26,11 @@ export function artifactRoutes(bundle: Bundle, scope: string) {
       ]),
     ),
     scope,
+    "bead-inventory": `${scope}bdp/beads`,
+    "link-inventory": `${scope}bdp/links`,
     "service-desc": `${scope}bdp.json`,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
+    beads: `${scope}bdp/beads`,
+    links: `${scope}bdp/links`,
     types: `${scope}types/`,
     operations: `${scope}operations/`,
   };

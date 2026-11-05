@@ -1168,7 +1168,7 @@
     },
     "readDiscovery": {
       "type": "object",
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "types"],
+      "required": ["bdpVersion", "profile", "scope"],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -1177,12 +1177,6 @@
           "const": "read"
         },
         "scope": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "types": {
@@ -2920,16 +2914,7 @@
     },
     "readUpdateDiscovery": {
       "type": "object",
-      "required": [
-        "bdpVersion",
-        "profile",
-        "scope",
-        "beads",
-        "links",
-        "types",
-        "operations",
-        "aliases"
-      ],
+      "required": ["bdpVersion", "profile", "scope", "operations", "aliases"],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -2938,12 +2923,6 @@
           "const": "read-update"
         },
         "scope": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "types": {
@@ -5191,9 +5170,6 @@
         "bdpVersion",
         "profile",
         "scope",
-        "beads",
-        "links",
-        "types",
         "operations",
         "aliases",
         "scopeEpoch",
@@ -5226,15 +5202,6 @@
         },
         "minimumReplayPosition": {
           "$ref": "#/$defs/wireToken"
-        },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
         },
         "operations": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -5271,6 +5238,9 @@
         },
         "capabilities": {
           "$ref": "#/$defs/capabilityAdvertisements"
+        },
+        "types": {
+          "$ref": "#/$defs/absoluteHttpUrl"
         }
       },
       "additionalProperties": false
@@ -6586,6 +6556,10 @@
         "scope": {
           "$ref": "#/$defs/absoluteHttpUrl",
           "description": "Canonical HTTP(S) Scope URL used for local identity resolution and ownership navigation."
+        },
+        "types": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "specRevision": {
           "$ref": "#/$defs/specRevision",

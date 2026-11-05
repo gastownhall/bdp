@@ -706,63 +706,63 @@ const originalObjectPins = {
   manifest: [
     [
       "transactional.batch.deletion-safety",
-      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
-      131808,
+      "72eb7fce63711dabec9da306f9c69cc5a504026cf66db743e0f90626f5536a7f",
+      130350,
     ],
     [
       "transactional.idempotency.conflict",
-      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
-      29772,
+      "eb5ebd0e0f6f4b60d3e96377a700677bae081f127583c63668067e4ad52ff864",
+      29712,
     ],
     [
       "transactional.set.mutation",
-      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
-      71739,
+      "a6bebc736e6657931bf4a712cc39fa736a83bb05d2f33729fca12187a1b197a5",
+      71379,
     ],
     [
       "transactional.set.zero-match",
-      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
-      36055,
+      "8cc29ca4d7b9d63e912922f45070d36c7dffd9001dd10610b5dd1875c4b8dd2e",
+      35959,
     ],
     [
       "transactional.set.cardinality",
-      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
-      28546,
+      "7ffae3f77cd442a4a941af595d7f058612d7d043844fb6adb2d8a5d46c4bd83a",
+      28474,
     ],
     [
       "transactional.set.singleton-targets",
-      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
-      40018,
+      "8f31fe84f893795a097bbde74e3821a7b9b2f941089e75c83768a4075716cf7c",
+      39838,
     ],
     [
       "transactional.batch.atomic-commit",
-      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
-      14936,
+      "b67b977f551d7c4c59b51fd5c3a0f8e6ece7704481d9000f52bc4f5154b5b506",
+      14435,
     ],
     [
       "transactional.batch.rollback",
-      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
-      16319,
+      "adc2fd9c907216d2b1ba73660e36c88a3d04d80ff38c004627ab8a8b349af0bc",
+      16115,
     ],
     [
       "transactional.receipt.readable",
-      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
-      12545,
+      "a5640f8cc7da0e76bc264954ffd54e6b788c38c0105b6b08f08e4c1fc0acf50b",
+      12527,
     ],
     [
       "transactional.receipt.pagination",
-      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
-      138750,
+      "637af53ea41d36e61f89d13d764832d3d68135bc8dd7c59a729e4ddba6dee3b0",
+      137406,
     ],
     [
       "transactional.idempotency.failed-retained",
-      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
-      18404,
+      "13c06acb0de9497083f1a1927c9579e259a6bc45b22fe59f4afefa62b8f3c0f6",
+      18206,
     ],
     [
       "transactional.batch.no-op-entries",
-      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
-      81047,
+      "5391f2acd92087fafe5a887bb4abae9ee54024cf92411a6803453cb8ef56432b",
+      80339,
     ],
   ],
   coverage: [
@@ -841,73 +841,73 @@ const sequenceParentPins = {
   manifest: [
     [
       "read-update.http.command-minimum-fields",
-      "f04c001617ccad14ef67a82586ea5f61ec918bc2545bb041fafc21dee07b5d7e",
-      54412,
+      "8812ad6e08a0a2a24a957a1132d65d9adf5b998f5f03d855a6f67e6e725f11ed",
+      54295,
     ],
     [
       "transactional.batch.atomic-commit",
-      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
-      14936,
+      "b67b977f551d7c4c59b51fd5c3a0f8e6ece7704481d9000f52bc4f5154b5b506",
+      14435,
     ],
     [
       "transactional.batch.rollback",
-      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
-      16319,
+      "adc2fd9c907216d2b1ba73660e36c88a3d04d80ff38c004627ab8a8b349af0bc",
+      16115,
     ],
     [
       "transactional.batch.deletion-safety",
-      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
-      131808,
+      "72eb7fce63711dabec9da306f9c69cc5a504026cf66db743e0f90626f5536a7f",
+      130350,
     ],
     [
       "transactional.batch.no-op-entries",
-      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
-      81047,
+      "5391f2acd92087fafe5a887bb4abae9ee54024cf92411a6803453cb8ef56432b",
+      80339,
     ],
     [
       "transactional.set.mutation",
-      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
-      71739,
+      "a6bebc736e6657931bf4a712cc39fa736a83bb05d2f33729fca12187a1b197a5",
+      71379,
     ],
     [
       "transactional.set.zero-match",
-      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
-      36055,
+      "8cc29ca4d7b9d63e912922f45070d36c7dffd9001dd10610b5dd1875c4b8dd2e",
+      35959,
     ],
     [
       "transactional.set.cardinality",
-      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
-      28546,
+      "7ffae3f77cd442a4a941af595d7f058612d7d043844fb6adb2d8a5d46c4bd83a",
+      28474,
     ],
     [
       "transactional.set.singleton-targets",
-      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
-      40018,
+      "8f31fe84f893795a097bbde74e3821a7b9b2f941089e75c83768a4075716cf7c",
+      39838,
     ],
     [
       "transactional.receipt.readable",
-      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
-      12545,
+      "a5640f8cc7da0e76bc264954ffd54e6b788c38c0105b6b08f08e4c1fc0acf50b",
+      12527,
     ],
     [
       "transactional.receipt.pagination",
-      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
-      138750,
+      "637af53ea41d36e61f89d13d764832d3d68135bc8dd7c59a729e4ddba6dee3b0",
+      137406,
     ],
     [
       "transactional.idempotency.conflict",
-      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
-      29772,
+      "eb5ebd0e0f6f4b60d3e96377a700677bae081f127583c63668067e4ad52ff864",
+      29712,
     ],
     [
       "transactional.idempotency.cross-carrier",
-      "4ad8c05fe5fbb4682809d4481c93e2684fe30fbbb8962b4da498590637f8f35b",
-      64106,
+      "f5f9583385c63516eb509a476278b930c52e76cc256e3a01dccccbbf1c71fa87",
+      63989,
     ],
     [
       "transactional.idempotency.failed-retained",
-      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
-      18404,
+      "13c06acb0de9497083f1a1927c9579e259a6bc45b22fe59f4afefa62b8f3c0f6",
+      18206,
     ],
   ],
   coverage: [
@@ -998,7 +998,7 @@ function withoutSequenceMemberRow(text: string, name: "manifest" | "coverage") {
   const parent = text.slice(0, -suffix.length) + "\n  ]\n}\n";
   expect(createHash("sha256").update(parent).digest("hex"), "sequence-full-parent").toBe(
     name === "manifest"
-      ? "29729151cf6da641545910ec3880f9609c13b319af7bbe99d3d2ad47833dab96"
+      ? "1fe5c8bbbf29bf4cea0d5708839cd51bf0cf5df17a9c4efcd8d42f0a2a4d9c50"
       : "4619813e9446e0e714a64c11eac184531950f57720e32c7ef414c7e3342121af",
   );
   return parent;
@@ -1060,7 +1060,7 @@ function assertSequenceMemberObservation(value: typeof manifest) {
   expect(
     createHash("sha256").update(JSON.stringify(row)).digest("hex"),
     "sequence-complete-independent-facts",
-  ).toBe("48e524596890fab7bf578cbbb653ed844178c33b568f8e0c033736d2745598ca");
+  ).toBe("53de9a1e3acbe1889fc410d9826e3c38cc45c307b60ae639c1690c415e0d3382");
 }
 
 it("preserves every original TX scenario and coverage object while adding one bounded partial cross-carrier row", () => {
@@ -1109,7 +1109,7 @@ it("preserves every original TX scenario and coverage object while adding one bo
     expect(reconstructed).not.toBe(text);
     expect(createHash("sha256").update(reconstructed).digest("hex")).toBe(
       name === "manifest"
-        ? "56318c56ee99bb981336e3f17560e7b079e88f2f85ef463874c1d556a066b2b2"
+        ? "949dfadfcf7af0852e867c4c4612795d9156e7440fc0d8c6b1c547833ab898cb"
         : "dafedd035ca20f684559c739ebf2e6155f8446ce8062c3fa60ff86967b259bbd",
     );
   }
@@ -1202,9 +1202,9 @@ it("preserves every original TX scenario and coverage object while adding one bo
       r.actions.flatMap((a) => a.assertions),
     ),
   ).toHaveLength(2828);
-  expect(read("fixture").byteLength).toBe(716);
+  expect(read("fixture").byteLength).toBe(704);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
-    "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
+    "1a42f13415234b4fae1486141f250434c210ea85b1bf5e6bd9a58d3319b651a1",
   );
   let nodes = 0;
   const pending: unknown[] = [manifest];
@@ -1292,7 +1292,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
     );
     expect(tuple.equals).toEqual(
       Array.from({ length: 32 }, (_, index) => [
-        `https://reference.invalid/acme/beads/p${String(index).padStart(2, "0")}`,
+        `https://reference.invalid/acme/p${String(index).padStart(2, "0")}`,
         "https://reference.invalid/acme/types/task",
         { title: index === 31 ? "later" : "changed" },
         { tag: "pagination" },
@@ -1328,7 +1328,7 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
     expect.objectContaining({ pointer: "/body/results/1", exists: false }),
   );
   for (const [pointer, equals] of [
-    ["/body/results/0/resource/id", "https://reference.invalid/acme/beads/p31"],
+    ["/body/results/0/resource/id", "https://reference.invalid/acme/p31"],
     ["/body/results/0/resource/type", "https://reference.invalid/acme/types/task"],
     ["/body/results/0/resource/properties", { title: "changed" }],
     ["/body/results/0/resource/metadata", { tag: "pagination" }],
@@ -1377,7 +1377,7 @@ function assertCompletedConflictRequests(value: typeof manifest) {
       operations: [
         {
           operation: "createBead",
-          id: `beads/${id}`,
+          id: `${id}`,
           type: `${scope}types/task`,
           properties: { title: "original" },
           metadata: { tag: "conflict" },
@@ -1460,12 +1460,7 @@ function assertCompletedConflictResponses(value: typeof manifest) {
   });
   const schema = (ref: string) => ({ id: "schema", kind: "json-schema", schema: `#/$defs/${ref}` });
   const status = (equals: number) => ({ id: "http-status", kind: "status", equals });
-  const state = [
-    `${scope}beads/a`,
-    `${scope}types/task`,
-    { title: "original" },
-    { tag: "conflict" },
-  ];
+  const state = [`${scope}a`, `${scope}types/task`, { title: "original" }, { tag: "conflict" }];
   const created = (path: string) => ({
     id: "created-record",
     kind: "json-array-tuples",
@@ -1544,7 +1539,7 @@ function assertCompletedConflictResponses(value: typeof manifest) {
       pointer: "/events",
       ordered: true,
       projections: ["/source", "/type", "/subject", "/ordinal"].map((pointer) => ({ pointer })),
-      equals: [[`${scope}events/`, "created", `${scope}beads/a`, 0]],
+      equals: [[`${scope}events/`, "created", `${scope}a`, 0]],
     },
     { id: "serving-context", kind: "response-metadata-equals", request: "c-commit", headers },
     ...headerPresence,
@@ -1772,7 +1767,7 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
         ids.map((id, index) => [
           index,
           phase === "seed" ? "created" : "updated",
-          `${scope}${id === "l" ? "links" : "beads"}/${id}`,
+          `${scope}${id}`,
           id === "l" ? relationship : task,
           { title: `${id}${changed ? "-changed" : ""}` },
           changed ? { tag: "changed" } : {},
@@ -1787,22 +1782,22 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
             pointer(
               "link-source",
               `${prefix}/results/${ids.length - 1}/resource/source`,
-              `${scope}beads/a`,
+              `${scope}a`,
             ),
             pointer(
               "link-target",
               `${prefix}/results/${ids.length - 1}/resource/target`,
-              `${scope}beads/b`,
+              `${scope}b`,
             ),
           ]),
     ];
   };
   const seedFacts = [
-    [`${scope}events/`, "created", `${scope}beads/a`, task, 0],
-    [`${scope}events/`, "created", `${scope}beads/b`, task, 1],
-    [`${scope}events/`, "created", `${scope}links/l`, relationship, 2],
-    [`${scope}events/`, "linked", `${scope}links/l`, relationship, 3],
-    [`${scope}events/`, "linked", `${scope}links/l`, relationship, 4],
+    [`${scope}events/`, "created", `${scope}a`, task, 0],
+    [`${scope}events/`, "created", `${scope}b`, task, 1],
+    [`${scope}events/`, "created", `${scope}l`, relationship, 2],
+    [`${scope}events/`, "linked", `${scope}l`, relationship, 3],
+    [`${scope}events/`, "linked", `${scope}l`, relationship, 4],
   ];
   const events = (path: string, changed = false): Assertion[] => [
     tuple(
@@ -1812,17 +1807,17 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
       changed
         ? [
             ...seedFacts,
-            [`${scope}events/`, "updated", `${scope}beads/a`, task, 0],
-            [`${scope}events/`, "updated", `${scope}links/l`, relationship, 1],
+            [`${scope}events/`, "updated", `${scope}a`, task, 0],
+            [`${scope}events/`, "updated", `${scope}l`, relationship, 1],
           ]
         : seedFacts,
     ),
     ...(["source", "target"] as const).map((endpoint, index) =>
       pointer(`incidence-${endpoint}`, `${path}/${index + 3}/data`, {
         endpoint,
-        link: { id: `${scope}links/l`, type: relationship },
-        source: `${scope}beads/a`,
-        target: `${scope}beads/b`,
+        link: { id: `${scope}l`, type: relationship },
+        source: `${scope}a`,
+        target: `${scope}b`,
       }),
     ),
     ...(changed
@@ -1859,9 +1854,9 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
       "/groups/0/changes",
       ["/operation", "/resourceKind", "/resource/id"],
       [
-        ["upsert", "bead", `${scope}beads/a`],
-        ["upsert", "bead", `${scope}beads/b`],
-        ["upsert", "link", `${scope}links/l`],
+        ["upsert", "bead", `${scope}a`],
+        ["upsert", "bead", `${scope}b`],
+        ["upsert", "link", `${scope}l`],
       ],
     ),
     ...["a", "b", "l"].map((id, index) =>
@@ -1875,12 +1870,7 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
     ...(link
       ? [binding("complete-link", "", changed ? "n-l-after" : "n-l-before")]
       : [
-          tuple(
-            "ordered-identities",
-            "/items",
-            ["/id"],
-            [[`${scope}beads/a`], [`${scope}beads/b`]],
-          ),
+          tuple("ordered-identities", "/items", ["/id"], [[`${scope}a`], [`${scope}b`]]),
           binding("complete-a", "/items/0", changed ? "n-a-after" : "n-a-before"),
           binding("complete-b", "/items/1", "n-b-before"),
           pointer("no-next", "/next", null),
@@ -1950,7 +1940,7 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
   const update = (changed: boolean) =>
     ["a", "l"].map((id) => ({
       operation: id === "a" ? "updateBead" : "updateLink",
-      [id === "a" ? "bead" : "link"]: id === "a" ? "beads/a" : "links/l",
+      [id === "a" ? "bead" : "link"]: id === "a" ? "a" : "l",
       propertiesChange: [
         { op: "replace", path: "/title", value: `${id}${changed ? "-changed" : ""}` },
       ],
@@ -1959,17 +1949,17 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
   const seed = [
     ...["a", "b"].map((id) => ({
       operation: "createBead",
-      id: `beads/${id}`,
+      id: `${id}`,
       type: task,
       properties: { title: id },
       metadata: {},
     })),
     {
       operation: "createLink",
-      id: "links/l",
+      id: "l",
       type: relationship,
-      source: "beads/a",
-      target: "beads/b",
+      source: "a",
+      target: "b",
       properties: { title: "l" },
       metadata: {},
     },
@@ -2012,8 +2002,8 @@ function assertMatchingNoopObservation(candidate: typeof manifest) {
         suffix === "groups"
           ? { binding: "scope", path: "changes/", query: { after: "genesis" } }
           : suffix === "beads"
-            ? { binding: "scope", path: "beads/", query: { limit: "32" } }
-            : { binding: "scope", path: suffix === "link" ? "links/l" : "events/" },
+            ? { binding: "scope", path: "bdp/beads", query: { limit: "32" } }
+            : { binding: "scope", path: suffix === "link" ? "l" : "events/" },
       );
     }
   }
@@ -2064,7 +2054,7 @@ it.each([
 function assertDeletionSafetyObservation(candidate: typeof manifest) {
   const scope = "https://reference.invalid/acme/";
   const headers = ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"];
-  const resource = (id: string) => `${scope}${id === "a" || id === "b" ? "beads" : "links"}/${id}`;
+  const resource = (id: string) => `${scope}${id}`;
   const type = (id: string) =>
     `${scope}types/${id === "a" || id === "b" ? "task" : "relationship"}`;
   type Assertion = Record<string, unknown>;
@@ -2372,11 +2362,11 @@ function assertDeletionSafetyObservation(candidate: typeof manifest) {
   };
   const deleteOp = (id: string) =>
     id === "a"
-      ? { operation: "deleteBead", bead: "beads/a" }
-      : { operation: "deleteLink", link: `links/${id}` };
+      ? { operation: "deleteBead", bead: "a" }
+      : { operation: "deleteLink", link: `${id}` };
   const prefix = (direction: string) => ({
     operation: "updateBead",
-    bead: "beads/b",
+    bead: "b",
     propertiesChange: [{ op: "replace", path: "/title", value: `${direction}-survives-prefix` }],
     metadataChange: [{ op: "replace", path: "", value: { phase: `${direction}-survives-prefix` } }],
   });
@@ -2385,17 +2375,17 @@ function assertDeletionSafetyObservation(candidate: typeof manifest) {
       operations: [
         ...["a", "b"].map((id) => ({
           operation: "createBead",
-          id: `beads/${id}`,
+          id: `${id}`,
           type: type(id),
           properties: { title: id },
           metadata: {},
         })),
         ...["l", "r"].map((id) => ({
           operation: "createLink",
-          id: `links/${id}`,
+          id: `${id}`,
           type: type(id),
-          source: id === "l" ? "beads/a" : "beads/b",
-          target: id === "l" ? "beads/b" : "beads/a",
+          source: id === "l" ? "a" : "b",
+          target: id === "l" ? "b" : "a",
           properties: { title: id },
           metadata: {},
         })),
@@ -2459,8 +2449,12 @@ function assertDeletionSafetyObservation(candidate: typeof manifest) {
           suffix === "groups"
             ? { binding: "scope", path: "changes/", query: { after: "genesis" } }
             : suffix === "beads" || suffix === "links"
-              ? { binding: "scope", path: `${suffix}/`, query: { limit: "32" } }
-              : { binding: "scope", path: action.id === "d-deleted-a" ? "beads/a" : "events/" },
+              ? {
+                  binding: "scope",
+                  path: suffix === "beads" ? "bdp/beads" : "bdp/links",
+                  query: { limit: "32" },
+                }
+              : { binding: "scope", path: action.id === "d-deleted-a" ? "a" : "events/" },
         );
       }
     }
@@ -2588,12 +2582,12 @@ function assertCrossCarrierObservation(candidate: typeof manifest) {
     equalsBinding: "x-created-record",
   });
   const create = {
-    id: "beads/a",
+    id: "a",
     type: "https://reference.invalid/acme/types/task",
     properties: { title: "carrier-original" },
   };
   const update = {
-    bead: "beads/a",
+    bead: "a",
     propertiesChange: [{ op: "replace", path: "/title", value: "carrier-current" }],
   };
   const bodies = [
@@ -2668,7 +2662,7 @@ function assertCrossCarrierObservation(candidate: typeof manifest) {
   expect(
     createHash("sha256").update(JSON.stringify(row)).digest("hex"),
     "complete cross-carrier authored row",
-  ).toBe("9edceed3f23528cff25103143dc27aeac69be409420f0ed54c5a4f992c89ba73");
+  ).toBe("56f0b6a4c38df39caaae3f310c787edb6698a9ac722a1de3346917d00cf3bfcf");
 }
 
 const minimumId = "read-update.http.command-minimum-fields";
@@ -2705,7 +2699,7 @@ function assertMinimumObservation(candidate: typeof manifest) {
   ]);
   const scope = "https://reference.invalid/acme/";
   const create = (id: string) => ({
-    id: `beads/${id}`,
+    id: `${id}`,
     type: `${scope}types/task`,
     properties: { title: `minimum-${id}` },
   });
@@ -2726,7 +2720,7 @@ function assertMinimumObservation(candidate: typeof manifest) {
       ],
     },
     {
-      bead: "beads/a",
+      bead: "a",
       expectedRevision: "minimum-wrong-revision",
       propertiesChange: [{ op: "replace", path: "/title", value: "minimum-stale" }],
     },
@@ -2780,7 +2774,7 @@ function assertMinimumObservation(candidate: typeof manifest) {
     "operations/batch",
     "operations/update-bead",
     undefined,
-    "beads/",
+    "bdp/beads",
     "events/",
   ];
   const positions = [1, 1, 2, 2, 3, 3, 3, 3, 3, 3, 3];
@@ -2952,7 +2946,7 @@ function assertMinimumObservation(candidate: typeof manifest) {
     ordered: true,
     projections: ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
     equals: ["a", "b", "c"].map((k) => [
-      `${scope}beads/${k}`,
+      `${scope}${k}`,
       `${scope}types/task`,
       { title: `minimum-${k}` },
       {},
@@ -2969,7 +2963,7 @@ function assertMinimumObservation(candidate: typeof manifest) {
     equals: ["a", "b", "c"].map((k) => [
       `${scope}events/`,
       "created",
-      `${scope}beads/${k}`,
+      `${scope}${k}`,
       `${scope}types/task`,
       0,
     ]),
@@ -2986,7 +2980,7 @@ function assertMinimumObservation(candidate: typeof manifest) {
   expect(
     createHash("sha256").update(JSON.stringify(row)).digest("hex"),
     "complete minimum manifest facts",
-  ).toBe("4344f3701bc99031485bc4f7e327f738bc138084ff10e43c1623cdfa57d068b6");
+  ).toBe("9a9ab969d6422af98a42a32eb73ec5afd21937bcbc61fc735e4460f030897f7f");
 }
 it("pins the inherited command-minimum manifest facts, read-header absence and all thirteen prior objects", () => {
   assertMinimumObservation(manifest);
@@ -3001,7 +2995,7 @@ it("pins the inherited command-minimum manifest facts, read-header absence and a
     );
     expect(createHash("sha256").update(original).digest("hex")).toBe(
       name === "manifest"
-        ? "726fc623bbb115a0f39e0bb3aaa586ea37254522b254e55e555ea95587f14cb9"
+        ? "41a8764818dfaa5c6b372b8c4c9156c0ecbe19f6d2d9540821302b821b388acb"
         : "a3a15b5143c118b24965698ec10289821664c90e935820b51c8cf76c05bdb1df",
     );
     const before = objectSlices(original, name === "manifest" ? "scenarios" : "rows"),
@@ -3034,78 +3028,78 @@ const principalParentPins = {
   manifest: [
     [
       "read-update.http.command-minimum-fields",
-      "f04c001617ccad14ef67a82586ea5f61ec918bc2545bb041fafc21dee07b5d7e",
-      54412,
+      "8812ad6e08a0a2a24a957a1132d65d9adf5b998f5f03d855a6f67e6e725f11ed",
+      54295,
     ],
     [
       "transactional.batch.atomic-commit",
-      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
-      14936,
+      "b67b977f551d7c4c59b51fd5c3a0f8e6ece7704481d9000f52bc4f5154b5b506",
+      14435,
     ],
     [
       "transactional.batch.rollback",
-      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
-      16319,
+      "adc2fd9c907216d2b1ba73660e36c88a3d04d80ff38c004627ab8a8b349af0bc",
+      16115,
     ],
     [
       "transactional.batch.deletion-safety",
-      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
-      131808,
+      "72eb7fce63711dabec9da306f9c69cc5a504026cf66db743e0f90626f5536a7f",
+      130350,
     ],
     [
       "transactional.batch.no-op-entries",
-      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
-      81047,
+      "5391f2acd92087fafe5a887bb4abae9ee54024cf92411a6803453cb8ef56432b",
+      80339,
     ],
     [
       "transactional.set.mutation",
-      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
-      71739,
+      "a6bebc736e6657931bf4a712cc39fa736a83bb05d2f33729fca12187a1b197a5",
+      71379,
     ],
     [
       "transactional.set.zero-match",
-      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
-      36055,
+      "8cc29ca4d7b9d63e912922f45070d36c7dffd9001dd10610b5dd1875c4b8dd2e",
+      35959,
     ],
     [
       "transactional.set.cardinality",
-      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
-      28546,
+      "7ffae3f77cd442a4a941af595d7f058612d7d043844fb6adb2d8a5d46c4bd83a",
+      28474,
     ],
     [
       "transactional.set.singleton-targets",
-      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
-      40018,
+      "8f31fe84f893795a097bbde74e3821a7b9b2f941089e75c83768a4075716cf7c",
+      39838,
     ],
     [
       "transactional.receipt.readable",
-      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
-      12545,
+      "a5640f8cc7da0e76bc264954ffd54e6b788c38c0105b6b08f08e4c1fc0acf50b",
+      12527,
     ],
     [
       "transactional.receipt.pagination",
-      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
-      138750,
+      "637af53ea41d36e61f89d13d764832d3d68135bc8dd7c59a729e4ddba6dee3b0",
+      137406,
     ],
     [
       "transactional.idempotency.conflict",
-      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
-      29772,
+      "eb5ebd0e0f6f4b60d3e96377a700677bae081f127583c63668067e4ad52ff864",
+      29712,
     ],
     [
       "transactional.idempotency.cross-carrier",
-      "4ad8c05fe5fbb4682809d4481c93e2684fe30fbbb8962b4da498590637f8f35b",
-      64106,
+      "f5f9583385c63516eb509a476278b930c52e76cc256e3a01dccccbbf1c71fa87",
+      63989,
     ],
     [
       "transactional.idempotency.failed-retained",
-      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
-      18404,
+      "13c06acb0de9497083f1a1927c9579e259a6bc45b22fe59f4afefa62b8f3c0f6",
+      18206,
     ],
     [
       "transactional.sequence.member-transactions",
-      "c46b34914118dd34ea1e5f12304124550b9d3c4bfcd9671b99995d6af44a2e1b",
-      51379,
+      "ea0d3766d628bdc1ee2957a0acfbcf140e7f55d3e01edd85a8d29a306c95b862",
+      51268,
     ],
   ],
   coverage: [
@@ -3202,7 +3196,7 @@ function withoutPrincipalRow(text: string, name: "manifest" | "coverage") {
   const parent = text.replace(prefix, `"${key}": [\n`);
   expect(createHash("sha256").update(parent).digest("hex"), "principal-full-parent").toBe(
     name === "manifest"
-      ? "a11a79f6d0f9ffa5933a680a3e4fed87987789c3deca50a38cda8563132d242e"
+      ? "72904f8cadfbb7d70fec4b0a26fb30f95105c41b644c6d3fa035cd6e59c0ca47"
       : "346e1edaa22af789f89017fdc2fef6bb01b7564ed72a65344e9fe5635887c74f",
   );
   return parent;
@@ -3240,7 +3234,7 @@ it("pins the partial principal namespace row, full parent and exact credential r
           value: "principal-shared",
         },
       ],
-      body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+      body: '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
       bodyBytes: 150,
       bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
     },
@@ -3262,7 +3256,7 @@ it("pins the partial principal namespace row, full parent and exact credential r
           value: "principal-shared",
         },
       ],
-      body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+      body: '{"operations":[{"operation":"createBead","id":"b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
       bodyBytes: 150,
       bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
     },
@@ -3284,7 +3278,7 @@ it("pins the partial principal namespace row, full parent and exact credential r
           value: "principal-shared",
         },
       ],
-      body: '{"operations":[{"operation":"createBead","id":"beads/a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
+      body: '{"operations":[{"operation":"createBead","id":"a","type":"https://reference.invalid/acme/types/task","properties":{"title":"a"},"metadata":{}}]}',
       bodyBytes: 150,
       bodySha256: "54f0fefb0965a8210bb22cf09601c18296ef450489eff1aef5a8bea8b99d83b8",
     },
@@ -3306,7 +3300,7 @@ it("pins the partial principal namespace row, full parent and exact credential r
           value: "principal-shared",
         },
       ],
-      body: '{"operations":[{"operation":"createBead","id":"beads/b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
+      body: '{"operations":[{"operation":"createBead","id":"b","type":"https://reference.invalid/acme/types/task","properties":{"title":"b"},"metadata":{}}]}',
       bodyBytes: 150,
       bodySha256: "b26bbe9a43f5cc9b54d7fe7778786b33e5e8d613bf30248de3af65f5eac0cdc8",
     },
@@ -3328,7 +3322,7 @@ it("pins the partial principal namespace row, full parent and exact credential r
           value: "principal-shared",
         },
       ],
-      body: '{"operations":[{"operation":"createBead","id":"beads/c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
+      body: '{"operations":[{"operation":"createBead","id":"c","type":"https://reference.invalid/acme/types/task","properties":{"title":"c"},"metadata":{}}]}',
       bodyBytes: 150,
       bodySha256: "3de2f9bb5fb4b4b0537d252ba722b05a3385414129cf35fc6ab0355720f9ff62",
     },
@@ -3541,7 +3535,7 @@ it("pins the partial principal namespace row, full parent and exact credential r
   expect(
     createHash("sha256").update(JSON.stringify(row)).digest("hex"),
     "principal-independent-complete-facts",
-  ).toBe("097a27abcff4db5d788f3c9a37889f1590cbcbc011a77e2b8a97d17a260973ff");
+  ).toBe("426647092b4726431b2f81cd320192250195efe6ef3e90633132f05f8f79a729");
   const coverage = JSON.parse(read("coverage").toString()).rows.find(
     (r: { id: string }) => r.id === principalId,
   )!;
@@ -3563,83 +3557,83 @@ const conditionalParentPins = {
   manifest: [
     [
       "read-update.idempotency.principal-isolation",
-      "154e599e9c3fd3fc050af199f4ab6158c8633bfe66cb39fd15e099fb85a7b1e5",
-      35034,
+      "64a4248a932eb943a9d9c61f69b9b33134684af70f72404c2c955b7a1589d0f9",
+      34959,
     ],
     [
       "read-update.http.command-minimum-fields",
-      "f04c001617ccad14ef67a82586ea5f61ec918bc2545bb041fafc21dee07b5d7e",
-      54412,
+      "8812ad6e08a0a2a24a957a1132d65d9adf5b998f5f03d855a6f67e6e725f11ed",
+      54295,
     ],
     [
       "transactional.batch.atomic-commit",
-      "0dfd3b9ed02d01f76ecac08c00b009b4bb9f03e57f7e15a2266eed82fc144747",
-      14936,
+      "b67b977f551d7c4c59b51fd5c3a0f8e6ece7704481d9000f52bc4f5154b5b506",
+      14435,
     ],
     [
       "transactional.batch.rollback",
-      "be24067358af7b5acf7bc1beae2eb6534cbc0effa6f65406ab61b139310bfc37",
-      16319,
+      "adc2fd9c907216d2b1ba73660e36c88a3d04d80ff38c004627ab8a8b349af0bc",
+      16115,
     ],
     [
       "transactional.batch.deletion-safety",
-      "3e66e7c95aec963cc80e076249a5870b952765b2e98c1023ea148f8f628e6aeb",
-      131808,
+      "72eb7fce63711dabec9da306f9c69cc5a504026cf66db743e0f90626f5536a7f",
+      130350,
     ],
     [
       "transactional.batch.no-op-entries",
-      "9307b230eb053131e9127cbbb5e6285305b79d6794edd22f5432a07fc74d9faa",
-      81047,
+      "5391f2acd92087fafe5a887bb4abae9ee54024cf92411a6803453cb8ef56432b",
+      80339,
     ],
     [
       "transactional.set.mutation",
-      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
-      71739,
+      "a6bebc736e6657931bf4a712cc39fa736a83bb05d2f33729fca12187a1b197a5",
+      71379,
     ],
     [
       "transactional.set.zero-match",
-      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
-      36055,
+      "8cc29ca4d7b9d63e912922f45070d36c7dffd9001dd10610b5dd1875c4b8dd2e",
+      35959,
     ],
     [
       "transactional.set.cardinality",
-      "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
-      28546,
+      "7ffae3f77cd442a4a941af595d7f058612d7d043844fb6adb2d8a5d46c4bd83a",
+      28474,
     ],
     [
       "transactional.set.singleton-targets",
-      "561b8ebc21106628918111332a9ab7b47be7350935925ed1e76a6cb5bed576b9",
-      40018,
+      "8f31fe84f893795a097bbde74e3821a7b9b2f941089e75c83768a4075716cf7c",
+      39838,
     ],
     [
       "transactional.receipt.readable",
-      "ddb97e450e233b941f7d905d49f48648d9965ed1b361dcdc5dee6f810038a1e0",
-      12545,
+      "a5640f8cc7da0e76bc264954ffd54e6b788c38c0105b6b08f08e4c1fc0acf50b",
+      12527,
     ],
     [
       "transactional.receipt.pagination",
-      "c531c260349347cdc3e54ba68282f1a266a5fa207d3775660615f836a4768782",
-      138750,
+      "637af53ea41d36e61f89d13d764832d3d68135bc8dd7c59a729e4ddba6dee3b0",
+      137406,
     ],
     [
       "transactional.idempotency.conflict",
-      "ba93aea884ae462533d02695642f03a2ca854f5adabeb41867254216dabb2106",
-      29772,
+      "eb5ebd0e0f6f4b60d3e96377a700677bae081f127583c63668067e4ad52ff864",
+      29712,
     ],
     [
       "transactional.idempotency.cross-carrier",
-      "4ad8c05fe5fbb4682809d4481c93e2684fe30fbbb8962b4da498590637f8f35b",
-      64106,
+      "f5f9583385c63516eb509a476278b930c52e76cc256e3a01dccccbbf1c71fa87",
+      63989,
     ],
     [
       "transactional.idempotency.failed-retained",
-      "a867694406dde07da71ac70197c60c478dd0fb3344cf2c8160795d1aa62d3378",
-      18404,
+      "13c06acb0de9497083f1a1927c9579e259a6bc45b22fe59f4afefa62b8f3c0f6",
+      18206,
     ],
     [
       "transactional.sequence.member-transactions",
-      "c46b34914118dd34ea1e5f12304124550b9d3c4bfcd9671b99995d6af44a2e1b",
-      51379,
+      "ea0d3766d628bdc1ee2957a0acfbcf140e7f55d3e01edd85a8d29a306c95b862",
+      51268,
     ],
   ],
   coverage: [
@@ -3741,7 +3735,7 @@ function withoutConditionalRow(text: string, name: "manifest" | "coverage") {
   const parent = text.slice(0, -suffix.length) + "\n  ]\n}\n";
   expect(createHash("sha256").update(parent).digest("hex"), "conditional-full-parent").toBe(
     name === "manifest"
-      ? "cd90592e76cace65b115dbfedf5f604c9c4011ed2e1a0fad954c1edb12aca6cd"
+      ? "cb266878a2623da78f940358b724d19bbd51ab131e1da2f1ec304a50e6a253d6"
       : "0c991feb128a50625397e337464badcb17d22a0c31e1d57a6b66fa1032a92a51",
   );
   return parent;
@@ -3777,7 +3771,7 @@ it("pins partial Transactional conditional actions, full parent bytes and the tw
   expect(
     createHash("sha256").update(JSON.stringify(row)).digest("hex"),
     "conditional-complete-oracle",
-  ).toBe("faf0d8e65446c97549081797bf81fb281e95209434445afe99d2aef14dd0947a");
+  ).toBe("ee2a4af6abbb45ea990ab13d0a294cc629ae110060573b0f084e0df07921403a");
   // HTTP captureValue accepts URL strings only; full dynamic receipt/postimage
   // equality is enforced independently by the app's original-wire observer.
   expect(row.actions.flatMap((a: { captures: unknown[] }) => a.captures)).toEqual([]);
@@ -3821,7 +3815,7 @@ it("pins partial Transactional conditional actions, full parent bytes and the tw
     "POST batch:",
     "GET subject:",
     "HEAD subject:",
-    "GET scope:beads/missing",
-    "HEAD scope:beads/missing",
+    "GET scope:missing",
+    "HEAD scope:missing",
   ]);
 });

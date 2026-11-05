@@ -34,14 +34,14 @@ import { ReadSelectorError } from "./read-selector.js";
 const scope = "https://scope.example/acme/";
 const context = { scope, controlsEnabled: true };
 const bead: BeadRecord = {
-  id: `${scope}beads/a`,
+  id: `${scope}a`,
   type: `${scope}types/task`,
   revision: "r1",
   properties: { title: "A" },
   metadata: {},
 };
 const link: LinkRecord = {
-  id: `${scope}links/l`,
+  id: `${scope}l`,
   type: `${scope}types/edge`,
   revision: "r2",
   source: bead.id,
@@ -124,10 +124,15 @@ describe("shared Read request kernel", () => {
   });
 
   it.each([
-    { kind: "collection", collection: "beads", continuation: `${scope}beads/?cursor=x`, limit: 1 },
-    { kind: "collection", collection: "links", source: `${scope}alias/latest` },
+    {
+      kind: "collection",
+      collection: "beads",
+      continuation: `${scope}bdp/beads?cursor=x`,
+      limit: 1,
+    },
+    { kind: "collection", collection: "links", source: `${scope}alias//latest` },
     { kind: "collection", collection: "beads", type: "relative" },
-    { kind: "resource", resource: "bead", id: `${scope}links/wrong` },
+    { kind: "resource", resource: "bead", id: `${scope}a//wrong` },
     { kind: "bead-links", bead: bead.id, direction: "sideways" },
     { kind: "scope-discovery", scope: "https://other.example/" },
   ])("keeps existing request validation for %j", (request) => {
@@ -146,25 +151,60 @@ describe("shared Read request kernel", () => {
   });
 
   it("normalizes only structural local endpoints while preserving opaque and Selector bytes", () => {
-    const url = new URL(`${scope}links/`);
-    url.searchParams.set("source", "beads/a");
+    const url = new URL(`${scope}bdp/links`);
+    url.searchParams.set("source", "a");
     url.searchParams.set("target", "urn:example:OUTSIDE");
-    url.searchParams.set("selector", '$[?@.source == "beads/a"]');
+    url.searchParams.set("selector", '$[?@.source == "a"]');
     expect(requestFromUrl(url, scope)).toEqual({
       kind: "collection",
       collection: "links",
       source: bead.id,
       target: "urn:example:OUTSIDE",
-      selector: '$[?@.source == "beads/a"]',
+      selector: '$[?@.source == "a"]',
+    });
+  });
+
+  it("uses fixed inventory routes and leaves Resource kind out of identity paths", () => {
+    expect(requestFromUrl(new URL("bdp/beads", scope), scope)).toEqual({
+      kind: "collection",
+      collection: "beads",
+    });
+    expect(requestFromUrl(new URL("bdp/links", scope), scope)).toEqual({
+      kind: "collection",
+      collection: "links",
+    });
+    expect(requestFromUrl(new URL("types/", scope), scope)).toEqual({
+      kind: "collection",
+      collection: "types",
+    });
+    expect(requestFromUrl(new URL("types/task", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "type",
+      id: `${scope}types/task`,
+    });
+    expect(requestFromUrl(new URL("task-42", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "resource",
+      id: `${scope}task-42`,
+    });
+    expect(requestFromUrl(new URL("a", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "resource",
+      id: `${scope}a`,
+    });
+    expect(requestFromUrl(new URL("task", scope), scope)).toEqual({
+      kind: "resource",
+      resource: "resource",
+      id: `${scope}task`,
     });
   });
 
   it.each([
-    "beads/?limit=1&limit=2",
-    "links/?unknown=x",
+    "bdp/beads?limit=1&limit=2",
+    "bdp/links?unknown=x",
     "types/?type=https://example.test/T",
-    "beads/a?view=links&direction=sideways",
-    "beads/a?include=links",
+    "a?view=links&direction=sideways",
+    "a?include=links",
   ])("preserves URL rejection for %s", (suffix) => {
     expect(requestFromUrl(new URL(suffix, scope), scope)).toEqual(readProblem("invalid-parameter"));
   });
@@ -205,7 +245,7 @@ describe("shared Read request kernel", () => {
     expect(() =>
       validateServerBead({ ...bead, ownedLinks: { [link.type]: [link] } }, scope),
     ).not.toThrow();
-    expect(() => validateServerLink({ ...link, source: `${scope}alias/a` }, scope)).toThrow(
+    expect(() => validateServerLink({ ...link, source: `${scope}alias//a` }, scope)).toThrow(
       ProtocolArtifactValidationError,
     );
     expect(() => validateServerLink({ ...link, source: "urn:outside:a" }, scope)).toThrow(
@@ -218,15 +258,15 @@ describe("shared Read request kernel", () => {
       /direction/,
     );
     expect(() =>
-      variant.validateBody(request, { items: [], next: `${scope}links/?cursor=x` }, scope),
+      variant.validateBody(request, { items: [], next: `${scope}bdp/links?cursor=x` }, scope),
     ).toThrow(/pagination/);
   });
 
   it("sorts an explicitly permuted list without mutating it", () => {
-    const input = [{ id: `${scope}beads/z` }, { id: `${scope}beads/a` }];
+    const input = [{ id: `${scope}z` }, { id: `${scope}a` }];
     const result = inCanonicalUriOrder(input);
-    expect(result.map((x) => x.id)).toEqual([`${scope}beads/a`, `${scope}beads/z`]);
-    expect(input[0]?.id).toBe(`${scope}beads/z`);
+    expect(result.map((x) => x.id)).toEqual([`${scope}a`, `${scope}z`]);
+    expect(input[0]?.id).toBe(`${scope}z`);
     expect(Object.isFrozen(result)).toBe(true);
   });
 
@@ -235,7 +275,7 @@ describe("shared Read request kernel", () => {
     expect(classifyAliasPath(new URL(`${scope}alias/latest?q=1`), scope)).toEqual(
       readProblem("resource-not-found"),
     );
-    expect(classifyAliasPath(new URL(`${scope}beads/a`), scope)).toBeUndefined();
+    expect(classifyAliasPath(new URL(`${scope}a`), scope)).toBeUndefined();
     expect(classifyAliasPath(new URL("https://other.example/alias/a"), scope)).toBeUndefined();
     // Raw direct-string hardening is for the future plane, not this extraction.
     expect(classifyAliasPath(new URL(`${scope}alias/latest?`), scope)).toBe("latest");

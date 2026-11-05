@@ -12,9 +12,9 @@ import {
 const scope = "https://example.test/s/",
   type = "https://types.example/task",
   linkType = "https://types.example/relation";
-const bead = { id: `${scope}beads/a`, type, revision: "r1", properties: {} };
+const bead = { id: `${scope}a`, type, revision: "r1", properties: {} };
 const link = {
-  id: `${scope}links/l`,
+  id: `${scope}l`,
   type: linkType,
   revision: "l1",
   properties: {},
@@ -25,9 +25,7 @@ const discovery = {
   bdpVersion: "0",
   profile: "read-update",
   scope,
-  beads: `${scope}beads/`,
-  links: `${scope}links/`,
-  types: `${scope}types/`,
+
   operations: `${scope}operations/`,
   aliases: `${scope}alias/`,
 };
@@ -169,15 +167,15 @@ describe("BdpReadUpdateClient navigation and operations", () => {
     expect(seen).toEqual([scope, `${scope}bdp.json`]);
   });
   it.each([
-    ["createBead", { type, id: "beads/a" }, { outcome: "created", resource: bead }],
+    ["createBead", { type, id: "a" }, { outcome: "created", resource: bead }],
     [
       "updateBead",
-      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "", value: {} }] },
+      { bead: "a", propertiesChange: [{ op: "replace", path: "", value: {} }] },
       { outcome: "updated", resource: bead },
     ],
     [
       "deleteBead",
-      { bead: "beads/a", expectedRevision: "r1" },
+      { bead: "a", expectedRevision: "r1" },
       {
         outcome: "deleted",
         deleted: { resourceKind: "bead", resource: { id: bead.id, type, revision: "r1" } },
@@ -185,17 +183,17 @@ describe("BdpReadUpdateClient navigation and operations", () => {
     ],
     [
       "createLink",
-      { type: linkType, id: "links/l", source: "beads/a", target: "urn:external" },
+      { type: linkType, id: "l", source: "a", target: "urn:external" },
       { outcome: "created", resource: link, source: bead.id, sourceRevision: "r2" },
     ],
     [
       "updateLink",
-      { link: "links/l", propertiesChange: [{ op: "replace", path: "", value: {} }] },
+      { link: "l", propertiesChange: [{ op: "replace", path: "", value: {} }] },
       { outcome: "updated", resource: link },
     ],
     [
       "deleteLink",
-      { link: "links/l", expectedRevision: "l1" },
+      { link: "l", expectedRevision: "l1" },
       {
         outcome: "deleted",
         deleted: {
@@ -208,7 +206,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
     ],
     [
       "putAlias",
-      { alias: "alias/lead", target: "beads/a" },
+      { alias: "alias/lead", target: "a" },
       { outcome: "created", alias: `${scope}alias/lead`, target: bead.id },
     ],
     ["deleteAlias", { alias: "alias/lead" }, { outcome: "deleted", alias: `${scope}alias/lead` }],
@@ -250,7 +248,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
   );
   it.each([
     `{"type":"${type}","type":"${type}"}`,
-    `{"type":"${type}","id":"https://evil.test/beads/a"}`,
+    `{"type":"${type}","id":"https://evil.test/a"}`,
     `{"type":"${type}","properties":{"x":"\\ud800"}}`,
   ])("rejects invalid whole carrier before navigation: %s", async (text) => {
     const h = setup();
@@ -368,13 +366,13 @@ describe("BdpReadUpdateClient navigation and operations", () => {
   it.each([
     { outcome: "updated", resource: bead },
     { outcome: "created", resource: link },
-    { outcome: "created", resource: { ...bead, id: `${scope}beads/b` } },
+    { outcome: "created", resource: { ...bead, id: `${scope}b` } },
     { outcome: "created", resource: { ...bead, type: linkType } },
-    { outcome: "created", resource: { ...bead, id: "https://evil.test/beads/a" } },
+    { outcome: "created", resource: { ...bead, id: "https://evil.test/a" } },
   ])("rejects operation/category/id/type mismatch %# without retry", async (result) => {
     const h = setup(result);
     await expect(
-      h.client.mutate("createBead", JSON.stringify({ type, id: "beads/a" }), options),
+      h.client.mutate("createBead", JSON.stringify({ type, id: "a" }), options),
     ).rejects.toMatchObject({ code: "invalid-response", submission: "unknown", httpStatus: 200 });
     expect(h.calls.filter((c) => c.method === "post")).toHaveLength(1);
   });
@@ -394,13 +392,13 @@ describe("BdpReadUpdateClient navigation and operations", () => {
     const wrongSource = setup({
       outcome: "created",
       resource: link,
-      source: `${scope}beads/other`,
+      source: `${scope}other`,
       sourceRevision: "r2",
     });
     await expect(
       wrongSource.client.mutate(
         "createLink",
-        JSON.stringify({ type: linkType, source: "beads/a", target: "urn:external" }),
+        JSON.stringify({ type: linkType, source: "a", target: "urn:external" }),
         options,
       ),
     ).rejects.toMatchObject({ code: "invalid-response" });
@@ -408,7 +406,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
       outcome: "created",
       resource: {
         ...bead,
-        ownedLinks: { [linkType]: [{ ...link, id: "https://evil.test/links/l" }] },
+        ownedLinks: { [linkType]: [{ ...link, id: "https://evil.test/l" }] },
       },
     });
     await expect(invalidOwned.client.mutate("createBead", input, options)).rejects.toMatchObject({
@@ -420,19 +418,19 @@ describe("BdpReadUpdateClient navigation and operations", () => {
     { ...link, target: { uri: "urn:external", revision: "invented-pin" } },
     { ...link, target: "urn:changed" },
     { ...link, target: `${scope}alias/lead` },
-    { ...link, target: "HTTPS://EXAMPLE.TEST/s/beads/a" },
+    { ...link, target: "HTTPS://EXAMPLE.TEST/s/a" },
   ])("rejects endpoint/pin/canonicality mismatch %#", async (resource) => {
     const h = setup({ outcome: "created", resource });
     await expect(
       h.client.mutate(
         "createLink",
-        JSON.stringify({ type: linkType, source: "beads/a", target: "urn:external" }),
+        JSON.stringify({ type: linkType, source: "a", target: "urn:external" }),
         options,
       ),
     ).rejects.toMatchObject({ code: "invalid-response" });
   });
   it("preserves a caller pin and accepts retained alias resolution without current-state lookup", async () => {
-    const old = `${scope}beads/old`;
+    const old = `${scope}old`;
     const result = {
       outcome: "created",
       resource: { ...link, source: { uri: old, revision: "pinned" }, target: bead.id },
@@ -444,7 +442,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
         JSON.stringify({
           type: linkType,
           source: { uri: "alias/repointed", revision: "pinned" },
-          target: "beads/a",
+          target: "a",
         }),
         options,
       ),
@@ -463,19 +461,14 @@ describe("BdpReadUpdateClient navigation and operations", () => {
         options,
       ),
     ).rejects.toMatchObject({ code: "invalid-response" });
-    const allocated = setup({ outcome: "created", resource: { ...bead, id: `${scope}beads/a/b` } });
+    const allocated = setup({ outcome: "created", resource: { ...bead, id: `${scope}a/b` } });
     await expect(allocated.client.mutate("createBead", input, options)).rejects.toMatchObject({
       code: "invalid-response",
     });
     // The same hierarchy is allowed when the creator explicitly supplies it.
     expect(
-      (
-        await allocated.client.mutate(
-          "createBead",
-          JSON.stringify({ type, id: "beads/a/b" }),
-          options,
-        )
-      ).kind,
+      (await allocated.client.mutate("createBead", JSON.stringify({ type, id: "a/b" }), options))
+        .kind,
     ).toBe("success");
   });
   it("preserves selected received headers on local errors and strips injected credentials", async () => {
@@ -521,11 +514,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
       deleted: { resourceKind: "bead", resource: { id: bead.id, type, revision: "r2" } },
     });
     await expect(
-      h.client.mutate(
-        "deleteBead",
-        JSON.stringify({ bead: "beads/a", expectedRevision: "r1" }),
-        options,
-      ),
+      h.client.mutate("deleteBead", JSON.stringify({ bead: "a", expectedRevision: "r1" }), options),
     ).rejects.toMatchObject({ code: "invalid-response" });
   });
   it.each([405, 406, 500])(
@@ -590,7 +579,7 @@ describe("Read+Update sequence and client lifetime", () => {
       bead: "@a",
       propertiesChange: [{ op: "replace", path: "", value: {} }],
     },
-    { operation: "deleteBead", idempotencyKey: "c", bead: "beads/missing" },
+    { operation: "deleteBead", idempotencyKey: "c", bead: "missing" },
   ];
   const text = JSON.stringify({ operations: members });
   const result = {
@@ -620,7 +609,7 @@ describe("Read+Update sequence and client lifetime", () => {
       ...result,
       results: [
         result.results[0],
-        { operationIndex: 1, outcome: "updated", resource: { ...bead, id: `${scope}beads/b` } },
+        { operationIndex: 1, outcome: "updated", resource: { ...bead, id: `${scope}b` } },
         result.results[2],
       ],
     },
@@ -648,10 +637,7 @@ describe("Read+Update sequence and client lifetime", () => {
     await expect(
       h.client.sequence(
         JSON.stringify({
-          operations: [
-            ...members,
-            { operation: "deleteBead", idempotencyKey: "a", bead: "beads/a" },
-          ],
+          operations: [...members, { operation: "deleteBead", idempotencyKey: "a", bead: "a" }],
         }),
       ),
     ).rejects.toMatchObject({ code: "invalid-input" });
@@ -672,7 +658,7 @@ describe("Read+Update sequence and client lifetime", () => {
       ],
     });
     const reply = await h.client.sequence(
-      JSON.stringify({ operations: [members[0], { ...members[1], bead: "beads/a" }] }),
+      JSON.stringify({ operations: [members[0], { ...members[1], bead: "a" }] }),
     );
     expect(reply.kind).toBe("success");
   });
@@ -860,16 +846,16 @@ describe("operation council regressions", () => {
     }
   });
   it.each([
-    "https://example.test/%73/beads/b",
-    "https://example.test/s/beads/../beads/b",
-    "https://example.test/s/../other/beads/b",
+    "https://example.test/%73/b",
+    "https://example.test/s/../b",
+    "https://example.test/s/../other/b",
   ])("rejects disguised local endpoint %s in an update response", async (target) => {
     const h = setup({ outcome: "updated", resource: { ...link, target } });
     await expect(
       h.client.mutate(
         "updateLink",
         JSON.stringify({
-          link: "links/l",
+          link: "l",
           propertiesChange: [{ op: "replace", path: "", value: {} }],
         }),
         options,
@@ -877,10 +863,10 @@ describe("operation council regressions", () => {
     ).rejects.toMatchObject({ code: "invalid-response", submission: "unknown" });
   });
   it.each([
-    `${scope}beads/b`,
-    "https://example.test/s%2fother/beads/b",
-    "http://example.test/s/beads/b",
-    "blob:https://example.test/s/beads/b",
+    `${scope}b`,
+    "https://example.test/s%2fother/b",
+    "http://example.test/s/b",
+    "blob:https://example.test/s/b",
   ])("accepts canonical or distinct external endpoint %s", async (target) => {
     const h = setup({ outcome: "updated", resource: { ...link, target } });
     expect(
@@ -888,7 +874,7 @@ describe("operation council regressions", () => {
         await h.client.mutate(
           "updateLink",
           JSON.stringify({
-            link: "links/l",
+            link: "l",
             propertiesChange: [{ op: "replace", path: "", value: {} }],
           }),
           options,
@@ -1008,7 +994,7 @@ describe("operation HTTP council corrections", () => {
     const h = setup({
       results: [
         { operationIndex: 0, outcome: "created", resource: bead },
-        { operationIndex: 1, outcome: "created", resource: { ...bead, id: `${scope}beads/other` } },
+        { operationIndex: 1, outcome: "created", resource: { ...bead, id: `${scope}other` } },
       ],
     });
     try {
@@ -1016,7 +1002,7 @@ describe("operation HTTP council corrections", () => {
         JSON.stringify({
           operations: [
             { operation: "createBead", idempotencyKey: "a", type },
-            { operation: "createBead", idempotencyKey: "b", id: "beads/b", type },
+            { operation: "createBead", idempotencyKey: "b", id: "b", type },
           ],
         }),
       );
@@ -1027,7 +1013,7 @@ describe("operation HTTP council corrections", () => {
         submission: "unknown",
         operationIndex: 1,
       });
-      expect(JSON.stringify(error)).not.toContain("beads/other");
+      expect(JSON.stringify(error)).not.toContain("other");
       expect(error).not.toHaveProperty("results");
     }
   });

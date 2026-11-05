@@ -18,7 +18,7 @@
         "schema": "#/$defs/deleteWhereRequest",
         "body": {
           "collection": "links",
-          "selector": "$[?@.type == \"https://work.example/types/relates\" && @.source == \"https://beads.example/acme/beads/task-43\"]",
+          "selector": "$[?@.type == \"https://work.example/types/relates\" && @.source == \"https://beads.example/acme/task-43\"]",
           "cardinality": {
             "min": 1
           },
@@ -62,7 +62,7 @@
               "deleted": {
                 "resourceKind": "link",
                 "resource": {
-                  "id": "https://beads.example/acme/links/2d4f",
+                  "id": "https://beads.example/acme/2d4f",
                   "type": "https://work.example/types/relates",
                   "revision": "2d4f-r1"
                 }
@@ -148,7 +148,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/task-43",
+          "bead": "task-43",
           "expectedRevision": "task-43-r2",
           "propertiesChange": [
             {
@@ -189,7 +189,7 @@
               "operationIndex": 0,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/task-43",
+                "id": "https://beads.example/acme/task-43",
                 "type": "https://work.example/types/task",
                 "revision": "task-43-r2",
                 "properties": {
@@ -205,7 +205,7 @@
       },
       "priorResources": [
         {
-          "id": "https://beads.example/acme/beads/task-43",
+          "id": "https://beads.example/acme/task-43",
           "type": "https://work.example/types/task",
           "revision": "task-43-r2",
           "properties": {
@@ -228,7 +228,7 @@
         },
         "schema": "#/$defs/updateBeadRequest",
         "body": {
-          "bead": "beads/noop-example",
+          "bead": "noop-example",
           "expectedRevision": "noop-r1",
           "propertiesChange": [
             {
@@ -269,7 +269,7 @@
               "operationIndex": 0,
               "outcome": "updated",
               "resource": {
-                "id": "https://beads.example/acme/beads/noop-example",
+                "id": "https://beads.example/acme/noop-example",
                 "type": "https://work.example/types/task",
                 "revision": "noop-r1",
                 "properties": {
@@ -291,7 +291,7 @@
       },
       "priorResources": [
         {
-          "id": "https://beads.example/acme/beads/noop-example",
+          "id": "https://beads.example/acme/noop-example",
           "type": "https://work.example/types/task",
           "revision": "noop-r1",
           "properties": {

@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { ReadSession, ReadSessionLocalError } from "./read-session.js";
 
 const scope = "https://example.test/s/";
-const roots = { scope, beads: `${scope}beads/`, links: `${scope}links/`, types: `${scope}types/` };
+const roots = { scope };
 const first = { kind: "collection", collection: "beads" } as const;
-const next = `${scope}beads/?cursor=next`;
+const next = `${scope}bdp/beads?cursor=next`;
 function issue(session: ReadSession) {
   const prepared = session.prepare(first);
   expect(prepared.route(roots).kind).toBe("success");
@@ -30,7 +30,7 @@ describe("shared Read stage ownership", () => {
     const session = new ReadSession(scope);
     if (leased) issue(session);
     const prepared = session.prepare(leased ? { ...first, continuation: next } : first);
-    const staged = prepared.validate({ items: [], next: `${scope}beads/?cursor=later` });
+    const staged = prepared.validate({ items: [], next: `${scope}bdp/beads?cursor=later` });
     if (staged.kind !== "success") throw Error("valid control refused");
     prepared.release();
     prepared.release();
@@ -38,7 +38,7 @@ describe("shared Read stage ownership", () => {
     expect(() => prepared.validate({ items: [], next: null })).toThrow(ReadSessionLocalError);
     if (leased) session.prepare({ ...first, continuation: next }).release();
     expect(() =>
-      session.prepare({ ...first, continuation: `${scope}beads/?cursor=later` }),
+      session.prepare({ ...first, continuation: `${scope}bdp/beads?cursor=later` }),
     ).toThrow(ReadSessionLocalError);
   });
   it.each([false, true])(
@@ -47,7 +47,7 @@ describe("shared Read stage ownership", () => {
       const session = new ReadSession(scope);
       if (leased) issue(session);
       const prepared = session.prepare(leased ? { ...first, continuation: next } : first);
-      const staged = prepared.validate({ items: [], next: `${scope}beads/?cursor=later` });
+      const staged = prepared.validate({ items: [], next: `${scope}bdp/beads?cursor=later` });
       if (staged.kind !== "success") throw Error("valid control refused");
       session.clear();
       prepared.release();

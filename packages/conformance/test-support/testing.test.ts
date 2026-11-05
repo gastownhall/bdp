@@ -94,9 +94,9 @@ describe("controlled Read conformance actions", () => {
   ] as const)(
     "observes nondisclosure bodies that are %s",
     async (_label, varyOneBody, byteIdentical, distinctDigests) => {
-      const hidden = new URL("beads/demo-b", scope).href;
-      const deleted = new URL("beads/demo-f", scope).href;
-      const unknown = new URL("beads/never-existed", scope).href;
+      const hidden = new URL("demo-b", scope).href;
+      const deleted = new URL("demo-f", scope).href;
+      const unknown = new URL("never-existed", scope).href;
       let transitioned = false;
       const problem = {
         type: "https://github.com/gastownhall/bdp/problems/not-found",
@@ -107,7 +107,7 @@ describe("controlled Read conformance actions", () => {
         const url =
           typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
         const parsed = new URL(url);
-        if (parsed.pathname.endsWith("/beads/"))
+        if (parsed.pathname.endsWith("/bdp/beads"))
           return jsonResponseAt(url, { items: [], next: null });
         if (!transitioned && (url === hidden || url === deleted))
           return jsonResponseAt(url, { id: url });
@@ -142,9 +142,9 @@ describe("controlled Read conformance actions", () => {
         scope,
         bindings: {},
         input: {
-          hiddenId: "beads/demo-b",
-          deletedId: "beads/demo-f",
-          unknownId: "beads/never-existed",
+          hiddenId: "demo-b",
+          deletedId: "demo-f",
+          unknownId: "never-existed",
           view: "view",
           epoch: "epoch",
         },
@@ -172,20 +172,20 @@ describe("controlled Read conformance actions", () => {
   );
 
   it.each([
-    ["page tuples", { replayRevision: "2", replayNext: `${scope}beads/?cursor=tail` }],
+    ["page tuples", { replayRevision: "2", replayNext: `${scope}bdp/beads?cursor=tail` }],
     ["continuation shape", { replayRevision: "1", replayNext: null }],
   ] as const)("rejects a pre-expiry replay with changed %s", async (_label, replay) => {
-    const continuation = `${scope}beads/?cursor=stable`;
-    const beforeExpiryNext = `${scope}beads/?cursor=tail`;
+    const continuation = `${scope}bdp/beads?cursor=stable`;
+    const beforeExpiryNext = `${scope}bdp/beads?cursor=tail`;
     let continuationRequests = 0;
     const fetchImplementation: typeof fetch = async (input) => {
       const url = String(input);
-      if (url === `${scope}beads/`)
+      if (url === `${scope}bdp/beads`)
         return jsonResponseAt(url, {
           items: [resource("a", "1")],
           next: continuation,
         });
-      if (url === `${scope}beads/?limit=200`)
+      if (url === `${scope}bdp/beads?limit=200`)
         return jsonResponseAt(url, { items: [resource("a", "1")], next: continuation });
       if (url === continuation) {
         continuationRequests += 1;
@@ -250,14 +250,14 @@ describe("controlled Read conformance actions", () => {
   });
 
   it("surfaces a failed restored-Resource probe instead of defaulting it to success", async () => {
-    const stable = new URL("beads/demo-a", scope).href;
-    const deleted = new URL("beads/demo-f", scope).href;
+    const stable = new URL("demo-a", scope).href;
+    const deleted = new URL("demo-f", scope).href;
     const initialFetch: typeof fetch = async (input) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url === `${scope}beads/?limit=1`)
+      if (url === `${scope}bdp/beads?limit=1`)
         return jsonResponseAt(url, {
           items: [resource("demo-a", "1")],
-          next: `${scope}beads/?limit=1&cursor=pre-restore`,
+          next: `${scope}bdp/beads?limit=1&cursor=pre-restore`,
         });
       return jsonResponse({ id: url });
     };
@@ -298,8 +298,8 @@ describe("controlled Read conformance actions", () => {
         scope,
         bindings: {},
         input: {
-          stableId: "beads/demo-a",
-          deletedId: "beads/demo-f",
+          stableId: "demo-a",
+          deletedId: "demo-f",
           view: "view",
           epoch: "epoch",
         },
@@ -356,5 +356,5 @@ function rawProblemResponseAt(url: string, body: string): Response {
 }
 
 function resource(id: string, revision: string): Readonly<Record<string, unknown>> {
-  return { id: `${scope}beads/${id}`, revision };
+  return { id: `${scope}${id}`, revision };
 }

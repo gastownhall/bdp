@@ -1119,7 +1119,7 @@
     },
     "readDiscovery": {
       "type": "object",
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "types"],
+      "required": ["bdpVersion", "profile", "scope"],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -1130,14 +1130,9 @@
         "scope": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "aliases": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -2730,16 +2725,7 @@
     },
     "readUpdateDiscovery": {
       "type": "object",
-      "required": [
-        "bdpVersion",
-        "profile",
-        "scope",
-        "beads",
-        "links",
-        "types",
-        "operations",
-        "aliases"
-      ],
+      "required": ["bdpVersion", "profile", "scope", "operations", "aliases"],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -2750,14 +2736,9 @@
         "scope": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "operations": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -4997,9 +4978,6 @@
         "bdpVersion",
         "profile",
         "scope",
-        "beads",
-        "links",
-        "types",
         "operations",
         "aliases",
         "scopeEpoch",
@@ -5033,14 +5011,9 @@
         "minimumReplayPosition": {
           "$ref": "#/$defs/wireToken"
         },
-        "beads": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "links": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "types": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Optional fixed Type-inventory route at `<scope>/types/`; presence advertises Types inventory support."
         },
         "operations": {
           "$ref": "#/$defs/absoluteHttpUrl"
