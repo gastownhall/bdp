@@ -228,10 +228,7 @@ describe("bd process Scope port", () => {
       port.perform({ kind: "properties", resource: "resource", id: linkId }, options),
     ).resolves.toEqual({ kind: "success", body: {} });
     await expect(
-      port.perform(
-        { kind: "resource", resource: "resource", id: beadUrl("missing") },
-        options,
-      ),
+      port.perform({ kind: "resource", resource: "resource", id: beadUrl("missing") }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
@@ -240,11 +237,12 @@ describe("bd process Scope port", () => {
 
   it("rejects snapshots that collide across globally unique Bead and Link identities", async () => {
     const { port } = await createPort("resource-identity-collision");
-    await expect(port.perform({ kind: "collection", collection: "beads" }, options)).resolves
-      .toMatchObject({
-        kind: "problem",
-        problem: { code: "temporarily-unavailable", status: 503 },
-      });
+    await expect(
+      port.perform({ kind: "collection", collection: "beads" }, options),
+    ).resolves.toMatchObject({
+      kind: "problem",
+      problem: { code: "temporarily-unavailable", status: 503 },
+    });
   });
 
   it("uses an exact caller-provided environment for every bd child", async () => {

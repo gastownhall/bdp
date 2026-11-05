@@ -198,9 +198,7 @@ describe("private same-owner Transactional Read", () => {
     ).toEqual({ n: 1 });
     const edge = body(await facet.perform(resource("self", "link")));
     expect(edge).toMatchObject({ source: url("a"), target: url("a") });
-    expect(items(await facet.perform({ kind: "bead-links", bead: url("a") }))).toEqual([
-      edge,
-    ]);
+    expect(items(await facet.perform({ kind: "bead-links", bead: url("a") }))).toEqual([edge]);
     expect(
       items(
         await facet.perform({
@@ -241,16 +239,12 @@ describe("private same-owner Transactional Read", () => {
     const f = fixture();
     f.write(seed);
     const { facet, plane } = f.open();
-    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe("completed");
     expect(await facet.resolveAlias(url("alias/work"))).toMatchObject({
       kind: "target",
       target: url("a"),
     });
-    expect(f.alias("putAlias", { alias: "alias/work", target: "b" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "b" }).status).toBe("completed");
     expect(await facet.resolveAlias(url("alias/work"))).toMatchObject({
       kind: "target",
       target: url("b"),
@@ -269,9 +263,7 @@ describe("private same-owner Transactional Read", () => {
       kind: "problem",
       problem: { code: "resource-not-found" },
     });
-    expect(f.alias("putAlias", { alias: "alias/work", target: "b" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "b" }).status).toBe("completed");
     expect(f.write([{ operation: "deleteBead", bead: "b" }]).status).toBe("completed");
     expect(await reopened.resolveAlias(url("alias/work"))).toMatchObject({
       kind: "problem",
@@ -462,9 +454,7 @@ describe("Transactional same-entry source context", () => {
         },
       ]).status,
     ).toBe("completed");
-    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe("completed");
     expect(
       f.write([
         { operation: "createBead", id: "tentative", type: bead },
@@ -583,9 +573,7 @@ it("checks visible point rows and their minimum in the same entry and leaves the
     return original.call(this, sql);
   });
   try {
-    const result = await plane
-      .minimumFor({ kind: "anonymous" }, minimum)
-      .perform(resource("a"));
+    const result = await plane.minimumFor({ kind: "anonymous" }, minimum).perform(resource("a"));
     expect(contexts(result).current.scopePosition).toBe("pos-1");
     expect(resources).toBeGreaterThan(0);
     resources = 0;
@@ -823,10 +811,7 @@ describe("initial collection minimums", () => {
 
   it("does not retain failed attempts and preserves successful page rows versus current context", async () => {
     const f = fixture();
-    f.write([
-      ...seed,
-      { operation: "createBead", id: "c", type: bead, properties: { n: 3 } },
-    ]);
+    f.write([...seed, { operation: "createBead", id: "c", type: bead, properties: { n: 3 } }]);
     let allocations = 0;
     const { plane, facet } = f.open({
       pagination: {
@@ -1114,16 +1099,12 @@ describe("compatible missing Resource minimum", () => {
       problem: { status: 404 },
     });
     f.write([{ operation: "createBead", id: "after", type: bead }]);
-    expect(contexts(await facet.perform(resource("after"))).current.scopePosition).toBe(
-      "pos-2",
-    );
+    expect(contexts(await facet.perform(resource("after"))).current.scopePosition).toBe("pos-2");
   });
   it("ignores ordinary sourceCondition while preserving signals and minimumFor enforcement", async () => {
     const f = fixture();
     f.write(seed);
-    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe("completed");
     const { plane, facet } = f.open(),
       config = f.store.readConfiguration();
     const sourceCondition = {
@@ -1163,9 +1144,7 @@ describe("compatible missing Resource minimum", () => {
     async (method) => {
       const f = fixture();
       f.write(seed);
-      expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe(
-        "completed",
-      );
+      expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe("completed");
       const { plane, facet } = f.open();
       const call = (options: unknown) =>
         method === "perform"
@@ -1720,9 +1699,7 @@ describe("current alias minimum subset", () => {
         })),
       ).status,
     ).toBe("completed");
-    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe("completed");
     const minimum = (minimumPosition = "pos-1") => ({
       scopeEpoch: f.store.scopeEpoch,
       authorizationView: "development-all-visible",
@@ -1985,9 +1962,7 @@ describe("current alias minimum subset", () => {
     await checkMissing("alias/never", "pos-1");
     expect(f.alias("deleteAlias", { alias: "alias/work" }).status).toBe("completed");
     await checkMissing("alias/work", "pos-1");
-    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe(
-      "completed",
-    );
+    expect(f.alias("putAlias", { alias: "alias/work", target: "a" }).status).toBe("completed");
     expect(f.write([{ operation: "deleteBead", bead: "a" }]).status).toBe("completed");
     await checkMissing("alias/work", "pos-2"); // Delete the target; do not try deleting a dangling alias.
     expect(await service.readFor(principal).perform(resource("b"))).toMatchObject({
@@ -2076,8 +2051,7 @@ describe("current alias minimum subset", () => {
       withRead: (callback) =>
         f.store.withRead((reader, captured) => {
           if (fault === "provider") throw sentinel;
-          const exposed =
-            fault === "target" ? { ...reader, alias: () => "not-a-bead" } : reader;
+          const exposed = fault === "target" ? { ...reader, alias: () => "not-a-bead" } : reader;
           originalReaders.set(exposed, reader);
           try {
             return callback(

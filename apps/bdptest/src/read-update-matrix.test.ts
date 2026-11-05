@@ -4388,8 +4388,7 @@ it.each([
     const action = row.actions.find((a: { id: string }) => a.id === actionId);
     if (control === "source-pin") action.input.body.source.uri = "ra-source";
     else if (control === "missing-bead") action.input.body.target = "rb-missing-control";
-    else if (control === "wrong-absolute-category")
-      action.input.body.target = `${scope}rb-live`;
+    else if (control === "wrong-absolute-category") action.input.body.target = `${scope}rb-live`;
     else if (control === "wrong-pinned-category") {
       const preseed = {
         id: "wrong-kind-preseed",
@@ -4605,8 +4604,7 @@ it("detects reference live alias oracle corruption after fresh corrected put", a
   );
   const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
   const action = row.actions.find((a: { id: string }) => a.id === "rb-alias-fresh-0-read");
-  action.assertions.find((a: { id: string }) => a.id === "location").equals =
-    `${scope}rb-source`;
+  action.assertions.find((a: { id: string }) => a.id === "location").equals = `${scope}rb-source`;
   const report = await run(manifest, [referenceRows[1]]);
   const observed = report.result.scenarios.find((r) => r.id === referenceRows[1]);
   expect(observed?.state).toBe("fail");
@@ -4729,8 +4727,7 @@ it("detects restored C retained-delete live-alias Location corruption", async ()
   const action = manifest.scenarios
     .find((r: { id: string }) => r.id === continuationId)
     .actions.find((a: { id: string }) => a.id === "rc-delete-replay-alias");
-  action.assertions.find((a: { id: string }) => a.id === "location").equals =
-    `${scope}rc-source`;
+  action.assertions.find((a: { id: string }) => a.id === "location").equals = `${scope}rc-source`;
   const report = await run(manifest, [continuationId]);
   expect(report.result.scenarios[0]!.state).toBe("fail");
   expect(
@@ -5444,18 +5441,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
   const keys: string[] = [];
   let totalActions = 0;
   for (const [id, count, ceiling, ids] of [
-    [
-      attributionId,
-      75,
-      75,
-      [
-        "att-subject",
-        "att-owner",
-        "att-target",
-        "att-unowned",
-        "att-owned",
-      ],
-    ],
+    [attributionId, 75, 75, ["att-subject", "att-owner", "att-target", "att-unowned", "att-owned"]],
     [numericId, 81, 81, ["num-subject", "num-target", "num-link"]],
   ] as const) {
     const row = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === id)!;

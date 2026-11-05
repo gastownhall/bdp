@@ -195,9 +195,7 @@ it.each([false, true])(
       "source",
       "target",
     ]);
-    expect(
-      events.filter((e) => e.type === "updated" && e.subject === `${scope}l`),
-    ).toHaveLength(1);
+    expect(events.filter((e) => e.type === "updated" && e.subject === `${scope}l`)).toHaveLength(1);
     expect(f.owner.inspect().groups.at(-1)).toMatchObject({
       changes: expect.arrayContaining([
         {
@@ -289,16 +287,14 @@ it("keeps unknown sources nondisclosing before minimum and refuses older success
     authorizationView: config.authorizationView,
     minimumPosition: "pos-2",
   };
-  expect(f.owner.readEvents(`${scope}unknown?view=events`, undefined, minimum)).toStrictEqual(
-    {
-      kind: "missing",
-      context: {
-        scopeEpoch: config.scopeEpoch,
-        authorizationView: config.authorizationView,
-        scopePosition: "pos-1",
-      },
+  expect(f.owner.readEvents(`${scope}unknown?view=events`, undefined, minimum)).toStrictEqual({
+    kind: "missing",
+    context: {
+      scopeEpoch: config.scopeEpoch,
+      authorizationView: config.authorizationView,
+      scopePosition: "pos-1",
     },
-  );
+  });
   expect(() => f.owner.readEvents(`${scope}events/`, undefined, minimum)).toThrow(
     TransactionMinimumFailure,
   );
@@ -337,9 +333,7 @@ it("isolates unresolved metadata-only incident membership while Scope/Link sourc
   const f = fixture();
   f.run([bead("a"), bead("b"), link()]);
   const metadataChange = [{ op: "add", path: "/note", value: "own" }];
-  expect(f.run([{ operation: "updateBead", bead: "a", metadataChange }]).status).toBe(
-    "completed",
-  );
+  expect(f.run([{ operation: "updateBead", bead: "a", metadataChange }]).status).toBe("completed");
   expect(collect(f.owner, `${scope}a?view=events`).events.at(-1)).toMatchObject({
     subject: `${scope}a`,
     type: "updated",
@@ -362,9 +356,7 @@ it("isolates unresolved metadata-only incident membership while Scope/Link sourc
     "metadataChange",
   );
   expect(collect(f.owner, `${scope}events/`).events.at(-1)?.data).toHaveProperty("metadataChange");
-  expect(() => collect(f.owner, `${scope}a?view=events`)).toThrow(
-    TransactionEventProjectionGap,
-  );
+  expect(() => collect(f.owner, `${scope}a?view=events`)).toThrow(TransactionEventProjectionGap);
 });
 it("bounds actual finite page bytes with long canonical sources and emits no partial Event", () => {
   const s = `https://example.test/${"s".repeat(60000)}/`,
@@ -546,8 +538,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     expect((await get("a")).status).toBe(404);
     expect((await get("a?view=events")).status).toBe(200);
     expect(
-      (await post([bead("c"), bead("d"), link("metadata", "c", "d")], "metadata-seed"))
-        .status,
+      (await post([bead("c"), bead("d"), link("metadata", "c", "d")], "metadata-seed")).status,
     ).toBe(200);
     expect(
       (
@@ -670,9 +661,7 @@ it("continues a Resource cursor across groups with zero contributions and observ
   expect(f.owner.readEvents(source, first.id)).toMatchObject({
     kind: "page",
     page: {
-      events: [
-        expect.objectContaining({ subject: `${scope}a`, type: "updated", ordinal: 0 }),
-      ],
+      events: [expect.objectContaining({ subject: `${scope}a`, type: "updated", ordinal: 0 })],
       next: null,
     },
     context: { scopePosition: "pos-14" },
@@ -791,11 +780,7 @@ it("private one-group scans preserve self-Link ordinals, partial packets and imm
   const f = fixture(scope, true, 1);
   f.run([bead("a")]);
   f.run([link("l", "a", "a"), patch, remove]);
-  for (const source of [
-    `${scope}events/`,
-    `${scope}a?view=events`,
-    `${scope}l?view=events`,
-  ]) {
+  for (const source of [`${scope}events/`, `${scope}a?view=events`, `${scope}l?view=events`]) {
     const finite = collect(f.owner, source).events;
     const scanned = scanEvents(f.owner, source);
     expect(scanned.events).toEqual(finite);
@@ -906,9 +891,10 @@ it("scan initial identity and minimum precede reconnect validity; contextual err
     authorizationView: current.context.authorizationView,
     minimumPosition: "pos-9",
   };
-  expect(f.owner.beginEventScan(`${scope}missing?view=events`, "bad", minimum, true)).toEqual(
-    { kind: "missing", context: current.context },
-  );
+  expect(f.owner.beginEventScan(`${scope}missing?view=events`, "bad", minimum, true)).toEqual({
+    kind: "missing",
+    context: current.context,
+  });
   expect(() => f.owner.beginEventScan(`${scope}a?view=events`, "bad", minimum, true)).toThrow(
     expect.objectContaining({ reason: "behind", context: current.context }),
   );

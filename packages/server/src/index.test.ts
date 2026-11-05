@@ -95,10 +95,7 @@ describe("alias resolution", () => {
 
   it("rejects every noncanonical alias-path encoding the ID grammar forbids", () => {
     for (const path of ["a%2Fb", "%61", "%e2%82%ac", "%FF", "a/./b", "a/../b"]) {
-      expect(
-        () => aliasServer({ [path]: `${scope}demo-f` as AbsoluteHttpUrl }),
-        path,
-      ).toThrow();
+      expect(() => aliasServer({ [path]: `${scope}demo-f` as AbsoluteHttpUrl }), path).toThrow();
     }
   });
 
@@ -119,9 +116,7 @@ describe("alias resolution", () => {
     expect(() => aliasServer({ "bad//path": `${scope}demo-f` as AbsoluteHttpUrl })).toThrow();
     expect(() => aliasServer({ ok: `${scope}demo-b//a` as AbsoluteHttpUrl })).toThrow();
     expect(() => aliasServer({ ok: `${scope}alias//other` as AbsoluteHttpUrl })).toThrow();
-    expect(() =>
-      aliasServer({ ok: "https://elsewhere.example/x" as AbsoluteHttpUrl }),
-    ).toThrow();
+    expect(() => aliasServer({ ok: "https://elsewhere.example/x" as AbsoluteHttpUrl })).toThrow();
   });
 });
 
@@ -1140,11 +1135,7 @@ describe("Read server contract", () => {
           readonly items: readonly { readonly id: string }[];
         };
         // Code-unit order: uppercase Z sorts before lowercase a and b.
-        expect(result.items.map(({ id }) => id)).toEqual([
-          `${SCOPE}Z`,
-          `${SCOPE}a`,
-          `${SCOPE}b`,
-        ]);
+        expect(result.items.map(({ id }) => id)).toEqual([`${SCOPE}Z`, `${SCOPE}a`, `${SCOPE}b`]);
       } finally {
         await server.close();
       }

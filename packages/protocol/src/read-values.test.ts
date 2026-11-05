@@ -185,9 +185,7 @@ describe("Read envelope parsing", () => {
     }
     expect(() => parseCanonicalScope(`${scope}?`)).toThrow();
     expect(parseCanonicalScope(scope)).toBe(scope);
-    expect(parseCanonicalHttpUrl(`${scope}a%23b?cursor=%23`)).toBe(
-      `${scope}a%23b?cursor=%23`,
-    );
+    expect(parseCanonicalHttpUrl(`${scope}a%23b?cursor=%23`)).toBe(`${scope}a%23b?cursor=%23`);
   });
 
   it("closes and freezes Resource records and collection pages", () => {

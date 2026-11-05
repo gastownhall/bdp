@@ -286,12 +286,8 @@ describe("non-attesting bdptest HTTP development authority", () => {
 
   it("puts, retargets, resolves and deletes aliases without changing Bead revisions", async () => {
     const h = await start();
-    const a = resource(
-      await h.post("create-bead", { id: "a", type: DEVELOPMENT_BEAD_TYPE }, "a"),
-    );
-    const b = resource(
-      await h.post("create-bead", { id: "b", type: DEVELOPMENT_BEAD_TYPE }, "b"),
-    );
+    const a = resource(await h.post("create-bead", { id: "a", type: DEVELOPMENT_BEAD_TYPE }, "a"));
+    const b = resource(await h.post("create-bead", { id: "b", type: DEVELOPMENT_BEAD_TYPE }, "b"));
     const put = { alias: "alias/latest", target: "a" };
     const first = await h.post("put-alias", put, "alias_first");
     expect(first).toMatchObject({
@@ -566,9 +562,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(await h.post("sequence", { operations: [first] }, "stray")).toMatchObject({
       status: 400,
     });
-    expect(
-      await h.sequence({ operations: [first, { ...first, id: "other" }] }),
-    ).toMatchObject({ status: 400 });
+    expect(await h.sequence({ operations: [first, { ...first, id: "other" }] })).toMatchObject({
+      status: 400,
+    });
     expect(
       await h.sequence({
         operations: Array.from({ length: 33 }, (_, i) => ({
@@ -850,11 +846,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(huge.status).toBe(413);
     expect(parseReadUpdateProblem(JSON.parse(huge.body)).code).toBe("request-too-large");
     expect(
-      await h.post(
-        "create-bead",
-        { id: "scalar", type: DEVELOPMENT_BEAD_TYPE },
-        "bad_scalar",
-      ),
+      await h.post("create-bead", { id: "scalar", type: DEVELOPMENT_BEAD_TYPE }, "bad_scalar"),
     ).toMatchObject({ status: 200 });
   });
 

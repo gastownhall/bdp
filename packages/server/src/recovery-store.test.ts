@@ -52,8 +52,7 @@ function outcome(
   return {
     kind: "retain",
     semanticIdentityJson: '{"operation":"createBead","properties":{"number":1.0}}',
-    resolutionsJson:
-      '{"creator":{"id":"a","kind":"bead"},"aliases":{"alias/latest":"a"}}',
+    resolutionsJson: '{"creator":{"id":"a","kind":"bead"},"aliases":{"alias/latest":"a"}}',
     outcomeJson: '{"result":{"id":"a","revision":"r1","sourceRevision":"s1"}}',
     effect,
     completedAt: 100,
@@ -104,9 +103,7 @@ describe("durable reference ownership and transaction interface", () => {
       expect(store.read((tx) => tx.resource(resource.id))).toBeUndefined();
       expect(store.abandonAttempt(admission)).toBe(1);
     }
-    effect(store, "valid", (tx) =>
-      tx.putResource({ id: "valid", kind: "bead", bodyJson: "{}" }),
-    );
+    effect(store, "valid", (tx) => tx.putResource({ id: "valid", kind: "bead", bodyJson: "{}" }));
     expect(store.read((tx) => tx.resource("valid"))).toBeDefined();
   });
   it("rolls back an actual mid-callback SQLite constraint without fencing", () => {
@@ -1152,9 +1149,9 @@ describe("native JSON syntax storage format", () => {
     const after = new DatabaseSync(filename, { readOnly: true });
     try {
       expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(rows);
-      expect(
-        after.prepare("SELECT body FROM resources WHERE id='old'").get()?.body,
-      ).toContain('"changeContext"');
+      expect(after.prepare("SELECT body FROM resources WHERE id='old'").get()?.body).toContain(
+        '"changeContext"',
+      );
     } finally {
       after.close();
     }

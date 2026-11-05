@@ -128,9 +128,7 @@ it.each([false, true])(
       swap ? edge("b", `${scope}alias/work`) : edge("alias/work", "b"),
     );
     expect(f.store.admit("p", "edge", candidate).kind).toBe("comparison-pending");
-    expect(f.store.admit("p", "edge", request("createLink", edge("a", "b"))).kind).toBe(
-      "conflict",
-    );
+    expect(f.store.admit("p", "edge", request("createLink", edge("a", "b"))).kind).toBe("conflict");
     commit(f.store, "repoint", "putAlias", { alias: "alias/work", target: "b" });
     const turn = stepper.step();
     expect(turn.entry).toMatchObject({
@@ -286,9 +284,7 @@ it("never replaces original success witnesses with new retry-locator lookups", (
   commit(f.store, "old-repoint", "putAlias", { alias: "alias/work", target: "b" });
   commit(f.store, "delete", "deleteAlias", { alias: "alias/work" });
   expect(f.store.admit("p", "u", request("updateBead", input))).toEqual(retained);
-  expect(f.store.admit("p", "u", request("updateBead", { ...input, bead: "a" }))).toEqual(
-    retained,
-  );
+  expect(f.store.admit("p", "u", request("updateBead", { ...input, bead: "a" }))).toEqual(retained);
   expect(original).toMatchObject({ resource: { id: `${scope}a`, properties: { value: 1 } } });
   f.reopen();
   expect(f.store.admit("p", "u", request("updateBead", input))).toEqual(retained);
@@ -789,9 +785,9 @@ it("retracts only this attempt's mixed dependency on a transient creator", () =>
     "idempotency-in-progress",
     "idempotency-in-progress",
   ]);
-  expect(
-    f.store.admit("p", "dependent", request("createLink", edge("a", "alias/work"))).kind,
-  ).toBe("owned");
+  expect(f.store.admit("p", "dependent", request("createLink", edge("a", "alias/work"))).kind).toBe(
+    "owned",
+  );
   if (foreign.kind !== "owned") throw new Error("foreign creator");
   expect(f.store.execute(foreign.claim).status).toBe("completed");
 });

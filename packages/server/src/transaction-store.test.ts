@@ -1312,12 +1312,7 @@ describe("private atomic transaction owner", () => {
       ],
       "seed-alias",
     );
-    const original = aliasExecute(
-      f.store,
-      "putAlias",
-      { alias: "alias/work", target: "a" },
-      "put",
-    );
+    const original = aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "b" }, "repoint");
     const canonical = aliasRequest("putAlias", {
       alias: `${scope}alias/work`,
@@ -1377,12 +1372,7 @@ describe("private atomic transaction owner", () => {
     let now = 1000;
     const f = fixture({ clock: () => now });
     execute(f.store, [{ operation: "createBead", type: bead, id: "a" }], "seed-alias");
-    const created = aliasExecute(
-      f.store,
-      "putAlias",
-      { alias: "alias/work", target: "a" },
-      "put",
-    );
+    const created = aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
     const deleted = aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
     const failed = aliasExecute(f.store, "deleteAlias", { alias: "alias/missing" }, "failed");
     now = Date.parse(String(created.expiresAt));
@@ -1406,11 +1396,7 @@ describe("private atomic transaction owner", () => {
     expect(f.store.receipt("principal", failed.id)).toBeUndefined();
     const replay = f
       .reopen()
-      .admit(
-        "principal",
-        "put",
-        aliasRequest("putAlias", { alias: "alias/work", target: "a" }),
-      );
+      .admit("principal", "put", aliasRequest("putAlias", { alias: "alias/work", target: "a" }));
     expect(replay).toMatchObject({
       kind: "existing",
       receipt: { id: created.id, detail: "expired", allocated: [] },
@@ -1468,21 +1454,12 @@ describe("private atomic transaction owner", () => {
     ).toBe("completed");
     aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
     expect(
-      execute(
-        f.store,
-        [{ operation: "createBead", id: "work", type: bead }],
-        "released-bead",
-      ),
+      execute(f.store, [{ operation: "createBead", id: "work", type: bead }], "released-bead"),
     ).toMatchObject({ status: "failed", problem: { code: "identity-taken" } });
   });
   it("retains alias target failures without effects and still refuses aliases in atomic batches", () => {
     const f = fixture();
-    for (const target of [
-      "alias/other",
-      "other",
-      "https://external.test/x",
-      "missing",
-    ]) {
+    for (const target of ["alias/other", "other", "https://external.test/x", "missing"]) {
       const input = { alias: "alias/work", target };
       const key = `bad-${["alias/other", "other", "https://external.test/x", "missing"].indexOf(target)}`;
       const receipt = aliasExecute(f.store, "putAlias", input, key);
@@ -1538,8 +1515,7 @@ describe("private atomic transaction owner", () => {
       expect(f.store.receipt("principal", admitted.claim.receipt.id)).toBeUndefined();
       inject = false;
       expect(
-        aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "alias")
-          .status,
+        aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "alias").status,
       ).toBe("completed");
       expect(f.store.inspect().groups).toHaveLength(1);
     });
@@ -1561,9 +1537,7 @@ describe("private atomic transaction owner", () => {
       const recovered = f.reopen();
       expect(recovered.inspect()).toEqual(state);
       expect(recovered.recoveredPending).toBe(stage === "committed" ? 0 : 1);
-      expect(recovered.aliasTarget("work")).toBe(
-        stage === "committed" ? `${scope}a` : undefined,
-      );
+      expect(recovered.aliasTarget("work")).toBe(stage === "committed" ? `${scope}a` : undefined);
       const retry = recovered.admit("principal", "alias", aliasRequest("putAlias", input));
       if (stage === "committed")
         expect(retry).toEqual({ kind: "existing", receipt: JSON.parse(child.stdout) });
@@ -1606,15 +1580,10 @@ describe("private atomic transaction owner", () => {
   it("keeps alias locator state when its target is deleted without treating aliases as Resource incidences", () => {
     const f = fixture();
     execute(f.store, [{ operation: "createBead", id: "a", type: bead }], "seed-alias");
-    const original = aliasExecute(
-      f.store,
-      "putAlias",
-      { alias: "alias/work", target: "a" },
-      "put",
+    const original = aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "a" }, "put");
+    expect(execute(f.store, [{ operation: "deleteBead", bead: "a" }], "delete-target").status).toBe(
+      "completed",
     );
-    expect(
-      execute(f.store, [{ operation: "deleteBead", bead: "a" }], "delete-target").status,
-    ).toBe("completed");
     expect(f.store.aliasTarget("work")).toBe(`${scope}a`);
     const state = f.store.inspect();
     const failed = aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete-alias");
@@ -1860,11 +1829,7 @@ describe("private atomic transaction owner", () => {
       ),
     ).toEqual({ kind: "existing", receipt });
     const moved = renamed.map((op, index) =>
-      index === 1
-        ? { ...op, target: "a" }
-        : index === 2
-          ? { ...op, target: "alias/work" }
-          : op,
+      index === 1 ? { ...op, target: "a" } : index === 2 ? { ...op, target: "alias/work" } : op,
     );
     expect(
       f.store.admit(
@@ -2699,11 +2664,7 @@ describe("Transactional numeric diagnostic documents", () => {
 it("counts unapplied update request locations in diagnostic message byte bounds", () => {
   const f = fixture();
   f.store.execute(
-    admit(
-      f.store,
-      { operations: [{ operation: "createBead", id: "a", type: bead }] },
-      "seed",
-    ),
+    admit(f.store, { operations: [{ operation: "createBead", id: "a", type: bead }] }, "seed"),
   );
   const before = f.store.inspect();
   const bound = TRANSACTION_RUNTIME_LIMITS.diagnosticBytes;

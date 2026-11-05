@@ -1427,8 +1427,7 @@ describe("paired create numeric diagnostic locations", () => {
           scope,
           operation,
           JSON.stringify({
-            [operation === "updateBead" ? "bead" : "link"]:
-              operation === "updateBead" ? "a" : "a",
+            [operation === "updateBead" ? "bead" : "link"]: operation === "updateBead" ? "a" : "a",
             propertiesChange: [{ op: "add", path: "/items/-", value: "BAD" }],
           }).replace('"BAD"', "1e400"),
           "update",
@@ -1476,8 +1475,7 @@ describe("unapplied property numeric diagnostics", () => {
     "%s discards caller/request pointers before exact diagnostic budgeting",
     (operation) => {
       const raw = JSON.stringify({
-        [operation === "updateBead" ? "bead" : "link"]:
-          operation === "updateBead" ? "a" : "a",
+        [operation === "updateBead" ? "bead" : "link"]: operation === "updateBead" ? "a" : "a",
         propertiesChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
       }).replaceAll('"BAD"', "1e400");
       const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "property-location"));

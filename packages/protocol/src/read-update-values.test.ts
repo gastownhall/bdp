@@ -51,10 +51,7 @@ const create = { operation: "createBead", idempotencyKey: "create", name: "a", t
 describe("RU unadmitted carriers", () => {
   it.each([
     ["createBead", { type, revisionProvenance: { agent: null, message: "" } }],
-    [
-      "updateBead",
-      { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
-    ],
+    ["updateBead", { bead: "a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] }],
     ["deleteBead", { bead: "a" }],
     ["createLink", { type, source: "a", target: { uri: "urn:outside", revision: "old" } }],
     ["updateLink", { link: "a", propertiesChange: [{ op: "remove", path: "/n" }] }],
@@ -161,10 +158,7 @@ describe("RU unadmitted carriers", () => {
     ["createBead", { type, operation: "createBead" }],
     ["createBead", { type, idempotencyKey: "body-key" }],
     ["createBead", { type, revisionProvenance: { committedAt: "now" } }],
-    [
-      "updateBead",
-      { bead: "a", propertiesChange: [{ op: "add", path: "/bad~2", value: 1 }] },
-    ],
+    ["updateBead", { bead: "a", propertiesChange: [{ op: "add", path: "/bad~2", value: 1 }] }],
     ["updateBead", { bead: "a", propertiesChange: [{ op: "test", path: "/n", value: 1 }] }],
   ] as const)("rejects closed/static singleton syntax %#", (kind, input) => {
     expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
@@ -237,16 +231,8 @@ describe("RU parser boundary regressions", () => {
       }),
     ],
     ["deleteLink", "link", (reference: string) => ({ link: reference })],
-    [
-      "createLink",
-      "source",
-      (reference: string) => ({ type, source: reference, target: "b" }),
-    ],
-    [
-      "createLink",
-      "target",
-      (reference: string) => ({ type, source: "a", target: reference }),
-    ],
+    ["createLink", "source", (reference: string) => ({ type, source: reference, target: "b" })],
+    ["createLink", "target", (reference: string) => ({ type, source: "a", target: reference })],
     [
       "createLink",
       "source.uri",
@@ -308,15 +294,7 @@ describe("RU parser boundary regressions", () => {
               "nested/a%20b",
               "https://example.test/s/nested/a",
             ]
-          : [
-              "a",
-              "a",
-              "alias/a",
-              "wrong-root/a",
-              "a:b",
-              "%C3%A9",
-              "a%20b",
-            ];
+          : ["a", "a", "alias/a", "wrong-root/a", "a:b", "%C3%A9", "a%20b"];
       // Non-creation subjects/endpoints retain member-time identity/kind checks.
       for (const reference of references)
         expect(parseReadUpdateRequest(kind, JSON.stringify(input(reference))).input).toEqual(
@@ -329,10 +307,7 @@ describe("RU parser boundary regressions", () => {
     for (const [kind, _field, input] of referenceInputs) {
       expect(() =>
         parseReadUpdateSequenceRequest(
-          sequence([
-            create,
-            { operation: kind, idempotencyKey: "second", ...input("bad space") },
-          ]),
+          sequence([create, { operation: kind, idempotencyKey: "second", ...input("bad space") }]),
         ),
       ).toThrow(ReadUpdateCarrierError);
     }
@@ -359,18 +334,15 @@ describe("RU parser boundary regressions", () => {
     expect(parsed.input.properties).toEqual(properties);
     const patch = [{ op: "add", path: "/reference", value: properties }];
     expect(
-      parseReadUpdateRequest(
-        "updateBead",
-        JSON.stringify({ bead: "a", propertiesChange: patch }),
-      ).input.propertiesChange,
+      parseReadUpdateRequest("updateBead", JSON.stringify({ bead: "a", propertiesChange: patch }))
+        .input.propertiesChange,
     ).toEqual(patch);
   });
 
   it.each(["createBead", "createLink"] as const)(
     "rejects non-HTTP or noncanonical absolute creation IDs for %s",
     (kind) => {
-      const fields =
-        kind === "createBead" ? { type } : { type, source: "a", target: "b" };
+      const fields = kind === "createBead" ? { type } : { type, source: "a", target: "b" };
       for (const id of ["urn:example:opaque", "https://EXAMPLE.test/s/a"]) {
         const input = { ...fields, id };
         expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
@@ -417,9 +389,7 @@ describe("RU parser boundary regressions", () => {
     );
   });
   it("leaves well-formed wrong-root aliases for member-time resource-not-found", () => {
-    expect(parseReadUpdateRequest("deleteAlias", '{"alias":"a"}').input.alias).toBe(
-      "a",
-    );
+    expect(parseReadUpdateRequest("deleteAlias", '{"alias":"a"}').input.alias).toBe("a");
   });
   it("rejects invalid Unicode in a received nested response extension", () => {
     expect(() => parseReadUpdateProblem({ ...problem, trace: { bad: "\ud800" } })).toThrow(

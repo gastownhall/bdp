@@ -359,10 +359,7 @@ describe("test-only Read conformance evidence", () => {
     const materialized = await controlledBeadItems(session);
     expect(materialized).toHaveLength(limits.page.maximumItems + 1);
     expect(materialized.map(({ id }) => id)).toEqual(
-      Array.from(
-        { length: limits.page.maximumItems + 1 },
-        (_, index) => `${scope}limit-${index}`,
-      ),
+      Array.from({ length: limits.page.maximumItems + 1 }, (_, index) => `${scope}limit-${index}`),
     );
   });
 

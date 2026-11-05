@@ -97,10 +97,7 @@ describe("whole-carrier Read+Update Scope preflight", () => {
 
   it.each([
     ["createBead", { type, id: "https://other.test/s/a" }],
-    [
-      "createLink",
-      { type, id: "https://example.test/sibling/a", source: "a", target: "b" },
-    ],
+    ["createLink", { type, id: "https://example.test/sibling/a", source: "a", target: "b" }],
   ] as const)("requires Scope-local creation identity for %s", (operation, input) => {
     expect(() => parseReadUpdateRequest(operation, JSON.stringify(input))).not.toThrow();
     expect(() => prepare(operation, input)).toThrow(ReadUpdateCarrierError);
@@ -309,9 +306,9 @@ describe("whole-carrier Read+Update Scope preflight", () => {
     expect(() => assertPreparedReadUpdateCarrier({ ...carrier }, scope)).toThrow(TypeError);
     expect(() => assertPreparedReadUpdateCarrier(null, scope)).toThrow(TypeError);
     for (const key of ["", " padded", "key,key", "a".repeat(257)]) {
-      expect(() =>
-        prepareReadUpdateSingleton(scope, "deleteBead", '{"bead":"a"}', key),
-      ).toThrow(ReadUpdateCarrierError);
+      expect(() => prepareReadUpdateSingleton(scope, "deleteBead", '{"bead":"a"}', key)).toThrow(
+        ReadUpdateCarrierError,
+      );
     }
   });
 });

@@ -1220,8 +1220,7 @@ describe("pure member Resource evaluation", () => {
   it("records native context defaults only on actual minted versions", () => {
     const f = fixture();
     expect(
-      f.execute("createBead", { id: "a", type: beadType }, { recordChangeContext: true })
-        .effect,
+      f.execute("createBead", { id: "a", type: beadType }, { recordChangeContext: true }).effect,
     ).toBe("success");
     expect(f.body("a").revisionProvenance).toEqual({
       committedAt: { state: "present", value: instant },
@@ -1864,9 +1863,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       }
       expect(store.read((reader) => reader.resources())).toEqual([seed]);
       expect(store.read((reader) => reader.policy("rollback-marker"))).toBeUndefined();
-      expect(store.read((reader) => reader.identityWasCommitted("rollback-marker"))).toBe(
-        false,
-      );
+      expect(store.read((reader) => reader.identityWasCommitted("rollback-marker"))).toBe(false);
       expect(store.read((reader) => reader.alias("reserved"))).toBe(seed.id);
       store.close();
       store = openRecoveryStore(configuration);
@@ -2539,9 +2536,9 @@ describe("native context inside actual durable members", () => {
                 );
                 expect(inline).toBeDefined();
                 expect(stringifyJsonValue(inline)).toBe(previousLinkBytes);
-                expect(
-                  resources.find((resource) => resource.id === "existing")?.bodyJson,
-                ).toBe(previousLinkBytes);
+                expect(resources.find((resource) => resource.id === "existing")?.bodyJson).toBe(
+                  previousLinkBytes,
+                );
               }
               if (result.outcome.outcome !== "deleted") {
                 const returned = result.outcome.resource;
@@ -2668,9 +2665,7 @@ describe("native context inside actual durable members", () => {
       const link = JSON.parse(
         records.find((record) => record.id === "existing")?.bodyJson ?? "null",
       );
-      const source = JSON.parse(
-        records.find((record) => record.id === "a")?.bodyJson ?? "null",
-      );
+      const source = JSON.parse(records.find((record) => record.id === "a")?.bodyJson ?? "null");
       expect(source.ownedLinks[linkType][0]).toEqual(link);
       expect(source.revisionProvenance).toEqual(link.revisionProvenance);
       expect(link.revisionProvenance).toMatchObject({
@@ -3019,8 +3014,7 @@ describe("staged properties before endpoint constraints", () => {
     // Deliberately broken installed registry: the source requirement is present
     // but unsatisfied, while the later target's own Type closure is unavailable.
     f.installed.delete(laterType);
-    const make = () =>
-      f.createLink("later-closure", "a", "later", { properties: { valid: true } });
+    const make = () => f.createLink("later-closure", "a", "later", { properties: { valid: true } });
     failure(make(), "type-not-installed");
     expect(f.validate).not.toHaveBeenCalled();
     expect(f.records.has("later-closure")).toBe(false);
@@ -3092,9 +3086,9 @@ describe("staged properties before endpoint constraints", () => {
     ).toEqual([{ message: "resulting properties must be an object", instanceLocation: "" }]);
     expect(f.validate).not.toHaveBeenCalled();
     expect(f.records.get("legacy")?.bodyJson).toBe(beforeBodyJson);
-    expect(
-      f.createLink("link-good", "a", "good", { properties: { valid: true } }).effect,
-    ).toBe("success");
+    expect(f.createLink("link-good", "a", "good", { properties: { valid: true } }).effect).toBe(
+      "success",
+    );
     vi.mocked(f.validate).mockClear();
     expect(
       f.execute("updateLink", {
@@ -3117,9 +3111,9 @@ describe("staged properties before endpoint constraints", () => {
   });
   it("reaches aggregate constraints only after properties and endpoint constraints pass", () => {
     const f = orderedFixture("source");
-    expect(
-      f.createLink("existing", "good", "b", { properties: { valid: true } }).effect,
-    ).toBe("success");
+    expect(f.createLink("existing", "good", "b", { properties: { valid: true } }).effect).toBe(
+      "success",
+    );
     const writes = f.writes(),
       allocations = f.allocations();
     const resourceEffects = [

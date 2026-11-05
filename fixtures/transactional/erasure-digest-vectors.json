@@ -115,7 +115,7 @@
         "type": "https://work.example/types/task",
         "revision": "vec-1-r1",
         "properties": {
-          "big": 1e+21,
+          "big": 1e21,
           "count": 100,
           "largest": 9007199254740991,
           "negativeZero": 0,

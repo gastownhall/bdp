@@ -585,8 +585,7 @@ describe("retained witnesses, equality and private creator facts", () => {
     f.run("putAlias", { alias: "alias/current", target: "b" }, "repoint");
     expect(f.run("createLink", input).disposition).toEqual(made.disposition);
     expect(
-      f.run("createLink", { ...input, source: `${scope}a`, target: `${scope}a` })
-        .storage,
+      f.run("createLink", { ...input, source: `${scope}a`, target: `${scope}a` }).storage,
     ).toBe("replayed");
     expect(code(f.run("createLink", { ...input, source: "alias/other" }))).toBe(
       "idempotency-conflict",
@@ -619,9 +618,7 @@ describe("retained witnesses, equality and private creator facts", () => {
       expect(f.clock).not.toHaveBeenCalled();
       f.policyState.hidden.add(`${scope}a`);
       expect(code(f.run("createLink", retry))).toBe("forbidden");
-      expect(code(f.run("createLink", { ...retry, source: "b" }))).toBe(
-        "idempotency-conflict",
-      );
+      expect(code(f.run("createLink", { ...retry, source: "b" }))).toBe("idempotency-conflict");
       f.policyState.hidden.clear();
       expect(f.run("createLink", retry).disposition).toEqual(made.disposition);
       expect(f.run("createLink", retry, "key", f.options, "bob").storage).toBe("retained");
@@ -989,14 +986,7 @@ describe("clock, policy snapshot and fault boundaries", () => {
       },
     };
     expect(
-      code(
-        f.run(
-          "createLink",
-          { type: linkType, source: "a", target: "free" },
-          "first",
-          options,
-        ),
-      ),
+      code(f.run("createLink", { type: linkType, source: "a", target: "free" }, "first", options)),
     ).toBe("created");
     expect(firstTurn).toBe(false);
     const first = aggregate[0];
@@ -1005,14 +995,7 @@ describe("clock, policy snapshot and fault boundaries", () => {
     first.max = 3;
     const before = f.store.read((reader) => reader.resources());
     expect(
-      code(
-        f.run(
-          "createLink",
-          { type: linkType, source: "a", target: "free" },
-          "second",
-          options,
-        ),
-      ),
+      code(f.run("createLink", { type: linkType, source: "a", target: "free" }, "second", options)),
     ).toBe("created");
     expect(f.store.read((reader) => reader.resources())).toHaveLength(before.length + 1);
     expect(f.store.read((reader) => reader.outgoingLinks("a"))).toHaveLength(3);
@@ -1442,8 +1425,7 @@ describe("stored envelope and metadata integrity", () => {
     const state = retained(f.key());
     assertRetainedOutcomeCompatible(state, scope, {});
     expect(
-      f.run("createLink", { type: linkType, source: "a", target: "urn:opaque:outside" })
-        .storage,
+      f.run("createLink", { type: linkType, source: "a", target: "urn:opaque:outside" }).storage,
     ).toBe("replayed");
     f.run("putAlias", { alias: "alias/new", target: "a" }, "alias");
     const alias = retained(f.key("alias"));
@@ -2116,9 +2098,9 @@ describe("runtime properties limits on actual member storage", () => {
         limits: { propertiesBytes: bytes, diagnosticBytes: 8388608 },
         numericBudget: { ...f.options.numericBudget, diagnosticBytes: 8388608 },
       };
-      expect(
-        code(f.run("createBead", { type, id: "limit", properties }, "make", options)),
-      ).toBe("created");
+      expect(code(f.run("createBead", { type, id: "limit", properties }, "make", options))).toBe(
+        "created",
+      );
       const before = f.body("limit");
       expect(
         code(
@@ -2392,9 +2374,7 @@ it("keeps a complete large first diagnostic and deep valid/invalid neighbors thr
   const valid = JSON.parse(`${'{"n":'.repeat(depth)}1${"}".repeat(depth)}`);
   const invalid = JSON.parse(`${'{"n":'.repeat(depth)}0${"}".repeat(depth)}`);
   expect(
-    code(
-      f.run("createBead", { type, id: "deep-limit", properties: valid }, "deep-good", opts),
-    ),
+    code(f.run("createBead", { type, id: "deep-limit", properties: valid }, "deep-good", opts)),
   ).toBe("created");
   const bad = f.run("createBead", { type, properties: invalid }, "deep-bad", opts);
   expect(bad.disposition).toMatchObject({

@@ -333,9 +333,7 @@ describe("BDP public HTTP handler", () => {
     expect((await handler(new Request(`${SCOPE}types/a%2Fb`))).status).toBe(404);
     const badLimit = await handler(new Request(`${SCOPE}bdp/beads?limit=0`));
     expect(badLimit.status).toBe(400);
-    const badDirection = await handler(
-      new Request(`${SCOPE}a?view=links&direction=sideways`),
-    );
+    const badDirection = await handler(new Request(`${SCOPE}a?view=links&direction=sideways`));
     expect(badDirection.status).toBe(400);
     for (const target of [
       `${SCOPE}a?view=events`,

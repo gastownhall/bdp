@@ -294,9 +294,7 @@ const create = (key: string, extra = {}) => ({
 const sequence = (operations: unknown[]) =>
   prepareReadUpdateSequence(scope, stringifyJsonValue({ operations }));
 const five = () =>
-  sequence(
-    Array.from({ length: 5 }, (_, i) => create(`k${i}`, { id: `new${i}`, name: `n${i}` })),
-  );
+  sequence(Array.from({ length: 5 }, (_, i) => create(`k${i}`, { id: `new${i}`, name: `n${i}` })));
 function submit(
   owner: SequenceLifecycle,
   carrier: PreparedReadUpdateCarrier,
@@ -642,12 +640,7 @@ describe("configuration, atomic admission and projection", () => {
     expect(result.response.results[0]).toMatchObject({ operationIndex: 0, operationName: "made" });
     const single = submit(
       owner,
-      prepareReadUpdateSingleton(
-        scope,
-        "createBead",
-        stringifyJsonValue({ type, id: "new" }),
-        "a",
-      ),
+      prepareReadUpdateSingleton(scope, "createBead", stringifyJsonValue({ type, id: "new" }), "a"),
     );
     f.queue.drain();
     expect((await single).kind).toBe("singleton");
@@ -2120,10 +2113,7 @@ describe("real event loop and emitted child ownership", () => {
     const old = barrier.snapshot as typeof before;
     expect(before.keys.slice(0, 2)).toEqual(old.keys.slice(0, 2));
     expect(before.resources).toEqual(old.resources);
-    expect(before.resources.map((resource) => resource.id).sort()).toEqual([
-      "new0",
-      "new1",
-    ]);
+    expect(before.resources.map((resource) => resource.id).sort()).toEqual(["new0", "new1"]);
     expect(before.keys.slice(2)).toEqual(Array.from({ length: 3 }, () => ({ kind: "unknown" })));
     const real = store.executeMember.bind(store),
       observations: string[] = [];

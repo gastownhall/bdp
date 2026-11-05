@@ -768,11 +768,7 @@ it("observes genuine installed compatible and ahead missing minimum404", async (
             status: 404,
           });
       }
-      const behind = await exchange(
-        `${scope}l?view=properties`,
-        "GET",
-        minimum(removed, "pos-3"),
-      );
+      const behind = await exchange(`${scope}l?view=properties`, "GET", minimum(removed, "pos-3"));
       const missingProblem = {
         type: "https://github.com/gastownhall/bdp/problems/not-found",
         code: "resource-not-found",
@@ -1114,10 +1110,7 @@ it("observes genuine installed current alias minimums within18requests", async (
       redirect(repointed, "b");
       // Same actual-response oracle, no extra requests: wrong locator/context must fail.
       expect(() =>
-        redirect(
-          { ...repointed, headers: { ...repointed.headers, location: `${scope}a` } },
-          "b",
-        ),
+        redirect({ ...repointed, headers: { ...repointed.headers, location: `${scope}a` } }, "b"),
       ).toThrow();
       expect(() =>
         redirect(

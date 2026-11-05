@@ -15,10 +15,7 @@ describe("reference fixture Scope port", () => {
     const port = createReferenceFixturePort(scope);
 
     await expect(
-      port.perform(
-        { kind: "resource", resource: "bead", id: `${scope}nested/demo-a` },
-        options,
-      ),
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}nested/demo-a` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
@@ -59,10 +56,7 @@ describe("reference fixture Scope port", () => {
       problem: { code: "resource-not-found", status: 404 },
     });
     await expect(
-      port.perform(
-        { kind: "bead-links", bead: `${scope}missing`, direction: "both" },
-        options,
-      ),
+      port.perform({ kind: "bead-links", bead: `${scope}missing`, direction: "both" }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-not-found", status: 404 },
@@ -438,12 +432,8 @@ describe("reference fixture Scope port", () => {
       ],
     });
 
-    expect(() =>
-      createPortableReferenceFixturePort(scope, fixture("not-a-link")),
-    ).not.toThrow();
-    expect(() =>
-      createPortableReferenceFixturePort(scope, fixture("blocks", "a")),
-    ).not.toThrow();
+    expect(() => createPortableReferenceFixturePort(scope, fixture("not-a-link"))).not.toThrow();
+    expect(() => createPortableReferenceFixturePort(scope, fixture("blocks", "a"))).not.toThrow();
   });
 
   it("preserves exact external endpoint identities in either Link orientation", async () => {
@@ -788,9 +778,7 @@ describe("reference fixture Scope port", () => {
       ]),
     ).not.toThrow();
     expect(
-      withDisclosures([
-        { localId: "gone", kind: "bead", code: "resource-pruned", archivedAt: {} },
-      ]),
+      withDisclosures([{ localId: "gone", kind: "bead", code: "resource-pruned", archivedAt: {} }]),
     ).toThrow();
     expect(
       withDisclosures([
@@ -809,13 +797,11 @@ describe("reference fixture Scope port", () => {
         { localId: "gone", kind: "bead", code: "resource-pruned" },
       ]),
     ).toThrow("duplicates");
-    expect(
-      withDisclosures([{ localId: "live", kind: "bead", code: "resource-erased" }]),
-    ).toThrow("gone or live");
+    expect(withDisclosures([{ localId: "live", kind: "bead", code: "resource-erased" }])).toThrow(
+      "gone or live",
+    );
     // Unknown codes and erased-with-pointer refuse.
-    expect(
-      withDisclosures([{ localId: "gone", kind: "bead", code: "cursor-expired" }]),
-    ).toThrow();
+    expect(withDisclosures([{ localId: "gone", kind: "bead", code: "cursor-expired" }])).toThrow();
     expect(
       withDisclosures([
         {
@@ -883,26 +869,17 @@ describe("reference fixture Scope port", () => {
       port.perform({ kind: "resource", resource: "link", id: `${scope}gone` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
-      port.perform(
-        { kind: "properties", resource: "bead", id: `${scope}gone-edge` },
-        options,
-      ),
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}gone-edge` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
       port.perform({ kind: "properties", resource: "link", id: `${scope}gone` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     await expect(
-      port.perform(
-        { kind: "bead-links", bead: `${scope}gone-edge`, direction: "both" },
-        options,
-      ),
+      port.perform({ kind: "bead-links", bead: `${scope}gone-edge`, direction: "both" }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: notFound });
     // The correct plane still discloses, properties included.
     await expect(
-      port.perform(
-        { kind: "properties", resource: "link", id: `${scope}gone-edge` },
-        options,
-      ),
+      port.perform({ kind: "properties", resource: "link", id: `${scope}gone-edge` }, options),
     ).resolves.toMatchObject({
       kind: "problem",
       problem: { code: "resource-erased", status: 410 },

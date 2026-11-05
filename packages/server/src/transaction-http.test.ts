@@ -297,10 +297,7 @@ describe("source-private actual Transactional HTTP", () => {
     });
     expect(response.status).toBe(200);
     expect(response.headers.has("etag")).toBe(false);
-    const failure = await f.post(
-      batch([{ operation: "deleteBead", bead: "missing" }]),
-      "bad",
-    );
+    const failure = await f.post(batch([{ operation: "deleteBead", bead: "missing" }]), "bad");
     expect(failure.status).toBe(200);
     expect(await body(failure)).toMatchObject({
       status: "failed",
@@ -367,11 +364,7 @@ describe("source-private actual Transactional HTTP", () => {
     expect(typeof page.next).toBe("string");
     f.setTime(3000);
     const headers = { "bdp-minimum-scope-position": "pos-1", "if-none-match": "*" };
-    for (const url of [
-      `${f.runtime.scope}a`,
-      `${f.runtime.scope}bdp/beads`,
-      String(page.next),
-    ]) {
+    for (const url of [`${f.runtime.scope}a`, `${f.runtime.scope}bdp/beads`, String(page.next)]) {
       const response = await f.get(url, { headers });
       expect(response.status).toBe(400);
       expect(checkedProblem(await body(response)).code).toBe("malformed-request");
@@ -717,13 +710,8 @@ describe("source-private actual Transactional HTTP", () => {
     const f = await fixture();
     await f.post();
     expect(
-      (
-        await f.post(
-          JSON.stringify({ alias: "alias/latest", target: "a" }),
-          "alias",
-          "putAlias",
-        )
-      ).status,
+      (await f.post(JSON.stringify({ alias: "alias/latest", target: "a" }), "alias", "putAlias"))
+        .status,
     ).toBe(200);
     const alias = await f.get(`${f.runtime.scope}alias/latest`);
     expect(alias.status).toBe(307);
@@ -1901,12 +1889,7 @@ it("serves missing Resource404 with current context before semantic minimum comp
         status: 404,
       });
   }
-  for (const suffix of [
-    "missing",
-    "missing",
-    "missing?view=properties",
-    "missing?view=properties",
-  ])
+  for (const suffix of ["missing", "missing", "missing?view=properties", "missing?view=properties"])
     for (const method of ["GET", "HEAD"])
       for (const extra of [
         { "bdp-scope-epoch": "foreign" },
@@ -1981,11 +1964,7 @@ it("preserves concrete query syntax failures and accepts the reserved genesis mi
     created = await f.post();
   const headers = minimumHeaders(created, "genesis");
   expect((await f.get(`${f.runtime.scope}a`, { headers })).status).toBe(200);
-  for (const suffix of [
-    "a?unknown=1",
-    "a?view=bogus",
-    "a?view=properties&unknown=2",
-  ]) {
+  for (const suffix of ["a?unknown=1", "a?view=bogus", "a?view=properties&unknown=2"]) {
     const response = await f.get(`${f.runtime.scope}${suffix}`, { headers });
     expect(response.status).toBe(400);
     expect(checkedProblem(await body(response)).code).toBe("invalid-parameter");
@@ -3325,9 +3304,7 @@ it("serves current comparison deadline context without timeout effects or receip
     ),
   );
   void sequence.catch(() => {});
-  const candidate = batch([
-    { operation: "createLink", type: link, source: "a", target: "a" },
-  ]);
+  const candidate = batch([{ operation: "createLink", type: link, source: "a", target: "a" }]);
   const failures: unknown[] = [];
   let original: Record<string, unknown> | undefined;
   function resource(receipt: Record<string, unknown>, index = 0) {

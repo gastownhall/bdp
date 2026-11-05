@@ -294,17 +294,8 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     expect(turn.disposition).toMatchObject({ outcome: "created" });
     return turn;
   }
-  function createLink(
-    id: string,
-    sourceId = "a",
-    target: unknown = "b",
-    type = linkType,
-  ) {
-    const turn = write(
-      "createLink",
-      { id: `${id}`, type, source: sourceId, target },
-      `link_${id}`,
-    );
+  function createLink(id: string, sourceId = "a", target: unknown = "b", type = linkType) {
+    const turn = write("createLink", { id: `${id}`, type, source: sourceId, target }, `link_${id}`);
     expect(turn.disposition).toMatchObject({ outcome: "created" });
     return turn;
   }
@@ -704,11 +695,7 @@ describe("G4 complete current ownership and observed integrity", () => {
     expect(a).toEqual(f.resource("a"));
     expect(Object.keys(a.ownedLinks as object)).not.toContain("*");
     const incident = await facet.perform({ kind: "bead-links", bead: url("a"), limit: 10 });
-    expect(items(incident).map((r) => r.id)).toEqual([
-      url("ab"),
-      url("ba"),
-      url("self"),
-    ]);
+    expect(items(incident).map((r) => r.id)).toEqual([url("ab"), url("ba"), url("self")]);
   });
   it.each(["link", "endpoint"])(
     "withholds the entire owned root/properties/alias for hidden %s",
@@ -1012,9 +999,9 @@ describe("G5 complete predicates, hidden Type ancestry and independent sorting",
         }),
       ),
     ).toEqual([]);
-    expect(
-      items(await facet.perform({ ...linkQuery, target: url("c") })).map((r) => r.id),
-    ).toEqual([url("ac")]);
+    expect(items(await facet.perform({ ...linkQuery, target: url("c") })).map((r) => r.id)).toEqual(
+      [url("ac")],
+    );
     expect(
       items(await facet.perform({ ...linkQuery, endpoint: "urn:opaque:exact" })).map((r) => r.id),
     ).toEqual([url("opaque")]);
@@ -1317,11 +1304,8 @@ describe("G9 deep immutable values and existing bounded pagination", () => {
     const depth = 12_000;
     const deep = `${'{"child":'.repeat(depth)}1${"}".repeat(depth)}`;
     expect(
-      f.write(
-        "createBead",
-        `{"id":"a","type":"${beadType}","properties":${deep}}`,
-        "deep_create",
-      ).disposition,
+      f.write("createBead", `{"id":"a","type":"${beadType}","properties":${deep}}`, "deep_create")
+        .disposition,
     ).toMatchObject({ outcome: "created" });
     f.createBead("b");
     const before = f.resource("a");
@@ -1522,8 +1506,7 @@ describe("G10 delivery, callback origin and plane-owned cleanup", () => {
       expect(remove.mock.calls.filter(([name]) => name === "abort")).toHaveLength(
         add.mock.calls.filter(([name]) => name === "abort").length,
       );
-      if (when !== "before")
-        expect(() => f.state.facades[0]?.resource("a")).toThrow(/expired/);
+      if (when !== "before") expect(() => f.state.facades[0]?.resource("a")).toThrow(/expired/);
     },
   );
   it.each(["not-accepting", "reentrant"] as const)(
@@ -1794,9 +1777,9 @@ describe("remaining construction, idle memory and captured-provider boundaries",
       },
     });
     expect(body(await facet.perform(resourceRequest())).id).toBe(url("a"));
-    expect(
-      items(await facet.perform({ kind: "bead-links", bead: url("a") }))[0]?.target,
-    ).toBe("urn:opaque:outside");
+    expect(items(await facet.perform({ kind: "bead-links", bead: url("a") }))[0]?.target).toBe(
+      "urn:opaque:outside",
+    );
     expect(
       body(
         await facet.perform({

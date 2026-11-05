@@ -2407,12 +2407,10 @@ describe("Transactional correction regression probes", () => {
     const exchange = fixture.exchanges[0] as FixtureExchange;
     const changes = ((exchange.response.body.groups as JsonRecord[])[0] as JsonRecord)
       .changes as JsonRecord[];
-    const source = changes.find(
-      (change) => (change.resource as JsonRecord).id === `${SCOPE}dec-9`,
-    )?.resource as JsonRecord;
-    const link = changes.find(
-      (change) => (change.resource as JsonRecord).id === `${SCOPE}9c1e`,
-    )?.resource as JsonRecord;
+    const source = changes.find((change) => (change.resource as JsonRecord).id === `${SCOPE}dec-9`)
+      ?.resource as JsonRecord;
+    const link = changes.find((change) => (change.resource as JsonRecord).id === `${SCOPE}9c1e`)
+      ?.resource as JsonRecord;
     const original = fixtures
       .find((fixture) => fixture.id === "transactional-batch")
       ?.exchanges.find((exchange) => exchange.id === "batch-1-original") as FixtureExchange;

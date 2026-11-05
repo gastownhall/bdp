@@ -69,9 +69,7 @@ describe("shared Read HTTP semantics through the public server", () => {
             type: TYPE,
             revision: options.revision ?? "rev-1",
             properties: options.properties ?? {},
-            ...(operation.resource === "link"
-              ? { source: `${SCOPE}a`, target: `${SCOPE}b` }
-              : {}),
+            ...(operation.resource === "link" ? { source: `${SCOPE}a`, target: `${SCOPE}b` } : {}),
           } as never);
         }
         if (operation.kind === "properties")
@@ -261,21 +259,17 @@ describe("shared Read HTTP semantics through the public server", () => {
     ).toBe(304);
   });
 
-  it.each([
-    "bdp.json",
-    "bdp/beads",
-    "bdp/links",
-    "types/",
-    "types/task",
-    "a?view=properties",
-  ])("handles absent validators on %s", async (target) => {
-    const { get } = fixture();
-    expect((await get(target, { "If-Match": '"specific"' })).status).toBe(412);
-    expect((await get(target, { "If-Match": "*" })).status).toBe(200);
-    expect((await get(target, { "If-None-Match": "*" })).status).toBe(304);
-    expect((await get(target, { "If-None-Match": '"specific"' })).status).toBe(200);
-    expect((await get(target, { Accept: "image/png", "If-None-Match": "*" })).status).toBe(406);
-  });
+  it.each(["bdp.json", "bdp/beads", "bdp/links", "types/", "types/task", "a?view=properties"])(
+    "handles absent validators on %s",
+    async (target) => {
+      const { get } = fixture();
+      expect((await get(target, { "If-Match": '"specific"' })).status).toBe(412);
+      expect((await get(target, { "If-Match": "*" })).status).toBe(200);
+      expect((await get(target, { "If-None-Match": "*" })).status).toBe(304);
+      expect((await get(target, { "If-None-Match": '"specific"' })).status).toBe(200);
+      expect((await get(target, { Accept: "image/png", "If-None-Match": "*" })).status).toBe(406);
+    },
+  );
 
   it.each(["a", "a?view=properties", "bdp.json"])(
     "does not invent modification dates on %s",
@@ -528,9 +522,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     const head = await send("HEAD", "a", {});
     expect(head.body).toBe("");
     expect(head.headers["content-length"]).toBe(full.headers["content-length"]);
-    expect((await send("POST", "a", { Accept: "image/png", "If-Match": "*" })).status).toBe(
-      405,
-    );
+    expect((await send("POST", "a", { Accept: "image/png", "If-Match": "*" })).status).toBe(405);
     expect(errors).toEqual([]);
     const fault = new Error("private backend fault");
     options.fault = fault;

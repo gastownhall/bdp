@@ -467,13 +467,8 @@ describe("BdpReadUpdateClient navigation and operations", () => {
     });
     // The same hierarchy is allowed when the creator explicitly supplies it.
     expect(
-      (
-        await allocated.client.mutate(
-          "createBead",
-          JSON.stringify({ type, id: "a/b" }),
-          options,
-        )
-      ).kind,
+      (await allocated.client.mutate("createBead", JSON.stringify({ type, id: "a/b" }), options))
+        .kind,
     ).toBe("success");
   });
   it("preserves selected received headers on local errors and strips injected credentials", async () => {
@@ -519,11 +514,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
       deleted: { resourceKind: "bead", resource: { id: bead.id, type, revision: "r2" } },
     });
     await expect(
-      h.client.mutate(
-        "deleteBead",
-        JSON.stringify({ bead: "a", expectedRevision: "r1" }),
-        options,
-      ),
+      h.client.mutate("deleteBead", JSON.stringify({ bead: "a", expectedRevision: "r1" }), options),
     ).rejects.toMatchObject({ code: "invalid-response" });
   });
   it.each([405, 406, 500])(
@@ -646,10 +637,7 @@ describe("Read+Update sequence and client lifetime", () => {
     await expect(
       h.client.sequence(
         JSON.stringify({
-          operations: [
-            ...members,
-            { operation: "deleteBead", idempotencyKey: "a", bead: "a" },
-          ],
+          operations: [...members, { operation: "deleteBead", idempotencyKey: "a", bead: "a" }],
         }),
       ),
     ).rejects.toMatchObject({ code: "invalid-input" });

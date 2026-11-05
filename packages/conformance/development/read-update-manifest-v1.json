@@ -7,9 +7,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -373,9 +371,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -648,9 +644,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -1136,9 +1130,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -1695,9 +1687,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -1987,9 +1977,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -2286,9 +2274,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -2510,9 +2496,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -2609,9 +2593,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -2705,10 +2687,7 @@
               "kind": "json-array-set",
               "pointer": "",
               "itemPointer": "/status",
-              "equals": [
-                200,
-                409
-              ]
+              "equals": [200, 409]
             }
           ]
         },
@@ -2741,9 +2720,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -3575,9 +3552,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -4228,9 +4203,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -4543,9 +4516,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -4694,9 +4665,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -5513,10 +5482,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-process"
-        ]
+        "requires": ["development-http", "development-process"]
       },
       "applicability": {
         "requires": []
@@ -5897,10 +5863,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-process"
-        ]
+        "requires": ["development-http", "development-process"]
       },
       "applicability": {
         "requires": []
@@ -6312,10 +6275,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-process"
-        ]
+        "requires": ["development-http", "development-process"]
       },
       "applicability": {
         "requires": []
@@ -6742,9 +6702,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -6984,9 +6942,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -7120,9 +7076,7 @@
               "target": "alias/canonical"
             },
             "key": "absolute-alias",
-            "absoluteReferences": [
-              "target"
-            ]
+            "absoluteReferences": ["target"]
           },
           "captures": [],
           "assertions": [
@@ -7550,9 +7504,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -7921,9 +7873,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -8171,9 +8121,7 @@
               "target": "alias/old"
             },
             "key": "retained",
-            "absoluteReferences": [
-              "target"
-            ]
+            "absoluteReferences": ["target"]
           },
           "captures": [],
           "assertions": [
@@ -8676,10 +8624,7 @@
               "target": "a"
             },
             "key": "retained",
-            "absoluteReferences": [
-              "source",
-              "target"
-            ]
+            "absoluteReferences": ["source", "target"]
           },
           "captures": [],
           "assertions": [
@@ -8939,9 +8884,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -9124,9 +9067,7 @@
               "bead": "alias/missing"
             },
             "key": "miss",
-            "absoluteReferences": [
-              "bead"
-            ]
+            "absoluteReferences": ["bead"]
           },
           "captures": [],
           "assertions": [
@@ -9456,9 +9397,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -9856,9 +9795,7 @@
               }
             },
             "key": "pinned",
-            "absoluteReferences": [
-              "source"
-            ]
+            "absoluteReferences": ["source"]
           },
           "captures": [],
           "assertions": [
@@ -10197,10 +10134,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-process"
-        ]
+        "requires": ["development-http", "development-process"]
       },
       "applicability": {
         "requires": []
@@ -11038,10 +10972,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-process"
-        ]
+        "requires": ["development-http", "development-process"]
       },
       "applicability": {
         "requires": []
@@ -11474,9 +11405,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -11731,9 +11660,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http"
-        ]
+        "requires": ["development-http"]
       },
       "applicability": {
         "requires": []
@@ -12460,10 +12387,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-retention-process"
-        ]
+        "requires": ["development-http", "development-retention-process"]
       },
       "applicability": {
         "requires": []
@@ -13331,10 +13255,7 @@
       "requiredProfile": "read-update",
       "setup": {
         "fixture": "development-read-update-v1",
-        "requires": [
-          "development-http",
-          "development-retention-process"
-        ]
+        "requires": ["development-http", "development-retention-process"]
       },
       "applicability": {
         "requires": []

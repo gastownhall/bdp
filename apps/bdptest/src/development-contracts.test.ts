@@ -187,9 +187,7 @@ it("installs pinned schema closure and applies inherited validation through actu
   expect((await f.wire(a.id)).value).toEqual(a);
   // Input bytes were captured before compilation; mutating the caller's copy cannot loosen validation.
   f.input.schemas[1]?.utf8Bytes.fill(32);
-  expect((await f.post("createBead", { ...bad, id: "still-bad" }, "still_bad")).status).toBe(
-    422,
-  );
+  expect((await f.post("createBead", { ...bad, id: "still-bad" }, "still_bad")).status).toBe(422);
   expect((await f.wire("types/")).value.items.map((x: { id: string }) => x.id).sort()).toEqual(
     [base, edge, owner].sort(),
   );
@@ -317,13 +315,8 @@ it("uses transport principals rather than actor attribution and distinguishes hi
   expect(hiddenReplay.text).not.toContain(a.id);
   f.access.replace("alice", allow);
   expect(
-    (
-      await f.post(
-        "createBead",
-        { id: "a", type: owner, properties: { n: 1 } },
-        "principal_key",
-      )
-    ).value.resource,
+    (await f.post("createBead", { id: "a", type: owner, properties: { n: 1 } }, "principal_key"))
+      .value.resource,
   ).toEqual(a);
   expect((await f.wire(a.id)).value).toEqual(a);
   // Bob's earlier failure was retained in his namespace; changed authority policy does not execute it again.
