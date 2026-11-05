@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "906b543847b152897391ce795631d712c858891b7b876f6f54d25d725c48094d",
+  "sourceSHA256": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
   "selections": {
     "read": {
       "entryPoints": [
@@ -65,6 +65,7 @@
         "historyVersionRow",
         "historyVersionsPage",
         "historyWindow",
+        "idempotencyCapabilityV1",
         "iso8601Duration",
         "jsonPointer",
         "linkCollection",

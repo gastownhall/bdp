@@ -129,7 +129,7 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
     }
   });
 
-  it("requires the eight absolute singleton targets without sequence, batch or sets", () => {
+  it("requires six absolute singleton targets, aliases both or neither, without sequence, batch or sets", () => {
     expect(valid("writeOperationDirectory", paper.directory)).toBe(true);
     expect(Object.keys(paper.directory)).toEqual(
       paper.cliPairs.map((p: { operation: string }) => p.operation),
@@ -139,6 +139,10 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
       delete value[name];
       expect(valid("writeOperationDirectory", value), name).toBe(false);
     }
+    const withoutAliases = { ...paper.directory };
+    delete withoutAliases.putAlias;
+    delete withoutAliases.deleteAlias;
+    expect(valid("writeOperationDirectory", withoutAliases)).toBe(true);
     for (const name of ["sequence", "batch", "updateWhere", "deleteWhere"])
       expect(
         valid("writeOperationDirectory", {
@@ -151,13 +155,14 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
     );
   });
 
-  it("keeps Write's aliases/operations mandatory while Core aliases remain optional", () => {
+  it("keeps Write's operations mandatory while aliases remain optional in Core and Write", () => {
     expect(valid("coreDiscovery", { ...paper.core, aliases: paper.core.scope })).toBe(true);
-    for (const name of ["aliases", "operations"]) {
-      const value = { ...paper.write };
-      delete value[name];
-      expect(valid("writeDiscovery", value)).toBe(false);
-    }
+    const withoutOperations = { ...paper.write };
+    delete withoutOperations.operations;
+    expect(valid("writeDiscovery", withoutOperations)).toBe(false);
+    const withoutAliases = { ...paper.write };
+    delete withoutAliases.aliases;
+    expect(valid("writeDiscovery", withoutAliases)).toBe(true);
   });
 
   it("separates small read/write limit groups from sequence and replica machinery", () => {

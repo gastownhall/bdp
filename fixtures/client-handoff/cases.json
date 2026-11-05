@@ -6599,6 +6599,7 @@
           "aliases": "https://work.example/acme/.locators/"
         },
         "operationDirectory": {
+          "putAlias": "https://work.example/acme/.dispatch/put-alias-opaque",
           "createBead": "https://work.example/acme/.dispatch/7-opaque?route=%2B%2f&slot=0",
           "updateBead": "https://work.example/acme/.dispatch/20-opaque?route=%2B%2f&slot=1",
           "deleteBead": "https://work.example/acme/.dispatch/33-opaque?route=%2B%2f&slot=2",
@@ -6611,7 +6612,7 @@
       "wire": null,
       "expectedResultOrProblem": {
         "kind": "local-refusal",
-        "reason": "Write operation directory must contain all8 distinct entries, including aliases, before dispatch"
+        "reason": "Write operation directory must carry the six Resource entries and both alias entries or neither, before dispatch"
       },
       "mustNotDispatch": true,
       "selectedCapabilities": {},

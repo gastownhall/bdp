@@ -29,6 +29,8 @@ import { parseEventSelection } from "./events.js";
 import { prepareLink } from "./link-contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
+const IDEMPOTENCY_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/idempotency";
+
 export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
   readonly authentication?: "required" | "disabled";
@@ -371,29 +373,26 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             scope: navigation.scope,
             specRevision,
             aliases: navigation.aliases,
+            capabilities: {
+              [IDEMPOTENCY_CAPABILITY]: { "1": {} },
+              ...(options.referenceCore === true && store.historicalUpdateEnabled
+                ? { [HISTORICAL_UPDATE_CAPABILITY]: { "1": { atomicBatch: false } } }
+                : {}),
+              ...(options.referenceCore === true && store.atomicBatchEnabled
+                ? {
+                    [BATCH_CAPABILITY]: {
+                      "1": {
+                        operation: navigation.scope + "bdp/batch",
+                        operations: BATCH_OPERATIONS,
+                        ...BATCH_LIMITS,
+                      },
+                    },
+                  }
+                : {}),
+            },
             ...(options.referenceCore === true
               ? {
                   limits: REFERENCE_READ_LIMITS,
-                  ...(store.historicalUpdateEnabled
-                    ? {
-                        capabilities: {
-                          [HISTORICAL_UPDATE_CAPABILITY]: { "1": { atomicBatch: false } },
-                        },
-                      }
-                    : {}),
-                  ...(store.atomicBatchEnabled
-                    ? {
-                        capabilities: {
-                          [BATCH_CAPABILITY]: {
-                            "1": {
-                              operation: navigation.scope + "bdp/batch",
-                              operations: BATCH_OPERATIONS,
-                              ...BATCH_LIMITS,
-                            },
-                          },
-                        },
-                      }
-                    : {}),
                 }
               : { events: navigation.events }),
             operations: navigation.operations,

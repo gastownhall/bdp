@@ -113,7 +113,7 @@ const report = {
   workload: {
     scale,
     ...workload,
-    composition: "Core + ordinary Write, no optional capabilities",
+    composition: "Core + ordinary Write with idempotency, no other optional capability",
     transport: "real loopback HTTP, canonical Host, same-process service and driver, no SDK",
     operations:
       "sequential createBead/createLink, updateBead, point GET, complete bead/link page traversal, graceful close/reopen, original create-key replay",
@@ -261,7 +261,9 @@ async function runRepetition() {
     server = await timed("provision", () => startReferenceService(options));
     closeState = "open";
     const discovery = (await wire(server.navigation.description)).value;
-    assert.equal(discovery.capabilities, undefined);
+    assert.deepEqual(discovery.capabilities, {
+      "https://github.com/gastownhall/bdp/capabilities/idempotency": { 1: {} },
+    });
     await checkpoint("empty");
     const creates = [],
       current = new Map();

@@ -14,8 +14,8 @@ which are Resources with immutable identities and independently versioned state.
 Generic clients use the same carriers and operations across application domains.
 Storage layout and implementation technology are not prescribed.
 
-[Write](../write/write.md) adds mutation admission, actions, atomic effects and
-durable retry outcomes. [Types](../types/types.md) is optional: it interprets definitions,
+[Write](../write/write.md) adds mutation admission, actions and atomic effects, with
+durable retry outcomes under its optional `idempotency` capability. [Types](../types/types.md) is optional: it interprets definitions,
 conformance, installation and property/graph constraints. Carrying a `type` field
 in Core does not require that interpretation, a Type inventory or a descriptor
 engine. Native endpoint, ownership, authorization and retained-address invariants
@@ -569,8 +569,8 @@ canonical branch. A dirty change to a canonical source MUST NOT be reported as i
 it were represented by the prior commit. Optional members are `events`, `aliases`,
 `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
 `capabilities`.
-Write uses the same Core meaning with `profile:"write"` and required `operations`
-and `aliases` navigation. Its operation directory belongs to Write. These discovery
+Write uses the same Core meaning with `profile:"write"`, required `operations`
+navigation and optional `aliases` navigation. Its operation directory belongs to Write. These discovery
 objects are closed; there is no required or guessed `beads` or `links` member.
 When a Scope supports Types, its optional `types` member identifies the fixed
 `<scope>/types/` inventory. Unknown optional
@@ -662,7 +662,8 @@ or refuse explicitly. A flag alone is insufficient. This is no general executabl
 extension mechanism or permission to add undeclared base envelope fields.
 
 Mutation execution identity freezes selected contract, capability versions, Scope,
-semantic operation, authored operands/values and key. Retry MUST NOT rebind it to
+semantic operation, authored operands/values and, under Write's `idempotency`, key.
+Retry MUST NOT rebind it to
 another contract, media type, feature version, fresh Type default or fresh key.
 Changing advertisement cannot erase durable no-reexecution obligations. Continuations,
 conditions and Event resumes likewise retain selected context. Refusal/unavailable
@@ -3146,6 +3147,7 @@ Value: object
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
+| "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
 | "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
 
@@ -3170,6 +3172,21 @@ Value: object
           "properties": {
             "1": {
               "$ref": "#/$defs/atomicBatchCapabilityV1"
+            }
+          }
+        }
+      ]
+    },
+    "https://github.com/gastownhall/bdp/capabilities/idempotency": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/idempotencyCapabilityV1"
             }
           }
         }
