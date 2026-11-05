@@ -17,8 +17,9 @@ const globalFlags = new Map([
   ["--config", true],
   ["--cli-profile", true],
   ["--scope", true],
+  ["--output-mode", true],
 ]);
-const toolingFlags = new Set(["--version", "--config", "--cli-profile"]);
+const toolingFlags = new Set(["--version", "--config", "--cli-profile", "--output-mode"]);
 
 export function commandTree() {
   return createCanonicalCommand({

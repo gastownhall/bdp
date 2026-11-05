@@ -81,7 +81,19 @@ describe("canonical command registration and generated help", () => {
     expect(result.invocations).toEqual([]);
   });
 
-  it.each(["query", "graph", "count", "events", "versions", "type", "serve", "import", "export"])(
+  it("shows the required Bead and Link identities in mutation usage", () => {
+    const { command } = fixture();
+    const update = command.commands.find((child) => child.name() === "update");
+    const link = command.commands.find((child) => child.name() === "link");
+    expect(update?.helpInformation()).toContain(
+      "Usage: bdp update <bead-id> | --retry-file <file>",
+    );
+    expect(link?.commands.find((child) => child.name() === "update")?.helpInformation()).toContain(
+      "Usage: bdp link update <link-id> | --retry-file <file>",
+    );
+  });
+
+  it.each(["query", "graph", "count", "events", "type", "serve", "import", "export"])(
     "does not register unsupported or proposed %s",
     async (name) => {
       const result = fixture();
@@ -92,6 +104,17 @@ describe("canonical command registration and generated help", () => {
       expect(result.command.helpInformation()).not.toMatch(new RegExp(`^  ${name}(?: |$)`, "m"));
     },
   );
+
+  it.each([
+    ["versions", "note-1"],
+    ["link", "versions", "rel-1"],
+  ])("registers retained History command %s", async (...args) => {
+    const { invocations } = await parse(args);
+    expect(onlyInvocation(invocations)).toMatchObject({
+      command: args.length === 2 ? ["versions"] : ["link", "versions"],
+      positionals: [args.at(-1)],
+    });
+  });
 
   it("does not register canonical commands in the tiny compatibility tree", async () => {
     const result = fixture("compat");
@@ -177,6 +200,15 @@ describe("canonical invocation data and structural admission", () => {
       positionals: ["https://example.invalid/work/"],
       options: { cliProfile: "canonical" },
     });
+  });
+
+  it.each([
+    ["--output-mode", "json", "scope", "inspect"],
+    ["scope", "inspect", "--output-mode", "human"],
+  ])("accepts the global output mode in either CLI position: %j", async (...args) => {
+    const { invocations } = await parse(args);
+    expect(invocations[0]?.options.outputMode).toBe(args[0] === "--output-mode" ? "json" : "human");
+    expect(invocations[0]?.explicitOptions).toContain("outputMode");
   });
 
   it.each([

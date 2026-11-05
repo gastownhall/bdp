@@ -298,9 +298,16 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   const batch = mode === "batch";
   if (
     mode !== undefined &&
-    ["idempotencyKey", "retryFile", "outputFormat", "long", "fields", "include", "exclude"].some(
-      has,
-    )
+    [
+      "idempotencyKey",
+      "retryFile",
+      "outputFormat",
+      "outputMode",
+      "long",
+      "fields",
+      "include",
+      "exclude",
+    ].some(has)
   )
     return refuse("emission conflicts with execution, retry or explicit display controls");
   if (has("retryFile")) return refuse("retry input must use the frozen recovery path");

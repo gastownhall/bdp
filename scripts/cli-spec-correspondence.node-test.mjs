@@ -4,11 +4,19 @@ import test from "node:test";
 import { checkCorrespondence, commandTree } from "./cli-spec-correspondence.mjs";
 
 const markdown = await readFile(new URL("../docs/cli-design/bdp-cli.md", import.meta.url), "utf8");
+const outputDocs = await readFile(
+  new URL("../docs/cli-design/read-output.md", import.meta.url),
+  "utf8",
+);
 const actorRow = markdown.split("\n").find((line) => line.startsWith("| `--actor ACTOR`"));
 const scopeRow = markdown.split("\n").find((line) => line.startsWith("| `--scope SCOPE`"));
 
 test("authored singleton mutation flags match the actual parser in both directions", () => {
   assert.equal(checkCorrespondence(markdown), 8);
+});
+test("global output-mode option is described in the authored CLI contract", () => {
+  assert.match(markdown, /global `--output-mode human\|json`/);
+  assert.match(outputDocs, /Use `--output-mode human\|json` to select the overall presentation/);
 });
 test("missing authored actor is detected", () => {
   assert.throws(

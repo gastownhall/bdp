@@ -1,3 +1,6 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createServer, type Server } from "node:http";
 import { BdpClient } from "@bdp/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +12,40 @@ describe("bdp ready CLI", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
+
+  it.each([
+    {
+      configured: false,
+      expectedScope: "not configured; set one with bdp scope set <scope>",
+    },
+    { configured: true, expectedScope: "https://default.example/work/" },
+  ])(
+    "shows help and the default Scope with no arguments (%j)",
+    async ({ configured, expectedScope }) => {
+      const root = await mkdtemp(join(tmpdir(), "bdp-no-args-"));
+      const configPath = join(root, "bdp", "config.json");
+      vi.stubEnv("XDG_CONFIG_HOME", root);
+      vi.stubEnv("BDP_CONFIG", undefined);
+      vi.stubEnv("BDP_SCOPE_URL", undefined);
+      if (configured) {
+        await mkdir(join(root, "bdp"), { recursive: true });
+        await writeFile(configPath, JSON.stringify({ scope: { url: expectedScope } }), "utf8");
+      }
+      const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+      const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      try {
+        await expect(runBdp([])).resolves.toBe(0);
+        const output = stdout.mock.calls.map(([chunk]) => String(chunk)).join("");
+        expect(output).toContain("Usage:");
+        expect(output).toContain("Discover the selected Scope.");
+        expect(output).toContain(`Default Scope: ${expectedScope}`);
+        expect(stderr).not.toHaveBeenCalled();
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it.each([false, true])(
     "honors explicit Scope around the domain command (after=%s)",
@@ -44,9 +81,13 @@ describe("bdp ready CLI", () => {
     },
   );
 
-  it.each([false, true])(
-    "reports a local transport failure without an unhandled rejection (json=%s)",
-    async (json) => {
+  it.each([
+    { json: false, args: [] },
+    { json: true, args: ["--json"] },
+    { json: true, args: ["--output-mode", "json"] },
+  ])(
+    "reports a local transport failure without an unhandled rejection (%j)",
+    async ({ json, args }) => {
       const server = createServer((_request, response) => {
         response.statusCode = 502;
         response.setHeader("content-type", "text/html");
@@ -59,7 +100,7 @@ describe("bdp ready CLI", () => {
       const closeClient = vi.spyOn(BdpClient.prototype, "close");
 
       try {
-        await expect(runBdp(["bd", "ready", ...(json ? ["--json"] : [])])).resolves.toBe(1);
+        await expect(runBdp(["bd", "ready", ...args])).resolves.toBe(1);
       } finally {
         await close(server);
       }

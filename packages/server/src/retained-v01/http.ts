@@ -31,6 +31,7 @@ import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
+  readonly authentication?: "required" | "disabled";
   readonly specRevision?: string;
 }
 export const PRIVATE_FIXTURE_GAPS = Object.freeze([
@@ -162,7 +163,13 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       throw new TypeError("explicit private credential/principal mapping required");
     return Object.freeze({ ...credential });
   });
-  if (!credentials.length || new Set(credentials.map((c) => c.token)).size !== credentials.length)
+  const authentication = options.authentication ?? "required";
+  if (
+    (authentication !== "required" && authentication !== "disabled") ||
+    (authentication === "required" && credentials.length === 0) ||
+    (authentication === "disabled" && credentials.length !== 0) ||
+    new Set(credentials.map((c) => c.token)).size !== credentials.length
+  )
     throw new TypeError("unique private credentials required");
   const store = openPrivateRetainedStore({ ...options, navigation });
   const collections = (() => {
@@ -195,11 +202,14 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
     if (options.referenceCore === true) referenceResponses.add(response);
     try {
       const authorization = one(request, "authorization") ?? "";
-      const principal = credentials.find((credential) => {
-        const expected = Buffer.from(`Bearer ${credential.token}`);
-        const supplied = Buffer.from(authorization);
-        return expected.length === supplied.length && timingSafeEqual(expected, supplied);
-      })?.principal;
+      const principal =
+        authentication === "disabled"
+          ? "anonymous"
+          : credentials.find((credential) => {
+              const expected = Buffer.from(`Bearer ${credential.token}`);
+              const supplied = Buffer.from(authorization);
+              return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+            })?.principal;
       if (principal === undefined) {
         json(response, 401, serialized(problem("unauthenticated", 401, "after-state-change")), {
           "www-authenticate": 'Bearer realm="private-retained-fixture"',

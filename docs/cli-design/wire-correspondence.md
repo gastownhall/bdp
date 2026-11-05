@@ -37,7 +37,7 @@ Core-only Type carriers do not imply Types interpretation.
 | `events --follow` | Read pages, then poll the same native event source | Preserve complete delivered progress; no invented wire stream |
 | Recover an uncertain write | Repeat the original frozen request/key | One logical decision; no new key, default resolution or allocation |
 | Show through an alias | Resolve its admitted redirect, then retrieve the canonical Resource | Alias resolution and Resource retrieval are distinguishable |
-| Local `REF@N` or numeric guard | An authoritative store adapter maps N to an exact token | Never count versions rows or infer an ordinal from page order |
+| Point-read `REF@N` | The History authority's newest-first pages map N to an exact token | Never infer order from token spelling; ranks may shift as the retained window changes |
 | Historical content copying | Read a saved source then submit an admitted update | Source revision and destination guard remain separate; not one atomic read/write promise |
 | Revision-sensitive Link applicability | Resolve identity and any current-token test within a supported coherent read context | Independent HTTP reads cannot manufacture that consistency |
 | Delete without apply intent | Read an observational preview | No deletion, reservation or promise of future admission |

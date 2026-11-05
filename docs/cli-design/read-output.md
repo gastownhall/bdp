@@ -11,6 +11,24 @@ not evidence that Preview clients or a provider implement the target.
 
 ## Preserve data and declare context
 
+Use `--output-mode human|json` to select the overall presentation; the default is
+`human`. Human mode is for interactive inspection and uses the common layouts
+below. JSON mode emits the schema-versioned result envelope for diagnostics,
+conformance checks, and scripts. The flag is global to the canonical CLI and may
+appear before or after a command. Existing `--output-format` remains the more
+specific presentation choice: `--output-mode json` selects JSON unless
+`--output-format jsonl` is also selected; JSON mode conflicts with human-only
+formats, and human mode conflicts with `json`/`jsonl` formats. Without
+`--output-mode`, existing `--output-format json|jsonl` invocations keep their
+current behavior.
+The existing `bd ready --json` spelling remains supported; canonical
+`bd ready --output-mode json` selects that same readiness JSON representation.
+
+Human `scope inspect` prints the Scope, BDP version, profile, and advertised
+inventory routes as labeled lines, followed by advertised limits. Human alias
+resolution prints the resolved target reference. JSON mode preserves the full
+native discovery description and result envelope.
+
 JSON envelope has numeric `schema_version:2`, actual immutable `bdp_spec`,
 `result_kind`, and `outcome:success|failure`. Unknown is for indeterminate mutations,
 not failed/incomplete reads, and is outside this descriptor subset. Default point

@@ -1,5 +1,5 @@
 import { Writable } from "node:stream";
-import { RetainedClient, RetainedWriteBinding } from "@bdp/client";
+import { BdpClient, RetainedClient, RetainedWriteBinding } from "@bdp/client";
 import { parseCanonicalHttpUrl, RETAINED_V01_SPECIFICATION } from "@bdp/protocol";
 import { expect, it, vi } from "vitest";
 import { writeCanonicalOutput } from "./canonical-io.js";
@@ -272,41 +272,199 @@ it.each([
   },
 );
 
-it.each([
-  ["note@3", 5, "unsupported_capability"],
-  ["[https://wire.example/work/note]@3", 5, "unsupported_capability"],
-  ["note@9223372036854775807", 5, "unsupported_capability"],
-  ["[https://wire.example/work/note]@9223372036854775807", 5, "unsupported_capability"],
-  ["note@9223372036854775808", 2, "invalid_value"],
-  ["[https://wire.example/work/note]@9223372036854775808", 2, "invalid_value"],
-] as const)("diagnoses ordinary ordinal %s without I/O", async (operand, expectedStatus, code) => {
-  const read = vi.spyOn(RetainedClient.prototype, "read");
-  const bind = vi.spyOn(RetainedClient.prototype, "bindWrite");
-  let stdout = "";
+it("resolves @N newest-first through History before reading the exact token", async () => {
+  const scope = "https://wire.example/work/";
+  const history = vi
+    .spyOn(BdpClient.prototype, "performHistory")
+    .mockImplementation(async (request) => {
+      if (request.kind !== "versions") throw new Error("expected History versions request");
+      return {
+        subject: `${scope}note`,
+        population: "all-retained",
+        participation: "tracked",
+        window: { newest: "new", oldest: "old", complete: true },
+        items: [
+          { revision: "new", lineage: "current", body: "complete" },
+          { revision: "previous", lineage: "replaced", body: "complete" },
+        ],
+        next: null,
+      };
+    });
+  const read = vi.spyOn(RetainedClient.prototype, "read").mockResolvedValue({
+    kind: "success",
+    http: { status: 200, url: scope, headers: {}, contentType: null, retryAfter: null },
+    value: {
+      specification: RETAINED_V01_SPECIFICATION,
+      scope,
+      resourceKind: "bead",
+      representation: "resource",
+      body: {
+        id: `${scope}note`,
+        type: `${scope}Task`,
+        revision: "previous",
+        properties: {},
+        metadata: {},
+      },
+    },
+  });
   try {
     const status = await runCanonicalInvocation(
       {
         command: ["show"],
-        positionals: [operand],
+        positionals: ["note@2"],
         options: { outputFormat: "json" },
         explicitOptions: ["outputFormat"],
       },
-      { scope: { url: "https://wire.example/work/" }, auth: {} },
-      {
-        stdout: (text) => {
-          stdout += text;
-        },
-        stderr: () => undefined,
-      },
+      { scope: { url: scope }, auth: {} },
+      { stdout: () => undefined, stderr: () => undefined },
     );
-    expect(status).toBe(expectedStatus);
-    expect(JSON.parse(stdout).error.problem.code).toBe(code);
-    expect(read).not.toHaveBeenCalled();
-    expect(bind).not.toHaveBeenCalled();
+    expect(status).toBe(0);
+    expect(history).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ kind: "versions", resource: "bead", id: `${scope}note` }),
+      {},
+    );
+    expect(read).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reference: { uri: `${scope}note`, revision: "previous" } }),
+    );
   } finally {
+    history.mockRestore();
     read.mockRestore();
-    bind.mockRestore();
   }
+});
+
+it("resolves an ordinal across authoritative newest-first History pages", async () => {
+  const scope = "https://wire.example/work/";
+  const history = vi
+    .spyOn(BdpClient.prototype, "performHistory")
+    .mockImplementation(async (request) => {
+      if (request.kind !== "versions") throw new Error("expected History versions request");
+      return request.continuation === undefined
+        ? {
+            subject: `${scope}note`,
+            population: "all-retained",
+            participation: "tracked",
+            window: { newest: "new", oldest: "old", complete: true },
+            items: [{ revision: "new", lineage: "current", body: "complete" }],
+            next: `${scope}note?view=versions&cursor=next`,
+          }
+        : {
+            subject: `${scope}note`,
+            population: "all-retained",
+            participation: "tracked",
+            window: { newest: "new", oldest: "old", complete: true },
+            items: [{ revision: "older", lineage: "replaced", body: "complete" }],
+            next: null,
+          };
+    });
+  const read = vi.spyOn(RetainedClient.prototype, "read").mockResolvedValue({
+    kind: "success",
+    http: { status: 200, url: scope, headers: {}, contentType: null, retryAfter: null },
+    value: {
+      specification: RETAINED_V01_SPECIFICATION,
+      scope,
+      resourceKind: "bead",
+      representation: "resource",
+      body: {
+        id: `${scope}note`,
+        type: `${scope}Task`,
+        revision: "older",
+        properties: {},
+        metadata: {},
+      },
+    },
+  });
+  try {
+    const status = await runCanonicalInvocation(
+      { command: ["show"], positionals: ["note@2"], options: {}, explicitOptions: [] },
+      { scope: { url: scope }, auth: {} },
+      { stdout: () => undefined, stderr: () => undefined },
+    );
+    expect(status).toBe(0);
+    expect(history).toHaveBeenCalledTimes(2);
+    expect(history.mock.calls[1]?.[0]).toMatchObject({
+      continuation: `${scope}note?view=versions&cursor=next`,
+    });
+    expect(read).toHaveBeenCalledWith(
+      expect.objectContaining({ reference: { uri: `${scope}note`, revision: "older" } }),
+    );
+  } finally {
+    history.mockRestore();
+    read.mockRestore();
+  }
+});
+
+it("lists Bead and Link History with newest-first CLI ordinals", async () => {
+  const scope = "https://wire.example/work/";
+  const history = vi
+    .spyOn(BdpClient.prototype, "performHistory")
+    .mockImplementation(async (request) => ({
+      subject: request.id,
+      population: "all-retained",
+      participation: "tracked",
+      window: { newest: "r2", oldest: "r1", complete: true },
+      items: [
+        { revision: "r2", lineage: "current", body: "complete" },
+        { revision: "r1", lineage: "replaced", body: "complete" },
+      ],
+      next: null,
+    }));
+  const stdout: string[] = [];
+  try {
+    expect(
+      await runCanonicalInvocation(
+        {
+          command: ["link", "versions"],
+          positionals: ["relation"],
+          options: {},
+          explicitOptions: [],
+        },
+        { scope: { url: scope }, auth: {} },
+        {
+          stdout: (text) => {
+            stdout.push(text);
+          },
+          stderr: () => undefined,
+        },
+      ),
+    ).toBe(0);
+    expect(history).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "versions", resource: "link", id: `${scope}relation` }),
+      {},
+    );
+    expect(stdout.join("")).toContain("1       r2");
+    expect(stdout.join("")).toContain("2       r1");
+  } finally {
+    history.mockRestore();
+  }
+});
+
+it("uses output-mode json for machine-readable failures without output-format", async () => {
+  let stdout = "";
+  let stderr = "";
+  const status = await runCanonicalInvocation(
+    {
+      command: ["show"],
+      positionals: ["note@9223372036854775808"],
+      options: { outputMode: "json" },
+      explicitOptions: ["outputMode"],
+    },
+    { scope: { url: "https://wire.example/work/" }, auth: {} },
+    {
+      stdout: (text) => {
+        stdout += text;
+      },
+      stderr: (text) => {
+        stderr += text;
+      },
+    },
+  );
+
+  expect(status).toBe(2);
+  expect(JSON.parse(stdout)).toMatchObject({
+    outcome: "failure",
+    error: { problem: { code: "invalid_value" } },
+  });
+  expect(stderr).toBe("");
 });
 
 it.each([

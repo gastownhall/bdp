@@ -27,7 +27,6 @@ const hermeticEnv = Object.fromEntries(
 // role-scoped views in `@bdp/config`: passing a role to loadStartupConfig
 // restricts both validation and output to precisely these keys.
 const EXPECTED_SECTIONS = {
-  bdp: ["auth", "mode", "scope"],
   bdptest: ["bdptest", "mode", "scope", "server"],
   bdpbd: ["bd", "mode", "scope", "server"],
 };
@@ -48,6 +47,15 @@ function parseDiagnostics(stderr, executable) {
 
 function run(signal, _executable, entry, argument, extraEnv = {}) {
   return withPackedChild(signal, entry, [argument], {
+    cwd: workspaceRoot,
+    env: { ...hermeticEnv, ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"],
+    timeoutMs: 5_000,
+  });
+}
+
+function runWithoutArguments(signal, entry, extraEnv = {}) {
+  return withPackedChild(signal, entry, [], {
     cwd: workspaceRoot,
     env: { ...hermeticEnv, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
@@ -259,12 +267,24 @@ await withPackedWorkspace(async (installed, signal) => {
     console.log(`${executable}: installed --help, --version, and diagnostics passed`);
   }
 
-  // Lifecycle + role-scoped view assertions. The packed tarball ships each
-  // executable's role, so its startup.config diagnostic proves both that the
-  // shared contract compiled through unchanged and that role scoping keeps
-  // unrelated sections out of the emitted config.
+  // The canonical client is interactive at its entry point; server executables
+  // retain lifecycle mode. The packed tarball ships each server's role, so its
+  // startup.config diagnostic proves role scoping keeps unrelated sections out.
   signal.throwIfAborted();
-  for (const executable of executables) {
+  const noArguments = await runWithoutArguments(signal, installed.entry("bdp"), {
+    XDG_CONFIG_HOME: path.join(installed.temporaryRoot, "no-default-scope"),
+  });
+  if (
+    noArguments.code !== 0 ||
+    !noArguments.stdout.startsWith("Usage: bdp ") ||
+    !noArguments.stdout.includes("Default Scope: not configured") ||
+    noArguments.stderr !== ""
+  ) {
+    fail("bdp", "no-argument invocation did not show help and the unset default Scope");
+  }
+  console.log("bdp: no-argument help and unset default Scope passed");
+
+  for (const executable of ["bdptest", "bdpbd"]) {
     const lifecycle = await runLifecycle(
       signal,
       executable,
@@ -465,25 +485,20 @@ await withPackedWorkspace(async (installed, signal) => {
   signal.throwIfAborted();
   console.log(JSON.stringify({ event: "installed.reference.observed", ...installedObservation }));
 
-  // Role isolation: an invalid value in a section this role does not read
-  // must not block startup. `--version` short-circuits before loadStartupConfig
-  // and would therefore never exercise the configuration path — use the normal
-  // bdp lifecycle so isolation is actually observed.
-  const bdpIsolated = await runLifecycle(signal, "bdp", installed.entry("bdp"), false, {
+  // Role isolation: an invalid value in a section the client does not read must
+  // not block its no-argument help and default-Scope display.
+  const bdpIsolated = await runWithoutArguments(signal, installed.entry("bdp"), {
+    XDG_CONFIG_HOME: path.join(installed.temporaryRoot, "isolated-client-config"),
     BDP_BDPTEST_FIXTURE: "bad name",
     BDP_SERVER_ADVERTISED_PROFILE: "not-a-profile",
   });
-  if (bdpIsolated.code !== 0 || bdpIsolated.stdout !== "") {
+  if (
+    bdpIsolated.code !== 0 ||
+    !bdpIsolated.stdout.startsWith("Usage: bdp ") ||
+    !bdpIsolated.stdout.includes("Default Scope: not configured") ||
+    bdpIsolated.stderr !== ""
+  ) {
     fail("bdp", "role isolation failed: unrelated invalid env variables blocked startup");
   }
-  const bdpIsolatedDiagnostics = parseDiagnostics(bdpIsolated.stderr, "bdp");
-  const bdpIsolatedConfig = startupConfigFor(bdpIsolatedDiagnostics);
-  if (bdpIsolatedConfig === undefined) {
-    fail("bdp", "role isolation lifecycle did not emit startup.config");
-  }
-  const bdpIsolatedSections = Object.keys(bdpIsolatedConfig).sort();
-  if (JSON.stringify(bdpIsolatedSections) !== JSON.stringify(EXPECTED_SECTIONS.bdp)) {
-    fail("bdp", "role isolation lifecycle emitted the wrong section set");
-  }
-  console.log("bdp: role isolation lifecycle ignores invalid bdptest/server values");
+  console.log("bdp: no-argument help ignores invalid bdptest/server values");
 });

@@ -132,9 +132,13 @@ is separate; neither page length nor unreported partial enumeration is exact cou
 
 ## Existing exact reads and HTTP controls
 
-`ID@=TOKEN` and quoted `'[URL]@=TOKEN'` express exact application History reads;
-`ID@N` first requires an authoritative stable local ordinal mapping. Historical
-selection is carried on the Reference, not a standalone `--revision` flag or
+`ID@=TOKEN` and quoted `'[URL]@=TOKEN'` express exact application History reads.
+For `show` and `link show`, `ID@N` selects the one-based Nth row in the
+authority's newest-first retained History order: `@1` is the newest retained
+version. Resolve it through the issued History pages, then send its exact token
+as `revision`; do not infer ordering from token spelling. This rank can shift
+when versions are added or pruned, so exact `@=TOKEN` is the stable portable
+form. Historical selection is carried on the Reference, not a standalone `--revision` flag or
 `json:` Reference escape. The wire query is still `revision`,
 never an ordinal, guard or HTTP validator. Preserve opaque token/form-query encoding,
 including literal plus as `%2B`. No current/nearest fallback. Unwrapped HTTP URLs

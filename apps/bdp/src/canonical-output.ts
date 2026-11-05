@@ -111,6 +111,64 @@ function document(value: unknown, scope?: string, long = false): string {
   return `${lines.join("\n")}\n`;
 }
 
+function scopeDocument(value: unknown, long = false): string {
+  const r = record(value);
+  const lines: string[] = [];
+  for (const [label, key] of [
+    ["Scope", "scope"],
+    ["BDP version", "bdpVersion"],
+    ["Profile", "profile"],
+    ["Beads inventory", "beads"],
+    ["Links inventory", "links"],
+    ["Aliases", "aliases"],
+    ["Events", "events"],
+    ["Operations", "operations"],
+  ] as const) {
+    const item = r[key];
+    if (typeof item === "string") lines.push(`${label}: ${item}`);
+  }
+  if (r.limits !== undefined) lines.push("Limits:", JSON.stringify(r.limits, null, 2));
+  const displayed = new Set([
+    "scope",
+    "bdpVersion",
+    "profile",
+    "beads",
+    "links",
+    "aliases",
+    "events",
+    "operations",
+    "limits",
+  ]);
+  const other = Object.fromEntries(Object.entries(r).filter(([key]) => !displayed.has(key)));
+  if (Object.keys(other).length > 0)
+    lines.push("Other advertised fields:", JSON.stringify(other, null, 2));
+  if (long) lines.push("", "Discovery:", JSON.stringify(r, null, 2));
+  return lines.length === 0 ? "" : `${lines.join("\n")}\n`;
+}
+
+function versionsDocument(value: unknown, scope?: string, long = false): string {
+  const page = record(value);
+  const window = record(page.window);
+  const lines = [
+    `Subject: ${ref(page.subject, scope, long)}`,
+    `Population: ${String(page.population ?? "")}`,
+    `Participation: ${String(page.participation ?? "")}`,
+    `Window: ${window.complete === true ? "complete" : "incomplete"}`,
+    "ORDINAL  REVISION  LINEAGE   BODY",
+  ];
+  const items = Array.isArray(page.items) ? page.items : [];
+  for (const item of items) {
+    const row = record(item);
+    lines.push(
+      `${String(row.ordinal ?? "").padEnd(8)}${String(row.revision ?? "").padEnd(10)}${String(row.lineage ?? "").padEnd(10)}${String(row.body ?? "")}`,
+    );
+  }
+  lines.push(`Next: ${page.next === null ? "none" : String(page.next ?? "unknown")}`);
+  if (long && window.newest !== undefined)
+    lines.push(`Bounds: newest=${String(window.newest)} oldest=${String(window.oldest)}`);
+  return `${lines.join("\n")}\n`;
+}
+
 /** Finite serialization completes before stdout is touched. JSONL never puts
  * success in the header; a compound mutation remains a single item. */
 export function renderCanonicalOutput(
@@ -118,7 +176,7 @@ export function renderCanonicalOutput(
   options: Readonly<Record<string, unknown>>,
   scope?: string,
 ): string {
-  const format = options.outputFormat ?? "default";
+  const format = options.outputFormat ?? (options.outputMode === "json" ? "json" : "default");
   const omit = Array.isArray(options.omit) ? options.omit : [];
   const raw = omit.includes("envelope");
   if (format === "json")
@@ -130,7 +188,8 @@ export function renderCanonicalOutput(
   if (format === "jsonl") {
     const data = record(output.data);
     const items =
-      output.result_kind === "resource_collection" && Array.isArray(data.items)
+      ["resource_collection", "history_versions"].includes(output.result_kind) &&
+      Array.isArray(data.items)
         ? data.items
         : output.data === undefined
           ? []
@@ -143,7 +202,8 @@ export function renderCanonicalOutput(
       outcome,
       ...(completion === undefined ? {} : { completion }),
       ...(error === undefined ? {} : { error }),
-      ...(output.result_kind === "resource_collection" && Object.hasOwn(data, "next")
+      ...(["resource_collection", "history_versions"].includes(output.result_kind) &&
+      Object.hasOwn(data, "next")
         ? { continuation: data.next }
         : {}),
     };
@@ -156,6 +216,11 @@ export function renderCanonicalOutput(
     );
   }
   if (output.outcome !== "success") return "";
+  if (output.result_kind === "scope") return scopeDocument(output.data, options.long === true);
+  if (output.result_kind === "history_versions")
+    return versionsDocument(output.data, scope, options.long === true);
+  if (output.result_kind === "reference")
+    return `${ref(output.data, scope, options.long === true)}\n`;
   if (output.result_kind === "resource") return document(output.data, scope, options.long === true);
   if (output.result_kind === "resource_collection") {
     const items = record(output.data).items;
