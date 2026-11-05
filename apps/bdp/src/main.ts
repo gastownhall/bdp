@@ -76,8 +76,7 @@ class CliOperationError extends Error {}
 /** Bootstrap registration policy using the declared option arities. No
  * command-specific parsing or network activity occurs until the profile is known. */
 export async function runBdp(args: readonly string[]): Promise<number> {
-  // Keep the original no-argument lifecycle entry used by installed smoke checks.
-  if (args.length === 0) return runLegacyBdp(args);
+  if (args.length === 0) return runNoArgumentHelp();
   let status = 0;
   try {
     const inventory = createCanonicalCommand({
@@ -269,6 +268,51 @@ export async function runBdp(args: readonly string[]): Promise<number> {
             ? "1 unsupported argument(s); use --help for usage"
             : "invalid command or configuration; use --help for usage";
     diagnostic("error", "cli.usage", message);
+    return 2;
+  }
+}
+
+async function runNoArgumentHelp(): Promise<number> {
+  try {
+    const configuredPath = process.env.BDP_CONFIG;
+    const defaultPath = defaultCliConfigPath(process.env);
+    let selectedConfigFile = configuredPath;
+    if (selectedConfigFile === undefined) {
+      try {
+        await readBoundedFile(defaultPath, 1_048_576);
+        selectedConfigFile = defaultPath;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
+    const configText =
+      selectedConfigFile === undefined
+        ? undefined
+        : new TextDecoder("utf-8", { fatal: true }).decode(
+            await readBoundedFile(selectedConfigFile, 1_048_576),
+          );
+    const readFile = (): string => {
+      if (configText === undefined) throw new Error("configuration not captured");
+      return configText;
+    };
+    const configOptions = {
+      ...(selectedConfigFile === undefined ? {} : { configFile: selectedConfigFile }),
+      env: process.env,
+      readFile,
+    };
+    const profile = loadCliProfile(configOptions);
+    const config = loadCanonicalCliConfig(configOptions);
+    const command = createCanonicalCommand({
+      version: `${executable} ${version}`,
+      profile,
+      onInvocation: () => undefined,
+    });
+    const scope = config.scope?.url ?? "not configured; set one with bdp scope set <scope>";
+    process.stdout.write(`${command.helpInformation()}\nDefault Scope: ${scope}\n`);
+    return 0;
+  } catch (error) {
+    if (error instanceof ConfigError) process.stderr.write(formatConfigError(error, executable));
+    else diagnostic("error", "cli.startup.failed", "could not read BDP configuration");
     return 2;
   }
 }
