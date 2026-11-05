@@ -44,8 +44,10 @@ authorization, atomicity, retention or conformance.
 ## Discover and select Write
 
 A Write Scope advertises `bdpVersion:"0.1"` and `profile:"write"`. Its closed
-machine discovery requires `scope`, `operations` and `aliases`, in addition to
-those two identity members and the Core-required `specRevision`. Bead and Link inventories use the fixed Core routes
+machine discovery requires `scope` and `operations`, in addition to those two
+identity members and the Core-required `specRevision`. `aliases` is optional; when
+present it promises Core's alias resolution and the two alias operations below.
+Bead and Link inventories use the fixed Core routes
 `<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
 optional common members are `events`, `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
@@ -57,26 +59,31 @@ operation from a Resource, Type or endpoint path.
 
 <a id="operation-directory-and-singleton-targets"></a>
 
-### Eight distinct ordinary targets
+<a id="eight-distinct-ordinary-targets"></a>
+
+### Ordinary targets
 
 A GET of `operations` returns a closed `writeOperationDirectory` object with exactly
-these members:
+these members: the six Resource members always, and the two alias members exactly
+when discovery advertises `aliases`:
 
-| Member | Decision |
-| --- | --- |
-| `createBead` | Create one Bead |
-| `updateBead` | Edit one Bead |
-| `deleteBead` | Delete one Bead |
-| `createLink` | Create one Link |
-| `updateLink` | Edit one Link, including either endpoint |
-| `deleteLink` | Delete one Link |
-| `putAlias` | Create or repoint one alias |
-| `deleteAlias` | Remove one alias |
+| Member | Decision | Present |
+| --- | --- | --- |
+| `createBead` | Create one Bead | Always |
+| `updateBead` | Edit one Bead | Always |
+| `deleteBead` | Delete one Bead | Always |
+| `createLink` | Create one Link | Always |
+| `updateLink` | Edit one Link, including either endpoint | Always |
+| `deleteLink` | Delete one Link | Always |
+| `putAlias` | Create or repoint one alias | With `aliases` |
+| `deleteAlias` | Remove one alias | With `aliases` |
 
 Every value is a distinct absolute HTTP(S) operation URL served for this Scope.
-An ambiguous directory MUST be refused before dispatch. Sharing an implementation
-handler does not merge the eight wire addresses. No fixed URL suffix is required.
-Atomic batch is separately advertised; it is not a ninth directory member. There
+A directory missing a required member, carrying an alias member without advertised
+`aliases`, or omitting one when `aliases` is advertised is ambiguous and MUST be
+refused before dispatch. Sharing an implementation handler does not merge the wire
+addresses. No fixed URL suffix is required.
+Atomic batch is separately advertised; it is not a directory member. There
 is no sequence, set-write or public-receipt operation in this directory.
 
 Each ordinary target accepts POST. The target URL supplies its operation kind;
@@ -149,8 +156,8 @@ an ordinary singleton body, including inside a pinned endpoint Reference.
 | `createLink` | `type`, `source`, `target` | `id`, `properties`, `metadata`, `revisionProvenance` |
 | `updateLink` | `link` and at least one edit member | `type`, `source`, `target`, `properties`, `propertiesChange`, `metadata`, `metadataChange`, `expectedRevision`, `revisionProvenance` |
 | `deleteLink` | `link` | `expectedRevision`, `revisionProvenance` |
-| `putAlias` | `alias`, `target` | none |
-| `deleteAlias` | `alias` | none |
+| `putAlias` (with `aliases`) | `alias`, `target` | none |
+| `deleteAlias` (with `aliases`) | `alias` | none |
 
 The edit members for a Bead are the five Type/object members in its row; a Link
 also admits either endpoint. Guard or provenance alone is not an update. An empty
@@ -849,6 +856,10 @@ its actual endpoints.
 <a id="explicit-alias-operations"></a>
 <a id="alias-targets"></a>
 
+This section binds a Scope that advertises `aliases`. A Scope without it serves no
+alias operations, answers alias URLs as Core says for an authority that does not
+advertise `aliases`, and keeps every other Write rule unchanged.
+
 An alias is a reusable locator to one canonical in-Scope Bead, not a Resource,
 revision, owned state or member of the target's properties. Put creates or repoints
 it; delete removes it. A put at an existing alias repoints it rather than treating
@@ -1045,7 +1056,7 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `idempotency-expired` | `gone` | 410 | `never` |
 | `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
 
-The eight singleton operations have no sequence-only `binding-unavailable` case.
+The singleton operations have no sequence-only `binding-unavailable` case.
 The presence of an inherited helper in a schema artifact does not select it.
 `retryAfter`, when present, is a nonnegative integer transient-delay advice only
 for `after-delay`, alongside applicable HTTP `Retry-After`. Ordinary Problems may
@@ -1442,8 +1453,8 @@ sequence feature and no partial/chunked execution.
 
 ## Conformance boundary
 
-A Write provider must implement all eight ordinary operations, their complete
-outcomes, fact production required by advertised Events, native/admitted Types constraints,
+A Write provider must implement the six Resource operations, the two alias
+operations when it advertises `aliases`, their complete outcomes, fact production required by advertised Events, native/admitted Types constraints,
 authorization, concurrency safety and durable key/recovery duties. Optional
 capability advertisement requires its complete selected behavior and bounds; it
 never replaces ordinary obligations. Ordinary reads retain Core meaning: an
@@ -5232,7 +5243,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | problem | `"readUpdateProblem"` |
 | codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
 | continuation | `"none"` |
-| optional | `"Write profile"` |
+| optional | `"Write profile with aliases advertised"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |
@@ -5251,7 +5262,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | problem | `"readUpdateProblem"` |
 | codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
 | continuation | `"none"` |
-| optional | `"Write profile"` |
+| optional | `"Write profile with aliases advertised"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |

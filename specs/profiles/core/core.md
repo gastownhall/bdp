@@ -569,8 +569,8 @@ canonical branch. A dirty change to a canonical source MUST NOT be reported as i
 it were represented by the prior commit. Optional members are `events`, `aliases`,
 `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
 `capabilities`.
-Write uses the same Core meaning with `profile:"write"` and required `operations`
-and `aliases` navigation. Its operation directory belongs to Write. These discovery
+Write uses the same Core meaning with `profile:"write"`, required `operations`
+navigation and optional `aliases` navigation. Its operation directory belongs to Write. These discovery
 objects are closed; there is no required or guessed `beads` or `links` member.
 When a Scope supports Types, its optional `types` member identifies the fixed
 `<scope>/types/` inventory. Unknown optional
