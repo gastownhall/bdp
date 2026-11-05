@@ -153,6 +153,7 @@ substitutes for ordinary flags.
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
 | alias delete NAME --force | deleteAlias, explicit apply intent |
 | batch [SCOPE] --file FILE [--input-format json|jsonl] | JSONL authoring or native JSON; no raw CLI text; [current grammar](#atomic-batch) |
+| [CLIENT-OPTIONS] call [NAME [CALLABLE-ARGUMENTS]] | POST the optional Callables mount, with flags derived from the declaration; [`bd call`](#bd-call) |
 | type list [SCOPE] | Deferred Type CLI placeholder; no invented inventory payload/path |
 
 Read filters are --type (family), --exact-type (nominal), --selector, and Link
@@ -336,8 +337,8 @@ mapping from those canonical commands to BDP is defined here.
 The reference executable generates help and parsing from one command tree. Its
 help follows the product's grouped layout; this does not import the product's
 global flag inventory. The only imported product global is `--actor ACTOR`,
-registered on commands that admit per-version provenance: Bead create/update and
-Link create/update/delete. It lowers to
+registered on commands that admit per-version provenance: Bead create/update,
+Link create/update/delete and, before NAME, `call` on a CallableBatch. It lowers to
 `revisionProvenance.actor:{"id":ACTOR,"basis":"writer-supplied"}`.
 Conflicting explicit actor provenance refuses; no actor is silently overwritten.
 It supplies attribution, never authentication, credential selection or authority.
@@ -2765,6 +2766,147 @@ bd batch --file review.json --input-format json
 
 # Recover an uncertain batch using its frozen original invocation.
 bd batch --retry-file private-replay.json
+
+```
+
+### Callables
+
+#### `bd call`
+
+Invoke one named Callable, or list what can be called. This is the client side of
+[Callables §10](../../specs/profiles/callables/callables.md#10-cli-correspondence),
+which the generic executable spells `bdp call`. This reference generates the flags
+from each declaration; there is no per-Callable command tree here, and native command
+spellings such as `bd ready` are separate work.
+
+##### Usage
+
+```text
+bd [CLIENT-OPTIONS] call NAME [CALLABLE-ARGUMENTS]
+bd [CLIENT-OPTIONS] call NAME --help
+bd [CLIENT-OPTIONS] call
+```
+
+Client options come before NAME, on either side of the verb, and everything after
+NAME is the Callable's own. A Callable may therefore declare a parameter whose flag
+spelling matches a client option, and the client option cannot reach it from there.
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| NAME | To invoke | The Callable's full local Resource ID, such as `reserve-room` or `rooms/reserve`. Without it, the command lists the names it knows. |
+| CALLABLE-ARGUMENTS | No | The flags and positions below. |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--scope SCOPE` | Command context | Choose the Scope to invoke against. See [Scope selection](#scope-selection). |
+| `--actor ACTOR` | None | On a CallableBatch, lower to `revisionProvenance.actor` as [Write commands do](#common-flags-and-reference-syntax). Refused on a CallableQuery. |
+| `--revision-provenance JSON` | None | On a CallableBatch, supply Write's attribution input. Refused on a CallableQuery. See [properties and provenance](#object-inputs). |
+| `--idempotency-key KEY` | Generated | Use this key on a CallableBatch under Write's `idempotency`. Refused on a CallableQuery and against a Scope without that capability. |
+| `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-controls). |
+
+##### Callable arguments
+
+Flags derive from the declaration, so most declarations need no CLI section:
+
+| Declared | CLI form |
+| --- | --- |
+| Any parameter | `--kebab-name`, from the parameter name split at `_`, `-` and lower-to-upper boundaries, lowercased and joined with `-`. |
+| `schema` of type `boolean` | `--flag` and `--no-flag`. |
+| `schema` of type `array` | The flag repeats, one item each. An item whose schema is not a string is parsed as JSON. |
+| Any other non-string `schema` | The flag's value is parsed as JSON. |
+| `cliMapping.flags` | Adds spellings such as `-l`; the derived flag remains. |
+| `cliMapping.positionals` | Lets a position stand for a flag. |
+| `--arguments JSON` | Supplies the whole arguments object; explicit flags and positions override its members, and a repeated array flag replaces the whole array. |
+| `--help` | Prints `title`, `description`, the parameters and any declared errors, without invoking. |
+
+A `$ref` is followed inside the schema that carries it before its type is read, and a
+schema admitting only strings by `enum`, `const` or a union of strings counts as a
+string. A flag value that begins with `--` uses the `--flag=VALUE` form; after a bare
+`--`, every token is an operand. A flag given twice, other than an array's, is refused,
+as is a position together with its flag.
+
+A parameter's own flag beats another parameter's negation, so a `--no-pinned` derived
+from `no_pinned` is that parameter's, and `pinned: false` is reachable only through
+`--arguments`. Callables §2.5 calls such a declaration invalid, and the `list-issues`
+declaration in the [Issue document](../../specs/types/issue/callables.md) is one: the
+client works around it here rather than refusing a declared operation.
+
+##### Behavior
+
+The client preserves omission and `null` and never substitutes a default: an omitted
+parameter stays omitted and the service applies the default. It does not check
+arguments or results against their schemas; checking arguments is the service's job
+and checking a result is optional. It sends unknown `--arguments` members unchanged,
+so the service refuses them.
+
+Callables §10 has the client learn what can be called from `GET <scope>/bdp/call`. This
+reference does not read it yet: its catalog is generated from the Issue document by
+`scripts/generate-callable-catalog.mjs` and checked in, so listing and `--help` need
+no Scope. Nothing above the catalog assumes that source.
+
+The command reads discovery and refuses a Scope that does not advertise Callables1,
+and refuses a CallableBatch against a Scope without Write.
+
+##### Results
+
+Success returns the closed `callableResult` as `data` under `result_kind`
+`callable_result`, with `changed` on a CallableBatch. Human output prints that object
+as indented JSON. Listing uses `result_kind` `callable_catalog`.
+
+##### Errors and exit status
+
+Uses the [common exit statuses](#exit-status). A usage error, an unknown NAME or an
+attribution or key on a CallableQuery returns `2`, before any request.
+`callable-not-found` returns `3`, `revision-mismatch` returns `4`, and a Scope that
+does not advertise what the invocation requires returns `5`. Every other failure
+returns `1`, with the native Problem unchanged under `origin:bdp`.
+
+A `callable-error` is the operation's own answer: its `error` value stays inside that
+Problem, on the error path, with status `1`. A system failure is a different diagnosis
+at the same status: a standard 5xx Problem such as `temporarily-unavailable` carries
+no `error`. Tell them apart by `code`.
+
+What a Problem says about effects follows the declaration. From a CallableBatch
+declared `atomic`, nothing committed (`context.effects:"none"`). Otherwise a Problem
+does not establish that (`context.effects:"not-established"`), and a 5xx other than
+`callable-unavailable`, or a lost response, reports outcome `unknown`. A key that was
+sent is then in `context.idempotency_key`; repeat with `--idempotency-key` to recover.
+This command has no retry file. A CallableQuery changes nothing, so its outcome is
+never `unknown`.
+
+##### Protocol correspondence
+
+| CLI input | Protocol request or client behavior |
+| --- | --- |
+| NAME | `POST <scope>/bdp/call/NAME`, each segment encoded as in a canonical URL. |
+| Flags, positions, `--arguments` | The `arguments` object, `{}` when none is given. |
+| `--actor`, `--revision-provenance` | `revisionProvenance`, on a CallableBatch only. |
+| CallableBatch under `idempotency` | One generated or supplied `Idempotency-Key`. |
+| CallableBatch without `idempotency`, CallableQuery | No `Idempotency-Key`. |
+| Any invocation | `Content-Type: application/vnd.bdp.v0.1+json`. |
+
+##### Examples
+
+```sh
+# List the names this client knows.
+bd call
+
+# Read one Callable's parameters and declared errors.
+bd call reserve-room --help
+
+# Name each argument with a derived flag.
+bd call reserve-room --room cedar --day 2026-11-20
+
+# Let a mapped position stand for a flag.
+bd call reserve-room cedar --day 2026-11-20
+
+# Supply the object, override one member and attribute the batch.
+bd --actor sam call reserve-room \
+  --arguments '{"room":"cedar","day":"2026-11-20"}' --day 2026-11-21
 
 ```
 

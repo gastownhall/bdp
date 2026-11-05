@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { checkCorrespondence, commandTree } from "./cli-spec-correspondence.mjs";
+import {
+  checkCallCorrespondence,
+  checkCorrespondence,
+  commandTree,
+} from "./cli-spec-correspondence.mjs";
 
 const markdown = await readFile(new URL("../docs/cli-design/bdp-cli.md", import.meta.url), "utf8");
 const outputDocs = await readFile(
@@ -13,6 +17,45 @@ const scopeRow = markdown.split("\n").find((line) => line.startsWith("| `--scope
 
 test("authored singleton mutation flags match the actual parser in both directions", () => {
   assert.equal(checkCorrespondence(markdown), 8);
+});
+test("the call section's client flags match the actual parser in both directions", () => {
+  assert.equal(checkCallCorrespondence(markdown), 1);
+  const start = markdown.indexOf("#### `bd call`");
+  const before = markdown.slice(0, start);
+  const section = markdown.slice(start);
+  const row = section.split("\n").find((line) => line.startsWith("| `--idempotency-key KEY`"));
+  assert.throws(
+    () => checkCallCorrespondence(before + section.replace(`${row}\n`, "")),
+    /call: registered --idempotency-key is undocumented/,
+  );
+  assert.throws(
+    () =>
+      checkCallCorrespondence(
+        before + section.replace(row, `${row}\n| \`--retry-file FILE\` | Off | Invented. |`),
+      ),
+    /call: documented --retry-file is not registered/,
+  );
+});
+test("the call section matches Callables §10's form and keeps its mismatch row open", async () => {
+  const section = markdown.slice(
+    markdown.indexOf("#### `bd call`"),
+    markdown.indexOf("### Deferred command surfaces"),
+  );
+  for (const form of [
+    "bd [CLIENT-OPTIONS] call NAME [CALLABLE-ARGUMENTS]",
+    "`--kebab-name`",
+    "`--flag` and `--no-flag`",
+    "The flag repeats",
+    "parsed as JSON",
+    "`--arguments JSON`",
+    "never substitutes a default",
+  ])
+    assert(section.includes(form), form);
+  const mismatches = await readFile(
+    new URL("../docs/spec-review/cli-mismatches.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(mismatches, /^\| CLI-09 \| \*\*Open /m);
 });
 test("global output-mode option is described in the authored CLI contract", () => {
   assert.match(markdown, /global `--output-mode human\|json`/);
