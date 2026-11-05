@@ -107,9 +107,9 @@ so the native client is complete.
   becomes one parameter with that property's schema, its `required` flag and, when
   the schema carries one, its `default`; the `description` is the prose under its
   heading. The invocation's `arguments` object is therefore exactly an instance of
-  the arguments schema, and Callables §5 checks it. `result` is the result fragment
-  named for the Callable, `error` the error fragment when its section names one, and
-  `idempotent` is true when its section says so. The fragments are authoring source:
+  the arguments schema, and Callables §4 checks it. `resultSchema` is the result
+  fragment named for the Callable, `errorSchema` the error fragment when its section
+  names one, and `idempotent` and `atomic` are true when its section says so. The fragments are authoring source:
   Callables requires every `$ref` in a declaration to resolve inside its own
   document, so a generator copies in what each one references.
 - **K-8 Errors.** Each Callable maps its native failures to Core and Write codes
@@ -1010,7 +1010,7 @@ Other fields: not allowed
 
 Asserts Dependencies by endpoints as an upsert, all edges or none. For a pair with no live Dependency a new Link is created with the given Type and metadata; for a live Dependency of the same Type the metadata and thread are updated in place as a new revision, or nothing is written when nothing differs; for a live Dependency of another Type the call fails with reason dependency-exists, as the native path refuses it, and the kind is changed with updateLink or by remove and add. The whole set is cycle-checked at the end. A generic client may use createLink instead; this callable is the native idiom.
 
-Declared `idempotent`. Its `error` is `addDependenciesError`.
+Declared `idempotent` and `atomic`. Its `errorSchema` is `addDependenciesError`.
 
 **`addDependenciesArguments`** — Arguments of add-dependencies.
 
@@ -1032,7 +1032,7 @@ Other fields: not allowed
 
 Compare-and-set claim for the invocation's actor. A re-claim by the current holder is idempotent and reports already_claimed; a claim held by another actor fails with reason already-claimed and the holder in assignee; a non-claimable state fails with reason not-claimable and the status in issue_status.
 
-Declared `idempotent`. Its `error` is `claimIssueError`.
+Declared `idempotent`. Its `errorSchema` is `claimIssueError`.
 
 **`claimIssueArguments`** — Arguments of claim-issue.
 
@@ -1055,7 +1055,7 @@ Other fields: not allowed
 
 Takes one ready Issue under the given filters and returns it claimed for the actor, in one transaction; an empty answer means nothing was eligible, and claimed is absent rather than null.
 
-Its `error` is `claimNextIssueError`.
+Declared `atomic`. Its `errorSchema` is `claimNextIssueError`.
 
 **`claimNextIssueArguments`** — Arguments of claim-next-issue.
 
@@ -1092,7 +1092,7 @@ Other fields: not allowed
 
 Gives back the claim: the assignee is cleared, the status becomes the literal open, started_at is cleared, the lease is dropped and the record is reversioned. Fails with reason not-releasable or not-assignee as the native guards decide, in the native order.
 
-Its `error` is `releaseIssueError`.
+Its `errorSchema` is `releaseIssueError`.
 
 **`releaseIssueArguments`** — Arguments of release-issue.
 
@@ -1117,7 +1117,7 @@ Other fields: not allowed
 
 Refreshes the actor's lease on an Issue it holds and stamps heartbeat_at; it writes only the lease, mints no revision and records no Event. Fails with reason already-claimed when another actor holds the lease, or lease-not-held.
 
-Its `error` is `heartbeatIssueError`.
+Its `errorSchema` is `heartbeatIssueError`.
 
 **`heartbeatIssueArguments`** — Arguments of heartbeat-issue.
 
@@ -1143,7 +1143,7 @@ Other fields: not allowed
 
 Closes one Issue to the literal closed status, including from a configured done status, recording reason and session under first-close-wins; a re-close is idempotent and reports already_closed. Close policy fails with reason not-closable and names the blockers; the assignee guard with reason not-assignee.
 
-Declared `idempotent`. Its `error` is `closeIssueError`.
+Declared `idempotent`. Its `errorSchema` is `closeIssueError`.
 
 **`closeIssueArguments`** — Arguments of close-issue.
 
@@ -1297,7 +1297,7 @@ Other fields: not allowed
 
 Bulk clearance of closed Issues from one tier, the operation behind the native purge and prune commands; destructive, with the counts of what went and what was protected.
 
-Its `error` is `sweepIssuesError`.
+Its `errorSchema` is `sweepIssuesError`.
 
 **`sweepIssuesArguments`** — Arguments of sweep-issues.
 
@@ -1334,7 +1334,7 @@ Other fields: not allowed
 
 Erases the Issues named and, under cascade, their parent-child descendants, in one transaction with the reference rewrite; the plain single delete rides the native deleteBead instead.
 
-Its `error` is `deleteIssuesError`.
+Declared `atomic`. Its `errorSchema` is `deleteIssuesError`.
 
 **`deleteIssuesArguments`** — Arguments of delete-issues.
 
@@ -1367,7 +1367,7 @@ Other fields: not allowed
 
 Creates every item or none of them, each item carrying the Dependencies it is created with, in one transaction.
 
-Its `error` is `batchCreateIssuesError`.
+Declared `atomic`. Its `errorSchema` is `batchCreateIssuesError`.
 
 **`batchCreateIssuesArguments`** — Arguments of batch-create-issues.
 
@@ -1389,7 +1389,7 @@ Other fields: not allowed
 
 Applies an ordered plan of creates, updates, closes and Dependency additions as one transaction or none of it; a create item may name itself with a key that later items reference.
 
-Its `error` is `applyBatchError`.
+Declared `atomic`. Its `errorSchema` is `applyBatchError`.
 
 **`applyBatchArguments`** — Arguments of apply-batch.
 
@@ -1414,6 +1414,8 @@ Other fields: not allowed
 ### add-comment (CallableBatch)
 
 Appends one comment to an Issue's thread as one atomic mutation, leaving every field of the Issue untouched.
+
+Declared `atomic`.
 
 **`addCommentArguments`** — Arguments of add-comment.
 
@@ -1461,7 +1463,7 @@ below, discriminated by `reason`:
 ```
 
 `reason` is this package's own vocabulary; Callables gives it no meaning. Each
-Callable's section names its `error` fragment, the union of the arms it can raise,
+Callable's section names its `errorSchema` fragment, the union of the arms it can raise,
 and §9 defines them.
 
 | Reason | Arm | Raised by | Condition |
@@ -1638,7 +1640,7 @@ Result: `memory` (§3).
 
 The durable events journal paged from a caller-held checkpoint; the records are the native journal's records.
 
-Its `error` is `listEventsError`.
+Its `errorSchema` is `listEventsError`.
 
 **`listEventsArguments`** — Arguments of list-events.
 

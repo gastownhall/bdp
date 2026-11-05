@@ -88,7 +88,7 @@ publication revision for this edition, spelled `NAME-preview-1`. Every suffix in
 the tables below abbreviates its namespace. URI spelling creates no live Resource
 service or fetch obligation.
 
-| Native classification | Bead Type identity | Exact revision | Own affiliation | Refines |
+| Native classification | Bead Type identity | Exact revision | Type of the definition | Refines |
 | --- | --- | --- | --- | --- |
 | — (abstract) | `issue/issue` | `issue-preview-1` | `type-system/bead-type` | none |
 | `task` (native default) | `issue/task` | `task-preview-1` | `type-system/bead-type` | `issue/issue` at `issue-preview-1` |
@@ -105,7 +105,7 @@ service or fetch obligation.
 | `milestone` | `issue/milestone` | `milestone-preview-1` | same | same |
 | `event` (internal) | `issue/event` | `event-preview-1` | same | same |
 
-| Native kind | Link Type identity | Exact revision | Own affiliation | Refines |
+| Native kind | Link Type identity | Exact revision | Type of the definition | Refines |
 | --- | --- | --- | --- | --- |
 | — (abstract) | `dependency/dependency` | `dependency-preview-1` | `type-system/link-type` | none |
 | `blocks` (native default) | `dependency/blocks` | `blocks-preview-1` | `type-system/link-type` | `dependency/dependency` at `dependency-preview-1` |
