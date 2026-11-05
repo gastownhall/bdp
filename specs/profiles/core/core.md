@@ -557,6 +557,12 @@ to its machine discovery document. The body is never machine discovery: it MAY b
 absent (204) or a useful human representation (200). A human page SHOULD visibly
 link discovery and advertised `service-doc` documentation. Clients do not scrape it.
 
+A Scope MAY serve an OpenAPI description of its surface at the fixed route
+`<scope>/bdp/openapi`. When it does, the Scope URL also carries a `service-desc` Link
+to that route with `type="application/openapi+json"`, so tools that know nothing of
+BDP can find it. Both Links then carry `type`, and a client selects discovery by its
+BDP media type; a client treats an untyped `service-desc` Link as discovery.
+
 A minimal discovery document is:
 
 
