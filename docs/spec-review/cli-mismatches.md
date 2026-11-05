@@ -22,6 +22,7 @@ implementation limitations; runtime conformance follows the complete human pass.
 | CLI-06 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad` to Donna's current bare-token direction.** `--if-revision TOKEN` sends the exact opaque token unchanged, including numeric-looking tokens and literal leading `=`. No ordinal guard shorthand is selected. Reference suffixes and the separate historical-content adapter are not silently reinterpreted. |
 | CLI-07 | **Boundary resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`; full inventory design deferred 2026-11-01 to Types and packaging; owner Trish.** No Type inventory endpoint/population is invented. The future Type and packaging specifications will own it. Removed the completed navigation TODO. |
 | CLI-08 | **Resolved at `2aceaa942a14f8918d282e3736acb8cd7eacbbad`.** Current companions point to canonical clauses; projection and schema-authority summaries match the assembled corpus. Historical receipts retain attribution with current supersession notes where needed. |
+| CLI-10 | **Open 2026-11-05: Donna's W-1 and W-2 rulings; owner Trish.** The [CLI specification](../cli-design/bdp-cli.md#mutation-delivery) now says keys and retry files apply only under Write's `idempotency`, and alias commands only under `aliases`. The reference client still mints a key for every mutation; this row closes when it follows. |
 
 The guard investigation found two real stages: earlier literal token flags, then
 a recorded human request for uniform `N` / `=TOKEN` arguments. The original audit

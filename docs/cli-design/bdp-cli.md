@@ -193,6 +193,16 @@ transmission. Capability/guard/conflict/unknown-result diagnoses never authorize
 fresh key automatically. [Write durability](../../specs/profiles/write/write.md#idempotency-and-recovery)
 is the authority contract; retry-file is private client recovery, not a public API.
 
+Keys and retry files apply only against a Scope advertising Write's `idempotency`
+capability. Against a Scope without it the client sends no key, and
+`--idempotency-key` and `--retry-file` refuse before transmission. A lost response
+is then recovered by reading: `--if-revision` guards an update or deletion, and a
+supplied `--id` makes a repeated creation `identity-taken`. A repeated creation
+without `--id` allocates a second identity, so the client reports such an uncertain
+outcome and does not retry it automatically. `alias put`, `alias delete` and
+`alias resolve` refuse before dispatch against a Scope that does not advertise
+`aliases`.
+
 `--dry-run-mode batch` emits a member on ordinary CRUD commands and the complete
 native wrapper on `bd batch`, without execution, allocation or an admission claim.
 The initial CLI refuses historical `--from-revision` with batch emission; it does
