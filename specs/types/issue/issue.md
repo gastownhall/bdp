@@ -88,45 +88,45 @@ publication revision for this edition, spelled `NAME-preview-1`. Every suffix in
 the tables below abbreviates its namespace. URI spelling creates no live Resource
 service or fetch obligation.
 
-| Native classification | Bead Type identity | Exact revision | Type of the definition | Refines |
-| --- | --- | --- | --- | --- |
-| — (abstract) | `issue/issue` | `issue-preview-1` | `type-system/bead-type` | none |
-| `task` (native default) | `issue/task` | `task-preview-1` | `type-system/bead-type` | `issue/issue` at `issue-preview-1` |
-| `bug` | `issue/bug` | `bug-preview-1` | same | same |
-| `feature` | `issue/feature` | `feature-preview-1` | same | same |
-| `epic` | `issue/epic` | `epic-preview-1` | same | same |
-| `chore` | `issue/chore` | `chore-preview-1` | same | same |
-| `decision` | `issue/decision` | `decision-preview-1` | same | same |
-| `message` | `issue/message` | `message-preview-1` | same | same |
-| `molecule` | `issue/molecule` | `molecule-preview-1` | same | same |
-| `gate` | `issue/gate` | `gate-preview-1` | same | same |
-| `spike` | `issue/spike` | `spike-preview-1` | same | same |
-| `story` | `issue/story` | `story-preview-1` | same | same |
-| `milestone` | `issue/milestone` | `milestone-preview-1` | same | same |
-| `event` (internal) | `issue/event` | `event-preview-1` | same | same |
+| Native classification | Bead Type identity | Exact revision | Refines |
+| --- | --- | --- | --- |
+| — (abstract) | `issue/issue` | `issue-preview-1` | none |
+| `task` (native default) | `issue/task` | `task-preview-1` | `issue/issue` at `issue-preview-1` |
+| `bug` | `issue/bug` | `bug-preview-1` | same |
+| `feature` | `issue/feature` | `feature-preview-1` | same |
+| `epic` | `issue/epic` | `epic-preview-1` | same |
+| `chore` | `issue/chore` | `chore-preview-1` | same |
+| `decision` | `issue/decision` | `decision-preview-1` | same |
+| `message` | `issue/message` | `message-preview-1` | same |
+| `molecule` | `issue/molecule` | `molecule-preview-1` | same |
+| `gate` | `issue/gate` | `gate-preview-1` | same |
+| `spike` | `issue/spike` | `spike-preview-1` | same |
+| `story` | `issue/story` | `story-preview-1` | same |
+| `milestone` | `issue/milestone` | `milestone-preview-1` | same |
+| `event` (internal) | `issue/event` | `event-preview-1` | same |
 
-| Native kind | Link Type identity | Exact revision | Type of the definition | Refines |
-| --- | --- | --- | --- | --- |
-| — (abstract) | `dependency/dependency` | `dependency-preview-1` | `type-system/link-type` | none |
-| `blocks` (native default) | `dependency/blocks` | `blocks-preview-1` | `type-system/link-type` | `dependency/dependency` at `dependency-preview-1` |
-| `parent-child` | `dependency/parent-child` | `parent-child-preview-1` | same | same |
-| `conditional-blocks` | `dependency/conditional-blocks` | `conditional-blocks-preview-1` | same | same |
-| `waits-for` | `dependency/waits-for` | `waits-for-preview-1` | same | same |
-| `related` | `dependency/related` | `related-preview-1` | same | same |
-| `discovered-from` | `dependency/discovered-from` | `discovered-from-preview-1` | same | same |
-| `replies-to` | `dependency/replies-to` | `replies-to-preview-1` | same | same |
-| `relates-to` | `dependency/relates-to` | `relates-to-preview-1` | same | same |
-| `duplicates` | `dependency/duplicates` | `duplicates-preview-1` | same | same |
-| `supersedes` | `dependency/supersedes` | `supersedes-preview-1` | same | same |
-| `authored-by` | `dependency/authored-by` | `authored-by-preview-1` | same | same |
-| `assigned-to` | `dependency/assigned-to` | `assigned-to-preview-1` | same | same |
-| `approved-by` | `dependency/approved-by` | `approved-by-preview-1` | same | same |
-| `attests` | `dependency/attests` | `attests-preview-1` | same | same |
-| `tracks` | `dependency/tracks` | `tracks-preview-1` | same | same |
-| `until` | `dependency/until` | `until-preview-1` | same | same |
-| `caused-by` | `dependency/caused-by` | `caused-by-preview-1` | same | same |
-| `validates` | `dependency/validates` | `validates-preview-1` | same | same |
-| `delegated-from` | `dependency/delegated-from` | `delegated-from-preview-1` | same | same |
+| Native kind | Link Type identity | Exact revision | Refines |
+| --- | --- | --- | --- |
+| — (abstract) | `dependency/dependency` | `dependency-preview-1` | none |
+| `blocks` (native default) | `dependency/blocks` | `blocks-preview-1` | `dependency/dependency` at `dependency-preview-1` |
+| `parent-child` | `dependency/parent-child` | `parent-child-preview-1` | same |
+| `conditional-blocks` | `dependency/conditional-blocks` | `conditional-blocks-preview-1` | same |
+| `waits-for` | `dependency/waits-for` | `waits-for-preview-1` | same |
+| `related` | `dependency/related` | `related-preview-1` | same |
+| `discovered-from` | `dependency/discovered-from` | `discovered-from-preview-1` | same |
+| `replies-to` | `dependency/replies-to` | `replies-to-preview-1` | same |
+| `relates-to` | `dependency/relates-to` | `relates-to-preview-1` | same |
+| `duplicates` | `dependency/duplicates` | `duplicates-preview-1` | same |
+| `supersedes` | `dependency/supersedes` | `supersedes-preview-1` | same |
+| `authored-by` | `dependency/authored-by` | `authored-by-preview-1` | same |
+| `assigned-to` | `dependency/assigned-to` | `assigned-to-preview-1` | same |
+| `approved-by` | `dependency/approved-by` | `approved-by-preview-1` | same |
+| `attests` | `dependency/attests` | `attests-preview-1` | same |
+| `tracks` | `dependency/tracks` | `tracks-preview-1` | same |
+| `until` | `dependency/until` | `until-preview-1` | same |
+| `caused-by` | `dependency/caused-by` | `caused-by-preview-1` | same |
+| `validates` | `dependency/validates` | `validates-preview-1` | same |
+| `delegated-from` | `dependency/delegated-from` | `delegated-from-preview-1` | same |
 
 The mapping from a native classification to its identity is one fixed table in
 the provider. Authoring conveniences of the native CLI (`enhancement` and `feat`
