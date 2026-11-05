@@ -50,7 +50,8 @@ archive and are not restated here.
 9. [Comments and other native records](#9-comments-and-other-native-records)
 10. [Conformance rows for preview-1](#10-conformance-rows-for-preview-1)
 11. [Carried open items](#11-carried-open-items)
-12. [Companions and obsolescence](#12-companions-and-obsolescence)
+12. [Differences from the current HTTP interface](#12-differences-from-the-current-http-interface)
+13. [Companions and obsolescence](#13-companions-and-obsolescence)
 
 ## 1. Selection and boundary
 
@@ -508,7 +509,43 @@ reader infers a rule from their absence:
 - Custom classification lifecycle: serving definition Beads for configured names,
   and Types1 activation for this package.
 
-## 12. Companions and obsolescence
+## 12. Differences from the current HTTP interface
+
+Informative, for review by Julian, Brian and Donna: every place this package and the
+profiles it rides are knowingly at odds with what `bd serve` does today under `/v0`
+(`internal/httpapi/spec/openapi.v0.yaml` at 6d713a74). `bd serve` gains a BDP listener
+beside those routes, so a `/v0` client keeps working until it moves; this list is what
+changes for a client that does. Rows marked **open** rest on a question not yet ruled.
+
+| # | Area | Today under `/v0` | Under this package |
+| --- | --- | --- | --- |
+| HD-1 | Routes | 46 operations under `/v0/beads` | Core reads, the Write verbs, and `POST <scope>/bdp/call/<name>`, which `GET <scope>/bdp/call` lists as OpenAPI |
+| HD-2 | Discovery | `GET /v0/beads/context`, with capability tokens | Core discovery with capability advertisements, and the OpenAPI document at `<scope>/bdp/openapi` |
+| HD-3 | Identity | The native identifier, such as `bd-1a2b` | The canonical URL, `<scope>bd-1a2b`; arguments accept a Scope-relative path or the URL |
+| HD-4 | Classification | Short names, such as `task` and `blocks`, with aliases like `feat` | Absolute Type URIs; the client expands aliases before sending |
+| HD-5 | Revision | A label-only write does not advance the row version | Every committed change mints a revision, label-only writes included (§7); it is opaque and compared for equality only |
+| HD-6 | Guards | `expected_version` | `expected_revision` on Callables, `expectedRevision` on Write; a miss is `revision-mismatch` at 409 and writes nothing |
+| HD-7 | Lease and readiness | Fields of the flat issue struct | Outside the record, in a Callable view's `observations` member; a client reading only the record does not see them (§3.4) |
+| HD-8 | Dependencies | Rows addressed by their endpoints | Links with their own opaque identity, read from records and never computed. Removing one consumes its identity, and re-adding the pair creates a new one (§5) |
+| HD-9 | Actor | An `actor` parameter on every mutation | `revisionProvenance.actor` with `basis: "writer-supplied"`; a CallableBatch without it is `validation-failed`. `author` on `add-comment` stays an argument, because it is content |
+| HD-10 | Generic error codes | `not_found`, `precondition_failed`, `invalid_argument` and similar | `resource-not-found`, `revision-mismatch`, `validation-failed` and `limit-exceeded`. The status is unchanged where it already matched |
+| HD-11 | An operation's own failures | `{"code": "already_claimed", "assignee": "sam"}` at 409 | `{"code": "callable-error", "error": {"reason": "already-claimed", "assignee": "sam"}}` at 409: the code changes and the members move under `error` |
+| HD-12 | Truncated journal | 410 `events_journal_truncated` | 409 `callable-error` with reason `journal-truncated` |
+| HD-13 | Retired identities | 410 `idempotency_expired` | `identity-taken` at 409. **Open: F-18** |
+| HD-14 | Media type | `application/json` | `application/vnd.bdp.v0.1+json`; a `POST` with a missing or plain JSON content type is 415 before the body is read |
+| HD-15 | Repeating a request | Not applicable | A Scope without the `idempotency` capability ignores `Idempotency-Key` and runs a repeat under the ordinary rules, so only a Callable declared `idempotent` is safe to repeat |
+| HD-16 | Deletes | Only retention sweeps write tombstones | Identities are never reused, so every delete consumes its identity: an explicit `id` cannot be deleted and created again |
+| HD-17 | Listing | The native list hides closed, template, gate and infrastructure rows by default | `<scope>/bdp/beads` hides nothing; the native defaults live in `list-issues` |
+| HD-18 | `limit: 0` | Unbounded where v0 admitted it | Unchanged in those Callables; Core's `limit` is a positive bound |
+| HD-19 | Comments | Returned with the issue detail and added by a route | Not Beads and not in the record; reached through `get-issue` and `add-comment` (§9) |
+| HD-20 | Creating an Issue | The server defaults status to `open` and priority to P2 | `createBead` requires both, and `bd create` sends them. **Open: F-17** |
+| HD-21 | Creating with edges | One native transaction | `createBead` then one `createLink` per edge, because atomic batch is not advertised, so a failure can leave the Bead without all its edges |
+| HD-22 | Cursors | A keyset over live rows | Core says a continuation walks one logical snapshot; the preview keeps the keyset. **Open: F-5** |
+
+The preview's own departures from this specification are kept in its exceptions ledger
+beside the handoff, not here, and the kit reports them as excepted, never as passed.
+
+## 13. Companions and obsolescence
 
 The package's companions, all beside this document: `descriptors/issue.md`,
 `descriptors/task.md`, `descriptors/dependency.md`, `descriptors/blocks.md` and
