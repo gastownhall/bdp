@@ -926,6 +926,22 @@ async function runCase(context, kase, label, seedChannels) {
     provenance(part("curl").actor),
   );
   const problems = judge(viaCurl, [viaCall, viaTree], part, kase.exit);
+  // A preview says it is one, and has found its issue: a preview of nothing would prove nothing.
+  let preview;
+  if (part("curl").survives !== undefined) {
+    const { result } = viaCurl.json ?? {};
+    preview = {
+      dry_run: result?.dry_run,
+      counted: result?.swept ?? result?.deleted,
+      changed: viaCurl.json?.changed,
+    };
+    if (preview.dry_run !== true)
+      problems.push({ channel: "curl", what: "no dry_run in a preview's result", preview });
+    if (!(preview.counted >= 1))
+      problems.push({ channel: "curl", what: "the preview found nothing", preview });
+    if (preview.changed !== false)
+      problems.push({ channel: "curl", what: "a preview reports a change", preview });
+  }
   // A preview changes nothing and a real run does, on every channel alike.
   for (const channel of seedChannels) {
     const { survives, gone } = part(channel);
@@ -948,6 +964,7 @@ async function runCase(context, kase, label, seedChannels) {
     call_exit: viaCall[1].exit,
     tree_exit: viaTree[1].exit,
     changed: viaCurl.json?.changed,
+    ...(preview === undefined ? {} : { preview }),
     problems,
   };
 }
@@ -1074,12 +1091,12 @@ async function actorBehavior(context) {
   const title = "Fix login";
   const made = { title };
   const form = ["issue", "create", title];
-  const sam = { wire: made, actor: "sam", exit: 0 };
+  // Each create must also come back signed: the attribution reached what v0 records.
+  const sam = { wire: made, actor: "sam", exit: 0, message: "created_by: sam" };
   const twoActors = "--actor was given with two different values";
-  const samProvenance = JSON.stringify({
-    actor: { id: "sam", basis: "writer-supplied" },
-    message: "why",
-  });
+  const samActor = { actor: { id: "sam", basis: "writer-supplied" } };
+  const samProvenance = JSON.stringify(samActor);
+  const withMessage = { ...samActor, message: "why" };
   const commentAuthor = async (id) => {
     const held = await curlCall(scope, "issue/show", { id, include_comments: true });
     return held.json?.result?.comments?.at(-1)?.author;
@@ -1131,8 +1148,18 @@ async function actorBehavior(context) {
     provenance_before_tree: await row(["--revision-provenance", samProvenance, ...form], {
       exit: 0,
       wire: made,
-      supplied: JSON.parse(samProvenance),
+      supplied: samActor,
+      message: "created_by: sam",
     }),
+    provenance_agreeing_with_actor: await row(
+      ["--revision-provenance", samProvenance, ...form, "--actor", "sam"],
+      { exit: 0, wire: made, supplied: samActor, message: "created_by: sam" },
+    ),
+    // The client carries `message` whole. This server records none, and refuses it, not drops it.
+    provenance_message_refused_not_dropped: await row(
+      ["--revision-provenance", JSON.stringify(withMessage), ...form],
+      { exit: 1, wire: made, supplied: withMessage, message: "`message` cannot be recorded" },
+    ),
     provenance_conflicts_with_actor_refused: await row(
       ["--revision-provenance", samProvenance, ...form, "--actor", "kim"],
       { refused: true, message: "--actor conflicts with explicit provenance actor" },
