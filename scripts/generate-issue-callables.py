@@ -41,6 +41,16 @@ STRIP_SENTENCE = ("x-go-type", "Go struct", "apigen", "pinnedSchemas")
 STRIP_PARAGRAPH = ("THE DOOR, IF A LATER REVISION",)
 # Carried sentences a product adapter makes false.
 ADAPTER_FALSE = {"issue/comment": "The caller always names the author and the server never infers one"}
+# v0's members for who is acting. Each is the invocation's revisionProvenance.actor, so no
+# declaration carries one; see the routing rule.
+ACTOR_MEMBERS = {"actor", "author"}
+# Carried text about omitting a parameter that a service default (section 4) makes false.
+DEFAULT_FALSE = {
+    "issue_type": r"SEND ONE\..*?(?:\n\s*\n|$)",
+    "tier": r"Required, with no default[^.]*\.\s*",
+    "older_than_seconds": r"Absent means `0`[^.]*\.\s*",
+    "direction": r"An absent or unrecognized value[^.]*\.\s*",
+}
 
 
 def call(op, name, kind, promises=(), positionals=(), flags=None, from_file=None, defaults=None):
@@ -65,7 +75,7 @@ CALLABLES = [
     call("listIssues", "issue/list", QUERY,
          flags={"status": ["-s"], "assignee": ["-a"], "type": ["-t"], "label": ["-l"], "limit": ["-n"]},
          defaults={"sort": "priority"}),
-    call("createIssue", "issue/create", BATCH, positionals=["title"],
+    call("createIssue", "issue/create", BATCH, positionals=["title"], defaults={"issue_type": "task"},
          flags={"issue_type": ["-t", "--type"], "priority": ["-p"], "status": ["-s"], "assignee": ["-a"],
                 "description": ["-d"], "labels": ["-l"], "parent_id": ["--parent"],
                 "acceptance_criteria": ["--acceptance"]},
@@ -79,7 +89,7 @@ CALLABLES = [
     call("listRelatedIssues", "issue/dep/list", QUERY, positionals=["id"], flags={"type": ["-t"]},
          defaults={"direction": "out"}),
     call("addComment", "issue/comment", BATCH, ["atomic"], positionals=["id", "text"],
-         flags={"author": ["-a"]}, from_file={"text": ["-f", "--file"]}),
+         from_file={"text": ["-f", "--file"]}),
     call("claimIssue", "issue/claim", BATCH, ["idempotent"], positionals=["id"]),
     call("releaseIssue", "issue/unclaim", BATCH, positionals=["id"],
          flags={"expected_assignee": ["--if-assignee"]}),
@@ -353,12 +363,20 @@ class Contract:
         return kept
 
 
+def default_row(row, value):
+    """A parameter the service defaults: optional, declared with its value and saying so."""
+    name, location, _, schema = row
+    text = schema.get("description", "")
+    if name in DEFAULT_FALSE:
+        text = re.sub(DEFAULT_FALSE[name], "", text, flags=re.S).strip()
+    note = f"Omitted, this Callable uses `{json.dumps(value, ensure_ascii=False)}`. "
+    return (name, location, False, {**schema, "default": value, "description": note + text})
+
+
 def adapt(entry, rows):
-    """The two argument changes the product's router adapter makes; see the adapters section."""
-    if entry["name"] == "issue/comment":
-        note = "Optional; when omitted, the service fills it from the invocation's actor. "
-        return [(n, loc, False, {**s, "description": note + s["description"]}) if n == "author" else (n, loc, req, s)
-                for n, loc, req, s in rows]
+    """The argument changes the product's router makes; see the adapters and defaults sections."""
+    rows = [row for row in rows if row[0] not in ACTOR_MEMBERS]
+    rows = [default_row(row, entry["defaults"][row[0]]) if row[0] in entry["defaults"] else row for row in rows]
     if entry["name"] == "issue/dep/add":
         edge = {"source": ("issue_id", "The edge's source. Flat form only; exactly one of this form and `edges`."),
                 "target": ("depends_on_id", "The edge's target. Flat form only; exactly one of this form and `edges`."),
@@ -401,8 +419,6 @@ def cli_mapping(entry, rows):
         if not isinstance(value, expected) or ("enum" in schema and value not in schema["enum"]):
             die(f"{label}: default {name}={value!r} fails its schema")
     mapping = {}
-    if entry["defaults"]:
-        mapping["defaults"] = entry["defaults"]
     if entry["flags"]:
         mapping["flags"] = [{"names": names, "parameter": name} for name, names in entry["flags"].items()]
     if entry["from_file"]:
@@ -497,7 +513,7 @@ def document(contract, expected):
     names = table(["Name", "Type", "v0 operation", "Route"], [
         [f"`{entry['name']}`", entry["kind"], f"`{entry['op']}`",
          f"`{contract.ops[entry['op']][0]} {contract.ops[entry['op']][1]}`"] for entry in CALLABLES])
-    defaults = table(["Callable", "`cliMapping.defaults`"], [
+    defaults = table(["Callable", "Omitted parameters"], [
         [f"`{entry['name']}`", "`" + json.dumps(entry["defaults"], ensure_ascii=False) + "`"]
         for entry in CALLABLES if entry["defaults"]])
     reason_rows = {}
@@ -541,7 +557,7 @@ compatibility promise.
 1. [Names](#1-names)
 2. [The routing rule](#2-the-routing-rule)
 3. [Product adapters](#3-product-adapters)
-4. [CLI defaults](#4-cli-defaults)
+4. [Service defaults](#4-service-defaults)
 5. [Errors](#5-errors)
 6. [Queries](#6-queries)
 7. [Batches](#7-batches)
@@ -553,8 +569,8 @@ compatibility promise.
 
 {len(CALLABLES)} Callables are declared: {len(queries)} CallableQuery and {len(batches)} CallableBatch declarations, one per v0
 operation. `issue/purge` and `issue/prune` are the one exception: both route to
-`sweepIssues`, and they differ only in their CLI defaults (§4). An HTTP caller of either
-supplies `tier` itself, and either name then clears the tier it is given.
+`sweepIssues`, and they differ only in their defaults (§4). A caller of either may supply
+`tier` itself, and either name then clears the tier it is given.
 
 {names}
 
@@ -565,8 +581,10 @@ supplies `tier` itself, and either name then clears the tier it is given.
 - **Arguments.** A Callable's parameters are its v0 operation's path, query and body
   parameters, flattened into one closed `arguments` object under the Callables
   [OpenAPI rule](../../profiles/callables/callables.md#14-openapi), with v0's names, types
-  and defaults. Each section's table says where each parameter goes. `actor` is an
-  ordinary argument wherever v0 has one.
+  and defaults, apart from §3 and §4. Each section's table says where each parameter goes.
+- **Actor.** No declaration has an `actor` parameter. A CallableBatch invocation says who
+  is acting in `revisionProvenance.actor`, and the product's router passes its `id` to v0
+  (§3). It is caller-asserted data on every Callable, and never authentication.
 - **Results.** A Callable's `resultSchema` is its v0 operation's 200 response schema,
   verbatim, and `result` is the product's JSON.
 - **Identifiers.** Identifiers and classifications are v0's native forms: `bd-1`, `task`.
@@ -581,24 +599,27 @@ supplies `tier` itself, and either name then clears the tier it is given.
 
 ## 3. Product adapters
 
-Two Callables need a thin adapter in the product's router. Everything else in this
+Four things need a thin adapter in the product's router. Everything else in this
 document is the routing rule above.
 
 | Callable | Adapter |
 | --- | --- |
 | `issue/dep/add` | Accepts flat `source`, `target` and optional `type` beside `edges`, exactly one form per call, and sends v0 one edge built from the flat form. An omitted `type` is `blocks`. Both forms present, or neither, is `validation-failed` |
-| `issue/comment` | `author` is optional. When it is omitted the service fills it from the invocation's actor, `revisionProvenance.actor` |
+| Every CallableBatch whose v0 operation has `actor` | `revisionProvenance.actor.id` is sent as v0's `actor`. Where v0 requires it, an invocation with no actor is refused as `validation-failed`; `issue/purge`, `issue/prune` and `issue/delete` run without one. On `issue/claim`, `issue/claim-next`, `issue/unclaim`, `issue/heartbeat` and `issue/advance` the value also names the holder or the fence's subject, as v0's `actor` does |
+| `issue/comment` | `revisionProvenance.actor.id` is sent as v0's `author`, and the comment stays signed under `author`. An invocation with no actor is refused as `validation-failed` |
+| `config/set`, `config/unset`, `memory/remember`, `memory/forget` | v0 records no actor on these, so an invocation that supplies one is refused as `validation-failed` rather than dropped |
 
-## 4. CLI defaults
+## 4. Service defaults
 
-These `cliMapping.defaults` carry the native CLI's defaults, so the generic client
-behaves as the native one does when a flag is not given. They bind only the client
-(Callables §10): an HTTP caller that omits one of these parameters gets v0's behavior.
+These are the native CLI's defaults, declared as each parameter's `default`, so an omitted
+parameter behaves the same from the command tree, from `bdp call` and over HTTP. The
+product's router supplies them before calling v0. They are this document's, and v0's own
+route keeps its behavior.
 
 {defaults}
 
-`issue/delete`, `issue/purge` and `issue/prune` preview by default, and a real run is an
-explicit `--no-dry-run`. `force` on `issue/delete` keeps its v0 meaning, orphaning
+`issue/delete`, `issue/purge` and `issue/prune` preview by default, and a real run sends
+`dry_run: false`. `force` on `issue/delete` keeps its v0 meaning, orphaning
 dependents.
 
 ## 5. Errors

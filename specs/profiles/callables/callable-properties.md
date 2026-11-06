@@ -202,14 +202,13 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Additions to the CLI form derived from parameters. It chooses no command route and grants nothing; duplicate flags or positions, or a defaults member that names no parameter or fails its schema, make a declaration invalid." |
+| description | "Additions to the CLI form derived from parameters. It chooses no command route and grants nothing; duplicate flags or positions make a declaration invalid." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "defaults" | object | no | — | "Parameter values the client sends when the invocation does not supply that parameter. An explicit flag or arguments member overrides one. CLI-only: it does not change what an HTTP caller gets when it omits a parameter." |
 | "flags" | array of (ref "#/$defs/flagMapping") | no | — | "Aliases: additional flag spellings for parameters." |
 | "fromFile" | array of (ref "#/$defs/fileMapping") | no | — | "Parameters whose value the client reads from a file or stdin." |
 | "positionals" | array of (ref "#/$defs/positionalMapping") | no | — | "Positions mapped onto parameters." |
