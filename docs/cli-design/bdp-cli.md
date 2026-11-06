@@ -147,7 +147,7 @@ substitutes for ordinary flags.
 | link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
 | update REF [--type REF] [OBJECT-EDITS] [--from-revision REV] [--if-revision TOKEN] | updateBead; source-only historical Update requires its selected extension |
 | link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; whole endpoint corrections preserve Link identity |
-| delete REF --force [--if-revision TOKEN] | deleteBead apply |
+| delete REF --force [--if-revision TOKEN] | deleteBead apply; [proposed deletion-mode flags](#proposed-deletion-mode-flags) select delete-modes1 |
 | link delete REF --force [--if-revision TOKEN] | deleteLink apply |
 | alias resolve NAME | One-step alias Location, never target body |
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
@@ -1145,9 +1145,11 @@ With `--force`, invoke the ordinary deletion and recheck all admission condition
 The flag does not waive authorization, integrity or revision guards and does not
 reach the wire. The target remains unpinned. Deleted canonical IDs stay reserved.
 
-A Bead with live incident Links cannot be deleted. Remove those Links explicitly;
-there is no implicit cascade. Bead deletion accepts no revision-provenance input
-and creates no fictitious deleted Resource version.
+A Bead with live incident Links cannot be deleted by this command. Remove those
+Links explicitly; there is no implicit cascade. The separately selected
+[delete-modes1 capability](../../specs/profiles/write/write.md#optional-deletion-modes-version-1)
+states a removal or cascade explicitly on the wire. Bead deletion accepts no
+revision-provenance input and creates no fictitious deleted Resource version.
 
 
 ##### Results
@@ -1191,6 +1193,25 @@ bd delete note-1 --force --if-revision saved-r7
 bd delete note-1 --force --dry-run-mode batch
 
 ```
+
+##### Proposed deletion-mode flags
+
+These flags are a proposal for
+[delete-modes1](../../specs/profiles/write/write.md#optional-deletion-modes-version-1).
+The canonical parser does not register them, so they are outside the Flags table
+that `scripts/cli-spec-correspondence.mjs` compares with the parser, and using one
+today is a usage error. `--force` stays client apply intent with no native field;
+it does not mean `blockedBy:"none"`. A client refuses these flags before dispatch
+unless discovery advertises the capability.
+
+| Proposed input | Protocol request or client behavior |
+| --- | --- |
+| `--blocked-by any\|inbound\|none` | Set `blockedBy`. Omission with no other mode flag sends no member. |
+| `--cascade-through TYPE` | Set `cascade.through` to `{type:TYPE,match:"family"}`, matching `--type`. |
+| `--cascade-through-exact TYPE` | Set `cascade.through` to `{type:TYPE,match:"exact"}`, matching `--exact-type`; conflicts with `--cascade-through`. |
+| `--cascade-except JSON` | Set `cascade.except` to the closed `{bind,predicate}` value; requires a through flag and advertised `except:true`. |
+| `--dry-run-mode service` | Set `dryRun:true` and print the service's preview, including declared deletion effects. It requires no `--force`. `batch` and `bdp` keep their meanings. |
+| More than one REF | POST one `deleteBead` with `beads` holding each distinct REF and the mode members. No batch capability is involved. `--if-revision` is refused here. |
 
 #### `bd list`
 
@@ -2633,7 +2654,7 @@ The selected version must be implemented by the compiler and advertised by the
 authority for execution. Every native request states the exact version; no
 provider-driven version choice, automatic downgrade or reinterpretation is
 allowed. Transaction-scoped List and Query are advertised independently.
-Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1) separately selects rooted creation. Named List/Query selection and set targets belong
+Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1) separately selects rooted creation and [delete-modes1](../../specs/profiles/write/write.md#optional-deletion-modes-version-1) separately selects deletion modes. Named List/Query selection and set targets belong
 to the explicitly proposed version-2 grammar. Unsupported selection refuses;
 there is no downgrade, client-side preselection, independent-write fallback or
 automatic chunking.

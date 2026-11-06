@@ -170,6 +170,10 @@ function profileDocument(kind, rows, schema, closure, featureRows) {
           "## Independently selected rooted allocation",
           "",
           "The optional [id-root1 composition](write.md#optional-rooted-allocation-version-1) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.",
+          "",
+          "## Independently selected deletion modes",
+          "",
+          "The optional [delete-modes1 composition](write.md#optional-deletion-modes-version-1) adds separately selected deleteBead and atomicBatch request, success and Problem arms in its [feature-owned schema](delete-modes-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of beads, blockedBy, cascade or dryRun selects a deletion mode on the same operation URLs, while ordinary requests retain their common shape and result. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.",
         ]
       : []),
     "",

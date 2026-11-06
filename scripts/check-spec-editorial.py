@@ -130,7 +130,11 @@ CORE_BASELINE_DEFINITIONS = frozenset((
 ))
 PROFILE_OWNERSHIP = "x-bdp-schema-definitions"
 PROFILE_SOURCES = "x-bdp-schema-sources"
-FEATURE_BUNDLES = {"specs/profiles/write/id-root-v1.schema.json", "specs/profiles/types/types-v1.schema.json"}
+FEATURE_BUNDLES = {
+    "specs/profiles/write/id-root-v1.schema.json",
+    "specs/profiles/write/delete-modes-v1.schema.json",
+    "specs/profiles/types/types-v1.schema.json",
+}
 GENERATED_SPEC_FILES = {
     "specs/openapi/bdp-v0.1.openapi.json", "specs/openapi/bdp-v0.1.tooling.openapi.json",
     "fixtures/openapi/generated.openapi.json", "fixtures/markdown-contracts/selected.json",
