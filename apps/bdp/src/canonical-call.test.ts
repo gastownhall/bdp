@@ -352,7 +352,7 @@ describe("the §10 flag derivation", () => {
     const collisions = (await issueCallableCatalog().list()).flatMap((declaration) =>
       callableFlagCollisions(declaration).map((flag) => `${declaration.name} ${flag}`),
     );
-    expect(collisions).toEqual(["list-issues --no-pinned"]);
+    expect(collisions).toEqual(["issue/list --no-pinned"]);
   });
 
   it("derives a usable form for every parameter of every Issue declaration", async () => {
@@ -394,13 +394,13 @@ describe("bdp call against a stub server", () => {
     await withScope(
       { answer: success({ result: { items: [], has_more: false } }) },
       async (scope, posts) => {
-        await expect(bdp(["--scope", scope, "call", "list-ready-work"])).resolves.toBe(0);
+        await expect(bdp(["--scope", scope, "call", "issue/ready"])).resolves.toBe(0);
         await expect(
-          bdp(["--scope", scope, "call", "list-ready-work", "--no-brief", "--limit", "5"]),
+          bdp(["--scope", scope, "call", "issue/ready", "--no-brief", "--limit", "5"]),
         ).resolves.toBe(0);
         expect(posts.map(({ url }) => url)).toEqual([
-          `${scope}bdp/call/list-ready-work`,
-          `${scope}bdp/call/list-ready-work`,
+          `${scope}bdp/call/issue/ready`,
+          `${scope}bdp/call/issue/ready`,
         ]);
         expect(posts.map(({ body }) => body)).toEqual([
           { arguments: {} },
@@ -428,18 +428,18 @@ describe("bdp call against a stub server", () => {
           "--actor",
           "sam",
           "call",
-          "close-issue",
+          "issue/close",
           "--arguments",
-          '{"issue":"bd-1","reason":"old","expected_revision":null}',
+          '{"id":"bd-1","reason":"old","expected_revision":null}',
           "--reason",
           "new",
         ]);
         expect(stderr).toBe("");
         expect(status).toBe(0);
         expect(posts).toHaveLength(1);
-        expect(posts[0]?.url).toBe(`${scope}bdp/call/close-issue`);
+        expect(posts[0]?.url).toBe(`${scope}bdp/call/issue/close`);
         expect(posts[0]?.body).toEqual({
-          arguments: { issue: "bd-1", reason: "new", expected_revision: null },
+          arguments: { id: "bd-1", reason: "new", expected_revision: null },
           revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
         });
         expect(posts[0]?.headers["idempotency-key"]).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
@@ -455,12 +455,10 @@ describe("bdp call against a stub server", () => {
 
   it("sends no key to a Scope without idempotency, and refuses a supplied one", async () => {
     await withScope({ answer: success({ result: 1, changed: false }) }, async (scope, posts) => {
-      await expect(bdp(["--scope", scope, "call", "reopen-issue", "--issue", "a"])).resolves.toBe(
-        0,
-      );
+      await expect(bdp(["--scope", scope, "call", "issue/reopen", "--id", "a"])).resolves.toBe(0);
       expect(posts[0]?.headers).not.toHaveProperty("idempotency-key");
       await expect(
-        bdp(["--scope", scope, "call", "--idempotency-key", "k1", "reopen-issue", "--issue", "a"]),
+        bdp(["--scope", scope, "call", "--idempotency-key", "k1", "issue/reopen", "--id", "a"]),
       ).resolves.toBe(5);
       expect(posts).toHaveLength(1);
     });
@@ -491,7 +489,7 @@ describe("bdp call against a stub server", () => {
     };
     await withScope({ answer: { status: 409, body: problem } }, async (scope, posts) => {
       await expect(
-        bdp(["--scope", scope, "--actor", "sam", "call", "claim-issue", "--issue", "bd-1"]),
+        bdp(["--scope", scope, "--actor", "sam", "call", "issue/claim", "--id", "bd-1"]),
       ).resolves.toBe(1);
       expect(posts).toHaveLength(1);
       expect(stdout).toBe("");
@@ -500,7 +498,7 @@ describe("bdp call against a stub server", () => {
       stdout = "";
       stderr = "";
       await expect(
-        bdp(["--scope", scope, "--output-mode", "json", "call", "claim-issue", "--issue", "bd-1"]),
+        bdp(["--scope", scope, "--output-mode", "json", "call", "issue/claim", "--id", "bd-1"]),
       ).resolves.toBe(1);
       expect(JSON.parse(stdout)).toMatchObject({
         outcome: "failure",
@@ -520,19 +518,19 @@ describe("bdp call against a stub server", () => {
     };
     await withScope({ answer: { status: 503, body: problem } }, async (scope) => {
       const json = ["--scope", scope, "--output-mode", "json", "call"];
-      await expect(bdp([...json, "list-ready-work"])).resolves.toBe(1);
+      await expect(bdp([...json, "issue/ready"])).resolves.toBe(1);
       const query = JSON.parse(stdout);
       expect(query).toMatchObject({ outcome: "failure", error: { origin: "bdp", problem } });
       expect(Object.hasOwn(query.error.problem, "error")).toBe(false);
 
       // A batch without `atomic`: a Problem does not establish that nothing committed (§5).
       stdout = "";
-      await expect(bdp([...json, "release-issue", "--issue", "a"])).resolves.toBe(1);
+      await expect(bdp([...json, "issue/unclaim", "--id", "a"])).resolves.toBe(1);
       expect(JSON.parse(stdout)).toMatchObject({ outcome: "unknown" });
 
       // A batch declared `atomic`: a Problem means nothing committed.
       stdout = "";
-      await expect(bdp([...json, "add-comment", "--issue", "a"])).resolves.toBe(1);
+      await expect(bdp([...json, "issue/comment", "--id", "a"])).resolves.toBe(1);
       expect(JSON.parse(stdout)).toMatchObject({
         outcome: "failure",
         context: { effects: "none" },
@@ -545,11 +543,11 @@ describe("bdp call against a stub server", () => {
       { answer: { status: 502, body: "<html>private</html>", contentType: "text/html" } },
       async (scope) => {
         const json = ["--scope", scope, "--output-mode", "json", "call"];
-        await expect(bdp([...json, "list-ready-work"])).resolves.toBe(1);
+        await expect(bdp([...json, "issue/ready"])).resolves.toBe(1);
         expect(stdout).not.toContain("private");
         expect(JSON.parse(stdout)).toMatchObject({ outcome: "failure", error: { origin: "cli" } });
         stdout = "";
-        await expect(bdp([...json, "release-issue", "--issue", "a"])).resolves.toBe(1);
+        await expect(bdp([...json, "issue/unclaim", "--id", "a"])).resolves.toBe(1);
         expect(JSON.parse(stdout)).toMatchObject({
           outcome: "unknown",
           error: { origin: "cli", problem: { code: "write_outcome_unknown" } },
@@ -571,11 +569,11 @@ describe("bdp call against a stub server", () => {
         },
       },
       async (scope) => {
-        await expect(bdp(["--scope", scope, "call", "get-stats"])).resolves.toBe(3);
+        await expect(bdp(["--scope", scope, "call", "issue/stats"])).resolves.toBe(3);
       },
     );
     await withScope({ callables: false, answer: success({ result: 1 }) }, async (scope, posts) => {
-      await expect(bdp(["--scope", scope, "call", "get-stats"])).resolves.toBe(5);
+      await expect(bdp(["--scope", scope, "call", "issue/stats"])).resolves.toBe(5);
       expect(posts).toEqual([]);
     });
   });
@@ -583,14 +581,16 @@ describe("bdp call against a stub server", () => {
   it("refuses attribution on a query and client options after NAME, before any request", async () => {
     await withScope({ answer: success({ result: 1 }) }, async (scope, posts) => {
       const scoped = ["--scope", scope];
-      await expect(bdp([...scoped, "--actor", "sam", "call", "get-stats"])).resolves.toBe(2);
-      await expect(bdp([...scoped, "call", "--idempotency-key", "k", "get-stats"])).resolves.toBe(
+      await expect(bdp([...scoped, "--actor", "sam", "call", "issue/stats"])).resolves.toBe(2);
+      await expect(bdp([...scoped, "call", "--idempotency-key", "k", "issue/stats"])).resolves.toBe(
         2,
       );
-      await expect(bdp([...scoped, "call", "get-stats", "--output-mode", "json"])).resolves.toBe(2);
-      await expect(bdp([...scoped, "call", "get-stats", "--config", "/nonexistent"])).resolves.toBe(
+      await expect(bdp([...scoped, "call", "issue/stats", "--output-mode", "json"])).resolves.toBe(
         2,
       );
+      await expect(
+        bdp([...scoped, "call", "issue/stats", "--config", "/nonexistent"]),
+      ).resolves.toBe(2);
       await expect(bdp([...scoped, "call", "not-a-callable"])).resolves.toBe(2);
       expect(posts).toEqual([]);
     });
@@ -599,7 +599,7 @@ describe("bdp call against a stub server", () => {
   it("lowers attribution as Write commands do, refusing a conflict before any request", async () => {
     await withScope({ answer: success({ result: 1, changed: true }) }, async (scope, posts) => {
       const provenance = (flags: string[]) =>
-        bdp(["--scope", scope, ...flags, "call", "reopen-issue", "--issue", "a"]);
+        bdp(["--scope", scope, ...flags, "call", "issue/reopen", "--id", "a"]);
       const sam = '{"actor":{"id":"sam","basis":"writer-supplied"},"message":"why"}';
       await expect(provenance(["--revision-provenance", "nope"])).resolves.toBe(2);
       await expect(provenance(["--revision-provenance", "[]"])).resolves.toBe(2);
@@ -607,7 +607,7 @@ describe("bdp call against a stub server", () => {
       expect(posts).toEqual([]);
       await expect(provenance(["--revision-provenance", sam, "--actor", "sam"])).resolves.toBe(0);
       expect(posts[0]?.body).toEqual({
-        arguments: { issue: "a" },
+        arguments: { id: "a" },
         revisionProvenance: {
           actor: { id: "sam", basis: "writer-supplied" },
           message: "why",
@@ -617,7 +617,7 @@ describe("bdp call against a stub server", () => {
   });
 
   it("requires a Scope only to invoke", async () => {
-    await expect(bdp(["call", "get-stats"])).resolves.toBe(2);
+    await expect(bdp(["call", "issue/stats"])).resolves.toBe(2);
     expect(stderr).toContain("missing_target_scope");
   });
 
@@ -654,10 +654,10 @@ describe("bdp call against a stub server", () => {
     });
     stdout = "";
     await expect(bdp(["call"])).resolves.toBe(0);
-    expect(stdout.trim().split("\n")).toHaveLength(39);
+    expect(stdout.trim().split("\n")).toHaveLength(45);
   });
 
   it("does not exist under the compat profile", async () => {
-    await expect(bdp(["--cli-profile", "compat", "call", "get-stats"])).resolves.toBe(2);
+    await expect(bdp(["--cli-profile", "compat", "call", "issue/stats"])).resolves.toBe(2);
   });
 });

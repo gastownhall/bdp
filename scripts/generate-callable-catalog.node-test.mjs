@@ -86,3 +86,88 @@ test("§2.5: required with default and a failing default are invalid declaration
     /default fails its schema/,
   );
 });
+test("title and CLI mapping are read from after the arguments, never from prose", () => {
+  const body = section("Declared `atomic`.").replace(
+    "Does it.",
+    "Does it.\n\nTitle: prose that merely looks like a title.",
+  );
+  const mapping = '{"positionals": [{"position": 0, "parameter": "a"}]}';
+  const [parsed] = parseSections(
+    `${body}\nTitle: Do it\n\nCLI mapping:\n\n\`\`\`json\n${mapping}\n\`\`\`\n`,
+  );
+  assert.equal(parsed.title, "Do it");
+  assert.deepEqual(parsed.cliMapping, JSON.parse(mapping));
+  assert.equal(parsed.description.includes("prose that merely"), true);
+});
+test("a CLI mapping that is not a fenced block stops generation", () => {
+  assert.throws(
+    () => parseSections(`${section("Declared `atomic`.")}\nCLI mapping: none\n`),
+    /unreadable CLI mapping/,
+  );
+});
+test("§2.5: every invalid cliMapping is refused", () => {
+  const flagged = (cliMapping) => ({
+    ...declaration({ name: "pinned", schema: { type: "boolean" } }),
+    cliMapping,
+  });
+  const undeclared = [{ names: ["-x"], parameter: "nope" }];
+  assert.throws(
+    () => assertValidDeclaration(flagged({ flags: undeclared })),
+    /flags names undeclared/,
+  );
+  assert.throws(
+    () => assertValidDeclaration(flagged({ fromFile: undeclared })),
+    /fromFile names undeclared/,
+  );
+  assert.throws(
+    () => assertValidDeclaration(flagged({ positionals: [{ position: 0, parameter: "nope" }] })),
+    /positionals names undeclared/,
+  );
+  assert.throws(
+    () => assertValidDeclaration(flagged({ defaults: { nope: 1 } })),
+    /defaults names undeclared/,
+  );
+  assert.throws(
+    () => assertValidDeclaration(flagged({ defaults: { pinned: "yes" } })),
+    /cliMapping default fails its schema/,
+  );
+  assert.throws(
+    () =>
+      assertValidDeclaration(
+        flagged({
+          positionals: [
+            { position: 0, parameter: "pinned" },
+            { position: 0, parameter: "pinned" },
+          ],
+        }),
+      ),
+    /duplicate position/,
+  );
+  for (const names of [["--pinned"], ["-p", "-p"]])
+    assert.throws(
+      () => assertValidDeclaration(flagged({ flags: [{ names, parameter: "pinned" }] })),
+      /duplicate flag spelling/,
+    );
+  assert.throws(
+    () =>
+      assertValidDeclaration(
+        flagged({
+          flags: [{ names: ["-p"], parameter: "pinned" }],
+          fromFile: [{ names: ["-p"], parameter: "pinned" }],
+        }),
+      ),
+    /duplicate flag spelling/,
+  );
+});
+test("§10: a boolean's derived --no-x yields to a parameter declared with that flag", () => {
+  assert.doesNotThrow(() =>
+    assertValidDeclaration({
+      name: "do-it",
+      parameters: [
+        { name: "pinned", schema: { type: "boolean" } },
+        { name: "no_pinned", schema: { type: "boolean" } },
+      ],
+      resultSchema: true,
+    }),
+  );
+});

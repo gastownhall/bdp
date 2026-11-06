@@ -13,9 +13,9 @@ const binary = fileURLToPath(new URL("../apps/bdp/dist/main.js", import.meta.url
 const media = "application/vnd.bdp.v0.1+json";
 const family = "https://github.com/gastownhall/bdp/problems";
 const answers = {
-  "list-ready-work": { status: 200, body: { result: { items: [], has_more: false } } },
-  "close-issue": { status: 200, body: { result: { ok: true }, changed: true } },
-  "claim-issue": {
+  "issue/ready": { status: 200, body: { result: { items: [], has_more: false } } },
+  "issue/close": { status: 200, body: { result: { ok: true }, changed: true } },
+  "issue/claim": {
     status: 409,
     body: {
       type: `${family}/conflict`,
@@ -25,7 +25,7 @@ const answers = {
       error: { reason: "already-claimed", assignee: "kim" },
     },
   },
-  "get-stats": {
+  "issue/stats": {
     status: 503,
     body: {
       type: `${family}/unavailable`,
@@ -109,18 +109,17 @@ function bdp(args) {
   });
 }
 
-test("the emitted executable finds its packaged catalog and lists all 39 names", async () => {
+test("the emitted executable finds its packaged catalog and lists all 45 names", async () => {
   const { status, stdout } = await bdp(["call"]);
   assert.equal(status, 0);
-  assert.equal(stdout.trim().split("\n").length, 39);
-  assert.match(stdout, /^claim-issue +batch$/m);
+  assert.equal(stdout.trim().split("\n").length, 45);
+  assert.match(stdout, /^issue\/claim +batch$/m);
 });
 test("help after NAME needs no Scope and invokes nothing", async () => {
   const before = posts.length;
-  const { status, stdout } = await bdp(["call", "claim-issue", "--help"]);
+  const { status, stdout } = await bdp(["call", "issue/claim", "--help"]);
   assert.equal(status, 0);
-  assert.match(stdout, /--issue TEXT/);
-  assert.match(stdout, /reason "already-claimed"/);
+  assert.match(stdout, /--id TEXT/);
   assert.equal(posts.length, before);
 });
 test("a query omits what is omitted and sends a defaulted flag when given", async () => {
@@ -128,7 +127,7 @@ test("a query omits what is omitted and sends a defaulted flag when given", asyn
     "--scope",
     scope,
     "call",
-    "list-ready-work",
+    "issue/ready",
     "--brief",
     "--label",
     "a",
@@ -139,7 +138,7 @@ test("a query omits what is omitted and sends a defaulted flag when given", asyn
   assert.equal(status, 0);
   assert.deepEqual(JSON.parse(stdout), { result: { items: [], has_more: false } });
   assert.deepEqual(posts.at(-1), {
-    name: "list-ready-work",
+    name: "issue/ready",
     key: undefined,
     body: { arguments: { brief: true, label: ["a", "b"] } },
   });
@@ -151,18 +150,18 @@ test("a batch merges --arguments with an overriding flag and carries the actor",
     "--actor",
     "sam",
     "call",
-    "close-issue",
+    "issue/close",
     "--arguments",
-    '{"issue":"bd-1","reason":"old"}',
+    '{"id":"bd-1","reason":"old"}',
     "--reason",
     "new",
   ]);
   assert.equal(status, 0);
   assert.deepEqual(posts.at(-1), {
-    name: "close-issue",
+    name: "issue/close",
     key: undefined,
     body: {
-      arguments: { issue: "bd-1", reason: "new" },
+      arguments: { id: "bd-1", reason: "new" },
       revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
     },
   });
@@ -172,8 +171,8 @@ test("a callable-error shows its error value on stderr and exits 1", async () =>
     "--scope",
     scope,
     "call",
-    "claim-issue",
-    "--issue",
+    "issue/claim",
+    "--id",
     "bd-1",
   ]);
   assert.equal(status, 1);
@@ -184,7 +183,7 @@ test("a callable-error shows its error value on stderr and exits 1", async () =>
   });
 });
 test("a 5xx carries no error member and is a different diagnosis at the same status", async () => {
-  const { status, stderr } = await bdp(["--scope", scope, "call", "get-stats"]);
+  const { status, stderr } = await bdp(["--scope", scope, "call", "issue/stats"]);
   assert.equal(status, 1);
   const { problem } = JSON.parse(stderr).error;
   assert.equal(problem.code, "temporarily-unavailable");

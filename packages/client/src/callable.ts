@@ -28,6 +28,9 @@ export interface CallableParameter {
 export interface CallableCliMapping {
   readonly flags?: readonly { readonly names: readonly string[]; readonly parameter: string }[];
   readonly positionals?: readonly { readonly position: number; readonly parameter: string }[];
+  readonly fromFile?: readonly { readonly names: readonly string[]; readonly parameter: string }[];
+  /** Values the client sends for parameters an invocation does not supply (§10); CLI-only. */
+  readonly defaults?: Readonly<Record<string, AdmittedJsonValue>>;
 }
 
 /** A declaration in the Callables shape, plus its name and Type, however it was learned. */

@@ -53,15 +53,25 @@ export function parseSections(markdown) {
       } else prose.push(paragraph);
     }
     assert(prose.length > 0, `${name}: no description prose`);
+    // Title and CLI mapping follow the arguments table, so prose cannot be mistaken for them.
+    const tail = body.slice(body.indexOf(`**\`${argumentsFragment}\`**`));
+    const title = /^Title: (.+)$/m.exec(tail)?.[1].trim();
+    const mapping = /^CLI mapping:\s*\n+```json\n(.*?)\n```\s*$/ms.exec(tail)?.[1];
+    assert(
+      mapping !== undefined || !/^CLI mapping:/m.test(tail),
+      `${name}: unreadable CLI mapping`,
+    );
     return {
       name,
       type: types[head[2]],
+      ...(title === undefined ? {} : { title }),
       description: prose.join("\n\n"),
       idempotent: declared.includes("`idempotent`"),
       atomic: declared.includes("`atomic`"),
       argumentsFragment,
       resultFragment: result,
       errorFragment,
+      ...(mapping === undefined ? {} : { cliMapping: JSON.parse(mapping) }),
     };
   });
 }
@@ -140,6 +150,7 @@ function declarationOf(section, definitions, commonId, issueId) {
   return {
     name: section.name,
     type: section.type,
+    ...(section.title === undefined ? {} : { title: section.title }),
     description: section.description,
     parameters,
     resultSchema: close(fragment(section.resultFragment)),
@@ -148,13 +159,60 @@ function declarationOf(section, definitions, commonId, issueId) {
       : { errorSchema: close(fragment(section.errorFragment)) }),
     ...(section.idempotent ? { idempotent: true } : {}),
     ...(section.atomic ? { atomic: true } : {}),
+    ...(section.cliMapping === undefined ? {} : { cliMapping: section.cliMapping }),
   };
+}
+
+/** Callables §10's derived spelling: split at `_`, `-` and lower-to-upper boundaries. */
+const derivedFlag = (name) =>
+  `--${name
+    .replace(/(\p{Ll})(\p{Lu})/gu, "$1-$2")
+    .split(/[_-]+/)
+    .filter((word) => word.length > 0)
+    .join("-")
+    .toLowerCase()}`;
+
+/** The §2.5 checks on a cliMapping, with the §10 rule that a derived `--no-x` yields. */
+function assertValidCliMapping(declaration, validators) {
+  const { name, parameters, cliMapping = {} } = declaration;
+  const declared = new Set(parameters.map((parameter) => parameter.name));
+  const known = (parameter, kind) =>
+    assert(declared.has(parameter), `${name}: ${kind} names undeclared parameter ${parameter}`);
+  const spellings = new Map();
+  const claim = (spelling, parameter) => {
+    assert(!spellings.has(spelling), `${name}: duplicate flag spelling ${spelling}`);
+    spellings.set(spelling, parameter);
+  };
+  for (const parameter of parameters) claim(derivedFlag(parameter.name), parameter.name);
+  for (const [kind, mappings] of [
+    ["flags", cliMapping.flags ?? []],
+    ["fromFile", cliMapping.fromFile ?? []],
+  ])
+    for (const mapping of mappings) {
+      known(mapping.parameter, kind);
+      assert(mapping.names.length > 0, `${name}: ${kind} entry without a spelling`);
+      for (const spelling of mapping.names) claim(spelling, mapping.parameter);
+    }
+  const positions = new Set();
+  for (const { position, parameter } of cliMapping.positionals ?? []) {
+    known(parameter, "positionals");
+    assert(!positions.has(position), `${name}: duplicate position ${position}`);
+    positions.add(position);
+  }
+  for (const [parameter, value] of Object.entries(cliMapping.defaults ?? {})) {
+    known(parameter, "defaults");
+    assert(
+      validators.get(parameter)(value),
+      `${name}.${parameter}: cliMapping default fails its schema`,
+    );
+  }
 }
 
 /** The Callables §2.5 checks a declaration's own document can answer. */
 export function assertValidDeclaration(declaration) {
   const ajv = new Ajv2020({ strict: false, validateFormats: false, allErrors: false });
   const names = new Set();
+  const validators = new Map();
   for (const parameter of declaration.parameters) {
     const label = `${declaration.name}.${parameter.name}`;
     assert(!names.has(parameter.name), `${label}: duplicate parameter`);
@@ -164,9 +222,11 @@ export function assertValidDeclaration(declaration) {
       `${label}: required together with default`,
     );
     const validate = ajv.compile(parameter.schema);
+    validators.set(parameter.name, validate);
     if (Object.hasOwn(parameter, "default"))
       assert(validate(parameter.default), `${label}: default fails its schema`);
   }
+  assertValidCliMapping(declaration, validators);
   ajv.compile(declaration.resultSchema);
   if (declaration.errorSchema !== undefined) ajv.compile(declaration.errorSchema);
 }
