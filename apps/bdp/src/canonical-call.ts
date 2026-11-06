@@ -5,17 +5,17 @@ import { CanonicalInputError } from "./canonical-input.js";
 
 /** Flags §10 gives every Callable; a parameter deriving one is reachable only by `--arguments`. */
 const RESERVED_FLAGS = new Set(["--arguments", "--help"]);
-/** Literal client spellings, safe to name in a diagnostic. They belong before NAME (§10). */
+/** Literal client spellings, safe to name in a diagnostic. They belong before a tree command. */
 const CLIENT_FLAGS = new Set([
-  "--actor",
   "--cli-profile",
   "--config",
   "--idempotency-key",
   "--output-format",
   "--output-mode",
-  "--revision-provenance",
   "--scope",
 ]);
+/** Attribution is `bdp call`'s alone: on a tree command `--actor` could only be the argument. */
+const CALL_ONLY_FLAGS = new Set(["--actor", "--revision-provenance"]);
 
 /** Diagnostics name flags a declaration owns and never echo a supplied value. */
 export class CallableUsageError extends CanonicalInputError {}
@@ -222,6 +222,8 @@ export function parseCallableArguments(
     }
     if (CLIENT_FLAGS.has(spelling) && !flags.has(spelling))
       return refuse(`that flag is a client option; put ${spelling} before the command`);
+    if (CALL_ONLY_FLAGS.has(spelling) && !flags.has(spelling))
+      return refuse(`this command has no ${spelling}; bdp call carries attribution`);
     if (!flags.has(spelling))
       return refuse("a flag is not a parameter of this Callable; use --help for its form");
     const binding = flags.get(spelling);
@@ -263,6 +265,23 @@ export function parseCallableArguments(
     arguments: Object.fromEntries([...Object.entries(whole ?? {}), ...supplied]),
     files,
   };
+}
+
+/** `bdp call NAME`: one JSON object and nothing else. Only `--help` reaches here as a token. */
+export function parseCallArguments(
+  tokens: readonly string[],
+  whole: string | undefined,
+): ParsedCallableArguments {
+  if (tokens.length === 1 && tokens[0] === "--help") return { help: true };
+  if (tokens.length > 0)
+    return refuse(
+      "bdp call takes a Callable's arguments only in --arguments JSON; its command takes flags",
+    );
+  if (whole === undefined) return { help: false, arguments: {}, files: [] };
+  const value = jsonValue(whole);
+  if (value === undefined || value === null || typeof value !== "object" || Array.isArray(value))
+    return refuse("--arguments requires one JSON object");
+  return { help: false, arguments: value as Record<string, AdmittedJsonValue>, files: [] };
 }
 
 const sameParameter =
@@ -374,9 +393,16 @@ const positionalWords = (declaration: CallableDeclaration): string =>
 
 /** §10: title, description, the parameters and any declared errors, without invoking.
  * `command` is how the Callable was reached; it defaults to `call NAME`. */
+function schemaWord({ schema }: CallableParameter): string {
+  const form = valueForm({ schema } as CallableParameter);
+  if (form.kind === "boolean") return "boolean";
+  if (form.kind === "array") return "array";
+  return form.item === "text" ? "text" : "JSON";
+}
+
 export function renderCallableHelp(
   declaration: CallableDeclaration,
-  command: readonly string[] = ["call", declaration.name],
+  command?: readonly string[],
 ): string {
   const { flags } = flagTable(declaration);
   const promises = [
@@ -390,11 +416,16 @@ export function renderCallableHelp(
     "",
     declaration.description,
     "",
-    `Usage: bdp [client options] ${command.join(" ")} ${positionalWords(declaration)}[callable arguments]`,
-    ...(command[0] === "call" ? [] : [`  Or:  bdp [client options] call ${declaration.name} ...`]),
+    ...(command === undefined
+      ? [`Usage: bdp call ${declaration.name} [--arguments JSON] [client options]`]
+      : [
+          `Usage: bdp [client options] ${command.join(" ")} ${positionalWords(declaration)}[callable arguments]`,
+          `  Or:  bdp call ${declaration.name} [--arguments JSON] [client options]`,
+        ]),
     "",
   ];
-  if (declaration.parameters.length > 0) lines.push("Parameters:");
+  if (declaration.parameters.length > 0)
+    lines.push(command === undefined ? "Members of --arguments:" : "Parameters:");
   for (const parameter of declaration.parameters) {
     const form = valueForm(parameter);
     const spellings = [...flags].flatMap(([spelling, binding]) =>
@@ -410,9 +441,9 @@ export function renderCallableHelp(
       (entry) => entry.parameter === parameter.name,
     )?.position;
     const notes = [
-      ...(position === undefined ? [] : [`position ${position}`]),
+      ...(position === undefined || command === undefined ? [] : [`position ${position}`]),
       ...(parameter.required ? ["required"] : []),
-      ...(form.kind === "array" ? ["repeatable"] : []),
+      ...(form.kind === "array" && command !== undefined ? ["repeatable"] : []),
       ...(Object.hasOwn(parameter, "default")
         ? [`default ${JSON.stringify(parameter.default)}`]
         : []),
@@ -420,15 +451,21 @@ export function renderCallableHelp(
         ? [`client sends ${JSON.stringify(defaults[parameter.name])} when not given`]
         : []),
     ];
-    lines.push(`  ${shown}${placeholder}${notes.length > 0 ? `  (${notes.join("; ")})` : ""}`);
-    if (fileSpellings.length > 0)
-      lines.push(`  ${fileSpellings.join(", ")} PATH  (the value read from a file; - is stdin)`);
+    const suffix = notes.length > 0 ? `  (${notes.join("; ")})` : "";
+    if (command === undefined) lines.push(`  ${parameter.name}: ${schemaWord(parameter)}${suffix}`);
+    else {
+      lines.push(`  ${shown}${placeholder}${suffix}`);
+      if (fileSpellings.length > 0)
+        lines.push(`  ${fileSpellings.join(", ")} PATH  (the value read from a file; - is stdin)`);
+    }
     if (parameter.description !== undefined) lines.push(`      ${parameter.description}`);
   }
   lines.push(
     ...(declaration.parameters.length > 0 ? [""] : []),
     "Generic:",
-    "  --arguments JSON  Supply the whole arguments object; explicit flags override its members.",
+    command === undefined
+      ? "  --arguments JSON  The arguments object. Omitted means {}."
+      : "  --arguments JSON  Supply the whole arguments object; explicit flags override its members.",
     "  --help            Print this help without invoking.",
     "",
   );

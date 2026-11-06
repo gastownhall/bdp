@@ -153,7 +153,7 @@ substitutes for ordinary flags.
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
 | alias delete NAME --force | deleteAlias, explicit apply intent |
 | batch [SCOPE] --file FILE [--input-format json|jsonl] | JSONL authoring or native JSON; no raw CLI text; [current grammar](#atomic-batch) |
-| [CLIENT-OPTIONS] call [NAME [CALLABLE-ARGUMENTS]] | POST the optional Callables mount, with flags derived from the declaration; [`bd call`](#bd-call) |
+| call [NAME] [--arguments JSON] [CLIENT-OPTIONS] | POST the optional Callables mount, with the arguments as one JSON object; [`bd call`](#bd-call) |
 | type list [SCOPE] | Deferred Type CLI placeholder; no invented inventory payload/path |
 
 Read filters are --type (family), --exact-type (nominal), --selector, and Link
@@ -338,7 +338,9 @@ The reference executable generates help and parsing from one command tree. Its
 help follows the product's grouped layout; this does not import the product's
 global flag inventory. The only imported product global is `--actor ACTOR`,
 registered on commands that admit per-version provenance: Bead create/update,
-Link create/update/delete and, before NAME, `call` on a CallableBatch. It lowers to
+Link create/update/delete and `call` on a CallableBatch. It is not registered on a
+command the [Callable tree](#bd-call) mounts, where `--actor` can only be the Callable's
+own argument. It lowers to
 `revisionProvenance.actor:{"id":ACTOR,"basis":"writer-supplied"}`.
 Conflicting explicit actor provenance refuses; no actor is silently overwritten.
 It supplies attribution, never authentication, credential selection or authority.
@@ -2775,30 +2777,33 @@ bd batch --retry-file private-replay.json
 
 Invoke one named Callable, or list what can be called. This is the client side of
 [Callables §10](../../specs/profiles/callables/callables.md#10-cli-correspondence),
-which the generic executable spells `bdp call`. This reference generates the flags
-from each declaration, and mounts each Callable as a command by its name. There is no
+which the generic executable spells `bdp call`. `call` takes the arguments as one JSON
+object and lifts nothing from the declaration. Each Callable is also mounted as a
+command by its name, and only those commands derive flags and positions. There is no
 per-Callable code, and native command spellings such as `bd ready` are separate work.
 
 ##### Usage
 
 ```text
-bd [CLIENT-OPTIONS] call NAME [CALLABLE-ARGUMENTS]
-bd [CLIENT-OPTIONS] call NAME --help
-bd [CLIENT-OPTIONS] call
+bd call NAME [--arguments JSON] [CLIENT-OPTIONS]
+bd call NAME --help
+bd call
 bd [CLIENT-OPTIONS] WORD... [CALLABLE-ARGUMENTS]
 bd [CLIENT-OPTIONS] WORD... --help
 ```
 
-Client options come before NAME, on either side of the verb, and everything after
-NAME is the Callable's own. A Callable may therefore declare a parameter whose flag
-spelling matches a client option, and the client option cannot reach it from there.
+Client options may come anywhere on `call`. Any other flag or position after NAME is
+refused, and the refusal names `--arguments`.
 
 ##### The command tree
 
 A Callable's name gives its place in the tree, one word per segment: `issue/dep/add` is
-`bd issue dep add`, the same invocation as `bd call issue/dep/add`. Client options come
-before the first word. `--help` at a word that groups Callables lists what is beneath
-it, and the root help lists each first word. A built-in command wins any collision,
+`bd issue dep add`, which reaches the same Callable as `bd call issue/dep/add`. Client
+options come before the first word, and everything after the command is the Callable's
+own, so a Callable may declare a flag spelled like a client option. `--actor` and
+`--revision-provenance` are not client options here: `--actor` after the command is the
+Callable's own `actor` argument, and `bd call` carries attribution. `--help` at a word
+that groups Callables lists what is beneath it, and the root help lists each first word. A built-in command wins any collision,
 whole first word included, and `call NAME` always reaches the Callable. The Issue
 document's 45 names collide with no built-in.
 
@@ -2807,21 +2812,23 @@ document's 45 names collide with no built-in.
 | Argument | Required | Meaning |
 | --- | --- | --- |
 | NAME | To invoke | The Callable's full local Resource ID, such as `reserve-room` or `rooms/reserve`. Without it, the command lists the names it knows. |
-| CALLABLE-ARGUMENTS | No | The flags and positions below. |
+| CALLABLE-ARGUMENTS | No | On a tree command, the flags and positions below. |
 
 ##### Flags
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
+| `--arguments JSON` | `{}` | On `call`, the invocation's `arguments` object. |
 | `--scope SCOPE` | Command context | Choose the Scope to invoke against. See [Scope selection](#scope-selection). |
-| `--actor ACTOR` | None | On a CallableBatch, lower to `revisionProvenance.actor` as [Write commands do](#common-flags-and-reference-syntax). Refused on a CallableQuery. |
-| `--revision-provenance JSON` | None | On a CallableBatch, supply Write's attribution input. Refused on a CallableQuery. See [properties and provenance](#object-inputs). |
+| `--actor ACTOR` | None | On `call` with a CallableBatch, lower to `revisionProvenance.actor` as [Write commands do](#common-flags-and-reference-syntax). Refused on a CallableQuery. |
+| `--revision-provenance JSON` | None | On `call` with a CallableBatch, supply Write's attribution input. Refused on a CallableQuery. See [properties and provenance](#object-inputs). |
 | `--idempotency-key KEY` | Generated | Use this key on a CallableBatch under Write's `idempotency`. Refused on a CallableQuery and against a Scope without that capability. |
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-controls). |
 
-##### Callable arguments
+##### Tree command arguments
 
-Flags derive from the declaration, so most declarations need no CLI section:
+On a tree command, flags derive from the declaration, so most declarations need no CLI
+section. None of this applies to `call`, except `cliMapping.defaults`:
 
 | Declared | CLI form |
 | --- | --- |
@@ -2832,7 +2839,7 @@ Flags derive from the declaration, so most declarations need no CLI section:
 | `cliMapping.flags` | Adds spellings such as `-l`; the derived flag remains. |
 | `cliMapping.positionals` | Lets a position stand for a flag. |
 | `cliMapping.fromFile` | Adds flags whose value is a path, `-` meaning stdin. The content, unchanged, is treated as that parameter's flag value. |
-| `cliMapping.defaults` | Values sent for parameters the invocation does not supply. An explicit flag, a position, an `--arguments` member or a supplied `null` overrides one. |
+| `cliMapping.defaults` | Values sent for parameters the invocation does not supply, on `call` as well as a tree command. An explicit flag, a position, an `--arguments` member or a supplied `null` overrides one. |
 | `--arguments JSON` | Supplies the whole arguments object; explicit flags and positions override its members, and a repeated array flag replaces the whole array. |
 | `--help` | Prints `title`, `description`, the parameters and any declared errors, without invoking. |
 
@@ -2927,17 +2934,10 @@ bd call
 # Read one Callable's parameters and declared errors.
 bd call reserve-room --help
 
-# Name each argument with a derived flag.
-bd call reserve-room --room cedar --day 2026-11-20
+# Supply the arguments and attribute the batch.
+bd call reserve-room --arguments '{"room":"cedar","day":"2026-11-20"}' --actor sam
 
-# Let a mapped position stand for a flag.
-bd call reserve-room cedar --day 2026-11-20
-
-# Supply the object, override one member and attribute the batch.
-bd --actor sam call reserve-room \
-  --arguments '{"room":"cedar","day":"2026-11-20"}' --day 2026-11-21
-
-# The same mechanism by name: a position, an alias and a required argument.
+# Its command: a position, an alias and a required argument.
 bd issue create "Fix login" -p 1 --actor sam
 
 # Two positions under a longer word path.

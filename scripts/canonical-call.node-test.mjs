@@ -120,7 +120,7 @@ test("help after NAME needs no Scope and invokes nothing", async () => {
   const before = posts.length;
   const { status, stdout } = await bdp(["call", "issue/claim", "--help"]);
   assert.equal(status, 0);
-  assert.match(stdout, /--id TEXT/);
+  assert.match(stdout, /id: text/);
   assert.match(stdout, /code: already_claimed, not_claimable/);
   assert.equal(posts.length, before);
 });
@@ -130,11 +130,8 @@ test("a query omits what is omitted and sends a defaulted flag when given", asyn
     scope,
     "call",
     "issue/ready",
-    "--brief",
-    "--label",
-    "a",
-    "--label",
-    "b",
+    "--arguments",
+    '{"brief":true,"label":["a","b"]}',
   ]);
   assert.equal(stderr, "");
   assert.equal(status, 0);
@@ -145,7 +142,7 @@ test("a query omits what is omitted and sends a defaulted flag when given", asyn
     body: { arguments: { brief: true, label: ["a", "b"] } },
   });
 });
-test("a batch merges --arguments with an overriding flag and carries the actor", async () => {
+test("a batch sends --arguments as given and carries the actor", async () => {
   const { status } = await bdp([
     "--scope",
     scope,
@@ -154,9 +151,7 @@ test("a batch merges --arguments with an overriding flag and carries the actor",
     "call",
     "issue/close",
     "--arguments",
-    '{"id":"bd-1","reason":"old"}',
-    "--reason",
-    "new",
+    '{"id":"bd-1","reason":"new"}',
   ]);
   assert.equal(status, 0);
   assert.deepEqual(posts.at(-1), {
@@ -174,8 +169,8 @@ test("a callable-error shows its error value on stderr and exits 1", async () =>
     scope,
     "call",
     "issue/claim",
-    "--id",
-    "bd-1",
+    "--arguments",
+    '{"id":"bd-1"}',
   ]);
   assert.equal(status, 1);
   assert.equal(stdout, "");

@@ -407,8 +407,16 @@ describe("the 45 Issue declarations", () => {
         for (const declaration of all) {
           const tokens = declaration.parameters.flatMap((parameter) => sample(parameter).tokens);
           posts.length = 0;
-          const viaCall = await bdp(["--scope", scope, "call", declaration.name, ...tokens]);
           const viaTree = await bdp(["--scope", scope, ...declaration.name.split("/"), ...tokens]);
+          const sent = JSON.stringify((posts[0]?.body as { arguments: unknown }).arguments);
+          const viaCall = await bdp([
+            "--scope",
+            scope,
+            "call",
+            declaration.name,
+            "--arguments",
+            sent,
+          ]);
           expect(stderr, declaration.name).toBe("");
           expect([viaCall, viaTree], declaration.name).toEqual([0, 0]);
           expect(posts.map(({ name }) => name)).toEqual([declaration.name, declaration.name]);
@@ -474,7 +482,9 @@ describe("the induced tree", () => {
       () => ({ status: 200, body: { result: { items: [], has_more: false } } }),
       async (scope, posts) => {
         await expect(bdp(["--scope", scope, "issue", "list", "--status", "open"])).resolves.toBe(0);
-        await expect(bdp(["--scope", scope, "call", "issue/list", "-s", "open"])).resolves.toBe(0);
+        await expect(
+          bdp(["--scope", scope, "call", "issue/list", "--arguments", '{"status":["open"]}']),
+        ).resolves.toBe(0);
         expect(posts.map(({ body }) => body)).toEqual([
           { arguments: { status: ["open"], sort: "priority" } },
           { arguments: { status: ["open"], sort: "priority" } },
@@ -535,17 +545,22 @@ describe("the induced tree", () => {
       () => ({ status: 200, body: { result: {}, changed: true } }),
       async (scope, posts) => {
         await expect(
-          bdp(["--scope", scope, "--actor", "sam", "--output-mode", "json", "issue", "claim", "a"]),
+          bdp(["--scope", scope, "--output-mode", "json", "issue", "claim", "a", "--actor", "sam"]),
         ).resolves.toBe(0);
-        expect(posts[0]?.body).toEqual({
-          arguments: { id: "a" },
-          revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
-        });
+        expect(posts[0]?.body).toEqual({ arguments: { id: "a", actor: "sam" } });
         expect(JSON.parse(stdout)).toMatchObject({
           result_kind: "callable_result",
           data: { result: {}, changed: true },
         });
         posts.length = 0;
+        for (const before of [
+          ["--actor", "sam"],
+          ["--revision-provenance", '{"actor":{"id":"sam","basis":"writer-supplied"}}'],
+        ])
+          await expect(
+            bdp(["--scope", scope, ...before, "issue", "claim", "a", "--actor", "sam"]),
+            `${before[0]} before the command`,
+          ).resolves.toBe(2);
         for (const after of ["--output-mode", "--scope", "--config"])
           await expect(
             bdp(["--scope", scope, "issue", "list", after, "x"]),
@@ -604,7 +619,9 @@ describe("the induced tree", () => {
     await withServe(
       () => ({ status: 200, body: { result: 1, changed: true } }),
       async (scope, posts) => {
-        await expect(bdp(["--scope", scope, "call", "link/show", "t"], shadowing)).resolves.toBe(0);
+        await expect(
+          bdp(["--scope", scope, "call", "link/show", "--arguments", '{"id":"t"}'], shadowing),
+        ).resolves.toBe(0);
         await expect(bdp(["--scope", scope, "pack", "make", "t"], shadowing)).resolves.toBe(0);
         expect(posts.map(({ name }) => name)).toEqual(["link/show", "pack/make"]);
         posts.length = 0;
@@ -731,7 +748,16 @@ describe("every Problem shape", () => {
         expect(failureOf()).toEqual({ origin: "bdp", problem: body });
         stderr = "";
         await expect(
-          bdp(["--scope", scope, "--output-mode", "json", "call", "issue/show", "--id", "a"]),
+          bdp([
+            "--scope",
+            scope,
+            "--output-mode",
+            "json",
+            "call",
+            "issue/show",
+            "--arguments",
+            '{"id":"a"}',
+          ]),
         ).resolves.toBe(exit);
         expect(JSON.parse(stdout)).toMatchObject({
           outcome: "failure",

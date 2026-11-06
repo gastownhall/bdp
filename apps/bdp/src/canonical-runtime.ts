@@ -37,6 +37,7 @@ import {
   callableCatalogItem,
   completeCallableArguments,
   type ParsedCallableArguments,
+  parseCallArguments,
   parseCallableArguments,
   renderCallableHelp,
 } from "./canonical-call.js";
@@ -375,7 +376,20 @@ export async function runCanonicalInvocation(
       callable =
         (await callables.get(name)) ??
         refuse("invalid_arguments", 2, "unknown Callable; run bdp call to list the names");
-      const parsed = parseCallableArguments(callable, invocation.positionals.slice(1));
+      const tokens = invocation.positionals.slice(1);
+      if (
+        callableCommand !== undefined &&
+        ["actor", "revisionProvenance"].some((key) => invocation.explicitOptions.includes(key))
+      )
+        return refuse(
+          "invalid_arguments",
+          2,
+          "before a tree command --actor and --revision-provenance are not options; give the command's own flag after it, or use bdp call for attribution",
+        );
+      const parsed =
+        callableCommand === undefined
+          ? parseCallArguments(tokens, stringOption(options, "arguments"))
+          : parseCallableArguments(callable, tokens);
       if (parsed.help) {
         await io.stdout(renderCallableHelp(callable, callableCommand), io.signal);
         return 0;

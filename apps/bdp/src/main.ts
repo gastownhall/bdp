@@ -36,11 +36,7 @@ import {
   renderCallableGroupHelp,
   resolveCallableCommand,
 } from "./canonical-call.js";
-import {
-  createCanonicalCommand,
-  splitCallArguments,
-  splitLeadingWords,
-} from "./canonical-command.js";
+import { createCanonicalCommand, splitLeadingWords } from "./canonical-command.js";
 import {
   defaultCliConfigPath,
   readBoundedFile,
@@ -130,12 +126,11 @@ export async function runBdp(
     let configFile: string | undefined, explicitProfile: "canonical" | "compat" | undefined;
     let configSeen = false,
       profileSeen = false;
-    // Nothing after a Callable's NAME is ours to read, including a --config it may declare.
-    const callSplit = splitCallArguments(args, arities);
     const builtIns = new Set(inventory.commands.map((command) => command.name()));
-    const leading = callSplit === undefined ? splitLeadingWords(args, arities) : undefined;
+    const leading = splitLeadingWords(args, arities);
     const treeCandidate = builtIns.has(leading?.words[0] ?? "") ? undefined : leading;
-    const clientArguments = callSplit?.client ?? treeCandidate?.client ?? args;
+    // Nothing after a tree command is ours to read, including a --config it may declare.
+    const clientArguments = treeCandidate?.client ?? args;
     for (let index = 0; index < clientArguments.length; index++) {
       const argument = clientArguments[index] ?? "";
       if (argument === "--") break;
@@ -213,7 +208,7 @@ export async function runBdp(
     const tree = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile: selectedProfile,
-      ...(selectedProfile === "canonical" && leading === undefined && callSplit === undefined
+      ...(selectedProfile === "canonical" && leading === undefined
         ? {
             callableGroups: callableGroupSummaries(
               callableCommandTree(await callableCatalog.list(), builtIns),
@@ -329,13 +324,22 @@ export async function runBdp(
         }
       },
     });
-    // Under `--`, Commander leaves a Callable's arguments to its declaration.
+    // Under `--`, Commander leaves a tree command's flags to its declaration, and `call NAME
+    // --help` to the declaration's help rather than the verb's.
+    const callHelp =
+      selectedProfile === "canonical" &&
+      leading?.words[0] === "call" &&
+      leading.words[1] !== undefined &&
+      !leading.words[1].startsWith("-") &&
+      leading.words.slice(2).some((word) => HELP.has(word));
     await tree.parseAsync(
       callableInvocation !== undefined
         ? [...callableInvocation]
-        : callSplit === undefined || selectedProfile !== "canonical"
-          ? [...args]
-          : ["call", ...callSplit.client, "--", ...callSplit.operands],
+        : callHelp
+          ? ["call", ...(leading?.client ?? []), "--", leading?.words[1] ?? "", "--help"]
+          : selectedProfile === "canonical" && leading?.words[0] === "call"
+            ? ["call", ...leading.client, ...leading.words.slice(1)]
+            : [...args],
       { from: "user" },
     );
     return status;

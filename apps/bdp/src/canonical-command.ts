@@ -46,35 +46,9 @@ const repeated = new Set([
   "omit",
 ]);
 
-/** `bdp [client options] call NAME [callable arguments]`: everything after NAME is the
- * Callable's own, even a spelling a client option also uses. Returns the options before NAME and
- * the operands from NAME on, or undefined when the first command word is not `call`. */
-export function splitCallArguments(
-  args: readonly string[],
-  arities: ReadonlyMap<string, boolean>,
-): { readonly client: readonly string[]; readonly operands: readonly string[] } | undefined {
-  const client: string[] = [];
-  let verb = false;
-  for (let index = 0; index < args.length; index++) {
-    const argument = args[index] ?? "";
-    if (argument === "--") return verb ? { client, operands: args.slice(index + 1) } : undefined;
-    if (argument.length > 1 && argument.startsWith("-")) {
-      client.push(argument);
-      const at = argument.indexOf("=");
-      if (at < 0 && arities.get(argument) === true && index + 1 < args.length)
-        client.push(args[++index] ?? "");
-      continue;
-    }
-    if (verb) return { client, operands: args.slice(index) };
-    if (argument !== "call") return undefined;
-    verb = true;
-  }
-  return verb ? { client, operands: [] } : undefined;
-}
-
 /** `bdp [client options] WORD ...`: the options before the first word and the words from it on,
  * or undefined when there is no word. Used to mount the Callable tree (§10), where everything
- * after the command is the Callable's own, as after `call NAME`. */
+ * after the command is the Callable's own. */
 export function splitLeadingWords(
   args: readonly string[],
   arities: ReadonlyMap<string, boolean>,
@@ -613,8 +587,10 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   });
 
   const call = add(root, "call", "Invoke a named Callable.", "Callable Commands", ["[name]"])
-    .usage("[client options] [NAME] [callable arguments]")
-    .allowExcessArguments(true);
+    .usage("[NAME] [--arguments JSON] [client options]")
+    .allowExcessArguments(true)
+    .allowUnknownOption(true);
+  flag(call, ["--arguments <json>", "The Callable's arguments, as one JSON object."]);
   flag(call, ["--idempotency-key <key>", "Use this exact key on a CallableBatch."]);
   flag(call, ["--revision-provenance <json>", "Supply admitted per-version provenance input."]);
   flag(call, ["--actor <actor>", "Supply caller actor input; never authentication or authority."]);

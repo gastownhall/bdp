@@ -874,7 +874,12 @@ async function runCase(context, kase, label, seedChannels) {
     const result = await bdp([...json, ...args]);
     return [channel, clientAnswer(result), posts[seen]];
   };
-  const viaCall = await attempt("call", ["call", kase.name, ...part("call").cli]);
+  const viaCall = await attempt("call", [
+    "call",
+    kase.name,
+    "--arguments",
+    JSON.stringify(part("call").wire),
+  ]);
   const viaTree = await attempt("tree", [...words, ...part("tree").cli]);
   const viaCurl = await curlCall(scope, kase.name, part("curl").wire);
   const problems = judge(viaCurl, [viaCall, viaTree], part("call").wire, posts, kase.exit);
@@ -972,19 +977,43 @@ async function fileAnnotations(context, stack) {
 
 async function actorBehavior(context) {
   const form = ["issue", "create", "Fix login", "-p", "1", "-t", "task"];
+  const wire = { title: "Fix login", priority: 1, issue_type: "task", actor: "sam" };
   return {
     without_actor: await human(context, form),
     with_actor_after: await human(context, [...form, "--actor", "sam"]),
-    with_actor_before: await human(context, ["--actor", "sam", ...form]),
-    with_both_differing: await human(context, ["--actor", "kim", ...form, "--actor", "sam"]),
-    with_both_same: await human(context, ["--actor", "sam", ...form, "--actor", "sam"]),
-    comment_author_from_client_actor: await human(context, [
+    with_actor_before_refused: await human(context, ["--actor", "sam", ...form]),
+    call_with_argument_and_attribution: await human(context, [
+      "call",
+      "issue/create",
+      "--arguments",
+      JSON.stringify(wire),
       "--actor",
       "sam",
+    ]),
+    call_with_differing_attribution: await human(context, [
+      "call",
+      "issue/create",
+      "--arguments",
+      JSON.stringify(wire),
+      "--actor",
+      "kim",
+    ]),
+    call_with_flags_refused: await human(context, ["call", "issue/create", "--title", "Fix login"]),
+    comment_author_from_call_attribution: await human(context, [
+      "call",
+      "issue/comment",
+      "--arguments",
+      JSON.stringify({ id: R(7), text: "author from the actor" }),
+      "--actor",
+      "sam",
+    ]),
+    comment_author_flag: await human(context, [
       "issue",
       "comment",
       R(7),
-      "author from the actor",
+      "author from the flag",
+      "--author",
+      "sam",
     ]),
     comment_with_no_author_or_actor: await human(context, ["issue", "comment", R(7), "nobody"]),
   };
@@ -1154,8 +1183,12 @@ async function tokenMode(context, stack) {
       }),
       await row("token: scope inspect", ["scope", "inspect"], { env }),
       await row("token: issue stats", ["issue", "stats"], { env }),
-      await row("token: call issue/show", ["call", "issue/show", R(1)], { env }),
-      await row("token: issue comment", ["--actor", "sam", "issue", "comment", R(7), "token"], {
+      await row(
+        "token: call issue/show",
+        ["call", "issue/show", "--arguments", JSON.stringify({ id: R(1) })],
+        { env },
+      ),
+      await row("token: issue comment", ["issue", "comment", R(7), "token", "--author", "sam"], {
         env,
       }),
       await row("token: list", ["list", "--limit", "2"], { env }),
