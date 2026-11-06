@@ -42,7 +42,7 @@ test("the call section matches Callables §10's form and keeps its mismatch row 
     markdown.indexOf("### Deferred command surfaces"),
   );
   for (const form of [
-    "bd [CLIENT-OPTIONS] call NAME [CALLABLE-ARGUMENTS]",
+    "bd call NAME [--arguments JSON] [CLIENT-OPTIONS]",
     "`--kebab-name`",
     "`--flag` and `--no-flag`",
     "The flag repeats",

@@ -408,7 +408,9 @@ describe("the 45 Issue declarations", () => {
           const tokens = declaration.parameters.flatMap((parameter) => sample(parameter).tokens);
           posts.length = 0;
           const viaTree = await bdp(["--scope", scope, ...declaration.name.split("/"), ...tokens]);
-          const sent = JSON.stringify((posts[0]?.body as { arguments: unknown }).arguments);
+          const sent = JSON.stringify(
+            (posts[0]?.body as { arguments: unknown } | undefined)?.arguments,
+          );
           const viaCall = await bdp([
             "--scope",
             scope,
