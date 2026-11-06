@@ -171,6 +171,83 @@ function versionsDocument(value: unknown, scope?: string, long = false): string 
 
 /** Finite serialization completes before stdout is touched. JSONL never puts
  * success in the header; a compound mutation remains a single item. */
+const CELL_WIDTH = 48;
+
+/** A result's text reaches the terminal without controls, whatever the service sent. */
+function terminalText(text: string): string {
+  return Array.from(text, (character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return character === "\n" || (code >= 32 && code < 127) || code > 159 ? character : " ";
+  }).join("");
+}
+const isTabular = (value: unknown): value is readonly ObjectValue[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((item) => item !== null && typeof item === "object" && !Array.isArray(item));
+const isEmptyValue = (value: unknown): boolean =>
+  value === null ||
+  value === undefined ||
+  value === "" ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === "object" && value !== null && Object.keys(value).length === 0);
+const plain = (value: unknown): string =>
+  terminalText(typeof value === "string" ? value : JSON.stringify(value));
+
+/** Rows of one record kind. A column empty in every row says nothing and is left out. */
+function callableTable(rows: readonly ObjectValue[], cut: { shortened: boolean }): string[] {
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((column) =>
+    rows.some((row) => !isEmptyValue(row[column])),
+  );
+  const cell = (value: unknown): string => {
+    const text = isEmptyValue(value) ? "" : plain(value).replace(/\s+/g, " ");
+    if (text.length <= CELL_WIDTH) return text;
+    cut.shortened = true;
+    return `${text.slice(0, CELL_WIDTH - 1)}…`;
+  };
+  const cells = rows.map((row) => columns.map((column) => cell(row[column])));
+  const widths = columns.map((column, index) =>
+    Math.max(terminalText(column).length, ...cells.map((row) => (row[index] ?? "").length)),
+  );
+  const line = (row: readonly string[]): string =>
+    row
+      .map((text, index) => text.padEnd(widths[index] ?? 0))
+      .join("  ")
+      .trimEnd();
+  return [line(columns.map(terminalText)), ...cells.map(line)];
+}
+function callableLines(value: unknown, cut: { shortened: boolean }): string[] {
+  if (isTabular(value)) return callableTable(value, cut);
+  if (Array.isArray(value))
+    return value.length === 0 ? ["(none)"] : value.map((item) => plain(item));
+  if (value === null || typeof value !== "object") return plain(value).split("\n");
+  const members = Object.entries(value);
+  if (members.length === 0) return ["(empty)"];
+  return members.flatMap(([key, member]) => {
+    const name = terminalText(key);
+    if (isTabular(member)) return ["", `${name}:`, ...callableTable(member, cut), ""];
+    if (Array.isArray(member))
+      return [`${name}: ${member.length === 0 ? "(none)" : member.map(plain).join(", ")}`];
+    if (member !== null && typeof member === "object" && Object.keys(member).length > 0)
+      return [`${name}:`, ...callableLines(member, cut).map((text) => `  ${text}`)];
+    const [first, ...others] = plain(member).split("\n");
+    return [`${name}: ${first}`, ...others.map((text) => `  ${text}`)];
+  });
+}
+
+/** The one human form of every Callable result: boring, generic, with no per-package view. */
+function callableResultText(data: ObjectValue): string {
+  const cut = { shortened: false };
+  const lines = [
+    ...(typeof data.changed === "boolean" ? [`changed: ${data.changed}`] : []),
+    ...callableLines(data.result, cut),
+  ];
+  while (lines[0] === "") lines.shift();
+  while (lines.at(-1) === "") lines.pop();
+  if (cut.shortened)
+    lines.push("", "(long values shortened; --output-mode json carries them whole)");
+  return `${lines.join("\n")}\n`;
+}
+
 export function renderCanonicalOutput(
   output: CanonicalOutput,
   options: Readonly<Record<string, unknown>>,
@@ -236,6 +313,8 @@ export function renderCanonicalOutput(
     const width = Math.max(0, ...rows.map((row) => String(row.name).length));
     return rows.map((row) => `${String(row.name).padEnd(width)}  ${String(row.kind)}\n`).join("");
   }
+  if (output.result_kind === "callable_result" && format === "default")
+    return callableResultText(record(output.data));
   if (output.result_kind === "mutation") {
     const data = record(output.data);
     const result = data.result === undefined ? data : record(data.result);

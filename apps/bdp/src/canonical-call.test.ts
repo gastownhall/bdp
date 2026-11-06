@@ -306,8 +306,12 @@ describe("the §10 flag derivation", () => {
   });
 
   it("points client options after NAME back before it", () => {
-    usage(reserveRoom, ["cedar", "--actor", "sam"], /client option; put --actor before NAME/);
-    usage(reserveRoom, ["--scope", "x"], /client option; put --scope before NAME/);
+    usage(
+      reserveRoom,
+      ["cedar", "--actor", "sam"],
+      /client option; put --actor before the command/,
+    );
+    usage(reserveRoom, ["--scope", "x"], /client option; put --scope before the command/);
   });
 
   it("names every client flag a call accepts, so the hint cannot drift from the tree", () => {
@@ -337,22 +341,18 @@ describe("the §10 flag derivation", () => {
         { name: "aB", schema: { type: "string" } },
       ],
     };
-    expect([...callableFlagCollisions(clash)].sort()).toEqual([
-      "--a-b",
-      "--arguments",
-      "--help",
-      "--no-pinned",
-    ]);
-    // A parameter's own positive spelling beats another's negation; a tie is unusable.
+    expect([...callableFlagCollisions(clash)].sort()).toEqual(["--a-b", "--arguments", "--help"]);
+    // §10: `no_pinned` keeps `--no-pinned`, and `pinned` then has no derived negation.
     expect(argumentsOf(clash, ["--no-pinned"])).toEqual({ no_pinned: true });
+    expect(argumentsOf(clash, ["--pinned"])).toEqual({ pinned: true });
     usage(clash, ["--a-b", "x"], /more than one parameter/);
   });
 
-  it("pins the one collision the Issue document's declarations contain", async () => {
+  it("finds no flag collision in the Issue document's declarations", async () => {
     const collisions = (await issueCallableCatalog().list()).flatMap((declaration) =>
       callableFlagCollisions(declaration).map((flag) => `${declaration.name} ${flag}`),
     );
-    expect(collisions).toEqual(["issue/list --no-pinned"]);
+    expect(collisions).toEqual([]);
   });
 
   it("derives a usable form for every parameter of every Issue declaration", async () => {
@@ -408,9 +408,7 @@ describe("bdp call against a stub server", () => {
         ]);
         expect(posts[0]?.headers["content-type"]).toBe(media);
         expect(posts[0]?.headers).not.toHaveProperty("idempotency-key");
-        expect(JSON.parse(stdout.slice(0, stdout.indexOf("\n}\n") + 2))).toEqual({
-          result: { items: [], has_more: false },
-        });
+        expect(stdout).toBe("items: (none)\nhas_more: false\n".repeat(2));
         expect(stderr).toBe("");
       },
     );

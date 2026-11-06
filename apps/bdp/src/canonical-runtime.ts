@@ -12,6 +12,7 @@ import {
   type PreparedRetainedWrite,
   RetainedClient,
   RetainedClientError,
+  type RetainedHttpContext,
   type RetainedPageValue,
   type RetainedReply,
   RetainedTransportError,
@@ -33,6 +34,8 @@ import {
 import {
   CallableUsageError,
   callableCatalogItem,
+  completeCallableArguments,
+  type ParsedCallableArguments,
   parseCallableArguments,
   renderCallableHelp,
 } from "./canonical-call.js";
@@ -162,6 +165,39 @@ function integer(value: unknown, fallback: number, minimum: number): number {
     return refuse("invalid_value", 2, "paging values must be canonical bounded integers");
   return Number(value);
 }
+const answered = (http: RetainedHttpContext): string =>
+  `${http.url} answered HTTP ${http.status}${http.contentType ? ` (${http.contentType})` : ""}`;
+const TRANSPORT_FAILURES: Readonly<Record<string, string>> = Object.freeze({
+  network: "could not connect, or the connection was lost",
+  timeout: "the request timed out",
+  aborted: "the request was interrupted",
+  redirect: "the service answered with a redirect, which this client does not follow",
+  "invalid-response": "the response could not be read",
+  "response-too-large": "the response exceeded this client's limit",
+  "invalid-input": "the request could not be formed",
+});
+/** What happened, for a failure with no Problem to show. Never a response body. */
+function callFailure(
+  error: RetainedClientError | RetainedTransportError,
+  phase: "discovery" | "invocation",
+  scope: string,
+): string {
+  if (error instanceof RetainedClientError && error.code === "unsupported-feature")
+    return error.detail ?? "the Scope does not advertise what this invocation requires";
+  if (error instanceof RetainedClientError && error.code === "invalid-input")
+    return "the client refused this invocation's input before sending it";
+  const stage = phase === "discovery" ? `BDP discovery of ${scope} failed` : "Invocation failed";
+  if (error instanceof RetainedTransportError) {
+    if (error.code === "invalid-response" && error.httpStatus !== undefined)
+      return `${stage}: the service answered HTTP ${error.httpStatus}${
+        error.contentType ? ` (${error.contentType})` : ""
+      }, which is not a BDP response`;
+    return `${stage}: ${TRANSPORT_FAILURES[error.code] ?? error.code}`;
+  }
+  return [stage, error.http && answered(error.http), error.detail ?? "not a usable BDP response"]
+    .filter((part) => part)
+    .join(": ");
+}
 function problemExit(problem: RetainedJsonObject): number {
   const code = problem.code;
   if (
@@ -243,6 +279,8 @@ export async function runCanonicalInvocation(
     readonly signal?: AbortSignal;
   },
   callables?: CallableCatalog,
+  /** The words that reached a Callable through the command tree, for its help. */
+  callableCommand?: readonly string[],
 ): Promise<number> {
   const options = invocation.options;
   const command = [...invocation.command];
@@ -257,6 +295,7 @@ export async function runCanonicalInvocation(
   // The Callable being invoked and the key sent, once they are known.
   let callable: CallableDeclaration | undefined;
   let callableKey: string | undefined;
+  let callPhase: "discovery" | "invocation" = "invocation";
   let specification: string | null = null;
   let descriptor = isCall
     ? "callable_result"
@@ -308,6 +347,7 @@ export async function runCanonicalInvocation(
     )
       return refuse("invalid_arguments", 2, "output mode conflicts with output format");
     let callableArguments: Readonly<Record<string, AdmittedJsonValue>> = {};
+    let parsedCall: Extract<ParsedCallableArguments, { help: false }> | undefined;
     if (isCall) {
       if (callables === undefined)
         return refuse("unsupported_capability", 5, "no Callable catalog is configured");
@@ -328,10 +368,10 @@ export async function runCanonicalInvocation(
         refuse("invalid_arguments", 2, "unknown Callable; run bdp call to list the names");
       const parsed = parseCallableArguments(callable, invocation.positionals.slice(1));
       if (parsed.help) {
-        await io.stdout(renderCallableHelp(callable), io.signal);
+        await io.stdout(renderCallableHelp(callable, callableCommand), io.signal);
         return 0;
       }
-      callableArguments = parsed.arguments;
+      parsedCall = parsed;
       if (
         callable.type === CALLABLE_QUERY_TYPE &&
         ["actor", "revisionProvenance", "idempotencyKey"].some((key) =>
@@ -397,6 +437,10 @@ export async function runCanonicalInvocation(
     const historicalSource = stringOption(options, "fromRevision");
     if (historicalSource !== undefined) parseHistoricalSourceSelector(historicalSource);
     const reader = canonicalInputReader(io.signal);
+    if (callable !== undefined && parsedCall !== undefined)
+      callableArguments = await completeCallableArguments(callable, parsedCall, (path) =>
+        path === "-" ? reader.readStdin(MAX_INPUT_BYTES) : reader.readFile(path, MAX_INPUT_BYTES),
+      );
     const dryRun = stringOption(options, "dryRunMode");
     if (dryRun !== undefined && !mutation)
       return refuse("invalid_arguments", 2, "emission requires a mutation");
@@ -566,7 +610,9 @@ export async function runCanonicalInvocation(
             actor,
           )
         : undefined;
+      callPhase = "discovery";
       const binding = consume(await client.bindCallables(scope, call));
+      callPhase = "invocation";
       const prepared = binding.prepare({
         declaration: callable,
         arguments: callableArguments,
@@ -1004,9 +1050,10 @@ export async function runCanonicalInvocation(
   } catch (error) {
     let status = 1,
       code = "invalid_value",
-      message = "command failed",
+      message = `unexpected client failure (${error instanceof Error ? error.name : typeof error})`,
       unknown = submitted && known === undefined;
     let nativeProblem: RetainedJsonObject | undefined;
+    let cause: string | undefined;
     if (error instanceof CliError) {
       status = error.status;
       code = error.code;
@@ -1035,12 +1082,23 @@ export async function runCanonicalInvocation(
         ? "write_outcome_unknown"
         : error.code === "unsupported-feature"
           ? "unsupported_capability"
-          : "invalid_value";
+          : isCall
+            ? "delivery_failed"
+            : "invalid_value";
+      if (isCall) cause = callFailure(error, callPhase, scope);
       message = unknown
         ? "Write disposition is unknown; recover the saved invocation with the same key"
-        : isCall && error.code === "unsupported-feature"
-          ? "the Scope does not advertise what this invocation requires"
-          : "BDP delivery failed";
+        : (cause ?? "BDP delivery failed");
+    } else if (
+      typeof error === "object" &&
+      error !== null &&
+      "kind" in error &&
+      error.kind === "http"
+    ) {
+      const { http } = error as unknown as { http: RetainedHttpContext };
+      cause = `${answered(http)} with no Problem body`;
+      if (isCall) code = "delivery_failed";
+      message = cause;
     } else if (
       typeof error === "object" &&
       error !== null &&
@@ -1068,7 +1126,7 @@ export async function runCanonicalInvocation(
     if (unknown && nativeProblem === undefined) {
       code = "write_outcome_unknown";
       message = isCall
-        ? "Callable outcome is unknown; read before repeating, or repeat with the same key"
+        ? `${cause === undefined ? "" : `${cause}; `}the Callable's outcome is unknown; read before repeating, or repeat with the same key`
         : "Write disposition is unknown; recover the saved invocation with the same key";
     }
     if (io.signal?.aborted && !(error instanceof CanonicalOutputError)) {

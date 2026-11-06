@@ -82,4 +82,99 @@ describe("canonical delivery framing and human References", () => {
     expect(records[1]).toEqual({ record_type: "item", data });
     expect(records[2]).toEqual({ record_type: "terminal", outcome: "success" });
   });
+
+  const callable = (data: unknown): CanonicalOutput => ({
+    schema_version: 2,
+    bdp_spec: "selected",
+    result_kind: "callable_result",
+    outcome: "success",
+    data,
+  });
+  const human = (data: unknown) => renderCanonicalOutput(callable(data), {});
+
+  it("prints a Callable's rows as a table, with no per-package presentation", () => {
+    expect(
+      human({
+        result: {
+          items: [
+            { id: "bd-1", title: "Fix login", priority: 1, assignee: null, labels: ["a", "b"] },
+            { id: "bd-20", title: "Ship", priority: 0, assignee: null, labels: [] },
+          ],
+          has_more: false,
+        },
+      }),
+    ).toBe(
+      [
+        "items:",
+        "id     title      priority  labels",
+        'bd-1   Fix login  1         ["a","b"]',
+        "bd-20  Ship       0",
+        "",
+        "has_more: false",
+        "",
+      ].join("\n"),
+    );
+    expect(human({ result: [{ a: 1 }, { b: 2 }] })).toBe("a  b\n1\n   2\n");
+    expect(human({ result: { items: [], has_more: false } })).toBe(
+      "items: (none)\nhas_more: false\n",
+    );
+  });
+
+  it("prints a Callable's record as key and value, whole, and a scalar as itself", () => {
+    expect(
+      human({
+        result: {
+          id: "bd-1",
+          description: "line one\nline two",
+          labels: ["a", "b"],
+          dependency_count: 0,
+          closed_at: null,
+          nested: { deep: true },
+        },
+      }),
+    ).toBe(
+      "id: bd-1\ndescription: line one\n  line two\nlabels: a, b\ndependency_count: 0\nclosed_at: null\nnested:\n  deep: true\n",
+    );
+    expect(human({ result: 3 })).toBe("3\n");
+    expect(human({ result: "plain" })).toBe("plain\n");
+    expect(human({ result: null })).toBe("null\n");
+    expect(human({ result: {} })).toBe("(empty)\n");
+    expect(human({ result: [] })).toBe("(none)\n");
+    expect(human({ result: ["a", 1] })).toBe("a\n1\n");
+  });
+
+  it("says whether a batch changed anything", () => {
+    expect(human({ changed: true, result: { id: "bd-1" } })).toBe("changed: true\nid: bd-1\n");
+    expect(human({ changed: false, result: null })).toBe("changed: false\nnull\n");
+  });
+
+  it("says when a table cell was shortened, and JSON keeps it whole", () => {
+    const long = "x".repeat(200);
+    const rows = { result: [{ id: "a", text: long }] };
+    const text = human(rows);
+    expect(text).not.toContain(long);
+    expect(text).toContain(`${"x".repeat(47)}…`);
+    expect(text).toContain("--output-mode json carries them whole");
+    expect(renderCanonicalOutput(callable(rows), { outputMode: "json" })).toContain(long);
+  });
+
+  it("keeps a service's control characters from the terminal", () => {
+    const text = human({ result: { "k\u001b[2J": "v\u001b[31m", rows: [{ a: "\u0007b\nc" }] } });
+    const controls = Array.from(text).filter((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return character !== "\n" && (code < 32 || (code >= 127 && code <= 159));
+    });
+    expect(controls).toEqual([]);
+    expect(text).toContain(" b c");
+  });
+
+  it("keeps detail as the whole value and JSON as the envelope", () => {
+    const data = { result: { a: [1] }, changed: true };
+    expect(renderCanonicalOutput(callable(data), { outputFormat: "detail" })).toBe(
+      `${JSON.stringify(data, null, 2)}\n`,
+    );
+    expect(JSON.parse(renderCanonicalOutput(callable(data), { outputMode: "json" }))).toEqual(
+      callable(data),
+    );
+  });
 });

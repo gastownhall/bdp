@@ -89,6 +89,8 @@ interface FlagBinding {
   readonly parameter: CallableParameter;
   readonly form: ValueForm;
   readonly negated: boolean;
+  /** A `cliMapping.fromFile` spelling: its value is a path, and `-` means stdin. */
+  readonly file: boolean;
 }
 interface FlagTable {
   /** undefined marks a spelling two parameters share: no use of it can be honest. */
@@ -110,18 +112,24 @@ function flagTable(declaration: CallableDeclaration): FlagTable {
     parameter,
     form: valueForm(parameter),
     negated: false,
+    file: false,
   }));
   for (const binding of bindings) claim(parameterFlag(binding.parameter.name), binding);
   for (const mapping of declaration.cliMapping?.flags ?? []) {
     const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
     if (binding !== undefined) for (const name of mapping.names) claim(name, binding);
   }
-  // A parameter's own spelling beats another's negation: `no_pinned` keeps `--no-pinned`.
+  for (const mapping of declaration.cliMapping?.fromFile ?? []) {
+    const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
+    if (binding !== undefined)
+      for (const name of mapping.names) claim(name, { ...binding, file: true });
+  }
+  // §10: a parameter declared with the flag `--no-x` keeps it, and `x` then has no derived one.
   for (const binding of bindings)
     if (binding.form.kind === "boolean") {
       const spelling = `--no-${parameterFlag(binding.parameter.name).slice(2)}`;
-      if (flags.has(spelling) || RESERVED_FLAGS.has(spelling)) collisions.add(spelling);
-      else flags.set(spelling, { ...binding, negated: true });
+      if (!flags.has(spelling) && !RESERVED_FLAGS.has(spelling))
+        flags.set(spelling, { ...binding, negated: true });
     }
   return { flags, collisions };
 }
@@ -143,12 +151,23 @@ function jsonValue(text: string): AdmittedJsonValue | undefined {
   }
 }
 
+/** A `cliMapping.fromFile` flag whose content is that parameter's flag value (§10). */
+export interface CallableFileInput {
+  readonly spelling: string;
+  readonly parameter: CallableParameter;
+  readonly path: string;
+}
 export type ParsedCallableArguments =
   | { readonly help: true }
-  | { readonly help: false; readonly arguments: Readonly<Record<string, AdmittedJsonValue>> };
+  | {
+      readonly help: false;
+      readonly arguments: Readonly<Record<string, AdmittedJsonValue>>;
+      readonly files: readonly CallableFileInput[];
+    };
 
 /** One Callable's arguments from the tokens after NAME. Offline and without a schema check:
- * §4 makes checking the service's job. Omission stays omission; no default is substituted. */
+ * §4 makes checking the service's job. Omission stays omission here; files and
+ * `cliMapping.defaults` are applied by completeCallableArguments. */
 export function parseCallableArguments(
   declaration: CallableDeclaration,
   tokens: readonly string[],
@@ -156,6 +175,7 @@ export function parseCallableArguments(
   const { flags } = flagTable(declaration);
   const supplied = new Map<string, AdmittedJsonValue>();
   const operands: string[] = [];
+  const files: CallableFileInput[] = [];
   let whole: Record<string, AdmittedJsonValue> | undefined;
   const convert = (text: string, item: ItemForm, label: string): AdmittedJsonValue => {
     if (item === "text") return text;
@@ -166,7 +186,8 @@ export function parseCallableArguments(
     const held = supplied.get(name);
     if (form.kind === "array")
       supplied.set(name, [...((held as AdmittedJsonValue[] | undefined) ?? []), value]);
-    else if (supplied.has(name)) refuse(`${parameterFlag(name)} may be given only once`);
+    else if (supplied.has(name) || files.some(({ parameter }) => parameter.name === name))
+      refuse(`${parameterFlag(name)} may be given only once`);
     else supplied.set(name, value);
   };
   for (let index = 0; index < tokens.length; index++) {
@@ -175,7 +196,7 @@ export function parseCallableArguments(
       operands.push(...tokens.slice(index + 1));
       break;
     }
-    if (token === "--help") return { help: true };
+    if (token === "--help" || (token === "-h" && !flags.has("-h"))) return { help: true };
     if (!token.startsWith("-") || token === "-" || /^-[0-9.]/.test(token)) {
       operands.push(token);
       continue;
@@ -200,12 +221,22 @@ export function parseCallableArguments(
       continue;
     }
     if (CLIENT_FLAGS.has(spelling) && !flags.has(spelling))
-      return refuse(`that flag is a client option; put ${spelling} before NAME`);
-    if (!flags.has(spelling)) return refuse("a flag is not a parameter of this Callable");
+      return refuse(`that flag is a client option; put ${spelling} before the command`);
+    if (!flags.has(spelling))
+      return refuse("a flag is not a parameter of this Callable; use --help for its form");
     const binding = flags.get(spelling);
     if (binding === undefined)
       return refuse(`${spelling} belongs to more than one parameter; use --arguments`);
-    if (binding.form.kind === "boolean") {
+    if (binding.file) {
+      const path = nextValue();
+      if (path === "") refuse(`${spelling} requires a path`);
+      if (path === "-" && files.some((file) => file.path === "-"))
+        refuse("only one flag may read stdin");
+      const held = binding.form.kind !== "array" && supplied.has(binding.parameter.name);
+      if (held || (binding.form.kind !== "array" && files.some(sameParameter(binding))))
+        refuse(`${parameterFlag(binding.parameter.name)} may be given only once`);
+      files.push({ spelling, parameter: binding.parameter, path });
+    } else if (binding.form.kind === "boolean") {
       if (inline !== undefined) refuse(`${spelling} takes no value`);
       bind(binding.parameter, binding.form, !binding.negated);
     } else bind(binding.parameter, binding.form, convert(nextValue(), binding.form.item, spelling));
@@ -230,7 +261,51 @@ export function parseCallableArguments(
   return {
     help: false,
     arguments: Object.fromEntries([...Object.entries(whole ?? {}), ...supplied]),
+    files,
   };
+}
+
+const sameParameter =
+  ({ parameter }: FlagBinding) =>
+  (file: CallableFileInput): boolean =>
+    file.parameter.name === parameter.name;
+
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+/** The invocation's final arguments: each `fromFile` content is treated as that parameter's flag
+ * value, then `cliMapping.defaults` fills what is still not supplied. A supplied `null` counts. */
+export async function completeCallableArguments(
+  declaration: CallableDeclaration,
+  parsed: Extract<ParsedCallableArguments, { help: false }>,
+  read: (path: string) => Promise<Uint8Array>,
+): Promise<Readonly<Record<string, AdmittedJsonValue>>> {
+  const complete: Record<string, AdmittedJsonValue> = { ...parsed.arguments };
+  for (const { spelling, parameter, path } of parsed.files) {
+    let bytes: Uint8Array;
+    try {
+      bytes = await read(path);
+    } catch (error) {
+      const reason = (error as NodeJS.ErrnoException).code ?? "not readable";
+      return refuse(`${spelling} could not read its input (${reason})`);
+    }
+    let text: string;
+    try {
+      text = utf8.decode(bytes);
+    } catch {
+      return refuse(`${spelling} requires UTF-8 text`);
+    }
+    const form = valueForm(parameter);
+    const item = form.kind === "boolean" ? "json" : form.item;
+    const value: AdmittedJsonValue =
+      item === "text" ? text : (jsonValue(text) ?? refuse(`${spelling} requires a JSON value`));
+    complete[parameter.name] =
+      form.kind === "array"
+        ? [...((complete[parameter.name] as AdmittedJsonValue[] | undefined) ?? []), value]
+        : value;
+  }
+  for (const [name, value] of Object.entries(declaration.cliMapping?.defaults ?? {}))
+    if (!Object.hasOwn(complete, name)) complete[name] = value;
+  return complete;
 }
 
 export function callableKind({ type }: CallableDeclaration): "query" | "batch" {
@@ -269,12 +344,40 @@ function errorLines(schema: CallableValueSchema): readonly string[] {
     });
     return lines;
   }
+  const fixed = Array.isArray(node?.allOf)
+    ? node.allOf.flatMap((branch) =>
+        Object.entries(asObject(dereference(branch, schema)?.properties) ?? {}).flatMap(
+          ([member, value]) => {
+            const held = asObject(value);
+            return Array.isArray(held?.enum)
+              ? [`${member}: ${held.enum.map((item) => String(item)).join(", ")}`]
+              : [];
+          },
+        ),
+      )
+    : [];
+  if (fixed.length > 0)
+    return [...(typeof node?.description === "string" ? [node.description] : []), ...fixed];
   const { $defs: _defs, ...shown } = (asObject(schema) ?? { schema }) as Record<string, unknown>;
   return [JSON.stringify(shown)];
 }
 
-/** §10: title, description, the parameters and any declared errors, without invoking. */
-export function renderCallableHelp(declaration: CallableDeclaration): string {
+const positionalWords = (declaration: CallableDeclaration): string =>
+  [...(declaration.cliMapping?.positionals ?? [])]
+    .sort((left, right) => left.position - right.position)
+    .map(({ parameter }) => {
+      const word = parameterFlag(parameter).slice(2).toUpperCase();
+      const required = declaration.parameters.find(({ name }) => name === parameter)?.required;
+      return required ? `${word} ` : `[${word}] `;
+    })
+    .join("");
+
+/** §10: title, description, the parameters and any declared errors, without invoking.
+ * `command` is how the Callable was reached; it defaults to `call NAME`. */
+export function renderCallableHelp(
+  declaration: CallableDeclaration,
+  command: readonly string[] = ["call", declaration.name],
+): string {
   const { flags } = flagTable(declaration);
   const promises = [
     callableKind(declaration) === "query" ? "CallableQuery" : "CallableBatch",
@@ -287,15 +390,20 @@ export function renderCallableHelp(declaration: CallableDeclaration): string {
     "",
     declaration.description,
     "",
-    `Usage: bdp [client options] call ${declaration.name} [callable arguments]`,
+    `Usage: bdp [client options] ${command.join(" ")} ${positionalWords(declaration)}[callable arguments]`,
+    ...(command[0] === "call" ? [] : [`  Or:  bdp [client options] call ${declaration.name} ...`]),
     "",
   ];
   if (declaration.parameters.length > 0) lines.push("Parameters:");
   for (const parameter of declaration.parameters) {
     const form = valueForm(parameter);
     const spellings = [...flags].flatMap(([spelling, binding]) =>
-      binding?.parameter === parameter ? [spelling] : [],
+      binding?.parameter === parameter && !binding.file ? [spelling] : [],
     );
+    const fileSpellings = [...flags].flatMap(([spelling, binding]) =>
+      binding?.parameter === parameter && binding.file ? [spelling] : [],
+    );
+    const defaults = declaration.cliMapping?.defaults;
     const shown = spellings.length > 0 ? spellings.join(", ") : "(--arguments only)";
     const placeholder = form.kind === "boolean" ? "" : form.item === "text" ? " TEXT" : " JSON";
     const position = declaration.cliMapping?.positionals?.find(
@@ -308,8 +416,13 @@ export function renderCallableHelp(declaration: CallableDeclaration): string {
       ...(Object.hasOwn(parameter, "default")
         ? [`default ${JSON.stringify(parameter.default)}`]
         : []),
+      ...(defaults !== undefined && Object.hasOwn(defaults, parameter.name)
+        ? [`client sends ${JSON.stringify(defaults[parameter.name])} when not given`]
+        : []),
     ];
     lines.push(`  ${shown}${placeholder}${notes.length > 0 ? `  (${notes.join("; ")})` : ""}`);
+    if (fileSpellings.length > 0)
+      lines.push(`  ${fileSpellings.join(", ")} PATH  (the value read from a file; - is stdin)`);
     if (parameter.description !== undefined) lines.push(`      ${parameter.description}`);
   }
   lines.push(

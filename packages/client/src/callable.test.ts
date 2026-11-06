@@ -214,16 +214,18 @@ describe("invoking a Callable", () => {
     expect(keyed.posts).toEqual([]);
   });
 
-  it("refuses a Scope that does not advertise Callables1, and a batch without Write", async () => {
+  it("refuses a Scope that does not advertise Callables1, and says so", async () => {
     const absent = harness({ callables: false }, { status: 200, body: { result: null } });
     await expect(absent.client.bindCallables(scope)).rejects.toMatchObject({
       code: "unsupported-feature",
+      detail: expect.stringContaining("Callables1"),
     });
+  });
+
+  it("admits a batch on a Core Scope advertising Callables1: the capability is what counts", async () => {
     const core = harness({ profile: "core" }, { status: 200, body: { result: null } });
     const binding = await bind(core.client);
-    expect(() => binding.prepare({ declaration: batch, arguments: {} })).toThrow(
-      expect.objectContaining({ code: "unsupported-feature" }),
-    );
+    expect(binding.prepare({ declaration: batch, arguments: {} }).kind).toBe("batch");
     expect(binding.prepare({ declaration: query, arguments: {} }).kind).toBe("query");
   });
 

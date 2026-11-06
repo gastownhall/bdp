@@ -118,6 +118,8 @@ export class RetainedClientError extends Error {
     readonly code: "invalid-input" | "invalid-response" | "unsupported-feature",
     readonly submission: "not-submitted" | "unknown" = "not-submitted",
     readonly http?: RetainedHttpContext,
+    /** What was wrong, in words fit for a diagnostic. */
+    readonly detail?: string,
   ) {
     super(`retained client ${code} (${submission})`);
   }
@@ -159,15 +161,18 @@ export interface PreparedCallableInvocation {
  * IO, so a caller holds the exact key before anything is transmitted. */
 export class CallableBinding {
   readonly #scope: string;
-  readonly #write: boolean;
   /** Whether the Scope advertises Write's `idempotency` capability at version 1. */
   readonly idempotencyAdvertised: boolean;
 
   constructor(scope: string, discovery: RetainedDiscovery) {
     if (!advertises(discovery, CALLABLES_CAPABILITY))
-      throw new RetainedClientError("unsupported-feature");
+      throw new RetainedClientError(
+        "unsupported-feature",
+        "not-submitted",
+        undefined,
+        "the Scope does not advertise Callables1",
+      );
     this.#scope = scope;
-    this.#write = discovery.profile === "write";
     this.idempotencyAdvertised = advertises(discovery, IDEMPOTENCY_CAPABILITY);
     Object.freeze(this);
   }
@@ -177,10 +182,15 @@ export class CallableBinding {
     const query = declaration.type === CALLABLE_QUERY_TYPE;
     if (query && (revisionProvenance !== undefined || idempotencyKey !== undefined))
       throw new RetainedClientError("invalid-input");
-    if (!query && !this.#write) throw new RetainedClientError("unsupported-feature");
     if (idempotencyKey !== undefined) {
       if (!KEY.test(idempotencyKey)) throw new RetainedClientError("invalid-input");
-      if (!this.idempotencyAdvertised) throw new RetainedClientError("unsupported-feature");
+      if (!this.idempotencyAdvertised)
+        throw new RetainedClientError(
+          "unsupported-feature",
+          "not-submitted",
+          undefined,
+          "the Scope does not advertise idempotency, so a key cannot be honored",
+        );
     }
     let url: string;
     try {
@@ -210,6 +220,16 @@ const media = (value: string | null): string | undefined =>
 const invalid = (): never => {
   throw new RetainedClientError("invalid-response");
 };
+/** An answer that cannot be read as BDP, keeping which answer it was for the diagnostic. */
+const unusable = (response: RetainedHttpContext, detail?: string): never => {
+  throw new RetainedClientError("invalid-response", "not-submitted", context(response), detail);
+};
+const reasonOf = (cause: unknown): string | undefined =>
+  cause instanceof RetainedClientError
+    ? cause.detail
+    : cause instanceof Error
+      ? cause.message
+      : undefined;
 
 /** One generic retained client. This increment selects current full/properties
  * reads and singleton native Write; no CLI grammar, local store fallback,
@@ -262,7 +282,8 @@ export class RetainedClient {
       this.#check(signal);
       const fault = failure(landing);
       if (fault) return fault;
-      if (landing.kind !== "scope-probe" || ![200, 204].includes(landing.status)) return invalid();
+      if (landing.kind !== "scope-probe" || ![200, 204].includes(landing.status))
+        return unusable(landing, "the Scope landing must answer 200 or 204");
       return this.#discovery(description(landing), selected, signal);
     });
   }
@@ -345,8 +366,13 @@ export class RetainedClient {
           http: context(response),
           nativeBody: nativeBody(response),
         });
-      } catch {
-        throw new RetainedClientError("invalid-response", "unknown", context(response));
+      } catch (cause) {
+        throw new RetainedClientError(
+          "invalid-response",
+          "unknown",
+          context(response),
+          reasonOf(cause),
+        );
       }
     });
   }
@@ -860,8 +886,14 @@ export class RetainedClient {
     this.#check(signal);
     const fault = failure(response);
     if (fault) return fault;
-    const value = parseRetainedDiscovery(this.#document(response));
-    if (scope !== undefined && value.scope !== scope) return invalid();
+    let value: RetainedDiscovery;
+    try {
+      value = parseRetainedDiscovery(this.#document(response));
+    } catch (cause) {
+      return unusable(response, reasonOf(cause) ?? "its discovery document is not valid");
+    }
+    if (scope !== undefined && value.scope !== scope)
+      return unusable(response, "its discovery document names a different Scope");
     return Object.freeze({
       kind: "success",
       value,
@@ -880,7 +912,7 @@ export class RetainedClient {
       media(response.contentType) !== selectedMedia ||
       new TextEncoder().encode(response.bodyText).byteLength > this.#documentBytes
     )
-      return invalid();
+      return unusable(response, `expected a 200 ${selectedMedia} document`);
     return response.bodyText;
   }
   #check(signal: AbortSignal): void {
@@ -977,34 +1009,42 @@ function failure(
     typeof response.bodyText !== "string" ||
     media(response.contentType) !== "application/problem+json"
   )
-    return invalid();
+    return unusable(response, "a failure must carry a BDP Problem");
+  let problem: RetainedJsonObject;
+  try {
+    problem = parseProblem(response.bodyText, response.status);
+  } catch (cause) {
+    return unusable(response, `its Problem body is not a BDP Problem: ${reasonOf(cause)}`);
+  }
   return Object.freeze({
     kind: "problem",
-    problem: parseProblem(response.bodyText, response.status),
+    problem,
     http: context(response),
     nativeBody: nativeBody(response),
   });
 }
 function description(response: RetainedHttpContext): string {
+  const unadvertised = (): never =>
+    unusable(response, 'the Scope landing has no single usable Link rel="service-desc"');
   try {
     const targets = new Set<string>();
     for (const entry of parseLinkHeader(response.headers.link ?? "")) {
       const rels = entry.parameters.filter((p) => p.name === "rel");
       if (!rels.some((p) => p.value.split(/ +/).some((v) => v.toLowerCase() === "service-desc")))
         continue;
-      if (rels.length !== 1) return invalid();
+      if (rels.length !== 1) return unadvertised();
       const anchors = entry.parameters.filter((p) => p.name === "anchor");
       const types = entry.parameters.filter((p) => p.name === "type");
-      if (anchors.length > 1 || types.length > 1) return invalid();
+      if (anchors.length > 1 || types.length > 1) return unadvertised();
       if (anchors[0] !== undefined && new URL(anchors[0].value, response.url).href !== response.url)
         continue;
       if (types[0] !== undefined && media(types[0].value) !== RETAINED_V01_MEDIA_TYPE) continue;
       targets.add(parseCanonicalHttpUrl(new URL(entry.target, response.url).href));
     }
-    if (targets.size !== 1) return invalid();
+    if (targets.size !== 1) return unadvertised();
     return [...targets][0]!;
   } catch {
-    return invalid();
+    return unadvertised();
   }
 }
 
