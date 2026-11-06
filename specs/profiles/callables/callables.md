@@ -64,7 +64,7 @@ promise. Packages, the experimental grouping of definitions in
 | Capability identity | `https://github.com/gastownhall/bdp/capabilities/callables` |
 | Exact supported version | JSON member name `"1"`; **Callables1** means version 1 of this capability, as Types1 does for Types |
 | Version-1 detail | Closed empty object (`callablesCapabilityV1`) |
-| Base contract | BDP `"0.1"`; Core required; Write required for a CallableBatch |
+| Base contract | BDP `"0.1"`; Core required |
 | Media | `application/vnd.bdp.v0.1+json` for bodies and successful results; `application/problem+json` for problems |
 | Feature schema | `https://github.com/gastownhall/bdp/schemas/callables-v1.schema.json` |
 
@@ -72,11 +72,12 @@ A Scope advertises the capability under Core's `capabilities` map. Like the
 inventories at `<scope>/bdp/beads` and `<scope>/bdp/links`, invocation lives in a
 fixed namespace, `<scope>/bdp/call` (§3), so discovery names no URL. There is no
 `callables` profile literal, no new required discovery member and no change to
-Write's closed operation directory. A Core-only Scope MAY advertise Callables1 and
-offer CallableQuery operations. A CallableBatch requires Write, whose allocation,
-non-reuse and attribution rules govern its effects; under a Scope that also
-advertises Write's optional `idempotency` capability, the `Idempotency-Key` is
-required and replayed as §3 states. (**preview**)
+Write's closed operation directory. A Scope at either profile MAY advertise Callables1 and
+offer both kinds of operation. Write's allocation, non-reuse and attribution rules
+govern a CallableBatch's effects whether or not the Scope advertises the Write
+profile, so a service can expose named mutations without Write's generic verbs; under
+a Scope that also advertises Write's optional `idempotency` capability, the
+`Idempotency-Key` is required and replayed as §3 states. (**preview**)
 
 Advertisement states support, not authorization. A client that does not understand
 the capability ignores it and keeps using base behavior. (**preview**)
@@ -402,7 +403,7 @@ Success returns the closed `callableResult`, for example:
 | Member | Meaning |
 | --- | --- |
 | `result` | Any JSON value; the declaration's `resultSchema`, when there is one, says what to expect |
-| `changed` | CallableBatch only, required: `true` when the batch committed any durable effect, else `false`; it promises nothing about revisions, and an implementation may commit a durable effect that mints none |
+| `changed` | CallableBatch only, required: `false` promises the batch committed no durable effect; `true` means it may have, for an implementation that cannot always tell. It promises nothing about revisions, and an implementation may commit a durable effect that mints none |
 
 Under `idempotency`, a replay of a CallableBatch key returns the original
 `callableResult` under Write's rules, without running again and without
@@ -477,7 +478,7 @@ the two are designed together (§12). (**preview**)
 ## 8. Authorization
 
 A CallableQuery requires read authorization for the Scope under Core; a
-CallableBatch requires write authorization under Write. An implementation MAY
+CallableBatch requires write authorization as Write defines it. An implementation MAY
 require more and answers `forbidden`. An `exposes` Link, a readable declaration and
 a CLI projection grant nothing. Non-disclosure follows Core: an unauthorized
 caller receives the same `callable-not-found` for a Callable it may not see as for
@@ -617,9 +618,6 @@ Not selected in preview-1:
   collection-kind metadata.
 - A revision guard on an invocation. A general scrub of provenance, actor and
   `--if-revision` comes first, and `call` could use the same mechanism.
-- A service that exposes CallableBatch commands without Write's raw generic verbs,
-  a common pattern this edition does not yet allow. It is to be anticipated when
-  the requirement that a CallableBatch needs Write is revisited.
 
 ## 13. Schemas
 
@@ -728,7 +726,7 @@ Required order: ["result"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "changed" | boolean | no | — | "CallableBatch only, then required: true when the batch committed any durable effect, else false." |
+| "changed" | boolean | no | — | "CallableBatch only, then required: false promises the batch committed no durable effect; true means it may have." |
 | "result" | any | yes | — | "Any JSON value; the declaration's resultSchema, when there is one, says what to expect." |
 <!-- bdp-schema:end callableResult bundle=callables -->
 
@@ -833,7 +831,7 @@ to be added to the generator.
 | problem | `"callableProblem"` |
 | codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","revision-mismatch","identity-taken","incident-links-exist","idempotency-conflict","idempotency-in-progress","idempotency-expired","callable-not-found","callable-unavailable","callable-error"]` |
 | continuation | `"none"` |
-| optional | `"Callables1 capability; Write profile for a CallableBatch"` |
+| optional | `"Callables1 capability"` |
 
 | Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
 | --- | --- | --- | --- | --- | --- |

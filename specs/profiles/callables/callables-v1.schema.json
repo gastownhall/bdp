@@ -61,7 +61,7 @@
       "properties": {
         "changed": {
           "type": "boolean",
-          "description": "CallableBatch only, then required: true when the batch committed any durable effect, else false."
+          "description": "CallableBatch only, then required: false promises the batch committed no durable effect; true means it may have."
         },
         "result": {
           "description": "Any JSON value; the declaration's resultSchema, when there is one, says what to expect."
