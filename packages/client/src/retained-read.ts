@@ -61,6 +61,11 @@ export interface RetainedPointReadOptions extends RetainedTransportCallOptions {
   /** Already resolved by the sole CLI/domain resolver. No suffix parsing here. */
   readonly reference: Reference;
   readonly view?: "properties";
+  /** Core's optional `include=links` aggregate: a Bead with the first page of its Links. */
+  readonly includeLinks?: {
+    readonly direction?: "inbound" | "outbound" | "both";
+    readonly limit?: number;
+  };
   readonly expectedKind?: RetainedResourceKind;
   readonly scope?: string;
   readonly method?: "GET" | "HEAD";
@@ -70,7 +75,7 @@ export interface RetainedPointReadOptions extends RetainedTransportCallOptions {
   readonly followAlias?: true;
 }
 export type RetainedCollectionFilters = Readonly<
-  Partial<Record<"type" | "source" | "target" | "endpoint" | "selector", string>>
+  Partial<Record<"type" | "conformsTo" | "source" | "target" | "endpoint" | "selector", string>>
 >;
 export interface RetainedPageReadOptions extends RetainedTransportCallOptions {
   readonly url: string;
@@ -430,7 +435,7 @@ export class RetainedClient {
     const filters = { ...options.filters };
     for (const [name, value] of Object.entries(filters))
       if (
-        !["type", "source", "target", "endpoint", "selector"].includes(name) ||
+        !["type", "conformsTo", "source", "target", "endpoint", "selector"].includes(name) ||
         typeof value !== "string" ||
         (kind === "bead" && ["source", "target", "endpoint"].includes(name))
       )
@@ -442,7 +447,8 @@ export class RetainedClient {
       this.#check(active);
       const fault = failure(landing);
       if (fault) return fault;
-      if (landing.kind !== "scope-probe" || ![200, 204].includes(landing.status)) return invalid();
+      if (landing.kind !== "scope-probe" || ![200, 204].includes(landing.status))
+        return unusable(landing, "the Scope landing must answer 200 or 204");
       const discovery = await this.#discovery(description(landing), scope, active);
       if (discovery.kind !== "success") return discovery;
       const url = new URL(kind === "bead" ? "bdp/beads" : "bdp/links", scope);
@@ -499,7 +505,7 @@ export class RetainedClient {
     const url = new URL(bead);
     for (const [name, value] of Object.entries(options.filters ?? {})) {
       if (
-        !["type", "source", "target", "endpoint", "selector"].includes(name) ||
+        !["type", "conformsTo", "source", "target", "endpoint", "selector"].includes(name) ||
         typeof value !== "string"
       )
         throw new RetainedClientError("invalid-input");
@@ -547,15 +553,15 @@ export class RetainedClient {
         ? response.headers["bdp-resource-kind"] !== undefined
         : response.headers["bdp-resource-kind"] !== "bead")
     )
-      return invalid();
+      return unusable(response, "it is not the collection that was asked for");
     if (
       response.status === 304 &&
       controls.ifNoneMatch === undefined &&
       controls.ifModifiedSince === undefined
     )
-      return invalid();
+      return unusable(response, "a 304 answered an unconditional read");
     if (response.contentType !== null && media(response.contentType) !== RETAINED_V01_MEDIA_TYPE)
-      return invalid();
+      return unusable(response, `expected ${RETAINED_V01_MEDIA_TYPE}`);
     let page: RetainedCollection | undefined;
     if (method === "HEAD" || response.status === 304) {
       if (response.kind !== "empty") return invalid();
@@ -565,7 +571,7 @@ export class RetainedClient {
         page.items.some((item) => !(item.id as string).startsWith(scope)) ||
         (page.next !== null && !page.next.startsWith(scope))
       )
-        return invalid();
+        return unusable(response, "its page names something outside the Scope");
     }
     const owner = await this.#discovery(description(response), scope, active);
     if (owner.kind !== "success") return owner;
@@ -589,6 +595,7 @@ export class RetainedClient {
     const {
       reference,
       view,
+      includeLinks,
       expectedKind,
       scope,
       method = "GET",
@@ -609,6 +616,16 @@ export class RetainedClient {
     if (revision !== undefined && (typeof revision !== "string" || revision.length === 0))
       throw new RetainedClientError("invalid-input");
     if (
+      includeLinks !== undefined &&
+      (view !== undefined ||
+        revision !== undefined ||
+        (includeLinks.limit !== undefined &&
+          (!Number.isSafeInteger(includeLinks.limit) || includeLinks.limit < 1)) ||
+        (includeLinks.direction !== undefined &&
+          !["both", "inbound", "outbound"].includes(includeLinks.direction)))
+    )
+      throw new RetainedClientError("invalid-input");
+    if (
       resource.includes("?") ||
       (view !== undefined && view !== "properties") ||
       (expectedKind !== undefined && expectedKind !== "bead" && expectedKind !== "link") ||
@@ -623,6 +640,13 @@ export class RetainedClient {
       const target = new URL(resource);
       if (revision !== undefined) target.searchParams.set("revision", revision);
       if (view !== undefined) target.searchParams.set("view", view);
+      if (includeLinks !== undefined) {
+        target.searchParams.set("include", "links");
+        if (includeLinks.direction !== undefined)
+          target.searchParams.set("direction", includeLinks.direction);
+        if (includeLinks.limit !== undefined)
+          target.searchParams.set("limit", String(includeLinks.limit));
+      }
       return target.href;
     };
     const url = readUrl();
@@ -667,19 +691,21 @@ export class RetainedClient {
       this.#check(active);
       const refused = failure(response, method === "HEAD");
       if (refused) return refused;
-      if (response.status !== 200 && response.status !== 304) return invalid();
+      if (response.status !== 200 && response.status !== 304)
+        return unusable(response, "a read must answer 200 or 304");
       if (
         response.status === 304 &&
         controls.ifNoneMatch === undefined &&
         controls.ifModifiedSince === undefined
       )
-        return invalid();
+        return unusable(response, "a 304 answered an unconditional read");
       const kind = response.headers["bdp-resource-kind"];
-      if (
-        (kind !== "bead" && kind !== "link") ||
-        (expectedKind !== undefined && kind !== expectedKind)
-      )
-        return invalid();
+      if (kind !== "bead" && kind !== "link")
+        return unusable(response, "it has no usable BDP-Resource-Kind");
+      if (expectedKind !== undefined && kind !== expectedKind)
+        return unusable(response, `expected a ${expectedKind}, and it is a ${kind}`);
+      if (includeLinks !== undefined && kind !== "bead")
+        return unusable(response, "included Links are valid only for a Bead");
       let body: RetainedJsonObject | undefined;
       let originalBytes: Uint8Array | undefined;
       if (response.contentType !== null && media(response.contentType) !== RETAINED_V01_MEDIA_TYPE)
@@ -694,10 +720,10 @@ export class RetainedClient {
         if (
           view === undefined &&
           (body.id !== resource ||
-            body.links !== undefined ||
+            (includeLinks === undefined ? body.links !== undefined : body.links === undefined) ||
             (revision !== undefined && body.revision !== revision))
         )
-          return invalid();
+          return unusable(response, "its record does not match what was asked for");
       }
       const discovery = await this.#discovery(description(response), selectedScope, active);
       if (discovery.kind !== "success") return discovery;

@@ -15,6 +15,7 @@ import {
 import {
   BdpClient,
   BdpClientLocalError,
+  bdpClientFailureReason,
   type CallableCatalog,
   createFetchTransport,
 } from "@bdp/client";
@@ -482,8 +483,21 @@ async function runLegacyBdp(
       return 2;
     }
     if (error instanceof BdpClientLocalError) {
-      if (json) process.stdout.write(renderReadyErrorJson({ kind: "local", code: error.code }));
-      else diagnostic("error", "bd.ready.failed", error.code);
+      const reason = bdpClientFailureReason(error);
+      if (json)
+        process.stdout.write(
+          renderReadyErrorJson({
+            kind: "local",
+            code: error.code,
+            ...(reason === undefined ? {} : { message: reason }),
+          }),
+        );
+      else
+        diagnostic(
+          "error",
+          "bd.ready.failed",
+          reason === undefined ? error.code : `${error.code}: ${reason}`,
+        );
       return 1;
     }
     if (error instanceof ReadyOutputCompatibilityError) {
@@ -501,7 +515,7 @@ async function runLegacyBdp(
 function renderReadyErrorJson(
   error:
     | { readonly kind: "protocol"; readonly problem: ReadProblem }
-    | { readonly kind: "local"; readonly code: string },
+    | { readonly kind: "local"; readonly code: string; readonly message?: string },
 ): string {
   return `${JSON.stringify({ error })}\n`;
 }

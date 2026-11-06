@@ -99,11 +99,30 @@ function document(value: unknown, scope?: string, long = false): string {
     lines.push("", "Properties:", JSON.stringify(properties, null, 2));
   if (Object.keys(record(r.metadata)).length)
     lines.push("", "Metadata:", JSON.stringify(r.metadata, null, 2));
+  if (r.links !== undefined) {
+    const included = record(r.links);
+    const rows = Array.isArray(included.items) ? included.items : [];
+    lines.push(
+      "",
+      "Links:",
+      rows.length === 0 ? "(none)" : resourceRows(rows, scope, long).trimEnd(),
+    );
+    if (typeof included.next === "string") lines.push(`More: ${included.next}`);
+  }
   if (long) {
     const detail = Object.fromEntries(
       Object.entries(r).filter(
         ([key]) =>
-          !["id", "type", "revision", "source", "target", "properties", "metadata"].includes(key),
+          ![
+            "id",
+            "type",
+            "revision",
+            "source",
+            "target",
+            "properties",
+            "metadata",
+            "links",
+          ].includes(key),
       ),
     );
     if (Object.keys(detail).length) lines.push("", "Context:", JSON.stringify(detail, null, 2));

@@ -111,13 +111,14 @@ describe("bdp ready CLI", () => {
       expect(stderrText).not.toContain("private upstream failure");
       expect(stderrText).not.toContain("BdpClientTransportError:");
       if (json) {
+        // The client's own check says what failed; the upstream's text stays out of it.
         expect(JSON.parse(stdoutText)).toEqual({
-          error: { kind: "local", code: "transport-failed" },
+          error: { kind: "local", code: "transport-failed", message: expect.any(String) },
         });
       } else {
         expect(stdoutText).toBe("");
         expect(stderrText).toContain('"event":"bd.ready.failed"');
-        expect(stderrText).toContain('"message":"transport-failed"');
+        expect(stderrText).toContain('"message":"transport-failed: ');
       }
     },
   );

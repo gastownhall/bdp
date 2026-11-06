@@ -84,7 +84,7 @@ describe("the static Issue catalog", () => {
           expect(resolves(schema, ref), `${declaration.name} ${ref}`).toBe(true);
         }
     }
-    expect(checked).toBeGreaterThan(100);
+    expect(checked).toBeGreaterThan(140);
   });
 
   it("names each section of the Issue document, in the document's order of the name table", async () => {

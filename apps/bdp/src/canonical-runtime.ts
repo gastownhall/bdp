@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   BdpClient,
   BdpClientLocalError,
+  bdpClientFailureReason,
   CALLABLE_QUERY_TYPE,
   type CallableCatalog,
   type CallableDeclaration,
@@ -173,20 +174,23 @@ const TRANSPORT_FAILURES: Readonly<Record<string, string>> = Object.freeze({
   aborted: "the request was interrupted",
   redirect: "the service answered with a redirect, which this client does not follow",
   "invalid-response": "the response could not be read",
-  "response-too-large": "the response exceeded this client's limit",
+  "response-too-large": `the response exceeded this client's limit of ${MAX_BYTES} bytes`,
   "invalid-input": "the request could not be formed",
 });
 /** What happened, for a failure with no Problem to show. Never a response body. */
 function callFailure(
   error: RetainedClientError | RetainedTransportError,
-  phase: "discovery" | "invocation",
+  phase: "discovery" | "invocation" | "request",
   scope: string,
 ): string {
   if (error instanceof RetainedClientError && error.code === "unsupported-feature")
     return error.detail ?? "the Scope does not advertise what this invocation requires";
   if (error instanceof RetainedClientError && error.code === "invalid-input")
     return "the client refused this invocation's input before sending it";
-  const stage = phase === "discovery" ? `BDP discovery of ${scope} failed` : "Invocation failed";
+  const stage =
+    { discovery: `BDP discovery of ${scope} failed`, invocation: "Invocation failed" }[
+      phase as "discovery"
+    ] ?? `The request against ${scope} failed`;
   if (error instanceof RetainedTransportError) {
     if (error.code === "invalid-response" && error.httpStatus !== undefined)
       return `${stage}: the service answered HTTP ${error.httpStatus}${
@@ -198,6 +202,11 @@ function callFailure(
     .filter((part) => part)
     .join(": ");
 }
+/** A legacy client failure, with the fixed reason its own checks give. */
+const localFailure = (error: BdpClientLocalError): string => {
+  const reason = bdpClientFailureReason(error);
+  return reason === undefined ? error.message : `${error.message}: ${reason}`;
+};
 function problemExit(problem: RetainedJsonObject): number {
   const code = problem.code;
   if (
@@ -673,12 +682,6 @@ export async function runCanonicalInvocation(
           invocation.explicitOptions.some((key) => selectors.includes(key)))
       )
         return refuse("invalid_arguments", 2, "continuation cannot reselect its population");
-      if (options.type !== undefined && options.type !== "any")
-        return refuse(
-          "unsupported_capability",
-          5,
-          "Type-family filtering requires the Types capability",
-        );
       if (
         options.include !== undefined ||
         (Array.isArray(options.omit) && options.omit.some((value) => value !== "envelope"))
@@ -690,7 +693,10 @@ export async function runCanonicalInvocation(
         );
       const kind: RetainedResourceKind = link ? "link" : "bead";
       const filters: Record<string, string> = {};
+      // The family filter is the service's to interpret or refuse (Core, Issue §8), and never
+      // falls back to exact matching. `--type any` applies no filter.
       for (const [flag, field] of [
+        ...(options.type === "any" ? [] : [["type", "conformsTo"] as const]),
         ["exactType", "type"],
         ["from", "source"],
         ["to", "target"],
@@ -702,7 +708,7 @@ export async function runCanonicalInvocation(
             return refuse("invalid_value", 2, "--exact-type any is not admitted");
           const ref = parseCanonicalReference(raw, scope, {
             mutationSubject: true,
-            allowOpaqueUri: flag !== "exactType",
+            allowOpaqueUri: flag !== "exactType" && flag !== "type",
           });
           filters[field] = referenceUri(ref);
         }
@@ -874,7 +880,18 @@ export async function runCanonicalInvocation(
             },
             call,
           );
-          if (isBdpClientProblem(result)) throw { kind: "problem", problem: result };
+          if (isBdpClientProblem(result)) {
+            // This legacy read path cannot parse Core discovery. History is optional, so ask
+            // the current reader whether the Scope advertises it before blaming the Scope.
+            const current = await client.inspectScope(scope, call).catch(() => undefined);
+            if (current?.kind === "success" && current.value.historicalResolution === undefined)
+              return refuse(
+                "unsupported_capability",
+                5,
+                `${scope} does not advertise History, so it has no versions to list`,
+              );
+            throw { kind: "problem", problem: result };
+          }
           const page = result as HistoryVersionsPage;
           firstPage ??= page;
           items.push(...page.items);
@@ -923,12 +940,7 @@ export async function runCanonicalInvocation(
       };
       const masked = Object.keys(masks).length > 0;
       if (options.propertiesOnly) validateCanonicalPropertiesMasks(masks);
-      if (
-        options.includeLinks ||
-        options.linksLimit ||
-        options.direction ||
-        (masked && !options.propertiesOnly)
-      )
+      if (masked && !options.propertiesOnly)
         return refuse(
           "unsupported_capability",
           5,
@@ -947,6 +959,17 @@ export async function runCanonicalInvocation(
       if (!raw) return refuse("invalid_arguments", 2, "Resource operand required");
       const ref =
         initialRef ?? parseCanonicalReference(raw, scope, { currentRead: leaf === "show" });
+      if (options.includeLinks && typeof ref !== "string")
+        return refuse(
+          "invalid_arguments",
+          2,
+          "--include-links reads the current Bead; a historical read has no included Links",
+        );
+      const linksLimit =
+        options.linksLimit === undefined ? undefined : integer(options.linksLimit, 0, 1);
+      const linksDirection = ({ in: "inbound", out: "outbound", both: "both" } as const)[
+        String(options.direction) as "in" | "out" | "both"
+      ];
       const reply = await client.read({
         ...call,
         reference: ref,
@@ -954,6 +977,14 @@ export async function runCanonicalInvocation(
         followAlias: true,
         ...(link ? { expectedKind: "link" as const } : {}),
         ...(options.propertiesOnly ? { view: "properties" as const } : {}),
+        ...(options.includeLinks
+          ? {
+              includeLinks: {
+                ...(linksDirection === undefined ? {} : { direction: linksDirection }),
+                ...(linksLimit === undefined ? {} : { limit: linksLimit }),
+              },
+            }
+          : {}),
         ...(selectedScope === undefined ? {} : { scope }),
       });
       const data = consume(reply);
@@ -1073,7 +1104,7 @@ export async function runCanonicalInvocation(
     } else if (error instanceof BdpClientLocalError) {
       status = error.code === "invalid-request" ? 2 : 1;
       code = error.code;
-      message = error.message;
+      message = localFailure(error);
     } else if (error instanceof RetainedClientError || error instanceof RetainedTransportError) {
       // A CallableQuery changes nothing, so no outcome of one is uncertain.
       unknown = error.submission === "unknown" && callable?.type !== CALLABLE_QUERY_TYPE;
@@ -1085,10 +1116,10 @@ export async function runCanonicalInvocation(
           : isCall
             ? "delivery_failed"
             : "invalid_value";
-      if (isCall) cause = callFailure(error, callPhase, scope);
+      cause = callFailure(error, isCall ? callPhase : "request", scope);
       message = unknown
         ? "Write disposition is unknown; recover the saved invocation with the same key"
-        : (cause ?? "BDP delivery failed");
+        : cause;
     } else if (
       typeof error === "object" &&
       error !== null &&

@@ -92,6 +92,8 @@ export interface FetchTransportOptions {
   readonly responseTimeoutMs?: number;
 }
 
+const LEGACY_ACCEPT = "application/vnd.bdp.v0.1+json, application/json;q=0.9";
+
 export function createFetchTransport(
   fetchImplementation: typeof fetch = fetch,
   options: FetchTransportOptions = {},
@@ -223,7 +225,8 @@ export function createFetchTransport(
             fetchImplementation,
             url,
             {
-              headers: { accept: "application/json" },
+              // A Core Scope answers 406 to anything that does not admit the BDP media type.
+              headers: { accept: LEGACY_ACCEPT },
               signal,
               redirect: "manual",
               credentials: "omit",
@@ -830,6 +833,15 @@ export class BdpClientTransportError extends BdpClientLocalError {
     super("the BDP transport failed before producing a protocol result", options);
     this.name = "BdpClientTransportError";
   }
+}
+
+/** The fixed text of this client's own response checks, when that is what failed. A cause
+ * from anywhere else may carry private text, so it is never repeated. */
+export function bdpClientFailureReason(error: BdpClientLocalError): string | undefined {
+  const { cause } = error;
+  return cause instanceof Error && /^Response[A-Za-z]*Error$/.test(cause.name)
+    ? cause.message
+    : undefined;
 }
 
 export class BdpClientRequestError extends BdpClientLocalError {
