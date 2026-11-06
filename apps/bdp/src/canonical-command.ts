@@ -14,6 +14,8 @@ export interface CanonicalCommandOptions {
   readonly onInvocation: (invocation: CanonicalInvocation) => void | Promise<void>;
   readonly writeOut?: (text: string) => void;
   readonly writeErr?: (text: string) => void;
+  /** Words the Callable tree mounts, listed in root help (Callables §10). */
+  readonly callableGroups?: readonly { readonly name: string; readonly description: string }[];
 }
 
 type Flag = readonly [syntax: string, description: string, choices?: readonly string[]];
@@ -68,6 +70,28 @@ export function splitCallArguments(
     verb = true;
   }
   return verb ? { client, operands: [] } : undefined;
+}
+
+/** `bdp [client options] WORD ...`: the options before the first word and the words from it on,
+ * or undefined when there is no word. Used to mount the Callable tree (§10), where everything
+ * after the command is the Callable's own, as after `call NAME`. */
+export function splitLeadingWords(
+  args: readonly string[],
+  arities: ReadonlyMap<string, boolean>,
+): { readonly client: readonly string[]; readonly words: readonly string[] } | undefined {
+  const client: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index] ?? "";
+    if (argument === "--") return undefined;
+    if (argument.length > 1 && argument.startsWith("-")) {
+      client.push(argument);
+      if (!argument.includes("=") && arities.get(argument) === true && index + 1 < args.length)
+        client.push(args[++index] ?? "");
+      continue;
+    }
+    return { client, words: args.slice(index) };
+  }
+  return undefined;
 }
 
 /** No storage, input-file reading, credentials, or network access occurs here. */
@@ -596,5 +620,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   flag(call, ["--actor <actor>", "Supply caller actor input; never authentication or authority."]);
   outputFlags(call, false, false, false);
   execute(call, undefined, (selected) => selected.args);
+  for (const { name, description } of settings.callableGroups ?? [])
+    add(root, name, description, "Callable Commands");
   return root;
 }

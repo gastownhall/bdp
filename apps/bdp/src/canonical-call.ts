@@ -436,3 +436,104 @@ export function renderCallableHelp(
     lines.push("Errors:", ...errorLines(declaration.errorSchema).map((line) => `  ${line}`), "");
   return `${clean(lines.join("\n"))}`;
 }
+
+/** One word of the Callable command tree: its name's segments, one word each (§10). */
+export interface CallableCommandNode {
+  readonly path: readonly string[];
+  readonly children: ReadonlyMap<string, CallableCommandNode>;
+  readonly declaration?: CallableDeclaration;
+}
+export interface CallableCommandTree {
+  readonly roots: ReadonlyMap<string, CallableCommandNode>;
+  /** Callables a built-in command shadows; `bdp call NAME` still reaches them. */
+  readonly shadowed: readonly string[];
+}
+interface MutableNode {
+  path: readonly string[];
+  children: Map<string, MutableNode>;
+  declaration?: CallableDeclaration;
+}
+
+/** §10: mount every Callable by its name. A built-in command wins any collision. */
+export function callableCommandTree(
+  declarations: readonly CallableDeclaration[],
+  builtIns: ReadonlySet<string>,
+): CallableCommandTree {
+  const roots = new Map<string, MutableNode>();
+  const shadowed: string[] = [];
+  for (const declaration of declarations) {
+    const words = declaration.name.split("/");
+    if (builtIns.has(words[0] ?? "")) {
+      shadowed.push(declaration.name);
+      continue;
+    }
+    let level = roots;
+    let node: MutableNode | undefined;
+    words.forEach((word, index) => {
+      node = level.get(word);
+      if (node === undefined) {
+        node = { path: words.slice(0, index + 1), children: new Map() };
+        level.set(word, node);
+      }
+      level = node.children;
+    });
+    if (node !== undefined) node.declaration = declaration;
+  }
+  return { roots, shadowed };
+}
+
+/** The deepest node the leading words name, and the words after it. */
+export function resolveCallableCommand(
+  tree: CallableCommandTree,
+  words: readonly string[],
+): { readonly node: CallableCommandNode; readonly rest: readonly string[] } | undefined {
+  let node: CallableCommandNode | undefined = tree.roots.get(words[0] ?? "");
+  if (node === undefined) return undefined;
+  let index = 1;
+  for (; index < words.length; index++) {
+    const child: CallableCommandNode | undefined = node.children.get(words[index] ?? "");
+    if (child === undefined) break;
+    node = child;
+  }
+  return { node, rest: words.slice(index) };
+}
+
+const leaves = (node: CallableCommandNode): readonly CallableDeclaration[] => [
+  ...(node.declaration === undefined ? [] : [node.declaration]),
+  ...[...node.children.values()].flatMap(leaves),
+];
+
+/** Help for a word that groups Callables, from the declarations beneath it. */
+export function renderCallableGroupHelp(node: CallableCommandNode): string {
+  const rows = [...node.children].map(([word, child]) => {
+    const summary =
+      child.declaration === undefined
+        ? `${leaves(child).length} commands`
+        : `${child.declaration.title ?? child.declaration.name} (${callableKind(child.declaration)})`;
+    return [word, summary] as const;
+  });
+  const width = Math.max(0, ...rows.map(([word]) => word.length));
+  const spelled = node.path.join(" ");
+  return clean(
+    [
+      `Usage: bdp [client options] ${spelled} COMMAND [callable arguments]`,
+      "",
+      `The ${node.path.join("/")}/ Callables.`,
+      "",
+      "Commands:",
+      ...rows.map(([word, summary]) => `  ${word.padEnd(width)}  ${summary}`),
+      "",
+      `Use "bdp ${spelled} COMMAND --help" for one command's parameters.`,
+      "",
+    ].join("\n"),
+  );
+}
+
+export function callableGroupSummaries(
+  tree: CallableCommandTree,
+): readonly { readonly name: string; readonly description: string }[] {
+  return [...tree.roots].map(([name, node]) => ({
+    name,
+    description: `The ${name}/ Callables (${leaves(node).length}).`,
+  }));
+}

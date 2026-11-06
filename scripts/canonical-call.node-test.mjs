@@ -15,6 +15,7 @@ const family = "https://github.com/gastownhall/bdp/problems";
 const answers = {
   "issue/ready": { status: 200, body: { result: { items: [], has_more: false } } },
   "issue/close": { status: 200, body: { result: { ok: true }, changed: true } },
+  "issue/create": { status: 200, body: { result: { id: "bd-1" }, changed: true } },
   "issue/claim": {
     status: 409,
     body: {
@@ -69,10 +70,9 @@ before(async () => {
         response.end(
           JSON.stringify({
             bdpVersion: "0.1",
-            profile: "write",
+            profile: "core",
             scope,
             specRevision: "0123456789abcdef0123456789abcdef01234567",
-            operations: `${scope}bdp/write`,
             capabilities: {
               "https://github.com/gastownhall/bdp/capabilities/callables": { 1: {} },
             },
@@ -89,7 +89,7 @@ after(async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-function bdp(args) {
+function bdp(args, stdin) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith("BDP_")),
   );
@@ -104,6 +104,7 @@ function bdp(args) {
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
+    child.stdin.end(stdin);
     child.on("error", reject);
     child.on("close", (status) => resolve({ status, stdout, stderr }));
   });
@@ -120,6 +121,7 @@ test("help after NAME needs no Scope and invokes nothing", async () => {
   const { status, stdout } = await bdp(["call", "issue/claim", "--help"]);
   assert.equal(status, 0);
   assert.match(stdout, /--id TEXT/);
+  assert.match(stdout, /code: already_claimed, not_claimable/);
   assert.equal(posts.length, before);
 });
 test("a query omits what is omitted and sends a defaulted flag when given", async () => {
@@ -136,7 +138,7 @@ test("a query omits what is omitted and sends a defaulted flag when given", asyn
   ]);
   assert.equal(stderr, "");
   assert.equal(status, 0);
-  assert.deepEqual(JSON.parse(stdout), { result: { items: [], has_more: false } });
+  assert.equal(stdout, "items: (none)\nhas_more: false\n");
   assert.deepEqual(posts.at(-1), {
     name: "issue/ready",
     key: undefined,
@@ -194,4 +196,45 @@ test("a name outside the catalog is a usage error with no request", async () => 
   const { status } = await bdp(["--scope", scope, "call", "not-a-callable"]);
   assert.equal(status, 2);
   assert.equal(posts.length, before);
+});
+test("the induced tree mounts each name, with help at every level and no Scope", async () => {
+  const root = await bdp(["--help"]);
+  assert.equal(root.status, 0);
+  assert.match(root.stdout, /^ {2}issue +The issue\/ Callables \(\d+\)\.$/m);
+  const group = await bdp(["issue", "dep", "--help"]);
+  assert.equal(group.status, 0);
+  assert.match(group.stdout, /^ {2}add +.*\(batch\)$/m);
+  const leaf = await bdp(["issue", "create", "--help"]);
+  assert.equal(leaf.status, 0);
+  assert.match(leaf.stdout, /bdp \[client options\] issue create TITLE \[callable arguments\]/);
+  assert.match(leaf.stdout, /--body-file PATH/);
+});
+test("a tree command is the same invocation as call, and reads stdin for a fromFile flag", async () => {
+  const { status, stderr, stdout } = await bdp(
+    [
+      "--scope",
+      scope,
+      "issue",
+      "create",
+      "Fix login",
+      "-p",
+      "1",
+      "--body-file",
+      "-",
+      "--actor",
+      "s",
+    ],
+    "from stdin\n",
+  );
+  assert.equal(stderr, "");
+  assert.equal(status, 0);
+  assert.equal(stdout, "changed: true\nid: bd-1\n");
+  assert.deepEqual(posts.at(-1).body, {
+    arguments: { title: "Fix login", priority: 1, description: "from stdin\n", actor: "s" },
+  });
+});
+test("a failure with no Problem says what happened, in its own process", async () => {
+  const { status, stderr } = await bdp(["--scope", "http://127.0.0.1:9/", "issue", "stats"]);
+  assert.equal(status, 1);
+  assert.match(JSON.parse(stderr).error.problem.message, /could not connect/);
 });

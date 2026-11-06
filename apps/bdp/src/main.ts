@@ -29,7 +29,17 @@ import {
 } from "@bdp/config";
 import { parseCanonicalScope, RETAINED_V01_SPECIFICATION, type ReadProblem } from "@bdp/protocol";
 import { type Command, CommanderError } from "commander";
-import { createCanonicalCommand, splitCallArguments } from "./canonical-command.js";
+import {
+  callableCommandTree,
+  callableGroupSummaries,
+  renderCallableGroupHelp,
+  resolveCallableCommand,
+} from "./canonical-call.js";
+import {
+  createCanonicalCommand,
+  splitCallArguments,
+  splitLeadingWords,
+} from "./canonical-command.js";
 import {
   defaultCliConfigPath,
   readBoundedFile,
@@ -79,13 +89,27 @@ class BootstrapConfigUsageError extends Error {
 
 class CliOperationError extends Error {}
 
+const HELP = new Set(["--help", "-h"]);
+const noInvocation = () => undefined;
+
+/** The root commands a Callable's first word may not take (Callables §10). */
+function builtInWords(): ReadonlySet<string> {
+  const inventory = createCanonicalCommand({
+    version,
+    profile: "canonical",
+    onInvocation: noInvocation,
+  });
+  return new Set(inventory.commands.map((command) => command.name()));
+}
+
 /** Bootstrap registration policy using the declared option arities. No
  * command-specific parsing or network activity occurs until the profile is known. */
 export async function runBdp(
   args: readonly string[],
   overrides: { readonly callableCatalog?: CallableCatalog } = {},
 ): Promise<number> {
-  if (args.length === 0) return runNoArgumentHelp();
+  const callableCatalog = overrides.callableCatalog ?? issueCallableCatalog();
+  if (args.length === 0) return runNoArgumentHelp(callableCatalog);
   let status = 0;
   try {
     const inventory = createCanonicalCommand({
@@ -107,7 +131,10 @@ export async function runBdp(
       profileSeen = false;
     // Nothing after a Callable's NAME is ours to read, including a --config it may declare.
     const callSplit = splitCallArguments(args, arities);
-    const clientArguments = callSplit?.client ?? args;
+    const builtIns = new Set(inventory.commands.map((command) => command.name()));
+    const leading = callSplit === undefined ? splitLeadingWords(args, arities) : undefined;
+    const treeCandidate = builtIns.has(leading?.words[0] ?? "") ? undefined : leading;
+    const clientArguments = callSplit?.client ?? treeCandidate?.client ?? args;
     for (let index = 0; index < clientArguments.length; index++) {
       const argument = clientArguments[index] ?? "";
       if (argument === "--") break;
@@ -157,9 +184,41 @@ export async function runBdp(
     const selectedProfile =
       explicitProfile ??
       loadCliProfile({ configFile: selectedConfigFile, env: process.env, readFile });
+    // `bdp issue create ...` is `bdp call issue/create ...`, spelled as its name's segments.
+    let callableCommand: readonly string[] | undefined;
+    let callableInvocation: readonly string[] | undefined;
+    if (selectedProfile === "canonical" && treeCandidate !== undefined) {
+      const mounted = resolveCallableCommand(
+        callableCommandTree(await callableCatalog.list(), builtIns),
+        treeCandidate.words,
+      );
+      if (mounted !== undefined) {
+        const client = treeCandidate.client.filter((argument) => !HELP.has(argument));
+        const asked = client.length !== treeCandidate.client.length;
+        const rest = asked ? ["--help", ...mounted.rest] : mounted.rest;
+        const { declaration, path } = mounted.node;
+        if (declaration === undefined) {
+          if (rest.length > 0 && !HELP.has(rest[0] ?? ""))
+            throw new CliOperationError(
+              `no such command under ${path.join(" ")}; use bdp ${path.join(" ")} --help`,
+            );
+          process.stdout.write(renderCallableGroupHelp(mounted.node));
+          return 0;
+        }
+        callableCommand = path;
+        callableInvocation = ["call", ...client, "--", declaration.name, ...rest];
+      }
+    }
     const tree = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile: selectedProfile,
+      ...(selectedProfile === "canonical" && leading === undefined && callSplit === undefined
+        ? {
+            callableGroups: callableGroupSummaries(
+              callableCommandTree(await callableCatalog.list(), builtIns),
+            ),
+          }
+        : {}),
       writeOut: (text) => {
         process.stdout.write(text);
       },
@@ -261,7 +320,8 @@ export async function runBdp(
               stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
               stderr: (text, signal) => writeCanonicalOutput(process.stderr, text, signal),
             },
-            overrides.callableCatalog ?? issueCallableCatalog(),
+            callableCatalog,
+            callableCommand,
           );
         } finally {
           process.removeListener("SIGINT", interrupt);
@@ -270,9 +330,11 @@ export async function runBdp(
     });
     // Under `--`, Commander leaves a Callable's arguments to its declaration.
     await tree.parseAsync(
-      callSplit === undefined || selectedProfile !== "canonical"
-        ? [...args]
-        : ["call", ...callSplit.client, "--", ...callSplit.operands],
+      callableInvocation !== undefined
+        ? [...callableInvocation]
+        : callSplit === undefined || selectedProfile !== "canonical"
+          ? [...args]
+          : ["call", ...callSplit.client, "--", ...callSplit.operands],
       { from: "user" },
     );
     return status;
@@ -295,7 +357,7 @@ export async function runBdp(
   }
 }
 
-async function runNoArgumentHelp(): Promise<number> {
+async function runNoArgumentHelp(callableCatalog: CallableCatalog): Promise<number> {
   try {
     const configuredPath = process.env.BDP_CONFIG;
     const defaultPath = defaultCliConfigPath(process.env);
@@ -328,7 +390,14 @@ async function runNoArgumentHelp(): Promise<number> {
     const command = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile,
-      onInvocation: () => undefined,
+      onInvocation: noInvocation,
+      ...(profile === "canonical"
+        ? {
+            callableGroups: callableGroupSummaries(
+              callableCommandTree(await callableCatalog.list(), builtInWords()),
+            ),
+          }
+        : {}),
     });
     const scope = config.scope?.url ?? "not configured; set one with bdp scope set <scope>";
     process.stdout.write(`${command.helpInformation()}\nDefault Scope: ${scope}\n`);
