@@ -533,8 +533,8 @@
         "sort": {
           "type": "string",
           "enum": ["created", "priority"],
-          "default": "created",
-          "description": "Which of the two served total orders this page is in. `created` is `(created_at DESC, id ASC)`; `priority` is `(priority ASC, created_at DESC, id ASC)` — `bd list`'s flagless ordering, and the order `bd list --sort priority` produces.\n\nTHE DEFAULT IS `created` AND WILL NOT CHANGE. It is what this operation served before this parameter existed, so moving it would alter which rows a truncated page contains for every client written against that behavior, with no error to notice it by.\n\nTHE VOCABULARY IS CLOSED, and deliberately smaller than the nine values `bd list --sort` and `GET /v0/beads/issues:query` take. Each value here is a cursor contract, not a display preference: it needs a keyset predicate and a key proven total. See the operation description for why the other seven have neither.\n\nA value outside the enum is a 400 `invalid_argument` with `param: \"sort\"` and `reason: \"invalid_value\"`. A server that predates this parameter answers `param: \"sort\"` with `reason: \"unknown_parameter\"` instead, which is the per-parameter capability probe a client can dispatch on to fall back to paging in `created` order and sorting client-side. This server also advertises the `issues.list.sort` token in `ContextResponse.capabilities` for exactly that check, so a client with capabilities cached from the handshake never has to pay for the round trip an old server's `unknown_parameter` answer costs."
+          "default": "priority",
+          "description": "Omitted, this Callable uses `\"priority\"`. Which of the two served total orders this page is in. `created` is `(created_at DESC, id ASC)`; `priority` is `(priority ASC, created_at DESC, id ASC)` — `bd list`'s flagless ordering, and the order `bd list --sort priority` produces.\n\nTHE DEFAULT IS `created` AND WILL NOT CHANGE. It is what this operation served before this parameter existed, so moving it would alter which rows a truncated page contains for every client written against that behavior, with no error to notice it by.\n\nTHE VOCABULARY IS CLOSED, and deliberately smaller than the nine values `bd list --sort` and `GET /v0/beads/issues:query` take. Each value here is a cursor contract, not a display preference: it needs a keyset predicate and a key proven total. See the operation description for why the other seven have neither.\n\nA value outside the enum is a 400 `invalid_argument` with `param: \"sort\"` and `reason: \"invalid_value\"`. A server that predates this parameter answers `param: \"sort\"` with `reason: \"unknown_parameter\"` instead, which is the per-parameter capability probe a client can dispatch on to fall back to paging in `created` order and sorting client-side. This server also advertises the `issues.list.sort` token in `ContextResponse.capabilities` for exactly that check, so a client with capabilities cached from the handshake never has to pay for the round trip an old server's `unknown_parameter` answer costs."
         },
         "cursor": {
           "type": "string",
@@ -794,7 +794,8 @@
         "direction": {
           "type": "string",
           "enum": ["out", "in"],
-          "description": "Which way this issue's edges are walked. `out` answers the issues it DEPENDS ON — the `dependencies` member of `GET /v0/beads/issues/{id}`. `in` answers the issues that depend on it — that read's `dependents` member.\n\nIT IS REQUIRED AND HAS NO DEFAULT, on `GET /v0/beads/dependencies:count`'s terms and for the reason `issueops.RelationDirection` gives: the two answers have the same shape and the same member names, so a caller handed the inverse graph has nothing to notice. An absent or unrecognized value is a 400 `invalid_argument` with `param: \"direction\"`, never a walk in some default direction.\n\nThe vocabulary is CLOSED — unlike `type` below — because it is a property of the edge's shape rather than of a workspace's configuration."
+          "default": "out",
+          "description": "Omitted, this Callable uses `\"out\"`. Which way this issue's edges are walked. `out` answers the issues it DEPENDS ON — the `dependencies` member of `GET /v0/beads/issues/{id}`. `in` answers the issues that depend on it — that read's `dependents` member.\n\nIT IS REQUIRED AND HAS NO DEFAULT, on `GET /v0/beads/dependencies:count`'s terms and for the reason `issueops.RelationDirection` gives: the two answers have the same shape and the same member names, so a caller handed the inverse graph has nothing to notice. The vocabulary is CLOSED — unlike `type` below — because it is a property of the edge's shape rather than of a workspace's configuration."
         },
         "type": {
           "type": "array",
@@ -804,7 +805,7 @@
           "description": "Edge types to include. Repeat the parameter. Empty means every type.\n\n`GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value is not an error and simply matches no edge, while a value no edge could ever carry — empty, or longer than the column — is a 400 `invalid_argument` with `param: \"type\"`.\n\nThe filter narrows EDGES, never the anchor. An issue whose every edge it rejects is answered with an empty `items` and not with a 404, which is a different fact from an id that names nothing."
         }
       },
-      "required": ["id", "direction"]
+      "required": ["id"]
     },
     "issueGetManyArguments": {
       "description": "Arguments of issue/get-many.",
@@ -984,13 +985,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is creating the issue. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. The value reaches the created edges' author column, the history entry's attribution and the storage commit message, so an unvalidated newline would forge audit-trail lines.\n\nIt is NOT the issue's `created_by`, which this operation does not publish: this is the caller-asserted provenance of the ACT, and the row's own author column is left to the implementation."
-        },
         "id": {
           "type": "string",
           "minLength": 1,
@@ -1018,7 +1012,8 @@
         "issue_type": {
           "type": "string",
           "maxLength": 255,
-          "description": "Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`.\n\nSEND ONE. The member is optional in this schema and the role validates the EMPTY type against the same vocabulary as any other, where it is neither a built-in nor a configured type — so an omitted `issue_type` is refused with everything else the request asked for. It stays optional because the vocabulary belongs to the workspace and a deployment may configure a default this server cannot read, but it is not optional in practice on any workspace shipped today. `POST /v0/beads/issues:batchCreate` has the same property and does not say so, which is why this member does."
+          "default": "task",
+          "description": "Omitted, this Callable uses `\"task\"`. Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`."
         },
         "status": {
           "type": "string",
@@ -1135,7 +1130,7 @@
           "description": "Permits an explicit `id` outside the workspace's configured issue prefix. It bypasses ONLY that check: it is not a force on the create-only guard, so an occupied id is still a `409`."
         }
       },
-      "required": ["actor", "title"]
+      "required": ["title"]
     },
     "issueCreateError": {
       "description": "The error values issue/create can return: v0's Problem, discriminated by code.",
@@ -1160,13 +1155,6 @@
         "id": {
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is editing the issue. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. The value reaches the history entry's attribution and the storage commit message, so an unvalidated newline would forge audit-trail lines."
         },
         "patch": {
           "$ref": "#/$defs/IssuePatchBody"
@@ -1211,7 +1199,7 @@
           "description": "The caller edits a template deliberately, so the template read-only refusal (`409 template_read_only`) stands down for this request. `bd label` and `bd set-state` send it: they have always written to templates. It bypasses nothing else, and has no effect on an issue that is not a template. Advertised by the `issues.update.allowTemplate` capability token; a server that predates the member refuses it as an unknown parameter, and such a server never applies the template guard either."
         }
       },
-      "required": ["id", "actor", "patch"]
+      "required": ["id", "patch"]
     },
     "issueUpdateError": {
       "description": "The error values issue/update can return: v0's Problem, discriminated by code.",
@@ -1246,13 +1234,6 @@
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
         },
-        "author": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Optional; when omitted, the service fills it from the invocation's actor. Who is signing the comment. CALLER-ASSERTED, and not the authenticated principal — see the operation description.\n\nTrimmed of surrounding space, then refused when the result is empty, when it exceeds 256 bytes or 255 characters (the storage column), or when it carries a control character. The bounds and the character rule are `actor`'s, unchanged, because the value lands in a column of the same width that every renderer of the thread prints, where an unfiltered C1 introducer is an escape-sequence payload."
-        },
         "text": {
           "type": "string",
           "description": "The comment body, stored VERBATIM: newlines, surrounding space and unicode all survive, and nothing trims the value that lands in the row.\n\nNO LENGTH BOUND AND NO CHARACTER RULE, unlike `author` beside it, and both absences are the column: this one is `LONGTEXT` rather than a 255-character field, and a comment that is a stack trace or a diff is an ordinary comment. The only cap is the 1 MiB every body on this surface shares.\n\nBOTH PLANES AGREE ABOUT THAT, which is worth stating because they did not. `wisp_comments.text` was left `TEXT` — 65535 bytes — when the durable column was widened, so a comment past that limit wrote fine against an issue and failed against a wisp, on an operation that resolves its anchor across both planes deliberately. A caller therefore could not know which side of the bound it was on until the write failed. The ephemeral column is widened to match, so this member's bound is one number rather than two.\n\nBlank after trimming is a `400` — a comment of nothing but whitespace carries no information and is almost always a shell quoting accident — and blankness is judged on a TRIMMED COPY while the stored value is untrimmed, so a comment that merely begins with a newline is a comment."
@@ -1268,16 +1249,9 @@
         "id": {
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is claiming the issue. The server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline: Unicode category Cc — C0, DEL and the C1 block — plus the U+2028/U+2029 line separators, which is the set the `pattern` above spells.\n\nThe value is persisted as the assignee and interpolated into the storage commit message, so an unvalidated newline would forge audit-trail lines. C1 is refused for that same reason and not for tidiness: U+0085 is a line break on a VT-conformant terminal, and U+009B is the one-byte CSI introducer, which would make an actor an escape-sequence payload in anything that prints an assignee."
         }
       },
-      "required": ["id", "actor"]
+      "required": ["id"]
     },
     "issueClaimError": {
       "description": "The error values issue/claim can return: v0's Problem, discriminated by code.",
@@ -1303,13 +1277,6 @@
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
         },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is releasing the claim. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. The value reaches the event the release records and the storage commit message, so an unvalidated newline would forge audit-trail lines.\n\nIt is REQUIRED, and for one reason beyond the audit trail: a release is the moment work stops being owned, and the one question asked of its history entry afterwards is who let it go. On the unconditional path it is ALSO the ownership fence's subject — see the operation description."
-        },
         "expected_assignee": {
           "type": "string",
           "description": "Compare-and-set on the holder: the release proceeds only while the issue is still assigned to this actor, and otherwise refuses with `409` / `precondition_failed` naming this value, having written nothing.\n\nA MATCH REPLACES THE OWNERSHIP FENCE, so `actor` need not be the holder. Sending it beside `force` is a 400: the two are answers to the same question and they disagree.\n\nTHE COMPARISON IS SEPARATOR-INSENSITIVE AND NOTHING ELSE. A run of `.`, `_` or `-` matches any other such run, so `agent-a`, `agent_a` and `agent.a` are one holder — that is deliberate, so a caller naming the holder under a different layer's spelling is a match rather than a mismatch. THE ONE EXCEPTION IS AN EXACT `--` RUN: that is gascity's session-name encoding of a rig-qualified agent's `/`, so it decodes to `/` instead of collapsing. `a--b` matches `a/b`, and no longer matches `a__b` or `a-b`. Those name different identities — `a--b` is the agent `b` on rig `a`, `a__b` is the dotted alias `a.b` — so treating them as one holder was a widening, and removing it is the point of the exception. Longer or mixed runs, `__` included, still collapse. NOTHING ELSE IS FORGIVEN: the value is not trimmed and not case-folded, so `\" agent-a\"` and `Agent-a` are both refusals. The server trims only far enough to tell a blank expectation from a real one and never sends the trimmed form on, so a caller that pads its expectation loses EVERY time rather than intermittently. Compose it from a holder a read gave you.\n\nTHE EMPTY STRING IS A 400, and this is the one place this member disagrees with `UpdateIssueRequest.expected_assignee`, where an empty string is a real guard meaning \"expected unassigned\". Here \"release a row nobody holds\" describes no release at all; a caller that wants to assert a row is unheld is asking a READER a question, not asking this operation to do nothing. Absent, and only absent, selects the unconditional path.\n\nIT IS NOT LENGTH- OR PATTERN-BOUNDED the way `actor` is, and the asymmetry is deliberate: this value is COMPARED and never stored, so a value no assignee column could hold simply cannot match, and refusing it at the edge would be a refusal the role does not have."
@@ -1320,7 +1287,7 @@
           "description": "Bypass the ownership fence, so an actor that is not the holder may release the claim. It is the escape hatch `bd unclaim --force` spells, for an abandoned claim whose holder crashed.\n\nIT BYPASSES THE FENCE AND NOTHING ELSE. It does not make an unheld row releasable, it does not make a closed one releasable, and it never bypasses a precondition — sending it beside `expected_assignee` is a 400 rather than a silent win for either."
         }
       },
-      "required": ["id", "actor"]
+      "required": ["id"]
     },
     "issueUnclaimError": {
       "description": "The error values issue/unclaim can return: v0's Problem, discriminated by code.",
@@ -1345,16 +1312,9 @@
         "id": {
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "The lease holder refreshing its lease, and the fence's subject. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (or 255 characters, the column's bound), and any control character including newline."
         }
       },
-      "required": ["id", "actor"]
+      "required": ["id"]
     },
     "issueHeartbeatError": {
       "description": "The error values issue/heartbeat can return: v0's Problem, discriminated by code.",
@@ -1380,17 +1340,11 @@
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
         },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is closing the issue. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. The value reaches stored columns, event-stream attribution and the storage commit message, so an unvalidated newline would forge audit-trail lines."
-        },
         "reason": {
           "type": "string",
           "maxLength": 255,
-          "description": "Why the issue is closed. Stored on the issue and read back as `close_reason`. THE FIRST CLOSE WINS: an idempotent re-close writes neither this nor `session`, so a replayed close cannot rewrite the record of why the work ended. Refused for control characters, and bounded by what the column holds rather than by the number above."
+          "default": "Closed",
+          "description": "Omitted, this Callable uses `\"Closed\"`. Why the issue is closed. Stored on the issue and read back as `close_reason`. THE FIRST CLOSE WINS: an idempotent re-close writes neither this nor `session`, so a replayed close cannot rewrite the record of why the work ended. Refused for control characters, and bounded by what the column holds rather than by the number above."
         },
         "session": {
           "type": "string",
@@ -1412,7 +1366,7 @@
           "description": "Behind the `issues.close.autoCloseMolecule` behavior token: an older server answers `unknown_parameter` for this name, and a client checks the token before sending it.\n\nClose the issue's molecule root IN THE SAME TRANSACTION when this close completed it: the root is an auto-closing molecule root (a `molecule`-typed or ephemeral root, or a template-labeled epic), it is open, and every step under it is now closed. The root close is unforced, guarded on the root revision read inside that transaction, and records `all steps complete` and this request's `session`. It runs for an idempotent re-close too, so replaying the close of a molecule's last step heals a root left open.\n\nOPT-IN, because an orchestrator may run its own molecule lifecycle. A root that its close policy refuses (a live blocker) or a close guard refuses (a template, a pinned root, a root assigned to another actor) stays open, is named in `molecule_auto_close_refusal`, and never fails this close. Any other failure of the root close, such as a storage error, fails this close with it."
         }
       },
-      "required": ["id", "actor"]
+      "required": ["id"]
     },
     "issueCloseError": {
       "description": "The error values issue/close can return: v0's Problem, discriminated by code.",
@@ -1438,20 +1392,13 @@
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
         },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who advances, and with `auto_claim` the claimed step's assignee. `ClaimRequest.actor`'s rules exactly."
-        },
         "auto_claim": {
           "type": "boolean",
           "default": false,
           "description": "Claim the next ready step for `actor`. Without it the operation writes nothing and only names the step."
         }
       },
-      "required": ["id", "actor"]
+      "required": ["id"]
     },
     "issueReopenArguments": {
       "description": "Arguments of issue/reopen.",
@@ -1461,13 +1408,6 @@
         "id": {
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is reopening the issue. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. The value reaches the `reopened` event's attribution and the storage commit message, so an unvalidated newline would forge audit-trail lines."
         },
         "reason": {
           "type": "string",
@@ -1479,7 +1419,7 @@
           "description": "Requires the row's revision to equal this value BEFORE the reopen. A miss refuses the whole request with `409 precondition_failed` and writes nothing — `CloseIssueRequest.expected_version`'s contract, on the close's mirror.\n\nIT IS CHECKED BEFORE THE NON-DONE NO-OP, the mirror of the close's check-before-the-idempotent-re-close, and for the same reason: a reopen of a row somebody else has moved is a `409` rather than the 200-with-`already_open` the same body earns unguarded, which is what lets `already_open` be read as \"nothing has happened here since\".\n\nThe token is the `revision` this operation's own response carries; compose the next expectation from a value a write ANSWERED with and never from one the client computed.\n\nIT IS A STRING, and it must be the `revision` string a response carried, verbatim. A JSON number — or any other type — is a `400` naming this member. The token spans the FULL 64-bit range, so a number would be rounded past 2^53 by an IEEE-754-double parser and the guard would miss a row nothing else touched; a string round-trips exactly in every consumer."
         }
       },
-      "required": ["id", "actor"]
+      "required": ["id"]
     },
     "issueMetadataCompareAndSetArguments": {
       "description": "Arguments of issue/metadata/compare-and-set.",
@@ -1489,13 +1429,6 @@
         "id": {
           "type": "string",
           "description": "Exact canonical issue id. No fuzzy, prefix or substring resolution."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is performing the swap. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. It reaches the update event's attribution and the storage commit message, so an unvalidated newline would forge audit-trail lines.\n\nIt is REQUIRED here rather than optional, because a swap is a coordination write between racing callers and the one question asked of its history entry afterwards is which of them won."
         },
         "key": {
           "type": "string",
@@ -1510,7 +1443,7 @@
           "$ref": "#/$defs/MetadataValue"
         }
       },
-      "required": ["id", "actor", "key"]
+      "required": ["id", "key"]
     },
     "issuePurgeArguments": {
       "description": "Arguments of issue/purge.",
@@ -1520,14 +1453,8 @@
         "tier": {
           "type": "string",
           "enum": ["ephemeral", "durable", "wisps-plane"],
-          "description": "Which plane to clear. `ephemeral` is the wisp tier (`bd purge`) and `durable` is the issue tier (`bd prune`). The two are DISJOINT: a sweep of one can never touch a bead of the other. Required, with no default — a caller handed the wrong tier has nothing to notice until the beads are gone.\n\n`wisps-plane` is a THIRD, wider tier: it clears the whole wisps table (ephemeral beads) AND any durable bead with no history row, in one pass. Behind the `issues.sweep.wispsPlane` behavior token: an older server answers `invalid_value` for this member, since it predates the token and knows only the first two values."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Caller-asserted attribution for wherever the backend records it, under the same rules and for the same reasons as `ClaimRequest`'s `actor`: trimmed, refused when empty after trimming, over 256 BYTES, or carrying any control character. Optional — a deleted bead leaves no row to attribute the deletion on."
+          "default": "ephemeral",
+          "description": "Omitted, this Callable uses `\"ephemeral\"`. Which plane to clear. `ephemeral` is the wisp tier (`bd purge`) and `durable` is the issue tier (`bd prune`). The two are DISJOINT: a sweep of one can never touch a bead of the other. `wisps-plane` is a THIRD, wider tier: it clears the whole wisps table (ephemeral beads) AND any durable bead with no history row, in one pass. Behind the `issues.sweep.wispsPlane` behavior token: an older server answers `invalid_value` for this member, since it predates the token and knows only the first two values."
         },
         "closed_before": {
           "type": "string",
@@ -1540,18 +1467,18 @@
         },
         "protect_referenced": {
           "type": "boolean",
-          "default": true,
-          "description": "Skip candidates whose id is CITED — as a literal, at word boundaries — in the description, notes or comments of any bead that is not done, so a decision trail a live bead still points at is not deleted out from under it.\n\nIt DEFAULTS ON here, unlike the library default, and that is deliberate. This is the only destructive operation on the surface, and the bearer a deployment may configure is not a per-caller right: one shared token admits a client to everything published here, so being authenticated says nothing about whether this particular deletion was meant. A caller that omits the member must therefore not get weaker protection than the operator typing `bd prune`, which protects unless `--ignore-references`. The inverse — opt OUT locally, opt IN remotely — is the shape that lets a stray request delete a decision trail nothing brings back.\n\nIt costs a full scan of the not-done set and its comments. Sending `protect_referenced: false` buys the cheaper sweep, and asking for it explicitly is the point: that is the request that should be the deliberate one."
+          "default": false,
+          "description": "Omitted, this Callable uses `false`. Skip candidates whose id is CITED — as a literal, at word boundaries — in the description, notes or comments of any bead that is not done, so a decision trail a live bead still points at is not deleted out from under it.\n\nIt DEFAULTS ON here, unlike the library default, and that is deliberate. This is the only destructive operation on the surface, and the bearer a deployment may configure is not a per-caller right: one shared token admits a client to everything published here, so being authenticated says nothing about whether this particular deletion was meant. A caller that omits the member must therefore not get weaker protection than the operator typing `bd prune`, which protects unless `--ignore-references`. The inverse — opt OUT locally, opt IN remotely — is the shape that lets a stray request delete a decision trail nothing brings back.\n\nIt costs a full scan of the not-done set and its comments. Sending `protect_referenced: false` buys the cheaper sweep, and asking for it explicitly is the point: that is the request that should be the deliberate one."
         },
         "dry_run": {
           "type": "boolean",
-          "default": false,
-          "description": "Report what the sweep WOULD do and delete nothing. The counts, the skips and the refusals are the same ones the real sweep would produce, computed against the same snapshot — and nothing is recorded in history either."
+          "default": true,
+          "description": "Omitted, this Callable uses `true`. Report what the sweep WOULD do and delete nothing. The counts, the skips and the refusals are the same ones the real sweep would produce, computed against the same snapshot — and nothing is recorded in history either."
         },
         "protect_live_dependents": {
           "type": "boolean",
-          "default": false,
-          "description": "Skip a closed candidate that a LIVE (not-done) bead depends on through a parent/child, tracks, or blocks edge, so closing a dependent's dependency does not erase the row a live bead still points at. Protection is TRANSITIVE and crosses the ephemeral/durable plane boundary. Behind the `issues.sweep.liveDependents` behavior token: an older server answers `unknown_parameter` for this name."
+          "default": true,
+          "description": "Omitted, this Callable uses `true`. Skip a closed candidate that a LIVE (not-done) bead depends on through a parent/child, tracks, or blocks edge, so closing a dependent's dependency does not erase the row a live bead still points at. Protection is TRANSITIVE and crosses the ephemeral/durable plane boundary. Behind the `issues.sweep.liveDependents` behavior token: an older server answers `unknown_parameter` for this name."
         },
         "limit": {
           "type": "integer",
@@ -1563,8 +1490,7 @@
           "default": false,
           "description": "RETIRE every id this sweep deletes. In the same transaction as the delete, the server writes one permanent tombstone per deleted bead — its id and its `closed_at`, nothing else — and from then on no write path creates a bead with that id again: a create naming it is refused with `410` `idempotency_expired` (on `POST /v0/beads/issues` and on an `issues:batchApply` create item), an import skips the row and reports it, and id generation never produces it. It is what lets a caller sweep beads whose ids are idempotency keys without a late retry re-creating the bead the first attempt created.\n\nOpt-in: absent or `false` sweeps exactly as before and leaves the swept ids reusable. Tombstones are permanent; nothing on this surface removes one. A tombstone is exactly as durable as the bead it replaces — a bead on the ephemeral plane leaves a clone-local one. `dry_run` writes none.\n\nBehind the `issues.sweep.retainIds` behavior token: an older server answers `unknown_parameter` for this name, and a client that needs the guarantee must not sweep at all without the token."
         }
-      },
-      "required": ["tier"]
+      }
     },
     "issuePruneArguments": {
       "description": "Arguments of issue/prune.",
@@ -1574,14 +1500,8 @@
         "tier": {
           "type": "string",
           "enum": ["ephemeral", "durable", "wisps-plane"],
-          "description": "Which plane to clear. `ephemeral` is the wisp tier (`bd purge`) and `durable` is the issue tier (`bd prune`). The two are DISJOINT: a sweep of one can never touch a bead of the other. Required, with no default — a caller handed the wrong tier has nothing to notice until the beads are gone.\n\n`wisps-plane` is a THIRD, wider tier: it clears the whole wisps table (ephemeral beads) AND any durable bead with no history row, in one pass. Behind the `issues.sweep.wispsPlane` behavior token: an older server answers `invalid_value` for this member, since it predates the token and knows only the first two values."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Caller-asserted attribution for wherever the backend records it, under the same rules and for the same reasons as `ClaimRequest`'s `actor`: trimmed, refused when empty after trimming, over 256 BYTES, or carrying any control character. Optional — a deleted bead leaves no row to attribute the deletion on."
+          "default": "durable",
+          "description": "Omitted, this Callable uses `\"durable\"`. Which plane to clear. `ephemeral` is the wisp tier (`bd purge`) and `durable` is the issue tier (`bd prune`). The two are DISJOINT: a sweep of one can never touch a bead of the other. `wisps-plane` is a THIRD, wider tier: it clears the whole wisps table (ephemeral beads) AND any durable bead with no history row, in one pass. Behind the `issues.sweep.wispsPlane` behavior token: an older server answers `invalid_value` for this member, since it predates the token and knows only the first two values."
         },
         "closed_before": {
           "type": "string",
@@ -1595,17 +1515,17 @@
         "protect_referenced": {
           "type": "boolean",
           "default": true,
-          "description": "Skip candidates whose id is CITED — as a literal, at word boundaries — in the description, notes or comments of any bead that is not done, so a decision trail a live bead still points at is not deleted out from under it.\n\nIt DEFAULTS ON here, unlike the library default, and that is deliberate. This is the only destructive operation on the surface, and the bearer a deployment may configure is not a per-caller right: one shared token admits a client to everything published here, so being authenticated says nothing about whether this particular deletion was meant. A caller that omits the member must therefore not get weaker protection than the operator typing `bd prune`, which protects unless `--ignore-references`. The inverse — opt OUT locally, opt IN remotely — is the shape that lets a stray request delete a decision trail nothing brings back.\n\nIt costs a full scan of the not-done set and its comments. Sending `protect_referenced: false` buys the cheaper sweep, and asking for it explicitly is the point: that is the request that should be the deliberate one."
+          "description": "Omitted, this Callable uses `true`. Skip candidates whose id is CITED — as a literal, at word boundaries — in the description, notes or comments of any bead that is not done, so a decision trail a live bead still points at is not deleted out from under it.\n\nIt DEFAULTS ON here, unlike the library default, and that is deliberate. This is the only destructive operation on the surface, and the bearer a deployment may configure is not a per-caller right: one shared token admits a client to everything published here, so being authenticated says nothing about whether this particular deletion was meant. A caller that omits the member must therefore not get weaker protection than the operator typing `bd prune`, which protects unless `--ignore-references`. The inverse — opt OUT locally, opt IN remotely — is the shape that lets a stray request delete a decision trail nothing brings back.\n\nIt costs a full scan of the not-done set and its comments. Sending `protect_referenced: false` buys the cheaper sweep, and asking for it explicitly is the point: that is the request that should be the deliberate one."
         },
         "dry_run": {
           "type": "boolean",
-          "default": false,
-          "description": "Report what the sweep WOULD do and delete nothing. The counts, the skips and the refusals are the same ones the real sweep would produce, computed against the same snapshot — and nothing is recorded in history either."
+          "default": true,
+          "description": "Omitted, this Callable uses `true`. Report what the sweep WOULD do and delete nothing. The counts, the skips and the refusals are the same ones the real sweep would produce, computed against the same snapshot — and nothing is recorded in history either."
         },
         "protect_live_dependents": {
           "type": "boolean",
           "default": false,
-          "description": "Skip a closed candidate that a LIVE (not-done) bead depends on through a parent/child, tracks, or blocks edge, so closing a dependent's dependency does not erase the row a live bead still points at. Protection is TRANSITIVE and crosses the ephemeral/durable plane boundary. Behind the `issues.sweep.liveDependents` behavior token: an older server answers `unknown_parameter` for this name."
+          "description": "Omitted, this Callable uses `false`. Skip a closed candidate that a LIVE (not-done) bead depends on through a parent/child, tracks, or blocks edge, so closing a dependent's dependency does not erase the row a live bead still points at. Protection is TRANSITIVE and crosses the ephemeral/durable plane boundary. Behind the `issues.sweep.liveDependents` behavior token: an older server answers `unknown_parameter` for this name."
         },
         "limit": {
           "type": "integer",
@@ -1617,8 +1537,7 @@
           "default": false,
           "description": "RETIRE every id this sweep deletes. In the same transaction as the delete, the server writes one permanent tombstone per deleted bead — its id and its `closed_at`, nothing else — and from then on no write path creates a bead with that id again: a create naming it is refused with `410` `idempotency_expired` (on `POST /v0/beads/issues` and on an `issues:batchApply` create item), an import skips the row and reports it, and id generation never produces it. It is what lets a caller sweep beads whose ids are idempotency keys without a late retry re-creating the bead the first attempt created.\n\nOpt-in: absent or `false` sweeps exactly as before and leaves the swept ids reusable. Tombstones are permanent; nothing on this surface removes one. A tombstone is exactly as durable as the bead it replaces — a bead on the ephemeral plane leaves a clone-local one. `dry_run` writes none.\n\nBehind the `issues.sweep.retainIds` behavior token: an older server answers `unknown_parameter` for this name, and a client that needs the guarantee must not sweep at all without the token."
         }
-      },
-      "required": ["tier"]
+      }
     },
     "issueDeleteArguments": {
       "description": "Arguments of issue/delete.",
@@ -1634,13 +1553,6 @@
           },
           "description": "The beads to delete, exact ids, in either plane. DUPLICATES COLLAPSE. An empty array is a `400` rather than a no-op — a caller whose id list came out empty because its own construction broke would read \"deleted 0\" and conclude the workspace was already clean.\n\nThe cap is on the REQUEST rather than on what a cascade expands to: the whole delete is one transaction, so the practical bound is the backend's write timeout and no number here can promise it."
         },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Caller-asserted attribution, under the same rules as `SweepRequest`'s `actor`: trimmed, refused when empty after trimming, over 256 BYTES, or carrying any control character. Optional — a deleted bead leaves no row to attribute the deletion on — but it does reach the SURVIVING beads whose text this operation rewrites, so a workspace that cares who rewrote a description sends one."
-        },
         "cascade": {
           "type": "boolean",
           "default": false,
@@ -1653,8 +1565,8 @@
         },
         "dry_run": {
           "type": "boolean",
-          "default": false,
-          "description": "Report what the deletion WOULD do and change nothing. The counts and BOTH refusals are the ones the real request would produce, computed against the same snapshot, and nothing is recorded in history either."
+          "default": true,
+          "description": "Omitted, this Callable uses `true`. Report what the deletion WOULD do and change nothing. The counts and BOTH refusals are the ones the real request would produce, computed against the same snapshot, and nothing is recorded in history either."
         },
         "expected_version": {
           "type": "string",
@@ -1668,15 +1580,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "description": "Who ran the sweep. REQUIRED: each reverted row's recovery event and history entry are attributed to it. Validated by the same rules as the claim's `actor`."
-        },
         "older_than_seconds": {
           "type": "number",
           "format": "double",
           "minimum": 0,
-          "description": "The grace window past a lease's own expiry, in seconds (fractions allowed): only a lease that expired more than this long ago is eligible. Absent means `0`, every currently expired lease. A negative value is refused."
+          "default": 600,
+          "description": "Omitted, this Callable uses `600`. The grace window past a lease's own expiry, in seconds (fractions allowed): only a lease that expired more than this long ago is eligible. A negative value is refused."
         },
         "ids": {
           "type": "array",
@@ -1718,21 +1627,13 @@
           "type": "boolean",
           "description": "Also revert leases another replica granted. The one member that WIDENS the sweep; see the operation. Absent means `false`."
         }
-      },
-      "required": ["actor"]
+      }
     },
     "issueCreateManyArguments": {
       "description": "Arguments of issue/create-many.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is creating the issues, under `ClaimRequest.actor`'s rules and for the same reasons: the server trims it, refuses an empty result, anything longer than 256 BYTES, and any control character including newline. It is attributed to every item and interpolated into the storage commit message."
-        },
         "items": {
           "type": "array",
           "minItems": 1,
@@ -1743,20 +1644,13 @@
           "description": "The issues to create, in order. An empty array is a `400` rather than a successful no-op: a write request that writes nothing is a client bug, and answering it with a cheerful empty success is how a client whose own list filtered to nothing silently stops creating anything.\n\nThe 100-item cap is a bound on how long one request may hold a write transaction, not a statement about batch semantics. Split a larger plan; each request is atomic on its own."
         }
       },
-      "required": ["actor", "items"]
+      "required": ["items"]
     },
     "issueBatchArguments": {
       "description": "Arguments of issue/batch.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is applying the plan, under `ClaimRequest.actor`'s rules and for the same reasons: the server trims it, refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline.\n\nIt is attributed to every item and to the ONE history entry the request records, because a batch is one act by one caller."
-        },
         "items": {
           "type": "array",
           "minItems": 1,
@@ -1782,7 +1676,7 @@
           "description": "Drops the PER-EDGE cycle probe for a caller wiring a large graph, exactly as it does on `POST /v0/beads/dependencies:add`.\n\nIT NEVER DROPS THE END GATE, which runs once after every item and re-validates the whole graph this request built, and it never drops the self-dependency refusal. It trades per-edge attribution for speed, not validation for speed."
         }
       },
-      "required": ["actor", "items"]
+      "required": ["items"]
     },
     "issueBatchError": {
       "description": "The error values issue/batch can return: v0's Problem, discriminated by code.",
@@ -1814,13 +1708,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is closing. `ClaimRequest.actor`'s rules exactly, and the value is recorded against every item."
-        },
         "items": {
           "type": "array",
           "minItems": 1,
@@ -1846,7 +1733,7 @@
           "description": "Behind the `issues.close.autoCloseMolecule` behavior token: an older server answers `unknown_parameter` for this name.\n\nClose each item's molecule root when the batch completed it: `CloseIssueRequest.auto_close_molecule` for every item that closed or was already closed, run after all the closes inside the same transaction. A batch that closes several steps of one molecule decides its root once, and the root it closed, or its refusal, is reported on the outcome of the first successful item under that root."
         }
       },
-      "required": ["actor", "items"]
+      "required": ["items"]
     },
     "issueClaimNextArguments": {
       "description": "Arguments of issue/claim-next.",
@@ -1935,29 +1822,14 @@
           "enum": ["hybrid", "priority", "oldest"],
           "default": "priority",
           "description": "Ready-work ordering. `priority` is priority-first; `hybrid` orders recent issues by priority and older ones by age; `oldest` is creation order. An unrecognized value is a 400.\n\nThe default is the one `bd ready --sort` registers, so a client swapping `bd ready --json` for this operation gets the same items in the same order. The storage layer treats an EMPTY policy as `hybrid`, but that fallback is unreachable from the CLI and is NOT this parameter's default: `hybrid` demotes older high-priority work, so defaulting to it would change the item SET as soon as `limit` truncates — silently, and only for the clients this API exists to migrate."
-        },
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is claiming. `ClaimRequest.actor`'s rules exactly: the server trims it, then refuses an empty result, anything longer than 256 BYTES (the `maxLength` above counts characters — the byte limit is the binding one), and any control character including newline. The value is persisted as the assignee and interpolated into the storage commit message, so an unvalidated newline would forge audit-trail lines.\n\nIT IS THE ONLY BODY MEMBER, and the FILTER travels in the query string instead. That split is deliberate: the filter vocabulary is `GET /v0/beads/ready`'s and is decoded by the same function, so re-spelling it as a body object would create a second expression of one predicate — and two spellings of one predicate eventually disagree. The actor cannot go the same way: it is provenance that lands in a column, and this surface has always carried that in a body."
         }
-      },
-      "required": ["actor"]
+      }
     },
     "issueDepAddArguments": {
       "description": "Arguments of issue/dep/add.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is asserting the edges, under `ClaimRequest.actor`'s rules and for the same reasons: the server trims it, refuses an empty result, anything longer than 256 BYTES, and any control character including newline. It is attributed on each `dependency_added` event a genuinely new edge records, and interpolated into the storage commit message."
-        },
         "edges": {
           "type": "array",
           "minItems": 1,
@@ -1985,8 +1857,7 @@
           "maxLength": 255,
           "description": "The edge type. Flat form only; omitted, it is `blocks`."
         }
-      },
-      "required": ["actor"]
+      }
     },
     "issueDepAddError": {
       "description": "The error values issue/dep/add can return: v0's Problem, discriminated by code.",
@@ -2008,13 +1879,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256,
-          "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$",
-          "description": "Who is removing the edge, under `ClaimRequest.actor`'s rules and for the same reasons: the server trims it, refuses an empty result, anything longer than 256 BYTES, and any control character including newline. It is attributed on the `dependency_removed` event a real removal records, and interpolated into the storage commit message."
-        },
         "issue_id": {
           "type": "string",
           "minLength": 1,
@@ -2028,7 +1892,7 @@
           "description": "The edge's TARGET — the issue depended upon. An exact canonical id, under `issue_id`'s rule."
         }
       },
-      "required": ["actor", "issue_id", "depends_on_id"]
+      "required": ["issue_id", "depends_on_id"]
     },
     "configSetArguments": {
       "description": "Arguments of config/set.",
