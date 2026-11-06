@@ -17,8 +17,8 @@ affiliated to one of the Types below and each relationship row served as a Link.
 and HTTP; [Write](../../profiles/write/write.md) supplies the mutations;
 [Types](../../profiles/types/types.md) supplies the descriptor language in which
 the definitions below are written. [Callables](../../profiles/callables/callables.md)
-carries the tracker's command-shaped operations, specified for this package in
-[Issue and Dependency Callables](callables.md); this document carries none.
+carries the tracker's operations, routed to the product and declared for this package
+in [Issue and Dependency Callables](callables.md); this document carries none.
 
 > **Status.** Editorial draft on a review branch. Its rulings await Donna's
 > markers; nothing here is selected until she says so.
@@ -40,7 +40,7 @@ archive and are not restated here.
 ## Contents
 
 1. [Selection and boundary](#1-selection-and-boundary)
-2. [Identities](#2-identities)
+2. [Bead and Link Types](#2-bead-and-link-types)
 3. [Issue Bead Types](#3-issue-bead-types)
 4. [Dependency Link Types](#4-dependency-link-types)
 5. [Link identity, uniqueness and the remove-and-add cycle](#5-link-identity-uniqueness-and-the-remove-and-add-cycle)
@@ -79,7 +79,11 @@ behavioral baseline. This document does not restate readiness, blocking,
 claiming or closure; those are operations and ride the Callables profile. It
 states what a record means, what a Link means, and what a provider refuses.
 
-## 2. Identities
+The tracker's Callables route to the product and return its JSON, while generic Core
+and Write serve the same store as Bead records. Identifiers and revision tokens must
+be usable across both.
+
+## 2. Bead and Link Types
 
 The shared protocol identities are assigned under
 `https://github.com/gastownhall/bdp/types/issue/` for Bead Types and
@@ -217,10 +221,10 @@ Rules the schema does not carry:
   not expressible in the immutable schema. `closed_at` is required exactly when
   `status` is the literal `closed`, by native validation. No closed enumeration
   is published; the policy-versioning question stays open (§11). (**preview**)
-- **Priority.** `0` is P0, never absence. Omitted on creation, it is refused:
-  this package publishes no creation defaults, and the client supplies `status`
-  and `priority` (the native CLI's own defaults of `open` and its configured
-  default priority). (**preview**)
+- **Priority.** `0` is P0, never absence. Omitted on `createBead`, it is refused:
+  this package publishes no creation defaults for the generic mechanism. The
+  tracker's create Callable applies the product's own defaults, `open` and P2.
+  (**preview**)
 - **Labels.** An array of distinct nonempty strings on the record. Label edits
   are ordinary `updateBead` property patches and version the record (§7).
 - **Timestamps.** Every instant is an RFC 3339 date-time with uppercase `T` and `Z`.
@@ -241,6 +245,9 @@ Rules the schema does not carry:
 | `/arrival_seq`, `/closed_by_session`, `/compaction_level`, `/compacted_at`, `/compacted_at_commit`, `/original_size` | `service-managed` | Native bookkeeping carried on reads |
 | every other member | `writable` | Ordinary authored data, subject to the native write boundary |
 
+A `service-managed` member is returned on reads as an ordinary property of the
+record, and a change to it mints a new revision like any other change (§7).
+
 A patch that touches a `service-managed` member is refused with
 `validation-failed`. `status` is `writable`: a direct status edit over
 `updateBead` is admitted and is validated natively (a direct edit to `closed`
@@ -253,8 +260,8 @@ item (§11).
 | Native field group | Treatment in preview-1 |
 | --- | --- |
 | `metadata` (application JSON) | The record's common `metadata` member, never `properties.metadata` |
-| `dependencies`, `comments`, counts, `parent`, epic progress | Relation projections and view results; dependencies are Links (§4), comments are not modeled (§9), the rest are served by the tracker's detail Callable |
-| `lease_expires_at`, `heartbeat_at`, `lease_granted_node`, `is_blocked` | Operational observations. They are **not** properties and do not appear in Bead records, because a heartbeat changes them without changing the record's state and Core binds a revision to the complete record. They are served by the tracker's Callables (the detail read, claim and heartbeat results). Their portable placement is an open item (§11). (**preview**) |
+| `dependencies`, `comments`, counts, `parent`, epic progress | Relation projections and view results; dependencies are Links (§4), comments stay as the product serves them, through `issue/show` and `issue/comment` (§9), and the rest are served by the tracker's detail Callable |
+| `lease_expires_at`, `heartbeat_at`, `lease_granted_node`, `is_blocked` | Operational observations. They are **not** properties and do not appear in Bead records, because a heartbeat changes them without changing the record's state and Core binds a revision to the complete record. They are served by the tracker's Callables (the detail read, claim and heartbeat results), so the tracker's show command keeps the lease line the product's `bd show` prints, and the generic `bd show` does not carry them. The product prints no `is_blocked`, which it keeps to journal snapshots. Their portable placement is an open item (§11). (**preview**) |
 | `ephemeral`, `no_history`, `storage_class`, `wisp_type`, `pinned`, `is_template`, `bonded_from`, `mol_type`, `work_type`, `await_type`, `await_id`, `timeout`, `waiters`, `source_system`, `sender`, `source_formula`, `source_location`, `event_kind`, `actor`, `target`, `payload` | Carried as additional properties when the native record has them, with their native meanings; none is reinterpreted, promoted to a Type or made a BDP attribution. `actor` and `target` here are the event-shaped Issue's own members, not the revision actor or a Link endpoint |
 
 ## 4. Dependency Link Types
@@ -362,6 +369,7 @@ provider's own and means nothing to a client. A provider MAY refuse a supplied
 `id` under its native allocation policy, as Write permits; a supplied identity
 ever committed is `identity-taken`. (**preview**)
 
+
 A removed Link does not return at its old identity because Write's historical
 update and same-identity recovery cover Beads only in their first edition.
 [Extending them to Links](https://github.com/gastownhall/bdp/issues/363) is open
@@ -370,17 +378,15 @@ changing the wire, because clients do not parse one.
 
 The native remove-and-add idiom carries over unchanged. The native way to
 change a relationship's metadata is to remove the row and add it again with the
-same endpoints and new metadata; over BDP that is the removal of the live Link
-followed by the creation of a new one with the new metadata, whether a client
-spells it as `remove-dependency` and `add-dependencies` or as `deleteLink` and
-`createLink`.
+same endpoints and new metadata; over BDP that is `deleteLink` of the live Link
+followed by `createLink` of a new one with the new metadata. `issue/dep/remove` and
+`issue/dep/add`, in the [Issue and Dependency Callables](callables.md), carry no
+metadata.
 
-`add-dependencies`, in the [Issue and Dependency Callables](callables.md), is an
-**upsert over the live Link**: a pair with no live Link gets a new Link with the
-given Type and metadata; a live Link of the same Type has its metadata and
-thread updated in place as a new revision, or nothing is written when nothing
-differs; a live Link of another Type fails with `callable-error` and the reason
-`dependency-exists`, as the native path refuses it. A relationship's kind changes with `updateLink`
+`issue/dep/add` keeps the product's behavior: a pair with no live Link gets a new
+Link of the given Type; a pair already carrying that Type refuses nothing; a pair
+carrying another Type fails with `callable-error` and the reason
+`dependency_exists`. A relationship's kind changes with `updateLink`
 carrying `type`, validated against the pair, cycle and hierarchy rules as a
 whole, or by remove and add. A BDP-aware client MAY use `createLink` (refused on
 an occupied pair by pair uniqueness), `updateLink` with `metadata` or
@@ -388,14 +394,14 @@ an occupied pair by pair uniqueness), `updateLink` with `metadata` or
 path into the other.
 
 To remove a relationship given only its endpoints, a client uses
-`remove-dependency`, or reads the one live Link of the pair,
+`issue/dep/remove`, or reads the one live Link of the pair,
 `GET <source>?view=links&direction=outbound&target=<target>` (at most one item,
 by pair uniqueness), and deletes it by its `id`.
 
-Deleting an Issue Bead with live incident Dependency Links is refused with
-`incident-links-exist`, as Write requires; the native cascade delete is the
-`delete-issues` Callable, which removes the Links and the Bead in one native
-transaction.
+`issue/delete` keeps the product's modes and its `[deleted:id]` text rewrite. The
+general modes of `deleteBead` are in [draft 369](https://github.com/gastownhall/bdp/pull/369);
+until they land, `deleteBead` on an Issue with live incident Dependency Links stays
+refused with `incident-links-exist`, as Write requires.
 
 A native local rename of an Issue identifier, which no HTTP surface offers,
 would change every pair-derived identity it touches, which Core forbids; a
@@ -424,7 +430,7 @@ a provider MAY spell it from a native counter but makes no promise about the
 spelling. `expectedRevision` guards every `updateBead`, `deleteBead`,
 `updateLink` and `deleteLink` as Write defines.
 
-The native tracker's caller-asserted `actor` is carried as
+Over Write, the native tracker's caller-asserted `actor` is carried as
 `revisionProvenance.actor` with `basis: "writer-supplied"` and the actor string
 as `id`, unchanged and unnamespaced; it is data, not evidence, exactly as Core
 says. `created_by` and `closed_by_session` stay native properties; neither is a
@@ -473,7 +479,7 @@ against a running Scope:
 | IT-6 | `createLink` whose endpoints are the same Bead is refused |
 | IT-7 | `createLink` on an occupied ordered pair, with any Dependency Type, is refused; the diagnostic names the occupying Link |
 | IT-8 | `createLink` for `blocks` A→B serves a Link with `source` A and `target` B |
-| IT-9 | `deleteLink` of a pair's live Link then `createLink` (or `add-dependencies`) with the same endpoints, Type and new metadata succeeds and serves a Link with a new `id`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken` |
+| IT-9 | `deleteLink` of a pair's live Link then `createLink` with the same endpoints, Type and new metadata succeeds and serves a Link with a new `id`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken` |
 | IT-10 | `updateLink` with `metadataChange` on a live Link keeps its `id` and serves a new `revision` |
 | IT-11 | `updateBead` that changes only `labels` serves a new `revision` |
 | IT-12 | `deleteBead` on an Issue with a live incident Link is refused as `incident-links-exist` |
@@ -498,12 +504,14 @@ reader infers a rule from their absence:
 - Endpoints: pinned endpoints for workflow Links, what a pin means for
   readiness, and the URI spelling of cross-repository identifiers as opaque
   targets.
-- Link recovery ([issue 363](https://github.com/gastownhall/bdp/issues/363)):
-  extending Write's historical update and same-identity recovery to Links, so
-  that a removed Dependency can return as a later version of the same identity
-  and a provider need not derive a new one.
+- Link recovery: Write will specify `--from-revision` on Link update, per
+  [issue 363](https://github.com/gastownhall/bdp/issues/363). It is not built this
+  round.
 - Properties replacement: the boundary between whole-properties replacement and
   the native writable projection.
+- Labels as Links: a label modeled as a Link of a label Type, which could then be
+  pinned, in place of a property on the record; details to be determined after
+  the sprint.
 - Comments as Beads; the native deterministic row identifier of a Dependency,
   if it is ever to be carried.
 - Custom classification lifecycle: serving definition Beads for configured names,
@@ -520,26 +528,26 @@ changes for a client that does. Rows marked **open** rest on a question not yet 
 | # | Area | Today under `/v0` | Under this package |
 | --- | --- | --- | --- |
 | HD-1 | Routes | 46 operations under `/v0/beads` | Core reads, the Write verbs, and `POST <scope>/bdp/call/<name>`, which `GET <scope>/bdp/call` lists as OpenAPI |
-| HD-2 | Discovery | `GET /v0/beads/context`, with capability tokens | Core discovery with capability advertisements, and the OpenAPI document at `<scope>/bdp/openapi` |
-| HD-3 | Identity | The native identifier, such as `bd-1a2b` | The canonical URL, `<scope>bd-1a2b`; arguments accept a Scope-relative path or the URL |
-| HD-4 | Classification | Short names, such as `task` and `blocks`, with aliases like `feat` | Absolute Type URIs; the client expands aliases before sending |
-| HD-5 | Revision | A label-only write does not advance the row version | Every committed change mints a revision, label-only writes included (§7); it is opaque and compared for equality only |
-| HD-6 | Guards | `expected_version` | `expected_revision` on Callables, `expectedRevision` on Write; a miss is `revision-mismatch` at 409 and writes nothing |
-| HD-7 | Lease and readiness | Fields of the flat issue struct | Outside the record, in a Callable view's `observations` member; a client reading only the record does not see them (§3.4) |
+| HD-2 | Discovery | `GET /v0/beads/context`, with capability tokens | Core discovery with capability advertisements, and the OpenAPI document at `<scope>/bdp/openapi`; `issue/context` keeps the product's answer |
+| HD-3 | Identity | The native identifier, such as `bd-1a2b` | The tracker's Callables keep the product's identifier. Core and Write use the canonical URL, `<scope>bd-1a2b`, and their arguments accept a Scope-relative path or the URL |
+| HD-4 | Classification | Short names, such as `task` and `blocks`, with aliases like `feat` | The tracker's Callables keep the product's short names. Core and Write use absolute Type URIs |
+| HD-5 | Revision | A label-only write does not advance the row version | Every committed change mints a revision, label-only writes included (§7); it is opaque and compared for equality only. The sprint keeps the product's behavior, excepted from IT-11 in the sprint's ledger, not by this document |
+| HD-6 | Guards | `expected_version` | The tracker's Callables keep `expected_version`, `expectedRevision` on Write; a stale guard is `revision-mismatch` at 409 and writes nothing |
+| HD-7 | Lease and readiness | Fields of the flat issue struct | The tracker's Callables keep them in the product's JSON. They are outside the Bead record, so a client reading only the record does not see them (§3.4) |
 | HD-8 | Dependencies | Rows addressed by their endpoints | Links with their own opaque identity, read from records and never computed. Removing one consumes its identity, and re-adding the pair creates a new one (§5) |
-| HD-9 | Actor | An `actor` parameter on every mutation | `revisionProvenance.actor` with `basis: "writer-supplied"`; a CallableBatch without it is `validation-failed`. `author` on `add-comment` stays an argument, because it is content |
-| HD-10 | Generic error codes | `not_found`, `precondition_failed`, `invalid_argument` and similar | `resource-not-found`, `revision-mismatch`, `validation-failed` and `limit-exceeded`. The status is unchanged where it already matched |
-| HD-11 | An operation's own failures | `{"code": "already_claimed", "assignee": "sam"}` at 409 | `{"code": "callable-error", "error": {"reason": "already-claimed", "assignee": "sam"}}` at 409: the code changes and the members move under `error` |
-| HD-12 | Truncated journal | 410 `events_journal_truncated` | 409 `callable-error` with reason `journal-truncated` |
+| HD-9 | Actor | An `actor` parameter on every mutation | The tracker's Callables keep `actor` as the product takes it, and `issue/comment` fills an omitted `author` from the invocation's actor. Write takes `revisionProvenance.actor` with `basis: "writer-supplied"` |
+| HD-10 | Generic error codes | `not_found`, `precondition_failed`, `invalid_argument` and similar | `resource-not-found`, `revision-mismatch` and `validation-failed`, as [Callables §5](callables.md#5-errors) lists them. The status is unchanged where it already matched |
+| HD-11 | An operation's own failures | `{"code": "already_claimed", "assignee": "sam"}` at 409 | `{"code": "callable-error", "error": {"code": "already_claimed", "assignee": "sam"}}` at 409: the tracker's Callable keeps the product's Problem, under `error` |
+| HD-12 | Truncated journal | 410 `events_journal_truncated` | 409 `callable-error` whose `error` is the product's Problem, with code `events_journal_truncated` |
 | HD-13 | Retired identities | 410 `idempotency_expired` | `identity-taken` at 409. **Open: F-18** |
 | HD-14 | Media type | `application/json` | `application/vnd.bdp.v0.1+json`; a `POST` with a missing or plain JSON content type is 415 before the body is read |
 | HD-15 | Repeating a request | Not applicable | A Scope without the `idempotency` capability ignores `Idempotency-Key` and runs a repeat under the ordinary rules, so only a Callable declared `idempotent` is safe to repeat |
-| HD-16 | Deletes | Only retention sweeps write tombstones | Identities are never reused, so every delete consumes its identity: an explicit `id` cannot be deleted and created again |
-| HD-17 | Listing | The native list hides closed, template, gate and infrastructure rows by default | `<scope>/bdp/beads` hides nothing; the native defaults live in `list-issues` |
+| HD-16 | Deletes | Only retention sweeps write tombstones | On `deleteBead`, identities are never reused, so a delete consumes its identity: an explicit `id` cannot be deleted and created again. `issue/delete`, `issue/purge` and `issue/prune` keep the product's behavior |
+| HD-17 | Listing | The native list hides closed, template, gate and infrastructure rows by default | `<scope>/bdp/beads` hides nothing; the native defaults live in `issue/list` |
 | HD-18 | `limit: 0` | Unbounded where v0 admitted it | Unchanged in those Callables; Core's `limit` is a positive bound |
-| HD-19 | Comments | Returned with the issue detail and added by a route | Not Beads and not in the record; reached through `get-issue` and `add-comment` (§9) |
-| HD-20 | Creating an Issue | The server defaults status to `open` and priority to P2 | `createBead` requires both, and `bd create` sends them. **Open: F-17** |
-| HD-21 | Creating with edges | One native transaction | `createBead` then one `createLink` per edge, because atomic batch is not advertised, so a failure can leave the Bead without all its edges |
+| HD-19 | Comments | Returned with the issue detail and added by a route | Not Beads and not in the record; reached through `issue/show` and `issue/comment` (§9) |
+| HD-20 | Creating an Issue | The server defaults status to `open` and priority to P2 | `issue/create` keeps the product's defaults. `createBead` requires both. **Open for `createBead`: F-17** |
+| HD-21 | Creating with edges | One native transaction | `issue/create` keeps the one transaction. `createBead` then one `createLink` per edge is the generic form, and a failure there can leave the Bead without all its edges |
 | HD-22 | Cursors | A keyset over live rows | Core says a continuation walks one logical snapshot; the preview keeps the keyset. **Open: F-5** |
 
 The preview's own departures from this specification are kept in its exceptions ledger

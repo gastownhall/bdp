@@ -155,9 +155,9 @@ Other fields: not allowed
 | "required" | boolean | no | parameter | "Whether the argument must be supplied; false when absent." |
 | "schema" | valueSchema | yes | parameter | "The argument's value schema." |
 
-**Defaults belong to the service.** A client never substitutes a default: it omits
-the argument and the service applies the value (§4). OpenAPI carries `default` as
-documentation, and `--help` shows it. (**preview**)
+**Defaults belong to the service.** Apart from `cliMapping.defaults` (§10), a client
+never substitutes a default: it omits the argument and the service applies the value
+(§4). OpenAPI carries `default` as documentation, and `--help` shows it. (**preview**)
 
 **valueSchema** — an embedded JSON Schema Draft 2020-12 value, an object or a
 boolean. It validates one argument, one result or one error value; it establishes
@@ -175,10 +175,13 @@ Other fields: not allowed
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "flags" | array of flagMapping | no | cliMapping | "Additional flag spellings for parameters." |
+| "defaults" | object | no | cliMapping | "Parameter values the client sends when the invocation does not supply that parameter." |
+| "flags" | array of flagMapping | no | cliMapping | "Aliases: additional flag spellings for parameters." |
+| "fromFile" | array of fileMapping | no | cliMapping | "Parameters whose value the client reads from a file or stdin." |
 | "positionals" | array of positionalMapping | no | cliMapping | "Positions mapped onto parameters." |
 
-**flagMapping** — adds one or more CLI flag spellings for a declared parameter.
+**flagMapping** — adds one or more aliases, CLI flag spellings, for a declared
+parameter.
 
 Other fields: not allowed
 
@@ -197,6 +200,15 @@ Other fields: not allowed
 | "parameter" | text | yes | positionalMapping | "The nonempty name of a declared parameter of the same declaration." |
 | "position" | integer | yes | positionalMapping | "Zero-based argument position; at least 0." |
 
+**fileMapping** — names flags that read a declared parameter's value from a file.
+
+Other fields: not allowed
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "names" | array of text | yes | fileMapping | "Distinct nonempty flag spellings, such as --body-file; at least one. The flag's value is a path, and - means stdin." |
+| "parameter" | text | yes | fileMapping | "The nonempty name of a declared parameter of the same declaration." |
+
 ### 2.4 callable-query and callable-batch — Bead Types
 
 **Meaning and use.** `callable-query` declares a read-only operation: invoking it
@@ -212,9 +224,11 @@ Concrete: `abstract` is absent. Neither adds properties.
 
 ### 2.5 Valid declarations and a worked example
 
-A declaration is invalid when it has duplicate parameter names, a flag or
-positional mapping naming an undeclared parameter, duplicate flag spellings
-(derived or added), duplicate positions, a `default` that fails its `schema`,
+A declaration is invalid when it has duplicate parameter names, a flag, positional
+or file mapping naming an undeclared parameter, duplicate flag spellings (derived or
+added, apart from a derived `--no-x` that yields to a declared parameter, §10),
+duplicate positions, a `default` or a `cliMapping.defaults` member that fails its
+parameter's `schema`, a `cliMapping.defaults` member naming an undeclared parameter,
 `required` together with `default`, or a `$ref` that does not resolve inside its
 document. These are semantic checks the structural schema cannot express. A
 provider does not serve an invalid declaration.
@@ -523,20 +537,34 @@ Flags derive from the declaration, so most declarations need no CLI section:
 | --- | --- |
 | Any parameter | `--kebab-name`, from the parameter name split at `_`, `-` and lower-to-upper boundaries, lowercased and joined with `-` |
 | `schema` of type `boolean` | `--flag` and `--no-flag` |
-| `schema` of type `array` | The flag repeats, one item each |
+| `schema` of type `array` | The flag repeats, one item each; a value is never split on commas |
 | Any other non-string `schema` | The flag's value is parsed as JSON |
 
-`cliMapping` only adds to this: `flags` adds spellings such as `-l`, and
-`positionals` lets a position stand for a flag. A generic `--arguments JSON` input
-supplies the whole object, and explicit flags override its members. `--help` after
-`NAME` prints `title`, `description`, the parameters and any declared errors
-without invoking.
+A parameter declared with the flag `--no-x` keeps that flag, and a boolean parameter
+`x` then has no derived `--no-x`.
 
-**The command tree, as a placeholder.** A Callable's name gives its place in the tree,
-one command word per segment: `memory/remember` is `bdp memory remember`. A built-in
-command wins any collision, and `bdp call NAME` always reaches the Callable. (**preview**)
+`cliMapping` only adds to this:
 
-The client preserves omission and `null`, and never substitutes a default. A CallableBatch invocation
+| Member | Effect |
+| --- | --- |
+| `flags` | Adds aliases for a parameter's flag, such as `-l` |
+| `positionals` | Lets a position stand for a flag |
+| `fromFile` | Adds flags whose value is a path, with `-` meaning stdin; the client reads the content and treats it as that parameter's flag value |
+| `defaults` | Supplies values the client sends for parameters the invocation does not supply |
+
+A generic `--arguments JSON` input supplies the whole object, and explicit flags
+override its members. An explicit flag or `--arguments` member overrides a
+`cliMapping.defaults` member. `cliMapping.defaults` is CLI-only: it does not change
+what an HTTP caller gets when it omits a parameter. `--help` after `NAME` prints
+`title`, `description`, the parameters and any declared errors without invoking.
+
+**The command tree.** A Callable's name gives its place in the tree, one command word
+per segment: `issue/create` is `bdp issue create`. A package names its Callables under
+the package's prefix. A built-in command wins any collision, and `bdp call NAME` always
+reaches the Callable. (**preview**)
+
+The client preserves omission and `null`, and never substitutes a default except from
+`cliMapping.defaults`. A CallableBatch invocation
 mints the `Idempotency-Key` as the client does for Write's operations when the
 Scope advertises `idempotency`. The client never infers an invocation from a Bead
 URL. The CLI design document gains a `call` section and closes its mismatch row,
@@ -583,8 +611,8 @@ Not selected in preview-1:
   from a Bead graph, and whether a package can add parameters to an existing command,
   such as `--title` on `bd create`.
 - How much of `cliMapping` survives. It is judged during the detailed design of the
-  first package, and a parameter annotation for positionals may be all that is
-  needed.
+  first package, whose declarations use `flags`, `positionals`, `fromFile` and
+  `defaults`; a parameter annotation may replace the first three.
 - Result carriers beyond one JSON value: paged results, streamed results,
   collection-kind metadata.
 - A revision guard on an invocation. A general scrub of provenance, actor and
@@ -781,7 +809,7 @@ from the operation. `GET <scope>/bdp/call` serves these operations (§3):
 | 200 response | `callableResult`, with `result` as the declaration's `resultSchema` |
 | 409 response | `callableProblem`, with `error` as the declaration's `errorSchema` on `callable-error` |
 | `default` response | `callableProblem` |
-| `x-bdp-callable` extension | The Type, `idempotent`, `atomic` and `cliMapping`, so they survive into the document |
+| `x-bdp-callable` extension | The Type, `idempotent`, `atomic` and `cliMapping`, so they survive into the document; `cliMapping.defaults` appears only here and never as an OpenAPI `default` |
 
 A `oneOf` in `errorSchema` whose branches each fix one member to a constant may project
 OpenAPI's `discriminator` on that member. Two Callables whose names give the same
