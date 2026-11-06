@@ -525,14 +525,30 @@ and Write's `idempotency-conflict`, `idempotency-in-progress`,
 ## 10. CLI correspondence
 
 The canonical client learns what can be called from `GET <scope>/bdp/call` (§3), with
-its CLI additions carried in `x-bdp-callable` (§14). It invokes a Callable by its name, with client options before
-the verb and the Callable's own arguments after it:
+its CLI additions carried in `x-bdp-callable` (§14). It reaches a Callable in two ways.
+
+**`call`.** It invokes a Callable by its name and takes the arguments as one JSON
+object:
 
 ```text
-bdp [client options] call NAME [callable arguments]
+bdp call NAME [--arguments JSON] [client options]
 ```
 
-Flags derive from the declaration, so most declarations need no CLI section:
+`--arguments` is the invocation's `arguments` object, and `{}` when omitted. `call` lifts
+nothing from the declaration: it derives no flag and binds no position, and it refuses
+any other flag or position after `NAME`. Client options may come anywhere. `--help` after
+`NAME` prints `title`, `description`, the parameters and any declared errors without
+invoking. `cliMapping.defaults` applies here too, so a default stays CLI-only and an HTTP
+caller is unaffected.
+
+**The command tree.** A Callable's name gives its place in the tree, one command word
+per segment: `issue/create` is `bdp issue create`. A package names its Callables under
+the package's prefix. A built-in command wins any collision, and `bdp call NAME` always
+reaches the Callable. (**preview**) Client options come before the first word and
+everything after the command is the Callable's own.
+
+On a tree command, flags derive from the declaration, so most declarations need no CLI
+section:
 
 | Declared | CLI form |
 | --- | --- |
@@ -553,16 +569,11 @@ A parameter declared with the flag `--no-x` keeps that flag, and a boolean param
 | `fromFile` | Adds flags whose value is a path, with `-` meaning stdin; the client reads the content and treats it as that parameter's flag value |
 | `defaults` | Supplies values the client sends for parameters the invocation does not supply |
 
-A generic `--arguments JSON` input supplies the whole object, and explicit flags
+On a tree command, `--arguments JSON` supplies the whole object, and explicit flags
 override its members. An explicit flag or `--arguments` member overrides a
 `cliMapping.defaults` member. `cliMapping.defaults` is CLI-only: it does not change
-what an HTTP caller gets when it omits a parameter. `--help` after `NAME` prints
-`title`, `description`, the parameters and any declared errors without invoking.
-
-**The command tree.** A Callable's name gives its place in the tree, one command word
-per segment: `issue/create` is `bdp issue create`. A package names its Callables under
-the package's prefix. A built-in command wins any collision, and `bdp call NAME` always
-reaches the Callable. (**preview**)
+what an HTTP caller gets when it omits a parameter. `--help` after the command prints
+what it prints after `NAME`, with the flags.
 
 The client preserves omission and `null`, and never substitutes a default except from
 `cliMapping.defaults`. A CallableBatch invocation
@@ -572,8 +583,8 @@ URL. The CLI design document gains a `call` section and closes its mismatch row,
 `CLI-09`, when that section lands.
 
 ```sh
-bdp call reserve-room --room cedar --day 2026-11-20
-bdp call reserve-room cedar --day 2026-11-20
+bdp call reserve-room --arguments '{"room":"cedar","day":"2026-11-20"}'
+bdp reserve-room cedar --day 2026-11-20
 ```
 
 ## 11. Conformance rows for preview-1
