@@ -125,11 +125,11 @@ describe("the static Issue catalog", () => {
     await expect(catalog.get("list-issues")).resolves.toBeUndefined();
   });
 
-  it("carries each CLI mapping and every CLI default of Issue §4", async () => {
+  it("carries each CLI mapping and declares every service default of Issue §4", async () => {
     const catalog = issueCallableCatalog();
     expect(
       (await catalog.list()).filter(({ cliMapping }) => cliMapping !== undefined),
-    ).toHaveLength(31);
+    ).toHaveLength(28);
     expect((await catalog.get("issue/create"))?.cliMapping).toMatchObject({
       positionals: [{ position: 0, parameter: "title" }],
       flags: expect.arrayContaining([{ names: ["-t", "--type"], parameter: "issue_type" }]),
@@ -138,23 +138,43 @@ describe("the static Issue catalog", () => {
         { names: ["--design-file"], parameter: "design" },
       ],
     });
-    const defaults = async (name: string) => (await catalog.get(name))?.cliMapping?.defaults;
-    await expect(defaults("issue/list")).resolves.toEqual({ sort: "priority" });
-    await expect(defaults("issue/dep/list")).resolves.toEqual({ direction: "out" });
-    await expect(defaults("issue/close")).resolves.toEqual({ reason: "Closed" });
-    await expect(defaults("issue/purge")).resolves.toEqual({
+    const declares = async (name: string, expected: Record<string, unknown>) => {
+      const declared = (await catalog.get(name))?.parameters ?? [];
+      for (const [parameter, value] of Object.entries(expected)) {
+        const held = declared.find((candidate) => candidate.name === parameter);
+        expect(held?.default, `${name}.${parameter}`).toEqual(value);
+        expect(held?.required, `${name}.${parameter}`).toBeUndefined();
+      }
+    };
+    await declares("issue/create", { issue_type: "task" });
+    await declares("issue/list", { sort: "priority" });
+    await declares("issue/dep/list", { direction: "out" });
+    await declares("issue/close", { reason: "Closed" });
+    await declares("issue/purge", {
       dry_run: true,
       tier: "ephemeral",
       protect_referenced: false,
       protect_live_dependents: true,
     });
-    await expect(defaults("issue/prune")).resolves.toEqual({
+    await declares("issue/prune", {
       dry_run: true,
       tier: "durable",
       protect_referenced: true,
       protect_live_dependents: false,
     });
-    await expect(defaults("issue/delete")).resolves.toEqual({ dry_run: true });
-    await expect(defaults("issue/reclaim")).resolves.toEqual({ older_than_seconds: 600 });
+    await declares("issue/delete", { dry_run: true });
+    await declares("issue/reclaim", { older_than_seconds: 600 });
+  });
+
+  it("declares no actor or author, and no cliMapping defaults", async () => {
+    for (const { name, parameters, cliMapping } of await issueCallableCatalog().list()) {
+      expect(
+        parameters
+          .map((parameter) => parameter.name)
+          .filter((n) => ["actor", "author"].includes(n)),
+        name,
+      ).toEqual([]);
+      expect(Object.keys(cliMapping ?? {}), name).not.toContain("defaults");
+    }
   });
 });

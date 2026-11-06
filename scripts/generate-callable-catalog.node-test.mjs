@@ -124,14 +124,6 @@ test("§2.5: every invalid cliMapping is refused", () => {
     /positionals names undeclared/,
   );
   assert.throws(
-    () => assertValidDeclaration(flagged({ defaults: { nope: 1 } })),
-    /defaults names undeclared/,
-  );
-  assert.throws(
-    () => assertValidDeclaration(flagged({ defaults: { pinned: "yes" } })),
-    /cliMapping default fails its schema/,
-  );
-  assert.throws(
     () =>
       assertValidDeclaration(
         flagged({

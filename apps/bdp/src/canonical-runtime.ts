@@ -377,14 +377,11 @@ export async function runCanonicalInvocation(
         (await callables.get(name)) ??
         refuse("invalid_arguments", 2, "unknown Callable; run bdp call to list the names");
       const tokens = invocation.positionals.slice(1);
-      if (
-        callableCommand !== undefined &&
-        ["actor", "revisionProvenance"].some((key) => invocation.explicitOptions.includes(key))
-      )
+      if (callableCommand !== undefined && invocation.explicitOptions.includes("arguments"))
         return refuse(
           "invalid_arguments",
           2,
-          "before a tree command --actor and --revision-provenance are not options; give the command's own flag after it, or use bdp call for attribution",
+          "--arguments is the command's own; put it after the command",
         );
       const parsed =
         callableCommand === undefined
@@ -461,7 +458,7 @@ export async function runCanonicalInvocation(
     if (historicalSource !== undefined) parseHistoricalSourceSelector(historicalSource);
     const reader = canonicalInputReader(io.signal);
     if (callable !== undefined && parsedCall !== undefined)
-      callableArguments = await completeCallableArguments(callable, parsedCall, (path) =>
+      callableArguments = await completeCallableArguments(parsedCall, (path) =>
         path === "-" ? reader.readStdin(MAX_INPUT_BYTES) : reader.readFile(path, MAX_INPUT_BYTES),
       );
     const dryRun = stringOption(options, "dryRunMode");
@@ -626,6 +623,7 @@ export async function runCanonicalInvocation(
       const actor = stringOption(options, "actor");
       const supplied = stringOption(options, "revisionProvenance");
       const key = stringOption(options, "idempotencyKey");
+      if (actor === "") return refuse("invalid_arguments", 2, "--actor requires a value");
       const attributed = actor !== undefined || supplied !== undefined;
       const revisionProvenance = attributed
         ? lowerRevisionProvenance(

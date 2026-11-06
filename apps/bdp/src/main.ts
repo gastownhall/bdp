@@ -33,10 +33,11 @@ import { type Command, CommanderError } from "commander";
 import {
   callableCommandTree,
   callableGroupSummaries,
+  liftActorFlags,
   renderCallableGroupHelp,
   resolveCallableCommand,
 } from "./canonical-call.js";
-import { createCanonicalCommand, splitLeadingWords } from "./canonical-command.js";
+import { ACTOR_CONFLICT, createCanonicalCommand, splitLeadingWords } from "./canonical-command.js";
 import {
   defaultCliConfigPath,
   readBoundedFile,
@@ -184,11 +185,14 @@ export async function runBdp(
     let callableCommand: readonly string[] | undefined;
     let callableInvocation: readonly string[] | undefined;
     if (selectedProfile === "canonical" && treeCandidate !== undefined) {
+      // --actor is attribution in any position, even between a command's words (§10).
+      const lifted = liftActorFlags(treeCandidate.words);
       const mounted = resolveCallableCommand(
         callableCommandTree(await callableCatalog.list(), builtIns),
-        treeCandidate.words,
+        lifted?.words ?? treeCandidate.words,
       );
       if (mounted !== undefined) {
+        if (lifted === undefined) throw new CliOperationError("--actor requires a value");
         const client = treeCandidate.client.filter((argument) => !HELP.has(argument));
         const asked = client.length !== treeCandidate.client.length;
         const rest = asked ? ["--help", ...mounted.rest] : mounted.rest;
@@ -202,7 +206,7 @@ export async function runBdp(
           return 0;
         }
         callableCommand = path;
-        callableInvocation = ["call", ...client, "--", declaration.name, ...rest];
+        callableInvocation = ["call", ...client, ...lifted.client, "--", declaration.name, ...rest];
       }
     }
     const tree = createCanonicalCommand({
@@ -354,9 +358,11 @@ export async function runBdp(
         ? `${error.message}; use --help for usage`
         : error instanceof CliOperationError
           ? error.message
-          : error instanceof CommanderError && error.code === "commander.unknownOption"
-            ? "1 unsupported argument(s); use --help for usage"
-            : "invalid command or configuration; use --help for usage";
+          : error instanceof CommanderError && error.code === ACTOR_CONFLICT
+            ? "--actor was given with two different values"
+            : error instanceof CommanderError && error.code === "commander.unknownOption"
+              ? "1 unsupported argument(s); use --help for usage"
+              : "invalid command or configuration; use --help for usage";
     diagnostic("error", "cli.usage", message);
     return 2;
   }

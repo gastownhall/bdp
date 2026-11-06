@@ -225,7 +225,44 @@ test("a tree command is the same invocation as call, and reads stdin for a fromF
   assert.equal(status, 0);
   assert.equal(stdout, "changed: true\nid: bd-1\n");
   assert.deepEqual(posts.at(-1).body, {
-    arguments: { title: "Fix login", priority: 1, description: "from stdin\n", actor: "s" },
+    arguments: { title: "Fix login", priority: 1, description: "from stdin\n" },
+    revisionProvenance: { actor: { id: "s", basis: "writer-supplied" } },
+  });
+});
+test("--actor before a tree command is the same attribution, and two values are refused", async () => {
+  const form = ["issue", "create", "Fix login"];
+  const before = await bdp(["--scope", scope, "--actor", "sam", ...form]);
+  assert.equal(before.stderr, "");
+  assert.equal(before.status, 0);
+  assert.deepEqual(posts.at(-1).body, {
+    arguments: { title: "Fix login" },
+    revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
+  });
+  const sent = posts.length;
+  const two = await bdp(["--scope", scope, "--actor", "sam", ...form, "--actor", "kim"]);
+  assert.equal(two.status, 2);
+  assert.match(two.stderr, /--actor was given with two different values/);
+  assert.equal(posts.length, sent);
+});
+test("a query refuses --actor before and after a tree command, and on call", async () => {
+  const sent = posts.length;
+  for (const form of [
+    ["--actor", "sam", "issue", "ready"],
+    ["issue", "ready", "--actor", "sam"],
+    ["call", "issue/ready", "--actor", "sam"],
+  ]) {
+    const { status } = await bdp(["--scope", scope, ...form]);
+    assert.equal(status, 2, form.join(" "));
+  }
+  assert.equal(posts.length, sent);
+});
+test("no default is filled in: call sends {} and the tree sends only what it was told", async () => {
+  await bdp(["--scope", scope, "call", "issue/ready"]);
+  assert.deepEqual(posts.at(-1).body, { arguments: {} });
+  await bdp(["--scope", scope, "issue", "close", "bd-1", "--actor", "sam"]);
+  assert.deepEqual(posts.at(-1).body, {
+    arguments: { id: "bd-1" },
+    revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
   });
 });
 test("a failure with no Problem says what happened, in its own process", async () => {

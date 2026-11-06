@@ -48,18 +48,28 @@ test("the call section matches Callables §10's form and keeps its mismatch row 
     "The flag repeats",
     "parsed as JSON",
     "`--arguments JSON`",
-    "never substitutes a default except from",
+    "never substitutes a default, on either",
     "bd [CLIENT-OPTIONS] WORD... [CALLABLE-ARGUMENTS]",
     "A built-in command wins any collision",
     "`cliMapping.fromFile`",
-    "`cliMapping.defaults`",
+    "never reads `cliMapping`",
+    "`--actor ACTOR` is attribution on both forms and in any position",
+    "two different values\nare refused",
+    "A parameter named `actor` derives no flag",
   ])
     assert(section.includes(form), form);
+  assert(!markdown.includes("cliMapping.defaults"), "cliMapping.defaults no longer exists");
   const mismatches = await readFile(
     new URL("../docs/spec-review/cli-mismatches.md", import.meta.url),
     "utf8",
   );
   assert.match(mismatches, /^\| CLI-09 \| \*\*Open /m);
+});
+test("the --actor paragraph registers it on tree commands", () => {
+  const start = markdown.indexOf("The only imported product global is `--actor ACTOR`");
+  const paragraph = markdown.slice(start, markdown.indexOf("\n\n", start));
+  assert.match(paragraph, /every command the \[Callable tree\]\(#bd-call\)\s+mounts/);
+  assert.doesNotMatch(paragraph, /not registered/);
 });
 test("global output-mode option is described in the authored CLI contract", () => {
   assert.match(markdown, /global `--output-mode human\|json`/);

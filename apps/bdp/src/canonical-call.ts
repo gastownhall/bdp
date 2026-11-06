@@ -3,6 +3,8 @@ import { CALLABLE_QUERY_TYPE } from "@bdp/client";
 import { type AdmittedJsonValue, admitJsonNumbers, decodeJsonDocument } from "@bdp/protocol";
 import { CanonicalInputError } from "./canonical-input.js";
 
+/** §10: attribution, on either form and in any position. No parameter derives or aliases it. */
+const ACTOR_FLAG = "--actor";
 /** Flags §10 gives every Callable; a parameter deriving one is reachable only by `--arguments`. */
 const RESERVED_FLAGS = new Set(["--arguments", "--help"]);
 /** Literal client spellings, safe to name in a diagnostic. They belong before a tree command. */
@@ -12,10 +14,9 @@ const CLIENT_FLAGS = new Set([
   "--idempotency-key",
   "--output-format",
   "--output-mode",
+  "--revision-provenance",
   "--scope",
 ]);
-/** Attribution is `bdp call`'s alone: on a tree command `--actor` could only be the argument. */
-const CALL_ONLY_FLAGS = new Set(["--actor", "--revision-provenance"]);
 
 /** Diagnostics name flags a declaration owns and never echo a supplied value. */
 export class CallableUsageError extends CanonicalInputError {}
@@ -102,7 +103,7 @@ function flagTable(declaration: CallableDeclaration): FlagTable {
   const flags = new Map<string, FlagBinding | undefined>();
   const collisions = new Set<string>();
   const claim = (spelling: string, binding: FlagBinding): void => {
-    if (RESERVED_FLAGS.has(spelling)) collisions.add(spelling);
+    if (RESERVED_FLAGS.has(spelling) || spelling === ACTOR_FLAG) collisions.add(spelling);
     else if (flags.has(spelling)) {
       collisions.add(spelling);
       if (flags.get(spelling)?.parameter !== binding.parameter) flags.set(spelling, undefined);
@@ -114,7 +115,10 @@ function flagTable(declaration: CallableDeclaration): FlagTable {
     negated: false,
     file: false,
   }));
-  for (const binding of bindings) claim(parameterFlag(binding.parameter.name), binding);
+  const derivesFlag = ({ parameter }: { parameter: CallableParameter }): boolean =>
+    parameterFlag(parameter.name) !== ACTOR_FLAG;
+  for (const binding of bindings.filter(derivesFlag))
+    claim(parameterFlag(binding.parameter.name), binding);
   for (const mapping of declaration.cliMapping?.flags ?? []) {
     const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
     if (binding !== undefined) for (const name of mapping.names) claim(name, binding);
@@ -125,7 +129,7 @@ function flagTable(declaration: CallableDeclaration): FlagTable {
       for (const name of mapping.names) claim(name, { ...binding, file: true });
   }
   // §10: a parameter declared with the flag `--no-x` keeps it, and `x` then has no derived one.
-  for (const binding of bindings)
+  for (const binding of bindings.filter(derivesFlag))
     if (binding.form.kind === "boolean") {
       const spelling = `--no-${parameterFlag(binding.parameter.name).slice(2)}`;
       if (!flags.has(spelling) && !RESERVED_FLAGS.has(spelling))
@@ -165,9 +169,34 @@ export type ParsedCallableArguments =
       readonly files: readonly CallableFileInput[];
     };
 
+/** `--actor` wherever it stands among a tree command's words, as client options, and the words
+ * without it. No flag's value can be `--actor`, since a value beginning with `--` takes the
+ * `--flag=VALUE` form, so every one before a bare `--` is attribution. Undefined when one has no
+ * value. */
+export function liftActorFlags(
+  words: readonly string[],
+): { readonly client: readonly string[]; readonly words: readonly string[] } | undefined {
+  const client: string[] = [];
+  const rest: string[] = [];
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index] ?? "";
+    if (word === "--") {
+      rest.push(...words.slice(index));
+      break;
+    }
+    if (word.startsWith(`${ACTOR_FLAG}=`)) client.push(word);
+    else if (word === ACTOR_FLAG) {
+      const value = words[++index];
+      if (value === undefined || value.startsWith("--")) return undefined;
+      client.push(word, value);
+    } else rest.push(word);
+  }
+  return { client, words: rest };
+}
+
 /** One Callable's arguments from the tokens after NAME. Offline and without a schema check:
- * §4 makes checking the service's job. Omission stays omission here; files and
- * `cliMapping.defaults` are applied by completeCallableArguments. */
+ * §4 makes checking the service's job. Omission stays omission, here and after
+ * completeCallableArguments: a default is the service's to apply. */
 export function parseCallableArguments(
   declaration: CallableDeclaration,
   tokens: readonly string[],
@@ -222,8 +251,6 @@ export function parseCallableArguments(
     }
     if (CLIENT_FLAGS.has(spelling) && !flags.has(spelling))
       return refuse(`that flag is a client option; put ${spelling} before the command`);
-    if (CALL_ONLY_FLAGS.has(spelling) && !flags.has(spelling))
-      return refuse(`this command has no ${spelling}; bdp call carries attribution`);
     if (!flags.has(spelling))
       return refuse("a flag is not a parameter of this Callable; use --help for its form");
     const binding = flags.get(spelling);
@@ -267,7 +294,8 @@ export function parseCallableArguments(
   };
 }
 
-/** `bdp call NAME`: one JSON object and nothing else. Only `--help` reaches here as a token. */
+/** `bdp call NAME`: one JSON object and nothing else, with no declaration to consult, so its
+ * `cliMapping` cannot matter. Only `--help` reaches here as a token. */
 export function parseCallArguments(
   tokens: readonly string[],
   whole: string | undefined,
@@ -292,9 +320,8 @@ const sameParameter =
 const utf8 = new TextDecoder("utf-8", { fatal: true });
 
 /** The invocation's final arguments: each `fromFile` content is treated as that parameter's flag
- * value, then `cliMapping.defaults` fills what is still not supplied. A supplied `null` counts. */
+ * value. Nothing else is filled in. */
 export async function completeCallableArguments(
-  declaration: CallableDeclaration,
   parsed: Extract<ParsedCallableArguments, { help: false }>,
   read: (path: string) => Promise<Uint8Array>,
 ): Promise<Readonly<Record<string, AdmittedJsonValue>>> {
@@ -322,8 +349,6 @@ export async function completeCallableArguments(
         ? [...((complete[parameter.name] as AdmittedJsonValue[] | undefined) ?? []), value]
         : value;
   }
-  for (const [name, value] of Object.entries(declaration.cliMapping?.defaults ?? {}))
-    if (!Object.hasOwn(complete, name)) complete[name] = value;
   return complete;
 }
 
@@ -404,7 +429,9 @@ export function renderCallableHelp(
   declaration: CallableDeclaration,
   command?: readonly string[],
 ): string {
-  const { flags } = flagTable(declaration);
+  // `bdp call` never reads cliMapping, so its help derives no flag and names no position.
+  const flags: FlagTable["flags"] =
+    command === undefined ? new Map() : flagTable(declaration).flags;
   const promises = [
     callableKind(declaration) === "query" ? "CallableQuery" : "CallableBatch",
     ...(declaration.idempotent ? ["idempotent"] : []),
@@ -434,21 +461,19 @@ export function renderCallableHelp(
     const fileSpellings = [...flags].flatMap(([spelling, binding]) =>
       binding?.parameter === parameter && binding.file ? [spelling] : [],
     );
-    const defaults = declaration.cliMapping?.defaults;
     const shown = spellings.length > 0 ? spellings.join(", ") : "(--arguments only)";
     const placeholder = form.kind === "boolean" ? "" : form.item === "text" ? " TEXT" : " JSON";
-    const position = declaration.cliMapping?.positionals?.find(
-      (entry) => entry.parameter === parameter.name,
-    )?.position;
+    const position =
+      command === undefined
+        ? undefined
+        : declaration.cliMapping?.positionals?.find((entry) => entry.parameter === parameter.name)
+            ?.position;
     const notes = [
-      ...(position === undefined || command === undefined ? [] : [`position ${position}`]),
+      ...(position === undefined ? [] : [`position ${position}`]),
       ...(parameter.required ? ["required"] : []),
       ...(form.kind === "array" && command !== undefined ? ["repeatable"] : []),
       ...(Object.hasOwn(parameter, "default")
         ? [`default ${JSON.stringify(parameter.default)}`]
-        : []),
-      ...(defaults !== undefined && Object.hasOwn(defaults, parameter.name)
-        ? [`client sends ${JSON.stringify(defaults[parameter.name])} when not given`]
         : []),
     ];
     const suffix = notes.length > 0 ? `  (${notes.join("; ")})` : "";
@@ -466,6 +491,9 @@ export function renderCallableHelp(
     command === undefined
       ? "  --arguments JSON  The arguments object. Omitted means {}."
       : "  --arguments JSON  Supply the whole arguments object; explicit flags override its members.",
+    ...(callableKind(declaration) === "batch"
+      ? ["  --actor ACTOR     Who is acting, as revisionProvenance.actor; anywhere on the line."]
+      : []),
     "  --help            Print this help without invoking.",
     "",
   );

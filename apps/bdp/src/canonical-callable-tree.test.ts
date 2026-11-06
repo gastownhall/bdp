@@ -20,6 +20,7 @@ import {
   completeCallableArguments,
   parameterFlag,
   parseCallableArguments,
+  renderCallableHelp,
   resolveCallableCommand,
 } from "./canonical-call.js";
 import { createCanonicalCommand } from "./canonical-command.js";
@@ -180,7 +181,6 @@ const annotated: CallableDeclaration = {
       { names: ["--shape-file"], parameter: "shape" },
       { names: ["--tag-file"], parameter: "tag" },
     ],
-    defaults: { dry_run: true, mode: "a" },
   },
 };
 const parsed = (declaration: CallableDeclaration, tokens: string[]) => {
@@ -193,26 +193,24 @@ const complete = (
   tokens: string[],
   files: Record<string, string> = {},
 ) =>
-  completeCallableArguments(declaration, parsed(declaration, tokens), async (path) => {
+  completeCallableArguments(parsed(declaration, tokens), async (path) => {
     if (!Object.hasOwn(files, path))
       throw Object.assign(new Error("no such file"), { code: "ENOENT" });
     return new TextEncoder().encode(files[path]);
   });
-const defaults = { dry_run: true, mode: "a" };
 
 describe("every cliMapping annotation", () => {
   it("positionals stand for their flags, in place", async () => {
     await expect(complete(annotated, ["t", "u"])).resolves.toEqual({
       title: "t",
       second: "u",
-      ...defaults,
     });
     expect(() => parsed(annotated, ["t", "--title", "again"])).toThrow(CallableUsageError);
     expect(() => parsed(annotated, ["a", "b", "c"])).toThrow(/unmapped operand/);
   });
   it("flags adds aliases and the derived flag remains", async () => {
     for (const tokens of [["--weight", "1"], ["-w", "1"], ["--heft", "1"], ["-w=1"]])
-      await expect(complete(annotated, tokens)).resolves.toEqual({ weight: 1, ...defaults });
+      await expect(complete(annotated, tokens)).resolves.toEqual({ weight: 1 });
     await expect(complete(annotated, ["-t", "a", "--tag", "b"])).resolves.toMatchObject({
       tag: ["a", "b"],
     });
@@ -250,17 +248,25 @@ describe("every cliMapping annotation", () => {
       /-f could not read its input \(ENOENT\)/,
     );
     await expect(complete(annotated, ["-f", "secret-path"])).rejects.not.toThrow(/secret-path/);
-    const invalid = completeCallableArguments(annotated, parsed(annotated, ["-f", "p"]), async () =>
+    const invalid = completeCallableArguments(parsed(annotated, ["-f", "p"]), async () =>
       Uint8Array.of(0xff),
     );
     await expect(invalid).rejects.toThrow(/-f requires UTF-8 text/);
   });
-  it("defaults fill what is not supplied; a flag, --arguments or a supplied null overrides", async () => {
-    await expect(complete(annotated, [])).resolves.toEqual(defaults);
-    await expect(complete(annotated, ["--no-dry-run"])).resolves.toEqual({
-      dry_run: false,
-      mode: "a",
-    });
+  it("no default is substituted, and a stale cliMapping.defaults is not read", async () => {
+    await expect(complete(annotated, [])).resolves.toEqual({});
+    const stale = {
+      ...annotated,
+      cliMapping: { ...annotated.cliMapping, defaults: { mode: "a" } },
+    } as CallableDeclaration;
+    await expect(complete(stale, [])).resolves.toEqual({});
+    expect(renderCallableHelp(stale, ["pack", "thing", "make"])).not.toMatch(
+      /client sends .* when not given/,
+    );
+    expect(renderCallableHelp(annotated, ["pack", "thing", "make"])).toContain("default 3");
+  });
+  it("a flag, --arguments and a supplied null all reach the wire as given", async () => {
+    await expect(complete(annotated, ["--no-dry-run"])).resolves.toEqual({ dry_run: false });
     await expect(complete(annotated, ["-n", "--mode", "b"])).resolves.toEqual({
       dry_run: true,
       mode: "b",
@@ -268,9 +274,6 @@ describe("every cliMapping annotation", () => {
     await expect(
       complete(annotated, ["--arguments", '{"mode":"b","dry_run":null}']),
     ).resolves.toEqual({ mode: "b", dry_run: null });
-  });
-  it("a declared parameter's default is never substituted: only cliMapping.defaults is", async () => {
-    await expect(complete(annotated, [])).resolves.not.toHaveProperty("weight");
   });
   it("derives the §10 forms: --flag/--no-flag, repeats, JSON, enum as text", async () => {
     await expect(
@@ -298,7 +301,6 @@ describe("every cliMapping annotation", () => {
     await expect(complete(annotated, ["--", "-odd", "--title"])).resolves.toEqual({
       title: "-odd",
       second: "--title",
-      ...defaults,
     });
   });
   it("§10: --no-pinned is no_pinned's, and pinned has no derived negation", async () => {
@@ -349,12 +351,12 @@ describe("the 45 Issue declarations", () => {
     }
   });
 
-  it("each yields a well-formed command: flags, aliases, positions, files and defaults", async () => {
+  it("each yields a well-formed command: flags, aliases, positions and files", async () => {
     for (const declaration of await issueCallableCatalog().list()) {
       const label = declaration.name;
       const mapping = declaration.cliMapping ?? {};
       const tokens: string[] = [];
-      const expected: Record<string, unknown> = { ...mapping.defaults };
+      const expected: Record<string, unknown> = {};
       for (const parameter of declaration.parameters) {
         const { tokens: form, value } = sample(parameter);
         tokens.push(...form);
@@ -369,7 +371,6 @@ describe("the 45 Issue declarations", () => {
         for (const name of names) {
           const spelled = form.map((token) => (token === form[0] ? name : token));
           await expect(complete(declaration, spelled), `${label} ${name}`).resolves.toEqual({
-            ...mapping.defaults,
             [parameter]: value,
           });
         }
@@ -379,7 +380,7 @@ describe("the 45 Issue declarations", () => {
           await expect(
             complete(declaration, [name, "path"], { path: "from file" }),
             `${label} ${name}`,
-          ).resolves.toEqual({ ...mapping.defaults, [parameter]: "from file" });
+          ).resolves.toEqual({ [parameter]: "from file" });
 
       const positions = [...(mapping.positionals ?? [])].sort((a, b) => a.position - b.position);
       if (positions.length > 0)
@@ -389,12 +390,11 @@ describe("the 45 Issue declarations", () => {
             positions.map(({ parameter }) => `value-of-${parameter}`),
           ),
           `${label} positions`,
-        ).resolves.toEqual({
-          ...mapping.defaults,
-          ...Object.fromEntries(
+        ).resolves.toEqual(
+          Object.fromEntries(
             positions.map(({ parameter }) => [parameter, `value-of-${parameter}`]),
           ),
-        });
+        );
     }
   });
 
@@ -435,10 +435,17 @@ describe("the 45 Issue declarations", () => {
       expect(stdout).toContain(`bdp [client options] ${declaration.name.replaceAll("/", " ")} `);
       expect(stdout).toContain(`call ${declaration.name}`);
       expect(stdout).toContain(declaration.title as string);
-      for (const parameter of declaration.parameters)
+      expect(stdout).not.toMatch(/client sends .* when not given/);
+      for (const parameter of declaration.parameters) {
         expect(stdout, `${declaration.name} ${parameter.name}`).toContain(
           parameterFlag(parameter.name),
         );
+        if (Object.hasOwn(parameter, "default"))
+          expect(stdout, `${declaration.name} ${parameter.name}`).toContain(
+            `default ${JSON.stringify(parameter.default)}`,
+          );
+      }
+      expect(stdout.includes("--actor ACTOR")).toBe(declaration.type === CALLABLE_BATCH_TYPE);
       for (const mapping of [
         ...(declaration.cliMapping?.flags ?? []),
         ...(declaration.cliMapping?.fromFile ?? []),
@@ -471,11 +478,12 @@ describe("the induced tree", () => {
             "sam",
           ]),
         ).resolves.toBe(0);
+        const revisionProvenance = { actor: { id: "sam", basis: "writer-supplied" } };
         expect(posts.map(({ name, body }) => [name, body])).toEqual([
-          ["issue/create", { arguments: { title: "Fix login", priority: 1, actor: "sam" } }],
+          ["issue/create", { arguments: { title: "Fix login", priority: 1 }, revisionProvenance }],
           [
             "issue/dep/add",
-            { arguments: { source: "a", target: "b", type: "tracks", actor: "sam" } },
+            { arguments: { source: "a", target: "b", type: "tracks" }, revisionProvenance },
           ],
         ]);
       },
@@ -488,32 +496,24 @@ describe("the induced tree", () => {
           bdp(["--scope", scope, "call", "issue/list", "--arguments", '{"status":["open"]}']),
         ).resolves.toBe(0);
         expect(posts.map(({ body }) => body)).toEqual([
-          { arguments: { status: ["open"], sort: "priority" } },
-          { arguments: { status: ["open"], sort: "priority" } },
+          { arguments: { status: ["open"] } },
+          { arguments: { status: ["open"] } },
         ]);
       },
     );
   });
 
-  it("sends the CLI defaults of Issue §4 and lets an explicit flag win", async () => {
+  it("sends none of Issue §4's service defaults, and an explicit flag as given", async () => {
     await withServe(
       () => ({ status: 200, body: { result: {}, changed: false } }),
       async (scope, posts) => {
         await expect(bdp(["--scope", scope, "issue", "purge"])).resolves.toBe(0);
         await expect(bdp(["--scope", scope, "issue", "prune", "--no-dry-run"])).resolves.toBe(0);
+        await expect(bdp(["--scope", scope, "issue", "delete", "--ids", "a"])).resolves.toBe(0);
         expect(posts.map(({ body }) => body.arguments)).toEqual([
-          {
-            dry_run: true,
-            tier: "ephemeral",
-            protect_referenced: false,
-            protect_live_dependents: true,
-          },
-          {
-            dry_run: false,
-            tier: "durable",
-            protect_referenced: true,
-            protect_live_dependents: false,
-          },
+          {},
+          { dry_run: false },
+          { ids: ["a"] },
         ]);
       },
     );
@@ -528,10 +528,9 @@ describe("the induced tree", () => {
         await expect(
           bdp(["--scope", scope, "issue", "create", "T", "--body-file", path, "--actor", "sam"]),
         ).resolves.toBe(0);
-        expect(posts[0]?.body.arguments).toEqual({
-          title: "T",
-          description: "# From a file\n",
-          actor: "sam",
+        expect(posts[0]?.body).toEqual({
+          arguments: { title: "T", description: "# From a file\n" },
+          revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
         });
         await expect(
           bdp(["--scope", scope, "issue", "create", "T", "--body-file", join(home, "nope")]),
@@ -549,21 +548,16 @@ describe("the induced tree", () => {
         await expect(
           bdp(["--scope", scope, "--output-mode", "json", "issue", "claim", "a", "--actor", "sam"]),
         ).resolves.toBe(0);
-        expect(posts[0]?.body).toEqual({ arguments: { id: "a", actor: "sam" } });
+        expect(posts[0]?.body).toEqual({
+          arguments: { id: "a" },
+          revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
+        });
         expect(JSON.parse(stdout)).toMatchObject({
           result_kind: "callable_result",
           data: { result: {}, changed: true },
         });
         posts.length = 0;
-        for (const before of [
-          ["--actor", "sam"],
-          ["--revision-provenance", '{"actor":{"id":"sam","basis":"writer-supplied"}}'],
-        ])
-          await expect(
-            bdp(["--scope", scope, ...before, "issue", "claim", "a", "--actor", "sam"]),
-            `${before[0]} before the command`,
-          ).resolves.toBe(2);
-        for (const after of ["--output-mode", "--scope", "--config"])
+        for (const after of ["--output-mode", "--scope", "--config", "--revision-provenance"])
           await expect(
             bdp(["--scope", scope, "issue", "list", after, "x"]),
             `${after} after the command`,
@@ -575,6 +569,138 @@ describe("the induced tree", () => {
         expect(posts).toEqual([]);
       },
     );
+  });
+
+  describe("--actor", () => {
+    const sam = { actor: { id: "sam", basis: "writer-supplied" } };
+    const answered = () => ({ status: 200, body: { result: {}, changed: true } });
+
+    it("is attribution in any position: before, between and after the words", async () => {
+      await withServe(answered, async (scope, posts) => {
+        const forms = [
+          ["--actor", "sam", "issue", "create", "Fix login"],
+          ["issue", "--actor", "sam", "create", "Fix login"],
+          ["issue", "create", "--actor", "sam", "Fix login"],
+          ["issue", "create", "Fix login", "--actor", "sam"],
+          ["issue", "create", "Fix login", "--actor=sam"],
+          ["--actor=sam", "issue", "create", "Fix login", "--actor", "sam"],
+        ];
+        for (const form of forms)
+          await expect(bdp(["--scope", scope, ...form]), form.join(" ")).resolves.toBe(0);
+        expect(posts).toHaveLength(forms.length);
+        for (const { name, body } of posts) {
+          expect(name).toBe("issue/create");
+          expect(body).toEqual({ arguments: { title: "Fix login" }, revisionProvenance: sam });
+        }
+      });
+    });
+
+    it("signs a comment, with no --author and no -a on the tree", async () => {
+      await withServe(answered, async (scope, posts) => {
+        await expect(
+          bdp(["--scope", scope, "issue", "comment", "bd-1", "text", "--actor", "sam"]),
+        ).resolves.toBe(0);
+        expect(posts[0]?.body).toEqual({
+          arguments: { id: "bd-1", text: "text" },
+          revisionProvenance: sam,
+        });
+        posts.length = 0;
+        for (const flag of ["--author", "-a"])
+          await expect(
+            bdp(["--scope", scope, "issue", "comment", "bd-1", "text", flag, "sam"]),
+            flag,
+          ).resolves.toBe(2);
+        expect(posts).toEqual([]);
+      });
+    });
+
+    it("refuses two different values, however they are spelled, with a true message", async () => {
+      await withServe(answered, async (scope, posts) => {
+        for (const form of [
+          ["--actor", "sam", "issue", "claim", "a", "--actor", "kim"],
+          ["--actor=sam", "--actor=kim", "issue", "claim", "a"],
+          ["issue", "claim", "a", "--actor", "sam", "--actor=kim"],
+          ["issue", "--actor", "sam", "claim", "a", "--actor", "kim"],
+        ]) {
+          stderr = "";
+          await expect(bdp(["--scope", scope, ...form]), form.join(" ")).resolves.toBe(2);
+          expect(stderr).toContain("--actor was given with two different values");
+          expect(stderr).not.toContain("kim");
+        }
+        expect(posts).toEqual([]);
+      });
+    });
+
+    it("requires a value, and a bare -- makes it an operand", async () => {
+      await withServe(answered, async (scope, posts) => {
+        for (const form of [
+          ["issue", "claim", "a", "--actor"],
+          ["issue", "claim", "a", "--actor", "--no-such"],
+          ["issue", "claim", "a", "--actor="],
+        ]) {
+          stderr = "";
+          await expect(bdp(["--scope", scope, ...form]), form.join(" ")).resolves.toBe(2);
+          expect(stderr).toContain("--actor requires a value");
+        }
+        expect(posts).toEqual([]);
+        await expect(bdp(["--scope", scope, "issue", "create", "--", "--actor"])).resolves.toBe(0);
+        expect(posts[0]?.body).toEqual({ arguments: { title: "--actor" } });
+      });
+    });
+
+    it("is refused on a CallableQuery, in every position", async () => {
+      await withServe(answered, async (scope, posts) => {
+        for (const form of [
+          ["--actor", "sam", "issue", "stats"],
+          ["issue", "--actor", "sam", "stats"],
+          ["issue", "stats", "--actor", "sam"],
+          ["--revision-provenance", "{}", "issue", "stats"],
+        ]) {
+          stderr = "";
+          await expect(bdp(["--scope", scope, ...form]), form.join(" ")).resolves.toBe(2);
+          expect(failureOf().problem.message).toContain("only to a CallableBatch");
+        }
+        expect(posts).toEqual([]);
+      });
+    });
+
+    it("--revision-provenance is a client option before the command, and conflicts as Write's does", async () => {
+      await withServe(answered, async (scope, posts) => {
+        const supplied = JSON.stringify({ ...sam, message: "why" });
+        const form = ["issue", "claim", "a"];
+        const flag = "--revision-provenance";
+        await expect(bdp(["--scope", scope, flag, supplied, ...form])).resolves.toBe(0);
+        await expect(
+          bdp(["--scope", scope, flag, supplied, ...form, "--actor", "sam"]),
+        ).resolves.toBe(0);
+        expect(posts.map(({ body }) => body)).toEqual([
+          { arguments: { id: "a" }, revisionProvenance: { ...sam, message: "why" } },
+          { arguments: { id: "a" }, revisionProvenance: { ...sam, message: "why" } },
+        ]);
+        posts.length = 0;
+        stderr = "";
+        await expect(
+          bdp(["--scope", scope, flag, supplied, ...form, "--actor", "kim"]),
+        ).resolves.toBe(2);
+        expect(failureOf().problem.message).toContain(
+          "--actor conflicts with explicit provenance actor",
+        );
+        stderr = "";
+        await expect(bdp(["--scope", scope, ...form, flag, supplied])).resolves.toBe(2);
+        expect(failureOf().problem.message).toContain("put --revision-provenance before");
+        expect(posts).toEqual([]);
+      });
+    });
+
+    it("refuses --arguments before the command rather than dropping it", async () => {
+      await withServe(answered, async (scope, posts) => {
+        await expect(
+          bdp(["--scope", scope, "--arguments", '{"id":"a"}', "issue", "claim"]),
+        ).resolves.toBe(2);
+        expect(failureOf().problem.message).toContain("put it after the command");
+        expect(posts).toEqual([]);
+      });
+    });
   });
 
   it("has help at each level, from the declarations, and refuses an unknown word", async () => {

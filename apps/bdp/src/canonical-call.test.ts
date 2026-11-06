@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CallableUsageError,
   callableFlagCollisions,
+  liftActorFlags,
   parameterFlag,
   parseCallableArguments,
   renderCallableHelp,
@@ -305,10 +306,62 @@ describe("the §10 flag derivation", () => {
     );
   });
 
-  it("on a tree command, points client options before it and refuses attribution", () => {
+  it("on a tree command, points client options before it, --revision-provenance included", () => {
     usage(reserveRoom, ["--scope", "x"], /client option; put --scope before the command/);
-    usage(reserveRoom, ["cedar", "--actor", "sam"], /no --actor; bdp call carries attribution/);
-    usage(reserveRoom, ["--revision-provenance", "{}"], /bdp call carries attribution/);
+    usage(
+      reserveRoom,
+      ["--revision-provenance", "{}"],
+      /client option; put --revision-provenance before the command/,
+    );
+  });
+
+  it("lifts --actor from any position among a tree command's words", () => {
+    const sam = ["--actor", "sam"];
+    expect(liftActorFlags(["issue", "create", "t", ...sam])).toEqual({
+      client: sam,
+      words: ["issue", "create", "t"],
+    });
+    expect(liftActorFlags(["issue", ...sam, "create", "t"])).toEqual({
+      client: sam,
+      words: ["issue", "create", "t"],
+    });
+    expect(liftActorFlags(["issue", "--actor=sam", "create", "--actor", "kim"])).toEqual({
+      client: ["--actor=sam", "--actor", "kim"],
+      words: ["issue", "create"],
+    });
+    // After a bare --, everything is an operand, as for any other flag.
+    expect(liftActorFlags(["issue", "create", "--", "--actor", "sam"])).toEqual({
+      client: [],
+      words: ["issue", "create", "--", "--actor", "sam"],
+    });
+    expect(liftActorFlags(["issue", "create", "--actor"])).toBeUndefined();
+    expect(liftActorFlags(["issue", "create", "--actor", "--title"])).toBeUndefined();
+  });
+
+  it("derives no flag from a parameter named actor: its value goes in --arguments", () => {
+    const declared: CallableDeclaration = {
+      ...shapes,
+      parameters: [
+        { name: "actor", schema: { type: "string" } },
+        { name: "plainText", schema: { type: "string" } },
+      ],
+    };
+    usage(declared, ["--actor", "sam"], /not a parameter of this Callable/);
+    expect(callableFlagCollisions(declared)).toEqual([]);
+    expect(argumentsOf(declared, ["--arguments", '{"actor":"sam"}'])).toEqual({ actor: "sam" });
+    expect(renderCallableHelp(declared, ["shapes"])).toContain("(--arguments only)");
+    const flagged: CallableDeclaration = {
+      ...declared,
+      parameters: [{ name: "actor", schema: { type: "boolean" } }],
+    };
+    usage(flagged, ["--no-actor"], /not a parameter of this Callable/);
+    // --actor cannot be declared as an alias either: §10 keeps it for attribution.
+    expect(
+      callableFlagCollisions({
+        ...declared,
+        cliMapping: { flags: [{ names: ["--actor"], parameter: "plainText" }] },
+      }),
+    ).toEqual(["--actor"]);
   });
 
   it("names every client flag a tree command refuses, so the hint cannot drift from the tree", () => {
@@ -318,12 +371,12 @@ describe("the §10 flag derivation", () => {
       onInvocation: () => undefined,
     });
     const call = root.commands.find((command) => command.name() === "call");
+    // --actor is the one client flag that may follow the command; liftActorFlags takes it first.
     const longFlags = [...root.options, ...(call?.options ?? [])].flatMap(({ long }) =>
-      long === undefined || ["--version", "--arguments"].includes(long) ? [] : [long],
+      long === undefined || ["--version", "--arguments", "--actor"].includes(long) ? [] : [long],
     );
-    expect(longFlags).toContain("--actor");
-    for (const flag of longFlags)
-      usage(reserveRoom, [flag], /client option|bdp call carries attribution/);
+    expect(longFlags).toContain("--revision-provenance");
+    for (const flag of longFlags) usage(reserveRoom, [flag], /client option/);
   });
 
   it("reports what a declaration's flags collide with", () => {
@@ -476,16 +529,90 @@ describe("bdp call against a stub server", () => {
     );
   });
 
-  it("still sends a declared client default the object omits", async () => {
+  it("sends exactly the object, or {}, and substitutes no declared default", async () => {
     await withScope(
       { answer: success({ result: { items: [], has_more: false } }) },
       async (scope, posts) => {
         await expect(
           bdp(["--scope", scope, "call", "issue/list", "--arguments", '{"limit":1}']),
         ).resolves.toBe(0);
-        expect(posts[0]?.body).toEqual({ arguments: { limit: 1, sort: "priority" } });
+        await expect(bdp(["--scope", scope, "call", "issue/list"])).resolves.toBe(0);
+        expect(posts.map(({ body }) => body)).toEqual([
+          { arguments: { limit: 1 } },
+          { arguments: {} },
+        ]);
       },
     );
+    await withScope({ answer: success({ result: {}, changed: false }) }, async (scope, posts) => {
+      for (const name of ["issue/purge", "issue/prune"])
+        await expect(bdp(["--scope", scope, "call", name])).resolves.toBe(0);
+      await expect(
+        bdp(["--scope", scope, "call", "issue/delete", "--arguments", '{"ids":["a"]}']),
+      ).resolves.toBe(0);
+      expect(posts.map(({ body }) => body)).toEqual([
+        { arguments: {} },
+        { arguments: {} },
+        { arguments: { ids: ["a"] } },
+      ]);
+    });
+  });
+
+  it("never reads cliMapping, invoking or printing help", async () => {
+    const untouchable = Object.defineProperty({ ...reserveRoom }, "cliMapping", {
+      enumerable: true,
+      get() {
+        throw new Error("bdp call read cliMapping");
+      },
+    }) as CallableDeclaration;
+    const catalog = createStaticCallableCatalog(() => [untouchable]);
+    await withScope(
+      { answer: success({ result: { reservation: "res-81" }, changed: true }) },
+      async (scope, posts) => {
+        const room = '{"room":"cedar","day":"2026-11-20"}';
+        await expect(
+          bdp(["--scope", scope, "call", "reserve-room", "--arguments", room], catalog),
+        ).resolves.toBe(0);
+        expect(posts[0]?.body).toEqual({ arguments: JSON.parse(room) });
+        expect(stderr).toBe("");
+      },
+    );
+    await expect(bdp(["call", "reserve-room", "--help"], catalog)).resolves.toBe(0);
+    expect(stdout).toContain("--actor ACTOR");
+  });
+
+  it("takes --actor in any position and refuses two different values", async () => {
+    await withScope({ answer: success({ result: 1, changed: true }) }, async (scope, posts) => {
+      const scoped = ["--scope", scope];
+      const room = ["--arguments", '{"id":"a"}'];
+      for (const args of [
+        ["--actor", "sam", "call", "issue/reopen", ...room],
+        ["call", "--actor", "sam", "issue/reopen", ...room],
+        ["call", "issue/reopen", "--actor", "sam", ...room],
+        ["call", "issue/reopen", ...room, "--actor=sam"],
+        ["--actor", "sam", "call", "issue/reopen", ...room, "--actor", "sam"],
+      ])
+        await expect(bdp([...scoped, ...args]), args.join(" ")).resolves.toBe(0);
+      expect(posts).toHaveLength(5);
+      for (const { body } of posts)
+        expect(body).toEqual({
+          arguments: { id: "a" },
+          revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
+        });
+      posts.length = 0;
+      for (const args of [
+        ["--actor", "sam", "call", "issue/reopen", ...room, "--actor", "kim"],
+        ["call", "issue/reopen", "--actor", "sam", "--actor=kim", ...room],
+      ]) {
+        stderr = "";
+        await expect(bdp([...scoped, ...args]), args.join(" ")).resolves.toBe(2);
+        expect(stderr).toContain("--actor was given with two different values");
+        expect(stderr).not.toContain("kim");
+      }
+      stderr = "";
+      await expect(bdp([...scoped, "call", "issue/reopen", "--actor="])).resolves.toBe(2);
+      expect(stderr).toContain("--actor requires a value");
+      expect(posts).toEqual([]);
+    });
   });
 
   it("shows a callable-error's error value on the error path and fails", async () => {
@@ -609,6 +736,7 @@ describe("bdp call against a stub server", () => {
     await withScope({ answer: success({ result: 1 }) }, async (scope, posts) => {
       const scoped = ["--scope", scope];
       await expect(bdp([...scoped, "--actor", "sam", "call", "issue/stats"])).resolves.toBe(2);
+      await expect(bdp([...scoped, "call", "issue/stats", "--actor", "sam"])).resolves.toBe(2);
       await expect(bdp([...scoped, "call", "--idempotency-key", "k", "issue/stats"])).resolves.toBe(
         2,
       );

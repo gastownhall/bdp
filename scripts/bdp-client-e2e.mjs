@@ -3,9 +3,11 @@
  *
  * Every Issue Callable runs through `bdp call NAME`, the induced command and `curl` of
  * `POST /bdp/call/NAME`. Status and body are compared modulo volatile fields, and a recording
- * proxy checks the client sent exactly the arguments the case states. Then the Core reads, a
- * token-mode run, `actor` behavior and the client's document limit. It reports anomalies and
- * changes nothing in either product; it exits non-zero only when the harness itself breaks.
+ * proxy checks the client sent exactly the arguments and the attribution the case states. No
+ * recorded POST may carry `actor` or `author` in `arguments`: who is acting is
+ * `revisionProvenance.actor`, on every channel. Then the Core reads, a token-mode run, `--actor`
+ * behavior and the client's document limit. It reports anomalies and changes nothing in either
+ * product; it exits non-zero only when the harness itself breaks.
  *
  *   node scripts/bdp-client-e2e.mjs --bd PATH --dolt PATH --out DIR [--keep] [--only REGEX]
  *
@@ -326,15 +328,20 @@ function differences(left, right, path = "", found = []) {
 }
 
 const issue = (id, title = id, fields = {}) => ({
-  actor: A,
   id,
   title,
   issue_type: "task",
   priority: 2,
   ...fields,
 });
-const claimBy = (id, actor = "bob") => ["issue/claim", { id, actor }];
-const closed = (id) => ["issue/close", { id, actor: A, reason: "done" }];
+/** What the client's --actor lowers to, and what curl sends in its place. */
+const provenance = (actor) =>
+  actor === undefined
+    ? {}
+    : { revisionProvenance: { actor: { id: actor, basis: "writer-supplied" } } };
+/** A seeding step is [Callable, arguments, actor]; the actor is never an argument. */
+const claimBy = (id, actor = "bob") => ["issue/claim", { id }, actor];
+const closed = (id) => ["issue/close", { id, reason: "done" }, A];
 const R = (suffix) => `sw-fix-r${suffix}`;
 
 /** The state every read sees. Writes never touch it: they make their own issues. */
@@ -360,15 +367,15 @@ const READ_SEED = [
 const READ_BEFORE = [
   closed(R(3)),
   claimBy(R(6)),
-  ["issue/comment", { id: R(7), author: "alice", text: "first" }],
+  ["issue/comment", { id: R(7), text: "first" }, "alice"],
   ["config/set", { key: "fix.read", value: "v1" }],
   ["memory/remember", { content: "remembered thing", key: "fix-read" }],
 ];
 
 const flag = (name, value) => [name, typeof value === "string" ? value : JSON.stringify(value)];
 
-/** Reads: one state, compared literally. `wire` is what a caller sends, `cli` how the client is
- * told it, including its positions, aliases and CLI defaults. */
+/** Reads: one state, compared literally. `wire` is the `arguments` a caller sends, `cli` how the
+ * client is told it, by its positions and aliases. Neither states a default: the service has it. */
 const READS = [
   { name: "issue/context", wire: {}, cli: [] },
   { name: "issue/ready", wire: { limit: 5 }, cli: ["-n", "5"] },
@@ -379,13 +386,13 @@ const READS = [
   { name: "issue/dep/tree", wire: { root_id: R(2), max_depth: 1 }, cli: [R(2), "-d", "1"] },
   {
     name: "issue/list",
-    wire: { status: ["open"], sort: "priority" },
+    wire: { status: ["open"] },
     cli: ["--status", "open"],
   },
   { name: "issue/query", wire: { q: "status=open", limit: 2 }, cli: ["status=open", "-n", "2"] },
   { name: "issue/count", wire: { status: "open" }, cli: ["-s", "open"] },
   { name: "issue/show", wire: { id: R(1) }, cli: [R(1)] },
-  { name: "issue/dep/list", wire: { id: R(2), direction: "out" }, cli: [R(2)] },
+  { name: "issue/dep/list", wire: { id: R(2) }, cli: [R(2)] },
   { name: "issue/get-many", wire: { ids: [R(1), R(2)] }, cli: ["--ids", R(1), "--ids", R(2)] },
   { name: "issue/dep/edges", wire: { issue_id: [R(2)] }, cli: ["--issue-id", R(2)] },
   {
@@ -402,20 +409,23 @@ const READS = [
 ];
 
 const F = (stem, channel) => `sw-fix-${stem}-${channel}`;
-/** Batches: each channel gets its own fixture, named for it, so all three do the same work. */
+/** Batches: each channel gets its own fixture, named for it, so all three do the same work.
+ * `wire` is `arguments` exactly, `actor` its attribution, and `cli` the tree's form of both. */
 const BATCHES = [
   {
     name: "issue/create",
     make: (c) => ({
-      wire: { actor: A, id: F("cr", c), title: "Fix login", priority: 1, issue_type: "task" },
-      cli: ["Fix login", "--actor", A, "--id", F("cr", c), "-p", "1", "-t", "task"],
+      actor: A,
+      wire: { id: F("cr", c), title: "Fix login", priority: 1 },
+      cli: ["Fix login", "--actor", A, "--id", F("cr", c), "-p", "1"],
     }),
   },
   {
     name: "issue/update",
     make: (c) => ({
       seed: [issue(F("up", c))],
-      wire: { id: F("up", c), actor: A, patch: { title: "new" } },
+      actor: A,
+      wire: { id: F("up", c), patch: { title: "new" } },
       cli: [F("up", c), "--actor", A, ...flag("--patch", { title: "new" })],
     }),
   },
@@ -423,15 +433,17 @@ const BATCHES = [
     name: "issue/comment",
     make: (c) => ({
       seed: [issue(F("co", c))],
-      wire: { id: F("co", c), author: "alice", text: "hi" },
-      cli: [F("co", c), "hi", "-a", "alice"],
+      actor: "alice",
+      wire: { id: F("co", c), text: "hi" },
+      cli: [F("co", c), "hi", "--actor", "alice"],
     }),
   },
   {
     name: "issue/claim",
     make: (c) => ({
       seed: [issue(F("cl", c))],
-      wire: { id: F("cl", c), actor: A },
+      actor: A,
+      wire: { id: F("cl", c) },
       cli: [F("cl", c), "--actor", A],
     }),
   },
@@ -440,7 +452,8 @@ const BATCHES = [
     make: (c) => ({
       seed: [issue(F("un", c))],
       before: [claimBy(F("un", c))],
-      wire: { id: F("un", c), actor: "bob", expected_assignee: "bob" },
+      actor: "bob",
+      wire: { id: F("un", c), expected_assignee: "bob" },
       cli: [F("un", c), "--actor", "bob", "--if-assignee", "bob"],
     }),
   },
@@ -449,7 +462,8 @@ const BATCHES = [
     make: (c) => ({
       seed: [issue(F("he", c))],
       before: [claimBy(F("he", c))],
-      wire: { id: F("he", c), actor: "bob" },
+      actor: "bob",
+      wire: { id: F("he", c) },
       cli: [F("he", c), "--actor", "bob"],
     }),
   },
@@ -457,7 +471,8 @@ const BATCHES = [
     name: "issue/close",
     make: (c) => ({
       seed: [issue(F("xx", c))],
-      wire: { id: F("xx", c), actor: A, reason: "Closed" },
+      actor: A,
+      wire: { id: F("xx", c) },
       cli: [F("xx", c), "--actor", A],
     }),
   },
@@ -469,7 +484,8 @@ const BATCHES = [
         issue(F("m1", c), "one", { parent_id: F("m0", c) }),
         issue(F("m2", c), "two", { parent_id: F("m0", c) }),
       ],
-      wire: { id: F("m1", c), actor: A },
+      actor: A,
+      wire: { id: F("m1", c) },
       cli: [F("m1", c), "--actor", A],
     }),
   },
@@ -478,7 +494,8 @@ const BATCHES = [
     make: (c) => ({
       seed: [issue(F("ro", c))],
       before: [closed(F("ro", c))],
-      wire: { id: F("ro", c), actor: A, reason: "again" },
+      actor: A,
+      wire: { id: F("ro", c), reason: "again" },
       cli: [F("ro", c), "--actor", A, "-r", "again"],
     }),
   },
@@ -486,7 +503,8 @@ const BATCHES = [
     name: "issue/metadata/compare-and-set",
     make: (c) => ({
       seed: [issue(F("ms", c), "cas", { metadata: { k: "old" } })],
-      wire: { id: F("ms", c), actor: A, key: "k", expected: "old", value: "new" },
+      actor: A,
+      wire: { id: F("ms", c), key: "k", expected: "old", value: "new" },
       cli: [
         F("ms", c),
         "--actor",
@@ -499,42 +517,34 @@ const BATCHES = [
     }),
   },
   {
+    label: "preview: no dry_run on any channel",
     name: "issue/purge",
     make: (c) => ({
       seed: [issue(F("pu", c), "purge", { ephemeral: true })],
       before: [closed(F("pu", c))],
-      wire: {
-        dry_run: true,
-        tier: "ephemeral",
-        protect_referenced: false,
-        protect_live_dependents: true,
-        actor: A,
-        pattern: F("pu", c),
-      },
-      cli: ["--actor", A, "--pattern", F("pu", c)],
+      survives: F("pu", c),
+      wire: { pattern: F("pu", c) },
+      cli: ["--pattern", F("pu", c)],
     }),
   },
   {
+    label: "preview: no dry_run on any channel",
     name: "issue/prune",
     make: (c) => ({
       seed: [issue(F("pr", c))],
       before: [closed(F("pr", c))],
-      wire: {
-        dry_run: true,
-        tier: "durable",
-        protect_referenced: true,
-        protect_live_dependents: false,
-        actor: A,
-        pattern: F("pr", c),
-      },
-      cli: ["--actor", A, "--pattern", F("pr", c)],
+      survives: F("pr", c),
+      wire: { pattern: F("pr", c) },
+      cli: ["--pattern", F("pr", c)],
     }),
   },
   {
+    label: "preview: no dry_run on any channel",
     name: "issue/delete",
     make: (c) => ({
       seed: [issue(F("de", c))],
-      wire: { ids: [F("de", c)], dry_run: true },
+      survives: F("de", c),
+      wire: { ids: [F("de", c)] },
       cli: ["--ids", F("de", c)],
     }),
   },
@@ -543,7 +553,8 @@ const BATCHES = [
     make: (c) => ({
       seed: [issue(F("rc", c))],
       before: [claimBy(F("rc", c))],
-      wire: { actor: A, older_than_seconds: 600, ids: [F("rc", c)] },
+      actor: A,
+      wire: { ids: [F("rc", c)] },
       cli: ["--actor", A, "--ids", F("rc", c)],
     }),
   },
@@ -555,7 +566,8 @@ const BATCHES = [
         { title: "many two", issue_type: "task" },
       ];
       return {
-        wire: { actor: A, items },
+        actor: A,
+        wire: { items },
         cli: ["--actor", A, ...items.flatMap((item) => flag("--items", item))],
       };
     },
@@ -567,7 +579,8 @@ const BATCHES = [
         { kind: "create", create: { title: "b", issue_type: "task", id: F("ba", c) } },
       ];
       return {
-        wire: { actor: A, items },
+        actor: A,
+        wire: { items },
         cli: ["--actor", A, ...items.flatMap((item) => flag("--items", item))],
       };
     },
@@ -578,7 +591,8 @@ const BATCHES = [
       const items = [{ id: F("cm", c), reason: "r" }];
       return {
         seed: [issue(F("cm", c))],
-        wire: { actor: A, items },
+        actor: A,
+        wire: { items },
         cli: ["--actor", A, ...items.flatMap((item) => flag("--items", item))],
       };
     },
@@ -587,7 +601,8 @@ const BATCHES = [
     name: "issue/claim-next",
     make: (c) => ({
       seed: [issue(F("cn", c), "next", { labels: [`next-${c}`] })],
-      wire: { actor: A, label: [`next-${c}`] },
+      actor: A,
+      wire: { label: [`next-${c}`] },
       cli: ["--actor", A, "-l", `next-${c}`],
     }),
   },
@@ -595,7 +610,8 @@ const BATCHES = [
     name: "issue/dep/add",
     make: (c) => ({
       seed: [issue(F("da", c)), issue(F("db", c))],
-      wire: { actor: A, source: F("da", c), target: F("db", c), type: "related" },
+      actor: A,
+      wire: { source: F("da", c), target: F("db", c), type: "related" },
       cli: [F("da", c), F("db", c), "--actor", A, "-t", "related"],
     }),
   },
@@ -606,7 +622,8 @@ const BATCHES = [
         issue(F("dd", c)),
         issue(F("dc", c), "dep", { dependencies: [{ target_id: F("dd", c), type: "blocks" }] }),
       ],
-      wire: { actor: A, issue_id: F("dc", c), depends_on_id: F("dd", c) },
+      actor: A,
+      wire: { issue_id: F("dc", c), depends_on_id: F("dd", c) },
       cli: [F("dc", c), F("dd", c), "--actor", A],
     }),
   },
@@ -642,14 +659,16 @@ const BATCHES = [
   },
 ];
 
-/** Beyond the one case per Callable: a real run past a CLI default, and each refusal kind. */
+/** Beyond the one case per Callable: a real run past a service default, and each refusal kind. */
 const EXTRAS = [
   {
     label: "issue/delete --no-dry-run really deletes",
     name: "issue/delete",
     make: (c) => ({
       seed: [issue(F("dr", c))],
-      wire: { ids: [F("dr", c)], dry_run: false, actor: A },
+      gone: F("dr", c),
+      actor: A,
+      wire: { ids: [F("dr", c)], dry_run: false },
       cli: ["--ids", F("dr", c), "--no-dry-run", "--actor", A],
     }),
   },
@@ -680,7 +699,8 @@ const EXTRAS = [
     make: (c) => ({
       seed: [issue(F("ac", c))],
       before: [claimBy(F("ac", c))],
-      wire: { id: F("ac", c), actor: "carol" },
+      actor: "carol",
+      wire: { id: F("ac", c) },
       cli: [F("ac", c), "--actor", "carol"],
     }),
     exit: 1,
@@ -690,7 +710,8 @@ const EXTRAS = [
     name: "issue/update",
     make: (c) => ({
       seed: [issue(F("sv", c))],
-      wire: { id: F("sv", c), actor: A, patch: { title: "n" }, expected_version: "1" },
+      actor: A,
+      wire: { id: F("sv", c), patch: { title: "n" }, expected_version: "1" },
       cli: [F("sv", c), "--actor", A, "--patch", '{"title":"n"}', "--expected-version", "1"],
     }),
     exit: 4,
@@ -700,7 +721,8 @@ const EXTRAS = [
     name: "issue/create",
     make: (c) => ({
       seed: [issue(F("it", c))],
-      wire: { actor: A, id: F("it", c), title: "again", issue_type: "task" },
+      actor: A,
+      wire: { id: F("it", c), title: "again", issue_type: "task" },
       cli: ["again", "--actor", A, "--id", F("it", c), "-t", "task"],
     }),
     exit: 1,
@@ -709,7 +731,7 @@ const EXTRAS = [
     label: "invalid-parameter: a bad cursor",
     name: "issue/list",
     make: () => ({
-      wire: { cursor: "not-a-cursor", sort: "priority" },
+      wire: { cursor: "not-a-cursor" },
       cli: ["--cursor", "not-a-cursor"],
     }),
     exit: 1,
@@ -787,12 +809,14 @@ async function curl(url, { method = "GET", body, headers = [`Accept: ${MEDIA}`],
   };
 }
 
-const seedCall = async (scope, name, wire) => {
-  const answer = await curlCall(scope, name, wire);
+const seedCall = async (scope, name, wire, actor) => {
+  const answer = await curlCall(scope, name, wire, provenance(actor));
   if (answer.status !== 200)
     throw new Error(`seed ${name} ${JSON.stringify(wire)}: ${answer.status} ${answer.text}`);
   return answer;
 };
+/** An issue is always created by the harness's own actor. */
+const seedIssue = (scope, fields) => seedCall(scope, "issue/create", fields, A);
 
 /** The JSON-mode result of one bdp run, in the shape curl gives. */
 function clientAnswer(result) {
@@ -820,7 +844,22 @@ function clientAnswer(result) {
   };
 }
 
-function judge(curlAnswer, answers, expectedWire, posts, expectedExit) {
+/** Exactly the stated arguments and attribution, compared unmasked: each channel has its own
+ * fixture, and nothing may be added, such as a default or an actor. */
+function wireProblems(channel, part, post) {
+  if (post === undefined) return [{ channel, what: "no POST reached the mount" }];
+  const problems = [];
+  const wire = differences(part.wire, post.body.arguments);
+  if (wire.length > 0) problems.push({ channel, what: "sent different arguments", wire });
+  const said = differences(
+    provenance(part.actor).revisionProvenance ?? null,
+    post.body.revisionProvenance ?? null,
+  );
+  if (said.length > 0) problems.push({ channel, what: "sent different attribution", said });
+  return problems;
+}
+
+function judge(curlAnswer, answers, part, expectedExit) {
   const problems = [];
   const reference = masked(curlAnswer.json);
   for (const [channel, answer, post] of answers) {
@@ -828,11 +867,7 @@ function judge(curlAnswer, answers, expectedWire, posts, expectedExit) {
       problems.push({ channel, what: "output is not the JSON envelope", detail: answer });
       continue;
     }
-    if (post === undefined) problems.push({ channel, what: "no POST reached the mount" });
-    else {
-      const wire = differences(masked(expectedWire), masked(post.body.arguments));
-      if (wire.length > 0) problems.push({ channel, what: "sent different arguments", wire });
-    }
+    problems.push(...wireProblems(channel, part(channel), post));
     if (curlAnswer.status === 200) {
       if (!answer.success) {
         problems.push({ channel, what: "curl got 200 and the client failed", detail: answer });
@@ -863,8 +898,8 @@ async function runCase(context, kase, label, seedChannels) {
   for (const channel of seedChannels) {
     const made = kase.make ? kase.make(channel) : kase;
     parts[channel] = made;
-    for (const seed of made.seed ?? []) await seedCall(scope, "issue/create", seed);
-    for (const [name, wire] of made.before ?? []) await seedCall(scope, name, wire);
+    for (const seed of made.seed ?? []) await seedIssue(scope, seed);
+    for (const [name, wire, actor] of made.before ?? []) await seedCall(scope, name, wire, actor);
   }
   const part = (channel) => parts[channel] ?? parts[seedChannels[0]];
   const words = kase.name.split("/");
@@ -874,16 +909,35 @@ async function runCase(context, kase, label, seedChannels) {
     const result = await bdp([...json, ...args]);
     return [channel, clientAnswer(result), posts[seen]];
   };
+  const attribution = (channel) =>
+    part(channel).actor === undefined ? [] : ["--actor", part(channel).actor];
   const viaCall = await attempt("call", [
     "call",
     kase.name,
     "--arguments",
     JSON.stringify(part("call").wire),
+    ...attribution("call"),
   ]);
   const viaTree = await attempt("tree", [...words, ...part("tree").cli]);
-  const viaCurl = await curlCall(scope, kase.name, part("curl").wire);
-  const problems = judge(viaCurl, [viaCall, viaTree], part("call").wire, posts, kase.exit);
-  // The wire comparison above used the call channel's fixture; the mask folds channel names.
+  const viaCurl = await curlCall(
+    scope,
+    kase.name,
+    part("curl").wire,
+    provenance(part("curl").actor),
+  );
+  const problems = judge(viaCurl, [viaCall, viaTree], part, kase.exit);
+  // A preview changes nothing and a real run does, on every channel alike.
+  for (const channel of seedChannels) {
+    const { survives, gone } = part(channel);
+    for (const [id, expected, what] of [
+      [survives, 200, "a preview removed its issue"],
+      [gone, 404, "a real run left its issue"],
+    ])
+      if (id !== undefined) {
+        const held = await curlCall(scope, "issue/show", { id });
+        if (held.status !== expected) problems.push({ channel, what, status: held.status, id });
+      }
+  }
   return {
     callable: kase.name,
     label,
@@ -912,7 +966,7 @@ async function fileAnnotations(context, stack) {
   const { scope, bdp } = context;
   const path = join(stack.root, "body.md");
   await writeFile(path, "# from a file\n");
-  await seedCall(scope, "issue/create", issue("sw-fix-ff"));
+  await seedIssue(scope, issue("sw-fix-ff"));
   const scoped = ["--scope", scope, "--output-mode", "json"];
   const show = async (id) =>
     (await curlCall(scope, "issue/show", { id, include_comments: true })).json?.result;
@@ -931,7 +985,7 @@ async function fileAnnotations(context, stack) {
     path,
   ]);
   const fromStdin = await bdp(
-    [...scoped, "issue", "comment", "sw-fix-ff", "-f", "-", "-a", "alice"],
+    [...scoped, "issue", "comment", "sw-fix-ff", "-f", "-", "--actor", "alice"],
     { stdin: "piped comment" },
   );
   const reasonPath = join(stack.root, "reason.txt");
@@ -975,48 +1029,162 @@ async function fileAnnotations(context, stack) {
   };
 }
 
+/** Every row goes through the recording proxy, and states what must and must not reach the wire.
+ * `refused` means exit 2 and no POST; `wire` and `actor` are what the POST must say. */
 async function actorBehavior(context) {
-  const form = ["issue", "create", "Fix login", "-p", "1", "-t", "task"];
-  const wire = { title: "Fix login", priority: 1, issue_type: "task", actor: "sam" };
-  return {
-    without_actor: await human(context, form),
-    with_actor_after: await human(context, [...form, "--actor", "sam"]),
-    with_actor_before_refused: await human(context, ["--actor", "sam", ...form]),
-    call_with_argument_and_attribution: await human(context, [
-      "call",
-      "issue/create",
-      "--arguments",
-      JSON.stringify(wire),
-      "--actor",
-      "sam",
-    ]),
-    call_with_differing_attribution: await human(context, [
-      "call",
-      "issue/create",
-      "--arguments",
-      JSON.stringify(wire),
-      "--actor",
-      "kim",
-    ]),
-    call_with_flags_refused: await human(context, ["call", "issue/create", "--title", "Fix login"]),
-    comment_author_from_call_attribution: await human(context, [
-      "call",
-      "issue/comment",
-      "--arguments",
-      JSON.stringify({ id: R(7), text: "author from the actor" }),
-      "--actor",
-      "sam",
-    ]),
-    comment_author_flag: await human(context, [
-      "issue",
-      "comment",
-      R(7),
-      "author from the flag",
-      "--author",
-      "sam",
-    ]),
-    comment_with_no_author_or_actor: await human(context, ["issue", "comment", R(7), "nobody"]),
+  const { proxyScope, scope, posts, bdp } = context;
+  const row = async (
+    args,
+    { wire, actor, supplied, refused = false, exit, message, more } = {},
+  ) => {
+    const seen = posts.length;
+    const result = await bdp(["--scope", proxyScope, ...args], more);
+    const post = posts[seen];
+    const problems = [];
+    if (refused) {
+      if (result.status !== 2) problems.push(`exit ${result.status}, expected 2`);
+      if (posts.length !== seen) problems.push("a refusal sent a POST");
+    } else {
+      if (post === undefined) problems.push("no POST");
+      else {
+        if (wire !== undefined && differences(wire, post.body.arguments).length > 0)
+          problems.push({ sent_arguments: post.body.arguments, expected: wire });
+        const said = differences(
+          supplied ?? provenance(actor).revisionProvenance ?? null,
+          post.body.revisionProvenance ?? null,
+        );
+        if (said.length > 0) problems.push({ sent_attribution: post.body.revisionProvenance });
+      }
+      if (exit !== undefined && result.status !== exit)
+        problems.push(`exit ${result.status}, expected ${exit}`);
+    }
+    if (message !== undefined && !`${result.stdout}${result.stderr}`.includes(message))
+      problems.push(`no "${message}" in the output`);
+    return {
+      args,
+      verdict: problems.length === 0 ? "ok" : "differs",
+      problems,
+      exit: result.status,
+      arguments: post?.body.arguments,
+      revisionProvenance: post?.body.revisionProvenance,
+      stdout: result.stdout.slice(0, 800),
+      stderr: result.stderr.slice(0, 800),
+    };
   };
+  const title = "Fix login";
+  const made = { title };
+  const form = ["issue", "create", title];
+  const sam = { wire: made, actor: "sam", exit: 0 };
+  const twoActors = "--actor was given with two different values";
+  const samProvenance = JSON.stringify({
+    actor: { id: "sam", basis: "writer-supplied" },
+    message: "why",
+  });
+  const commentAuthor = async (id) => {
+    const held = await curlCall(scope, "issue/show", { id, include_comments: true });
+    return held.json?.result?.comments?.at(-1)?.author;
+  };
+  await seedIssue(scope, issue("sw-fix-signed"));
+  const rows = {
+    // The service defaults the type, so no -t is needed.
+    create_no_type_actor_after: await row([...form, "--actor", "sam"], sam),
+    create_no_type_actor_before: await row(["--actor", "sam", ...form], sam),
+    create_no_type_actor_between_words: await row(
+      ["issue", "--actor", "sam", "create", title],
+      sam,
+    ),
+    create_no_type_actor_inline: await row([...form, "--actor=sam"], sam),
+    create_actor_before_and_after_agreeing: await row(
+      ["--actor", "sam", ...form, "--actor", "sam"],
+      sam,
+    ),
+    create_two_actors_refused: await row(["--actor", "sam", ...form, "--actor", "kim"], {
+      refused: true,
+      message: twoActors,
+    }),
+    create_without_actor: await row(form, { wire: made }),
+    create_actor_with_no_value_refused: await row([...form, "--actor"], {
+      refused: true,
+      message: "--actor requires a value",
+    }),
+    call_actor_after: await row(
+      ["call", "issue/create", "--arguments", JSON.stringify(made), "--actor", "sam"],
+      sam,
+    ),
+    call_actor_before: await row(
+      ["--actor", "sam", "call", "issue/create", "--arguments", JSON.stringify(made)],
+      sam,
+    ),
+    call_two_actors_refused: await row(
+      ["--actor", "sam", "call", "issue/create", "--arguments", "{}", "--actor", "kim"],
+      { refused: true, message: twoActors },
+    ),
+    call_exact_object: await row(
+      ["call", "issue/close", "--arguments", JSON.stringify({ id: R(7) }), "--actor", A],
+      { wire: { id: R(7) }, actor: A, exit: 0 },
+    ),
+    call_empty_object: await row(["call", "issue/stats"], { wire: {}, exit: 0 }),
+    call_with_flags_refused: await row(["call", "issue/create", "--title", title], {
+      refused: true,
+      message: "--arguments",
+    }),
+    provenance_before_tree: await row(["--revision-provenance", samProvenance, ...form], {
+      exit: 0,
+      wire: made,
+      supplied: JSON.parse(samProvenance),
+    }),
+    provenance_conflicts_with_actor_refused: await row(
+      ["--revision-provenance", samProvenance, ...form, "--actor", "kim"],
+      { refused: true, message: "--actor conflicts with explicit provenance actor" },
+    ),
+    provenance_after_tree_refused: await row([...form, "--revision-provenance", samProvenance], {
+      refused: true,
+      message: "before the command",
+    }),
+    query_refuses_actor_after: await row(["issue", "stats", "--actor", "sam"], { refused: true }),
+    query_refuses_actor_before: await row(["--actor", "sam", "issue", "stats"], { refused: true }),
+    query_refuses_actor_on_call: await row(["call", "issue/stats", "--actor", "sam"], {
+      refused: true,
+    }),
+    comment_signed_by_actor: await row(
+      ["issue", "comment", "sw-fix-signed", "signed", "--actor", "sam"],
+      { wire: { id: "sw-fix-signed", text: "signed" }, actor: "sam", exit: 0 },
+    ),
+    comment_author_flag_refused: await row(
+      ["issue", "comment", "sw-fix-signed", "x", "--author", "sam"],
+      { refused: true },
+    ),
+    comment_with_no_actor: await row(["issue", "comment", "sw-fix-signed", "nobody"], {
+      wire: { id: "sw-fix-signed", text: "nobody" },
+      exit: 1,
+    }),
+    config_set_refuses_an_actor: await row(["config", "set", "fix.actor", "v", "--actor", "sam"], {
+      wire: { key: "fix.actor", value: "v" },
+      actor: "sam",
+      exit: 1,
+    }),
+  };
+  rows.comment_signed_by_actor.author = await commentAuthor("sw-fix-signed");
+  if (rows.comment_signed_by_actor.author !== "sam") {
+    rows.comment_signed_by_actor.verdict = "differs";
+    rows.comment_signed_by_actor.problems.push("the comment is not signed by sam");
+  }
+  // bdp call sends what it is given, so this one goes to the service directly and is refused
+  // there: it is the one POST in this run allowed an actor in its arguments.
+  const member = await bdp([
+    "--scope",
+    scope,
+    "call",
+    "issue/create",
+    "--arguments",
+    JSON.stringify({ title, actor: "sam" }),
+  ]);
+  rows.call_actor_member_reaches_the_service = {
+    verdict: member.status === 1 ? "ok" : "differs",
+    exit: member.status,
+    stderr: member.stderr.slice(0, 800),
+  };
+  return rows;
 }
 
 async function coreReads(context) {
@@ -1188,7 +1356,7 @@ async function tokenMode(context, stack) {
         ["call", "issue/show", "--arguments", JSON.stringify({ id: R(1) })],
         { env },
       ),
-      await row("token: issue comment", ["issue", "comment", R(7), "token", "--author", "sam"], {
+      await row("token: issue comment", ["issue", "comment", R(7), "token", "--actor", "sam"], {
         env,
       }),
       await row("token: list", ["list", "--limit", "2"], { env }),
@@ -1212,10 +1380,10 @@ async function sizes(context) {
       const items = [];
       for (let index = 0; index < 20 && created + items.length < target; index++)
         items.push({ title: "large", issue_type: "task", description: filler, labels: ["large"] });
-      await seedCall(scope, "issue/create-many", { actor: A, items });
+      await seedCall(scope, "issue/create-many", { items }, A);
       created += items.length;
     }
-    const wire = { label: ["large"], limit: 0, sort: "priority" };
+    const wire = { label: ["large"], limit: 0 };
     const direct = await curlCall(scope, "issue/list", wire);
     const result = await bdp([
       "--scope",
@@ -1246,6 +1414,16 @@ async function sizes(context) {
     if (result.status !== 0) break;
   }
   return rows;
+}
+
+/** Over every POST the client sent: who is acting is never an argument. */
+function wireAudit(posts) {
+  const offenders = posts.flatMap(({ name, body }) =>
+    Object.keys(body.arguments ?? {}).flatMap((key) =>
+      ["actor", "author"].includes(key) ? [{ name, member: key }] : [],
+    ),
+  );
+  return { posts: posts.length, verdict: offenders.length === 0 ? "ok" : "differs", offenders };
 }
 
 async function main() {
@@ -1279,8 +1457,8 @@ async function main() {
     if (viaProxy.json?.scope !== proxyScope)
       results.proxy_note = "the proxy's Scope spelling is not honored; wire checks may be void";
 
-    for (const seed of READ_SEED) await seedCall(scope, "issue/create", seed);
-    for (const [name, wire] of READ_BEFORE) await seedCall(scope, name, wire);
+    for (const seed of READ_SEED) await seedIssue(scope, seed);
+    for (const [name, wire, actor] of READ_BEFORE) await seedCall(scope, name, wire, actor);
 
     const cases = [];
     for (const kase of READS)
@@ -1291,7 +1469,7 @@ async function main() {
       }
     for (const kase of BATCHES)
       if (selected(kase.name)) {
-        const row = await runCase(context, kase, "primary", CHANNELS);
+        const row = await runCase(context, kase, kase.label ?? "primary", CHANNELS);
         cases.push(row);
         process.stderr.write(`${row.verdict} ${row.callable}\n`);
       }
@@ -1320,6 +1498,7 @@ async function main() {
       results.token_mode = await tokenMode(context, stack);
       results.sizes = await sizes(context);
     }
+    results.wire = wireAudit(recording.posts);
   } finally {
     results.finished_at = new Date().toISOString();
     if (proxy?.listening) await new Promise((done) => proxy.close(done));
@@ -1338,6 +1517,18 @@ async function main() {
           : `  ${row.problems.map((problem) => `${problem.channel}: ${problem.what}`).join("; ")}`
       }`,
   );
+  for (const [name, row] of Object.entries(results.actor ?? {}))
+    lines.push(
+      `${row.verdict.padEnd(8)}actor ${name} exit=${row.exit}${
+        row.problems?.length ? `  ${JSON.stringify(row.problems)}` : ""
+      }`,
+    );
+  if (results.wire !== undefined)
+    lines.push(
+      `${results.wire.verdict.padEnd(8)}no actor or author in arguments across ${results.wire.posts} POSTs${
+        results.wire.offenders.length > 0 ? `  ${JSON.stringify(results.wire.offenders)}` : ""
+      }`,
+    );
   await writeFile(join(settings.out, "summary.txt"), `${lines.join("\n")}\n`);
   process.stdout.write(`${lines.join("\n")}\n`);
 }

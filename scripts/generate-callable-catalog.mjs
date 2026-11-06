@@ -173,7 +173,7 @@ const derivedFlag = (name) =>
     .toLowerCase()}`;
 
 /** The §2.5 checks on a cliMapping, with the §10 rule that a derived `--no-x` yields. */
-function assertValidCliMapping(declaration, validators) {
+function assertValidCliMapping(declaration) {
   const { name, parameters, cliMapping = {} } = declaration;
   const declared = new Set(parameters.map((parameter) => parameter.name));
   const known = (parameter, kind) =>
@@ -199,20 +199,12 @@ function assertValidCliMapping(declaration, validators) {
     assert(!positions.has(position), `${name}: duplicate position ${position}`);
     positions.add(position);
   }
-  for (const [parameter, value] of Object.entries(cliMapping.defaults ?? {})) {
-    known(parameter, "defaults");
-    assert(
-      validators.get(parameter)(value),
-      `${name}.${parameter}: cliMapping default fails its schema`,
-    );
-  }
 }
 
 /** The Callables §2.5 checks a declaration's own document can answer. */
 export function assertValidDeclaration(declaration) {
   const ajv = new Ajv2020({ strict: false, validateFormats: false, allErrors: false });
   const names = new Set();
-  const validators = new Map();
   for (const parameter of declaration.parameters) {
     const label = `${declaration.name}.${parameter.name}`;
     assert(!names.has(parameter.name), `${label}: duplicate parameter`);
@@ -222,11 +214,10 @@ export function assertValidDeclaration(declaration) {
       `${label}: required together with default`,
     );
     const validate = ajv.compile(parameter.schema);
-    validators.set(parameter.name, validate);
     if (Object.hasOwn(parameter, "default"))
       assert(validate(parameter.default), `${label}: default fails its schema`);
   }
-  assertValidCliMapping(declaration, validators);
+  assertValidCliMapping(declaration);
   ajv.compile(declaration.resultSchema);
   if (declaration.errorSchema !== undefined) ajv.compile(declaration.errorSchema);
 }
