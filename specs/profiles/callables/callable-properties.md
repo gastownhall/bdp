@@ -102,7 +102,7 @@ Required order: ["names","parameter"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Adds one or more CLI flag spellings for a declared parameter." |
+| description | "Adds one or more aliases, CLI flag spellings, for a declared parameter." |
 | type | "object" |
 
 ### Properties
@@ -157,6 +157,40 @@ Required order: ["position","parameter"]
 }
 ```
 
+<a id="schema-def-ImZpbGVNYXBwaW5nIg"></a>
+## Schema: "fileMapping"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["names","parameter"]
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Names flags that read a declared parameter's value from a file. The flag's value is a path, and - means stdin." |
+| type | "object" |
+
+### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "names" | schema | yes | — | "Distinct nonempty flag spellings, such as --body-file." |
+| "parameter" | schema | yes | — | "The name of a declared parameter of the same declaration." |
+
+### Advanced
+
+```json-schema
+{
+  "properties": {
+    "names": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "parameter": {"type": "string", "minLength": 1}
+  }
+}
+```
+
 <a id="schema-def-ImNsaU1hcHBpbmci"></a>
 ## Schema: "cliMapping"
 
@@ -168,12 +202,14 @@ Other fields: not allowed
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Additions to the CLI form derived from parameters. It chooses no command route and grants nothing; duplicate flags or positions make a declaration invalid." |
+| description | "Additions to the CLI form derived from parameters. It chooses no command route and grants nothing; duplicate flags or positions, or a defaults member that names no parameter or fails its schema, make a declaration invalid." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "flags" | array of (ref "#/$defs/flagMapping") | no | — | "Additional flag spellings for parameters." |
+| "defaults" | object | no | — | "Parameter values the client sends when the invocation does not supply that parameter. An explicit flag or arguments member overrides one. CLI-only: it does not change what an HTTP caller gets when it omits a parameter." |
+| "flags" | array of (ref "#/$defs/flagMapping") | no | — | "Aliases: additional flag spellings for parameters." |
+| "fromFile" | array of (ref "#/$defs/fileMapping") | no | — | "Parameters whose value the client reads from a file or stdin." |
 | "positionals" | array of (ref "#/$defs/positionalMapping") | no | — | "Positions mapped onto parameters." |
