@@ -266,7 +266,7 @@
       "specs/profiles/types/types.md": "f9edcc0236d83a29b21620f1b7d22f2469cf35afa0521e04b3b2134d3dc333ef",
       "specs/profiles/transfer/transfer.md": "a6e95bb471e6c307f17edeb40e2d466be1fa0d97730f8fb60eb58a85c65dc1c7",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
-      "docs/cli-design/bdp-cli.md": "deec4dbcb60997dd53d06cb3971e62ab9a215e2944967975aa407ac7b3f47790",
+      "docs/cli-design/bdp-cli.md": "054f185b0906fdc7b8bc466bb1d57f08bc3facd943c2dfd20f51a300fdc95d8b",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
       "scripts/generate-openapi.mjs": "40645cf6f6703a058178cfd6e8e3ab4fbb2ce32ff59289679520519014df4b6c",
       "scripts/spec-schema-fragments.mjs": "7f5a974b1f0a34db7d6b7f84c847bb81ffa67f3a81969aa2a19dbdd1fbd3a766",

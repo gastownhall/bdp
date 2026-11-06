@@ -48,7 +48,11 @@ test("the call section matches Callables §10's form and keeps its mismatch row 
     "The flag repeats",
     "parsed as JSON",
     "`--arguments JSON`",
-    "never substitutes a default",
+    "never substitutes a default except from",
+    "bd [CLIENT-OPTIONS] WORD... [CALLABLE-ARGUMENTS]",
+    "A built-in command wins any collision",
+    "`cliMapping.fromFile`",
+    "`cliMapping.defaults`",
   ])
     assert(section.includes(form), form);
   const mismatches = await readFile(

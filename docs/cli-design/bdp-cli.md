@@ -2776,8 +2776,8 @@ bd batch --retry-file private-replay.json
 Invoke one named Callable, or list what can be called. This is the client side of
 [Callables §10](../../specs/profiles/callables/callables.md#10-cli-correspondence),
 which the generic executable spells `bdp call`. This reference generates the flags
-from each declaration; there is no per-Callable command tree here, and native command
-spellings such as `bd ready` are separate work.
+from each declaration, and mounts each Callable as a command by its name. There is no
+per-Callable code, and native command spellings such as `bd ready` are separate work.
 
 ##### Usage
 
@@ -2785,11 +2785,22 @@ spellings such as `bd ready` are separate work.
 bd [CLIENT-OPTIONS] call NAME [CALLABLE-ARGUMENTS]
 bd [CLIENT-OPTIONS] call NAME --help
 bd [CLIENT-OPTIONS] call
+bd [CLIENT-OPTIONS] WORD... [CALLABLE-ARGUMENTS]
+bd [CLIENT-OPTIONS] WORD... --help
 ```
 
 Client options come before NAME, on either side of the verb, and everything after
 NAME is the Callable's own. A Callable may therefore declare a parameter whose flag
 spelling matches a client option, and the client option cannot reach it from there.
+
+##### The command tree
+
+A Callable's name gives its place in the tree, one word per segment: `issue/dep/add` is
+`bd issue dep add`, the same invocation as `bd call issue/dep/add`. Client options come
+before the first word. `--help` at a word that groups Callables lists what is beneath
+it, and the root help lists each first word. A built-in command wins any collision,
+whole first word included, and `call NAME` always reaches the Callable. The Issue
+document's 45 names collide with no built-in.
 
 ##### Arguments
 
@@ -2820,6 +2831,8 @@ Flags derive from the declaration, so most declarations need no CLI section:
 | Any other non-string `schema` | The flag's value is parsed as JSON. |
 | `cliMapping.flags` | Adds spellings such as `-l`; the derived flag remains. |
 | `cliMapping.positionals` | Lets a position stand for a flag. |
+| `cliMapping.fromFile` | Adds flags whose value is a path, `-` meaning stdin. The content, unchanged, is treated as that parameter's flag value. |
+| `cliMapping.defaults` | Values sent for parameters the invocation does not supply. An explicit flag, a position, an `--arguments` member or a supplied `null` overrides one. |
 | `--arguments JSON` | Supplies the whole arguments object; explicit flags and positions override its members, and a repeated array flag replaces the whole array. |
 | `--help` | Prints `title`, `description`, the parameters and any declared errors, without invoking. |
 
@@ -2829,16 +2842,17 @@ string. A flag value that begins with `--` uses the `--flag=VALUE` form; after a
 `--`, every token is an operand. A flag given twice, other than an array's, is refused,
 as is a position together with its flag.
 
-A parameter's own flag beats another parameter's negation, so a `--no-pinned` derived
-from `no_pinned` is that parameter's, and `pinned: false` is reachable only through
-`--arguments`. Callables §2.5 calls such a declaration invalid, and the `list-issues`
-declaration in the [Issue document](../../specs/types/issue/callables.md) is one: the
-client works around it here rather than refusing a declared operation.
+Under [Callables §10](../../specs/profiles/callables/callables.md#10-cli-correspondence),
+a parameter declared with the flag `--no-x` keeps it, and a boolean parameter `x` then
+has no derived `--no-x`. So `--no-pinned` on `issue/list` is `no_pinned`, and
+`pinned: false` is reachable only through `--arguments`.
 
 ##### Behavior
 
-The client preserves omission and `null` and never substitutes a default: an omitted
-parameter stays omitted and the service applies the default. It does not check
+The client preserves omission and `null`, and never substitutes a default except from
+`cliMapping.defaults`: any other omitted parameter stays omitted and the service
+applies its default. These defaults bind only this client, so `bd issue close bd-1`
+sends `reason` and an HTTP caller that omits it gets the service's behavior. It does not check
 arguments or results against their schemas; checking arguments is the service's job
 and checking a result is optional. It sends unknown `--arguments` members unchanged,
 so the service refuses them.
@@ -2848,14 +2862,23 @@ reference does not read it yet: its catalog is generated from the Issue document
 `scripts/generate-callable-catalog.mjs` and checked in, so listing and `--help` need
 no Scope. Nothing above the catalog assumes that source.
 
-The command reads discovery and refuses a Scope that does not advertise Callables1,
-and refuses a CallableBatch against a Scope without Write.
+The command reads discovery and refuses a Scope that does not advertise Callables1. It
+asks for that capability and no profile, so a Core Scope advertising Callables1 may
+offer a CallableBatch.
 
 ##### Results
 
+The global `--output-mode human|json` applies as for every command. `--pretty`, `--long`
+and `--silent` are not carried on these commands.
+
 Success returns the closed `callableResult` as `data` under `result_kind`
-`callable_result`, with `changed` on a CallableBatch. Human output prints that object
-as indented JSON. Listing uses `result_kind` `callable_catalog`.
+`callable_result`, with `changed` on a CallableBatch. Human output is one generic form
+for every Callable, with no per-package presentation: `changed` when there is one, a
+table for an array of records and for such a member of a record, `key: value` lines for
+any other record, and the value itself for anything else. A table leaves out a column
+empty in every row, and shortens a long cell and says so; `key: value` lines keep the
+value whole. `--output-format detail` prints that object as indented JSON. Listing uses
+`result_kind` `callable_catalog`.
 
 ##### Errors and exit status
 
@@ -2864,6 +2887,11 @@ attribution or key on a CallableQuery returns `2`, before any request.
 `callable-not-found` returns `3`, `revision-mismatch` returns `4`, and a Scope that
 does not advertise what the invocation requires returns `5`. Every other failure
 returns `1`, with the native Problem unchanged under `origin:bdp`.
+
+A failure with no Problem to show says what happened under `origin:cli`, with code
+`delivery_failed`: which stage failed and, when the service answered, its URL, status and
+content type, never its body. So a service with no BDP discovery reads
+`BDP discovery of SCOPE failed: SCOPE answered HTTP 404 (...)`.
 
 A `callable-error` is the operation's own answer: its `error` value stays inside that
 Problem, on the error path, with status `1`. A system failure is a different diagnosis
@@ -2888,6 +2916,7 @@ never `unknown`.
 | CallableBatch under `idempotency` | One generated or supplied `Idempotency-Key`. |
 | CallableBatch without `idempotency`, CallableQuery | No `Idempotency-Key`. |
 | Any invocation | `Content-Type: application/vnd.bdp.v0.1+json`. |
+| WORD... | `POST <scope>/bdp/call/` and the words joined with `/`. |
 
 ##### Examples
 
@@ -2907,6 +2936,16 @@ bd call reserve-room cedar --day 2026-11-20
 # Supply the object, override one member and attribute the batch.
 bd --actor sam call reserve-room \
   --arguments '{"room":"cedar","day":"2026-11-20"}' --day 2026-11-21
+
+# The same mechanism by name: a position, an alias and a required argument.
+bd issue create "Fix login" -p 1 --actor sam
+
+# Two positions under a longer word path.
+bd issue dep add bd-1 bd-2 --actor sam
+
+# Send the description from stdin; list what the tree mounts under one word.
+bd issue create "Fix login" --body-file - --actor sam < notes.md
+bd issue --help
 
 ```
 
