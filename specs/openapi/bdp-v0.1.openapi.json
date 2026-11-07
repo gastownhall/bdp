@@ -108,7 +108,7 @@
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
       "specs/profiles/core/core.md": "d3f656873c4941a009d17677801060fef372579c75bf6484a7275e910437b60d",
-      "specs/profiles/write/write.md": "0ab2bd1ac6123894d21198555a6797055f3f75dd7b771fcf65496edd23c149f1",
+      "specs/profiles/write/write.md": "14aaf4f2f3ee553caa703d780c82aa12051c0a944fd2f12a4db071beda06f338",
       "specs/profiles/events/events.md": "f93ec035ab3ffed107d0cad1e6080bd7fb81b62153b3bf087304a106e31724d6",
       "specs/profiles/types/types.md": "95d30dfbd4969c055da694b76988cb3a88c5d1ac7a0bd8a2a8f5dc17fa371f40",
       "specs/profiles/transfer/transfer.md": "a6e95bb471e6c307f17edeb40e2d466be1fa0d97730f8fb60eb58a85c65dc1c7",
@@ -118,10 +118,10 @@
       "scripts/generate-openapi.mjs": "67be360c15c9d02a6e719af722dd77db6ef9076d3f2bcf9f66a0d4413deb24cf",
       "scripts/spec-schema-fragments.mjs": "4f83f405a532c4ea3db7d2a330db9789e3ea493c757a1503e2d951fde9bfb7ed",
       "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
-      "packages/protocol/schemas/bdp-v0.1.schema.json": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
-      "specs/profiles/core/bdp-v0.1.schema.json": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
+      "packages/protocol/schemas/bdp-v0.1.schema.json": "b8f4b3331210f65a9487177a34741dc59ac98e92992369d12377a671b774db0a",
+      "specs/profiles/core/bdp-v0.1.schema.json": "b8f4b3331210f65a9487177a34741dc59ac98e92992369d12377a671b774db0a",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
-      "specs/profiles/write/delete-modes-v1.schema.json": "8c29ed78cb19024f68d178be33a72b1b0a0021cafb46ad3ed06be131baeca319",
+      "specs/profiles/write/delete-modes-v1.schema.json": "c8558c6f445d9ae72200a8a15543e37b89d7925ed2b3519ac3d19e3c6d75d72b",
       "specs/profiles/write/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
       "packages/protocol/schemas/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e"
     },
@@ -11163,7 +11163,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6325
+              "line": 6376
             }
           ],
           "x-bdp-cli": {
@@ -11349,7 +11349,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6325
+              "line": 6376
             }
           ],
           "x-bdp-cli": {
@@ -11523,7 +11523,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6343
+              "line": 6394
             }
           ],
           "x-bdp-cli": {
@@ -11715,7 +11715,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6362
+              "line": 6413
             }
           ],
           "x-bdp-cli": {
@@ -11883,7 +11883,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6381
+              "line": 6432
             }
           ],
           "x-bdp-cli": {
@@ -12083,7 +12083,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6400
+              "line": 6451
             }
           ],
           "x-bdp-cli": {
@@ -12275,7 +12275,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6419
+              "line": 6470
             }
           ],
           "x-bdp-cli": {
@@ -12443,7 +12443,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6438
+              "line": 6489
             }
           ],
           "x-bdp-cli": {
@@ -12611,7 +12611,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6457
+              "line": 6508
             }
           ],
           "x-bdp-cli": {
@@ -12762,7 +12762,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6476
+              "line": 6527
             }
           ],
           "x-bdp-cli": {
@@ -12914,7 +12914,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 6495
+              "line": 6546
             }
           ],
           "x-bdp-cli": {
@@ -13141,7 +13141,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 7114
+              "line": 7165
             }
           ],
           "x-bdp-cli": {
@@ -13353,7 +13353,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 7133
+              "line": 7184
             }
           ],
           "x-bdp-cli": {
@@ -13611,7 +13611,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 7133
+              "line": 7184
             }
           ],
           "x-bdp-cli": {
@@ -13839,7 +13839,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 7152
+              "line": 7203
             }
           ],
           "x-bdp-cli": {
@@ -14106,7 +14106,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/write/write.md",
-              "line": 7152
+              "line": 7203
             }
           ],
           "x-bdp-cli": {

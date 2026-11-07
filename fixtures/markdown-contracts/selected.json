@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
+  "sourceSHA256": "b8f4b3331210f65a9487177a34741dc59ac98e92992369d12377a671b774db0a",
   "selections": {
     "read": {
       "entryPoints": [
@@ -212,6 +212,7 @@
         "readUpdateProblem",
         "readUpdateProblemCode",
         "reference",
+        "removedAliases",
         "resourceIdentity",
         "resourceKind",
         "resourceReference",

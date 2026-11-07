@@ -158,7 +158,7 @@ an ordinary singleton body, including inside a pinned endpoint Reference.
 | --- | --- | --- |
 | `createBead` | `type` | `id`, `properties`, `metadata`, `revisionProvenance` |
 | `updateBead` | `bead` and at least one edit member | `type`, `properties`, `propertiesChange`, `metadata`, `metadataChange`, `expectedRevision`, `revisionProvenance` |
-| `deleteBead` | `bead` | `expectedRevision` |
+| `deleteBead` | `bead` | `expectedRevision`, `revisionProvenance` |
 | `createLink` | `type`, `source`, `target` | `id`, `properties`, `metadata`, `revisionProvenance` |
 | `updateLink` | `link` and at least one edit member | `type`, `source`, `target`, `properties`, `propertiesChange`, `metadata`, `metadataChange`, `expectedRevision`, `revisionProvenance` |
 | `deleteLink` | `link` | `expectedRevision`, `revisionProvenance` |
@@ -815,8 +815,8 @@ remain literal while S@r2 captures that Link; S@r1 does not retroactively gain i
 
 ### Per-version attribution
 
-Create/update Bead and Link and an owned-capable deleteLink may supply the closed
-`revisionProvenance` input. Alias operations and deleteBead have no such input.
+Create/update Bead and Link, deleteBead and an owned-capable deleteLink may supply the
+closed `revisionProvenance` input. Alias operations have no such input.
 Its optional members are `actor`, `agent` and `message`; callers supply no time.
 Actor is the closed `{id,basis}` object from Core: nonempty `id`, with basis
 `writer-supplied` or `unknown`. Agent is a nonempty string or null; message is a
@@ -827,7 +827,11 @@ explicit null remains distinct. Actor omission does not copy an earlier actor.
 Attribution belongs immutably to the version minted by that decision. One
 operation minting several versions records its one input on each, including all
 induced owner versions. A Link deletion mints no Link version and can record
-context only on newly versioned owners. No-op keeps the whole existing envelope.
+context only on newly versioned owners. On deleteBead the input applies to every
+revision the request mints: the terminal version where one is recorded, each surviving
+Bead changed by an owner or declared effect, and each owner of a removed Link. Under
+Events it appears on the request's facts. A provider recording none of these still
+accepts it. A dry run records nothing. No-op keeps the whole existing envelope.
 Provenance input remains part of retry identity although it is excluded from
 covered-state no-op comparison. Write adds no authority-attested actor.
 
@@ -853,6 +857,7 @@ A Resource success is the closed object below. Created/updated results carry
 | `resource` | Complete original resulting Bead or Link record, for create/update |
 | `deleted` | `{resourceKind,resource:{id,type,revision}}`, for delete |
 | `ownerRevisions` | Required exactly for a Link owned initially or finally; otherwise absent |
+| `removedAliases` | Required exactly on a Bead deletion when discovery advertises `aliases`; the [aliases it removed](#aliases), ascending by code unit |
 
 The Resource postimage contains the actual id, affiliation, revision, properties,
 metadata, recorded provenance when present, applicable owned state and Link
@@ -937,6 +942,13 @@ contain the alias or follow a later repoint. A missing alias is
 `resource-not-found` under normal non-disclosure. A Link subject cannot use an
 alias to become a Link. A put's own target never admits an alias. Retried locators
 use the frozen comparison witnesses below instead of rebinding a known locator.
+
+Deleting a Bead removes every alias targeting it in the same atomic decision, and the
+deletion's result lists each by absolute URL in `removedAliases`. Its locator is released
+and may be put again. A restore restores no alias. When Events is advertised, each
+removal publishes the [Events](../events/events.md) non-Resource alias fact with
+`change:"deleted"` and the removed target, sharing the deletion's `transaction`. It
+carries no provenance.
 
 ## Idempotency and recovery
 
@@ -1327,7 +1339,8 @@ the identity after staged deletion. Rollback consumes no allocation.
 
 For each final new version, collect explicit provenance inputs from every member
 directly targeting that Resource. For an owner also collect inputs from Link
-members whose Link is owned by it initially or finally. Membership is evaluated
+members whose Link is owned by it initially or finally, and for a survivor a declared
+deletion effect changes, from the deleteBead member causing it. Membership is evaluated
 at decision boundaries, not invented intermediate owners. Supplied input requests
 attribution of that final version even when the member's local edit is equal;
 omission does not override supplied input. Equal explicit objects under ordinary
@@ -1387,6 +1400,7 @@ HTTP200 returns the closed `atomicBatchResult`:
 | `transaction` | Required opaque Scope-unique correlation if changed; absent for all-final-no-op |
 | `results` | Nonempty ordered identity mapping per input member |
 | `resources` | Nonempty unique final Resource outcomes, ordered by canonical URI |
+| `removedAliases` | Required exactly when the decision deletes a Bead and discovery advertises `aliases`; the [aliases it removed](#aliases), ascending by code unit |
 
 Each closed mapping has zero-based `operationIndex`, `operation`, absolute `id`,
 and `operationName` exactly when the corresponding creation supplied a name. It
@@ -1550,12 +1564,13 @@ receiver rejects these members.
 | `blockedBy` | `"any"`, `"inbound"` or `"none"` | Which crossing Links refuse the request; omission means `"any"` |
 | `cascade` | Closed `{through,except?}` | Extends the deleted set |
 | `dryRun` | Boolean; omission means `false` | Reports the outcome without effects |
+| `revisionProvenance` | Revision provenance input | The [attribution rule](#per-version-attribution); selects no mode |
 
 Supplying both `bead` and `beads`, neither, a repeated array element, or
 `expectedRevision` beside `beads` is `malformed-request`. Each element is a Bead
 subject under the [ordinary rules](#ordinary-requests). Two different spellings of one
 Bead name it once. `expectedRevision` guards the named Bead only, and no mode bypasses
-it. This form admits no `revisionProvenance`. Every Reference must resolve to a visible
+it. Every Reference must resolve to a visible
 live Bead; otherwise the whole request is the uniform `resource-not-found`, which does
 not say which Reference failed, and nothing is deleted.
 
@@ -1715,8 +1730,8 @@ that another member named. With a Link between `a` and `b`:
 authorization, validation and bound rules against the current graph. It returns
 the Problem the committing request would return at that moment and otherwise the
 closed `deleteModesPreview`. It reports the declared effects the committing request
-would apply. It changes nothing: it mints no revision, allocation, provenance or
-Event fact.
+would apply and lists the aliases it would remove in `removedAliases`. It changes
+nothing: it mints no revision, allocation, provenance or Event fact.
 
 Under `idempotency` a dry run carries the ordinary `Idempotency-Key` and is
 compared with retained key state, so it can receive `idempotency-conflict` or
@@ -1745,7 +1760,8 @@ ascending by canonical id, with its final live recorded References. A request wi
 no selecting member returns its ordinary `mutationResult` or `atomicBatchResult`.
 
 `deleteModesPreview` has `capabilityVersion`, `dryRun:true`, `changed:false`,
-`results`, `resources` and `removedLinks`, and no `transaction`. Each row has `id`,
+`results`, `resources` and `removedLinks`, `removedAliases` as a committing request would
+carry it, and no `transaction`. Each row has `id`,
 `resourceKind` and `outcome`. A `deleted` row has the `deleted` identity the
 committing request would report. An `updated` row has the Bead's current `revision`
 and no record, because nothing is minted. When a declared effect would change that
@@ -1779,9 +1795,8 @@ Deletion of each Bead and removal of each Link follow
 [complete owner revision context](#complete-owner-revision-context), so a selected
 singleton carries inline owner records in its rows. A deleted owner is reported at
 its final live published revision. A surviving owner captures its complete final
-Links once and gets one new revision. This form supplies no attribution input; a batch
-collects any other member's under the
-[batch attribution rule](#net-no-op-allocation-and-attribution).
+Links once and gets one new revision. `revisionProvenance` applies under the
+[attribution rule](#per-version-attribution).
 
 Under `idempotency`, the choice of `bead` or `beads`, the order of `beads`, `blockedBy`,
 `cascade`, `dryRun` and their presence belong to frozen semantic identity, so an omitted
@@ -1798,16 +1813,17 @@ survivor later hidden from the principal withholds it under that rule. Without
 Where Events is advertised, the request is one decision under
 [committed facts](#committed-facts-when-events-is-advertised): one `deleteBead` fact
 per deleted Bead, one `deleteLink` fact per removed Link, one `updateBead` fact per
-changed survivor, including one a declared effect changed, and one transaction
-correlation. The same holds for an ordinary batch that a declared effect reaches.
+changed survivor, including one a declared effect changed, one alias fact per removed
+alias, and one transaction correlation. The same holds for an ordinary batch that a declared effect reaches.
 
 Under historical-update1 each effectful deleted Bead commits its own
 [terminal version](#body-free-terminal-versions-and-narrow-authorized-read).
 Recovering one is an ordinary single-Bead recovery of that identity. It revives no
 removed Link and no other deleted Bead, and it reverses no declared effect.
 
-An alias is not a Link: it neither blocks nor extends a walk, and a deletion mode
-changes no alias. A named alias resolves under the ordinary rules. An instance's `type`
+An alias is not a Link: it neither blocks nor extends a walk. A deletion mode removes
+the aliases of each deleted Bead under the [alias rule](#aliases). A named alias resolves
+under the ordinary rules. An instance's `type`
 affiliation is not a Link either, so deleting a Type-definition Bead neither blocks on
 nor reaches its instances. Types lifecycle obligations apply to every Bead in the
 deleted set and a refusal refuses the whole request.
@@ -2340,6 +2356,7 @@ Required order: ["capabilityVersion","changed","results","resources"]
 | --- | --- | --- | --- | --- |
 | "capabilityVersion" | schema | yes | — | — |
 | "changed" | boolean | yes | — | — |
+| "removedAliases" | ref "#/$defs/removedAliases" | no | — | — |
 | "resources" | schema | yes | — | — |
 | "results" | schema | yes | — | — |
 | "transaction" | ref "#/$defs/revision" | no | — | — |
@@ -2850,6 +2867,7 @@ Required order: ["bead"]
 | --- | --- | --- | --- | --- |
 | "bead" | ref "#/$defs/resourceReference" | yes | — | — |
 | "expectedRevision" | ref "#/$defs/expectedRevision" | no | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
 <!-- bdp-schema:end deleteBeadMembers -->
 
 <!-- bdp-schema:start deleteBeadOperation -->
@@ -3275,6 +3293,7 @@ Required order: ["outcome","changed"]
 | "deleted" | ref "#/$defs/deletedIdentity" | no | — | — |
 | "outcome" | ref "#/$defs/mutationOutcome" | yes | — | — |
 | "ownerRevisions" | ref "#/$defs/ownerRevisions" | no | — | — |
+| "removedAliases" | ref "#/$defs/removedAliases" | no | — | — |
 | "resource" | schema | no | — | — |
 
 #### Advanced
@@ -3362,6 +3381,11 @@ Required order: ["outcome","changed"]
       "then": {
         "properties": {
           "ownerRevisions": false
+        }
+      },
+      "else": {
+        "properties": {
+          "removedAliases": false
         }
       }
     },
@@ -4122,6 +4146,30 @@ Value: object
 | --- | --- |
 | enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","unsupported-media-type","binding-unavailable","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"] |
 <!-- bdp-schema:end readUpdateProblemCode -->
+
+<!-- bdp-schema:start removedAliases -->
+### Schema: "removedAliases"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Absolute URLs of the aliases a Bead deletion removed, ascending by code unit. Present exactly on a Bead deletion when discovery advertises aliases; empty when there were none." |
+| type | "array" |
+| uniqueItems | true |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "$ref": "#/$defs/absoluteHttpUrl"
+  }
+}
+```
+<!-- bdp-schema:end removedAliases -->
 
 <!-- bdp-schema:start resourceReference -->
 ### Schema: "resourceReference"
@@ -5768,6 +5816,7 @@ Other fields: not allowed
 | "cascade" | ref "#/$defs/deleteModesCascade" | no | — | — |
 | "dryRun" | boolean | no | — | — |
 | "expectedRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision" | no | — | — |
+| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | — |
 
 #### Advanced
 
@@ -6025,6 +6074,7 @@ Required order: ["capabilityVersion","changed","transaction","results","resource
 | --- | --- | --- | --- | --- |
 | "capabilityVersion" | schema | yes | — | — |
 | "changed" | schema | yes | — | — |
+| "removedAliases" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases" | no | — | — |
 | "removedLinks" | ref "#/$defs/deleteModesRemovedLinks" | yes | — | — |
 | "resources" | schema | yes | — | — |
 | "results" | schema | yes | — | — |
@@ -6170,6 +6220,7 @@ Required order: ["capabilityVersion","dryRun","changed","results","resources","r
 | "capabilityVersion" | schema | yes | — | — |
 | "changed" | schema | yes | — | — |
 | "dryRun" | schema | yes | — | — |
+| "removedAliases" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases" | no | — | — |
 | "removedLinks" | ref "#/$defs/deleteModesRemovedLinks" | yes | — | — |
 | "resources" | schema | yes | — | — |
 | "results" | schema | yes | — | — |

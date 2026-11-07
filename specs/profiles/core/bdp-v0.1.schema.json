@@ -1495,6 +1495,9 @@
         },
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       },
       "required": ["bead"]
@@ -2079,6 +2082,11 @@
             "properties": {
               "ownerRevisions": false
             }
+          },
+          "else": {
+            "properties": {
+              "removedAliases": false
+            }
           }
         },
         {
@@ -2111,6 +2119,9 @@
         },
         "ownerRevisions": {
           "$ref": "#/$defs/ownerRevisions"
+        },
+        "removedAliases": {
+          "$ref": "#/$defs/removedAliases"
         },
         "resource": {
           "oneOf": [
@@ -6047,6 +6058,9 @@
         "changed": {
           "type": "boolean"
         },
+        "removedAliases": {
+          "$ref": "#/$defs/removedAliases"
+        },
         "resources": {
           "type": "array",
           "minItems": 1,
@@ -8377,6 +8391,14 @@
     "idempotencyCapabilityV1": {
       "type": "object",
       "additionalProperties": false
+    },
+    "removedAliases": {
+      "description": "Absolute URLs of the aliases a Bead deletion removed, ascending by code unit. Present exactly on a Bead deletion when discovery advertises aliases; empty when there were none.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/absoluteHttpUrl"
+      }
     }
   },
   "x-bdp-schema-definitions": [
@@ -8472,6 +8494,7 @@
     "readUpdateProblem",
     "readUpdateProblemCode",
     "reference",
+    "removedAliases",
     "resourceIdentity",
     "resourceKind",
     "resourceProjectionCapabilityProblem",
@@ -8659,6 +8682,7 @@
       "putAliasRequest",
       "readUpdateProblem",
       "readUpdateProblemCode",
+      "removedAliases",
       "resourceReference",
       "retainedDiscovery",
       "revisionProvenanceInput",

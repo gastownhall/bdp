@@ -48,7 +48,7 @@ Every mutation carries the ordinary [idempotencyKey](../core/bdp-v0.1.schema.md#
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 83 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 84 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](../core/bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](../core/bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -116,6 +116,7 @@ The entry-point roots reach 83 named definitions in the canonical bundle. They a
 - [readUpdateProblem](../core/bdp-v0.1.schema.md#schema-def-InJlYWRVcGRhdGVQcm9ibGVtIg)
 - [readUpdateProblemCode](../core/bdp-v0.1.schema.md#schema-def-InJlYWRVcGRhdGVQcm9ibGVtQ29kZSI)
 - [reference](../core/bdp-v0.1.schema.md#schema-def-InJlZmVyZW5jZSI)
+- [removedAliases](../core/bdp-v0.1.schema.md#schema-def-InJlbW92ZWRBbGlhc2VzIg)
 - [resourceIdentity](../core/bdp-v0.1.schema.md#schema-def-InJlc291cmNlSWRlbnRpdHki)
 - [resourceKind](../core/bdp-v0.1.schema.md#schema-def-InJlc291cmNlS2luZCI)
 - [resourceReference](../core/bdp-v0.1.schema.md#schema-def-InJlc291cmNlUmVmZXJlbmNlIg)

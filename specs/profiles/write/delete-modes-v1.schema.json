@@ -198,6 +198,9 @@
         },
         "expectedRevision": {
           "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision"
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput"
         }
       }
     },
@@ -308,6 +311,9 @@
         "changed": {
           "const": true
         },
+        "removedAliases": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases"
+        },
         "removedLinks": {
           "$ref": "#/$defs/deleteModesRemovedLinks"
         },
@@ -415,6 +421,9 @@
         },
         "dryRun": {
           "const": true
+        },
+        "removedAliases": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases"
         },
         "removedLinks": {
           "$ref": "#/$defs/deleteModesRemovedLinks"
