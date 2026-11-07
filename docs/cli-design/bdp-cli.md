@@ -2111,9 +2111,9 @@ page's cursor. It has no total Event cap or silent restart from now. An empty
 poll does not end follow. Finite JSON cannot complete an endless follow, so
 `--follow --output-format json` is invalid; use JSONL, detail or table.
 
-A Bead source includes its lifecycle and incident Link facts, preserving each
-fact's actual mutation kind. Facts are committed postimages or realized deltas,
-not later reads or commands that may be resubmitted. Explicit gaps, expired or
+A Bead source includes its lifecycle, incident Link facts and the non-Resource facts
+naming it, preserving each fact's actual mutation kind. Facts are committed postimages,
+realized deltas or non-Resource facts, not later reads or commands that may be resubmitted. Explicit gaps, expired or
 foreign cursors, and unknown required messages stop delivery at the last good
 progress. Replaying an older completed cursor may redeliver facts.
 
