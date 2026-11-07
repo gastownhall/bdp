@@ -153,6 +153,25 @@ const withoutLength = ({ "content-length": _length, ...headers }) => headers;
 const isDiscovery = (url) => /\/bdp$/.test(url);
 const isOpenApi = (url) => /\/bdp\/call$/.test(url);
 const firstPost = (json) => Object.values(json.paths)[0].post;
+/** The one declaration's record, never its mount: GET of a mount is a bodyless 405. */
+const isEchoDeclaration = (url) => /\/witness\/echo$/.test(url) && !/\/bdp\/call\//.test(url);
+const declarationCarryingBody = ({ url, json, method }) =>
+  method === "GET" && isEchoDeclaration(url)
+    ? { json: { ...json, properties: { ...json.properties, body: {} } } }
+    : undefined;
+/**
+ * The root's Links, and so the catalog's order, follow identities a fresh Scope allocates at
+ * random, and the mount row exercises whichever query comes first. Hold echo first.
+ */
+const echoListedFirst = ({ url, json, method }) => {
+  if (method !== "GET" || !isOpenApi(url)) return undefined;
+  const entries = Object.entries(json.paths);
+  const paths = Object.fromEntries([
+    ...entries.filter(([path]) => /\/witness\/echo$/.test(path)),
+    ...entries.filter(([path]) => !/\/witness\/echo$/.test(path)),
+  ]);
+  return { json: { ...json, paths } };
+};
 for (const [row, label, rewrite, before] of [
   [
     "CB-1",
@@ -166,14 +185,7 @@ for (const [row, label, rewrite, before] of [
       return { json: { ...json, capabilities } };
     },
   ],
-  [
-    "CB-2",
-    "a declaration carrying a body",
-    ({ url, json, method }) =>
-      method === "GET" && /\/witness\/echo$/.test(url)
-        ? { json: { ...json, properties: { ...json.properties, body: {} } } }
-        : undefined,
-  ],
+  ["CB-2", "a declaration carrying a body", declarationCarryingBody],
   [
     "CB-3",
     "a query's result that claims `changed`",
@@ -250,7 +262,7 @@ for (const [row, label, rewrite, before] of [
     "CB-11",
     "a declaration read served as something other than a Bead record",
     ({ url, method, json }) =>
-      method === "GET" && /\/witness\/echo$/.test(url)
+      method === "GET" && isEchoDeclaration(url)
         ? { json: { ...json, id: "http://x.invalid/" } }
         : undefined,
   ],
@@ -294,6 +306,14 @@ for (const [row, label, rewrite, before] of [
     assert.equal(report.state, "fail");
     assert.equal(report.lifecycle.cleanup, "pass");
   });
+
+test("CB-2 fails on a body when echo is the query the mount row picks, and the mount row passes", async () => {
+  const report = await runCurrentProvider(
+    mutant((exchange) => echoListedFirst(exchange) ?? declarationCarryingBody(exchange)),
+  );
+  assert.equal(stateOf(report, "CB-2"), "fail");
+  assert.equal(stateOf(report, "callables.mount-method-and-media"), "pass");
+});
 
 for (const [row, label, rewrite] of [
   [
