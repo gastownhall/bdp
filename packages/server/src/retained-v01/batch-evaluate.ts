@@ -9,6 +9,7 @@ import {
   type PreparedBatch,
 } from "./batch-contract.js";
 import {
+  blocksBeadDeletion,
   deletedIdentity,
   type EndpointReference,
   type JsonObject,
@@ -48,6 +49,7 @@ export interface BatchEvaluation {
   readonly rows: readonly BatchFinalRow[];
   readonly effects: readonly BatchEffect[];
   readonly transaction?: string;
+  readonly removedAliases?: readonly string[];
 }
 function refusal(body: JsonObject): BatchEvaluation {
   return {
@@ -90,6 +92,8 @@ export function evaluateBatch(
   aliasTaken: (id: string) => boolean,
   reserved: (id: string) => boolean,
   time: string,
+  deletedBead: (id: string) => boolean,
+  aliasesTargeting: (id: string) => readonly string[],
 ): BatchEvaluation {
   const live = new Map(initial);
   const allocated = new Map<string, ResourceKind>();
@@ -102,14 +106,21 @@ export function evaluateBatch(
   }[] = [];
   const provenance = new Map<string, RevisionProvenanceInput[]>();
   const seen = new Set<string>();
-  function endpointFailure(state: ResourceState): JsonObject | undefined {
+  function endpointFailure(
+    state: ResourceState,
+    supplied: { readonly source: boolean; readonly target: boolean } = {
+      source: true,
+      target: true,
+    },
+  ): JsonObject | undefined {
     if (state.kind !== "link") return undefined;
-    let local = false;
+    let standing = false;
     for (const side of ["source", "target"] as const) {
       const uri = referenceUri(state.resource[side]);
       if (!uri.startsWith(input.scope)) continue;
-      local = true;
       const endpoint = live.get(uri);
+      if (endpoint?.kind === "bead") standing = true;
+      if (!supplied[side]) continue;
       if (!endpoint) return problem("resource-not-found", 404, "after-state-change");
       if (endpoint.kind !== "bead")
         return {
@@ -117,7 +128,7 @@ export function evaluateBatch(
           diagnostics: [{ message: `${side} endpoint must identify a live in-Scope Bead` }],
         };
     }
-    return local
+    return standing
       ? undefined
       : {
           ...problem("validation-failed", 422),
@@ -155,7 +166,9 @@ export function evaluateBatch(
           id = input.scope + randomUUID();
         }
       }
-      if (seen.has(id) || taken.has(id) || reserved(id))
+      const recreating =
+        member.operation === "createBead" && value.id !== undefined && deletedBead(id);
+      if (seen.has(id) || (!recreating && (taken.has(id) || reserved(id))))
         return refusal(problem("identity-taken", 409, "after-state-change"));
       if (aliasTaken(id)) return refusal(problem("alias-path-taken", 409, "after-state-change"));
       const base = {
@@ -176,7 +189,7 @@ export function evaluateBatch(
       const error = endpointFailure(state);
       if (error) return refusal(error);
       live.set(id, state);
-      allocated.set(id, kind);
+      if (!recreating) allocated.set(id, kind);
       seen.add(id);
     } else {
       const target = reference(kind);
@@ -197,8 +210,11 @@ export function evaluateBatch(
           [...live.values()].some(
             (state) =>
               state.kind === "link" &&
-              [state.resource.source, state.resource.target].some(
-                (ref) => referenceUri(ref) === id,
+              blocksBeadDeletion(
+                state.resource,
+                id,
+                input.scope,
+                (uri) => live.get(uri)?.kind === "bead",
               ),
           )
         )
@@ -254,7 +270,10 @@ export function evaluateBatch(
             return refusal(problem("resource-not-found", 404, "after-state-change"));
           state = { kind: "link", resource: { ...base, source, target } };
         } else state = { kind: "bead", resource: base };
-        const error = endpointFailure(state);
+        const error = endpointFailure(state, {
+          source: Object.hasOwn(value, "source"),
+          target: Object.hasOwn(value, "target"),
+        });
         if (error) return refusal(error);
         live.set(id, state);
       }
@@ -336,12 +355,19 @@ export function evaluateBatch(
   }
   const changed = rows.some((row) => row.changed);
   const transaction = changed ? randomUUID() : undefined;
+  const removedAliases = mappings.some(({ operation }) => operation === "deleteBead")
+    ? rows
+        .filter((row) => row.outcome === "deleted" && row.resourceKind === "bead")
+        .flatMap((row) => aliasesTargeting(row.id))
+        .sort()
+    : undefined;
   const text = serialized({
     capabilityVersion: "1",
     changed,
     ...(transaction ? { transaction } : {}),
     results: mappings,
     resources: rows,
+    ...(removedAliases === undefined ? {} : { removedAliases }),
   });
   if (Buffer.byteLength(text) > BATCH_LIMITS.maximumResultBytes)
     return refusal(problem("limit-exceeded", 413));
@@ -352,5 +378,6 @@ export function evaluateBatch(
     effects,
     allocations: [...allocated].map(([id, kind]) => ({ id, kind })),
     ...(transaction ? { transaction } : {}),
+    ...(removedAliases === undefined ? {} : { removedAliases }),
   };
 }

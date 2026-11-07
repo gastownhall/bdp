@@ -678,7 +678,8 @@
       }
     },
     {
-      "id": "identity-taken-including-deleted",
+      "id": "create-bead-on-a-deleted-bead-adds-a-revision",
+      "condition": "projects/alpha/tasks/t-1 was deleted by delete-bead. A create supplying its id adds a revision under that identity; the new state is what this request supplies, with nothing inherited.",
       "request": {
         "method": "POST",
         "target": "operations/create-bead",
@@ -692,7 +693,49 @@
           "id": "projects/alpha/tasks/t-1",
           "type": "https://work.example/types/task",
           "properties": {
-            "title": "Reuse a deleted identity",
+            "title": "Start over",
+            "status": "open"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/projects/alpha/tasks/t-1",
+            "type": "https://work.example/types/task",
+            "revision": "t-1-r2",
+            "properties": {
+              "title": "Start over",
+              "status": "open"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "identity-taken-deleted-link-stays-reserved",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-cites-110-reuse"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "cites-110",
+          "type": "https://work.example/types/task",
+          "properties": {
+            "title": "Reuse a deleted Link identity",
             "status": "open"
           }
         }
@@ -709,7 +752,7 @@
           "code": "identity-taken",
           "status": 409,
           "retry": "after-state-change",
-          "detail": "projects/alpha/tasks/t-1 was previously committed in this Scope"
+          "detail": "cites-110 is a deleted Link's identity, which stays reserved"
         }
       }
     },

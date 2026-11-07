@@ -422,7 +422,7 @@ describe("private alias wire correspondence, no full profile qualification", () 
       (await wire(server.listenUrl, server.targets.putAlias, "POST", second, "media")).status,
     ).toBe(200);
   });
-  it("redirects without asserting that a deleted target is currently readable", async () => {
+  it("removes an alias with its target, so the locator reads as unknown", async () => {
     const server = await fixture();
     await wire(
       server.listenUrl,
@@ -431,21 +431,16 @@ describe("private alias wire correspondence, no full profile qualification", () 
       { alias: "decisions/dangling", target: "a" },
       "assign",
     );
-    expect(
-      (
-        await wire(
-          server.listenUrl,
-          server.targets.deleteBead,
-          "POST",
-          { bead: "a" },
-          "delete-target",
-        )
-      ).status,
-    ).toBe(200);
-    const redirect = await wire(server.listenUrl, `${scope}decisions/dangling`);
-    expect(redirect.status).toBe(307);
-    expect(redirect.headers.location).toBe(`${scope}a`);
-    expect(redirect.text).toBe("");
+    const deleted = await wire(
+      server.listenUrl,
+      server.targets.deleteBead,
+      "POST",
+      { bead: "a" },
+      "delete-target",
+    );
+    expect(deleted.status).toBe(200);
+    expect(JSON.parse(deleted.text).removedAliases).toEqual([`${scope}decisions/dangling`]);
+    expect((await wire(server.listenUrl, `${scope}decisions/dangling`)).status).toBe(404);
     expect((await wire(server.listenUrl, `${scope}a`)).status).toBe(404);
   });
 });
