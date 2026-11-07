@@ -32,6 +32,42 @@ reference factory, closes/reopens that same logical Scope on request, and remove
 its directory on cleanup. It does not open a user store or change a consumer pin.
 The runner's fixtures never invoke Beads commands or infer startup admission.
 
+To run against one Scope you already have, reached directly:
+
+```sh
+node scripts/current-provider-kit.mjs --scope https://provider.example/acme/ [--token-env NAME] [--allow-mutation]
+```
+
+`--scope` has no adapter, so no restart and no fixture conditions: durability and
+graph cases stay `not-run`. The token, when there is one, comes only from the named
+environment variable. Without `--allow-mutation` the kit sends no mutation to that
+Scope, and a Scope advertising Write reports its mutating cases `not-run`, with that
+reason. Pass the flag only for a Scope you are willing to have changed: the kit creates,
+edits and deletes records under `provider-kit/<run id>/`.
+
+## A provider without Write
+
+Write is optional. The kit reads the Scope's discovery document and goes by its
+`profile`:
+
+- `core`: every Core case runs, and every `write.*` case reports `not-applicable` with
+  the reason, by discovery, with `required: false`. Such a row is never a pass, and the
+  report's `discovered` member records what was read. A document that is not a valid
+  closed Core document, or a profile that is neither base literal, fails
+  `core.scope-discovery`: only a valid `core` makes Write not applicable.
+- `write`: the Write cases run as below.
+
+A read-only provider supplies its data by its own means, because it has no public way
+to receive it: its store, its importer, or its adapter's `provision`, which is free to
+write natively. The kit learns what exists from the public inventories and compares a
+point read with its own inventory record, so nothing the provider says about its data
+becomes an expected answer. A Scope holding no Bead leaves `core.point-read` `not-run`,
+naming the seeding it needs, and never passes it.
+
+`core.deleted-absence` needs something deleted. On a read-only provider the adapter may
+delete a Resource natively and name it, identity only, in `witnesses.deletedResourceId`;
+the kit then reads what the wire says of it. With no witness the case is `not-run`.
+
 The CLI emits one JSON report. Exit 2 means incomplete coverage (including a
 successful slice); exit 1 means at least one public assertion failed; exit 3 means
 an adapter, transport, initialization or cleanup failure prevented observation.
@@ -50,7 +86,8 @@ A trusted, explicitly selected local ES module exports:
 
 ```js
 export async function provision({ fixture }) {
-  // Provision one isolated canonical Scope, full fixture access, and an admitted
+  // On a provider that advertises Write: provision one isolated canonical Scope, full
+  // fixture access, and an admitted
   // Bead Type for fixture.type with properties.title string and free metadata.
   // fixture.id is an unused Scope-relative identity (no live/deleted prior identity),
   // readable with full fixture visibility; fixture.runId is unique.
@@ -70,6 +107,8 @@ export async function provision({ fixture }) {
       unownedLinkFixture: true,
       hierarchicalAliasFixture: true
     },
+    // Optional, and identities only: see "A provider without Write".
+    witnesses: { deletedResourceId: "a/resource/you/deleted/natively" },
     async restart() {
       // Real service/process restart or the provider's declared admin equivalent,
       // preserving the same Scope, principal, effects and authoritative key state.
@@ -100,7 +139,7 @@ have a five-second wall deadline and one-MiB response cap; fixed report diagnost
 distinguish these kit bounds from an unspecified transport failure. Hitting a kit bound is
 a harness error, not proof of provider nonconformance.
 
-`restart` and `conditions` may be omitted; durability cases then remain `not-run`.
+`restart`, `conditions` and `witnesses` may be omitted; durability cases then remain `not-run`.
 A positive integer window shorter than the requested minimum likewise leaves
 durability `not-run` while allowing the non-durable cases to run. Zero, negative,
 noninteger or malformed conditions are harness errors. Skip reasons distinguish

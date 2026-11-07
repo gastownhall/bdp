@@ -133,6 +133,7 @@ export function hasCompleteRequiredCoverage(rows, lifecycle) {
     )
   );
 }
+const isWriteRowId = (id) => id.startsWith("write.");
 class HarnessError extends Error {}
 class Stop extends Error {}
 class NotRun extends Error {}
@@ -269,8 +270,30 @@ function exchange(
   });
 }
 
-/** Local trusted adapter module contract; no expected answers or custom validators. */
-export async function runCurrentProvider(provision) {
+/**
+ * `--scope` mode: one existing Scope, reached directly. No lifecycle, no fixture and no
+ * mutation of that Scope unless the operator says so; see `allowMutation` below.
+ */
+export function directScopeProvider(scopeUrl, authorization) {
+  return async () => ({
+    scope: scopeUrl,
+    connections: [
+      {
+        origin: new URL(scopeUrl).origin,
+        connectOrigin: new URL(scopeUrl).origin,
+        ...(authorization === undefined ? {} : { authorization }),
+      },
+    ],
+    async cleanup() {},
+  });
+}
+
+/**
+ * Local trusted adapter module contract; no expected answers or custom validators.
+ * `allowMutation: false` leaves every mutating case not-run with its reason, whatever the
+ * Scope advertises: an operator's existing Scope is not the kit's to change.
+ */
+export async function runCurrentProvider(provision, { allowMutation = true } = {}) {
   const rows = definitions.map(([id, source]) => ({
     id,
     source,
@@ -286,6 +309,7 @@ export async function runCurrentProvider(provision) {
     qualificationComplete: false,
     sliceComplete: false,
     state: "incomplete",
+    claimEligible: false,
     lifecycle,
     obligations: rows,
   };
@@ -308,7 +332,10 @@ export async function runCurrentProvider(provision) {
         error instanceof NotRun
           ? error.message
           : error instanceof AssertionError
-            ? `Public assertion failed for ${id}`
+            ? // An authored message is fixed text; a generated one could quote a response value.
+              error.generatedMessage === false
+              ? `Public assertion failed for ${id}: ${error.message}`
+              : `Public assertion failed for ${id}`
             : error instanceof HarnessError
               ? error.message
               : "Harness/provider lifecycle or transport did not complete";
@@ -400,9 +427,16 @@ export async function runCurrentProvider(provision) {
     cleanup = Object.getOwnPropertyDescriptor(provider ?? {}, "cleanup")?.value;
     fields(
       provider,
-      ["scope", "connections", "conditions", "restart", "cleanup"],
+      ["scope", "connections", "conditions", "witnesses", "restart", "cleanup"],
       ["scope", "connections", "cleanup"],
     );
+    const witnesses =
+      provider.witnesses === undefined ? {} : fields(provider.witnesses, ["deletedResourceId"], []);
+    if (
+      witnesses.deletedResourceId !== undefined &&
+      typeof witnesses.deletedResourceId !== "string"
+    )
+      throw new HarnessError("Adapter witness must name a Resource by its local identity");
     if (
       typeof cleanup !== "function" ||
       (provider.restart !== undefined && typeof provider.restart !== "function")
@@ -441,7 +475,7 @@ export async function runCurrentProvider(provision) {
       throw new HarnessError("Adapter retained-detail condition must be a positive safe integer");
     let retentionStart;
     lifecycle.provision = "pass";
-    let discoveryUrl, directory, aliases, created, failed, updated, deleted;
+    let discoveryUrl, discovered, directory, aliases, created, failed, updated, deleted;
     const id = new URL(fixture.id, scope).href;
     const create = {
       id: fixture.id,
@@ -482,6 +516,112 @@ export async function runCurrentProvider(provision) {
         throw new HarnessError("Kit cannot select one discovery Link among available candidates");
       return new URL(selected.target, scope).href;
     }
+    function notApplicable(ids, reason) {
+      for (const row of rows)
+        if (ids(row.id)) {
+          row.state = "not-applicable";
+          row.required = false;
+          row.reason = reason;
+        }
+    }
+    const isWriteRow = isWriteRowId;
+    /** Read the discovery document only to learn the profile; Write's case checks its own shape. */
+    async function discoverProfile(description) {
+      const reply = await exchange(routes, description);
+      assert.equal(reply.status, 200);
+      const parsed = JSON.parse(new TextDecoder().decode(reply.bytes));
+      if (parsed?.profile === "write") return parsed;
+      // The two base literals are closed (Core "Discovery and capabilities"): anything but
+      // `write` must be a valid closed Core document, or this is the provider's failure.
+      const discovery = json(reply, 200, "coreDiscovery");
+      assert.equal(discovery.profile, "core");
+      assert.equal(discovery.bdpVersion, "0.1");
+      assert.equal(discovery.scope, scope.href);
+      return discovery;
+    }
+    async function completePages(first, definition) {
+      let page = json(first, 200, definition);
+      const items = [...page.items];
+      for (let guard = 0; page.next !== null && page.next !== undefined; guard++) {
+        if (guard >= 100) throw new HarnessError("Inventory exceeded the kit's page budget");
+        page = json(await exchange(routes, new URL(page.next, scope).href), 200, definition);
+        items.push(...page.items);
+      }
+      return items;
+    }
+    /**
+     * Core's cases over whatever the Scope already holds. The provider seeds its records by
+     * its own means (its store, its adapter); the kit reads them through the public inventory,
+     * so nothing the provider says about its data becomes an expected answer.
+     */
+    async function coreJourney() {
+      let beads, links;
+      const independent = async (name, action) => {
+        try {
+          await step(name, action);
+        } catch (error) {
+          if (!(error instanceof Stop)) throw error;
+        }
+      };
+      await independent("core.inventory-fixed-routes", async () => {
+        const beadInventory = await exchange(routes, new URL("bdp/beads", scope).href);
+        assert.equal(beadInventory.status, 200);
+        assert.equal(beadInventory.headers["bdp-collection-kind"], "bead");
+        beads = await completePages(beadInventory, "currentBeadCollection");
+        const linkInventory = await exchange(routes, new URL("bdp/links", scope).href);
+        assert.equal(linkInventory.status, 200);
+        assert.equal(linkInventory.headers["bdp-collection-kind"], "link");
+        links = await completePages(linkInventory, "currentLinkCollection");
+      });
+      await independent("core.point-read", async () => {
+        const absent = await exchange(
+          routes,
+          new URL(`provider-kit/${runId}/never-created`, scope).href,
+        );
+        assert.equal(
+          absent.status,
+          404,
+          "A two-segment identity the Scope never held did not answer 404",
+        );
+        const absentProblem = (() => {
+          try {
+            return json(absent, 404, "readProblem", "application/problem+json");
+          } catch {
+            assert.fail("A two-segment identity's 404 is not a BDP Problem (readProblem)");
+          }
+        })();
+        assert.equal(absentProblem.code, "resource-not-found", "Absence is not resource-not-found");
+        assert.equal(absent.headers["bdp-resource-kind"], undefined);
+        if (beads === undefined)
+          throw new NotRun("The Bead inventory did not complete; no point-read subject is known");
+        if (beads.length === 0)
+          throw new NotRun(
+            "The Scope holds no Bead to read; a read-only provider seeds one by its own means",
+          );
+        const bead = await exchange(routes, beads[0].id);
+        assert.equal(bead.headers["bdp-resource-kind"], "bead");
+        assert.deepEqual(json(bead, 200, "currentBeadRecord"), beads[0]);
+        if (links?.length) {
+          const link = await exchange(routes, links[0].id);
+          assert.equal(link.headers["bdp-resource-kind"], "link");
+          assert.deepEqual(json(link, 200, "currentLinkRecord"), links[0]);
+        }
+      });
+      await independent("core.deleted-absence", async () => {
+        if (witnesses.deletedResourceId === undefined)
+          throw new NotRun(
+            "No Write delete and no adapter witness of a natively deleted Resource; reads after deletion are not run",
+          );
+        const reply = await exchange(routes, new URL(witnesses.deletedResourceId, scope).href);
+        assert([404, 410].includes(reply.status));
+        const problem = json(reply, reply.status, "readProblem", "application/problem+json");
+        assert(
+          reply.status === 404
+            ? problem.code === "resource-not-found"
+            : ["resource-pruned", "resource-erased"].includes(problem.code),
+        );
+      });
+    }
     async function readNavigation(description) {
       const discovery = json(await exchange(routes, description), 200, "writeDiscovery");
       assert.equal(discovery.bdpVersion, "0.1");
@@ -514,10 +654,31 @@ export async function runCurrentProvider(provision) {
     async function baseJourney() {
       await step("core.scope-discovery", async () => {
         discoveryUrl = await scopeDescription();
+        discovered = await discoverProfile(discoveryUrl);
+        report.discovered = {
+          profile: discovered.profile,
+          capabilities: Object.keys(discovered.capabilities ?? {}).sort(),
+        };
       });
+      if (discovered.profile === "core") {
+        notApplicable(
+          isWriteRow,
+          "Not applicable by discovery: the Scope advertises profile core, not write",
+        );
+        await coreJourney();
+        return;
+      }
       await step("write.discovery-directory", async () => {
         ({ directory, aliases } = await readNavigation(discoveryUrl));
       });
+      if (!allowMutation) {
+        for (const row of rows)
+          if (isWriteRow(row.id) && row.state === "not-run")
+            row.reason =
+              "Not run: this Scope advertises Write, but --scope mode does not change a Scope without --allow-mutation";
+        await coreJourney();
+        return;
+      }
       await step("write.media-before-admission", async () => {
         retentionStart = performance.now();
         const rejected = json(
@@ -714,9 +875,11 @@ export async function runCurrentProvider(provision) {
       report.harnessFailure = "Graph fixture conditions are invalid";
     }
     const graphRequested =
-      conditions?.unownedLinkFixture === true ||
-      (conditions?.hierarchicalAliasFixture === true &&
-        conditions.graphRetainedDetailWindowMs >= fixture.minimumGraphDetailWindowMs);
+      allowMutation &&
+      discovered?.profile === "write" &&
+      (conditions?.unownedLinkFixture === true ||
+        (conditions?.hierarchicalAliasFixture === true &&
+          conditions.graphRetainedDetailWindowMs >= fixture.minimumGraphDetailWindowMs));
     let currentGraphNavigation = false;
     if (directory && !baseFailed && graphConditionsValid && graphRequested) {
       try {
@@ -730,7 +893,9 @@ export async function runCurrentProvider(provision) {
             : "Current graph discovery could not be established";
       }
     }
-    if (!currentGraphNavigation) {
+    if (discovered?.profile === "core" || !allowMutation) {
+      // Their reasons are already recorded: not applicable by discovery, or not authorized.
+    } else if (!currentGraphNavigation) {
       graphNotRun(
         graphRows,
         graphRequested
@@ -1079,7 +1244,9 @@ export async function runCurrentProvider(provision) {
   }
   const implemented = rows.slice(0, definitions.length);
   report.sliceComplete =
-    implemented.every((row) => row.state === "pass") &&
+    implemented.every(
+      (row) => row.state === "pass" || (row.state === "not-applicable" && isWriteRowId(row.id)),
+    ) &&
     lifecycle.provision === "pass" &&
     lifecycle.cleanup === "pass";
   report.qualificationComplete = hasCompleteRequiredCoverage(rows, lifecycle);
@@ -1095,30 +1262,69 @@ export async function runCurrentProvider(provision) {
   return report;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const USAGE =
+  "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n" +
+  "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation]\n";
+/** Null on misuse. A token comes only from a named environment variable, never argv. */
+export function parseKitArguments(argv, env = {}) {
+  if (argv.length === 2 && argv[0] === "--provider" && path.isAbsolute(argv[1]))
+    return { provider: argv[1] };
+  if (argv[0] !== "--scope" || argv.length < 2) return null;
+  let scope;
+  try {
+    scope = new URL(argv[1]);
+  } catch {
+    return null;
+  }
   if (
-    process.argv.length !== 4 ||
-    process.argv[2] !== "--provider" ||
-    !path.isAbsolute(process.argv[3])
-  ) {
-    process.stderr.write("Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n");
+    !["http:", "https:"].includes(scope.protocol) ||
+    !scope.pathname.endsWith("/") ||
+    scope.search ||
+    scope.hash ||
+    scope.username ||
+    scope.password ||
+    scope.href !== argv[1]
+  )
+    return null;
+  const parsed = { scope: scope.href, allowMutation: false };
+  for (let index = 2; index < argv.length; index++) {
+    if (argv[index] === "--allow-mutation" && !parsed.allowMutation) parsed.allowMutation = true;
+    else if (argv[index] === "--token-env" && parsed.authorization === undefined) {
+      const token = env[argv[++index] ?? ""];
+      if (typeof token !== "string" || !token) return null;
+      parsed.authorization = `Bearer ${token}`;
+    } else return null;
+  }
+  return parsed;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const parsed = parseKitArguments(process.argv.slice(2), process.env);
+  if (parsed === null) {
+    process.stderr.write(USAGE);
     process.exit(64);
   }
   let provision;
-  try {
-    ({ provision } = await import(pathToFileURL(process.argv[3]).href));
-  } catch (error) {
-    const category =
-      error?.code === "ERR_MODULE_NOT_FOUND"
-        ? "not-found"
-        : error instanceof SyntaxError
-          ? "syntax"
-          : "module";
-    provision = async () => {
-      throw new HarnessError(`Selected provider module did not load (${category})`);
-    };
-  }
-  const report = await runCurrentProvider(provision);
+  if (parsed.scope !== undefined)
+    provision = directScopeProvider(parsed.scope, parsed.authorization);
+  else
+    try {
+      ({ provision } = await import(pathToFileURL(parsed.provider).href));
+    } catch (error) {
+      const category =
+        error?.code === "ERR_MODULE_NOT_FOUND"
+          ? "not-found"
+          : error instanceof SyntaxError
+            ? "syntax"
+            : "module";
+      provision = async () => {
+        throw new HarnessError(`Selected provider module did not load (${category})`);
+      };
+    }
+  const report = await runCurrentProvider(
+    provision,
+    parsed.scope === undefined ? {} : { allowMutation: parsed.allowMutation },
+  );
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = report.state === "harness-error" ? 3 : report.state === "fail" ? 1 : 2;
 }

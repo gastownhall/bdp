@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  directScopeProvider,
+  parseKitArguments,
   runCurrentProvider,
   UNCOVERED_REQUIRED,
   hasCompleteRequiredCoverage,
@@ -614,7 +616,8 @@ test("CLI misuse has a distinct bounded usage exit without reflecting arguments"
     assert.equal(result.stdout, "");
     assert.equal(
       result.stderr,
-      "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n",
+      "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n" +
+        "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation]\n",
     );
   }
 });
@@ -840,4 +843,271 @@ test("unavailable graph declarations do not add a post-base discovery dependency
   assert.equal(report.lifecycle.cleanup, "pass");
   for (const id of graphIds)
     assert.equal(report.obligations.find((row) => row.id === id).state, "not-run");
+});
+
+/**
+ * A real read-only provider over real HTTP: Core discovery, the two inventories, point reads
+ * and no mutation at all. `seed` is what the provider holds by its own means; `mutant` makes
+ * one answer wrong so the kit's independent assertions are seen to fire.
+ */
+async function readOnlyProvider({ seed = true, mutant, profile = "core", extra = {} } = {}) {
+  const media = "application/vnd.bdp.v0.1+json";
+  const posts = [];
+  let scope;
+  const server = http.createServer((request, response) => {
+    const send = (status, value, headers = {}) => {
+      const text = JSON.stringify(value);
+      response.writeHead(status, {
+        "content-type": status >= 400 ? "application/problem+json" : media,
+        "cache-control": "private, no-store",
+        ...headers,
+      });
+      response.end(text);
+    };
+    const notFound = () =>
+      send(404, {
+        type: "https://github.com/gastownhall/bdp/problems/not-found",
+        status: 404,
+        code: "resource-not-found",
+        retry: "after-state-change",
+      });
+    const bead = {
+      id: `${scope}seeded`,
+      type: "https://conformance.invalid/types/Seeded",
+      revision: "r1",
+      properties: { title: "seeded" },
+      metadata: {},
+    };
+    const link = {
+      id: `${scope}seeded-link`,
+      type: "https://conformance.invalid/types/SeededLink",
+      revision: "r1",
+      source: bead.id,
+      target: "external:elsewhere:thing",
+      properties: {},
+      metadata: {},
+    };
+    if (request.method !== "GET") {
+      posts.push(request.url);
+      response.writeHead(405, { allow: "GET, HEAD", "content-length": "0" });
+      response.end();
+      return;
+    }
+    const description = `<${scope}bdp>; rel="service-desc"; type="${media}"`;
+    if (request.url === "/") {
+      response.writeHead(204, { link: description, "cache-control": "private, no-store" });
+      response.end();
+    } else if (request.url === "/bdp")
+      send(200, {
+        bdpVersion: "0.1",
+        profile,
+        scope,
+        specRevision: "0".repeat(40),
+        ...extra,
+      });
+    else if (request.url === "/bdp/beads")
+      send(
+        200,
+        { items: seed ? [bead] : [], next: null },
+        {
+          "bdp-collection-kind": "bead",
+          link: description,
+        },
+      );
+    else if (request.url === "/bdp/links")
+      send(
+        200,
+        { items: seed ? [link] : [], next: null },
+        {
+          "bdp-collection-kind": "link",
+          link: description,
+        },
+      );
+    else if (request.url === "/seeded" && seed)
+      send(200, mutant === "point-read" ? { ...bead, revision: "r2" } : bead, {
+        "bdp-resource-kind": "bead",
+        etag: '"r1"',
+        link: description,
+      });
+    else if (request.url === "/seeded-link" && seed)
+      send(200, link, { "bdp-resource-kind": "link", etag: '"r1"', link: description });
+    else notFound();
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  scope = `http://127.0.0.1:${server.address().port}/`;
+  return {
+    scope,
+    posts,
+    close: () => new Promise((resolve) => server.close(resolve)),
+  };
+}
+const rowsOf = (report, predicate) => report.obligations.filter(({ id }) => predicate(id));
+
+test("a read-only provider runs every Core case and Write is not applicable by discovery", async () => {
+  const provider = await readOnlyProvider();
+  try {
+    const report = await runCurrentProvider(async () => ({
+      scope: provider.scope,
+      connections: [
+        {
+          origin: new URL(provider.scope).origin,
+          connectOrigin: new URL(provider.scope).origin,
+        },
+      ],
+      // Deleted by the provider's own means; the kit only reads what the wire says of it.
+      witnesses: { deletedResourceId: "seeded-and-deleted" },
+      async cleanup() {},
+    }));
+    assert.equal(report.state, "incomplete", JSON.stringify(report));
+    assert.equal(report.discovered.profile, "core");
+    assert.equal(report.claimEligible, false);
+    for (const id of [
+      "core.scope-discovery",
+      "core.point-read",
+      "core.inventory-fixed-routes",
+      "core.deleted-absence",
+    ])
+      assert.equal(report.obligations.find((row) => row.id === id).state, "pass", id);
+    const write = rowsOf(report, (id) => id.startsWith("write."));
+    assert(write.length >= 19);
+    for (const row of write) {
+      assert.equal(row.state, "not-applicable", row.id);
+      assert.match(row.reason, /discovery/);
+    }
+    assert.equal(report.sliceComplete, true);
+    assert.equal(report.qualificationComplete, false);
+    assert.deepEqual(provider.posts, []);
+  } finally {
+    await provider.close();
+  }
+});
+
+test("a read-only Scope with nothing to read is not-run, never a pass", async () => {
+  const provider = await readOnlyProvider({ seed: false });
+  try {
+    const report = await runCurrentProvider(directScopeProvider(provider.scope));
+    assert.equal(report.state, "incomplete");
+    const row = report.obligations.find(({ id }) => id === "core.point-read");
+    assert.equal(row.state, "not-run");
+    assert.match(row.reason, /seeds one by its own means/);
+    assert.equal(report.sliceComplete, false);
+  } finally {
+    await provider.close();
+  }
+});
+
+test("a read-only provider's wrong point read still fails against its own inventory", async () => {
+  const provider = await readOnlyProvider({ mutant: "point-read" });
+  try {
+    const report = await runCurrentProvider(directScopeProvider(provider.scope));
+    assert.equal(report.state, "fail");
+    assert.equal(report.obligations.find(({ id }) => id === "core.point-read").state, "fail");
+    assert.equal(report.sliceComplete, false);
+  } finally {
+    await provider.close();
+  }
+});
+
+test("a profile that is neither base literal is the provider's failure, not not-applicable Write", async () => {
+  const provider = await readOnlyProvider({ profile: "read-only" });
+  try {
+    const report = await runCurrentProvider(directScopeProvider(provider.scope));
+    assert.equal(report.state, "fail");
+    assert.equal(report.obligations.find(({ id }) => id === "core.scope-discovery").state, "fail");
+    assert.equal(
+      rowsOf(report, (id) => id.startsWith("write.")).some((row) => row.state === "not-applicable"),
+      false,
+    );
+  } finally {
+    await provider.close();
+  }
+});
+
+test("a Core document may not smuggle Write navigation past its closed schema", async () => {
+  const provider = await readOnlyProvider({ extra: { operations: "http://x.invalid/ops" } });
+  try {
+    const report = await runCurrentProvider(directScopeProvider(provider.scope));
+    assert.equal(report.state, "fail");
+    assert.equal(report.obligations.find(({ id }) => id === "core.scope-discovery").state, "fail");
+  } finally {
+    await provider.close();
+  }
+});
+
+test("--scope against a Write Scope changes nothing without --allow-mutation", async () => {
+  const reference = await provision({
+    fixture: { runId: "scope-mode", minimumDetailWindowMs: 1, minimumGraphDetailWindowMs: 1 },
+  });
+  const upstream = new URL(reference.connections[0].connectOrigin);
+  const mutating = [];
+  const proxy = http.createServer((request, response) => {
+    if (request.method !== "GET") mutating.push(request.url);
+    const forward = http.request(
+      {
+        hostname: upstream.hostname,
+        port: upstream.port,
+        method: request.method,
+        path: request.url,
+        headers: { ...request.headers, authorization: reference.connections[0].authorization },
+      },
+      (reply) => {
+        response.writeHead(reply.statusCode, reply.headers);
+        reply.pipe(response);
+      },
+    );
+    request.pipe(forward);
+  });
+  await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+  try {
+    const report = await runCurrentProvider(
+      async () => ({
+        scope: reference.scope,
+        connections: [
+          {
+            origin: new URL(reference.scope).origin,
+            connectOrigin: `http://127.0.0.1:${proxy.address().port}`,
+          },
+        ],
+        async cleanup() {},
+      }),
+      { allowMutation: false },
+    );
+    assert.deepEqual(mutating, []);
+    assert.equal(report.discovered.profile, "write");
+    assert.equal(
+      report.obligations.find(({ id }) => id === "write.discovery-directory").state,
+      "pass",
+    );
+    const create = report.obligations.find(({ id }) => id === "write.create");
+    assert.equal(create.state, "not-run");
+    assert.match(create.reason, /--allow-mutation/);
+    for (const row of rowsOf(report, (id) => id.startsWith("write.")))
+      assert.notEqual(row.state, "not-applicable", row.id);
+  } finally {
+    await new Promise((resolve) => proxy.close(resolve));
+    await reference.cleanup();
+  }
+});
+
+test("--scope takes a canonical Scope and reads its token only from a named variable", () => {
+  assert.deepEqual(parseKitArguments(["--scope", "http://127.0.0.1:1/"]), {
+    scope: "http://127.0.0.1:1/",
+    allowMutation: false,
+  });
+  assert.deepEqual(
+    parseKitArguments(["--scope", "https://a.example/x/", "--token-env", "T", "--allow-mutation"], {
+      T: "secret",
+    }),
+    { scope: "https://a.example/x/", allowMutation: true, authorization: "Bearer secret" },
+  );
+  for (const argv of [
+    ["--scope"],
+    ["--scope", "http://127.0.0.1:1"],
+    ["--scope", "https://a.example/x"],
+    ["--scope", "https://u:p@a.example/"],
+    ["--scope", "https://a.example/?q=1"],
+    ["--scope", "https://a.example/", "--token-env", "UNSET"],
+    ["--scope", "https://a.example/", "--token", "secret"],
+  ])
+    assert.equal(parseKitArguments(argv), null, argv.join(" "));
 });
