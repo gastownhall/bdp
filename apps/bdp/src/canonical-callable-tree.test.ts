@@ -814,10 +814,8 @@ describe("the induced tree", () => {
           arguments: { id: "a" },
           revisionProvenance: { actor: { id: "sam", basis: "writer-supplied" } },
         });
-        expect(JSON.parse(stdout)).toMatchObject({
-          result_kind: "callable_result",
-          data: { result: {}, changed: true },
-        });
+        // JSON is the data alone unless --response-context asks for the envelope (row 4).
+        expect(JSON.parse(stdout)).toEqual({ result: {}, changed: true });
         posts.length = 0;
         for (const after of ["--output-mode", "--scope", "--config", "--revision-provenance"])
           await expect(
@@ -985,12 +983,24 @@ describe("the induced tree", () => {
     expect(stdout).toMatch(/^ {2}add /m);
     stdout = "";
     stderr = "";
-    await expect(bdp(["issue", "secret-typo"])).resolves.toBe(2);
-    expect(stderr).toContain("no such command under issue");
-    expect(stderr).not.toContain("secret-typo");
+    // A word shaped like a command is named, with the nearest command (row 2); one shaped
+    // like a value is not repeated.
+    await expect(bdp(["issue", "shwo"])).resolves.toBe(2);
+    expect(stderr).toContain(
+      "unknown command 'shwo' for 'bdp issue'; did you mean 'bdp issue show'?",
+    );
+    stderr = "";
+    await expect(bdp(["issue", "Secret=Typo"])).resolves.toBe(2);
+    expect(stderr).toContain(
+      "unknown command (not shown, since it may be a value) for 'bdp issue'",
+    );
+    expect(stderr).not.toContain("Secret");
     stderr = "";
     await expect(bdp(["no-such-package", "x"])).resolves.toBe(2);
-    expect(stderr).not.toContain("no-such-package");
+    expect(stderr).toContain("unknown command 'no-such-package' for 'bdp'");
+    stderr = "";
+    await expect(bdp(["Token=abc", "x"])).resolves.toBe(2);
+    expect(stderr).not.toContain("abc");
   });
 
   it("gives a built-in command any collision, and call still reaches the Callable", async () => {
@@ -1138,10 +1148,13 @@ const PROBLEMS: readonly (readonly [string, ReturnType<typeof problem>, number])
 ];
 
 describe("a failed Callable in human mode", () => {
+  // The Scope a failure involved, and where it came from (row 3).
+  let scopeLine = "";
   const refused = (body: object, args: readonly string[]) =>
     withServe(
       () => ({ status: (body as { status: number }).status, body }),
       async (scope) => {
+        scopeLine = `Scope: ${scope} (from --scope)`;
         await bdp(["--scope", scope, ...args]);
       },
     );
@@ -1157,7 +1170,9 @@ describe("a failed Callable in human mode", () => {
       ["issue", "show", "a"],
     );
     expect(stdout).toBe("");
-    expect(stderr).toBe("error: validation-failed: `title` is required\n  /arguments/title\n");
+    expect(stderr).toBe(
+      `error: validation-failed: \`title\` is required\n  /arguments/title\n  ${scopeLine}\n`,
+    );
   });
   it("points at --actor when who is acting is what is missing", async () => {
     const message = "`revisionProvenance.actor` is required: issue/create has to say who is acting";
@@ -1170,7 +1185,7 @@ describe("a failed Callable in human mode", () => {
       ["issue", "create", "x"],
     );
     expect(stderr).toBe(
-      `error: validation-failed: ${message}\n  /revisionProvenance/actor\n  Say who is acting with --actor NAME.\n`,
+      `error: validation-failed: ${message}\n  /revisionProvenance/actor\n  Say who is acting with --actor NAME.\n  ${scopeLine}\n`,
     );
   });
   it("shows a callable-error's own code, detail and members", async () => {
@@ -1199,13 +1214,13 @@ describe("a failed Callable in human mode", () => {
       "show",
       "a",
     ]);
-    expect(stderr).toBe("error: malformed-request: HTTP title\n");
+    expect(stderr).toBe(`error: malformed-request: HTTP title\n  ${scopeLine}\n`);
     stderr = "";
     await refused(
       { ...problem("malformed-request", "request", 400, "never"), detail: "bad\u001b[31mred" },
       ["issue", "show", "a"],
     );
-    expect(stderr).toBe("error: malformed-request: bad [31mred\n");
+    expect(stderr).toBe(`error: malformed-request: bad [31mred\n  ${scopeLine}\n`);
   });
   it("says when the outcome is unknown", async () => {
     await withServe(
@@ -1255,6 +1270,24 @@ describe("a failed Callable in human mode", () => {
     await expect(
       bdp(["--scope", "http://127.0.0.1:1/", "--output-mode", "json", "issue", "show", "--nope"]),
     ).resolves.toBe(2);
+    // JSON is the data alone: none on stdout, and the error on stderr (row 4).
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toEqual({
+      error: { origin: "cli", problem: { code: "invalid_arguments", message: expect.any(String) } },
+    });
+    stderr = "";
+    await expect(
+      bdp([
+        "--scope",
+        "http://127.0.0.1:1/",
+        "--output-mode",
+        "json",
+        "--response-context",
+        "issue",
+        "show",
+        "--nope",
+      ]),
+    ).resolves.toBe(2);
     expect(stderr).toBe("");
     expect(JSON.parse(stdout)).toMatchObject({
       outcome: "failure",
@@ -1278,6 +1311,7 @@ describe("every Problem shape", () => {
             scope,
             "--output-mode",
             "json",
+            "--response-context",
             "call",
             "issue/show",
             "--arguments",
@@ -1298,7 +1332,7 @@ describe("every Problem shape", () => {
     await withServe(
       () => ({ status: internal.status, body: internal }),
       async (scope) => {
-        const json = ["--scope", scope, "--output-mode", "json"];
+        const json = ["--scope", scope, "--output-mode", "json", "--response-context"];
         await expect(bdp([...json, "issue", "comment", "a", "b"])).resolves.toBe(1);
         expect(JSON.parse(stdout)).toMatchObject({
           outcome: "failure",
@@ -1380,7 +1414,7 @@ describe("a failure says what happened", () => {
       async (scope, posts) => {
         await expect(bdp(["--scope", scope, "issue", "stats"])).resolves.toBe(5);
         expect(stderr).toBe(
-          "error: unsupported_capability: the Scope does not advertise Callables1\n",
+          `error: unsupported_capability: the Scope does not advertise Callables1\n  Scope: ${scope} (from --scope)\n`,
         );
         expect(posts).toEqual([]);
       },

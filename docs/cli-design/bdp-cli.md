@@ -88,7 +88,8 @@ encoding. The retained six-CRUD batch reference below remains version 1.
 
 Commands use the selected default Scope. The candidate client context rule uses
 `--scope`, then
-`BDP_SCOPE_URL`, then configuration `scope.url`. Scope-only commands may
+`BDP_SCOPE_URL`, then configuration `scope.url`, which [`bd connect`](#bd-connect)
+stores. A failure that involves a Scope names it and where it came from. Scope-only commands may
 also take one positional Scope, conflicting with --scope even when equal.
 `link create`, `link list` and product `link count` use Resource positionals;
 select their Scope with --scope or the default, never a guessed positional Scope. A point
@@ -136,6 +137,7 @@ substitutes for ordinary flags.
 
 | Usable signature | Native intent / complete source |
 | --- | --- |
+| connect [URL] [--clear] | Store the default Scope after reading its discovery, show the Scope in use and its source, or forget it; [`bd connect`](#bd-connect) |
 | scope inspect [SCOPE] | GET discovered machine description; [profiles](retained-profiles.md) |
 | show REF | One current or exact Resource; [reads](reads-and-paging.md) |
 | link show REF | Same read with actual Link assertion |
@@ -279,8 +281,9 @@ context.operation_outcome=success for a known successful decision; it never impl
 rollback or unknown merely due to display.
 For unknown mutation disposition, context.recovery identifies the private frozen
 file and exact argv. Missing retained payload may diagnose expiry without deciding
-that the original write failed. Raw --omit envelope loses self-contained projection/
-completion/control metadata and requires status/stderr; it cannot prove completion.
+that the original write failed. JSON output without `--response-context` is the data
+alone: it loses self-contained projection/completion/control metadata and requires
+status/stderr; it cannot prove completion. `--omit envelope` is retired.
 
 Canonical status is 0 for success/empty/no-op/preview/304; 2 local usage/value error;
 3 diagnosed missing target/revision; 4 revision-mismatch; 5 diagnosed unsupported
@@ -355,13 +358,29 @@ command-specific `--output-format` remains the more specific choice. See
 [read output](read-output.md#preserve-data-and-declare-context) for the format
 and compatibility rules.
 
+JSON output, by `--output-mode json` or `--output-format json|jsonl`, is the data
+itself, as `bd --json` prints it: the Resource, page, discovery document or result,
+and JSONL's records one per line. A failure leaves stdout empty and writes
+`{"error":...}` to stderr, with `recovery` for an unknown write and `scope` when a
+Scope was bound. The global `--response-context` flag asks for the schema-2 result
+envelope instead. The envelope then carries the specification triple once, beside
+`bdp_spec`: the selected Scope's discovery `bdpVersion` and `specRevision`, read from
+discovery. A retry replays its frozen request without rediscovering, so its triple is
+`null`. `--omit envelope` is retired and refused, naming its replacement.
+
+Human output writes a failure to stderr as text: `error:`, the codes and the detail,
+then each of the Problem's diagnostics on a line of its own, and, when a Scope was
+bound, `Scope: URL (from SOURCE)`. SOURCE is `--scope`, `BDP_SCOPE_URL`,
+`config file PATH`, the positional Scope, the Resource's URL or the retry file.
+
 <a id="scope-selection"></a>
 
 #### Scope context: candidate client mechanics
 
 Commands use the selected default Scope. This candidate's concrete context rule
 chooses explicit `--scope SCOPE`, then `BDP_SCOPE_URL`, then configuration
-`scope.url`; this precedence is client authoring detail, not a new human ruling.
+`scope.url`, which `bd connect URL` stores; this precedence is client authoring
+detail. Bare `bd connect` prints the Scope a command would use and its source.
 Scope-only commands may also take one positional Scope, which conflicts with
 `--scope` even when equal. Link create/list/count positionals denote Resources.
 A point operand is a Resource, never a guessed Scope. Absolute reads remain
@@ -517,11 +536,19 @@ flag or Type lifecycle command is implied.
 On create and update, `--type` chooses the Type of the Bead or Link being
 written. On a read command, Type flags filter the results.
 
-The installed names used in these examples include `memory`, `task` and `bug`
-for Beads, and `references`, `superseded-by` and `blocks` for Links. The `issue`
-and `dependency` Types are abstract: use them to select a family in a read,
-and choose a concrete refinement such as `task`, `bug` or `blocks` for creation.
-Each name is a local Type Reference resolved in its Scope.
+A Type operand is a full Type URL, or a short name: the path after
+`https://github.com/gastownhall/bdp/types/`, such as `issue/task` for
+`https://github.com/gastownhall/bdp/types/issue/task`. A short name never resolves
+under the command Scope; a Scope's own Type is spelled as its full URL. The same rule
+applies to `--type` and `--exact-type` on every command that takes them, with the
+shared revision suffixes: `issue/task@=TOKEN`. Human output prints a BDP Type by
+the same short name, and any other Type in full, so that what is printed reads back
+as a Type operand; `--long` prints every Type in full. Structured output keeps full
+references.
+
+The Issue package's `issue/issue` and `dependency/dependency` Types are abstract:
+use them to select a family in a read, and choose a concrete refinement such as
+`issue/task`, `issue/bug` or `dependency/blocks` for creation.
 
 | Use | Meaning |
 | --- | --- |
@@ -566,7 +593,7 @@ See [read views](reads-and-paging.md#one-point-or-one-population).
 | `--long` | Show administrative details and full references in human-readable output. |
 | `--include POINTER` | Include a field. Repeat to select several fields. |
 | `--omit POINTER` | Omit an optional field. Repeat to omit several fields. |
-| `--omit envelope` | Return raw data without the surrounding result information. |
+| `--response-context` | Global: wrap JSON in the surrounding result information. |
 
 A point read defaults to a human-readable document; a collection defaults to
 a table. Redirecting output to a file does not change the format. Structured
@@ -584,8 +611,9 @@ Properties-only masks apply locally to that native view. Other native views do
 not acquire this capability through display controls.
 
 The surrounding result information records errors, completion and any field
-selection. If you remove it, use stderr and the command's exit status to check
-whether the command completed. See [output and field selection](read-output.md).
+selection. JSON output omits it unless `--response-context` asks for it; without it,
+use stderr and the command's exit status to check whether the command completed. See
+[output and field selection](read-output.md).
 
 
 <a id="object-inputs"></a>
@@ -726,7 +754,16 @@ This pass specifies `list`; search, graph and query reconciliation is separate.
 
 Use the actual diagnosis, not every HTTP 409 or 422 as a revision mismatch.
 Preserve native BDP Problems unchanged with `origin:bdp`; local errors use
-`origin:cli`. Diagnostics go to stderr. Before binding, output cannot claim a
+`origin:cli`. Diagnostics go to stderr.
+
+A word no command takes at its level returns `2`, naming the word and the nearest
+command when one is a prefix of it or within three edits, else listing that level's
+commands, and pointing at that level's `--help`. A word not shaped like a command
+word (`[a-z][a-z0-9_-]*`, at most 32 characters) is not repeated, since it may be a
+mistyped value. A group given alone, such as `bd scope` or `bd link`, prints its help
+and returns `0`. A missing operand, an extra one, an option without its value or a
+value outside an option's choices names the command, operand or option, never the
+value. Before binding, output cannot claim a
 selected server contract. Only an uncertain mutation uses outcome `unknown`.
 An unsupported feature is not silently emulated with weaker guarantees.
 
@@ -843,7 +880,7 @@ bd show REF
     [--properties-only | --include-links]
     [--links-limit N] [--direction in|out|both]
     [--output-format default|detail|json|jsonl] [--long]
-    [--include POINTER]... [--omit POINTER|envelope]...
+    [--include POINTER]... [--omit POINTER]...
 ```
 
 ##### Arguments
@@ -864,7 +901,7 @@ bd show REF
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-format-detail-and-field-selection). |
 | `--long` | Off | Show administrative details in human-readable output. |
 | `--include POINTER` | Whole selected value | Include fields; repeatable. See [output](#output-format-detail-and-field-selection). |
-| `--omit POINTER` | No omissions | Omit optional fields; repeatable. `envelope` selects raw output. |
+| `--omit POINTER` | No omissions | Omit optional fields; repeatable. |
 
 ##### Behavior
 
@@ -888,8 +925,12 @@ and `--from-revision`.
 
 ##### Results
 
-The default document shows the ID, actual Type, selected revision and content.
-A Link document also shows its endpoints. Empty sections are omitted. A saved
+The default document opens with labeled lines in this order: `ID:`, `Type:` (the
+short name, see [Types](#types---type-and---exact-type)), `Title:` when the
+properties carry a string title, and `Revision:`. A Link document then shows its
+endpoints. Each other property follows as a `key: value` line, a string `body` as a
+paragraph after them, and metadata under `Metadata:` the same way. A Callable's record
+result shares this head and these lines. Empty sections are omitted. A saved
 revision shows the content and owned Links recorded with it, not today's state.
 
 Structured output uses the `resource` result format, or `properties` for the
@@ -1232,11 +1273,11 @@ bd list [SCOPE] [--scope SCOPE]
     [--type TYPE] [--exact-type TYPE] [--selector JSONPATH]
     [--paged | --unpaged] [--page-size N] [--limit N]
     [--output-format default|detail|table|json|jsonl] [--long]
-    [--include POINTER]... [--omit POINTER|envelope]...
+    [--include POINTER]... [--omit POINTER]...
 bd list --continue URL [--scope SCOPE]
     [--paged | --unpaged] [--page-size N] [--limit N]
     [--output-format default|detail|table|json|jsonl] [--long]
-    [--include POINTER]... [--omit POINTER|envelope]...
+    [--include POINTER]... [--omit POINTER]...
 ```
 
 ##### Arguments
@@ -1261,7 +1302,7 @@ bd list --continue URL [--scope SCOPE]
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `table`, `json` or `jsonl`. See [output](#output-controls). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 | `--include POINTER` | Whole selected value | Include fields; repeatable. See [output](#output-controls). |
-| `--omit POINTER\|envelope` | No omissions | Omit optional fields, or return raw output; repeatable. See [output](#output-controls). |
+| `--omit POINTER` | No omissions | Omit optional fields; repeatable. See [output](#output-controls). |
 
 ##### Behavior
 
@@ -1529,7 +1570,7 @@ bd link show REF
     [--scope SCOPE]
     [--properties-only]
     [--output-format default|detail|json|jsonl] [--long]
-    [--include POINTER]... [--omit POINTER|envelope]...
+    [--include POINTER]... [--omit POINTER]...
 ```
 
 ##### Arguments
@@ -1547,7 +1588,7 @@ bd link show REF
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-format-detail-and-field-selection). |
 | `--long` | Off | Show administrative details in human-readable output. |
 | `--include POINTER` | Whole selected value | Include fields; repeatable. See [output](#output-format-detail-and-field-selection). |
-| `--omit POINTER` | No omissions | Omit optional fields; repeatable. `envelope` selects raw output. |
+| `--omit POINTER` | No omissions | Omit optional fields; repeatable. |
 
 ##### Behavior
 
@@ -1885,11 +1926,11 @@ bd link list [ID1 [ID2]] [--scope SCOPE]
     [--type TYPE] [--exact-type TYPE] [--selector JSONPATH]
     [--paged | --unpaged] [--page-size N] [--limit N]
     [--output-format default|detail|table|json|jsonl] [--long]
-    [--include POINTER]... [--omit POINTER|envelope]...
+    [--include POINTER]... [--omit POINTER]...
 bd link list --continue URL [--scope SCOPE]
     [--paged | --unpaged] [--page-size N] [--limit N]
     [--output-format default|detail|table|json|jsonl] [--long]
-    [--include POINTER]... [--omit POINTER|envelope]...
+    [--include POINTER]... [--omit POINTER]...
 ```
 
 ##### Arguments
@@ -1921,7 +1962,7 @@ bd link list --continue URL [--scope SCOPE]
 | `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `table`, `json` or `jsonl`. See [output](#output-controls). |
 | `--long` | Off | Show full references and administrative detail in human output. |
 | `--include POINTER` | Whole selected value | Include fields; repeatable. See [output](#output-controls). |
-| `--omit POINTER\|envelope` | No omissions | Omit optional fields, or return raw output; repeatable. See [output](#output-controls). |
+| `--omit POINTER` | No omissions | Omit optional fields; repeatable. See [output](#output-controls). |
 
 ##### Behavior
 
@@ -2297,6 +2338,81 @@ bd link events rel-1 --representation delta
 
 ### Scope and aliases
 
+#### `bd connect`
+
+Store the default Scope, show the Scope a command would use and where it came from,
+or forget the stored Scope. It mirrors the product's `bd connect`.
+
+##### Usage
+
+```text
+bd connect [URL] [--scope SCOPE]
+    [--output-format default|detail|json|jsonl]
+bd connect --clear
+```
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `URL` | No | The Scope to store. A URL without a trailing `/` gains one. |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--clear` | Off | Forget the stored Scope, keeping the rest of the configuration. Conflicts with `URL`. |
+| `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-controls). |
+
+##### Behavior
+
+With `URL`, read the Scope's BDP discovery first, as the product checks its server
+before writing, and store `scope.url` in the per-user client configuration
+(`BDP_CONFIG`, else `$XDG_CONFIG_HOME/bdp/config.json`) only when discovery succeeds.
+The configured credential is sent only to the Scope it is configured for. When
+`BDP_SCOPE_URL` names another Scope, say that it still wins.
+
+Alone, print the Scope a command would use and its source under the
+[context rule](#scope-selection): `--scope`, then `BDP_SCOPE_URL`, then the stored
+Scope, named by its config file. When a flag or the environment overrides a stored
+Scope, print the stored one too, as not used. With no Scope, say how to connect one.
+
+`--clear` removes `scope.url` from the client configuration and leaves every other
+member. Storing or clearing refuses an explicitly selected `--config` file.
+
+##### Results
+
+Human output is one or two lines: `Connected to URL (BDP VERSION, PROFILE profile).`
+and where it was stored; `Scope: URL (from SOURCE)`, with any unused stored Scope; or
+what `--clear` forgot. JSON output is `{scope, source, ...}` data, with the envelope
+under `--response-context`.
+
+##### Errors and exit status
+
+Uses the [common exit statuses](#exit-status). An invalid URL, `--clear` with a URL or a
+selected `--config` returns `2`. A failed discovery returns `1`, names the stage, and
+stores nothing.
+
+##### Protocol correspondence
+
+| CLI input | Protocol request or client behavior |
+| --- | --- |
+| `URL` | Probe the Scope URL and GET its discovery; no other request. |
+| No `URL`, or `--clear` | No request. |
+
+##### Examples
+
+```sh
+# Store the Scope after checking its discovery.
+bd connect http://127.0.0.1:8080/
+
+# Show the Scope in use and where it came from.
+bd connect
+
+# Forget the stored Scope.
+bd connect --clear
+```
+
 #### `bd scope inspect`
 
 Read the Scope's advertised machine description.
@@ -2325,9 +2441,9 @@ bd scope inspect [SCOPE] [--scope SCOPE]
 
 Use the established discovery binding and return the advertised description.
 Preserve the canonical Scope, navigation URLs, profiles and capability versions.
-Structured output also includes the fixed Bead and Link inventory routes derived
-from the canonical Scope; those fields are computed by the CLI and are not part of
-the discovery document. Do not infer adoption of a new capability from a newer
+Return the discovery document as the server sent it: the client adds nothing to it,
+including the fixed Bead and Link inventory routes, which Core's closed discovery does
+not carry. Do not infer adoption of a new capability from a newer
 client, expand a missing advertisement or guess operation suffixes. The common candidate
 [context rule](#scope-selection) establishes the discovery binding; this command
 then reads that selected description.
@@ -2336,8 +2452,8 @@ then reads that selected description.
 ##### Results
 
 Use the `scope` descriptor and preserve the native description. Default/detail
-show its advertised fields; structured output includes the derived fixed inventory
-routes and does not translate capability versions into executable versions. This command does not accept Resource masks,
+show its advertised fields; structured output is that document alone and does not
+translate capability versions into executable versions. This command does not accept Resource masks,
 collection paging or write inputs.
 
 
@@ -2756,7 +2872,9 @@ Uses the [common exit statuses](#exit-status). Invalid or conflicting inputs,
 including missing or unused arguments, return `2`; a missing target returns
 `3`; revision mismatch returns `4`; unsupported Write or a required capability
 returns `5`. Other failures retain their precise Problem and status `1` unless
-another common diagnosis applies. Once member evaluation begins, it stops at
+another common diagnosis applies. A Scope that does not advertise atomic-batch1
+refuses with `5`, saying so and that nothing was sent; so does this reference client,
+which does not send batches yet, saying that the Scope advertises them. Once member evaluation begins, it stops at
 the first failure and reports one
 ordinary Problem with the failing index and permitted target detail. Static
 whole-input checks and inherited admission precedence still apply. An uncertain
@@ -2894,7 +3012,10 @@ has no derived `--no-x`. So `--no-pinned` on `issue/list` is `no_pinned`, and
 The client preserves omission and `null`, and never substitutes a default, on either
 form: an omitted parameter stays omitted and the service applies its default, which
 `--help` shows as the parameter's declared `default`. So `bd issue close bd-1` sends no
-`reason`, and it behaves as `bd call` and an HTTP caller do. It does not check
+`reason`, and it behaves as `bd call` and an HTTP caller do. A parameter the
+declaration requires is not filled in either: `bd events list` without `--since` sends
+no `since`, because the declaration requires it and says why it is not defaulted to `0`,
+and the service's refusal says to pass `0` to read from the beginning. It does not check
 arguments or results against their schemas; checking arguments is the service's job
 and checking a result is optional. It sends unknown `--arguments` members unchanged,
 so the service refuses them.
@@ -2918,7 +3039,9 @@ Success returns the closed `callableResult` as `data` under `result_kind`
 for every Callable, with no per-package presentation: `changed` when there is one, on
 one line when the result's own `changed` agrees and both labeled when it does not, a
 table for an array of records and for such a member of a record, `key: value` lines for
-any other record, and the value itself for anything else. A table leaves out a column
+any other record, and the value itself for anything else. A record with `id`, `title` or
+`revision` opens with [`bd show`'s labeled head](#bd-show), and a `type` member holding
+a BDP Type prints by its short name. A table leaves out a column
 empty in every row, and shortens a long cell and says so; `key: value` lines keep the
 value whole. `--output-format detail` prints that object as indented JSON. Listing uses
 `result_kind` `callable_catalog`.
@@ -2934,8 +3057,9 @@ returns `1`, with the native Problem unchanged under `origin:bdp`.
 
 Human output writes a failure to stderr as text a person reads, at the same status:
 `error:`, the codes, the Problem's `detail`, then its diagnostics and the members of an
-`error` value on lines of their own. `--output-mode json` is the structured form, on
-stdout, and carries the Problem unchanged.
+`error` value on lines of their own, and the Scope with its source. `--output-mode json`
+carries the Problem unchanged, on stderr, and on stdout inside the envelope with
+`--response-context`.
 
 A failure with no Problem to show says what happened under `origin:cli`, with code
 `delivery_failed`: which stage failed and, when the service answered, its URL, status and

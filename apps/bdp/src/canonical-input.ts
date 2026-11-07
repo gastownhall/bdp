@@ -91,6 +91,17 @@ function absolute(input: string, scope: string): string {
   return result;
 }
 const NAME = /^[A-Za-z][A-Za-z0-9_-]*$/;
+/** Where the short Type names this client reads and prints live (rows 14 and 18 of Donna's
+ * manual pass): `issue/task` is `https://github.com/gastownhall/bdp/types/issue/task`. */
+export const BDP_TYPES = "https://github.com/gastownhall/bdp/types/";
+/** A Type operand: an absolute URL stays literal, and anything else is a short name under
+ * {@link BDP_TYPES}, never under the command Scope, with the same revision suffixes. */
+export function parseCanonicalTypeReference(
+  input: string,
+  policy: { readonly mutationSubject?: boolean } = {},
+): CanonicalReference {
+  return parseCanonicalReference(input, BDP_TYPES, policy);
+}
 /** No lookup: ordinals/current selection deliberately refuse at this offline boundary. */
 export function parseCanonicalReference(
   input: string,
@@ -376,6 +387,7 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   const alias = operation === "putAlias" || operation === "deleteAlias";
   const link = operation.endsWith("Link");
   if (batch && alias) return refuse("atomic-batch1 admits six CRUD operations, not aliases");
+  const typeRef = (value: string): CanonicalReference => parseCanonicalTypeReference(value);
   const ref = (
     value: string,
     mutationSubject = false,
@@ -392,7 +404,7 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
       if (args[0] !== scope) return refuse("explicit creation Scope contradicts selected Scope");
       args.pop();
     }
-    body.type = ref(option("type")) as AdmittedJsonValue;
+    body.type = typeRef(option("type")) as AdmittedJsonValue;
     if (has("id") && has("idRoot")) return refuse("--id and --id-root are mutually exclusive");
     for (const key of ["id", "idRoot"])
       if (has(key)) {
@@ -445,7 +457,7 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   }
   if (!create && has("type")) {
     if (!update) return refuse("Type input requires create/update");
-    body.type = ref(option("type")) as AdmittedJsonValue;
+    body.type = typeRef(option("type")) as AdmittedJsonValue;
   }
   if (!create && (has("id") || has("idRoot"))) return refuse("identity flags require creation");
   for (const plane of ["properties", "metadata"] as const) {

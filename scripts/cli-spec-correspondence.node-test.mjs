@@ -74,6 +74,7 @@ test("the --actor paragraph registers it on tree commands", () => {
 });
 test("global output-mode option is described in the authored CLI contract", () => {
   assert.match(markdown, /global `--output-mode human\|json`/);
+  assert.match(markdown, /global `--response-context`/);
   assert.match(outputDocs, /Use `--output-mode human\|json` to select the overall presentation/);
 });
 test("missing authored actor is detected", () => {

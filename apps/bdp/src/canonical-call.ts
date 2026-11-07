@@ -18,6 +18,7 @@ const CLIENT_FLAGS = new Set([
   "--idempotency-key",
   "--output-format",
   "--output-mode",
+  "--response-context",
   "--revision-provenance",
   "--scope",
 ]);

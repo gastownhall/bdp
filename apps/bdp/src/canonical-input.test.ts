@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { decodeJsonDocument, admitJsonNumbers, stringifyJsonValue } from "@bdp/protocol";
 import {
+  BDP_TYPES,
   CanonicalInputError,
   CanonicalUnsupportedInputError,
   compileCanonicalInput,
   parseCanonicalReference,
+  parseCanonicalTypeReference,
   type CanonicalInputRequest,
 } from "./canonical-input.js";
 
@@ -103,6 +105,21 @@ describe("canonical References without lookup", () => {
 });
 
 describe("canonical ordinary mutation compilation", () => {
+  it("reads a short Type name under the BDP Types, and a full Type URL as written (row 18)", async () => {
+    const task = "https://github.com/gastownhall/bdp/types/issue/task";
+    expect(BDP_TYPES).toBe("https://github.com/gastownhall/bdp/types/");
+    expect(parseCanonicalTypeReference("issue/task")).toBe(task);
+    expect(parseCanonicalTypeReference(task)).toBe(task);
+    expect(parseCanonicalTypeReference("issue/task@=t1")).toEqual({ uri: task, revision: "t1" });
+    expect(parseCanonicalTypeReference(`[${task}]@=t1`)).toEqual({ uri: task, revision: "t1" });
+    // A Scope's own Type is spelled in full: a short name never resolves under the Scope.
+    expect(parseCanonicalTypeReference(`${scope}types/local`)).toBe(`${scope}types/local`);
+    expect(await body(compile("create", { type: "issue/task" }))).toEqual({ type: task });
+    expect(await body(compile("update", { type: "issue/bug" }, ["note"]))).toEqual({
+      bead: `${scope}note`,
+      type: `${BDP_TYPES}issue/bug`,
+    });
+  });
   it("creates with full IDs, exact Type pin, explicit null/presence and literal nested data", async () => {
     expect(
       await body(
@@ -114,14 +131,14 @@ describe("canonical ordinary mutation compilation", () => {
         }),
       ),
     ).toEqual({
-      type: { uri: `${scope}Task`, revision: "t1" },
+      type: { uri: `${BDP_TYPES}Task`, revision: "t1" },
       id: `${scope}notes/item`,
       properties: { nullable: null, literal: "batch-ref::x", ["__proto__"]: { safe: true } },
       metadata: {},
     });
-    expect(await body(compile("create", { type: "Task" }))).toEqual({ type: `${scope}Task` });
+    expect(await body(compile("create", { type: "Task" }))).toEqual({ type: `${BDP_TYPES}Task` });
     expect(await body(compile("create", { type: "Task", idRoot: "notes" }))).toEqual({
-      type: `${scope}Task`,
+      type: `${BDP_TYPES}Task`,
       idRoot: "notes",
     });
   });
@@ -239,7 +256,7 @@ describe("canonical ordinary mutation compilation", () => {
       [{ type: "Relates", from: "a@=a1", to: "b" }, []],
     ] as const)
       expect(await body(compile("link create", options, args))).toEqual({
-        type: `${scope}Relates`,
+        type: `${BDP_TYPES}Relates`,
         source: { uri: `${scope}a`, revision: "a1" },
         target: `${scope}b`,
       });
@@ -352,7 +369,7 @@ describe("frozen JSON inputs and finite offline member emission", () => {
         reader: { readFile, readStdin },
       }),
     );
-    expect(result).toEqual({ type: `${scope}Task`, properties: { v: 1 }, metadata: { v: 1 } });
+    expect(result).toEqual({ type: `${BDP_TYPES}Task`, properties: { v: 1 }, metadata: { v: 1 } });
     expect(readFile).toHaveBeenCalledTimes(1);
     expect(readFile.mock.calls[0]?.length).toBe(2);
     await expect(
@@ -390,7 +407,7 @@ describe("frozen JSON inputs and finite offline member emission", () => {
     expect(JSON.parse(result.batchMemberText ?? "null")).toEqual({
       operation: "createLink",
       name: "edge",
-      type: { uri: `${scope}Relates`, revision: "t1" },
+      type: { uri: `${BDP_TYPES}Relates`, revision: "t1" },
       source: "@a",
       target: { uri: `${scope}b`, revision: "r1" },
     });
@@ -443,7 +460,7 @@ describe("exact historical Bead Update compilation", () => {
       bead: `${scope}note`,
       fromRevision: "9223372036854775808",
       expectedRevision: "9223372036854775808",
-      type: { uri: `${scope}Task`, revision: "9223372036854775808" },
+      type: { uri: `${BDP_TYPES}Task`, revision: "9223372036854775808" },
     });
   });
   it("preserves ordinary explicit Type and object edits alongside the source", async () => {
@@ -458,7 +475,7 @@ describe("exact historical Bead Update compilation", () => {
     ).toEqual({
       bead: `${scope}note`,
       fromRevision: "R1",
-      type: `${scope}CurrentType`,
+      type: `${BDP_TYPES}CurrentType`,
       propertiesChange: [{ op: "add", path: "/title", value: "edited" }],
     });
   });
