@@ -84,6 +84,21 @@ checking aggregate capacity: at most64MiB of snapshot-copy weight, in addition
 to the bounded32MiB input scan and ordinary object overhead. The32MiB retained
 budget is Scope-wide; principals share it, so another caller can temporarily
 receive503 until snapshots expire. These are resource bounds, not RSS limits.
+## Deletion
+
+`deleteBead` admits `revisionProvenance`. An ordinary store records nothing for it, and it
+stays part of retry identity. A Bead's aliases go with it in the same decision and the result
+lists them in `removedAliases`; no later create or recovery restores one. A Link pinned to the
+deleted Bead survives while it keeps a live in-Scope Bead endpoint; otherwise it blocks as
+`incident-links-exist`. `createBead` supplying a deleted Bead's id adds a revision under that
+identity, inheriting nothing. `identity-taken` covers a live id, the other Resource kind, a
+deleted Link's id and an id one atomic batch both created and deleted. `delete-modes1` is
+neither implemented nor advertised, so its request members are `malformed-request`.
+
+These rules change what a valid store contains, under the same format names. A store that
+already holds a Bead deletion from before them has no `removedAliases` and refuses to open;
+nothing resets or migrates it.
+
 ## Canonical CLI increment
 
 The reference `bdp` executable defaults to the canonical CLI profile. Use

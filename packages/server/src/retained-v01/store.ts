@@ -37,6 +37,7 @@ import {
   assertPreparedCreate,
   assertPreparedDelete,
   assertPreparedUpdate,
+  blocksBeadDeletion,
   canonicalLocalReference,
   captureNavigation,
   deletedIdentity,
@@ -52,6 +53,7 @@ import {
   problem,
   RETAINED_MEDIA,
   RETAINED_SPEC,
+  recordedProvenance,
   type ResourceKind,
   type ResourceState,
   type RetainedBead,
@@ -376,6 +378,36 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     if (alias) return String(alias.target);
     return aliasNamespace.contains(uri) ? null : undefined;
   }
+  /** A batch's creation and deletion of one identity consumed it for good. */
+  function batchConsumed(id: string): boolean {
+    if (!batchMode) return false;
+    const rows = db
+      .prepare("SELECT body FROM outcomes WHERE operation='batch' AND status=200 AND instr(body,?)")
+      .iterate(JSON.stringify(id));
+    for (const row of rows)
+      if (
+        JSON.parse(String(row.body)).resources.some(
+          (entry: { id: string; outcome: string }) =>
+            entry.id === id && entry.outcome === "allocated",
+        )
+      )
+        return true;
+    return false;
+  }
+  /** Write's creation rule: a supplied createBead adds a revision on exactly this identity. */
+  function deletedBead(id: string): boolean {
+    return (
+      get("SELECT kind FROM identities WHERE id=?", id)?.kind === "bead" &&
+      !get("SELECT id FROM resources WHERE id=?", id) &&
+      !batchConsumed(id)
+    );
+  }
+  const aliasesTargeting = (id: string): readonly string[] =>
+    db
+      .prepare("SELECT locator FROM aliases WHERE target=?")
+      .all(id)
+      .map((row) => String(row.locator))
+      .sort();
   function decide(
     principal: string,
     operation: OrdinaryOperation,
@@ -505,6 +537,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
                 (id) => get("SELECT locator FROM aliases WHERE locator=?", id) !== undefined,
                 isReserved,
                 new Date(now()).toISOString(),
+                deletedBead,
+                aliasesTargeting,
               );
       }
       const facts = evaluation.effects.map((effect) => {
@@ -546,6 +580,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           else run("DELETE FROM resources WHERE id=?", row.id);
           options.onPhase?.("resource-staged");
         }
+        for (const alias of evaluation.removedAliases ?? [])
+          run("DELETE FROM aliases WHERE locator=?", alias);
       }
       const positions: number[] = [];
       for (const fact of facts) {
@@ -603,14 +639,23 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         : get("SELECT body FROM historical_versions WHERE id=? AND revision=?", id, revision);
     return row === undefined ? undefined : (JSON.parse(String(row.body)) as JsonObject);
   }
-  function endpointRefusal(state: ResourceState): JsonObject | undefined {
+  /** Only a supplied endpoint must resolve live: a Link surviving under its pin keeps its
+   * deleted endpoint, and still needs one live in-Scope Bead. */
+  function endpointRefusal(
+    state: ResourceState,
+    supplied: { readonly source: boolean; readonly target: boolean } = {
+      source: true,
+      target: true,
+    },
+  ): JsonObject | undefined {
     if (state.kind !== "link") return undefined;
-    let local = false;
+    let live = false;
     for (const name of ["source", "target"] as const) {
       const uri = referenceUri(state.resource[name]);
       if (!uri.startsWith(navigation.scope)) continue;
-      local = true;
       const endpoint = currentState(uri);
+      if (endpoint?.kind === "bead") live = true;
+      if (!supplied[name]) continue;
       if (!endpoint) return problem("resource-not-found", 404, "after-state-change");
       if (endpoint.kind !== "bead")
         return {
@@ -618,7 +663,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           diagnostics: [{ message: `${name} endpoint must identify a live in-Scope Bead` }],
         };
     }
-    return local
+    return live
       ? undefined
       : {
           ...problem("validation-failed", 422),
@@ -642,6 +687,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     time: string,
     text: string,
     historical?: { readonly context: HistoricalUpdateContext; readonly recovering: boolean },
+    provenance?: RevisionProvenanceInput,
   ): StoredResponse & { readonly position?: number } {
     const position = head() + 1;
     if (!Number.isSafeInteger(position)) throw new Error("event ordering capacity unavailable");
@@ -654,6 +700,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       time,
       historical?.context.previousRevision ?? before?.resource.revision,
     );
+    const terminalProvenance = recordedProvenance(provenance, time);
     const terminal =
       historicalMode && state.kind === "bead" && verb === "delete"
         ? {
@@ -661,6 +708,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
             revision: randomUUID(),
             state: "deleted",
             previousRevision: state.resource.revision,
+            ...(terminalProvenance === undefined ? {} : { revisionProvenance: terminalProvenance }),
           }
         : undefined;
     const fact = serialized(
@@ -676,7 +724,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       return refusal(problem("limit-exceeded", 413));
     const id = state.resource.id;
     if (verb === "create") {
-      run("INSERT INTO identities VALUES (?,?)", id, state.kind);
+      if (!get("SELECT id FROM identities WHERE id=?", id))
+        run("INSERT INTO identities VALUES (?,?)", id, state.kind);
       run("INSERT INTO resources VALUES (?,?)", id, serialized(state.resource));
     } else if (verb === "update") {
       if (historical?.recovering)
@@ -726,8 +775,9 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         id = navigation.scope + randomUUID();
       }
     }
-    if (get("SELECT id FROM identities WHERE id=?", id) || isReserved(id))
-      return refusal(problem("identity-taken", 409));
+    const recreating = kind === "bead" && input.id !== undefined && deletedBead(id);
+    if (!recreating && (get("SELECT id FROM identities WHERE id=?", id) || isReserved(id)))
+      return refusal(problem("identity-taken", 409, "after-state-change"));
     if (get("SELECT locator FROM aliases WHERE locator=?", id))
       return refusal(problem("alias-path-taken", 409, "after-state-change"));
     const time = new Date(now()).toISOString();
@@ -840,7 +890,10 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       { ...before.resource, type, properties, metadata },
       endpoints,
     );
-    const invalid = endpointRefusal(candidate);
+    const invalid = endpointRefusal(candidate, {
+      source: input.source !== undefined,
+      target: input.target !== undefined,
+    });
     if (invalid) return refusal(invalid);
     const changed =
       recovering ||
@@ -908,17 +961,30 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         )
         .iterate()) {
         const link = JSON.parse(String(row.body)) as RetainedLink;
-        if ([link.source, link.target].some((reference) => referenceUri(reference) === id))
+        if (
+          blocksBeadDeletion(link, id, navigation.scope, (uri) => currentRow(uri)?.kind === "bead")
+        )
           return refusal(problem("incident-links-exist", 409, "after-state-change"));
       }
     }
-    return complete(
+    const removedAliases = kind === "bead" ? aliasesTargeting(id) : undefined;
+    const outcome = complete(
       "delete",
       before,
       before,
       new Date(now()).toISOString(),
-      serialized({ outcome: "deleted", changed: true, deleted: deletedIdentity(before) }),
+      serialized({
+        outcome: "deleted",
+        changed: true,
+        deleted: deletedIdentity(before),
+        ...(removedAliases === undefined ? {} : { removedAliases }),
+      }),
+      undefined,
+      input.provenance,
     );
+    if (outcome.status === 200 && removedAliases?.length)
+      run("DELETE FROM aliases WHERE target=?", id);
+    return outcome;
   }
   function linkFields(input: PreparedLink): EditFields {
     const value = input.value;
@@ -979,7 +1045,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         operation === "putAlias" &&
         (get("SELECT id FROM identities WHERE id=?", input.alias) || isReserved(input.alias))
       )
-        return refusal(problem("identity-taken", 409));
+        return refusal(problem("identity-taken", 409, "after-state-change"));
       const previous = get("SELECT target FROM aliases WHERE locator=?", input.alias);
       if (operation === "deleteAlias") {
         if (!previous) return refusal(problem("resource-not-found", 404, "after-state-change"));

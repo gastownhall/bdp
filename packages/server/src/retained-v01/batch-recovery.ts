@@ -8,11 +8,11 @@ import { type BatchFinalRow, covered } from "./batch-evaluate.js";
 import {
   canonicalCreatedId,
   deletedIdentity,
+  linkEndpointsStand,
   navigationAddresses,
   type PrivateNavigation,
   type ResourceKind,
   type ResourceState,
-  referenceUri,
   serialized,
   typeReference,
 } from "./contract.js";
@@ -30,6 +30,9 @@ export function verifyGroupedRecovery(
   }
   const live = new Map<string, ResourceState>();
   const committed = new Map<string, ResourceKind>();
+  const consumed = new Set<string>();
+  const recreatable = (id: string, kind: ResourceKind) =>
+    kind === "bead" && committed.get(id) === "bead" && !consumed.has(id);
   const aliases = new Map<string, string>();
   const revisions = new Map<string, Set<string>>();
   const factIds = new Set<string>();
@@ -151,7 +154,14 @@ export function verifyGroupedRecovery(
     let rows: BatchFinalRow[];
     if (batching) {
       if (
-        !keys(result, ["capabilityVersion", "changed", "transaction", "results", "resources"]) ||
+        !keys(result, [
+          "capabilityVersion",
+          "changed",
+          "transaction",
+          "results",
+          "resources",
+          "removedAliases",
+        ]) ||
         result.capabilityVersion !== "1" ||
         typeof result.changed !== "boolean" ||
         !Array.isArray(result.resources) ||
@@ -299,7 +309,13 @@ export function verifyGroupedRecovery(
           names.add(mapping.operationName);
         }
         if (mapping.operation.startsWith("create")) {
-          if (committed.has(mapping.id) || allocatedHere.has(mapping.id) || aliases.has(mapping.id))
+          if (
+            live.has(mapping.id) ||
+            (committed.has(mapping.id) &&
+              !recreatable(mapping.id, mapping.operation === "createBead" ? "bead" : "link")) ||
+            allocatedHere.has(mapping.id) ||
+            aliases.has(mapping.id)
+          )
             fail();
           allocatedHere.add(mapping.id);
           workingAlive.add(mapping.id);
@@ -327,7 +343,9 @@ export function verifyGroupedRecovery(
       if (
         !keys(
           result,
-          deleting ? ["outcome", "changed", "deleted"] : ["outcome", "changed", "resource"],
+          deleting
+            ? ["outcome", "changed", "deleted", ...(kind === "bead" ? ["removedAliases"] : [])]
+            : ["outcome", "changed", "resource"],
         ) ||
         typeof result.changed !== "boolean" ||
         !canonical(id) ||
@@ -367,7 +385,7 @@ export function verifyGroupedRecovery(
           !batching ||
           !row.changed ||
           before ||
-          committed.has(row.id) ||
+          (committed.has(row.id) && !recreatable(row.id, row.resourceKind)) ||
           aliases.has(row.id) ||
           row.resource !== undefined ||
           row.deleted !== undefined ||
@@ -382,6 +400,7 @@ export function verifyGroupedRecovery(
         )
           fail();
         committed.set(row.id, row.resourceKind);
+        consumed.add(row.id);
         continue;
       }
       if (row.outcome === "deleted") {
@@ -408,7 +427,13 @@ export function verifyGroupedRecovery(
         )
           fail();
       } else if (row.outcome === "created") {
-        if (!row.changed || before || committed.has(row.id) || aliases.has(row.id)) fail();
+        if (
+          !row.changed ||
+          before ||
+          (committed.has(row.id) && !recreatable(row.id, row.resourceKind)) ||
+          aliases.has(row.id)
+        )
+          fail();
         committed.set(row.id, row.resourceKind);
         effects.push({ after });
       } else if (row.outcome === "updated") {
@@ -432,11 +457,35 @@ export function verifyGroupedRecovery(
     }
     // Validate the whole published graph only after the atomic row set is applied.
     for (const state of live.values())
-      if (state.kind === "link") {
-        const endpoints = [state.resource.source, state.resource.target];
-        const local = endpoints.map(referenceUri).filter((uri) => uri.startsWith(navigation.scope));
-        if (!local.length || local.some((uri) => live.get(uri)?.kind !== "bead")) fail();
-      }
+      if (
+        state.kind === "link" &&
+        !linkEndpointsStand(
+          state.resource,
+          navigation.scope,
+          (uri) => live.get(uri)?.kind === "bead",
+        )
+      )
+        fail();
+    const deletesBead = batching
+      ? result.results.some((entry: { operation: string }) => entry.operation === "deleteBead")
+      : stored.operation === "deleteBead";
+    const deletedBeads = new Set(
+      rows
+        .filter((row) => row.outcome === "deleted" && row.resourceKind === "bead")
+        .map((row) => row.id),
+    );
+    const removed = [...aliases]
+      .filter(([, target]) => deletedBeads.has(target))
+      .map(([locator]) => locator)
+      .sort();
+    if (
+      deletesBead
+        ? !Array.isArray(result.removedAliases) ||
+          serialized(result.removedAliases) !== serialized(removed)
+        : Object.hasOwn(result, "removedAliases")
+    )
+      fail();
+    for (const locator of removed) aliases.delete(locator);
     if (memberships.length !== effects.length || stored.event_position !== (memberships[0] ?? null))
       fail();
     const groupTransaction = batching

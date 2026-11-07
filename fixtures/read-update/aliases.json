@@ -540,7 +540,7 @@
           "type": "https://github.com/gastownhall/bdp/problems/conflict",
           "code": "identity-taken",
           "status": 409,
-          "retry": "never",
+          "retry": "after-state-change",
           "detail": "projects/alpha/tasks/t-1 is the path of a canonical Bead segment committed in this Scope"
         }
       }

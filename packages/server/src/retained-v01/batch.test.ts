@@ -28,6 +28,8 @@ function evaluate(operations: unknown[], baseline = initial) {
     () => false,
     () => false,
     "2026-11-02T16:00:00Z",
+    () => false,
+    () => [],
   );
 }
 const update = (properties: unknown, extra = {}) => ({
@@ -50,6 +52,8 @@ describe("selected batch1 admission and logical final state", () => {
       () => false,
       () => false,
       "2026-11-02T16:00:00Z",
+      () => false,
+      () => [],
     );
     expect(result.status).toBe(200);
     const refused = prepareBatch(scope, raw("9007199254740993"), "numeric");
@@ -61,6 +65,8 @@ describe("selected batch1 admission and logical final state", () => {
       () => false,
       () => false,
       "2026-11-02T16:00:00Z",
+      () => false,
+      () => [],
     );
     expect(failure.status).toBe(422);
     expect(failure.effects).toEqual([]);

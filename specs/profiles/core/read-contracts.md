@@ -62,7 +62,7 @@ The following helpers describe decoded query values or preliminary selection pre
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 86 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 87 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -149,6 +149,7 @@ The entry-point roots reach 86 named definitions in the canonical bundle. They a
 - [wireToken](bdp-v0.1.schema.md#schema-def-IndpcmVUb2tlbiI)
 - [writeAdvertisedLimits](bdp-v0.1.schema.md#schema-def-IndyaXRlQWR2ZXJ0aXNlZExpbWl0cyI)
 - [writeDiscovery](bdp-v0.1.schema.md#schema-def-IndyaXRlRGlzY292ZXJ5Ig)
+- [writeExceptionsCapabilityV1](bdp-v0.1.schema.md#schema-def-IndyaXRlRXhjZXB0aW9uc0NhcGFiaWxpdHlWMSI)
 - [writeOperationDirectory](bdp-v0.1.schema.md#schema-def-IndyaXRlT3BlcmF0aW9uRGlyZWN0b3J5Ig)
 
 ## Source and reproduction

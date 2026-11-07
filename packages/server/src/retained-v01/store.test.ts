@@ -483,7 +483,12 @@ describe("private retained Bead deletion", () => {
       resourceKind: "bead",
       resource: { id: before.id, type: before.type, revision: before.revision },
     };
-    expect(JSON.parse(result.text)).toEqual({ outcome: "deleted", changed: true, deleted });
+    expect(JSON.parse(result.text)).toEqual({
+      outcome: "deleted",
+      changed: true,
+      deleted,
+      removedAliases: [],
+    });
     expect(store.read(before.id)).toBeUndefined();
     const page = store.events("p", `${before.id}?view=events`, before.id, { limit: 20 });
     expect(page.events).toHaveLength(3);
@@ -497,9 +502,6 @@ describe("private retained Bead deletion", () => {
     expect(store.create("p", creation)).toEqual(created);
     expect(store.update("p", edit)).toEqual(updated);
     expect(store.update("p", noopInput)).toEqual(noop);
-    expect(JSON.parse(store.create("p", input("reuse", "projects/a")).text).code).toBe(
-      "identity-taken",
-    );
     expect(store.update("p", updateInput({ properties: {} }, "fresh-update")).status).toBe(404);
     expect(store.deleteBead("p", deleteInput({}, "fresh-delete")).status).toBe(404);
     expect(JSON.parse(store.deleteBead("p", deleteInput({}, "d")).text).code).toBe(
@@ -514,7 +516,11 @@ describe("private retained Bead deletion", () => {
     expect(reopened.update("p", noopInput)).toEqual(noop);
     expect(reopened.read(before.id)).toBeUndefined();
     expect(reopened.events("p", navigation.events, "", { limit: 20 }).events).toHaveLength(3);
-    expect(JSON.parse(reopened.create("p", input("reopen-reuse", "projects/a")).text).code).toBe(
+    const again = JSON.parse(reopened.create("p", input("reopen-reuse", "projects/a")).text);
+    expect(again.outcome).toBe("created");
+    expect(again.resource.id).toBe(before.id);
+    expect(again.resource.revision).not.toBe(before.revision);
+    expect(JSON.parse(reopened.create("p", input("live", "projects/a")).text).code).toBe(
       "identity-taken",
     );
   });

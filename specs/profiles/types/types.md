@@ -938,7 +938,9 @@ preconditions; conformance grants no permission to write.
 Schemas describe valid states. They do not by themselves describe every guarantee
 about state transitions. Generic writes are validated attempts unless the semantic
 contract supplies a stronger guarantee. No new operation-description language is
-selected by this draft.
+selected by this draft. A semantic contract MAY declare
+[deletion effects](../write/write.md#type-declared-deletion-effects) on surviving
+Beads; this adds no descriptor field, and a conforming Type preserves the promise.
 
 ### 3.8 Exact revisions and transitive requirements
 

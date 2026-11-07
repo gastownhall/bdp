@@ -1094,6 +1094,7 @@ describe("private Bead deletion wire witnesses", () => {
         resourceKind: "bead",
         resource: { id: before.id, type: before.type, revision: before.revision },
       },
+      removedAliases: [],
     });
     expect((await wire(server.listenUrl, before.id)).status).toBe(404);
     expect(
@@ -1114,10 +1115,6 @@ describe("private Bead deletion wire witnesses", () => {
         })
       ).text,
     ).toBe(updated.text);
-    const reused = await wire(server.listenUrl, directory.createBead, "POST", creation, {
-      "idempotency-key": "reuse",
-    });
-    expect(JSON.parse(reused.text).code).toBe("identity-taken");
     const subject = JSON.parse((await wire(server.listenUrl, `${original.id}?view=events`)).text);
     expect(validator.validate("#/$defs/retainedEventPage", subject)).toEqual([]);
     expect(subject.events).toHaveLength(3);
@@ -1126,6 +1123,23 @@ describe("private Bead deletion wire witnesses", () => {
       effect: { operation: "deleteBead", bead: original.id, deleted: result.deleted },
     });
     expect(subject.events[2]).not.toHaveProperty("previousRevision");
+    const again = await wire(server.listenUrl, directory.createBead, "POST", creation, {
+      "idempotency-key": "again",
+    });
+    expect(again.status).toBe(200);
+    const recreated = JSON.parse(again.text);
+    expect(validator.validate("#/$defs/mutationResult", recreated)).toEqual([]);
+    expect(recreated).toMatchObject({ outcome: "created", resource: { id: original.id } });
+    expect(recreated.resource.revision).not.toBe(before.revision);
+    const live = await wire(server.listenUrl, directory.createBead, "POST", creation, {
+      "idempotency-key": "live",
+    });
+    expect(JSON.parse(live.text).code).toBe("identity-taken");
+    const facts = JSON.parse((await wire(server.listenUrl, `${original.id}?view=events`)).text);
+    expect(validator.validate("#/$defs/retainedEventPage", facts)).toEqual([]);
+    expect(facts.events).toHaveLength(4);
+    expect(facts.events[3].effect).toMatchObject({ operation: "createBead", id: original.id });
+    expect(facts.events[3]).not.toHaveProperty("previousRevision");
   });
   it("admits deletion carrier syntax before capture and checks the Resource guard", async () => {
     const server = await fixture();
@@ -1141,7 +1155,7 @@ describe("private Bead deletion wire witnesses", () => {
       server.listenUrl,
       navigation.targets.deleteBead,
       "POST",
-      JSON.stringify({ bead: "task", revisionProvenance: {} }),
+      JSON.stringify({ bead: "task", revisionProvenance: { actor: 1 } }),
       { "idempotency-key": "d" },
     );
     expect(malformed.status).toBe(400);

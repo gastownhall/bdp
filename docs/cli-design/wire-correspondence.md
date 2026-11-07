@@ -22,6 +22,27 @@ with the original result. The client does not scan, reserve or retry guessed IDs
 The same root field is available in the feature's explicit atomic-batch1
 composition; unextended batch1 remains closed and unchanged.
 
+The proposed [`bd delete` deletion-mode flags](bdp-cli.md#proposed-deletion-mode-flags)
+send `beads`, `blockedBy`, `cascade` and `dryRun` under independently selected
+[delete-modes1](../../specs/profiles/write/write.md#optional-deletion-modes-version-1),
+on the existing `deleteBead` URL, with no batch capability. Beads OSS `bd delete` lowers
+to them as follows. One ID uses `bead` and several distinct IDs use `beads`.
+
+| Native request | BDP members |
+| --- | --- |
+| Guarded (no `force`, no `cascade`) | `blockedBy:"inbound"` |
+| `force` | `blockedBy:"none"` |
+| `cascade`, with or without `force` | `blockedBy:"none"`, `cascade:{through:[{type:PARENT_CHILD,match:"exact"}]}` |
+| `dry_run` beside any of these | The same members plus `dryRun:true` |
+| `expected_version` on one ID | `expectedRevision` on that member |
+
+Native `Orphaned` is computed from `removedLinks`: the sources of removed Links whose
+target is deleted and whose source survives. Native `Dependencies` is the length of
+`removedLinks`. Native `ReferencesUpdated` corresponds to the `updated` rows of
+survivors a [declared deletion effect](../../specs/profiles/write/write.md#type-declared-deletion-effects)
+changed. Native `actor` corresponds to `revisionProvenance`. Native `Labels` and `Events`
+counts have no BDP field.
+
 An unpinned authored Type URI is resolved by the service during Types admission.
 An exact authored Type pin stays exact. Creation requires no client definition
 lookup or client choice of a registered default. Same-key recovery retains the
@@ -56,6 +77,7 @@ and can use an explicitly supplied exact token instead.
 | --- | --- |
 | Exact Type-definition lookup | Selected wire interpreter operation; public Type CLI deferred. Ordinary show cannot silently substitute for it. |
 | Rich selection/set batch | CLI direction and local implementation exceed retained CRUD batch1. The separate proposed encoder2 is not selected wire support; id-root1 does not activate it. |
+| Deletion modes | Selected wire capability; the [`bd delete` flags](bdp-cli.md#proposed-deletion-mode-flags) are proposed and unregistered. |
 | Count/query/graph | Feature-owned reconciliation remains separate. Retained inventory GET has no count result; page length is not an exact total. |
 
 These are completion items, not permissions to invent endpoints or weaken

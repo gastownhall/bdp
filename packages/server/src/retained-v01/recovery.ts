@@ -6,6 +6,7 @@ import { captureAliasNamespace } from "./alias-contract.js";
 import type { AliasWitness } from "./alias-witness.js";
 import { verifyGroupedRecovery } from "./batch-recovery.js";
 import {
+  blocksBeadDeletion,
   canonicalCreatedId,
   deletedIdentity,
   eventDeleted,
@@ -13,6 +14,7 @@ import {
   ORDINARY_OPERATIONS,
   type PrivateNavigation,
   type ResourceKind,
+  linkEndpointsStand,
   type ResourceState,
   type RetainedBead,
   type RetainedLink,
@@ -150,7 +152,9 @@ function verifySingletonRecovery(
     const version = versionRow === undefined ? undefined : JSON.parse(String(versionRow.body));
     const terminal = version?.terminal;
     const historicalContext = version?.historicalUpdate;
-    const recovered = historical && kind === "bead" && tombstones.has(id) && !deleting;
+    const recovered =
+      historical && kind === "bead" && tombstones.has(id) && operation === "updateBead";
+    const recreated = kind === "bead" && tombstones.has(id) && operation === "createBead";
     if (historical && kind === "bead") {
       historicalCount++;
       if (
@@ -187,7 +191,7 @@ function verifySingletonRecovery(
       row.subject !== id ||
       fact.source !== source ||
       fact.representation !== "postimage" ||
-      (tombstones.has(id) && !recovered) ||
+      (tombstones.has(id) && !recovered && !recreated) ||
       !get("SELECT token FROM boundaries WHERE position=?", position)
     )
       throw new Error("inconsistent retained Event chain");
@@ -215,8 +219,11 @@ function verifySingletonRecovery(
         [...latest.values()].some(
           (state) =>
             state.kind === "link" &&
-            [state.resource.source, state.resource.target].some(
-              (reference) => referenceUri(reference) === id,
+            blocksBeadDeletion(
+              state.resource,
+              id,
+              scope,
+              (uri) => latest.get(uri)?.kind === "bead",
             ),
         )
       )
@@ -236,12 +243,16 @@ function verifySingletonRecovery(
               revision: terminal.revision,
               state: "deleted",
               previousRevision: before.resource.revision,
+              ...(terminal.revisionProvenance === undefined
+                ? {}
+                : { revisionProvenance: terminal.revisionProvenance }),
             })
         )
           throw new Error("invalid terminal version lineage");
         revisions.get(id)?.add(terminal.revision);
         terminalTokens.set(id, terminal.revision);
       }
+      // Which aliases were removed is checked against the alias chain below.
       expectedResult = { outcome: "deleted", changed: true, deleted };
       tombstones.set(id, deleted);
       latest.delete(id);
@@ -264,8 +275,19 @@ function verifySingletonRecovery(
           ? { kind, resource: resource as RetainedBead }
           : { kind, resource: resource as RetainedLink };
       if (after.kind === "link") {
-        const local = incidentBeads(scope, after);
-        if (!local.length || local.some((uri) => latest.get(uri)?.kind !== "bead"))
+        const link = after.resource;
+        const prior = before?.kind === "link" ? before.resource : undefined;
+        const liveBead = (uri: string) => latest.get(uri)?.kind === "bead";
+        // Only an endpoint this transition kept may be a deleted Bead, under its pin.
+        const introducedDeleted = (["source", "target"] as const).some((side) => {
+          const uri = referenceUri(link[side]);
+          return (
+            uri.startsWith(scope) &&
+            !liveBead(uri) &&
+            (prior === undefined || serialized(prior[side]) !== serialized(link[side]))
+          );
+        });
+        if (introducedDeleted || !linkEndpointsStand(link, scope, liveBead))
           throw new Error("retained Link has no admissible live local endpoint");
       }
       const states = versions.get(id) ?? new Set<string>();
@@ -281,8 +303,8 @@ function verifySingletonRecovery(
         const bodies = historicalBodies.get(id) ?? new Map<string, unknown>();
         bodies.set(resource.revision, resource);
         historicalBodies.set(id, bodies);
-        tombstones.delete(id);
       }
+      tombstones.delete(id);
       expectedResult = {
         outcome: before || recovered ? "updated" : "created",
         changed: true,
@@ -303,6 +325,11 @@ function verifySingletonRecovery(
       "SELECT operation,status,body FROM outcomes WHERE event_position=?",
       position,
     );
+    if (deleting && kind === "bead" && outcome !== undefined)
+      expectedResult = {
+        ...(expectedResult as object),
+        removedAliases: JSON.parse(String(outcome.body)).removedAliases,
+      };
     if (
       outcome?.operation !== operation ||
       outcome.status !== 200 ||
@@ -434,13 +461,7 @@ function verifySingletonRecovery(
       if (result.changed === true && row.event_position !== ++transition)
         throw new Error("retained decision and Event orders differ");
       if (result.outcome === "deleted") {
-        const deleted = historical ? result.deleted : tombstones.get(result.deleted?.resource?.id);
-        if (
-          !deleted ||
-          result.changed !== true ||
-          row.event_position === null ||
-          serialized(result.deleted) !== serialized(deleted)
-        )
+        if (!result.deleted || result.changed !== true || row.event_position === null)
           throw new Error("inconsistent retained deletion outcome");
         const before = live.get(result.deleted.resource.id);
         if (
@@ -449,6 +470,18 @@ function verifySingletonRecovery(
           serialized(deletedIdentity(before)) !== serialized(result.deleted)
         )
           throw new Error("invalid retained deletion order");
+        if (before.kind === "bead") {
+          const removed = [...aliases]
+            .filter(([, target]) => target === before.resource.id)
+            .map(([locator]) => locator)
+            .sort();
+          if (
+            !Array.isArray(result.removedAliases) ||
+            serialized(result.removedAliases) !== serialized(removed)
+          )
+            throw new Error("inconsistent retained alias removal");
+          for (const locator of removed) aliases.delete(locator);
+        }
         live.delete(result.deleted.resource.id);
       } else if (
         !versions.get(result.resource?.id)?.has(serialized(result.resource)) ||
@@ -466,7 +499,7 @@ function verifySingletonRecovery(
         if (result.outcome === "created") {
           if (
             before ||
-            committed.has(id) ||
+            (committed.has(id) && (kind !== "bead" || committed.get(id) !== "bead")) ||
             aliases.has(id) ||
             row.operation !== `create${kind === "bead" ? "Bead" : "Link"}`
           )
