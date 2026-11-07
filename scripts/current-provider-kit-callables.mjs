@@ -5,7 +5,6 @@
  * Callable, which arguments) because no outside observer can find one; it never supplies an
  * expected answer, and every expectation here is the specification's.
  */
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { assertValidDeclaration } from "./generate-callable-catalog.mjs";
@@ -1424,7 +1423,3 @@ export async function runOptionalRows({
   });
   return finish();
 }
-export const callablesKitSourceDigest = async () =>
-  createHash("sha256")
-    .update(await readFile(new URL(import.meta.url)))
-    .digest("hex");

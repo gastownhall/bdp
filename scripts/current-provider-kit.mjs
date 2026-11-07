@@ -359,6 +359,9 @@ export async function runCurrentProvider(provision, { allowMutation = true, exce
     const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
     report.inputs = {
       caseSourceSha256: sha256(caseSource),
+      optionalCaseSourceSha256: sha256(
+        await readFile(new URL("./current-provider-kit-callables.mjs", import.meta.url)),
+      ),
       coreProseSha256: sha256(coreProse),
       writeProseSha256: sha256(writeProse),
       schemaSha256: report.schemaSha256,
