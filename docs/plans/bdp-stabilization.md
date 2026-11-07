@@ -177,3 +177,6 @@ selected contract and immutable source pins, CLI/SDK correspondence, qualificati
 receipts, limitations, and named remaining product work. Native Beads delivery,
 public BDP support, draft design and verified implementation remain separate
 claims.
+
+The [engineering flow plan](engineering-flow.md) is a draft of how each stage lands
+on both sides of the pin; its marked choices await Donna's rulings.
