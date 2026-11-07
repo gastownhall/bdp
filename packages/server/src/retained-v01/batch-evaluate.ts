@@ -1,6 +1,9 @@
 /** One in-memory working graph; persistence happens only after complete admission. */
 import { randomUUID } from "node:crypto";
-import { parseRetainedRevisionProvenanceInput, type RetainedRevisionProvenanceInput } from "@bdp/protocol";
+import {
+  parseRetainedRevisionProvenanceInput,
+  type RetainedRevisionProvenanceInput,
+} from "@bdp/protocol";
 import { jsonValueEqual } from "../json-value-equality.js";
 import {
   BATCH_LIMITS,
