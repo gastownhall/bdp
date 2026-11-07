@@ -622,8 +622,7 @@ unsupported faithful lowering fails rather than doing a client read/modify/write
 See [complete object-edit rules](object-edits.md).
 
 `--revision-provenance JSON` supplies attribution input where the operation
-admits it. It is separate from a Resource's metadata, revision selection and write guards.
-Its open `metadata` member is data about this change, written by the caller.
+admits it. It is separate from metadata, revision selection and write guards.
 It neither invents a revision nor makes an otherwise empty update valid.
 Bead deletion does not accept it; Link deletion may attribute an induced owner
 revision. The provider determines whether any fresh version is produced.
@@ -765,7 +764,7 @@ bd create --retry-file FILE
 | `--id-root ROOT` | Ordinary allocation | Allocate beneath a local prefix where the adapter supports it. See [creation IDs](#creation-ids). |
 | `--properties JSON` | `{}` | Initialize properties. See [object inputs](#object-inputs). |
 | `--metadata JSON` | `{}` | Initialize metadata. See [object inputs](#object-inputs). |
-| `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input, which may include an open `metadata` object about this change. See [object inputs](#object-inputs). |
 | `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |
