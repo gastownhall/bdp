@@ -353,6 +353,14 @@ describe("rows 14, 15 and 18: short Type names, and the show head", () => {
       const listed = seen.find(({ url }) => url.pathname === "/bdp/beads")?.url.searchParams;
       expect(listed?.get("conformsTo")).toBe(FAMILY);
       expect(listed?.get("type")).toBe(TASK);
+      // A name BDP does not publish reads against the Scope's own types/.
+      seen.length = 0;
+      await expect(
+        runBdp(["--scope", scope, "list", "--exact-type", "issue/research"]),
+      ).resolves.toBe(0);
+      expect(
+        seen.find(({ url }) => url.pathname === "/bdp/beads")?.url.searchParams.get("type"),
+      ).toBe(`${scope}types/issue/research`);
     });
   });
 });

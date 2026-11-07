@@ -1,3 +1,4 @@
+import { BDP_PUBLISHED_TYPE_NAMES, BDP_PUBLISHED_TYPES } from "@bdp/bd-domain";
 import {
   type AdmittedJsonValue,
   admitJsonNumbers,
@@ -91,16 +92,30 @@ function absolute(input: string, scope: string): string {
   return result;
 }
 const NAME = /^[A-Za-z][A-Za-z0-9_-]*$/;
-/** Where the short Type names this client reads and prints live (rows 14 and 18 of Donna's
- * manual pass): `issue/task` is `https://github.com/gastownhall/bdp/types/issue/task`. */
-export const BDP_TYPES = "https://github.com/gastownhall/bdp/types/";
-/** A Type operand: an absolute URL stays literal, and anything else is a short name under
- * {@link BDP_TYPES}, never under the command Scope, with the same revision suffixes. */
+/** Where the Types BDP publishes live: `issue/task` is
+ * `https://github.com/gastownhall/bdp/types/issue/task`. */
+export const BDP_TYPES = BDP_PUBLISHED_TYPES;
+/** Where a Scope's own Types live (Core reserves `<scope>types/`; Issue §2). */
+export const scopeTypes = (scope: string): string => `${scope}types/`;
+/** The base a short Type name reads against: BDP's, for a name BDP publishes, which wins a
+ * collision; otherwise the bound Scope's `types/`. */
+export function shortTypeBase(name: string, scope: string): string {
+  return BDP_PUBLISHED_TYPE_NAMES.has(name) ? BDP_TYPES : scopeTypes(scope);
+}
+/** A Type operand: an absolute URL stays literal, and anything else is a short name, read
+ * against {@link shortTypeBase} with the same revision suffixes (rows 14 and 18). Nothing is
+ * fetched; the server judges the expansion. */
 export function parseCanonicalTypeReference(
   input: string,
+  scope: string,
   policy: { readonly mutationSubject?: boolean } = {},
 ): CanonicalReference {
-  return parseCanonicalReference(input, BDP_TYPES, policy);
+  parseCanonicalScope(scope);
+  if (/^https?:\/\//i.test(input) || input.startsWith("["))
+    return parseCanonicalReference(input, scope, policy);
+  const at = input.indexOf("@");
+  const name = at < 0 ? input : input.slice(0, at);
+  return parseCanonicalReference(input, shortTypeBase(name, scope), policy);
 }
 /** No lookup: ordinals/current selection deliberately refuse at this offline boundary. */
 export function parseCanonicalReference(
@@ -387,7 +402,7 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   const alias = operation === "putAlias" || operation === "deleteAlias";
   const link = operation.endsWith("Link");
   if (batch && alias) return refuse("atomic-batch1 admits six CRUD operations, not aliases");
-  const typeRef = (value: string): CanonicalReference => parseCanonicalTypeReference(value);
+  const typeRef = (value: string): CanonicalReference => parseCanonicalTypeReference(value, scope);
   const ref = (
     value: string,
     mutationSubject = false,

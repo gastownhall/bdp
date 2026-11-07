@@ -279,13 +279,24 @@ describe("canonical delivery framing and human References", () => {
     const long = renderCanonicalOutput(bead, { long: true }, scope);
     expect(long).toContain("Type: https://github.com/gastownhall/bdp/types/issue/task\n");
     expect(long).toContain(`ID: ${scope}man-c0o\n`);
-    // A Type outside the BDP Types prints in full, so that --type reads back what is printed.
-    const local = renderCanonicalOutput(
-      { ...bead, data: { ...(bead.data as object), type: `${scope}types/local` } },
-      {},
-      scope,
+    // A Scope-local Type prints short against the Scope's types/; one under neither base, and a
+    // local Type a BDP name shadows, print in full, so what is printed reads back as --type.
+    const typed = (type: string, options: Record<string, unknown> = {}) =>
+      renderCanonicalOutput(
+        { ...bead, data: { ...(bead.data as object), type } },
+        options,
+        scope,
+      ).split("\n")[1];
+    expect(typed(`${scope}types/issue/research`)).toBe("Type: issue/research");
+    expect(typed(`${scope}types/issue/research`, { long: true })).toBe(
+      `Type: ${scope}types/issue/research`,
     );
-    expect(local).toContain(`Type: ${scope}types/local\n`);
+    expect(typed("https://types.example/Note")).toBe("Type: https://types.example/Note");
+    expect(typed(`${scope}types/issue/spike`)).toBe(`Type: ${scope}types/issue/spike`);
+    expect(typed("https://github.com/gastownhall/bdp/types/issue/spike")).toBe("Type: issue/spike");
+    expect(typed("https://github.com/gastownhall/bdp/types/issue/unknown")).toBe(
+      "Type: https://github.com/gastownhall/bdp/types/issue/unknown",
+    );
     expect(
       renderCanonicalOutput(
         { ...bead, result_kind: "resource_collection", data: { items: [bead.data], next: null } },

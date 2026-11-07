@@ -592,8 +592,9 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
           [
             command.description(),
             "",
-            "--type takes a BDP Type by its short name, such as issue/task, or any Type by its",
-            "full URL. The Scope and the Type decide which properties are required and what a",
+            "--type takes a short Type name, such as issue/task (a Type BDP publishes) or",
+            "issue/research (the Scope's own, under its types/), or a full Type URL. The",
+            "Scope and the Type decide which properties are required and what a",
             "supplied --id must look like; this client knows neither. Supply properties with",
             "--properties, and omit --id to let the Scope allocate one. A refusal lists what",
             "the Scope says is missing or wrong.",

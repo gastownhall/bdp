@@ -536,14 +536,22 @@ flag or Type lifecycle command is implied.
 On create and update, `--type` chooses the Type of the Bead or Link being
 written. On a read command, Type flags filter the results.
 
-A Type operand is a full Type URL, or a short name: the path after
-`https://github.com/gastownhall/bdp/types/`, such as `issue/task` for
-`https://github.com/gastownhall/bdp/types/issue/task`. A short name never resolves
-under the command Scope; a Scope's own Type is spelled as its full URL. The same rule
-applies to `--type` and `--exact-type` on every command that takes them, with the
-shared revision suffixes: `issue/task@=TOKEN`. Human output prints a BDP Type by
-the same short name, and any other Type in full, so that what is printed reads back
-as a Type operand; `--long` prints every Type in full. Structured output keeps full
+<a id="short-type-names"></a>
+
+A Type operand is a full Type URL, used as given, or a short name relative to one of
+two bases. A short name BDP publishes, such as `issue/task`, reads against
+`https://github.com/gastownhall/bdp/types/`. Any other short name reads against the
+bound Scope's `types/`, which Core reserves for Scope-local Types: a configured
+custom classification `issue/research` is `<scope>types/issue/research`
+([Issue §2](../../specs/types/issue/issue.md#2-bead-and-link-types)). The client
+knows what BDP publishes from the catalog it ships and fetches nothing to decide; the
+server judges the expansion and refuses one it does not know. A BDP-published name
+wins a collision, so a Scope-local Type with the same name as a BDP-published one,
+such as a local `issue/spike`, needs its full URL. The rule applies to `--type` and
+`--exact-type` on every command that takes them, with the shared revision suffixes:
+`issue/task@=TOKEN`. Human output strips whichever base reads back to the same Type,
+so `issue/task` and a local `issue/research` both print short, and prints any other
+Type in full; `--long` prints every Type in full. Structured output keeps full
 references.
 
 The Issue package's `issue/issue` and `dependency/dependency` Types are abstract:

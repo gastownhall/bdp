@@ -1,5 +1,6 @@
 import type { RetainedHttpContext } from "@bdp/client";
-import { BDP_TYPES } from "./canonical-input.js";
+import { BDP_PUBLISHED_TYPE_NAMES } from "@bdp/bd-domain";
+import { BDP_TYPES, scopeTypes, shortTypeBase } from "./canonical-input.js";
 
 export interface CanonicalOutput {
   readonly schema_version: 2;
@@ -46,18 +47,29 @@ function ref(value: unknown, scope?: string, long = false): string {
   }
   return !long && scope && value.startsWith(scope) ? value.slice(scope.length) : value;
 }
-/** A Type for people: a BDP Type by its short name (`issue/task`), any other Type in full so
- * that what is printed is what `--type` reads back. `--long` prints every Type in full. */
-export function typeRef(value: unknown, long = false): string {
+/** A Type for people: its short name when it sits under BDP's published Types or the Scope's
+ * `types/` and reads back to the same Type (rows 14 and 18), else its full URL. `--long` prints
+ * every Type in full. */
+export function typeRef(value: unknown, long = false, scope?: string): string {
   if (typeof value !== "string") {
     const pinned = record(value);
     if (typeof pinned.uri !== "string") return "";
-    const identity = typeRef(pinned.uri, long);
+    const identity = typeRef(pinned.uri, long, scope);
     return `${/^https?:\/\//.test(identity) ? `[${identity}]` : identity}@=${String(pinned.revision)}`;
   }
-  return !long && value.startsWith(BDP_TYPES) && value.length > BDP_TYPES.length
-    ? value.slice(BDP_TYPES.length)
-    : value;
+  if (long) return value;
+  for (const base of [BDP_TYPES, ...(scope === undefined ? [] : [scopeTypes(scope)])]) {
+    const name = value.startsWith(base) ? value.slice(base.length) : "";
+    if (name !== "" && scope !== undefined && shortTypeBase(name, scope) === base) return name;
+    if (
+      name !== "" &&
+      scope === undefined &&
+      base === BDP_TYPES &&
+      BDP_PUBLISHED_TYPE_NAMES.has(name)
+    )
+      return name;
+  }
+  return value;
 }
 /** The labeled head `bdp show` and a Callable's record result share: `ID:`, `Type:`, `Title:`,
  * `Revision:`, in that order, each only when present. */
@@ -68,7 +80,9 @@ function recordHeader(
 ): string[] {
   return [
     ...(fields.id === undefined ? [] : [`ID: ${terminalText(ref(fields.id, scope, long))}`]),
-    ...(fields.type === undefined ? [] : [`Type: ${terminalText(typeRef(fields.type, long))}`]),
+    ...(fields.type === undefined
+      ? []
+      : [`Type: ${terminalText(typeRef(fields.type, long, scope))}`]),
     ...(typeof fields.title === "string" ? [`Title: ${terminalText(fields.title)}`] : []),
     ...(fields.revision === undefined ? [] : [`Revision: ${plain(fields.revision)}`]),
   ];
@@ -81,7 +95,7 @@ export function resourceRows(items: readonly unknown[], scope?: string, long = f
       p = record(r.properties);
     return [
       ref(r.id, scope, long),
-      typeRef(r.type, long),
+      typeRef(r.type, long, scope),
       typeof p.title === "string" ? p.title : "",
       ...(links ? [ref(r.source, scope, long), ref(r.target, scope, long)] : []),
       ...(status ? [p.status === undefined ? "" : String(p.status)] : []),
@@ -115,7 +129,7 @@ export function resourceRows(items: readonly unknown[], scope?: string, long = f
 function document(value: unknown, scope?: string, long = false): string {
   const r = record(value),
     p = record(r.properties);
-  const cut: RenderPass = { shortened: false, long };
+  const cut: RenderPass = { shortened: false, long, ...(scope === undefined ? {} : { scope }) };
   const lines = recordHeader(
     { id: r.id, type: r.type, title: p.title, revision: r.revision },
     scope,
@@ -257,10 +271,13 @@ const plain = (value: unknown): string =>
 interface RenderPass {
   shortened: boolean;
   readonly long?: boolean;
+  readonly scope?: string;
 }
 /** A member named `type` holding a BDP Type URL prints by its short name, as everywhere else. */
 const shown = (key: string, value: unknown, cut: RenderPass): unknown =>
-  key === "type" && typeof value === "string" ? typeRef(value, cut.long === true) : value;
+  key === "type" && typeof value === "string"
+    ? typeRef(value, cut.long === true, cut.scope)
+    : value;
 
 /** Rows of one record kind. A column empty in every row says nothing and is left out. */
 function callableTable(rows: readonly ObjectValue[], cut: RenderPass): string[] {
@@ -371,7 +388,7 @@ export function renderHumanFailure(failure: CanonicalOutput): string {
  * record result (one with `id`, `title` or `revision`) opens with the labeled head `bdp show`
  * prints, and every other member follows as `key: value` lines (row 16). */
 function callableResultText(data: ObjectValue, long = false, scope?: string): string {
-  const cut: RenderPass = { shortened: false, long };
+  const cut: RenderPass = { shortened: false, long, ...(scope === undefined ? {} : { scope }) };
   const result = record(data.result);
   // The envelope says `changed`, and a product's own result may too. One line when they agree;
   // when they do not, both, because which of them is right is not this client's to pick.

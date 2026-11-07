@@ -9,6 +9,7 @@ import {
   parseCanonicalTypeReference,
   type CanonicalInputRequest,
 } from "./canonical-input.js";
+import { BDP_PUBLISHED_TYPE_NAMES } from "@bdp/bd-domain";
 
 const scope = "https://work.example/acme/";
 const compile = (
@@ -105,20 +106,63 @@ describe("canonical References without lookup", () => {
 });
 
 describe("canonical ordinary mutation compilation", () => {
-  it("reads a short Type name under the BDP Types, and a full Type URL as written (row 18)", async () => {
+  it("reads a short Type name against BDP's published Types, then the Scope's types/ (rows 14 and 18)", async () => {
     const task = "https://github.com/gastownhall/bdp/types/issue/task";
     expect(BDP_TYPES).toBe("https://github.com/gastownhall/bdp/types/");
-    expect(parseCanonicalTypeReference("issue/task")).toBe(task);
-    expect(parseCanonicalTypeReference(task)).toBe(task);
-    expect(parseCanonicalTypeReference("issue/task@=t1")).toEqual({ uri: task, revision: "t1" });
-    expect(parseCanonicalTypeReference(`[${task}]@=t1`)).toEqual({ uri: task, revision: "t1" });
-    // A Scope's own Type is spelled in full: a short name never resolves under the Scope.
-    expect(parseCanonicalTypeReference(`${scope}types/local`)).toBe(`${scope}types/local`);
-    expect(await body(compile("create", { type: "issue/task" }))).toEqual({ type: task });
-    expect(await body(compile("update", { type: "issue/bug" }, ["note"]))).toEqual({
-      bead: `${scope}note`,
-      type: `${BDP_TYPES}issue/bug`,
+    // A Type BDP publishes.
+    expect(parseCanonicalTypeReference("issue/task", scope)).toBe(task);
+    expect(parseCanonicalTypeReference("issue/task@=t1", scope)).toEqual({
+      uri: task,
+      revision: "t1",
     });
+    expect(await body(compile("create", { type: "issue/task" }))).toEqual({ type: task });
+    // A Scope-local Type: a configured custom classification (Issue §2).
+    expect(parseCanonicalTypeReference("issue/research", scope)).toBe(
+      `${scope}types/issue/research`,
+    );
+    expect(parseCanonicalTypeReference("issue/research@=r2", scope)).toEqual({
+      uri: `${scope}types/issue/research`,
+      revision: "r2",
+    });
+    expect(await body(compile("update", { type: "dependency/reviews" }, ["note"]))).toEqual({
+      bead: `${scope}note`,
+      type: `${scope}types/dependency/reviews`,
+    });
+    // A full URL under neither base is used as given.
+    expect(parseCanonicalTypeReference("https://types.example/Note", scope)).toBe(
+      "https://types.example/Note",
+    );
+    expect(parseCanonicalTypeReference(`[${task}]@=t1`, scope)).toEqual({
+      uri: task,
+      revision: "t1",
+    });
+    // A collision: BDP's published name wins, so a local issue/spike needs its full URL.
+    expect(parseCanonicalTypeReference("issue/spike", scope)).toBe(`${BDP_TYPES}issue/spike`);
+    expect(parseCanonicalTypeReference(`${scope}types/issue/spike`, scope)).toBe(
+      `${scope}types/issue/spike`,
+    );
+  });
+  it("knows every Issue, Dependency, Callable and type-system Type the specifications publish", async () => {
+    const { readFile, readdir } = await import("node:fs/promises");
+    const root = new URL("../../../specs/", import.meta.url);
+    const texts: string[] = [];
+    const walk = async (directory: URL): Promise<void> => {
+      for (const entry of await readdir(directory, { withFileTypes: true })) {
+        const child = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directory);
+        if (entry.isDirectory()) await walk(child);
+        else if (entry.name.endsWith(".md")) texts.push(await readFile(child, "utf8"));
+      }
+    };
+    await walk(new URL("types/", root));
+    await walk(new URL("profiles/", root));
+    const published = new Set(
+      texts.flatMap((text) =>
+        [
+          ...text.matchAll(/https:\/\/github\.com\/gastownhall\/bdp\/types\/([a-z-]+\/[a-z-]+)/g),
+        ].map((match) => match[1] as string),
+      ),
+    );
+    expect([...published].sort()).toEqual([...BDP_PUBLISHED_TYPE_NAMES].sort());
   });
   it("creates with full IDs, exact Type pin, explicit null/presence and literal nested data", async () => {
     expect(
@@ -131,14 +175,14 @@ describe("canonical ordinary mutation compilation", () => {
         }),
       ),
     ).toEqual({
-      type: { uri: `${BDP_TYPES}Task`, revision: "t1" },
+      type: { uri: `${scope}types/Task`, revision: "t1" },
       id: `${scope}notes/item`,
       properties: { nullable: null, literal: "batch-ref::x", ["__proto__"]: { safe: true } },
       metadata: {},
     });
-    expect(await body(compile("create", { type: "Task" }))).toEqual({ type: `${BDP_TYPES}Task` });
+    expect(await body(compile("create", { type: "Task" }))).toEqual({ type: `${scope}types/Task` });
     expect(await body(compile("create", { type: "Task", idRoot: "notes" }))).toEqual({
-      type: `${BDP_TYPES}Task`,
+      type: `${scope}types/Task`,
       idRoot: "notes",
     });
   });
@@ -256,7 +300,7 @@ describe("canonical ordinary mutation compilation", () => {
       [{ type: "Relates", from: "a@=a1", to: "b" }, []],
     ] as const)
       expect(await body(compile("link create", options, args))).toEqual({
-        type: `${BDP_TYPES}Relates`,
+        type: `${scope}types/Relates`,
         source: { uri: `${scope}a`, revision: "a1" },
         target: `${scope}b`,
       });
@@ -369,7 +413,11 @@ describe("frozen JSON inputs and finite offline member emission", () => {
         reader: { readFile, readStdin },
       }),
     );
-    expect(result).toEqual({ type: `${BDP_TYPES}Task`, properties: { v: 1 }, metadata: { v: 1 } });
+    expect(result).toEqual({
+      type: `${scope}types/Task`,
+      properties: { v: 1 },
+      metadata: { v: 1 },
+    });
     expect(readFile).toHaveBeenCalledTimes(1);
     expect(readFile.mock.calls[0]?.length).toBe(2);
     await expect(
@@ -407,7 +455,7 @@ describe("frozen JSON inputs and finite offline member emission", () => {
     expect(JSON.parse(result.batchMemberText ?? "null")).toEqual({
       operation: "createLink",
       name: "edge",
-      type: { uri: `${BDP_TYPES}Relates`, revision: "t1" },
+      type: { uri: `${scope}types/Relates`, revision: "t1" },
       source: "@a",
       target: { uri: `${scope}b`, revision: "r1" },
     });
@@ -460,7 +508,7 @@ describe("exact historical Bead Update compilation", () => {
       bead: `${scope}note`,
       fromRevision: "9223372036854775808",
       expectedRevision: "9223372036854775808",
-      type: { uri: `${BDP_TYPES}Task`, revision: "9223372036854775808" },
+      type: { uri: `${scope}types/Task`, revision: "9223372036854775808" },
     });
   });
   it("preserves ordinary explicit Type and object edits alongside the source", async () => {
@@ -475,7 +523,7 @@ describe("exact historical Bead Update compilation", () => {
     ).toEqual({
       bead: `${scope}note`,
       fromRevision: "R1",
-      type: `${BDP_TYPES}CurrentType`,
+      type: `${scope}types/CurrentType`,
       propertiesChange: [{ op: "add", path: "/title", value: "edited" }],
     });
   });

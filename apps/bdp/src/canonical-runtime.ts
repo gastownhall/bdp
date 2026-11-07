@@ -840,7 +840,7 @@ export async function runCanonicalInvocation(
             return refuse("invalid_value", 2, "--exact-type any is not admitted");
           const ref =
             flag === "exactType" || flag === "type"
-              ? parseCanonicalTypeReference(raw, { mutationSubject: true })
+              ? parseCanonicalTypeReference(raw, scope, { mutationSubject: true })
               : parseCanonicalReference(raw, scope, {
                   mutationSubject: true,
                   allowOpaqueUri: true,
