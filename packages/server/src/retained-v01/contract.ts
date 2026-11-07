@@ -722,7 +722,9 @@ export function prepareDelete(scope: string, text: string, key: string): Prepare
   let provenance: RetainedRevisionProvenanceInput | undefined;
   if (input.revisionProvenance !== undefined) {
     try {
-      provenance = parseRetainedRevisionProvenanceInput(snapshotJsonValue(input.revisionProvenance));
+      provenance = parseRetainedRevisionProvenanceInput(
+        snapshotJsonValue(input.revisionProvenance),
+      );
     } catch {
       throw new RetainedRequestError("malformed-request", 400);
     }
