@@ -17,7 +17,7 @@ const navigation = {
   beads: "https://point-list.invalid/nodes",
   links: "https://point-list.invalid/edges",
   aliases: `${scope}names/`,
-  events: "https://point-events.invalid/facts",
+  events: `${scope}bdp/events`,
   operations: "https://point-nav.invalid/verbs?edition=%2B%2f",
   targets: {
     createBead: "https://point-write.invalid/a",

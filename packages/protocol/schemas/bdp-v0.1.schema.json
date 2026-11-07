@@ -5875,7 +5875,7 @@
               }
             }
           ],
-          "description": "Supported Events versions; detail states the source, offers, families and representations."
+          "description": "Supported Events versions; detail states offers, families and representations."
         },
         "https://github.com/gastownhall/bdp/capabilities/idempotency": {
           "allOf": [
@@ -6771,13 +6771,15 @@
       "description": "Events capability detail. It helps a reader choose a source; each page's policy still states its own level and completeness.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "offers", "representations"],
       "properties": {
         "families": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "description": "Non-Resource families this source publishes. Absence means it publishes none."
         },
         "offers": {
@@ -6788,8 +6790,12 @@
             "additionalProperties": false,
             "required": ["level", "complete"],
             "properties": {
-              "level": {"enum": ["current", "history"]},
-              "complete": {"type": "boolean"}
+              "level": {
+                "enum": ["current", "history"]
+              },
+              "complete": {
+                "type": "boolean"
+              }
             }
           },
           "description": "What this source offers: a level paired with whether it is complete."
@@ -6798,15 +6804,16 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "contains": {"const": "postimage"},
-          "items": {"enum": ["postimage", "delta"]},
+          "contains": {
+            "const": "postimage"
+          },
+          "items": {
+            "enum": ["postimage", "delta"]
+          },
           "description": "Supported Event representations, necessarily including postimage."
-        },
-        "source": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Absolute Scope Event source URL."
         }
-      }
+      },
+      "required": ["offers", "representations"]
     },
     "retainedEventQuery": {
       "description": "Decoded finite Event query. From and after are mutually exclusive; selection, cursor binding and raw HTTP duplicate-parameter refusal remain semantic rules.",

@@ -59,7 +59,7 @@ describe("private local Reference normalization with strict creation spelling", 
       description: `${scope}about`,
       beads: `${scope}nodes`,
       links: `${scope}edges`,
-      events: `${scope}facts`,
+      events: `${scope}bdp/events`,
       operations: `${scope}commands`,
       targets: {
         createBead: `${scope}c1`,
@@ -236,7 +236,7 @@ describe("private retained creation admission", () => {
         beads: `${scope}b`,
         links: `${scope}l`,
         aliases: `${scope}a`,
-        events: `${scope}e`,
+        events: `${scope}bdp/events`,
         operations: `${scope}o`,
         targets: {
           createBead: target,

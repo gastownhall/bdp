@@ -27,7 +27,7 @@ const navigation = {
   beads: "https://inventory.invalid/bead-set?tenant=one",
   links: "https://inventory.invalid/link-set?tenant=one",
   aliases: `${scope}names/`,
-  events: "https://observations.invalid/stream?tenant=one",
+  events: `${scope}bdp/events`,
   operations: "https://navigation.invalid/invocations?tenant=one",
   targets: {
     createBead: "https://commands.invalid/insert?tenant=one",
@@ -288,7 +288,9 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     const read = await wire(server.listenUrl, result.resource.id);
     expect(JSON.parse(read.text)).toEqual(result.resource);
     expect(read.headers["bdp-resource-kind"]).toBe("bead");
-    const events = JSON.parse((await wire(server.listenUrl, discoveredEventSource(discovery) as string)).text);
+    const events = JSON.parse(
+      (await wire(server.listenUrl, discoveredEventSource(discovery) as string)).text,
+    );
     expect(validator.validate("#/$defs/retainedEventPage", events)).toEqual([]);
     expect(events.events).toHaveLength(1);
     expect(events.events[0].effect.resource).toEqual(result.resource);
@@ -488,10 +490,10 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     await wire(server.listenUrl, navigation.targets.createBead, "POST", payload(), {
       "idempotency-key": "b",
     });
-    const first = JSON.parse((await wire(server.listenUrl, `${navigation.events}&limit=1`)).text);
+    const first = JSON.parse((await wire(server.listenUrl, `${navigation.events}?limit=1`)).text);
     expect(first.events).toHaveLength(1);
     expect(first.next).toBeTruthy();
-    expect(first.next).toContain("tenant=one");
+    expect(first.next.startsWith(`${navigation.events}?`)).toBe(true);
     await wire(server.listenUrl, navigation.targets.createBead, "POST", payload(), {
       "idempotency-key": "c",
     });
@@ -499,7 +501,7 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     expect(second.coverage.through).toBe(first.coverage.through);
     expect(second.next).toBeNull();
     const newer = JSON.parse(
-      (await wire(server.listenUrl, `${navigation.events}&after=${second.cursor}&limit=1`)).text,
+      (await wire(server.listenUrl, `${navigation.events}?after=${second.cursor}&limit=1`)).text,
     );
     expect(newer.events).toHaveLength(1);
     for (const query of [
@@ -508,10 +510,10 @@ describe("private retained fixture: targeted wire interactions, no profile quali
       "limit=1&limit=2",
       "unknown=true",
     ])
-      expect((await wire(server.listenUrl, `${navigation.events}&${query}`)).status).toBe(400);
+      expect((await wire(server.listenUrl, `${navigation.events}?${query}`)).status).toBe(400);
     const wrong = await wire(
       server.listenUrl,
-      `${navigation.events}&after=${second.cursor}&limit=1`,
+      `${navigation.events}?after=${second.cursor}&limit=1`,
       "GET",
       undefined,
       { authorization: `Bearer ${thirdToken}` },
@@ -562,10 +564,10 @@ describe("private retained fixture: targeted wire interactions, no profile quali
       const server = await fixture();
       const page = JSON.parse((await wire(server.listenUrl, navigation.events)).text);
       const cases: [string, Record<string, string>, number][] = [
-        [`${navigation.events}&unknown=true`, {}, 400],
+        [`${navigation.events}?unknown=true`, {}, 400],
         [`${scope}missing?view=events`, {}, 404],
         [
-          `${navigation.events}&after=${page.cursor}`,
+          `${navigation.events}?after=${page.cursor}`,
           { authorization: `Bearer ${thirdToken}` },
           409,
         ],
@@ -738,7 +740,9 @@ describe("private retained update wire witnesses, no profile qualification", () 
       ).text,
     ).toBe(updated.text);
     expect(JSON.parse((await wire(reopened.listenUrl, original.id)).text)).toEqual(current);
-    const page = JSON.parse((await wire(reopened.listenUrl, discoveredEventSource(discovery) as string)).text);
+    const page = JSON.parse(
+      (await wire(reopened.listenUrl, discoveredEventSource(discovery) as string)).text,
+    );
     expect(validator.validate("#/$defs/retainedEventPage", page)).toEqual([]);
     expect(page.events).toHaveLength(3);
     expect(page.events[1]).toMatchObject({
@@ -1053,7 +1057,7 @@ describe("private wire admission and retry coverage gaps", () => {
     const server = await startPrivateRetainedFixture({ ...configuration(), clock: () => time });
     cleanups.push(() => server.close());
     const first = JSON.parse((await wire(server.listenUrl, navigation.events)).text);
-    const target = `${navigation.events}&after=${first.cursor}`;
+    const target = `${navigation.events}?after=${first.cursor}`;
     time += 299_999;
     expect((await wire(server.listenUrl, target)).status).toBe(200);
     time += 1;

@@ -1,4 +1,3 @@
-import { discoveredEventSource } from "./retained-read-values.js";
 import { readFileSync } from "node:fs";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import type { AbsoluteHttpUrl } from "./index.js";
@@ -124,8 +123,6 @@ export function parseRetainedWriteDiscovery(text: string): RetainedWriteDiscover
   parseCanonicalScope(value.scope);
   for (const field of ["operations", "aliases"] as const)
     if (value[field] !== undefined) parseCanonicalHttpUrl(value[field], `Write discovery.${field}`);
-  const eventSource = discoveredEventSource(value as { capabilities?: Record<string, unknown> });
-  if (eventSource !== undefined) parseCanonicalHttpUrl(eventSource, "Write discovery Event source");
   return value as RetainedWriteDiscovery;
 }
 

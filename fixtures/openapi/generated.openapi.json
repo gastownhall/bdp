@@ -260,9 +260,9 @@
     "status": "draft authoring/tooling metadata, not a wire capability",
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
-      "specs/profiles/core/core.md": "da8dbdc1c152e5533f474ffd00d1f1446a144730c5d28791ed4144124d105193",
+      "specs/profiles/core/core.md": "cf4ded3c6a6b469c5b1184a7ce2e30fd0840353b029462027e0a351437267b19",
       "specs/profiles/write/write.md": "e2996460184e3eaef5d4d9498871491ff35a162b40493db6a9f99a182a0e7721",
-      "specs/profiles/events/events.md": "4e6b6fd8cf3b9efb465d1cce53e4b85b4d344507cb6beac0ca22fe2d8e1cc311",
+      "specs/profiles/events/events.md": "23e94b8b2ee099b750eadba6301b6b9d7976257cc9313c8ddef9a5dc5bcfaf66",
       "specs/profiles/types/types.md": "bb61beee5bbb4b83ddf7ab78a1c2aa894ff491c10c51eaa9cdd9a7ece80bfb60",
       "specs/profiles/transfer/transfer.md": "63be10c6ee7669ed6733cc6ec12ff8b43c94359a088d61406f130c0face3ddb8",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
@@ -271,8 +271,8 @@
       "scripts/generate-openapi.mjs": "96980724e113fc53ed132abaffaa30acd39b96962f2c449b8e8ff3f46ce6103d",
       "scripts/spec-schema-fragments.mjs": "5542704d4b2e81e307f89c80ab0a5e69243500f2632d3c84b82ab88e51d30045",
       "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
-      "packages/protocol/schemas/bdp-v0.1.schema.json": "c38dd330e4143c4fd7d0394154bff2550bfac1ffeed5ea3f0fae8f2c11fbc692",
-      "specs/profiles/core/bdp-v0.1.schema.json": "c38dd330e4143c4fd7d0394154bff2550bfac1ffeed5ea3f0fae8f2c11fbc692",
+      "packages/protocol/schemas/bdp-v0.1.schema.json": "d84c0bb7f8824d0568639203feb2208d4bde59d46b4d4f2e753fca0038d4f7ce",
+      "specs/profiles/core/bdp-v0.1.schema.json": "d84c0bb7f8824d0568639203feb2208d4bde59d46b4d4f2e753fca0038d4f7ce",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
       "specs/profiles/write/delete-modes-v1.schema.json": "2b04bbbc0d4e492e314e944e9327e73db41e6be1f9d5ea56504434a2972193cf",
       "specs/profiles/write/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
@@ -14471,7 +14471,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2183
+              "line": 2182
             }
           ],
           "x-bdp-cli": {
@@ -14707,7 +14707,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2183
+              "line": 2182
             }
           ],
           "x-bdp-cli": {
@@ -14931,7 +14931,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2207
+              "line": 2206
             }
           ],
           "x-bdp-cli": {
@@ -15167,7 +15167,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2207
+              "line": 2206
             }
           ],
           "x-bdp-cli": {
@@ -15389,7 +15389,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2231
+              "line": 2230
             }
           ],
           "x-bdp-cli": {
@@ -15614,7 +15614,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2231
+              "line": 2230
             }
           ],
           "x-bdp-cli": {

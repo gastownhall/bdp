@@ -16,7 +16,7 @@ const navigation = {
   description: "https://discovery.invalid/about?owner=a",
   beads: "https://inventory.invalid/nodes?owner=a",
   links: "https://inventory.invalid/edges?owner=a",
-  events: "https://observe.invalid/facts?owner=a",
+  events: `${scope}bdp/events`,
   operations: "https://discovery.invalid/commands?owner=a",
   targets: {
     createBead: "https://invoke.invalid/z?slot=17",
@@ -147,20 +147,20 @@ async function fixture(selectedNavigation = navigation) {
 
 describe("private alias wire correspondence, no full profile qualification", () => {
   it("preserves query-based Event traversal in a Scope-wide alias namespace", async () => {
-    const selected = { ...navigation, aliases: scope, events: `${scope}stream?owner=a` };
+    const selected = { ...navigation, aliases: scope, events: `${scope}bdp/events` };
     const server = await fixture(selected);
     const collision = await wire(
       server.listenUrl,
       server.targets.putAlias,
       "POST",
-      { alias: "stream", target: "a" },
+      { alias: "bdp/events", target: "a" },
       "reserved",
     );
     expect(collision.status).toBe(409);
     expect(JSON.parse(collision.text).code).toBe("identity-taken");
     const first = await wire(
       server.listenUrl,
-      `${selected.events}&representation=postimage&limit=1`,
+      `${selected.events}?representation=postimage&limit=1`,
     );
     expect(first.status).toBe(200);
     const page = JSON.parse(first.text);

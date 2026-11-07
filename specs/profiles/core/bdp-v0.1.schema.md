@@ -1138,7 +1138,7 @@ Value: object
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
-| "https://github.com/gastownhall/bdp/capabilities/events" | schema | no | — | "Supported Events versions; detail states the source, offers, families and representations." |
+| "https://github.com/gastownhall/bdp/capabilities/events" | schema | no | — | "Supported Events versions; detail states offers, families and representations." |
 | "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
 | "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
@@ -2894,7 +2894,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["source","offers","representations"]
+Required order: ["offers","representations"]
 
 ### Keywords
 
@@ -2910,7 +2910,6 @@ Required order: ["source","offers","representations"]
 | "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
 | "offers" | schema | yes | — | "What this source offers: a level paired with whether it is complete." |
 | "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
-| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Scope Event source URL." |
 
 ### Advanced
 

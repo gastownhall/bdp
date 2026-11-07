@@ -22,7 +22,7 @@ const navigation: PrivateNavigation = {
   description: "https://discover.invalid/about?a=one",
   beads: `${scope}inventory-nodes`,
   links: `${scope}inventory-edges`,
-  events: "https://observe.invalid/facts?a=one",
+  events: `${scope}bdp/events`,
   operations: "https://discover.invalid/commands?a=one",
   targets: {
     createBead: "https://invoke.invalid/new?n=1",
@@ -75,9 +75,9 @@ const code = (result: { readonly text: string }) => JSON.parse(result.text).code
 
 describe("private atomic alias decisions and original Reference witnesses", () => {
   it("protects actual navigation route bases in a Scope-wide alias namespace", () => {
-    const selected = { ...navigation, aliases: scope, events: `${scope}stream?owner=one` };
+    const selected = { ...navigation, aliases: scope, events: `${scope}bdp/events` };
     const { store } = setup(undefined, selected);
-    expect(code(store.putAlias("p", put("stream", "a", "navigation-collision")))).toBe(
+    expect(code(store.putAlias("p", put("bdp/events", "a", "navigation-collision")))).toBe(
       "identity-taken",
     );
     expect(store.events("p", selected.events, "", { limit: 20 }).events).toHaveLength(2);

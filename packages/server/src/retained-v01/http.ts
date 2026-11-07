@@ -447,7 +447,6 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
                 : {
                     [EVENTS_CAPABILITY]: {
                       "1": {
-                        source: navigation.events,
                         offers: [{ level: "current", complete: true }],
                         representations: ["postimage"],
                       },

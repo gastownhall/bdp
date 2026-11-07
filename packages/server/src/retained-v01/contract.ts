@@ -302,6 +302,9 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
     input.operations,
     ...ORDINARY_OPERATIONS.map((name) => input.targets[name]),
   ];
+  // Events sits at its fixed path; discovery no longer names it.
+  if (input.events !== new URL("bdp/events", scope).href)
+    throw new TypeError("the Event source must be the Scope's bdp/events");
   for (const url of [...navigationUrls, input.aliases]) {
     httpUri(url);
     const parsed = new URL(url);

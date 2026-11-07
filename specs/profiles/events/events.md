@@ -19,8 +19,8 @@ when Events is advertised, its published facts must also satisfy this profile.
 
 Events is optional for both Core and Write. A Scope advertises support through the
 capability `https://github.com/gastownhall/bdp/capabilities/events`, version `"1"`, whose
-detail states the absolute `source` URL, its `offers`, `families` and `representations`.
-An offer pairs a level with `complete`. Absence means that clients MUST NOT assume
+detail states its `offers`, `families` and `representations`. The Scope's Event source is
+at the fixed path `bdp/events`, resolved against the Scope URL. An offer pairs a level with `complete`. Absence means that clients MUST NOT assume
 an Event source or `view=events` is supported. The capability is an explicit promise of
 the complete finite-observation contract below, not permission to provide only a
 live stream or to omit required facts. Advertising Events creates no export,
@@ -28,11 +28,11 @@ import, snapshot or replica-application capability.
 
 A request selecting `view=events` on a Scope without Events support MUST be refused
 as an unsupported view using `invalid-parameter`; it MUST NOT return an ordinary
-Resource representation in its place. Clients MUST NOT guess a Scope event URL.
+Resource representation in its place.
 
-### Advertised source, truthful coverage
+### Event source, truthful coverage
 
-A Core/Write Scope advertising Events MUST expose its advertised `source`
+A Core/Write Scope advertising Events MUST expose its Event source at `bdp/events`
 and a Resource-scoped projection through `view=events`. A source is an observation
 endpoint, not a third Resource kind, public receipt or replica log. Resource
 selection uses canonical identity/kind and current disclosure; the source can
@@ -360,7 +360,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["source","offers","representations"]
+Required order: ["offers","representations"]
 
 #### Keywords
 
@@ -376,7 +376,6 @@ Required order: ["source","offers","representations"]
 | "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
 | "offers" | schema | yes | — | "What this source offers: a level paired with whether it is complete." |
 | "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
-| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Scope Event source URL." |
 
 #### Advanced
 

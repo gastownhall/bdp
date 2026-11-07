@@ -14,7 +14,7 @@ const navigation: PrivateNavigation = {
   beads: "https://inventory.invalid/nodes?t=one",
   links: "https://inventory.invalid/edges?t=one",
   aliases: `${scope}names`,
-  events: "https://facts.invalid/stream?t=one",
+  events: `${scope}bdp/events`,
   operations: "https://nav.invalid/commands?t=one",
   targets: {
     createBead: "https://commands.invalid/new-node?t=one",

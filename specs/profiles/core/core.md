@@ -3163,7 +3163,7 @@ Value: object
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
-| "https://github.com/gastownhall/bdp/capabilities/events" | schema | no | — | "Supported Events versions; detail states the source, offers, families and representations." |
+| "https://github.com/gastownhall/bdp/capabilities/events" | schema | no | — | "Supported Events versions; detail states offers, families and representations." |
 | "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
 | "https://github.com/gastownhall/bdp/capabilities/write-exceptions" | schema | no | — | "Supported Write exception versions; the Scope does not serve the operations each lists and is not a complete Write provider." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |

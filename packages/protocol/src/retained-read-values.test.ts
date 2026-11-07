@@ -41,7 +41,7 @@ describe("retained Core carrier values", () => {
     },
   );
   it.each(["core", "write"])("accepts absent optional Events on %s", (profile) => {
-    const { events: _events, ...base } = core;
+    const base = core;
     const value =
       profile === "core"
         ? base
@@ -154,22 +154,32 @@ describe("Events capability", () => {
     specRevision: "0123456789abcdef0123456789abcdef01234567",
   };
   const detail = {
-    source: "https://facts.test/observations",
     offers: [{ level: "current", complete: true }],
     representations: ["postimage"],
   };
-  it("finds the Event source in the capability, and nowhere else", () => {
+  it("finds the Event source at its fixed path when the capability is advertised", () => {
     const parsed = parseRetainedDiscovery(
       JSON.stringify({ ...base, capabilities: { [events]: { "1": detail } } }),
     );
-    expect(discoveredEventSource(parsed)).toBe(detail.source);
+    expect(discoveredEventSource(parsed)).toBe("https://work.example/acme/bdp/events");
     expect(discoveredEventSource(parseRetainedDiscovery(JSON.stringify(base)))).toBeUndefined();
   });
   it.each([
-    ["a retired events member", { ...base, events: detail.source }],
-    ["a relative source", { ...base, capabilities: { [events]: { "1": { ...detail, source: "x" } } } }],
+    ["a retired events member", { ...base, events: "https://work.example/acme/bdp/events" }],
+    [
+      "a source member",
+      {
+        ...base,
+        capabilities: {
+          [events]: { "1": { ...detail, source: "https://facts.test/observations" } },
+        },
+      },
+    ],
     ["no offers", { ...base, capabilities: { [events]: { "1": { ...detail, offers: [] } } } }],
-    ["no postimage", { ...base, capabilities: { [events]: { "1": { ...detail, representations: ["delta"] } } } }],
+    [
+      "no postimage",
+      { ...base, capabilities: { [events]: { "1": { ...detail, representations: ["delta"] } } } },
+    ],
   ])("refuses %s", (_name, value) => {
     expect(() => parseRetainedDiscovery(JSON.stringify(value))).toThrow();
   });
