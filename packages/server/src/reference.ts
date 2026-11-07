@@ -5,7 +5,18 @@ import {
   type PrivateNavigation,
   RETAINED_SPEC,
 } from "./retained-v01/contract.js";
+import type { CallablesComposition } from "./retained-v01/callables-service.js";
 import { startRetainedListener } from "./retained-v01/http.js";
+import { callablesScopePolicy, composePolicies } from "./retained-v01/callables-service.js";
+
+export type {
+  CallableAnswer,
+  CallableEffects,
+  CallableImplementation,
+  CallableInvocationContext,
+  EffectOutcome,
+} from "./retained-v01/callables.js";
+export type { CallablesComposition, ProvidedCallable } from "./retained-v01/callables-service.js";
 
 export interface ReferenceServiceOptions {
   /** Absolute owned local directory; creation requires it to be empty. */
@@ -18,6 +29,8 @@ export interface ReferenceServiceOptions {
    * This reference retains every version; pruning/erasure administration and
    * their qualification are outside this append-only composition. */
   readonly historicalUpdate?: boolean;
+  /** Fresh explicit format8: advertises Callables1 and serves these declarations. */
+  readonly callables?: CallablesComposition;
   /** Canonical externally routed Scope. The returned listener is loopback-only. */
   readonly scope: string;
   /** Full canonical-protocol source commit SHA; defaults to BDP_SPEC_REVISION. */
@@ -66,11 +79,14 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
           "authentication",
           "atomicBatch",
           "historicalUpdate",
+          "callables",
         ].includes(name),
     ) ||
     (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean") ||
     (options.historicalUpdate !== undefined && typeof options.historicalUpdate !== "boolean") ||
     (options.atomicBatch === true && options.historicalUpdate === true) ||
+    (options.callables !== undefined &&
+      (options.atomicBatch === true || options.historicalUpdate === true)) ||
     (options.authentication !== undefined &&
       options.authentication !== "required" &&
       options.authentication !== "disabled") ||
@@ -93,6 +109,9 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
   if (typeof specRevision !== "string" || !/^[0-9a-f]{40}$/.test(specRevision))
     throw new TypeError("a full lowercase BDP_SPEC_REVISION commit SHA is required");
   const navigation = referenceNavigation(options.scope);
+  const policy = composePolicies([
+    ...(options.callables === undefined ? [] : [callablesScopePolicy(navigation.scope)]),
+  ]);
   const listener = await startRetainedListener({
     directory: options.directory,
     create: options.create,
@@ -102,6 +121,10 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
     navigation,
     specRevision,
     referenceCore: true,
+    ...(options.callables === undefined
+      ? {}
+      : { callables: true, callableComposition: options.callables }),
+    ...(policy === undefined ? {} : { policy }),
     ...(options.atomicBatch === undefined ? {} : { atomicBatch: options.atomicBatch }),
     ...(options.historicalUpdate === undefined
       ? {}

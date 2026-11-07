@@ -141,15 +141,17 @@ export function problem(code: string, status: number, retry = "never"): JsonObje
         code === "incident-links-exist" ||
         code === "alias-path-taken"
       ? "conflict"
-      : code === "resource-not-found" || code === "revision-unknown"
+      : code === "resource-not-found" ||
+          code === "revision-unknown" ||
+          code === "callable-not-found"
         ? "not-found"
         : code === "unauthenticated"
           ? "authentication"
           : code === "validation-failed"
             ? "validation"
-            : code === "temporarily-unavailable"
+            : code === "temporarily-unavailable" || code === "callable-unavailable"
               ? "unavailable"
-              : code === "foreign-view"
+              : code === "foreign-view" || code === "callable-error"
                 ? "conflict"
                 : code === "cursor-expired"
                   ? "gone"
