@@ -1520,6 +1520,18 @@
       "runner": "node",
       "lane": "artifact",
       "reason": "Offline shadow routing safety controls."
+    },
+    {
+      "path": "packages/protocol/src/write-exceptions-artifact.test.ts",
+      "runner": "vitest",
+      "lane": "legacy",
+      "reason": "Paired delete-modes1 draft fixture and feature schema consistency, routed beside the id-root artifact suite because no artifact Vitest lane is selected; no provider, HTTP or recovery execution."
+    },
+    {
+      "path": "packages/server/src/retained-v01/ruled-deletion.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
     }
   ]
 }
