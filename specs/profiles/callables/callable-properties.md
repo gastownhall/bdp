@@ -191,6 +191,42 @@ Required order: ["names","parameter"]
 }
 ```
 
+<a id="schema-def-Im1lbWJlckZsYWdNYXBwaW5nIg"></a>
+## Schema: "memberFlagMapping"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["member","parameter"]
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Gives one member of an object parameter a flag of its own on the command tree. The parameter and the wire are unchanged." |
+| type | "object" |
+
+### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "member" | schema | yes | — | "The name of a member the parameter's schema declares." |
+| "names" | schema | no | — | "Aliases: additional distinct nonempty flag spellings, such as -s." |
+| "parameter" | schema | yes | — | "The name of a declared parameter of the same declaration whose schema is an object." |
+
+### Advanced
+
+```json-schema
+{
+  "properties": {
+    "member": {"type": "string", "minLength": 1},
+    "names": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "parameter": {"type": "string", "minLength": 1}
+  }
+}
+```
+
 <a id="schema-def-ImNsaU1hcHBpbmci"></a>
 ## Schema: "cliMapping"
 
@@ -211,4 +247,5 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "flags" | array of (ref "#/$defs/flagMapping") | no | — | "Aliases: additional flag spellings for parameters." |
 | "fromFile" | array of (ref "#/$defs/fileMapping") | no | — | "Parameters whose value the client reads from a file or stdin." |
+| "memberFlags" | array of (ref "#/$defs/memberFlagMapping") | no | — | "Members of an object parameter that take a flag of their own." |
 | "positionals" | array of (ref "#/$defs/positionalMapping") | no | — | "Positions mapped onto parameters." |
