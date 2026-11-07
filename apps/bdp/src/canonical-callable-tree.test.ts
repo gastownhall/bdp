@@ -1128,6 +1128,13 @@ const PROBLEMS: readonly (readonly [string, ReturnType<typeof problem>, number])
   ],
   ["malformed-request", problem("malformed-request", "request", 400, "never"), 1],
   ["unsupported-media-type", problem("unsupported-media-type", "request", 415, "never"), 1],
+  [
+    "operation-not-supported",
+    problem("operation-not-supported", "request", 422, "after-state-change", {
+      operation: "createLink",
+    }),
+    5,
+  ],
 ];
 
 describe("a failed Callable in human mode", () => {

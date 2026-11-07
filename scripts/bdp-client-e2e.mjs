@@ -1580,12 +1580,18 @@ async function manualFindings(context) {
   result = await on(["create", "--title=hunter2"]);
   check("refused_value_is_not_echoed", result, need(!result.stderr.includes("hunter2"), "echoed"));
   const task = "https://github.com/gastownhall/bdp/types/issue/task";
+  const writeServed = (await curl(`${scope}bdp`)).json?.profile === "write";
   for (const [name, args] of [
     ["generic_create_refused", ["create", "--type", task, "--properties", '{"title":"x"}']],
     ["generic_update_refused", ["update", "sw-fix-m5", "--set-property", "title=y"]],
     ["generic_delete_force_refused", ["delete", "sw-fix-m5", "--force"]],
   ]) {
     result = await on(args);
+    // A Scope serving Write answers these itself; only a Core Scope refuses them in the client.
+    if (writeServed) {
+      check(name, result, need(result.status !== 5, "refused as if Write were absent"));
+      continue;
+    }
     check(
       name,
       result,

@@ -226,6 +226,7 @@ function problemExit(problem: RetainedJsonObject): number {
   if (
     code === "unsupported-capability" ||
     code === "capability-not-supported" ||
+    code === "operation-not-supported" ||
     code === "unsupported-operation" ||
     code === "unsupported-version"
   )
