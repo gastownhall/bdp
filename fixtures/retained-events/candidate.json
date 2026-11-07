@@ -450,7 +450,8 @@
       "representation": "postimage"
     },
     "policy": {
-      "observation": "committed",
+      "level": "current",
+      "complete": true,
       "description": "Every published Resource transition since this source began.",
       "minimumRetentionSeconds": 3600,
       "minimumCursorLifetimeSeconds": 300,
@@ -638,7 +639,8 @@
       "representation": "delta"
     },
     "policy": {
-      "observation": "committed",
+      "level": "current",
+      "complete": true,
       "description": "Every published Resource transition since this source began.",
       "minimumRetentionSeconds": 3600,
       "minimumCursorLifetimeSeconds": 300,
@@ -800,7 +802,8 @@
       "representation": "postimage"
     },
     "policy": {
-      "observation": "committed",
+      "level": "current",
+      "complete": true,
       "description": "Every published Resource transition since this source began.",
       "minimumRetentionSeconds": 3600,
       "minimumCursorLifetimeSeconds": 300,
@@ -892,7 +895,8 @@
       "representation": "postimage"
     },
     "policy": {
-      "observation": "observed",
+      "level": "current",
+      "complete": false,
       "description": "Static catalog; initialized baseline, no subsequent observed changes.",
       "minimumRetentionSeconds": 60,
       "minimumCursorLifetimeSeconds": 30,
@@ -1116,7 +1120,8 @@
         "representation": "postimage"
       },
       "policy": {
-        "observation": "observed",
+        "level": "current",
+        "complete": false,
         "description": "Periodic complete samples; intermediate backend mutations and final backend state before disappearance may be unobserved.",
         "minimumRetentionSeconds": 60,
         "minimumCursorLifetimeSeconds": 30,
@@ -1186,7 +1191,8 @@
         "representation": "delta"
       },
       "policy": {
-        "observation": "observed",
+        "level": "current",
+        "complete": false,
         "description": "Periodic complete samples; intermediate backend mutations and final backend state before disappearance may be unobserved.",
         "minimumRetentionSeconds": 60,
         "minimumCursorLifetimeSeconds": 30,

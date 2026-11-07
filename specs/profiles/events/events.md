@@ -40,12 +40,20 @@ external Link endpoints do not acquire in-Scope Event sources.
 
 An Event records a published Resource transition, a published change to the
 [non-Resource state](#non-resource-facts) a source advertises, or a truthfully described external
-observation. Policy declares `observation:"committed"` when it covers every relevant
-published transition from the stated boundary; `observation:"observed"` when the
-external mechanism can miss original intermediate mutations. Required `description`
-states that mechanism and any intermediate-loss limitation. Observed coverage MUST
-NOT be represented as a gap-free original mutation history. No cross-source order,
-universal latency or globally latest-state guarantee follows from either mode.
+observation. Each page's policy states its `level` and whether it is `complete`.
+
+| `level` | What the source accounts for |
+| --- | --- |
+| `current` | Bead and Link lifecycle facts, plus the non-Resource families it advertises |
+| `history` | Also retained versions, deletion, pruning and reorganization, with revisions that resolve. Requires History |
+
+`complete:true` is positive knowledge that the source covers every relevant published
+transition at its level from the stated boundary. `complete:false` makes no such assertion:
+the external mechanism can miss original intermediate mutations. Required `description`
+states that mechanism and any intermediate-loss limitation. An incomplete source MUST NOT be
+represented as a gap-free original mutation history. A `history` source that is not complete
+reports only the versions it saw. No cross-source order, universal latency or globally
+latest-state guarantee follows from either value.
 
 A Write Scope advertising Events MUST durably produce its required facts with its own effects and terminal
 outcome, regardless of how unrelated external state is observed. A crash/retry
@@ -174,7 +182,7 @@ cross-value obligations require semantic validation beyond the JSON grammar.
 
 #### Observed predecessors and disappearance
 
-For `origin:"observation"` under `policy.observation:"observed"`, the sequence is
+For `origin:"observation"` under `policy.complete:false`, the sequence is
 the source's actual observations, not an assertion of every backend mutation.
 If its complete prior observation is X@r1 and its next complete observation is
 X@r4, `previousRevision:r1` and `revision:r4` link those two known states. The
@@ -188,7 +196,7 @@ For such an observed disappearance, "final live" means the last complete live
 record in **this observed sequence**, not a proven final backend version. After
 X@r4 and confirmed absence, a deletion observation reports r4 and that record's
 known affiliation/kind and, for a Link, endpoints. It MUST use observation origin
-and the observed policy; it is not an authoritative deletion result/tombstone or
+and `complete:false`; it is not an authoritative deletion result/tombstone or
 proof that no unseen retype/update occurred before backend deletion. No final
 backend revision or affiliation is manufactured. Delta and postimage modes report
 the same last-observed deletion context and mint no new Resource revision.
@@ -199,7 +207,7 @@ A hot-tier miss is insufficient. If it cannot establish that context or absence,
 it uses the existing explicit coverage-loss/refusal path; it cannot emit an
 invented deletion or advance a cursor past the unresolved fact. Unexpected loss
 of the observation mechanism also remains a gap, distinct from its declared
-sampling interval. `committed` coverage and Write-origin facts still require
+sampling interval. `complete:true` and Write-origin facts still require
 their actual published predecessor/final-live context; these observation rules
 do not weaken Write durability or change final publication.
 
@@ -505,25 +513,26 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["observation","description","minimumRetentionSeconds","minimumCursorLifetimeSeconds","representations"]
+Required order: ["level","complete","description","minimumRetentionSeconds","minimumCursorLifetimeSeconds","representations"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Truthful observation mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional." |
+| description | "Level, completeness, truthful mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional." |
 | type | "object" |
 
 #### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "complete" | schema | yes | — | "Positive knowledge that every relevant published transition at this level is covered. False makes no such assertion." |
 | "description" | schema | yes | — | "Human-readable explanation of the advertised mechanism or limitation." |
 | "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
 | "maximumPageSize" | schema | no | — | "Optional positive Event-page bound without permission to split or truncate a fact." |
 | "minimumCursorLifetimeSeconds" | schema | yes | — | "Positive minimum lifetime preserving issued cursor context and its captured range." |
+| "level" | schema | yes | — | "What this source accounts for: current or history." |
 | "minimumRetentionSeconds" | schema | yes | — | "Positive minimum retention promise for admitted Event facts." |
-| "observation" | schema | yes | — | "Truthful observation mode: committed or observed, with its complete coverage obligations." |
 | "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
 
 #### Advanced
@@ -531,6 +540,15 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
 ```json-schema
 {
   "properties": {
+    "complete": {
+      "type": "boolean"
+    },
+    "level": {
+      "enum": [
+        "current",
+        "history"
+      ]
+    },
     "description": {
       "type": "string",
       "minLength": 1
@@ -555,12 +573,6 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
     "minimumRetentionSeconds": {
       "type": "integer",
       "minimum": 1
-    },
-    "observation": {
-      "enum": [
-        "committed",
-        "observed"
-      ]
     },
     "representations": {
       "type": "array",

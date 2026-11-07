@@ -289,7 +289,7 @@ describe("retained Event source/grammar correspondence, without CLI/provider exe
     expect(observed.absenceConfirmed).toBe(true);
     for (const page of [observed.postimagePage, observed.deltaPage]) {
       expect(valid("retainedEventPage", page)).toBe(true);
-      expect(page.policy.observation).toBe("observed");
+      expect(page.policy.complete).toBe(false);
       const [changed, disappeared] = page.events;
       expect(changed.origin).toBe("observation");
       expect(changed.previousRevision).toBe(observed.before.revision);

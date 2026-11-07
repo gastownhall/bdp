@@ -97,7 +97,8 @@ export function incidentBeads(
   return [...ids];
 }
 export const EVENT_POLICY = Object.freeze({
-  observation: "committed",
+  level: "current",
+  complete: true,
   description:
     "Private Core-only Resource CRUD fixture; committed transitions from explicit empty provisioning.",
   minimumRetentionSeconds: 86400,
