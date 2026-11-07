@@ -378,8 +378,15 @@ export async function runOptionalRows({
     return declarations.get(callable.name);
   }
   /** Callables §14's rule backwards: the declaration a compiled Callable's operation states. */
-  function rebuiltDeclaration(callable) {
+  function rebuiltDeclaration(callable, document) {
     const { op, parameters: args } = callable;
+    // §2.3: a $ref resolves inside the document that carries it, here the OpenAPI document.
+    const carried = (schema) =>
+      schema !== null &&
+      typeof schema === "object" &&
+      JSON.stringify(schema).includes("#/components/")
+        ? { ...schema, components: document.components }
+        : schema;
     const extension = op["x-bdp-callable"];
     const required = args.required ?? [];
     const member = (status, name) =>
@@ -395,15 +402,15 @@ export async function runOptionalRows({
           const { description, default: fallback, ...schema } = projected;
           return present([
             ["name", name],
-            ["schema", schema],
+            ["schema", carried(schema)],
             ["description", description],
             ["default", fallback],
             ["required", required.includes(name) ? true : undefined],
           ]);
         }),
       ],
-      ["resultSchema", member("200", "result")],
-      ["errorSchema", member("409", "error")],
+      ["resultSchema", carried(member("200", "result"))],
+      ["errorSchema", carried(member("409", "error"))],
       ["idempotent", extension.idempotent],
       ["atomic", extension.atomic],
       ["cliMapping", extension.cliMapping],
@@ -517,20 +524,25 @@ export async function runOptionalRows({
   });
   await run("callables.cb-2", async () => {
     requireCallables();
-    const { list } = await callables();
+    const { list, document } = await callables();
     check(list.length > 0, "No reachable Callable to resolve");
     const noBead = [];
     const wrongType = [];
     const invalid = [];
     const compiledWithBead = [];
+    let firstInvalid;
     const validate = ajv.compile(callablePropertiesSchema);
     const satisfies = (properties, type, name) => {
-      if (!validate(properties)) return false;
+      if (!validate(properties)) {
+        firstInvalid ??= `${name}: ${ajv.errorsText(validate.errors)}`;
+        return false;
+      }
       try {
         // That check reads a catalog entry, where resultSchema is always present.
         assertValidDeclaration({ resultSchema: true, ...properties, name, type });
         return true;
-      } catch {
+      } catch (error) {
+        firstInvalid ??= `${name}: ${error.message}`;
         return false;
       }
     };
@@ -540,7 +552,7 @@ export async function runOptionalRows({
         // A compiled declaration isn't a Bead (§2.1), so a record at its name contradicts the mark.
         if (reply.status === 200) compiledWithBead.push(callable.name);
         else if (![QUERY, BATCH].includes(callable.type)) wrongType.push(callable.name);
-        else if (!satisfies(rebuiltDeclaration(callable), callable.type, callable.name))
+        else if (!satisfies(rebuiltDeclaration(callable, document), callable.type, callable.name))
           invalid.push(callable.name);
         continue;
       }
@@ -564,7 +576,7 @@ export async function runOptionalRows({
       `${compiledWithBead.length} names marked compiled also have a record`,
     );
     check(wrongType.length === 0, `${wrongType.length} names resolve to the wrong Type`);
-    check(invalid.length === 0, `${invalid.length} declarations fail §§2.2-2.5`);
+    check(invalid.length === 0, `${invalid.length} declarations fail §§2.2-2.5: ${firstInvalid}`);
   });
   await run("callables.cb-3", async () => {
     requireCallables();

@@ -23,7 +23,7 @@
         {
           "source": "specs/profiles/callables/callables.md",
           "anchor": "#11-conformance-rows-for-preview-1",
-          "selectedText": "Each reachable name resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.5"
+          "selectedText": "Each reachable name resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.5; for a compiled declaration, its operation rebuilds to properties that do"
         }
       ]
     },
@@ -133,14 +133,14 @@
     },
     {
       "id": "callables.cb-11",
-      "title": "`GET` of a declaration's canonical URL returns the ordinary Bead record",
+      "title": "`GET` of a declaration Bead's canonical URL returns the ordinary Bead record",
       "kind": "normative",
       "requiredProfile": "read",
       "requirements": [
         {
           "source": "specs/profiles/callables/callables.md",
           "anchor": "#11-conformance-rows-for-preview-1",
-          "selectedText": "`GET` of a declaration's canonical URL returns the ordinary Bead record"
+          "selectedText": "`GET` of a declaration Bead's canonical URL returns the ordinary Bead record"
         }
       ]
     },
