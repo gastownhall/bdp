@@ -7,6 +7,7 @@ import {
 } from "./retained-v01/contract.js";
 import type { CallablesComposition } from "./retained-v01/callables-service.js";
 import { startRetainedListener } from "./retained-v01/http.js";
+import { issueConformsTo, issueScopePolicy } from "./retained-v01/issue-policy.js";
 import { callablesScopePolicy, composePolicies } from "./retained-v01/callables-service.js";
 
 export type {
@@ -31,6 +32,8 @@ export interface ReferenceServiceOptions {
   readonly historicalUpdate?: boolean;
   /** Fresh explicit format8: advertises Callables1 and serves these declarations. */
   readonly callables?: CallablesComposition;
+  /** Enforce the Issue and Dependency Types package as native Scope policy (Issue §1). */
+  readonly issuePackage?: boolean;
   /** Canonical externally routed Scope. The returned listener is loopback-only. */
   readonly scope: string;
   /** Full canonical-protocol source commit SHA; defaults to BDP_SPEC_REVISION. */
@@ -80,11 +83,15 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
           "atomicBatch",
           "historicalUpdate",
           "callables",
+          "issuePackage",
         ].includes(name),
     ) ||
     (options.atomicBatch !== undefined && typeof options.atomicBatch !== "boolean") ||
     (options.historicalUpdate !== undefined && typeof options.historicalUpdate !== "boolean") ||
     (options.atomicBatch === true && options.historicalUpdate === true) ||
+    (options.issuePackage !== undefined && typeof options.issuePackage !== "boolean") ||
+    (options.issuePackage === true &&
+      (options.atomicBatch === true || options.historicalUpdate === true)) ||
     (options.callables !== undefined &&
       (options.atomicBatch === true || options.historicalUpdate === true)) ||
     (options.authentication !== undefined &&
@@ -111,6 +118,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
   const navigation = referenceNavigation(options.scope);
   const policy = composePolicies([
     ...(options.callables === undefined ? [] : [callablesScopePolicy(navigation.scope)]),
+    ...(options.issuePackage === true ? [issueScopePolicy(navigation.scope)] : []),
   ]);
   const listener = await startRetainedListener({
     directory: options.directory,
@@ -125,6 +133,7 @@ export async function startReferenceService(options: ReferenceServiceOptions) {
       ? {}
       : { callables: true, callableComposition: options.callables }),
     ...(policy === undefined ? {} : { policy }),
+    ...(options.issuePackage === true ? { conformsTo: issueConformsTo } : {}),
     ...(options.atomicBatch === undefined ? {} : { atomicBatch: options.atomicBatch }),
     ...(options.historicalUpdate === undefined
       ? {}

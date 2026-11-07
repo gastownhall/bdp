@@ -652,6 +652,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/conformance/src/current-catalog.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Current-contract row catalogs: citations and rows checked against the specification text; artifact consistency only."
+    },
+    {
       "path": "packages/conformance/src/spec-layout.test.ts",
       "runner": "vitest",
       "lane": "legacy",
@@ -1180,6 +1186,12 @@
       "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
     },
     {
+      "path": "packages/server/src/retained-v01/callables.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Reference correctness of the Callables mechanism over real HTTP: mounts, argument checking, problems, reachability and retained outcomes; not provider conformance."
+    },
+    {
       "path": "packages/server/src/retained-v01/collections.test.ts",
       "runner": "vitest",
       "lane": "current",
@@ -1448,6 +1460,12 @@
       "runner": "node",
       "lane": "artifact",
       "reason": "Authored CLI flag tables versus actual parser registration; artifact consistency only, not behavioral or provider conformance."
+    },
+    {
+      "path": "scripts/current-provider-kit-callables.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Callables and Issue package rows of the provider kit: the real reference over public HTTP, and mutants of its answers proving each row's independent assertions fire."
     },
     {
       "path": "scripts/current-provider-kit.node-test.mjs",

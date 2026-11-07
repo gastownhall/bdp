@@ -7,6 +7,7 @@ import https from "node:https";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { runOptionalRows } from "./current-provider-kit-callables.mjs";
 import {
   parseLinkHeader,
   withBdpSourceAnnotations,
@@ -197,7 +198,7 @@ function exchange(
   method = "GET",
   value,
   key,
-  { contentType = media, accept = media } = {},
+  { contentType = media, accept = media, rawBody } = {},
 ) {
   const logical = new URL(target);
   if (
@@ -211,7 +212,7 @@ function exchange(
   if (!route)
     throw new HarnessError("Discovered origin has no explicitly authorized adapter connection");
   const physical = new URL(route.connectOrigin);
-  const text = value === undefined ? undefined : JSON.stringify(value);
+  const text = rawBody ?? (value === undefined ? undefined : JSON.stringify(value));
   return new Promise((resolve, reject) => {
     const req = (physical.protocol === "https:" ? https : http).request(
       {
@@ -226,9 +227,9 @@ function exchange(
           ...(text === undefined
             ? {}
             : {
-                "content-type": contentType,
+                ...(contentType === null ? {} : { "content-type": contentType }),
                 "content-length": String(Buffer.byteLength(text)),
-                "idempotency-key": key,
+                ...(key === undefined ? {} : { "idempotency-key": key }),
               }),
         },
       },
@@ -293,7 +294,7 @@ export function directScopeProvider(scopeUrl, authorization) {
  * `allowMutation: false` leaves every mutating case not-run with its reason, whatever the
  * Scope advertises: an operator's existing Scope is not the kit's to change.
  */
-export async function runCurrentProvider(provision, { allowMutation = true } = {}) {
+export async function runCurrentProvider(provision, { allowMutation = true, exceptions } = {}) {
   const rows = definitions.map(([id, source]) => ({
     id,
     source,
@@ -431,7 +432,21 @@ export async function runCurrentProvider(provision, { allowMutation = true } = {
       ["scope", "connections", "cleanup"],
     );
     const witnesses =
-      provider.witnesses === undefined ? {} : fields(provider.witnesses, ["deletedResourceId"], []);
+      provider.witnesses === undefined
+        ? {}
+        : fields(
+            provider.witnesses,
+            ["deletedResourceId", "callables", "issuePackage", "takesNoExceptions"],
+            [],
+          );
+    if (witnesses.callables !== undefined)
+      fields(
+        witnesses.callables,
+        ["unimplemented", "batch", "idempotentBatch", "callableError", "atomicProblem"],
+        [],
+      );
+    if (witnesses.takesNoExceptions === true && exceptions !== undefined)
+      throw new HarnessError("This provider takes no exceptions; a ledger cannot apply to it");
     if (
       witnesses.deletedResourceId !== undefined &&
       typeof witnesses.deletedResourceId !== "string"
@@ -529,7 +544,12 @@ export async function runCurrentProvider(provision, { allowMutation = true } = {
     async function discoverProfile(description) {
       const reply = await exchange(routes, description);
       assert.equal(reply.status, 200);
-      const parsed = JSON.parse(new TextDecoder().decode(reply.bytes));
+      let parsed;
+      try {
+        parsed = JSON.parse(new TextDecoder().decode(reply.bytes));
+      } catch {
+        assert.fail("The discovery document is not JSON");
+      }
       if (parsed?.profile === "write") return parsed;
       // The two base literals are closed (Core "Discovery and capabilities"): anything but
       // `write` must be a valid closed Core document, or this is the provider's failure.
@@ -1219,6 +1239,17 @@ export async function runCurrentProvider(provision, { allowMutation = true } = {
           await unchangedBeads();
         });
     }
+    // Optional profiles the Scope may advertise. Their own rows; never a Core or Write row.
+    report.optional = await runOptionalRows({
+      scope: scope.href,
+      discovered,
+      runId,
+      allowMutation,
+      witnesses,
+      exceptions,
+      exchange: (target, method, value, key, options) =>
+        exchange(routes, target, method, value, key, options),
+    });
   } catch (error) {
     if (!(error instanceof Stop)) {
       if (provisionEntered && lifecycle.provision !== "pass") lifecycle.provision = "harness-error";
@@ -1254,9 +1285,11 @@ export async function runCurrentProvider(provision, { allowMutation = true } = {
     report.harnessFailure !== undefined ||
     lifecycle.provision === "harness-error" ||
     lifecycle.cleanup === "harness-error" ||
-    rows.some((row) => row.state === "harness-error")
+    rows.some((row) => row.state === "harness-error") ||
+    report.optional?.some((row) => row.state === "harness-error")
       ? "harness-error"
-      : rows.some((row) => row.state === "fail")
+      : rows.some((row) => row.state === "fail") ||
+          report.optional?.some((row) => row.state === "fail")
         ? "fail"
         : "incomplete";
   return report;
@@ -1264,9 +1297,21 @@ export async function runCurrentProvider(provision, { allowMutation = true } = {
 
 const USAGE =
   "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n" +
-  "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation]\n";
+  "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation]\n" +
+  "Either form also takes --exceptions /absolute/ledger.json\n";
 /** Null on misuse. A token comes only from a named environment variable, never argv. */
-export function parseKitArguments(argv, env = {}) {
+export function parseKitArguments(argvWithLedger, env = {}) {
+  const ledgerAt = argvWithLedger.indexOf("--exceptions");
+  const argv =
+    ledgerAt < 0
+      ? argvWithLedger
+      : argvWithLedger.filter((_, index) => index !== ledgerAt && index !== ledgerAt + 1);
+  const ledger = ledgerAt < 0 ? undefined : argvWithLedger[ledgerAt + 1];
+  if (ledgerAt >= 0 && (ledger === undefined || !path.isAbsolute(ledger))) return null;
+  const parsed = parseSelection(argv, env);
+  return parsed === null || ledger === undefined ? parsed : { ...parsed, ledger };
+}
+function parseSelection(argv, env) {
   if (argv.length === 2 && argv[0] === "--provider" && path.isAbsolute(argv[1]))
     return { provider: argv[1] };
   if (argv[0] !== "--scope" || argv.length < 2) return null;
@@ -1321,10 +1366,26 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         throw new HarnessError(`Selected provider module did not load (${category})`);
       };
     }
-  const report = await runCurrentProvider(
-    provision,
-    parsed.scope === undefined ? {} : { allowMutation: parsed.allowMutation },
-  );
+  let exceptions;
+  if (parsed.ledger !== undefined)
+    try {
+      // { "IT-11": "why", ... }: a row excepted here is reported excepted, whatever it did.
+      exceptions = JSON.parse(await readFile(parsed.ledger, "utf8"));
+      if (
+        exceptions === null ||
+        typeof exceptions !== "object" ||
+        Array.isArray(exceptions) ||
+        Object.values(exceptions).some((why) => typeof why !== "string" || !why)
+      )
+        throw new TypeError("ledger shape");
+    } catch {
+      process.stderr.write("The exceptions ledger must be an object of row to reason\n");
+      process.exit(64);
+    }
+  const report = await runCurrentProvider(provision, {
+    ...(parsed.scope === undefined ? {} : { allowMutation: parsed.allowMutation }),
+    ...(exceptions === undefined ? {} : { exceptions }),
+  });
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = report.state === "harness-error" ? 3 : report.state === "fail" ? 1 : 2;
 }

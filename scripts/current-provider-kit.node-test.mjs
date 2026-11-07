@@ -617,7 +617,8 @@ test("CLI misuse has a distinct bounded usage exit without reflecting arguments"
     assert.equal(
       result.stderr,
       "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n" +
-        "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation]\n",
+        "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation]\n" +
+        "Either form also takes --exceptions /absolute/ledger.json\n",
     );
   }
 });
@@ -1100,6 +1101,12 @@ test("--scope takes a canonical Scope and reads its token only from a named vari
     }),
     { scope: "https://a.example/x/", allowMutation: true, authorization: "Bearer secret" },
   );
+  assert.deepEqual(parseKitArguments(["--provider", "/a.mjs", "--exceptions", "/l.json"]), {
+    provider: "/a.mjs",
+    ledger: "/l.json",
+  });
+  assert.equal(parseKitArguments(["--provider", "/a.mjs", "--exceptions", "l.json"]), null);
+  assert.equal(parseKitArguments(["--provider", "/a.mjs", "--exceptions"]), null);
   for (const argv of [
     ["--scope"],
     ["--scope", "http://127.0.0.1:1"],

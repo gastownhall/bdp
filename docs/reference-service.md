@@ -121,6 +121,44 @@ separate subjects from installed legacy/private profile matrices. Existing matri
 assertions remain intact until each has an explicit replacement or retained lane;
 this increment removes no test or CI gate and adds no testing framework.
 
+## Optional Callables and the Issue package
+
+`callables: { registration, declarations }` selects the Callables profile for a fresh
+store, format8. Absent, the capability is unadvertised and the namespace answers as any
+reserved path. It does not compose with `atomicBatch` or `historicalUpdate` yet, and
+refuses at startup. Each declaration is a name, a kind (`query` or `batch`), the properties
+object and optionally a synchronous `implementation`:
+
+```ts
+{
+  name: "rooms/reserve",
+  kind: "batch",
+  properties: { description: "...", idempotent: true, parameters: [/* ... */] },
+  implementation: ({ arguments: args, read, list, effects, provenance }) =>
+    ({ result: { /* ... */ } }), // or { error: value }, or { problem: outcome }
+}
+```
+
+Declarations are placed as real Beads at startup, and a changed one is updated on reopen.
+With `registration: "root"` a root Bead at `sys/callables` carries one `exposes` Link per
+reachable declaration, a client with Write can change those Links, and a client-created
+declaration is reachable once linked, answering `callable-unavailable` since nothing
+implements it. With `registration: "provider"` the listed declarations are what is
+reachable. §12 leaves the root's Type and the Link Type open, so both are Scope-local:
+`<scope>sys/types/callables-root` and `<scope>sys/types/exposes`. Clients read the Type from
+an existing Link. The `sys` prefix refuses client-chosen identities.
+
+A batch's `effects` run as ordinary store decisions inside one transaction with its retained
+outcome, so a key replay needs nothing but that outcome. `changed` is derived from the effects.
+A throw, or a `result` or `error` outside its declared schema, is a 503 with no key claimed, and
+an `atomic` declaration's Problem undoes every effect. A query gets no `effects`.
+
+`issuePackage: true` enforces the Issue and Dependency Types as native Scope policy: the fixed
+catalog, the property and pair rules, service-managed members and `conformsTo` over the two
+families. It does not serve the 45 Issue Callables. With both options the Scope breaks
+`IC-1` and `IC-2`, and the provider kit reports that. With no close operation, an Issue here
+cannot reach `closed` over Write, since Issue §3.3 refuses the direct edit without `closed_at`.
+
 ## Optional historical Update and same-ID recovery
 
 For a fresh store, `historicalUpdate: true` selects the optional version1

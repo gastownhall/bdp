@@ -68,6 +68,60 @@ naming the seeding it needs, and never passes it.
 delete a Resource natively and name it, identity only, in `witnesses.deletedResourceId`;
 the kit then reads what the wire says of it. With no witness the case is `not-run`.
 
+## Optional profiles: Callables and the Issue package
+
+The same run covers the rows of [Callables §11](../specs/profiles/callables/callables.md#11-conformance-rows-for-preview-1),
+[Issue §10](../specs/types/issue/issue.md#10-conformance-rows-for-preview-1) and
+[Issue Callables §8](../specs/types/issue/callables.md#8-conformance-rows-for-preview-1).
+They are listed, with their citations, in `packages/conformance/catalog/current/` and reported
+in the report's `optional` array: `row`, `state`, and a `reason` or `note`. A failure there
+fails the run. They never change `sliceComplete` or `qualificationComplete`, and
+`claimEligible` is always false.
+
+| State | Meaning |
+| --- | --- |
+| `pass` | Observed on the wire |
+| `not-applicable` | The Scope's discovery rules it out: no Callables1, or a row needing Write on a Core Scope. Never a pass |
+| `not-run` | It applies and could not be exercised: no witness, or no `--allow-mutation` |
+| `excepted` | The row is in the exceptions ledger. `observed` keeps what really happened; it is never a pass |
+| `fail`, `harness-error` | As for the Core and Write cases |
+
+Pass `--exceptions /absolute/ledger.json`, an object of row to reason such as
+`{"IT-11": "the row version does not advance on a label-only write"}`, to report a
+provider's documented sprint exceptions. An adapter that returns
+`witnesses.takesNoExceptions: true` refuses a ledger: the stabilization plan holds the
+reference service to none, and its adapter says so.
+
+Nothing outside a provider can find a Callable with no implementation or force an
+operation's own failure, so an adapter may name a witness: which Callable, which arguments.
+It says nothing about the answer.
+
+```js
+witnesses: {
+  issuePackage: true, // discovery cannot say; see below
+  callables: {
+    unimplemented: "name",
+    batch: { name: "reserve-room", arguments: { /* ... */ } },
+    idempotentBatch: { name: "reserve-room", arguments: { /* ... */ } },
+    callableError: { name: "reserve-room", arguments: { /* ... */ } },
+    atomicProblem: { name: "some-atomic-batch", arguments: { /* ... */ } },
+  },
+}
+```
+
+With no adapter, the kit uses the tracker's own Callables as witnesses when `issue/create` is
+reachable, and otherwise samples arguments from a declaration's schemas. A row with no
+witness is `not-run`. Under `--scope`, all of this needs `--allow-mutation` to change anything.
+
+A Scope has no discovery signal for the Issue package (Issue §1: a provider "MAY, but need
+not, advertise Types1"). The kit takes it as served when `issue/create` is reachable, when a
+record is affiliated with a package Type, or when the adapter says `issuePackage: true`.
+Otherwise the package's rows are `not-applicable`.
+
+The reference is run by `scripts/current-provider-callables-adapter.mjs`, whose operations
+exist only to be witnesses. `provisionWithIssuePackage`, in the same file, adds the Issue
+Types: `IC-1` and `IC-2` then fail, because the reference does not serve the 45 names.
+
 The CLI emits one JSON report. Exit 2 means incomplete coverage (including a
 successful slice); exit 1 means at least one public assertion failed; exit 3 means
 an adapter, transport, initialization or cleanup failure prevented observation.
@@ -214,7 +268,7 @@ unique rows, required flags, passed states and successful lifecycle; it cannot
 pass merely because a reduced subset passes. There is no waiver option, and the
 coverage-audit row remains required `not-run`.
 Optional Events, Types, historical-update, projection and batch have no selected
-cases here; running the base slice does not qualify their advertised obligations.
+cases here (Callables has; see above); running the base slice does not qualify their advertised obligations.
 
 The controls execute the real reference and a real HTTP intermediary that emits
 a schema-valid wrong postimage. They prove the runner rejects that postimage,

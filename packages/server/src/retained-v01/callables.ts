@@ -186,7 +186,10 @@ function cliMappingDiagnostics(
   add: (message: string, location?: string) => void,
 ): void {
   if (mapping === undefined) return;
-  if (!isObject(mapping)) return add("`cliMapping` must be an object", "/cliMapping");
+  if (!isObject(mapping)) {
+    add("`cliMapping` must be an object", "/cliMapping");
+    return;
+  }
   const declared = new Map<string, string>();
   const noForms = new Set<string>();
   // Duplicates are judged over derived and added spellings together (§2.5).
