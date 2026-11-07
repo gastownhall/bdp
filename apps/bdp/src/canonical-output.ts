@@ -301,9 +301,20 @@ export function renderCallableFailure(failure: CanonicalOutput): string {
 /** The one human form of every Callable result: boring, generic, with no per-package view. */
 function callableResultText(data: ObjectValue): string {
   const cut = { shortened: false };
+  const result = record(data.result);
+  // The envelope says `changed`, and a product's own result may too. One line when they agree;
+  // when they do not, both, because which of them is right is not this client's to pick.
+  const both = typeof data.changed === "boolean" && typeof result.changed === "boolean";
+  const { changed: _said, ...rest } = result;
   const lines = [
-    ...(typeof data.changed === "boolean" ? [`changed: ${data.changed}`] : []),
-    ...callableLines(data.result, cut),
+    ...(both && data.changed !== result.changed
+      ? [`changed (invocation): ${data.changed}`, `changed (result): ${result.changed}`]
+      : typeof data.changed === "boolean"
+        ? [`changed: ${data.changed}`]
+        : []),
+    ...(both && Object.keys(rest).length === 0
+      ? []
+      : callableLines(both ? rest : data.result, cut)),
   ];
   while (lines[0] === "") lines.shift();
   while (lines.at(-1) === "") lines.pop();

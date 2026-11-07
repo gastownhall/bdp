@@ -143,6 +143,32 @@ describe("canonical delivery framing and human References", () => {
     expect(human({ result: ["a", 1] })).toBe("a\n1\n");
   });
 
+  it("says changed once when the result agrees, and both, labeled, when it does not", () => {
+    expect(human({ changed: true, result: { changed: true, id: "bd-1" } })).toBe(
+      "changed: true\nid: bd-1\n",
+    );
+    expect(human({ changed: false, result: { changed: false } })).toBe("changed: false\n");
+    expect(human({ changed: true, result: { changed: false, id: "bd-1" } })).toBe(
+      "changed (invocation): true\nchanged (result): false\nid: bd-1\n",
+    );
+    expect(human({ result: { changed: true } })).toBe("changed: true\n");
+    const data = { changed: true, result: { changed: false } };
+    expect(
+      JSON.parse(
+        renderCanonicalOutput(
+          {
+            schema_version: 2,
+            bdp_spec: null,
+            result_kind: "callable_result",
+            outcome: "success",
+            data,
+          },
+          { outputMode: "json" },
+        ),
+      ).data,
+    ).toEqual(data);
+  });
+
   it("says whether a batch changed anything", () => {
     expect(human({ changed: true, result: { id: "bd-1" } })).toBe("changed: true\nid: bd-1\n");
     expect(human({ changed: false, result: null })).toBe("changed: false\nnull\n");

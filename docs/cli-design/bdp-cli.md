@@ -2888,7 +2888,8 @@ and `--silent` are not carried on these commands.
 
 Success returns the closed `callableResult` as `data` under `result_kind`
 `callable_result`, with `changed` on a CallableBatch. Human output is one generic form
-for every Callable, with no per-package presentation: `changed` when there is one, a
+for every Callable, with no per-package presentation: `changed` when there is one, on
+one line when the result's own `changed` agrees and both labeled when it does not, a
 table for an array of records and for such a member of a record, `key: value` lines for
 any other record, and the value itself for anything else. A table leaves out a column
 empty in every row, and shortens a long cell and says so; `key: value` lines keep the
