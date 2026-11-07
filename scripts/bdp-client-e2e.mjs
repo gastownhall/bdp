@@ -1340,6 +1340,326 @@ async function coreReads(context) {
   ];
 }
 
+/** Seven things the manual pass found, each as a person meets it: human output, the flags a
+ * tree command declares, a delete preview, a refused flag, and a Core revision as a guard. */
+async function manualFindings(context) {
+  const { proxyScope: scope, bdp, posts } = context;
+  const on = (args) => bdp(["--scope", scope, ...args]);
+  const json = async (args) => {
+    const result = await bdp(["--scope", scope, "--output-mode", "json", ...args]);
+    try {
+      return { ...result, envelope: JSON.parse(result.stdout) };
+    } catch {
+      return { ...result, envelope: undefined };
+    }
+  };
+  const revision = async (id) => (await json(["show", id])).envelope?.data?.revision;
+  const rows = {};
+  const check = (name, result, ...failures) => {
+    const problems = failures.filter((failure) => failure !== false);
+    rows[name] = {
+      verdict: problems.length === 0 ? "ok" : "differs",
+      problems,
+      exit: result.status,
+      stdout: result.stdout.slice(0, 500),
+      stderr: result.stderr.slice(0, 500),
+    };
+  };
+  const lastPost = () => posts.at(-1)?.body;
+  const need = (ok, what) => !ok && what;
+  const seed = (id) => seedIssue(scope, issue(id));
+
+  // 1. A Callable's Problem reads as text in human mode, at the same status.
+  let result = await on(["issue", "create", "no actor"]);
+  check(
+    "human_problem_is_text",
+    result,
+    need(result.status === 1, "exit"),
+    need(result.stdout === "", "stdout"),
+    need(result.stderr.startsWith("error: validation-failed: "), "no error line"),
+    need(result.stderr.includes("`revisionProvenance.actor` is required"), "no detail"),
+    need(!result.stderr.includes('{"'), "raw JSON"),
+  );
+  result = await json(["issue", "create", "no actor"]);
+  check(
+    "json_problem_is_unchanged",
+    result,
+    need(result.status === 1, "exit"),
+    need(result.stderr === "", "stderr"),
+    need(result.envelope?.error?.problem?.code === "validation-failed", "no Problem on stdout"),
+  );
+  result = await on(["issue", "show", "sw-fix-no-such"]);
+  check(
+    "human_not_found_is_text",
+    result,
+    need(result.status === 3, "exit"),
+    need(result.stderr.startsWith("error: resource-not-found: "), "no error line"),
+  );
+
+  // 2. `changed` once when the envelope and v0's result agree.
+  await seed("sw-fix-m2");
+  result = await on(["issue", "update", "sw-fix-m2", "--patch", '{"title":"t"}', "--actor", "sam"]);
+  check(
+    "changed_prints_once",
+    result,
+    need(result.status === 0, "exit"),
+    need(
+      result.stdout.split("\n").filter((line) => /^\s*changed/.test(line)).length === 1,
+      "count",
+    ),
+  );
+  result = await json([
+    "issue",
+    "update",
+    "sw-fix-m2",
+    "--patch",
+    '{"title":"u"}',
+    "--actor",
+    "sam",
+  ]);
+  check(
+    "changed_stays_in_both_places_in_json",
+    result,
+    need(result.envelope?.data?.changed === true, "envelope"),
+    need(result.envelope?.data?.result?.changed === true, "result"),
+  );
+
+  // 3. A patch member is a flag; the wire is what --patch sends.
+  await seed("sw-fix-m3");
+  result = await on(["issue", "update", "sw-fix-m3", "--status", "in_progress", "--actor", "sam"]);
+  check(
+    "status_flag_sets_patch_status",
+    result,
+    need(result.status === 0, "exit"),
+    need(result.stdout.includes("status: in_progress"), "not applied"),
+    differences({ id: "sw-fix-m3", patch: { status: "in_progress" } }, lastPost()?.arguments)
+      .length > 0 && { sent: lastPost()?.arguments },
+  );
+  result = await on([
+    "issue",
+    "update",
+    "sw-fix-m3",
+    "-s",
+    "open",
+    "-p",
+    "1",
+    "-l",
+    "a",
+    "-l",
+    "b",
+    "--actor",
+    "sam",
+  ]);
+  check(
+    "member_flags_take_their_forms",
+    result,
+    need(result.status === 0, "exit"),
+    differences(
+      { id: "sw-fix-m3", patch: { status: "open", priority: 1, add_labels: ["a", "b"] } },
+      lastPost()?.arguments,
+    ).length > 0 && { sent: lastPost()?.arguments },
+  );
+  result = await on([
+    "issue",
+    "update",
+    "sw-fix-m3",
+    "--patch",
+    '{"title":"patch","notes":"kept"}',
+    "--title",
+    "flag",
+    "--actor",
+    "sam",
+  ]);
+  check(
+    "a_member_flag_overrides_patch",
+    result,
+    need(result.status === 0, "exit"),
+    differences({ id: "sw-fix-m3", patch: { title: "flag", notes: "kept" } }, lastPost()?.arguments)
+      .length > 0 && { sent: lastPost()?.arguments },
+  );
+  const seen = posts.length;
+  result = await on(["call", "issue/update", "--arguments", '{"id":"sw-fix-m3"}', "--status", "x"]);
+  check(
+    "call_takes_no_member_flag",
+    result,
+    need(result.status === 2, "exit"),
+    need(posts.length === seen, "sent a POST"),
+    need(result.stderr.includes("--arguments"), "does not name --arguments"),
+  );
+  result = await on(["issue", "update", "sw-fix-m3", "--actor", "sam"]);
+  check(
+    "no_member_sends_no_patch",
+    result,
+    need(result.status === 1, "exit"),
+    need(lastPost()?.arguments?.patch === undefined, "the client filled in a patch"),
+    need(result.stderr.includes("`patch` is required"), "not the service's refusal"),
+  );
+  await seed("sw-fix-m3b");
+  result = await on([
+    "issue",
+    "create",
+    "gated",
+    "--spawner-id",
+    "sw-fix-m3b",
+    "--waits-for-gate",
+    "any-children",
+    "--actor",
+    "sam",
+  ]);
+  check(
+    "waits_for_members_are_flags",
+    result,
+    need(result.status === 0, "exit"),
+    differences(
+      { title: "gated", waits_for: { spawner_id: "sw-fix-m3b", gate: "any-children" } },
+      lastPost()?.arguments,
+    ).length > 0 && { sent: lastPost()?.arguments },
+  );
+
+  // 4. A tree command's help leads with usage; call's keeps the whole declaration.
+  result = await bdp(["issue", "update", "--help"]);
+  check(
+    "tree_help_leads_with_usage",
+    result,
+    need(result.stdout.startsWith("Usage: bdp "), "not usage first"),
+    need(result.stdout.includes("bdp call issue/update --help"), "no pointer"),
+    need(!result.stdout.includes("#####"), "carried prose"),
+    need(result.stdout.includes("--status, -s TEXT"), "no member flag"),
+  );
+  result = await bdp(["call", "issue/update", "--help"]);
+  check(
+    "call_help_keeps_the_declaration",
+    result,
+    need(result.stdout.includes("Partial update of one named issue"), "no description"),
+    need(result.stdout.includes("Errors:"), "no errors"),
+    need(!result.stdout.includes("--status"), "a member flag"),
+  );
+
+  // 5. A delete without --force says it is a preview.
+  await seed("sw-fix-m5");
+  result = await on(["delete", "sw-fix-m5"]);
+  check(
+    "delete_preview_says_so",
+    result,
+    need(result.status === 0, "exit"),
+    need(result.stdout.startsWith("Preview only: nothing was deleted."), "no preview line"),
+    need(result.stdout.includes("To delete it, run: bdp delete sw-fix-m5 --force"), "no how-to"),
+  );
+  result = await json(["delete", "sw-fix-m5"]);
+  check(
+    "delete_preview_in_json",
+    result,
+    need(result.envelope?.context?.preview === "delete", "no marker"),
+    need(result.envelope?.result_kind === "resource", "not a read"),
+  );
+  check(
+    "delete_preview_deleted_nothing",
+    result,
+    need((await curlCall(scope, "issue/show", { id: "sw-fix-m5" })).status === 200, "it is gone"),
+  );
+
+  const link = (await json(["link", "list", "--limit", "1"])).envelope?.data?.items?.[0]?.id;
+  const local = String(link).slice(scope.length);
+  result = await on(["link", "delete", local]);
+  check(
+    "link_delete_preview_says_so",
+    result,
+    need(result.status === 0, "exit"),
+    need(result.stdout.startsWith("Preview only: nothing was deleted."), "no preview line"),
+    need(result.stdout.includes(`bdp link delete ${local} --force`), "no how-to"),
+  );
+
+  // 6. A refused flag is named, and the generic writes refuse against bd serve.
+  result = await on(["create", "--title", "x"]);
+  check(
+    "refused_flag_is_named",
+    result,
+    need(result.status === 2, "exit"),
+    need(result.stderr.includes("unsupported argument --title"), "not named"),
+  );
+  result = await on(["create", "--title=hunter2"]);
+  check("refused_value_is_not_echoed", result, need(!result.stderr.includes("hunter2"), "echoed"));
+  const task = "https://github.com/gastownhall/bdp/types/issue/task";
+  for (const [name, args] of [
+    ["generic_create_refused", ["create", "--type", task, "--properties", '{"title":"x"}']],
+    ["generic_update_refused", ["update", "sw-fix-m5", "--set-property", "title=y"]],
+    ["generic_delete_force_refused", ["delete", "sw-fix-m5", "--force"]],
+  ]) {
+    result = await on(args);
+    check(
+      name,
+      result,
+      need(result.status === 5, "exit"),
+      need(result.stderr.includes("unsupported_capability"), "not unsupported_capability"),
+    );
+  }
+
+  // 7. A Core revision never reads as a flag, and it is a guard on the Callable path only.
+  await seed("sw-fix-m7");
+  const held = await revision("sw-fix-m7");
+  result = await on(["show", "sw-fix-m7"]);
+  check(
+    "core_token_leads_with_its_digest",
+    result,
+    need(/^[0-9a-f]{32}-/.test(held ?? ""), `token ${held}`),
+    need(result.stdout.includes(`Revision: ${held}`), "not shown"),
+  );
+  const guarded = ["issue", "update", "sw-fix-m7", "--actor", "sam", "--expected-version"];
+  result = await on([...guarded, held, "--title", "one"]);
+  check("core_token_is_a_guard", result, need(result.status === 0, "exit"));
+  result = await on([...guarded, held, "--title", "two"]);
+  check(
+    "stale_core_token_is_refused",
+    result,
+    need(result.status === 4, "exit"),
+    need(result.stderr.startsWith("error: revision-mismatch: "), "not revision-mismatch"),
+    need(
+      (await curlCall(scope, "issue/show", { id: "sw-fix-m7" })).json?.result?.title === "one",
+      "wrote",
+    ),
+  );
+  const rowLock = (await curlCall(scope, "issue/show", { id: "sw-fix-m7" })).json?.result?.revision;
+  result = await on([...guarded, rowLock, "--title", "three"]);
+  check("bare_row_lock_is_a_guard", result, need(result.status === 0, "exit"));
+  const beforeLabel = await revision("sw-fix-m7");
+  await seedCall(scope, "issue/update", { id: "sw-fix-m7", patch: { add_labels: ["only"] } }, A);
+  result = await on([...guarded, beforeLabel, "--title", "four"]);
+  check(
+    "a_label_only_write_stales_a_core_token",
+    result,
+    need(result.status === 4, "exit"),
+    need(
+      (await curlCall(scope, "issue/show", { id: "sw-fix-m7" })).json?.result?.title === "three",
+      "wrote",
+    ),
+  );
+  const current = await revision("sw-fix-m7");
+  result = await on(["issue", "delete", "--ids", "sw-fix-m7", "--expected-version", current]);
+  check(
+    "core_token_guards_issue_delete",
+    result,
+    need(result.status === 0, "exit"),
+    need(result.stdout.includes("dry_run: true"), "not a preview"),
+  );
+  await seed("sw-fix-m7b");
+  const close = await revision("sw-fix-m7b");
+  result = await on(["issue", "close", "sw-fix-m7b", "--if-revision", close, "--actor", "sam"]);
+  check("core_token_guards_issue_close", result, need(result.status === 0, "exit"));
+  const direct = await curl(`${scope}v0/beads/issues/sw-fix-m7`, {
+    method: "PATCH",
+    body: JSON.stringify({ actor: "sam", patch: { title: "v0" }, expected_version: current }),
+    headers: ["Content-Type: application/json"],
+  });
+  result = { status: direct.status, stdout: direct.text, stderr: "" };
+  check(
+    "v0_refuses_a_core_token",
+    result,
+    need(direct.status === 400, "status"),
+    need(direct.json?.code === "invalid_argument", "code"),
+  );
+  return rows;
+}
+
 async function tokenMode(context, stack) {
   const token = "e2e-test-token";
   const file = join(stack.root, "tokens");
@@ -1522,6 +1842,7 @@ async function main() {
       results.file_annotations = await fileAnnotations(context, stack);
       results.actor = await actorBehavior(context);
       results.core_reads = await coreReads(context);
+      results.manual_findings = await manualFindings(context);
       results.token_mode = await tokenMode(context, stack);
       results.sizes = await sizes(context);
     }
@@ -1548,6 +1869,12 @@ async function main() {
     lines.push(
       `${row.verdict.padEnd(8)}actor ${name} exit=${row.exit}${
         row.problems?.length ? `  ${JSON.stringify(row.problems)}` : ""
+      }`,
+    );
+  for (const [name, row] of Object.entries(results.manual_findings ?? {}))
+    lines.push(
+      `${row.verdict.padEnd(8)}manual ${name} exit=${row.exit}${
+        row.problems.length ? `  ${JSON.stringify(row.problems)}` : ""
       }`,
     );
   if (results.wire !== undefined)

@@ -174,7 +174,20 @@ test("a callable-error shows its error value on stderr and exits 1", async () =>
   ]);
   assert.equal(status, 1);
   assert.equal(stdout, "");
-  assert.deepEqual(JSON.parse(stderr).error.problem.error, {
+  assert.match(stderr, /^error: callable-error/);
+  assert.match(stderr, /^ {2}assignee: kim$/m);
+  const structured = await bdp([
+    "--scope",
+    scope,
+    "--output-mode",
+    "json",
+    "call",
+    "issue/claim",
+    "--arguments",
+    '{"id":"bd-1"}',
+  ]);
+  assert.equal(structured.status, 1);
+  assert.deepEqual(JSON.parse(structured.stdout).error.problem.error, {
     reason: "already-claimed",
     assignee: "kim",
   });
@@ -182,7 +195,9 @@ test("a callable-error shows its error value on stderr and exits 1", async () =>
 test("a 5xx carries no error member and is a different diagnosis at the same status", async () => {
   const { status, stderr } = await bdp(["--scope", scope, "call", "issue/stats"]);
   assert.equal(status, 1);
-  const { problem } = JSON.parse(stderr).error;
+  assert.match(stderr, /^error: temporarily-unavailable/);
+  const structured = await bdp(["--scope", scope, "--output-mode", "json", "call", "issue/stats"]);
+  const { problem } = JSON.parse(structured.stdout).error;
   assert.equal(problem.code, "temporarily-unavailable");
   assert.equal(Object.hasOwn(problem, "error"), false);
 });
@@ -268,5 +283,5 @@ test("no default is filled in: call sends {} and the tree sends only what it was
 test("a failure with no Problem says what happened, in its own process", async () => {
   const { status, stderr } = await bdp(["--scope", "http://127.0.0.1:9/", "issue", "stats"]);
   assert.equal(status, 1);
-  assert.match(JSON.parse(stderr).error.problem.message, /could not connect/);
+  assert.match(stderr, /^error: delivery_failed: .*could not connect/);
 });
