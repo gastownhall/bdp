@@ -1,10 +1,10 @@
 # Engineering flow
 
-**Status: draft for Donna to read and overrule.** Written overnight on 2026-11-07 for Trish, from Britt's brief (packet 36). It is not ruled. Every unruled choice is marked "Recommended, not ruled (F-n)" where it appears, so a search for `F-` finds them all.
+**Status: draft for Donna to read and overrule.** Written overnight on 2026-11-07 for Trish, from Britt's brief (packet 36). Donna's rulings are under "What is settled". Every unruled choice is marked "Recommended, not ruled (F-n)" where it appears, so a search for `F-` finds them all.
 
 This is the sequence every stage of the bring-up lands through, on both sides of the pin. It sets order and checks. [The specifications](../../specs/README.md) own protocol meaning, the [stabilization plan](bdp-stabilization.md) owns bdp's work order, and the staging graph (packet 35) owns the stage list. "Packet" means a file in Britt's decision packet, which is local to Donna's machine.
 
-Live facts were read at about 00:10 PST on 2026-11-07. They go stale. Check them before acting on them.
+Live facts were read at about 00:10 PST on 2026-11-07, and §3 was updated later that day. They go stale. Check them before acting on them.
 
 ## Choices for Donna
 
@@ -30,10 +30,25 @@ Live facts were read at about 00:10 PST on 2026-11-07. They go stale. Check them
 | F-18 | The found-along-the-way list | One list per stage on the evidence branch; an undecided row blocks nothing unless acceptance needs it |
 | F-19 | How conformance users report back | A kit line pointing at a bdp issue form and a fixed label; Trish watches, Donna posts replies |
 | F-20 | Order of the first flow work | Build alongside generic bead operations and events; land none of their slices until the jobs report |
+| F-21 | What an engineer does when a product change meets BDP | A named waiver in the product PR, written by one command; a pin never has to move at 2am |
+| F-22 | How long a waiver lives | Until the next pin bump or a fixed number of days; a nightly job escalates |
+| F-23 | Whether the reference moves with the spec | It becomes one more provider, with its own spec pin and exceptions; repository split decided at checkpoint 2 |
+| F-24 | When product, spec and reference line up | Named checkpoints with evidence on a set cadence; Sprint 1 is the first |
+| F-25 | Stored data between reference commits | No promise; a change to a valid store bumps the format, and every older store refuses at open |
+| F-26 | The older development server stack | Don't port new rules into it; retire it after Sprint 1 with a tracked row |
 
 **Recommended, not ruled (F-1):** keep this as one document here, beside the stabilization plan, with job detail in `scripts/bringup-gates/` on the fork, because one reader follows one stage across both repositories and a section per gate would scatter it. bdp is public, and this names roles and fork details, as the stabilization plan already does. It stays on a local branch until bdp access returns. The realistic alternative is keeping it in Britt's packet, which is private and available today and which no outside contributor could ever read.
 
 ## What is settled
+
+Ruled by Donna on 2026-11-07:
+
+- **Tandem pins.** A beads PR into upstream `main` pins only a commit reachable from bdp `main`. A beads PR into `bringup-staging` may pin a pushed, retained bdp commit whose PR is open (§3).
+- **Pushes.** Push early and often unless there's a solid reason not to.
+- **Merges on bdp.** Trish merges reviewed PRs as coordinator: CI green, text Donna has ruled on, merge commits only. Anything unruled goes to Donna first.
+- **Events and Transfer** are immaterial to Sprint 1, and merge as they go.
+
+Sprint 1's test is Donna's four items: `--protocol bdp` and v0 are indistinguishable to a CLI user, `bd connect` excepted; a matching spec, conformance suite and reference to pin that to; conformance passes for create, update and delete Bead on the Issue Types; and a pinned bdp commit that lines up. Link writes wait for Links with identity and revisions comparable to Beads.
 
 Donna's three requirements (2026-11-06):
 
@@ -110,6 +125,8 @@ This is the checklist's last row, and the stage's acceptance. Trish fills the ta
 
 The last four columns are the dual rule: what `bd serve` serves, the `bdp` client must drive.
 
+Under F-23 the Reference column stops being required at each stage. Text can be normative once one provider passes the kit on it, and the reference serves it by the next checkpoint (§3.3). Sprint 1 already works this way for the 45 Issue Callables: Donna ruled that the reference serves the Callables mechanism and `bd serve` implements the names.
+
 **Recommended, not ruled (F-4):** yes, a slice may land on `bringup-staging` with this row red against proposed text, on three conditions: the pin does not move; the capability stays unadvertised on a default `bd serve`, so nothing claims it; and Donna's go names the sections still proposed. Red is never allowed upstream. I agree with Britt's default, because events and query can't otherwise start, but it needs Donna's word: packet 36 §6 says nothing lands until she declares the specification stable, so a go that names proposed sections is what reconciles the two. The realistic alternative is keeping staging green and holding red slices on their branches as draft PRs, which is stricter but loses whole-wave testing for exactly the stages that most need it.
 
 ### 2.4 Catalog gaps: when each is needed
@@ -162,13 +179,60 @@ Packet 36 §4's list, plus the two that were added later. This plan answers none
 4. bdp never waits on beads. The reverse lane is non-required, so no cycle can form.
 5. A finding from building goes to bdp as a finding (§5), and beads bumps forward after the answer.
 
+This is the planned path, for people who live in both repositories. It's ruled, and §3.2 is the path for everyone else.
+
+The pin check enforces the difference by merge target, so nobody has to remember it (§6.3). The release checklist repeats the `main` check, because it's one line.
+
 ### 3.1 Keeping a pin target reachable
 
-Pushes to `gastownhall/bdp` have been refused since Donna's account left the organization when a 2FA policy took effect. Live: `permissions.push` is false, and membership for `donnabox` answers 404. Three spec and client commits the sprint needs (`e89c0b0c`, `7620a095`, `01a5cf46`) exist only on this machine, and GitHub answers 422 for each. `donnabox/bdp` doesn't exist. So G3 can't check out its pin today, and #374's `coreSpecRevision` names a commit nobody else can fetch.
+Pushes to `gastownhall/bdp` were refused for most of a day on 2026-11-06 and 2026-11-07, after Donna's account left the organization when a 2FA policy took effect. Access is back and everything is pushed. In that window three commits the sprint needed existed only on one machine, and G3 couldn't have checked out its pin.
 
 **Recommended, not ruled (F-5):** three rules, because the flow should never again depend on one person's access to a pin. (1) An upstream proposal may only pin a commit reachable from `gastownhall/bdp` `main`. (2) Staging may also pin a commit on `donnabox/bdp`, a public fork used only as a read mirror, tagged `pin/<sha>` so it is retained, with the matching bdp PR open or queued. G3 takes the repository from fork-only workflow config, so upstream never sees it. A loss of access then stops proposals, not staging. (3) `gastownhall/bdp` has at least two accounts with Write, one of them a dedicated account with a passkey held by Donna, and an organization owner confirms it. Creating the mirror and asking for the second account are Donna's to do or approve. The realistic alternative is what stands today: G3 waits for the re-add, which is simplest and leaves the same single point of failure in place.
 
 **Recommended, not ruled (F-6):** the pin check derives `coreSpecRevision` as the last commit at or before the pin that changed a canonical source, and fails on any other value. [Core defines `specRevision`](../../specs/profiles/core/core.md#discovery-and-capabilities) as the latest commit that changed Core, Write, Types or Events, so it can differ from the pin. It already does: `7620a095` changes only the Issue documents, and Core's definition at that commit gives `3edfc711`. The alternative is widening Core's definition to cover selected Types such as Issue, which is a semantic change for Donna. Either way, today's value matches neither reading until she picks.
+
+### 3.2 A product change at 2am
+
+The person here is an engineer who doesn't work on BDP, with a critical PR to land or a release to sign. They shouldn't need to read the spec, touch bdp, or wake anyone.
+
+Because beads pins a fixed bdp commit, nothing happening in bdp can block their PR. The only thing that can fail is their change against that pin, whether the cause is a bug in the change, a wrong test, a stale spec or a reference that's behind. So there's one path:
+
+| Situation | What happens |
+| --- | --- |
+| The kit passes | Nothing |
+| A row fails, for any reason | The gate's failure message gives the exact command: `scripts/bdp-waive ROW --reason "..."`. It adds a row to the waiver file in their PR and files a bdp issue |
+| The change is a deliberate wire change | The same waiver. The product may lead the spec, but never silently |
+| Release sign-off | The report lists the pin, the checkpoint and every waiver. The release owner decides, and the release notes name what's open |
+| The next morning | The spec owner triages: fix the product, or fix the spec or test and bump the pin, which clears the waiver |
+
+The gate's message is the runbook. It has to work with nothing else in hand, and the waiver command has to work when the bdp issue can't be filed: the row then records that, and the nightly job files it.
+
+**Recommended, not ruled (F-21):** a waiver file in the product repository, with one row per waived conformance row: the row, the pin, the reason and the issue. The kit reports the row as `waived`, never as a pass. Ordinary PR review covers it, and the pin check doesn't care about it. This is the recipe's `excepted` and G2's `G2-waives` moved to where an ordinary engineer can reach them, and both have held up in the sprint. The one hard block stays that an upstream pin is reachable from bdp `main`, and it can't fire at 2am, because an engineer who isn't bumping the pin never touches it. The realistic alternative is letting a repository admin bypass the gate, which is faster but leaves no record of what was skipped.
+
+**Recommended, not ruled (F-22):** a waiver ends at the next pin bump, or after a fixed number of days, 14 to start. A nightly job opens an issue on an expired waiver and names the owner. It doesn't turn the gate red, because that would block the next engineer for someone else's waiver. The realistic alternative is failing the gate on expiry, which forces the cleanup and brings back the 2am block this section exists to remove.
+
+### 3.3 Providers and checkpoints
+
+Beads and the reference are both providers. Each pins a spec commit, keeps a list of what it doesn't meet, and gets measured by the kit. Spec and kit move together, as one thing.
+
+What the last two days showed:
+
+- The kit found the real bugs, using real providers. `CB-14` and the two-segment path came from running it against `bd serve`, and the read-only block came from Chris's provider.
+- The reference was where the cost landed. The one-value retry ruling touched 26 files, 12 of them package code, and needed a worker for most of an hour. The delete rulings added 876 lines there.
+- Legacy test weight and hash-pinned digests turned small spec edits into test churn. 201 of 265 test files are in the `legacy` routing lane.
+- The seam mostly exists. `packages/server` depends only on `@bdp/protocol`, and the kit reaches the reference only through an adapter and its own tests.
+
+**Recommended, not ruled (F-23):** the reference and the `bdp` client get their own spec pin and exceptions file, and their CI lane stops being required on spec PRs. A spec change lands with its kit rows and doesn't need the reference to be green. Text becomes normative when one provider passes the kit on it. Decide a repository split at checkpoint 2, by whether the shared `protocol` package still causes friction. Two things have to be solved first: the kit's own tests use the reference as their fixture, so they need a pinned reference or a small witness provider; and retiring the legacy stack (F-26) may give as much relief as any split. What's lost is the guarantee that the reference proves a rule implementable the moment it lands, which is why the checkpoint below has teeth. The realistic alternative is keeping them locked together, which holds the guarantee and keeps the cost.
+
+**Recommended, not ruled (F-24):** a checkpoint is a named spec commit plus evidence: `bd serve` at beads commit X and the reference at commit Y, each passing the kit, with waivers and exceptions listed. Each has an owner and a date, about every two weeks. A beads release states the checkpoint it conforms to and any waivers, and a checkpoint can't name an expired waiver. It doesn't block a release, for the reason in §3.2. Sprint 1 is checkpoint 1, and the split takes effect after it: that set is already aligned, so nothing changes until then. The realistic alternative is lining up only at releases, which lets drift hide for as long as releases are apart.
+
+### 3.4 The reference's stored data
+
+Reference stores already have a policy: creation needs an empty directory, a refusal never resets or migrates anything, and a store records its format and captured configuration. What's missing is a rule for a commit that changes what a valid store contains. The delete rulings did that under the same format names, so some older stores would open and others wouldn't, and the claim that they refuse has no test yet.
+
+**Recommended, not ruled (F-25):** no compatibility promise between reference commits, since the reference holds no one's real data. Any change to what a valid store contains bumps the format number. Every older store then refuses at open, with a message naming both formats, and a test covers the refusal. The realistic alternative is migrations, which give a nicer upgrade and a permanent maintenance cost for data nobody depends on.
+
+**Recommended, not ruled (F-26):** don't port new rules into the older development stack (`resource-evaluator`, `transaction-*`, `bdptest-development`), which the stabilization plan keeps only during the transition. Add a tracked row to retire it after Sprint 1. Until then, its tests and `catalog/read-update-v1.json` record older rules on purpose. That catalog is hash-pinned to historical cut 692d and the kit doesn't read it, so it isn't wrong, only old. One shared fixture now states the new delete rule while that stack follows the old one, and the row has to name that. The realistic alternative is porting each ruling, which keeps everything consistent and spends work on code we plan to remove.
 
 ## 4. Re-pin procedure
 
@@ -251,6 +315,7 @@ It runs on every PR and always reports, because a required check that doesn't re
 
 - The changed files are `bdp.pin`, `go.mod`, `go.sum`, a vendored tree, the `coreSpecRevision` line, or paths named on `Pin-requires: PATH` lines in a decision record the PR adds (F-7).
 - The new pin descends from the old one.
+- The new pin is reachable from bdp `main`, on a PR into upstream `main`. On a PR into `bringup-staging`, it's a pushed commit whose bdp PR is open. This is ruled, and it runs by `merge-base --is-ancestor` on the merge target.
 - The new pin is fetchable from an allowed repository (F-5).
 - `coreSpecRevision` matches (F-6).
 
@@ -267,9 +332,9 @@ Steps, for the job as it should be built:
 5. Run `scripts/current-provider-kit.mjs --scope URL`, with `--allow-mutation` once Write is advertised.
 6. Run `scripts/bdp-client-e2e.mjs`, for the dual rule. It exits non-zero only when its harness breaks, so the job must read its anomalies.
 7. Run `check_spec.py --spec` against the checkout, which compares `callables_table.go` with the declarations both ways. It is in no CI today.
-8. Upload the reports. Fail as F-12 says.
+8. Upload the reports. Fail as F-12 says, except that a row named in the waiver file reads `waived` (F-21).
 
-`--scope` and the not-applicable handling for a Core-only provider are on Trish's local conformance branch (`aaa464bf`), not on `main`.
+`--scope`, recipes and the not-applicable handling are on `trish/conformance-refimpl-20261106`, not on `main` yet. With a recipe, the kit against `bd serve` has no failing row and reads `incomplete`, exit 2.
 
 **Recommended, not ruled (F-12):** the job reads the kit's JSON rows, because the [kit has no exit 0 path](../current-provider-kit.md): a successful slice exits 2. A row fails the job if it is `fail` or `harness-error`, or `not-run` while required and not on the kit's own uncovered list at that pin. A `not-applicable` row passes only if the capability is absent from the stage's declared list, a small file the job reads: otherwise a bug that stops advertising a capability would turn its checks off and go green. `--scope` leaves durability and graph cases `not-run`, so a beads-side provider adapter comes with generic bead operations, the first stage that advertises Write. The realistic alternative is packet 13's plain reading, discovery alone decides what applies, which is simpler and has that hole.
 
@@ -402,3 +467,4 @@ The order inside the flow:
 | 13 §8: G3 fails on an applicable row not passing | The kit has no exit 0 path; G3 has to read rows (F-12) |
 | 35 §5: profile text "normative and not proposed" | Every profile's front matter is draft (F-3) |
 | 35 §1: labels attach "without revising" | Ruled 2026-11-06: labels stay revising "for now" |
+| 35 §5: completeness needs the reference to serve what a stage exposes | Sprint 1 composes: the reference serves the Callables mechanism and `bd serve` the 45 names (F-23) |
