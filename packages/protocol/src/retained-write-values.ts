@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import type { AbsoluteHttpUrl } from "./index.js";
+import type { AbsoluteHttpUrl, RevisionActor } from "./index.js";
 import { type AdmittedJsonValue, admitJsonNumbers, decodeJsonDocument } from "./json-admission.js";
 import { snapshotJsonValue } from "./json-values.js";
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
@@ -59,7 +59,8 @@ type SchemaRoot =
   | "properties"
   | "mutationResult"
   | "aliasResult"
-  | "readUpdateProblem";
+  | "readUpdateProblem"
+  | "revisionProvenanceInput";
 const validators = new Map<SchemaRoot, ValidateFunction>();
 let schemaValidator: Ajv2020 | undefined;
 
@@ -94,6 +95,20 @@ export function validateRetainedValue(root: SchemaRoot, value: JsonObject): void
     validators.set(root, check);
   }
   if (!check(value)) throw new ProtocolArtifactValidationError(`invalid retained v0.1 ${root}`);
+}
+
+/** Write's attribution input. Omission is undetermined; explicit null records known absence. */
+export interface RetainedRevisionProvenanceInput {
+  readonly actor?: RevisionActor;
+  readonly agent?: string | null;
+  readonly message?: string | null;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+export function parseRetainedRevisionProvenanceInput(
+  value: unknown,
+): RetainedRevisionProvenanceInput {
+  validateRetainedValue("revisionProvenanceInput", value as JsonObject);
+  return value as RetainedRevisionProvenanceInput;
 }
 
 /** Raw JSON only: reject duplicates, invalid Unicode and inadmissible numbers

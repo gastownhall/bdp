@@ -9,12 +9,12 @@ import {
   isJsonSchemaUri,
   parseCanonicalScope,
   parseCanonicalHttpUrl,
-  parseRevisionProvenanceInput,
+  parseRetainedRevisionProvenanceInput,
   snapshotJsonValue,
   stringifyJsonValue,
   type AdmittedJsonValue,
   type LosslessJsonValue,
-  type RevisionProvenanceInput,
+  type RetainedRevisionProvenanceInput,
 } from "@bdp/protocol";
 import { encodeSemanticValue, type SemanticValue } from "../semantic-identity.js";
 import { assertObjectChange, type ObjectChange } from "./object-edits.js";
@@ -340,7 +340,7 @@ export interface PreparedCreate {
   readonly type: TypeReference;
   readonly properties: JsonObject;
   readonly metadata: JsonObject;
-  readonly provenance?: RevisionProvenanceInput;
+  readonly provenance?: RetainedRevisionProvenanceInput;
   readonly refusal?: JsonObject;
 }
 const preparedInvocations = new WeakSet<PreparedCreate>();
@@ -406,10 +406,10 @@ export function prepareCreate(scope: string, text: string, key: string): Prepare
     });
   }
   const value = snapshotJsonValue(admitted.value) as JsonObject;
-  let provenance: RevisionProvenanceInput | undefined;
+  let provenance: RetainedRevisionProvenanceInput | undefined;
   if (value.revisionProvenance !== undefined) {
     try {
-      provenance = parseRevisionProvenanceInput(value.revisionProvenance);
+      provenance = parseRetainedRevisionProvenanceInput(value.revisionProvenance);
     } catch {
       throw new RetainedRequestError("malformed-request", 400);
     }
@@ -427,7 +427,7 @@ export function prepareCreate(scope: string, text: string, key: string): Prepare
 }
 /** The recorded envelope of one version; omitted input and {} record none. */
 export function recordedProvenance(
-  provenance: RevisionProvenanceInput | undefined,
+  provenance: RetainedRevisionProvenanceInput | undefined,
   time: string,
 ): JsonObject | undefined {
   if (!provenance || !Object.keys(provenance).length) return undefined;
@@ -514,7 +514,7 @@ export interface PreparedUpdate {
   readonly metadataChange?: ObjectChange;
   readonly expectedRevision?: string;
   readonly fromRevision?: string;
-  readonly provenance?: RevisionProvenanceInput;
+  readonly provenance?: RetainedRevisionProvenanceInput;
   readonly refusal?: JsonObject;
 }
 const preparedUpdates = new WeakSet<PreparedUpdate>();
@@ -635,7 +635,7 @@ function prepareSelectedUpdate(
       ...(value.revisionProvenance === undefined
         ? {}
         : {
-            provenance: parseRevisionProvenanceInput(value.revisionProvenance),
+            provenance: parseRetainedRevisionProvenanceInput(value.revisionProvenance),
           }),
     };
   }
@@ -651,7 +651,7 @@ export interface PreparedDelete {
   readonly identity: string;
   readonly bead: string;
   readonly expectedRevision?: string;
-  readonly provenance?: RevisionProvenanceInput;
+  readonly provenance?: RetainedRevisionProvenanceInput;
 }
 const preparedDeletions = new WeakSet<PreparedDelete>();
 export function assertPreparedDelete(scope: string, value: PreparedDelete): void {
@@ -683,10 +683,10 @@ export function prepareDelete(scope: string, text: string, key: string): Prepare
       input: { ...normalized, ...references } as SemanticValue,
     });
   const identity = identityFor({});
-  let provenance: RevisionProvenanceInput | undefined;
+  let provenance: RetainedRevisionProvenanceInput | undefined;
   if (input.revisionProvenance !== undefined) {
     try {
-      provenance = parseRevisionProvenanceInput(snapshotJsonValue(input.revisionProvenance));
+      provenance = parseRetainedRevisionProvenanceInput(snapshotJsonValue(input.revisionProvenance));
     } catch {
       throw new RetainedRequestError("malformed-request", 400);
     }

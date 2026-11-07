@@ -67,7 +67,6 @@ export interface RevisionProvenanceInput {
   readonly actor?: RevisionActor;
   readonly agent?: string | null;
   readonly message?: string | null;
-  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 export type HistoryMissingItem =
   | { readonly kind: "record" }
@@ -126,21 +125,8 @@ function ajvError(validate: ValidateFunction): string {
 export function parseHistoryCapability(value: unknown): HistoryCapability {
   return parseShape(value, "capability") as unknown as HistoryCapability;
 }
-/** This parser validates against the pinned v0 bundle, which predates `metadata`. The open
- * object has no shape to check beyond being an object, so it is checked here and restored. */
-function withProvenanceMetadata<T>(value: unknown, parse: (rest: unknown) => T): T {
-  if (typeof value !== "object" || value === null || !("metadata" in value)) return parse(value);
-  const { metadata, ...rest } = value as Record<string, unknown>;
-  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata))
-    throw new ProtocolArtifactValidationError("revisionProvenance.metadata must be an object");
-  if (Object.keys(rest).length === 0) return { metadata } as T;
-  return { ...parse(rest), metadata } as T;
-}
 export function parseRevisionProvenance(value: unknown): RevisionProvenance {
-  return withProvenanceMetadata(
-    value,
-    (rest) => parseShape(rest, "context") as unknown as RevisionProvenance,
-  );
+  return parseShape(value, "context") as unknown as RevisionProvenance;
 }
 export function parseRevisionAllocationUnsafeProblem(
   value: unknown,
@@ -148,10 +134,7 @@ export function parseRevisionAllocationUnsafeProblem(
   return parseShape(value, "allocation") as unknown as RevisionAllocationUnsafeProblem;
 }
 export function parseRevisionProvenanceInput(value: unknown): RevisionProvenanceInput {
-  return withProvenanceMetadata(
-    value,
-    (rest) => parseShape(rest, "contextInput") as unknown as RevisionProvenanceInput,
-  );
+  return parseShape(value, "contextInput") as unknown as RevisionProvenanceInput;
 }
 export function parseHistoryMissing(value: unknown): HistoryMissing {
   return parseShape(value, "missing") as unknown as HistoryMissing;
