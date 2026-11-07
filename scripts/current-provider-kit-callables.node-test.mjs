@@ -307,6 +307,71 @@ for (const [row, label, rewrite, before] of [
     assert.equal(report.lifecycle.cleanup, "pass");
   });
 
+const markedCompiled = (json) => ({
+  ...json,
+  paths: Object.fromEntries(
+    Object.entries(json.paths).map(([path, item]) => [
+      path,
+      {
+        ...item,
+        post: {
+          ...item.post,
+          "x-bdp-callable": { ...item.post["x-bdp-callable"], compiled: true },
+        },
+      },
+    ]),
+  ),
+});
+const isDeclarationRead = (url, method) =>
+  method === "GET" &&
+  /\/(?:witness\/echo|witness\/needs\-value|witness\/unbuilt|reserve\-room|witness\/fails\-after\-effects)(?:\?|$)/.test(
+    url,
+  ) &&
+  !/\/bdp\/call\//.test(url);
+const noRecord = { status: 404, json: { code: "resource-not-found" } };
+
+test("compiled declarations: CB-2 rebuilds them from the operation and CB-11 reads not applicable", async () => {
+  const report = await runCurrentProvider(
+    mutant(({ url, json, method }) =>
+      isOpenApi(url) && json?.paths
+        ? { json: markedCompiled(json) }
+        : isDeclarationRead(url, method)
+          ? noRecord
+          : undefined,
+    ),
+  );
+  const row = report.optional.find((entry) => entry.row === "CB-2");
+  assert.equal(row.state, "pass", JSON.stringify(row));
+  assert.equal(stateOf(report, "CB-11"), "not-applicable");
+});
+
+test("compiled declarations: CB-2 fails an operation that rebuilds to an invalid declaration", async () => {
+  const report = await runCurrentProvider(
+    mutant(({ url, json, method }) => {
+      if (isDeclarationRead(url, method)) return noRecord;
+      if (!isOpenApi(url) || !json?.paths) return undefined;
+      const marked = markedCompiled(json);
+      firstPost(marked).description = 7;
+      return { json: marked };
+    }),
+  );
+  assert.equal(stateOf(report, "CB-2"), "fail");
+});
+
+test("compiled declarations: CB-2 fails a name marked compiled that also has a record", async () => {
+  const report = await runCurrentProvider(
+    mutant(({ url, json }) =>
+      isOpenApi(url) && json?.paths ? { json: markedCompiled(json) } : undefined,
+    ),
+  );
+  assert.equal(stateOf(report, "CB-2"), "fail");
+  assert.match(
+    report.optional.find((row) => row.row === "CB-2").reason ??
+      JSON.stringify(report.optional.find((row) => row.row === "CB-2")),
+    /marked compiled/,
+  );
+});
+
 test("CB-2 fails on a body when echo is the query the mount row picks, and the mount row passes", async () => {
   const report = await runCurrentProvider(
     mutant((exchange) => echoListedFirst(exchange) ?? declarationCarryingBody(exchange)),

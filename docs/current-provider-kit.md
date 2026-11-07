@@ -213,6 +213,10 @@ The reference is run by `scripts/current-provider-callables-adapter.mjs`, whose 
 exist only to be witnesses. `provisionWithIssuePackage`, in the same file, adds the Issue
 Types: `IC-1` and `IC-2` then fail, because the reference does not serve the 45 names.
 
+A Callable marked `x-bdp-callable.compiled` has no Bead. `CB-2` rebuilds its declaration from
+the operation by Callables §14 and checks that, and fails a name marked compiled that also has
+a record. `CB-11` covers declaration Beads only, and reads not applicable when all are compiled.
+
 The CLI emits one JSON report. Exit 2 means incomplete coverage (including a
 successful slice); exit 1 means at least one public assertion failed; exit 3 means
 an adapter, transport, initialization or cleanup failure prevented observation.

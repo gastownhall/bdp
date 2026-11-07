@@ -364,6 +364,7 @@ export async function runOptionalRows({
           op,
           type,
           batch: type === BATCH,
+          compiled: op?.["x-bdp-callable"]?.compiled === true,
           parameters: op?.requestBody?.content?.[media]?.schema?.properties?.arguments ?? {},
         });
       }
@@ -375,6 +376,38 @@ export async function runOptionalRows({
     if (!declarations.has(callable.name))
       declarations.set(callable.name, await http(url(callable.name)));
     return declarations.get(callable.name);
+  }
+  /** Callables §14's rule backwards: the declaration a compiled Callable's operation states. */
+  function rebuiltDeclaration(callable) {
+    const { op, parameters: args } = callable;
+    const extension = op["x-bdp-callable"];
+    const required = args.required ?? [];
+    const member = (status, name) =>
+      op.responses?.[status]?.content?.[media]?.schema?.properties?.[name];
+    const present = (entries) =>
+      Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+    return present([
+      ["title", op.summary],
+      ["description", op.description ?? ""],
+      [
+        "parameters",
+        Object.entries(args.properties ?? {}).map(([name, projected]) => {
+          const { description, default: fallback, ...schema } = projected;
+          return present([
+            ["name", name],
+            ["schema", schema],
+            ["description", description],
+            ["default", fallback],
+            ["required", required.includes(name) ? true : undefined],
+          ]);
+        }),
+      ],
+      ["resultSchema", member("200", "result")],
+      ["errorSchema", member("409", "error")],
+      ["idempotent", extension.idempotent],
+      ["atomic", extension.atomic],
+      ["cliMapping", extension.cliMapping],
+    ]);
   }
   /** The declaration to read a callable by: its own Bead, or the package's published text. */
   async function declarationOf(callable) {
@@ -489,9 +522,28 @@ export async function runOptionalRows({
     const noBead = [];
     const wrongType = [];
     const invalid = [];
+    const compiledWithBead = [];
     const validate = ajv.compile(callablePropertiesSchema);
+    const satisfies = (properties, type, name) => {
+      if (!validate(properties)) return false;
+      try {
+        // That check reads a catalog entry, where resultSchema is always present.
+        assertValidDeclaration({ resultSchema: true, ...properties, name, type });
+        return true;
+      } catch {
+        return false;
+      }
+    };
     for (const callable of list) {
       const reply = await beadOf(callable);
+      if (callable.compiled) {
+        // A compiled declaration isn't a Bead (§2.1), so a record at its name contradicts the mark.
+        if (reply.status === 200) compiledWithBead.push(callable.name);
+        else if (![QUERY, BATCH].includes(callable.type)) wrongType.push(callable.name);
+        else if (!satisfies(rebuiltDeclaration(callable), callable.type, callable.name))
+          invalid.push(callable.name);
+        continue;
+      }
       if (reply.status !== 200) {
         noBead.push(callable.name);
         continue;
@@ -500,24 +552,16 @@ export async function runOptionalRows({
         wrongType.push(callable.name);
         continue;
       }
-      let valid = validate(reply.json.properties);
-      if (valid)
-        try {
-          assertValidDeclaration({
-            // That check reads a catalog entry, where resultSchema is always present.
-            resultSchema: true,
-            ...reply.json.properties,
-            name: callable.name,
-            type: reply.json.type,
-          });
-        } catch {
-          valid = false;
-        }
+      const valid = satisfies(reply.json.properties, reply.json.type, callable.name);
       if (!valid) invalid.push(callable.name);
     }
     check(
       noBead.length === 0,
       `${noBead.length} of ${list.length} reachable names resolve to no Bead record`,
+    );
+    check(
+      compiledWithBead.length === 0,
+      `${compiledWithBead.length} names marked compiled also have a record`,
     );
     check(wrongType.length === 0, `${wrongType.length} names resolve to the wrong Type`);
     check(invalid.length === 0, `${invalid.length} declarations fail §§2.2-2.5`);
@@ -782,7 +826,12 @@ export async function runOptionalRows({
     requireCallables();
     const { list } = await callables();
     if (list.length === 0) notRun("No reachable Callable");
-    for (const callable of list) {
+    const stored = list.filter((callable) => !callable.compiled);
+    if (stored.length === 0)
+      notApplicable(
+        "Not applicable by discovery: every declaration is compiled, so none is a Bead",
+      );
+    for (const callable of stored) {
       const reply = await beadOf(callable);
       check(
         reply.status === 200,
