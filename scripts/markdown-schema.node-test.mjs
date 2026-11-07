@@ -28,11 +28,11 @@ const fence = String.fromCharCode(96).repeat(3);
 
 // Source projection only: no JSON Schema instance evaluator, provider, HTTP,
 // Type admission, schema fetch, storage engine or protocol runtime is exercised.
-test("complete current common215-definition bundle projects losslessly", () => {
+test("complete current common217-definition bundle projects losslessly", () => {
   const path = "specs/profiles/core/bdp-v0.1.schema.json";
   const before = text(path);
   const schema = JSON.parse(before);
-  assert.equal(Object.keys(schema.$defs).length, 215);
+  assert.equal(Object.keys(schema.$defs).length, 217);
   const markdown = roundTrip(schema);
   assert.equal(parseSchema(markdown).$id, schema.$id);
   assert.equal(text(path), before);

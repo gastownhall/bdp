@@ -38,7 +38,8 @@ remain readable after subject deletion under its actual retention/disclosure.
 Unknown subjects do not become distinguishable from forbidden subjects. Opaque
 external Link endpoints do not acquire in-Scope Event sources.
 
-An Event records a published Resource transition or a truthfully described external
+An Event records a published Resource transition, a published change to the
+[non-Resource state](#non-resource-facts) a source advertises, or a truthfully described external
 observation. Policy declares `observation:"committed"` when it covers every relevant
 published transition from the stated boundary; `observation:"observed"` when the
 external mechanism can miss original intermediate mutations. Required `description`
@@ -51,7 +52,8 @@ outcome, regardless of how unrelated external state is observed. A crash/retry
 cannot lose those facts or mint duplicate transitions. Failures/rollbacks produce
 none; a semantic no-op under final publication produces none. Commit
 correlation is not a receipt, public position or atomic replica-application claim.
-Alias-only changes produce no Resource Event; aliases acquire no Resource kind or
+An alias change publishes a [non-Resource fact](#non-resource-facts), not a Resource fact;
+aliases acquire no Resource kind or
 revision merely to make route updates into a Resource lifecycle operation.
 
 Coverage names opaque `start`, `retainedFrom` and `through` boundaries. The first
@@ -141,10 +143,11 @@ advertise conformance. No new transaction/receipt Problem grammar is imported.
 
 ### Facts use the mutation vocabulary
 
-`retainedEvent` is the union of postimage and delta fact shapes. Common envelope
-members are source-local stable `id`, absolute `source`, observation `time`,
-`origin:"write"|"observation"`, actual `revision`, selected `representation` and
-`effect`. A Write-origin fact MUST have actual Scope-local `transaction` correlation;
+`retainedEvent` is the union of postimage, delta and [non-Resource](#non-resource-facts)
+fact shapes. Common envelope
+members are source-local stable `id`, absolute `source`, observation `time` and
+`origin:"write"|"observation"`. A Resource fact adds actual `revision`, selected
+`representation` and `effect`. A Write-origin fact MUST have actual Scope-local `transaction` correlation;
 observations may include it only when known, never infer it from a polling interval.
 `time` is fact-recording time, not a total order or an invented external commit time.
 Only `annotations` is a declared ignorable extension object. Unknown required
@@ -163,7 +166,8 @@ a guard. Delete carries its final live `revision`, no fresh revision, and no
 identity and final live revision; for a Link it also contains its complete recorded
 source/target References. It retains no properties. Delete is not erase.
 The operation target, record/deleted identity and envelope revision MUST agree.
-Each Event's source and representation MUST agree with its selected page. These
+Each Event's source, and a Resource fact's representation, MUST agree with its
+selected page. These
 cross-value obligations require semantic validation beyond the JSON grammar.
 
 #### Observed predecessors and disappearance
@@ -238,11 +242,45 @@ Facts exclude `expectedRevision`, local `name`/`@name`, execution keys and
 credentials. They describe committed/observed state; submitting them to a mutation
 endpoint would be new intent and is not Event consumption or replica replay.
 
+#### Non-Resource facts
+
+A change that mints a revision is a Resource fact. A change that mints none, but
+whose state [Transfer](../transfer/transfer.md#33-required-retained-fact-families)
+retains, is a non-Resource fact. No change is both.
+
+A non-Resource fact carries `family`, `profile`, `address` and `value` with the meanings
+of Transfer's [retained-fact wrapper](../transfer/transfer.md#34-retained-fact-wrapper-and-family-agreement),
+and a `change` of `created`, `updated` or `deleted` saying what happened to the state
+at that address. It carries the common `id`, `source`, `time` and `origin`, with
+`transaction` as for any Write-origin fact. It has no `revision`, `previousRevision`,
+`representation`, `revisionProvenance` or `effect`, versions nothing and reads the same
+under either selected representation.
+
+A source advertises its families in `policy.families`; absence means it publishes no
+non-Resource fact, and a fact's family MUST be listed. A consumer that does not know a
+fact's family or profile stops before advancing past it, rather than skipping it.
+
+| State | `family` and `profile` | `address` | `value` |
+| --- | --- | --- | --- |
+| Alias put or delete that changes a binding | `alias-state`, `https://github.com/gastownhall/bdp/families/alias-state/1` | The absolute alias URL | `{target}`: the new target, or for `deleted` the removed one |
+| A retained version or whole identity pruned, erased or reorganized | `identity-state`, `https://github.com/gastownhall/bdp/families/identity-state/1` | The canonical ID and, for one version, the revision | `pruned`, `erased` or `reorganized` |
+| Association state a Type's semantic contract keeps outside its record, such as comments | `association-state`, under the profile that contract names | As that profile fixes | As that profile fixes |
+| Type registration, withdrawal and default selection | `type-prerequisite`, under [Types](../types/types.md#70-definition-presence-and-explicit-registration) | As Types fixes | As Types fixes |
+
+An `erased` fact discloses no removed content. Publishing a pruned, erased or
+reorganized fact does not promise that any consumer's copies are reconciled. Recovery
+state, allocation and nonreuse publish nothing. Events' own retention moves
+`retainedFrom` and is no fact.
+
 ### Projection and compatible extension
 
-Scope source covers authorized Resource transitions. Link source projects its
-lifecycle; Bead source projects its lifecycle and lifecycle effects of incident
-Links, including a Link Type-only change. For an endpoint correction, incidence
+Scope source covers authorized Resource transitions and non-Resource facts. Link source
+projects its lifecycle; Bead source projects its lifecycle and lifecycle effects of
+incident Links, including a Link Type-only change. Bead source also projects each
+non-Resource fact for the Beads its family profile names, under the same authorization
+gate: `alias-state` names the alias's former and new targets, and `identity-state` names
+the addressed identity. Visibility of a new alias target does not disclose the former
+one, and a fact's `value` names no former target of a repoint. For an endpoint correction, incidence
 is the union of preceding and resulting published endpoints, so a departing Bead
 can observe the same correction. Apply the existing authorization/disclosure gate
 to this projection; visibility of a new endpoint does not grant disclosure of
@@ -268,7 +306,8 @@ Receiving bytes is not successful consumer application. Page cursors are safe
 consumer progress only after every included fact has been validated/processed.
 Repeated delivery preserves fact identity and does not reexecute writes.
 Events do not promise consistent state bootstrap, complete application History,
-durable subscriber state, erasure reconciliation or replica group application.
+durable subscriber state, reconciliation of a consumer's copies with an erasure, or
+replica group application.
 
 ### Event carriers
 
@@ -276,18 +315,22 @@ The closed page has required `source` (absolute Event source URL), `selection`
 (`{representation:"postimage"|"delta"}`), `policy`, `coverage`, `events` (ordered
 array), nonempty opaque `cursor`, and `next` (absolute URL or null). `subject`, when
 present, is the canonical Resource URL for a subject projection. Page and facts
-must agree on source and selected representation.
+must agree on source, and Resource facts on selected representation.
 
 Policy is a closed object with required `observation`, nonempty `description`,
 positive integer `minimumRetentionSeconds`, positive integer
 `minimumCursorLifetimeSeconds`, and a nonempty unique `representations` array
 containing `postimage` and optionally `delta`. Optional `maximumPageSize` is a
-positive integer native page bound. Coverage is exactly the nonempty opaque
+positive integer native page bound. Optional `families` is a nonempty unique array of
+the source's [non-Resource families](#non-resource-facts). Coverage is exactly the nonempty opaque
 `start`, `retainedFrom`, `through` tokens. None is arithmetic or global position.
 
-A fact contains required nonempty opaque `id`, absolute `source`, `time`, `origin`,
+A Resource fact contains required nonempty opaque `id`, absolute `source`, `time`, `origin`,
 `revision`, `representation`, and `effect`; `transaction`, `previousRevision` and
-an object `annotations` are present only under the conditions above. All required
+an object `annotations` are present only under the conditions above. A non-Resource
+fact is closed with required `id`, `source`, `time`, `origin`, `family`, `profile`,
+`address`, `value` and `change`; `transaction` and `annotations` follow the same
+conditions. All required
 postimage/effect/deletion/derived members carry the meanings above. Create/update
 postimage effects contain their complete `resource`; deletion contains `deleted`.
 The closed deletion context is `{resourceKind:"bead", resource:{id,type,revision}}`
@@ -429,6 +472,7 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "description" | schema | yes | — | "Human-readable explanation of the advertised mechanism or limitation." |
+| "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
 | "maximumPageSize" | schema | no | — | "Optional positive Event-page bound without permission to split or truncate a fact." |
 | "minimumCursorLifetimeSeconds" | schema | yes | — | "Positive minimum lifetime preserving issued cursor context and its captured range." |
 | "minimumRetentionSeconds" | schema | yes | — | "Positive minimum retention promise for admitted Event facts." |
@@ -443,6 +487,15 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
     "description": {
       "type": "string",
       "minLength": 1
+    },
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "maximumPageSize": {
       "type": "integer",
@@ -511,13 +564,13 @@ Required order: ["start","retainedFrom","through"]
 
 Value: object
 
-Required order: ["id","source","time","origin","revision"]
+Required order: ["id","source","time","origin"]
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Shared immutable fact envelope. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations." |
+| description | "Immutable fact envelope shared by Resource and non-Resource facts. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations." |
 | type | "object" |
 
 #### Properties
@@ -527,8 +580,6 @@ Required order: ["id","source","time","origin","revision"]
 | "annotations" | schema | no | — | "Explicit extension annotations. Unsupported required meaning cannot silently become known meaning." |
 | "id" | ref "#/$defs/wireToken" | yes | — | "Opaque immutable fact identity scoped to this Event source; it is not a Resource ID or resume cursor." |
 | "origin" | schema | yes | — | "Whether this fact came from Write’s own committed transition or truthful external observation." |
-| "previousRevision" | ref "#/$defs/revision" | no | — | "Actual known observed predecessor; omission never invents intermediate revisions." |
-| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
 | "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute URL of the observation source that emitted this fact." |
 | "time" | ref "#/$defs/dateTime" | yes | — | "Recorded Event time, not a global ordering or an authentication proof." |
 | "transaction" | ref "#/$defs/wireToken" | no | — | "Opaque commit correlation for Write-origin facts. It is neither a receipt nor a public replica-log position." |
@@ -576,6 +627,40 @@ Required order: ["id","source","time","origin","revision"]
 }
 ```
 <!-- bdp-schema:end retainedEventCommon -->
+
+<!-- bdp-schema:start retainedResourceEventCommon -->
+### Schema: "retainedResourceEventCommon"
+
+Value: object
+
+Required order: ["revision"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Revision context shared by postimage and delta Resource facts. A non-Resource fact carries none of it." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "previousRevision" | ref "#/$defs/revision" | no | — | "Actual known observed predecessor; omission never invents intermediate revisions." |
+| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/retainedEventCommon"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end retainedResourceEventCommon -->
 
 <!-- bdp-schema:start retainedEventDeleted -->
 ### Schema: "retainedEventDeleted"
@@ -1273,7 +1358,7 @@ Required order: ["representation","effect"]
 {
   "allOf": [
     {
-      "$ref": "#/$defs/retainedEventCommon"
+      "$ref": "#/$defs/retainedResourceEventCommon"
     },
     {
       "if": {
@@ -1406,7 +1491,7 @@ Required order: ["representation","effect"]
 {
   "allOf": [
     {
-      "$ref": "#/$defs/retainedEventCommon"
+      "$ref": "#/$defs/retainedResourceEventCommon"
     },
     {
       "if": {
@@ -1656,6 +1741,139 @@ Required order: ["representation","effect"]
 ```
 <!-- bdp-schema:end retainedDeltaEvent -->
 
+<!-- bdp-schema:start retainedNonResourceEvent -->
+### Schema: "retainedNonResourceEvent"
+
+Value: object
+
+Required order: ["family","profile","address","value","change"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Fact recording a change to state Transfer retains outside Resources. It mints no revision, carries no representation or provenance, and reads the same under either selected representation." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "address" | schema | yes | — | "Stable address of the changed state, with the arity and meaning its family profile fixes." |
+| "change" | schema | yes | — | "What happened to the state at address: created, updated or deleted." |
+| "family" | schema | yes | — | "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips." |
+| "profile" | schema | yes | — | "Exact family profile identity fixing the address, value and projected Beads." |
+| "value" | schema | yes | — | "Family-defined value of the change." |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/retainedEventCommon"
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "family"
+        ],
+        "properties": {
+          "family": {
+            "const": "alias-state"
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "const": "https://github.com/gastownhall/bdp/families/alias-state/1"
+          },
+          "address": {
+            "type": "array",
+            "maxItems": 1
+          },
+          "value": {
+            "type": "object",
+            "required": [
+              "target"
+            ],
+            "properties": {
+              "target": {
+                "$ref": "#/$defs/absoluteHttpUrl"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "family"
+        ],
+        "properties": {
+          "family": {
+            "const": "identity-state"
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
+          },
+          "address": {
+            "type": "array",
+            "maxItems": 2
+          },
+          "value": {
+            "enum": [
+              "pruned",
+              "erased",
+              "reorganized"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "address": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "value": {},
+    "change": {
+      "enum": [
+        "created",
+        "updated",
+        "deleted"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end retainedNonResourceEvent -->
+
 <!-- bdp-schema:start retainedEvent -->
 ### Schema: "retainedEvent"
 
@@ -1665,7 +1883,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Union of the supported complete postimage and delta Event shapes. Schema acceptance does not prove truthful coverage, retention or atomic production." |
+| description | "Union of the supported complete postimage and delta Resource facts and the non-Resource fact. Schema acceptance does not prove truthful coverage, retention or atomic production." |
 
 #### Advanced
 
@@ -1677,6 +1895,9 @@ Value: object
     },
     {
       "$ref": "#/$defs/retainedDeltaEvent"
+    },
+    {
+      "$ref": "#/$defs/retainedNonResourceEvent"
     }
   ]
 }
@@ -1742,7 +1963,14 @@ Required order: ["source","selection","policy","coverage","events","cursor","nex
           "events": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/retainedPostimageEvent"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/retainedPostimageEvent"
+                },
+                {
+                  "$ref": "#/$defs/retainedNonResourceEvent"
+                }
+              ]
             }
           }
         }
@@ -1773,7 +2001,14 @@ Required order: ["source","selection","policy","coverage","events","cursor","nex
           "events": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/retainedDeltaEvent"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/retainedDeltaEvent"
+                },
+                {
+                  "$ref": "#/$defs/retainedNonResourceEvent"
+                }
+              ]
             }
           },
           "policy": {

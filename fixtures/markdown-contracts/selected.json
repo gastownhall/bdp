@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
+  "sourceSHA256": "afb170fc417fea1fde1c84d1e08e1318b692ea3b9dfda169a002e6f9f946d1fd",
   "selections": {
     "read": {
       "entryPoints": [
@@ -105,8 +105,10 @@
         "retainedEventProblem",
         "retainedEventQuery",
         "retainedEventSelection",
+        "retainedNonResourceEvent",
         "retainedPostimageEffect",
         "retainedPostimageEvent",
+        "retainedResourceEventCommon",
         "retryDisposition",
         "revision",
         "revisionActor",
