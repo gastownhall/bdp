@@ -594,6 +594,21 @@ const input = (key = "k", id?: string) =>
     key,
   );
 describe("private retained SQLite owner", () => {
+  it("records revisionProvenance.metadata with the version and returns it", () => {
+    const { store } = setup();
+    const change = { occurredAt: "2026-11-07T12:00:00Z", source: { ref: "git:abc" } };
+    const body = (revisionProvenance: unknown) =>
+      JSON.stringify({
+        type: { uri: "https://types.invalid/T", revision: "t1" },
+        properties: { x: null },
+        revisionProvenance,
+      });
+    const created = store.create("p", prepareCreate(scope, body({ metadata: change }), "k"));
+    expect(created.status).toBe(200);
+    expect(JSON.parse(created.text).resource.revisionProvenance).toEqual({ metadata: change });
+    expect(() => prepareCreate(scope, body({ metadata: "text" }), "k2")).toThrow();
+  });
+
   it("commits allocation, complete fact and original result, then replays across reopen", () => {
     const { config, store } = setup();
     const first = store.create("p", input());
