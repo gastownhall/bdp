@@ -586,13 +586,12 @@ it were represented by the prior commit. Optional members are `aliases`,
 `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
 `capabilities`.
 Write uses the same Core meaning with `profile:"write"` and optional `aliases`
-navigation. These discovery objects are closed; there is no `beads`, `links`,
-`events` or `operations` member, because those routes are [fixed](#fixed-navigation).
+navigation. These discovery objects are closed; there is no required or guessed `beads` or `links` member.
+Nor is there an `events` or `operations` member: those routes are
+[fixed](#fixed-navigation).
 When a Scope supports Types, its optional `types` member identifies the fixed
 `<scope>/types/` inventory. Unknown optional
 capabilities use the declared extension map, not arbitrary discovery members.
-
-<a id="fixed-navigation"></a>
 
 ### Fixed navigation
 
@@ -627,8 +626,8 @@ the Scope, so Callables keep `bdp/call/`.
 
 Discovery says which routes a Scope serves: its profile, its `aliases` member and its
 capabilities, read under each route's own rules. A route the Scope does not serve,
-and any other path under `bdp/`, answers as an unknown Resource does: `404`
-`resource-not-found`. A client does not probe a route to learn whether it is served.
+and any other path under `bdp/`, answers as an unknown Resource URL does; a `GET` is
+`404` `resource-not-found`. A client does not probe a route to learn whether it is served.
 
 The inventories are collection
 entry points, not base URIs for Resource identity, and do not divide the Resource

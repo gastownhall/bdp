@@ -256,7 +256,7 @@
     "status": "draft authoring/tooling metadata, not a wire capability",
     "authoringSource": "Visible profile OpenAPI tables; shared native HTTP rules in Core",
     "sourceFingerprints": {
-      "specs/profiles/core/core.md": "9d09d593302547099d9c03f86b66f050ed734d946094f54d04d5406548ae7b71",
+      "specs/profiles/core/core.md": "8e87d931553ce7794c02866110af6743e063dfd8ec0d79d59a650a75d1ee1fb7",
       "specs/profiles/write/write.md": "5278f074ab50fd260cb4b98134fd0c4cf5f9a1b5cb5befad87509cd97738cc0f",
       "specs/profiles/events/events.md": "315ba4eb7cc0e1312e73c536b211d9d793131b9876c314bf6cdaf3c301668253",
       "specs/profiles/types/types.md": "bb61beee5bbb4b83ddf7ab78a1c2aa894ff491c10c51eaa9cdd9a7ece80bfb60",
@@ -302,7 +302,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5584
+              "line": 5583
             }
           ],
           "x-bdp-cli": {
@@ -513,7 +513,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5584
+              "line": 5583
             }
           ],
           "x-bdp-cli": {
@@ -719,7 +719,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5602
+              "line": 5601
             }
           ],
           "x-bdp-cli": {
@@ -904,7 +904,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5602
+              "line": 5601
             }
           ],
           "x-bdp-cli": {
@@ -1078,7 +1078,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5619
+              "line": 5618
             }
           ],
           "x-bdp-cli": {
@@ -1311,7 +1311,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5619
+              "line": 5618
             }
           ],
           "x-bdp-cli": {
@@ -1523,7 +1523,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5637
+              "line": 5636
             }
           ],
           "x-bdp-cli": {
@@ -1761,7 +1761,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5637
+              "line": 5636
             }
           ],
           "x-bdp-cli": {
@@ -1979,7 +1979,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5656
+              "line": 5655
             }
           ],
           "x-bdp-cli": {
@@ -2259,7 +2259,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5656
+              "line": 5655
             }
           ],
           "x-bdp-cli": {
@@ -2516,7 +2516,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5679
+              "line": 5678
             }
           ],
           "x-bdp-cli": {
@@ -2778,7 +2778,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5679
+              "line": 5678
             }
           ],
           "x-bdp-cli": {
@@ -3019,7 +3019,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5700
+              "line": 5699
             }
           ],
           "x-bdp-cli": {
@@ -3256,7 +3256,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5700
+              "line": 5699
             }
           ],
           "x-bdp-cli": {
@@ -3480,7 +3480,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5722
+              "line": 5721
             }
           ],
           "x-bdp-cli": {
@@ -3761,7 +3761,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5722
+              "line": 5721
             }
           ],
           "x-bdp-cli": {
@@ -4012,7 +4012,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5744
+              "line": 5743
             }
           ],
           "x-bdp-cli": {
@@ -4322,7 +4322,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5744
+              "line": 5743
             }
           ],
           "x-bdp-cli": {
@@ -4601,7 +4601,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5768
+              "line": 5767
             }
           ],
           "x-bdp-cli": {
@@ -4930,7 +4930,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5768
+              "line": 5767
             }
           ],
           "x-bdp-cli": {
@@ -5224,7 +5224,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5795
+              "line": 5794
             }
           ],
           "x-bdp-cli": {
@@ -5457,7 +5457,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5795
+              "line": 5794
             }
           ],
           "x-bdp-cli": {
@@ -5669,7 +5669,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5813
+              "line": 5812
             }
           ],
           "x-bdp-cli": {
@@ -5907,7 +5907,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5813
+              "line": 5812
             }
           ],
           "x-bdp-cli": {
@@ -6125,7 +6125,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5832
+              "line": 5831
             }
           ],
           "x-bdp-cli": {
@@ -6435,7 +6435,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5832
+              "line": 5831
             }
           ],
           "x-bdp-cli": {
@@ -6722,7 +6722,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5858
+              "line": 5857
             }
           ],
           "x-bdp-cli": {
@@ -6984,7 +6984,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5858
+              "line": 5857
             }
           ],
           "x-bdp-cli": {
@@ -7225,7 +7225,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5879
+              "line": 5878
             }
           ],
           "x-bdp-cli": {
@@ -7462,7 +7462,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5879
+              "line": 5878
             }
           ],
           "x-bdp-cli": {
@@ -7686,7 +7686,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5901
+              "line": 5900
             }
           ],
           "x-bdp-cli": {
@@ -7967,7 +7967,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5901
+              "line": 5900
             }
           ],
           "x-bdp-cli": {
@@ -8218,7 +8218,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5923
+              "line": 5922
             }
           ],
           "x-bdp-cli": {
@@ -8528,7 +8528,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5923
+              "line": 5922
             }
           ],
           "x-bdp-cli": {
@@ -8807,7 +8807,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5947
+              "line": 5946
             }
           ],
           "x-bdp-cli": {
@@ -9166,7 +9166,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5947
+              "line": 5946
             }
           ],
           "x-bdp-cli": {
@@ -9493,7 +9493,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5977
+              "line": 5976
             }
           ],
           "x-bdp-cli": {
@@ -9839,7 +9839,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 5977
+              "line": 5976
             }
           ],
           "x-bdp-cli": {
@@ -10161,7 +10161,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 6006
+              "line": 6005
             }
           ],
           "x-bdp-cli": {
@@ -10434,7 +10434,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 6006
+              "line": 6005
             }
           ],
           "x-bdp-cli": {
@@ -10670,7 +10670,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 6029
+              "line": 6028
             }
           ],
           "x-bdp-cli": {
@@ -10784,7 +10784,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 6029
+              "line": 6028
             }
           ],
           "x-bdp-cli": {
@@ -10896,7 +10896,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 6048
+              "line": 6047
             }
           ],
           "x-bdp-cli": {
@@ -11112,7 +11112,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/core/core.md",
-              "line": 6048
+              "line": 6047
             }
           ],
           "x-bdp-cli": {
