@@ -8479,7 +8479,7 @@ Required order: ["family","profile","address","value","change"]
 | --- | --- | --- | --- | --- |
 | "address" | schema | yes | — | "Stable address of the changed state, with the arity and meaning its family profile fixes." |
 | "change" | schema | yes | — | "What happened to the state at address: created, updated or deleted." |
-| "family" | schema | yes | — | "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips." |
+| "family" | schema | yes | — | "Retained family the source advertises in its policy." |
 | "profile" | schema | yes | — | "Exact family profile identity fixing the address, value and projected Beads." |
 | "value" | any | yes | — | "Family-defined value of the change." |
 
