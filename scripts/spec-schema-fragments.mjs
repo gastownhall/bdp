@@ -13,6 +13,7 @@ export const profileSources = {
     "specs/profiles/write/write.md",
   ],
   "id-root": ["specs/profiles/write/write.md"],
+  "delete-modes": ["specs/profiles/write/write.md"],
   "historical-update": ["specs/profiles/write/write.md"],
   types: ["specs/profiles/types/types.md"],
   callables: ["specs/profiles/callables/callables.md"],
@@ -210,6 +211,7 @@ function main() {
   const configs = [
     ["common", bundlePaths],
     ["id-root", ["specs/profiles/write/id-root-v1.schema.json"]],
+    ["delete-modes", ["specs/profiles/write/delete-modes-v1.schema.json"]],
     [
       "historical-update",
       [

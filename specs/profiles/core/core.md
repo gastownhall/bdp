@@ -112,11 +112,21 @@ description, and the URI spaces owned by different Scopes do not overlap.
 
 A local Resource ID consists of one or more safe URI-path segments forming
 opaque identity within its Scope. Bead and Link IDs share the Scope-relative
-identity space: BDP assigns, adds, or strips no kind prefix. The `bdp/` path is
-reserved for protocol navigation. The optional Types profile retains its own
-Type identity and inventory rules. A client MUST NOT prepend a kind segment or
-infer Resource kind from an identifier's path. The operation and resolved
-Resource determine kind.
+identity space: BDP assigns, adds, or strips no kind prefix. The optional Types
+profile retains its own Type identity and inventory rules. A client MUST NOT
+prepend a kind segment or infer Resource kind from an identifier's path. The
+operation and resolved Resource determine kind.
+
+The BDP specifications reserve two top-level names in every Scope, and every other
+name belongs to the Scope:
+
+| Name | Purpose |
+| --- | --- |
+| `bdp` | The sideband: the protocol routes that operations go through. Nothing under it is a Bead or Link. |
+| `sys` | In-band: Beads and Links a BDP specification places under a reserved name, read and changed through the ordinary operations. |
+
+An authority MUST NOT allocate a Resource ID or alias under either name except as a
+BDP specification says, and refuses one a client supplies.
 
 Resolution against the canonical Scope URL produces one absolute canonical
 Resource URL. That URL is immutable. Once committed for either kind, it is
@@ -397,7 +407,7 @@ paged and do not version anything merely by being read.
 ### Native Scope policy
 
 A live Link MUST retain at least one live in-Scope Bead endpoint. Deletion is not
-erasure and cannot silently leave dangling native in-Scope endpoints; Write defines
+erasure and cannot silently leave dangling unpinned native in-Scope endpoints; Write defines
 explicit Link removal and the atomic deletion admission/rollback contract.
 
 Native Scope policies remain valid independently of optional Types. Their admission
@@ -546,6 +556,12 @@ or alias. GET of that URL MUST succeed and carry a registered `service-desc` Lin
 to its machine discovery document. The body is never machine discovery: it MAY be
 absent (204) or a useful human representation (200). A human page SHOULD visibly
 link discovery and advertised `service-doc` documentation. Clients do not scrape it.
+
+A Scope MAY serve an OpenAPI description of its surface at the fixed route
+`<scope>/bdp/openapi`. When it does, the Scope URL also carries a `service-desc` Link
+to that route with `type="application/openapi+json"`, so tools that know nothing of
+BDP can find it. A client treats a `service-desc` Link as discovery unless its `type`
+says it is OpenAPI.
 
 A minimal discovery document is:
 
@@ -3148,6 +3164,7 @@ Value: object
 | --- | --- | --- | --- | --- |
 | "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
 | "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
+| "https://github.com/gastownhall/bdp/capabilities/write-exceptions" | schema | no | — | "Supported Write exception versions; the Scope does not serve the operations each lists and is not a complete Write provider." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
 | "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
 
@@ -3187,6 +3204,21 @@ Value: object
           "properties": {
             "1": {
               "$ref": "#/$defs/idempotencyCapabilityV1"
+            }
+          }
+        }
+      ]
+    },
+    "https://github.com/gastownhall/bdp/capabilities/write-exceptions": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/writeExceptionsCapabilityV1"
             }
           }
         }

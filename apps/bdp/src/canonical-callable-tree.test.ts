@@ -1051,12 +1051,16 @@ const problem = (
 const PROBLEMS: readonly (readonly [string, ReturnType<typeof problem>, number])[] = [
   [
     "identity-taken from already_exists",
-    problem("identity-taken", "conflict", 409, "never", { v0: v0("already_exists", 409) }),
+    problem("identity-taken", "conflict", 409, "after-state-change", {
+      v0: v0("already_exists", 409),
+    }),
     1,
   ],
   [
     "identity-taken from idempotency_expired",
-    problem("identity-taken", "conflict", 409, "never", { v0: v0("idempotency_expired", 410) }),
+    problem("identity-taken", "conflict", 409, "after-state-change", {
+      v0: v0("idempotency_expired", 410),
+    }),
     1,
   ],
   [

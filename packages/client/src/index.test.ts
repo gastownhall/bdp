@@ -2002,6 +2002,21 @@ describe("BdpClient", () => {
 });
 
 describe("createFetchTransport", () => {
+  it("skips an OpenAPI service-desc Link when selecting discovery", async () => {
+    const transport = createFetchTransport(async (input) =>
+      responseAt(String(input), null, {
+        status: 204,
+        headers: {
+          link: `<bdp/openapi>; rel="service-desc"; type="application/openapi+json", <bdp.json>; rel="service-desc"; type="application/vnd.bdp.v0.1+json"`,
+        },
+      }),
+    );
+
+    await expect(
+      transportValue(transport.discover(SCOPE, { signal: new AbortController().signal })),
+    ).resolves.toEqual({ serviceDescription: `${SCOPE}bdp.json` });
+  });
+
   it("parses service-desc as an exact Link relation token regardless of parameter order", async () => {
     const transport = createFetchTransport(async (input) =>
       responseAt(String(input), null, {

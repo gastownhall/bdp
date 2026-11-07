@@ -424,14 +424,12 @@ export function prepareCreate(scope: string, text: string, key: string): Prepare
     ...(provenance === undefined ? {} : { provenance }),
   });
 }
-export function materializeBead(
-  input: Pick<PreparedCreate, "type" | "properties" | "metadata" | "provenance">,
-  id: string,
-  revision: string,
+/** The recorded envelope of one version; omitted input and {} record none. */
+export function recordedProvenance(
+  provenance: RevisionProvenanceInput | undefined,
   time: string,
-): RetainedBead {
-  const provenance =
-    input.provenance && Object.keys(input.provenance).length ? input.provenance : undefined;
+): JsonObject | undefined {
+  if (!provenance || !Object.keys(provenance).length) return undefined;
   const context = (value: string | null | undefined): AdmittedJsonValue =>
     value === undefined
       ? { state: "undetermined" }
@@ -439,26 +437,64 @@ export function materializeBead(
         ? { state: "absent" }
         : { state: "present", value };
   return {
+    ...(provenance.actor === undefined ? {} : { actor: { ...provenance.actor } }),
+    ...(provenance.agent === undefined && provenance.message === undefined
+      ? {}
+      : {
+          committedAt: { state: "present", value: time },
+          agent: context(provenance.agent),
+          message: context(provenance.message),
+        }),
+  } as JsonObject;
+}
+export function materializeBead(
+  input: Pick<PreparedCreate, "type" | "properties" | "metadata" | "provenance">,
+  id: string,
+  revision: string,
+  time: string,
+): RetainedBead {
+  const revisionProvenance = recordedProvenance(input.provenance, time);
+  return {
     id,
     type: input.type,
     revision,
     properties: input.properties,
     metadata: input.metadata,
-    ...(provenance === undefined
-      ? {}
-      : {
-          revisionProvenance: {
-            ...(provenance.actor === undefined ? {} : { actor: { ...provenance.actor } }),
-            ...(provenance.agent === undefined && provenance.message === undefined
-              ? {}
-              : {
-                  committedAt: { state: "present", value: time },
-                  agent: context(provenance.agent),
-                  message: context(provenance.message),
-                }),
-          },
-        }),
+    ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
   };
+}
+/** Write's pinned-endpoint rule: deleting `bead` refuses on a live Link with an unpinned
+ * endpoint on it, or whose pin would leave it no live in-Scope Bead endpoint. */
+export function blocksBeadDeletion(
+  link: { readonly source: EndpointReference; readonly target: EndpointReference },
+  bead: string,
+  scope: string,
+  liveBead: (uri: string) => boolean,
+): boolean {
+  const endpoints = [link.source, link.target];
+  const incident = endpoints.filter((reference) => referenceUri(reference) === bead);
+  if (!incident.length) return false;
+  if (incident.some((reference) => typeof reference === "string")) return true;
+  return !endpoints.some((reference) => {
+    const uri = referenceUri(reference);
+    return uri !== bead && uri.startsWith(scope) && liveBead(uri);
+  });
+}
+/** Core's native policy for a committed live Link: every unpinned in-Scope endpoint is a
+ * live Bead, and at least one in-Scope endpoint is. */
+export function linkEndpointsStand(
+  link: { readonly source: EndpointReference; readonly target: EndpointReference },
+  scope: string,
+  liveBead: (uri: string) => boolean,
+): boolean {
+  let live = false;
+  for (const reference of [link.source, link.target]) {
+    const uri = referenceUri(reference);
+    if (!uri.startsWith(scope)) continue;
+    if (liveBead(uri)) live = true;
+    else if (typeof reference === "string") return false;
+  }
+  return live;
 }
 export function serialized(value: unknown): string {
   return stringifyJsonValue(value);
@@ -613,6 +649,7 @@ export interface PreparedDelete {
   readonly identity: string;
   readonly bead: string;
   readonly expectedRevision?: string;
+  readonly provenance?: RevisionProvenanceInput;
 }
 const preparedDeletions = new WeakSet<PreparedDelete>();
 export function assertPreparedDelete(scope: string, value: PreparedDelete): void {
@@ -624,9 +661,10 @@ export function prepareDelete(scope: string, text: string, key: string): Prepare
   let input: Record<string, LosslessJsonValue>;
   try {
     input = record(decodeJsonDocument(text));
-    closed(input, ["bead", "expectedRevision"]);
+    closed(input, ["bead", "expectedRevision", "revisionProvenance"]);
     nonempty(input.bead);
     if (input.expectedRevision !== undefined) nonempty(input.expectedRevision);
+    if (input.revisionProvenance !== undefined) provenanceInput(input.revisionProvenance);
   } catch (error) {
     if (error instanceof RetainedRequestError) throw error;
     throw new RetainedRequestError("malformed-request", 400);
@@ -643,6 +681,14 @@ export function prepareDelete(scope: string, text: string, key: string): Prepare
       input: { ...normalized, ...references } as SemanticValue,
     });
   const identity = identityFor({});
+  let provenance: RevisionProvenanceInput | undefined;
+  if (input.revisionProvenance !== undefined) {
+    try {
+      provenance = parseRevisionProvenanceInput(snapshotJsonValue(input.revisionProvenance));
+    } catch {
+      throw new RetainedRequestError("malformed-request", 400);
+    }
+  }
   const captured = Object.freeze({
     scope,
     key,
@@ -651,6 +697,7 @@ export function prepareDelete(scope: string, text: string, key: string): Prepare
     ...(input.expectedRevision === undefined
       ? {}
       : { expectedRevision: input.expectedRevision as string }),
+    ...(provenance === undefined ? {} : { provenance }),
   });
   preparedDeletions.add(captured);
   captureReferenceComparison(captured, { bead }, identityFor);

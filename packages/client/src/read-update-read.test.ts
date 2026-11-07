@@ -205,6 +205,24 @@ const preExtractionTargets: Readonly<Record<string, string>> = {
 };
 
 describe("Read+Update shared Read session", () => {
+  it("selects the BDP discovery Link beside an OpenAPI service-desc Link", async () => {
+    const { client, calls } = harness(page, {
+      probeScope: async () => ({
+        kind: "scope-probe",
+        status: 204,
+        url: scope,
+        contentType: null,
+        retryAfter: null,
+        headers: {
+          link: '<bdp/openapi>; rel="service-desc"; type="application/openapi+json", <bdp.json>; rel="service-desc"; type="application/vnd.bdp.v0.1+json"',
+        },
+      }),
+    });
+    await client.discover();
+    expect(calls).toContain(`${scope}bdp.json`);
+    expect(calls).not.toContain(`${scope}bdp/openapi`);
+  });
+
   it.each(variants)(
     "executes %s through both public Fetch wrappers with identical final URL bytes",
     async (_name, request, body) => {

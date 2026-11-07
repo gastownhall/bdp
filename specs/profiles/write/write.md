@@ -8,8 +8,8 @@ version: "0.1"
 
 Write extends [Core](../core/core.md) with individually atomic Bead, Link and
 alias mutations, durable retry outcomes, and production of the required committed
-Event facts when Events is advertised. It also defines the independently optional atomic-batch1 and id-root1
-capabilities. [Types](../types/types.md) supplies optional Scope-wide Type
+Event facts when Events is advertised. It also defines the independently optional atomic-batch1, id-root1 and
+delete-modes1 capabilities. [Types](../types/types.md) supplies optional Scope-wide Type
 interpretation; Write does not make that interpretation a condition of Core-only
 carrying.
 
@@ -39,7 +39,8 @@ authorization, atomicity, retention or conformance.
 12. [Final atomic publication](#final-atomic-publication)
 13. [Atomic batch results and recovery](#atomic-batch-results-and-recovery)
 14. [Optional rooted allocation, version 1](#optional-rooted-allocation-version-1)
-15. [Conformance boundary](#conformance-boundary)
+15. [Optional deletion modes, version 1](#optional-deletion-modes-version-1)
+16. [Conformance boundary](#conformance-boundary)
 
 ## Discover and select Write
 
@@ -53,7 +54,9 @@ optional common members are `events`, `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
 Optional capabilities under `capabilities` are atomic batch, rooted allocation,
-historical update and [idempotency](#idempotency-and-recovery). `atomic-batch1` and
+historical update, [deletion modes](#optional-deletion-modes-version-1),
+[idempotency](#idempotency-and-recovery) and
+[write exceptions](#operations-a-scope-does-not-serve). `atomic-batch1` and
 `historical-update1` require `idempotency`; a Scope advertising either without it
 is invalid and a client refuses it.
 The operation-directory URL is absolute HTTP(S) navigation. Clients use the fixed
@@ -82,7 +85,7 @@ when discovery advertises `aliases`:
 | `putAlias` | Create or repoint one alias | With `aliases` |
 | `deleteAlias` | Remove one alias | With `aliases` |
 
-Every value is a distinct absolute HTTP(S) operation URL served for this Scope.
+Every value is a distinct absolute HTTP(S) operation URL of this Scope.
 A directory missing a required member, carrying an alias member without advertised
 `aliases`, or omitting one when `aliases` is advertised is ambiguous and MUST be
 refused before dispatch. Sharing an implementation handler does not merge the wire
@@ -96,6 +99,65 @@ members. Other methods receive bodyless 405 with `Allow: POST`. The directory
 allows GET and HEAD and otherwise returns bodyless 405 with `Allow: GET, HEAD`.
 When cross-origin access is enabled, OPTIONS and `Allow` follow Core's CORS rules;
 listing OPTIONS does not itself implement preflight.
+
+### Operations a Scope does not serve
+
+A provider MAY refuse one of the six Resource operations it lists but does not serve.
+A POST to that target is refused with `operation-not-supported`, naming the operation
+in `operation`, before the provider reads the body or any state: it claims no key and
+produces no effects. The directory keeps its six members, and other methods keep their
+ordinary answers. The two alias operations are not covered: a Scope that does not serve
+them does not advertise `aliases`.
+
+A Scope that refuses any of the six MUST say so in discovery, under the capability
+`https://github.com/gastownhall/bdp/capabilities/write-exceptions` at version `"1"`. Its closed detail has one required member,
+`operationsNotSupported`: a nonempty, unique list of the operations it refuses, each
+one of the six directory names. A Scope that does not advertise this capability serves
+all six.
+
+Such a Scope is not a complete Write provider. A complete Write provider serves all six.
+The capability states a gap and adds nothing: it lets a client know before dispatch
+which operations will be refused, and every operation the Scope does serve keeps its
+ordinary obligations.
+
+<!-- bdp-schema:start writeExceptionsCapabilityV1 -->
+### Schema: "writeExceptionsCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["operationsNotSupported"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operationsNotSupported" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "operationsNotSupported": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/atomicBatchOperationName"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end writeExceptionsCapabilityV1 -->
 
 ### Contract and media
 
@@ -156,7 +218,7 @@ an ordinary singleton body, including inside a pinned endpoint Reference.
 | --- | --- | --- |
 | `createBead` | `type` | `id`, `properties`, `metadata`, `revisionProvenance` |
 | `updateBead` | `bead` and at least one edit member | `type`, `properties`, `propertiesChange`, `metadata`, `metadataChange`, `expectedRevision`, `revisionProvenance` |
-| `deleteBead` | `bead` | `expectedRevision` |
+| `deleteBead` | `bead` | `expectedRevision`, `revisionProvenance` |
 | `createLink` | `type`, `source`, `target` | `id`, `properties`, `metadata`, `revisionProvenance` |
 | `updateLink` | `link` and at least one edit member | `type`, `source`, `target`, `properties`, `propertiesChange`, `metadata`, `metadataChange`, `expectedRevision`, `revisionProvenance` |
 | `deleteLink` | `link` | `expectedRevision`, `revisionProvenance` |
@@ -204,7 +266,8 @@ A Resource's canonical identity is established at creation and never changes. A
 caller MAY supply an already canonical local `id` consisting of one or more safe
 segments. Omitting it asks the authority to allocate one opaque segment. The
 allocator MUST NOT encode meaning into its minted segment or choose a live alias
-URL, for either Resource kind. Bead and Link creation use the same Scope-relative
+URL or any URL ever committed, including a deleted identity, for either Resource
+kind. Bead and Link creation use the same Scope-relative
 identity space: neither kind requires or implies a `beads/` or `links/` prefix, and
 either kind MAY use either spelling as an ordinary ID path. There are no mandatory
 Type prefixes. Hierarchy authored in an ID implies neither containment nor a nested
@@ -215,13 +278,19 @@ noncanonical spelling — leading/trailing separator, empty or dot segment, inva
 UTF-8/escaping, encoded separator or other prohibited form — is rejected, never
 trimmed, decoded twice or normalized into another identity.
 
-The complete canonical URL supplied for a creation MUST never previously have
-been committed for either Resource kind in this logical Scope. Deletion does not
-release it. Lifetime non-reuse covers kind and authority changes; comparing only a
-suffix after stripping a kind/root segment is forbidden. A live alias at that URL
-is instead `alias-path-taken`; removing the alias can clear that condition. A
-committed creation/deletion in one atomic batch still consumes its identity.
-Rollback commits no allocation or non-reuse claim.
+A `createBead` that supplies the identity of a deleted Bead adds a revision under
+that same identity. It mints a fresh revision, and the new state is what the request
+supplies, with nothing inherited from an earlier revision. A provider MAY permanently
+retire a deleted identity.
+
+A complete canonical URL supplied for a creation that is live, was committed for the
+other Resource kind or is retired is `identity-taken`. A deleted Link's identity stays
+reserved and is also `identity-taken`. Lifetime non-reuse covers kind and authority
+changes; comparing only a suffix after stripping a kind/root segment is forbidden. A
+live alias at that URL is instead `alias-path-taken`; removing the alias can clear that
+condition. A committed creation/deletion in one atomic batch still consumes its
+identity, so a creation naming one, or naming a Bead the same batch deleted, is
+`identity-taken`. Rollback commits no allocation or non-reuse claim.
 
 Allocation, all Resource/owner effects, facts required by advertised Events and, under
 `idempotency`, durable terminal key state commit together or none. Concurrent distinct invocations cannot commit the
@@ -231,10 +300,22 @@ explicit supplied identity or root.
 
 Deleting a Bead removes it from the live graph; deletion does not require physical
 erasure. A Bead deletion fails with `incident-links-exist` while any live Link is
-incident upon it. The caller must explicitly remove those Links first, or stage
-legal removals in the same atomic batch. Hidden Links are not disclosed by this
-failure. Link deletion creates no new Link revision and may atomically update its
-owners. Deletion is not controlled-content erasure.
+incident upon it through an unpinned endpoint. The caller must explicitly remove those
+Links first, stage legal removals in the same atomic batch, or select
+[deletion modes](#optional-deletion-modes-version-1). Hidden Links are not disclosed
+by this failure. Link deletion creates no new Link revision and may atomically update its
+owners. A Bead deletion otherwise changes a surviving Bead only through a
+[declared deletion effect](#type-declared-deletion-effects). Deletion is not
+controlled-content erasure.
+
+<a id="pinned-endpoints-on-deletion"></a>
+
+A Link endpoint pinned to a revision identifies that retained edition, not the Bead's
+latest state. Deleting the Bead neither blocks on nor removes a Link whose endpoint on
+it is pinned, provided the Link keeps a live in-Scope Bead endpoint. That Link stays
+live with no new revision and no Event fact. A read of the pinned endpoint resolves to
+the retained edition or answers the ordinary `resource-pruned` or `resource-erased`. A
+Link that would keep no live in-Scope Bead endpoint is treated as unpinned.
 
 <a id="mutation-authorization"></a>
 <a id="validation-and-results"></a>
@@ -262,7 +343,8 @@ specified order, including:
 7. applicable Scope aggregate constraints;
 8. operation authorization;
 9. supplied expected revisions;
-10. absence of live incident Links for Bead deletion; and
+10. absence of live incident Links for Bead deletion, or the
+    [deletion-mode rules](#blocking-links) when selected; and
 11. advertised and configured service limits.
 
 Mutation authorization is operation-local and atomic. Policy observes the
@@ -713,6 +795,10 @@ uses the accepted recovery Inception direction, and revives no Link. Ordinary
 deleted Resource reads remain unchanged. Effects describe the actual current-to-
 result transition, never a patch against R1 presented as if R1 were current.
 
+Association state retained for a deleted subject, such as comments, outlives the
+deletion and returns with recovery through `fromRevision`. A create on the deleted
+identity starts with none of it, and no alias returns either way.
+
 The exact selector and selected feature intent participate in semantic request
 identity. Changing R1 with the same key conflicts. A retained success/no-op
 replays its original complete outcome under current disclosure/erasure rules;
@@ -789,8 +875,8 @@ remain literal while S@r2 captures that Link; S@r1 does not retroactively gain i
 
 ### Per-version attribution
 
-Create/update Bead and Link and an owned-capable deleteLink may supply the closed
-`revisionProvenance` input. Alias operations and deleteBead have no such input.
+Create/update Bead and Link, deleteBead and an owned-capable deleteLink may supply the
+closed `revisionProvenance` input. Alias operations have no such input.
 Its optional members are `actor`, `agent` and `message`; callers supply no time.
 Actor is the closed `{id,basis}` object from Core: nonempty `id`, with basis
 `writer-supplied` or `unknown`. Agent is a nonempty string or null; message is a
@@ -801,7 +887,11 @@ explicit null remains distinct. Actor omission does not copy an earlier actor.
 Attribution belongs immutably to the version minted by that decision. One
 operation minting several versions records its one input on each, including all
 induced owner versions. A Link deletion mints no Link version and can record
-context only on newly versioned owners. No-op keeps the whole existing envelope.
+context only on newly versioned owners. On deleteBead the input applies to every
+revision the request mints: the terminal version where one is recorded, each surviving
+Bead changed by an owner or declared effect, and each owner of a removed Link. Under
+Events it appears on the request's facts. A provider recording none of these still
+accepts it. A dry run records nothing. No-op keeps the whole existing envelope.
 Provenance input remains part of retry identity although it is excluded from
 covered-state no-op comparison. Write adds no authority-attested actor.
 
@@ -827,6 +917,7 @@ A Resource success is the closed object below. Created/updated results carry
 | `resource` | Complete original resulting Bead or Link record, for create/update |
 | `deleted` | `{resourceKind,resource:{id,type,revision}}`, for delete |
 | `ownerRevisions` | Required exactly for a Link owned initially or finally; otherwise absent |
+| `removedAliases` | Required exactly on a Bead deletion when discovery advertises `aliases`; the [aliases it removed](#aliases), ascending by code unit |
 
 The Resource postimage contains the actual id, affiliation, revision, properties,
 metadata, recorded provenance when present, applicable owned state and Link
@@ -911,6 +1002,13 @@ contain the alias or follow a later repoint. A missing alias is
 `resource-not-found` under normal non-disclosure. A Link subject cannot use an
 alias to become a Link. A put's own target never admits an alias. Retried locators
 use the frozen comparison witnesses below instead of rebinding a known locator.
+
+Deleting a Bead removes every alias targeting it in the same atomic decision, and the
+deletion's result lists each by absolute URL in `removedAliases`. Its locator is released
+and may be put again. A restore restores no alias. When Events is advertised, each
+removal publishes the [Events](../events/events.md) non-Resource alias fact with
+`change:"deleted"` and the removed target, sharing the deletion's `transaction`. It
+carries no provenance.
 
 ## Idempotency and recovery
 
@@ -1060,10 +1158,13 @@ its target, a repeated `updateBead` or `updateLink` carrying the prior
 `expectedRevision` fails `revision-mismatch`; if the first execution was a genuine
 no-op, the repeat is one too. A repeated `deleteBead` or `deleteLink` of a target
 the first execution deleted is `resource-not-found`. A repeated creation carrying
-`id` is `identity-taken`. A repeated creation without `id` allocates a second
-identity. A client that needs at-most-once creation SHOULD supply an unguessable
+`id` is `identity-taken` while that Resource is live; a repeated `createBead` arriving
+after that Bead's deletion adds a revision under its identity. A repeated creation
+without `id` allocates a second identity. At-most-once creation needs an idempotency
+key on a Scope advertising `idempotency`. Elsewhere a client SHOULD supply an unguessable
 `id` where the provider admits one and, on `identity-taken`, read that identity to
-establish whether its own request committed. A client MUST NOT infer replay from a
+establish whether its own request committed; that does not cover a retry delayed past a
+deletion. A client MUST NOT infer replay from a
 200 that happens to match an earlier result.
 
 ## Problems and diagnostics
@@ -1080,7 +1181,7 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `unsupported-media-type` | `request` | 415 | `never` |
 | `validation-failed` | `validation` | 422 | `never` |
 | `type-not-installed` | `validation` | 422 | `after-state-change` |
-| `identity-taken` | `conflict` | 409 | `never` |
+| `identity-taken` | `conflict` | 409 | `after-state-change` |
 | `alias-path-taken` | `conflict` | 409 | `after-state-change` |
 | `revision-mismatch` | `conflict` | 409 | `after-state-change` |
 | `incident-links-exist` | `conflict` | 409 | `after-state-change` |
@@ -1089,8 +1190,12 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `idempotency-in-progress` | `conflict` | 409 | `after-delay` |
 | `idempotency-expired` | `gone` | 410 | `never` |
 | `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
+| `operation-not-supported` | `request` | 422 | `after-state-change` |
 
-The `idempotency-*` codes arise only under `idempotency`. The singleton operations
+`operation-not-supported` here is the refusal of an
+[operation a Scope does not serve](#operations-a-scope-does-not-serve) and names it in a
+required `operation`. An atomic batch's refusal of a member is its own form, with a required
+`pointer`, under [its rules](#atomic-batch-results-and-recovery). The `idempotency-*` codes arise only under `idempotency`. The singleton operations
 have no sequence-only `binding-unavailable` case.
 The presence of an inherited helper in a schema artifact does not select it.
 `retryAfter`, when present, is a nonnegative integer transient-delay advice only
@@ -1111,7 +1216,8 @@ target, forbidden external-endpoint policy, a nonobject edit result, missing
 replace/remove target, Type/properties mismatch or owned-set overflow is
 `validation-failed`. Type validation is conditional on actual Types semantics;
 native invalidity still refuses. No complete required closure is
-`type-not-installed`. A supplied identity ever committed is `identity-taken`;
+`type-not-installed`. A supplied identity the [creation rule](#creation-and-identity-allocation)
+refuses (live, the other kind, retired or reserved) is `identity-taken`;
 a live alias at a proposed Resource identity is `alias-path-taken`. Endpoint
 nonexistence/hiddenness remains the non-disclosing `resource-not-found` case.
 
@@ -1297,7 +1403,8 @@ the identity after staged deletion. Rollback consumes no allocation.
 
 For each final new version, collect explicit provenance inputs from every member
 directly targeting that Resource. For an owner also collect inputs from Link
-members whose Link is owned by it initially or finally. Membership is evaluated
+members whose Link is owned by it initially or finally, and for a survivor a declared
+deletion effect changes, from the deleteBead member causing it. Membership is evaluated
 at decision boundaries, not invented intermediate owners. Supplied input requests
 attribution of that final version even when the member's local edit is equal;
 omission does not override supplied input. Equal explicit objects under ordinary
@@ -1357,6 +1464,7 @@ HTTP200 returns the closed `atomicBatchResult`:
 | `transaction` | Required opaque Scope-unique correlation if changed; absent for all-final-no-op |
 | `results` | Nonempty ordered identity mapping per input member |
 | `resources` | Nonempty unique final Resource outcomes, ordered by canonical URI |
+| `removedAliases` | Required exactly when the decision deletes a Bead and discovery advertises `aliases`; the [aliases it removed](#aliases), ascending by code unit |
 
 Each closed mapping has zero-based `operationIndex`, `operation`, absolute `id`,
 and `operationName` exactly when the corresponding creation supplied a name. It
@@ -1486,15 +1594,287 @@ complete bounded final results, create/delete allocation effects, final-state
 publication and recovery remain atomic. This selects no batch2/query/set/alias/
 sequence feature and no partial/chunked execution.
 
+## Optional deletion modes, version 1
+
+### Advertisement and selection
+
+The capability URI is
+`https://github.com/gastownhall/bdp/capabilities/delete-modes`. Its exact version
+member `"1"` has a closed detail object:
+
+| Member | Required | Meaning |
+| --- | --- | --- |
+| `except` | no | Boolean; whether `cascade.except` is admitted; absent means not admitted |
+| `maximumClosure` | no | Positive integer bound on the Beads one request deletes |
+| `through` | no | Nonempty unique `{type,match}` tests admitted in `cascade.through`; absent means any Link Type |
+| `typeEffects` | no | Unique nominal Type URIs whose [declared deletion effects](#type-declared-deletion-effects) this Scope applies |
+
+Only Write advertises it. Advertisement promises the complete behavior below and
+conveys no authorization, and neither does listing a test. It is independent of
+atomic-batch1. An empty `through` list is invalid and a client refuses it. Unknown
+versions do not establish version1.
+
+Presence of `beads`, `blockedBy`, `cascade` or `dryRun` on a `deleteBead` body selects
+this form on the SAME target, media and key. A request carrying none of them keeps
+the ordinary grammar, deletion rule, result carrier and Problem codes. A base closed
+receiver rejects these members.
+
+| Member | Value | Meaning |
+| --- | --- | --- |
+| `bead` | Reference | The one named Bead |
+| `beads` | Nonempty array of unique References | The named Beads; exactly one of `bead` and `beads` is present |
+| `expectedRevision` | Revision | Guard on `bead`; refused beside `beads` |
+| `blockedBy` | `"any"`, `"inbound"` or `"none"` | Which crossing Links refuse the request; omission means `"any"` |
+| `cascade` | Closed `{through,except?}` | Extends the deleted set |
+| `dryRun` | Boolean; omission means `false` | Reports the outcome without effects |
+| `revisionProvenance` | Revision provenance input | The [attribution rule](#per-version-attribution); selects no mode |
+
+Supplying both `bead` and `beads`, neither, a repeated array element, or
+`expectedRevision` beside `beads` is `malformed-request`. Each element is a Bead
+subject under the [ordinary rules](#ordinary-requests). Two different spellings of one
+Bead name it once. `expectedRevision` guards the named Bead only, and no mode bypasses
+it. Every Reference must resolve to a visible
+live Bead; otherwise the whole request is the uniform `resource-not-found`, which does
+not say which Reference failed, and nothing is deleted.
+
+| Intent | `blockedBy` | `cascade` |
+| --- | --- | --- |
+| Refuse while any Link crosses the deleted set | `any` | omitted |
+| Remove crossing Links; survivors stay | `none` | omitted |
+| Delete a tree; remove other crossing Links | `none` | `{through}` |
+| Refuse on a crossing Link whose target is deleted; remove the others | `inbound` | omitted |
+| Delete a tree; refuse if anything outside it is attached | `any` | `{through}` |
+
+After ordinary carrier/key admission and known-key comparison, a fresh invocation
+without selected support receives feature-local `capability-not-supported`,
+request family/422/after-state-change, its capability URI, `capabilityVersion:"1"`
+and a pointer. The pointer names the first of `/beads`, `/blockedBy`, `/cascade` and
+`/dryRun` present. `cascade.except` that is not admitted refuses `/cascade/except` this
+way. Under an advertised `through` list, a request test that does not equal a listed test
+exactly refuses `/cascade/through` this way: listing `exact` does not admit `family`, nor
+the reverse. Missing advertisement causes a feature-aware client to
+refuse before fresh dispatch. A supporting receiver never discards a selector or
+substitutes another mode. No selector stripping, new key or sequential singleton
+fallback is automatic recovery. Issued recovery survives withdrawal under the
+ordinary rules.
+
+### Deleted set
+
+The deleted set contains every named Bead and, under `cascade`, every Bead the walk
+below admits. It is resolved in the deciding transaction under the
+[serializable outcome rule](#admission-authorization-and-limits), so a matching
+`expectedRevision` does not pin it.
+
+`cascade.through` is a nonempty list of tests; a duplicate test is `malformed-request`.
+Each test is the closed `{type,match}` pair of the single Link Type test
+in Core's [`graph` profile](../core/core.md#list-graph-and-query-subsets). `type`
+is an unpinned absolute nominal Type identity. `match` is `exact` or `family`, with
+the meanings of Core's `typeIs`. A `family` test without its required authority
+refuses `type-not-installed`; there is no exact-only fallback.
+
+The walk is rooted at every named Bead, in Core's `incoming` direction, with no
+semantic depth bound. At each reached Bead it inspects the live Links whose target
+is that Bead. A Link passing any test admits its source. A Link passing none
+is not followed and remains subject to blocking. Each Bead expands at most once,
+so cycles, back Links, self-Links and parallel Links terminate, and a named Bead
+reachable from another named Bead is deleted once, with one row. Tests matching no
+Link leave the named Beads alone in the deleted set.
+
+Endpoints match by Reference URI. A Link whose target endpoint is pinned is not
+followed. An external endpoint is not acquired,
+admitted or expanded; it is outside the deleted set.
+
+`cascade.except` is the closed `{bind,predicate}` pair: a Core binding name and a
+Core predicate node within the local filter subset admitted by Core's `list`
+profile. A malformed predicate or one outside that subset is `malformed-request`.
+The predicate evaluates each Bead the walk reaches, bound to its current state. A
+true result exempts that Bead: it joins no deleted set and does not expand, so a
+subtree reached only through it survives. Its connecting Link is then a crossing
+Link. A predicate true of a named Bead refuses the whole request with
+`validation-failed`.
+
+### Blocking Links
+
+A crossing Link is a live Link with exactly one endpoint in the deleted set, other than a
+Link that [survives under its pin](#pinned-endpoints-on-deletion), which neither blocks
+nor is removed. Its other endpoint is a surviving Bead or an external endpoint. A Link with both endpoints in
+the deleted set, including a self-Link, never blocks and is removed.
+
+| `blockedBy` | Crossing Link whose target is deleted | Crossing Link whose source is deleted |
+| --- | --- | --- |
+| `any` | Refuses | Refuses |
+| `inbound` | Refuses | Removed |
+| `none` | Removed | Removed |
+
+A refusal is the ordinary `incident-links-exist`. A removed Link is deleted as an
+owned-capable `deleteLink` deletes it: it gets no new revision, and its identity stays
+reserved. The authority then validates the complete final graph under Types and Scope
+aggregate rules, including the arity and endpoint eligibility of surviving Beads. A
+violation refuses the whole request; a deletion mode performs no repair.
+
+Steps 1 through 9 of the [fresh order](#admission-authorization-and-limits) apply
+to each named Bead, so a guard outranks blocking. Step 10 resolves the deleted
+set, applies [visibility](#visibility-and-authorization-of-deletion-modes), then
+blocking, then [declared effects](#type-declared-deletion-effects), then
+authorization of every other deletion, removal, owner effect and declared effect,
+then final-graph validation. A deleted set over `maximumClosure` or a configured
+work bound refuses with `limit-exceeded`. A bound never truncates the walk or
+treats an unexpanded Bead as exhausted. The complete inline result is bounded
+before commit under the [batch rule](#working-graph-and-guards).
+
+### Type-declared deletion effects
+
+A Type MAY declare, in its semantic contract, effects that deleting one of its
+Beads has on surviving Beads joined to that Bead by an incident Link. Write defines
+no effect language, and the meaning of a declared effect belongs to the Type. Where
+Types applies, the declaration is that of the exact definition the deleted Bead
+affiliates with.
+
+`typeEffects` lists the Types whose declared effects this Scope applies. An effect
+applies when the deleted Bead's affiliation URI, ignoring any definition pin, is
+listed. Listing promises the effects on every deletion of such a Bead, selected or
+not. A Scope that omits `typeEffects`, or does not advertise this capability,
+applies no effect. An authority applies only declared effects of a listed Type.
+
+A surviving Bead is joined when a Link incident upon the deleted Bead, in either
+direction, is live in the committed baseline or, in a batch, the final working graph,
+and its other endpoint is an in-Scope Bead outside the deleted set. An effect reaches
+only joined Beads, of any Type, and does not reach an external endpoint. A change an
+effect makes triggers no further effect.
+
+An effect changes only a survivor's `properties` and `metadata`. It deletes no Bead
+and changes no Link, affiliation or identity, so it neither extends the deleted set
+nor answers a blocking refusal. Effects apply once, after Link removal and after the
+last batch member, to the final state. Several effects on one survivor apply in
+ascending code-unit order of the deleted Bead's canonical URI. A survivor gets at
+most one new revision, shared with any owner effect or explicit edit. An unchanged
+complete covered state is the ordinary no-op, with no revision and no row of its
+own. Caller-input and `propertyAccess` restrictions do not bind an effect. Final-graph
+validation does, and a failure refuses the whole request. Effects commit in the same
+atomic decision as the deletion, or not at all.
+
+An ordinary singleton `deleteBead` succeeds only when no unpinned Link is incident, so
+no unpinned Link joins a survivor to it. An ordinary atomic-batch1
+`deleteBead` whose Links other members removed or moved can join one, and its
+`atomicBatchResult` reports that change as an ordinary `updated` row.
+
+### Composition with atomic-batch1
+
+`deleteBead` selectors are not admitted in an atomic batch and are `malformed-request`.
+
+### Dry run
+
+`dryRun:true` evaluates the admission, guard, deleted-set, visibility, blocking,
+authorization, validation and bound rules against the current graph. It returns
+the Problem the committing request would return at that moment and otherwise the
+closed `deleteModesPreview`. It reports the declared effects the committing request
+would apply and lists the aliases it would remove in `removedAliases`. It changes
+nothing: it mints no revision, allocation, provenance or Event fact.
+
+Under `idempotency` a dry run carries the ordinary `Idempotency-Key` and is
+compared with retained key state, so it can receive `idempotency-conflict` or
+`idempotency-in-progress`. It claims no key and retains no disposition, witness or
+compact state. A repeated dry run evaluates the current graph again. A preview
+reserves nothing and does not promise that a later committing request succeeds.
+
+### Results
+
+A successful committing request returns the closed `deleteModesResult`: the
+[`atomicBatchResult` members](#atomic-batch-results-and-recovery) with their meanings,
+plus `removedLinks`. `changed` is always true and `transaction` is always present.
+`results` has one mapping per named Reference, with `operation:"deleteBead"` and
+`operationIndex` its position in `beads`, or zero for `bead`. `resources` has the
+unique final rows:
+
+| Resource | Row |
+| --- | --- |
+| Bead in the deleted set | `deleted`, with its final live identity |
+| Removed Link | `deleted`, with `ownerRevisions` for its initial owners |
+| Surviving Bead whose covered state changes | `updated`, with its complete final record and one new revision |
+
+`removedLinks` has one closed `{id,source,target}` entry per `deleted` Link row,
+ascending by canonical id, with its final live recorded References. A request with
+no selecting member returns its ordinary `mutationResult`.
+
+`deleteModesPreview` has `capabilityVersion`, `dryRun:true`, `changed:false`,
+`results`, `resources` and `removedLinks`, `removedAliases` as a committing request would
+carry it, and no `transaction`. Each row has `id`,
+`resourceKind` and `outcome`. A `deleted` row has the `deleted` identity the
+committing request would report. An `updated` row has the Bead's current `revision`
+and no record, because nothing is minted. When a declared effect would change that
+Bead, the row also has `proposed`, with the would-be final value of each changed
+object plane.
+
+### Visibility and authorization of deletion modes
+
+Hidden Resources are never deleted, removed or newly versioned by this form, and
+the deleted set does not depend on what the principal can see. The request refuses
+with `incident-links-exist`, under every `blockedBy` value and under `dryRun`, when
+a hidden Link, other than one [surviving under its pin](#pinned-endpoints-on-deletion), is
+incident upon the deleted set, when a Link passing the test admits
+a hidden Bead, when a surviving owner that would gain a revision is hidden, or when
+a hidden Bead is joined to a deleted Bead whose Type is listed in `typeEffects`.
+This Problem names no Resource and carries no count, Type, path or position. The
+authority evaluates neither `through`, `except` nor a declared effect on the hidden
+Resource, so the outcome does not depend on its Type or content. The rule for a
+joined hidden Bead also binds an ordinary batch member.
+
+Each named Bead, each other deleted Bead, each removed Link and each surviving Bead
+that gains a revision requires write authorization, and a denial of a visible
+Resource is `forbidden` for the whole request. Scope policy observes the proposed
+post-state and MAY authorize a declared effect on the strength of the deletion.
+
+### Revisions, retry, Events and recovery
+
+Deletion of each Bead and removal of each Link follow
+[identity non-reuse](#creation-and-identity-allocation),
+[final atomic publication](#final-atomic-publication) and the batch rules of
+[complete owner revision context](#complete-owner-revision-context), so a selected
+singleton carries inline owner records in its rows. A deleted owner is reported at
+its final live published revision. A surviving owner captures its complete final
+Links once and gets one new revision. `revisionProvenance` applies under the
+[attribution rule](#per-version-attribution).
+
+Under `idempotency`, the choice of `bead` or `beads`, the order of `beads`, `blockedBy`,
+`cascade`, `dryRun` and their presence belong to frozen semantic identity, so an omitted
+`blockedBy` and an explicit `"any"` are different invocations. Each element of `beads`
+keeps its own alias witness. A retained committing request replays its original complete
+result with its original deleted set, rows, `removedLinks` and `transaction` under
+[retained whole outcomes](#one-key-and-retained-whole-outcomes). It does not resolve a
+Reference or walk again, apply an effect again or consult current `through`, `except`,
+`typeEffects`, definition or graph state. Survivor rows belong to the whole result, so a
+survivor later hidden from the principal withholds it under that rule. Without
+`idempotency`, repeating a committing request any of whose named Beads was deleted is
+`resource-not-found`.
+
+Where Events is advertised, the request is one decision under
+[committed facts](#committed-facts-when-events-is-advertised): one `deleteBead` fact
+per deleted Bead, one `deleteLink` fact per removed Link, one `updateBead` fact per
+changed survivor, including one a declared effect changed, one alias fact per removed
+alias, and one transaction correlation. The same holds for an ordinary batch that a declared effect reaches.
+
+Under historical-update1 each effectful deleted Bead commits its own
+[terminal version](#body-free-terminal-versions-and-narrow-authorized-read).
+Recovering one is an ordinary single-Bead recovery of that identity. It revives no
+removed Link and no other deleted Bead, and it reverses no declared effect.
+
+An alias is not a Link: it neither blocks nor extends a walk. A deletion mode removes
+the aliases of each deleted Bead under the [alias rule](#aliases). A named alias resolves
+under the ordinary rules. An instance's `type`
+affiliation is not a Link either, so deleting a Type-definition Bead neither blocks on
+nor reaches its instances. Types lifecycle obligations apply to every Bead in the
+deleted set and a refusal refuses the whole request.
+
 ## Conformance boundary
 
-A Write provider must implement the six Resource operations, the two alias
+A complete Write provider implements the six Resource operations, the two alias
 operations when it advertises `aliases`, their complete outcomes, fact production required by advertised Events, native/admitted Types constraints,
 authorization, concurrency safety and, under `idempotency`, durable key/recovery
 duties. Without it, the rows of [Repetition without idempotency](#repetition-without-idempotency)
-apply. Optional
-capability advertisement requires its complete selected behavior and bounds; it
-never replaces ordinary obligations. Ordinary reads retain Core meaning: an
+apply. A Scope advertising [write exceptions](#operations-a-scope-does-not-serve) is
+not a complete Write provider, and these duties bind every operation it does serve.
+Optional capability advertisement requires its complete selected behavior and bounds;
+apart from that stated gap it never replaces ordinary obligations. Ordinary reads retain Core meaning: an
 authoritative result does not promise that another replica immediately observes
 it, or add read-your-writes checkpoints, a public epoch or hot-tier absence shortcut.
 
@@ -1511,7 +1891,8 @@ concurrency, crash/retry or consumer qualification.
 
 These visible markdown-json-schema/0.6 fragments own the selected Write definitions
 in the shared bundle. Shared Resource carriers are defined by Core and Events.
-The id-root fragments retain their separate schema resource and reference context.
+The id-root and delete-modes fragments retain their separate schema resources and
+reference contexts.
 
 <!-- bdp-schema:start aliasResult -->
 ### Schema: "aliasResult"
@@ -2013,6 +2394,7 @@ Required order: ["capabilityVersion","changed","results","resources"]
 | --- | --- | --- | --- | --- |
 | "capabilityVersion" | schema | yes | — | — |
 | "changed" | boolean | yes | — | — |
+| "removedAliases" | ref "#/$defs/removedAliases" | no | — | — |
 | "resources" | schema | yes | — | — |
 | "results" | schema | yes | — | — |
 | "transaction" | ref "#/$defs/revision" | no | — | — |
@@ -2523,6 +2905,7 @@ Required order: ["bead"]
 | --- | --- | --- | --- | --- |
 | "bead" | ref "#/$defs/resourceReference" | yes | — | — |
 | "expectedRevision" | ref "#/$defs/expectedRevision" | no | — | — |
+| "revisionProvenance" | ref "#/$defs/revisionProvenanceInput" | no | — | — |
 <!-- bdp-schema:end deleteBeadMembers -->
 
 <!-- bdp-schema:start deleteBeadOperation -->
@@ -2948,6 +3331,7 @@ Required order: ["outcome","changed"]
 | "deleted" | ref "#/$defs/deletedIdentity" | no | — | — |
 | "outcome" | ref "#/$defs/mutationOutcome" | yes | — | — |
 | "ownerRevisions" | ref "#/$defs/ownerRevisions" | no | — | — |
+| "removedAliases" | ref "#/$defs/removedAliases" | no | — | — |
 | "resource" | schema | no | — | — |
 
 #### Advanced
@@ -3035,6 +3419,11 @@ Required order: ["outcome","changed"]
       "then": {
         "properties": {
           "ownerRevisions": false
+        }
+      },
+      "else": {
+        "properties": {
+          "removedAliases": false
         }
       }
     },
@@ -3430,7 +3819,7 @@ Required order: ["type","code","retry"]
             "const": 409
           },
           "retry": {
-            "const": "never"
+            "const": "after-state-change"
           }
         }
       }
@@ -3639,6 +4028,38 @@ Required order: ["type","code","retry"]
       "if": {
         "properties": {
           "code": {
+            "const": "operation-not-supported"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/request"
+          },
+          "status": {
+            "const": 422
+          },
+          "retry": {
+            "const": "after-state-change"
+          },
+          "operation": {
+            "$ref": "#/$defs/atomicBatchOperationName"
+          },
+          "pointer": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
             "const": "validation-failed"
           }
         },
@@ -3793,8 +4214,32 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","unsupported-media-type","binding-unavailable","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"] |
+| enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","unsupported-media-type","binding-unavailable","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"] |
 <!-- bdp-schema:end readUpdateProblemCode -->
+
+<!-- bdp-schema:start removedAliases -->
+### Schema: "removedAliases"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Absolute URLs of the aliases a Bead deletion removed, ascending by code unit. Present exactly on a Bead deletion when discovery advertises aliases; empty when there were none." |
+| type | "array" |
+| uniqueItems | true |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "$ref": "#/$defs/absoluteHttpUrl"
+  }
+}
+```
+<!-- bdp-schema:end removedAliases -->
 
 <!-- bdp-schema:start resourceReference -->
 ### Schema: "resourceReference"
@@ -5140,6 +5585,724 @@ Value: object
 ```
 <!-- bdp-schema:end idRootBatchProblem bundle=id-root -->
 
+<!-- bdp-schema:start deleteModesCapabilityV1 bundle=delete-modes -->
+### Schema: "deleteModesCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "except" | boolean | no | — | — |
+| "maximumClosure" | schema | no | — | — |
+| "through" | schema | no | — | — |
+| "typeEffects" | schema | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "maximumClosure": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "through": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/deleteModesLinkTypeTest"
+      }
+    },
+    "typeEffects": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesCapabilityV1 bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesCapabilityAdvertisement bundle=delete-modes -->
+### Schema: "deleteModesCapabilityAdvertisement"
+
+Value: object
+
+Required order: ["https://github.com/gastownhall/bdp/capabilities/delete-modes"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A capabilities map which includes fixed delete-modes1. Unknown versions may coexist but never authorize version1." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "https://github.com/gastownhall/bdp/capabilities/delete-modes" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityAdvertisements"
+    }
+  ],
+  "properties": {
+    "https://github.com/gastownhall/bdp/capabilities/delete-modes": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityVersionAdvertisements"
+        }
+      ],
+      "required": [
+        "1"
+      ],
+      "properties": {
+        "1": {
+          "$ref": "#/$defs/deleteModesCapabilityV1"
+        }
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesCapabilityAdvertisement bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesBlockedBy bundle=delete-modes -->
+### Schema: "deleteModesBlockedBy"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| enum | ["any","inbound","none"] |
+| type | "string" |
+<!-- bdp-schema:end deleteModesBlockedBy bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesLinkTypeTest bundle=delete-modes -->
+### Schema: "deleteModesLinkTypeTest"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","match"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Core's single exact or family Link Type test. The URI is an unpinned nominal Type identity; family authority and Reference semantics are protocol rules." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "match" | schema | yes | — | — |
+| "type" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "match": {
+      "enum": [
+        "exact",
+        "family"
+      ],
+      "type": "string"
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesLinkTypeTest bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesExcept bundle=delete-modes -->
+### Schema: "deleteModesExcept"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["bind","predicate"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One Bead binding and a Core predicate node in the local filter subset. This schema checks the carrier only; node closure and subset admission are protocol rules." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bind" | schema | yes | — | — |
+| "predicate" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "bind": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        }
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesExcept bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesCascade bundle=delete-modes -->
+### Schema: "deleteModesCascade"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["through"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "except" | ref "#/$defs/deleteModesExcept" | no | — | — |
+| "through" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "through": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/deleteModesLinkTypeTest"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesCascade bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesSelection bundle=delete-modes -->
+### Schema: "deleteModesSelection"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Presence-only prefix at an already dispatched deleteBead position; not complete request validation." |
+| type | "object" |
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "beads": true
+      },
+      "required": [
+        "beads"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "blockedBy": true
+      },
+      "required": [
+        "blockedBy"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "cascade": true
+      },
+      "required": [
+        "cascade"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "dryRun": true
+      },
+      "required": [
+        "dryRun"
+      ]
+    }
+  ]
+}
+```
+<!-- bdp-schema:end deleteModesSelection bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesRequest bundle=delete-modes -->
+### Schema: "deleteModesRequest"
+
+Value: object
+
+Other fields: not allowed
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Exactly one of bead and beads, at least one selector, and no expectedRevision beside beads. Resolution, liveness and the semantics of each member are protocol rules." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "bead" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference" | no | — | — |
+| "beads" | schema | no | — | — |
+| "blockedBy" | ref "#/$defs/deleteModesBlockedBy" | no | — | — |
+| "cascade" | ref "#/$defs/deleteModesCascade" | no | — | — |
+| "dryRun" | boolean | no | — | — |
+| "expectedRevision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision" | no | — | — |
+| "revisionProvenance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteModesSelection"
+    }
+  ],
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "bead": true
+      },
+      "required": [
+        "bead"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "beads": true
+      },
+      "required": [
+        "beads"
+      ]
+    }
+  ],
+  "not": {
+    "type": "object",
+    "properties": {
+      "beads": true,
+      "expectedRevision": true
+    },
+    "required": [
+      "beads",
+      "expectedRevision"
+    ]
+  },
+  "properties": {
+    "beads": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesRequest bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesRemovedLink bundle=delete-modes -->
+### Schema: "deleteModesRemovedLink"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","source","target"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "id" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | — |
+| "source" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference" | yes | — | — |
+| "target" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference" | yes | — | — |
+<!-- bdp-schema:end deleteModesRemovedLink bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesRemovedLinks bundle=delete-modes -->
+### Schema: "deleteModesRemovedLinks"
+
+Value: object
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "One entry per deleted Link row, ascending by canonical id." |
+| type | "array" |
+| uniqueItems | true |
+
+#### Advanced
+
+```json-schema
+{
+  "items": {
+    "$ref": "#/$defs/deleteModesRemovedLink"
+  }
+}
+```
+<!-- bdp-schema:end deleteModesRemovedLinks bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesResult bundle=delete-modes -->
+### Schema: "deleteModesResult"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["capabilityVersion","changed","transaction","results","resources","removedLinks"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A committed delete-modes1 outcome. Result entries and Resource rows are the common atomic-batch definitions." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+| "changed" | schema | yes | — | — |
+| "removedAliases" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases" | no | — | — |
+| "removedLinks" | ref "#/$defs/deleteModesRemovedLinks" | yes | — | — |
+| "resources" | schema | yes | — | — |
+| "results" | schema | yes | — | — |
+| "transaction" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "changed": {
+      "const": true
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResourceResult"
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResultEntry"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesResult bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesPreviewRow bundle=delete-modes -->
+### Schema: "deleteModesPreviewRow"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["id","resourceKind","outcome"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "A Resource the committed request would delete or newly version. A preview mints nothing, so an updated row has the current revision and no record." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "deleted" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deletedIdentity" | no | — | — |
+| "id" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl" | yes | — | — |
+| "outcome" | schema | yes | — | — |
+| "proposed" | schema | no | — | "The object planes a declared deletion effect would change, with their would-be final values." |
+| "resourceKind" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/resourceKind" | yes | — | — |
+| "revision" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision" | no | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "deleted": true,
+        "outcome": {
+          "const": "deleted"
+        },
+        "proposed": false,
+        "revision": false
+      },
+      "required": [
+        "deleted"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "deleted": false,
+        "outcome": {
+          "const": "updated"
+        },
+        "revision": true
+      },
+      "required": [
+        "revision"
+      ]
+    }
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "deleted",
+        "updated"
+      ],
+      "type": "string"
+    },
+    "proposed": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "metadata": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata"
+        },
+        "properties": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties"
+        }
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesPreviewRow bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesPreview bundle=delete-modes -->
+### Schema: "deleteModesPreview"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["capabilityVersion","dryRun","changed","results","resources","removedLinks"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "The report of a dry run. It commits nothing and retains no outcome." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capabilityVersion" | schema | yes | — | — |
+| "changed" | schema | yes | — | — |
+| "dryRun" | schema | yes | — | — |
+| "removedAliases" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases" | no | — | — |
+| "removedLinks" | ref "#/$defs/deleteModesRemovedLinks" | yes | — | — |
+| "resources" | schema | yes | — | — |
+| "results" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "changed": {
+      "const": false
+    },
+    "dryRun": {
+      "const": true
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/deleteModesPreviewRow"
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResultEntry"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesPreview bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesCapabilityProblem bundle=delete-modes -->
+### Schema: "deleteModesCapabilityProblem"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["type","status","code","retry","capability","capabilityVersion","pointer"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "capability" | schema | yes | — | — |
+| "capabilityVersion" | schema | yes | — | — |
+| "code" | schema | yes | — | — |
+| "detail" | text | no | — | — |
+| "instance" | ref "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri" | no | — | — |
+| "pointer" | schema | yes | — | — |
+| "retry" | schema | yes | — | — |
+| "status" | schema | yes | — | — |
+| "title" | text | no | — | — |
+| "type" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "capability": {
+      "const": "https://github.com/gastownhall/bdp/capabilities/delete-modes"
+    },
+    "capabilityVersion": {
+      "const": "1"
+    },
+    "code": {
+      "const": "capability-not-supported"
+    },
+    "pointer": {
+      "type": "string",
+      "pattern": "^/(?:beads|blockedBy|cascade(?:/except|/through)?|dryRun)$"
+    },
+    "retry": {
+      "const": "after-state-change"
+    },
+    "status": {
+      "const": 422
+    },
+    "type": {
+      "const": "https://github.com/gastownhall/bdp/problems/request"
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteModesCapabilityProblem bundle=delete-modes -->
+
+<!-- bdp-schema:start deleteModesProblem bundle=delete-modes -->
+### Schema: "deleteModesProblem"
+
+Value: object
+
+#### Advanced
+
+```json-schema
+{
+  "anyOf": [
+    {
+      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+    },
+    {
+      "$ref": "#/$defs/deleteModesCapabilityProblem"
+    }
+  ]
+}
+```
+<!-- bdp-schema:end deleteModesProblem bundle=delete-modes -->
+
 ## OpenAPI
 
 The following visible operation tables are the authoring source for the generated
@@ -5179,7 +6342,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"createBeadRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -5198,7 +6361,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"updateBeadRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -5217,7 +6380,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"deleteBeadRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -5236,7 +6399,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"createLinkRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -5255,7 +6418,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"updateLinkRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -5274,7 +6437,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"deleteLinkRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -5349,6 +6512,16 @@ Problem schemas are idRootCreateProblem and idRootBatchProblem. Presence of
 `idRoot` selects this feature; absence keeps the base contract. Clients do not
 allocate IDs or invent a separate endpoint. The admission and composition rules
 in [Optional rooted creation](#optional-rooted-allocation-version-1) remain binding.
+
+### Optional delete-modes1 composition
+
+The deleteBead signature keeps the same URL and media when delete-modes1 is explicitly
+selected. Its additional request arm is deleteModesRequest from the delete-modes schema
+resource, its additional success arms are deleteModesResult and deleteModesPreview, and
+its feature Problem schema is deleteModesProblem. Presence of `beads`, `blockedBy`,
+`cascade` or `dryRun` on deleteBead selects this feature; absence keeps the
+base contract. The rules in [Optional deletion modes](#optional-deletion-modes-version-1)
+remain binding.
 
 ## Historical-update1 feature schema resource
 

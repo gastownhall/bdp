@@ -1,0 +1,471 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/delete-modes-v1.schema.json",
+  "title": "Draft fixed delete-modes1 Write supplement",
+  "description": "Separate feature-owned carriers. Common v0/v0.1 schemas and mirrors remain unchanged. Admission, walk and replay semantics require the paired Write section.",
+  "$defs": {
+    "deleteModesCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "except": {
+          "type": "boolean"
+        },
+        "maximumClosure": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "through": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/deleteModesLinkTypeTest"
+          }
+        },
+        "typeEffects": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+          }
+        }
+      }
+    },
+    "deleteModesCapabilityAdvertisement": {
+      "description": "A capabilities map which includes fixed delete-modes1. Unknown versions may coexist but never authorize version1.",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityAdvertisements"
+        }
+      ],
+      "properties": {
+        "https://github.com/gastownhall/bdp/capabilities/delete-modes": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/capabilityVersionAdvertisements"
+            }
+          ],
+          "required": ["1"],
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/deleteModesCapabilityV1"
+            }
+          }
+        }
+      },
+      "required": ["https://github.com/gastownhall/bdp/capabilities/delete-modes"]
+    },
+    "deleteModesBlockedBy": {
+      "enum": ["any", "inbound", "none"],
+      "type": "string"
+    },
+    "deleteModesLinkTypeTest": {
+      "description": "Core's single exact or family Link Type test. The URI is an unpinned nominal Type identity; family authority and Reference semantics are protocol rules.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "enum": ["exact", "family"],
+          "type": "string"
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        }
+      },
+      "required": ["type", "match"]
+    },
+    "deleteModesExcept": {
+      "description": "One Bead binding and a Core predicate node in the local filter subset. This schema checks the carrier only; node closure and subset admission are protocol rules.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bind": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "predicate": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": ["bind", "predicate"]
+    },
+    "deleteModesCascade": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "except": {
+          "$ref": "#/$defs/deleteModesExcept"
+        },
+        "through": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/deleteModesLinkTypeTest"
+          }
+        }
+      },
+      "required": ["through"]
+    },
+    "deleteModesSelection": {
+      "description": "Presence-only prefix at an already dispatched deleteBead position; not complete request validation.",
+      "type": "object",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "beads": true
+          },
+          "required": ["beads"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "blockedBy": true
+          },
+          "required": ["blockedBy"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cascade": true
+          },
+          "required": ["cascade"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "dryRun": true
+          },
+          "required": ["dryRun"]
+        }
+      ]
+    },
+    "deleteModesRequest": {
+      "description": "Exactly one of bead and beads, at least one selector, and no expectedRevision beside beads. Resolution, liveness and the semantics of each member are protocol rules.",
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteModesSelection"
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "bead": true
+          },
+          "required": ["bead"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "beads": true
+          },
+          "required": ["beads"]
+        }
+      ],
+      "not": {
+        "type": "object",
+        "properties": {
+          "beads": true,
+          "expectedRevision": true
+        },
+        "required": ["beads", "expectedRevision"]
+      },
+      "properties": {
+        "bead": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference"
+        },
+        "beads": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/durableResourceReference"
+          }
+        },
+        "blockedBy": {
+          "$ref": "#/$defs/deleteModesBlockedBy"
+        },
+        "cascade": {
+          "$ref": "#/$defs/deleteModesCascade"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "expectedRevision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/expectedRevision"
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput"
+        }
+      }
+    },
+    "deleteModesRemovedLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "source": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+        },
+        "target": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/reference"
+        }
+      },
+      "required": ["id", "source", "target"]
+    },
+    "deleteModesRemovedLinks": {
+      "description": "One entry per deleted Link row, ascending by canonical id.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/deleteModesRemovedLink"
+      }
+    },
+    "deleteModesResult": {
+      "description": "A committed delete-modes1 outcome. Result entries and Resource rows are the common atomic-batch definitions.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "changed": {
+          "const": true
+        },
+        "removedAliases": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases"
+        },
+        "removedLinks": {
+          "$ref": "#/$defs/deleteModesRemovedLinks"
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResourceResult"
+          }
+        },
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResultEntry"
+          }
+        },
+        "transaction": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        }
+      },
+      "required": [
+        "capabilityVersion",
+        "changed",
+        "transaction",
+        "results",
+        "resources",
+        "removedLinks"
+      ]
+    },
+    "deleteModesPreviewRow": {
+      "description": "A Resource the committed request would delete or newly version. A preview mints nothing, so an updated row has the current revision and no record.",
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "deleted": true,
+            "outcome": {
+              "const": "deleted"
+            },
+            "proposed": false,
+            "revision": false
+          },
+          "required": ["deleted"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "deleted": false,
+            "outcome": {
+              "const": "updated"
+            },
+            "revision": true
+          },
+          "required": ["revision"]
+        }
+      ],
+      "properties": {
+        "deleted": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deletedIdentity"
+        },
+        "id": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
+        },
+        "outcome": {
+          "enum": ["deleted", "updated"],
+          "type": "string"
+        },
+        "proposed": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "metadata": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/metadata"
+            },
+            "properties": {
+              "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/properties"
+            }
+          },
+          "description": "The object planes a declared deletion effect would change, with their would-be final values."
+        },
+        "resourceKind": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/resourceKind"
+        },
+        "revision": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revision"
+        }
+      },
+      "required": ["id", "resourceKind", "outcome"]
+    },
+    "deleteModesPreview": {
+      "description": "The report of a dry run. It commits nothing and retains no outcome.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "changed": {
+          "const": false
+        },
+        "dryRun": {
+          "const": true
+        },
+        "removedAliases": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/removedAliases"
+        },
+        "removedLinks": {
+          "$ref": "#/$defs/deleteModesRemovedLinks"
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/deleteModesPreviewRow"
+          }
+        },
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchResultEntry"
+          }
+        }
+      },
+      "required": ["capabilityVersion", "dryRun", "changed", "results", "resources", "removedLinks"]
+    },
+    "deleteModesCapabilityProblem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "https://github.com/gastownhall/bdp/capabilities/delete-modes"
+        },
+        "capabilityVersion": {
+          "const": "1"
+        },
+        "code": {
+          "const": "capability-not-supported"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri"
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^/(?:beads|blockedBy|cascade(?:/except|/through)?|dryRun)$"
+        },
+        "retry": {
+          "const": "after-state-change"
+        },
+        "status": {
+          "const": 422
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "const": "https://github.com/gastownhall/bdp/problems/request"
+        }
+      },
+      "required": ["type", "status", "code", "retry", "capability", "capabilityVersion", "pointer"]
+    },
+    "deleteModesProblem": {
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+        },
+        {
+          "$ref": "#/$defs/deleteModesCapabilityProblem"
+        }
+      ]
+    }
+  },
+  "x-bdp-schema-definitions": [
+    "deleteModesBlockedBy",
+    "deleteModesCapabilityAdvertisement",
+    "deleteModesCapabilityProblem",
+    "deleteModesCapabilityV1",
+    "deleteModesCascade",
+    "deleteModesExcept",
+    "deleteModesLinkTypeTest",
+    "deleteModesPreview",
+    "deleteModesPreviewRow",
+    "deleteModesProblem",
+    "deleteModesRemovedLink",
+    "deleteModesRemovedLinks",
+    "deleteModesRequest",
+    "deleteModesResult",
+    "deleteModesSelection"
+  ],
+  "x-bdp-schema-sources": {
+    "specs/profiles/write/write.md": [
+      "deleteModesBlockedBy",
+      "deleteModesCapabilityAdvertisement",
+      "deleteModesCapabilityProblem",
+      "deleteModesCapabilityV1",
+      "deleteModesCascade",
+      "deleteModesExcept",
+      "deleteModesLinkTypeTest",
+      "deleteModesPreview",
+      "deleteModesPreviewRow",
+      "deleteModesProblem",
+      "deleteModesRemovedLink",
+      "deleteModesRemovedLinks",
+      "deleteModesRequest",
+      "deleteModesResult",
+      "deleteModesSelection"
+    ]
+  }
+}

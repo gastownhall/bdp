@@ -1925,10 +1925,10 @@ async function run(
           if (w2Counterfactual === "wrong-name") results[0]!.operationName = "wrong";
           if (w2Counterfactual === "problem")
             Object.assign(results[1]!, {
-              status: 404,
-              type: "https://github.com/gastownhall/bdp/problems/not-found",
-              code: "resource-not-found",
-              retry: "after-state-change",
+              status: 400,
+              type: "https://github.com/gastownhall/bdp/problems/request",
+              code: "binding-unavailable",
+              retry: "never",
             });
           if (w2Counterfactual === "swap") [results[0], results[3]] = [results[3]!, results[0]!];
           if (w2Counterfactual === "binding-id")
@@ -5395,7 +5395,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
       .digest("hex"),
-  ).toBe("bb0c43096e2af6e51e8da8af5029c08665a7ded1a41b839e8a318f6ee0c33a0b");
+  ).toBe("eb057223e5305613dafe64d6b23607f7dda01075472be9296b0d7a742205921f");
   const text = bytes.toString();
   const start = text.lastIndexOf(
     "    {",

@@ -329,7 +329,7 @@ describe("private atomic alias decisions and original Reference witnesses", () =
     expect(store.update("p", update("names/future", "miss"))).toEqual(missing);
     expect(store.update("p", update("names/future", "fresh")).status).toBe(200);
   });
-  it("keeps locator resolution separate from target liveness and permits locator removal", () => {
+  it("removes the locator with its target and keeps the original replay", () => {
     const { config, store } = setup();
     store.putAlias("p", put("names/dangling", "a", "assign"));
     const original = store.update("p", update("names/dangling", "original-update"));
@@ -338,13 +338,14 @@ describe("private atomic alias decisions and original Reference witnesses", () =
       store.deleteBead("p", prepareDelete(scope, JSON.stringify({ bead: "a" }), "delete-target"))
         .status,
     ).toBe(200);
-    expect(store.resolveAlias(`${scope}names/dangling`)).toBe(`${scope}a`);
+    expect(store.resolveAlias(`${scope}names/dangling`)).toBeNull();
     expect(store.read(`${scope}a`)).toBeUndefined();
     expect(code(store.update("p", update("names/dangling", "fresh-update")))).toBe(
       "resource-not-found",
     );
-    expect(store.deleteAlias("p", remove("names/dangling", "remove-locator")).status).toBe(200);
-    expect(store.resolveAlias(`${scope}names/dangling`)).toBeNull();
+    expect(code(store.deleteAlias("p", remove("names/dangling", "remove-locator")))).toBe(
+      "resource-not-found",
+    );
     store.close();
     const reopened = openPrivateRetainedStore({ ...config, create: false });
     cleanups.push(() => reopened.close());

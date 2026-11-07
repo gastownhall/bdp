@@ -50,7 +50,7 @@ class AliasFailure extends Error {
 }
 const failures = {
   "resource-not-found": ["not-found", 404, "after-state-change"],
-  "identity-taken": ["conflict", 409, "never"],
+  "identity-taken": ["conflict", 409, "after-state-change"],
   forbidden: ["authorization", 403, "after-state-change"],
 } as const;
 function fail(code: keyof typeof failures): never {
