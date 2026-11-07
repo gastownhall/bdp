@@ -243,6 +243,21 @@ function issueInvocations(ids, unique) {
   ];
 }
 
+const catalogRead = (relative) => readFile(new URL(`../${relative}`, import.meta.url), "utf8");
+const catalogRows = async (file) =>
+  JSON.parse(await catalogRead(`packages/conformance/catalog/current/${file}`)).scenarios;
+const optionalDefinitions = async () => [
+  ...(await catalogRows("callables-v1.json")),
+  ...(await catalogRows("issue-package-v1.json")),
+];
+/** The name a report gives a row, and an exceptions ledger names it by. */
+const rowLabel = (id) => {
+  const label = /\.(cb|it|ic)-(\d+)$/.exec(id);
+  return label ? `${label[1].toUpperCase()}-${label[2]}` : id;
+};
+export const optionalRowNames = async () =>
+  (await optionalDefinitions()).map(({ id }) => rowLabel(id));
+
 export async function runOptionalRows({
   scope,
   discovered,
@@ -252,24 +267,15 @@ export async function runOptionalRows({
   exchange,
   exceptions,
 }) {
-  const read = (relative) => readFile(new URL(`../${relative}`, import.meta.url), "utf8");
-  const catalogRows = async (file) =>
-    JSON.parse(await read(`packages/conformance/catalog/current/${file}`)).scenarios;
-  const definitions = [
-    ...(await catalogRows("callables-v1.json")),
-    ...(await catalogRows("issue-package-v1.json")),
-  ];
-  const rows = definitions.map(({ id, title, requirements }) => {
-    const label = /\.(cb|it|ic)-(\d+)$/.exec(id);
-    return {
-      id,
-      row: label ? `${label[1].toUpperCase()}-${label[2]}` : id,
-      title,
-      source: `${requirements[0].source}${requirements[0].anchor}`,
-      state: "not-run",
-      reason: "Prerequisite did not complete",
-    };
-  });
+  const read = catalogRead;
+  const rows = (await optionalDefinitions()).map(({ id, title, requirements }) => ({
+    id,
+    row: rowLabel(id),
+    title,
+    source: `${requirements[0].source}${requirements[0].anchor}`,
+    state: "not-run",
+    reason: "Prerequisite did not complete",
+  }));
   const finish = () => {
     for (const row of rows) {
       const excepted = exceptions?.[row.row];

@@ -12,8 +12,8 @@ requires every required obligation in a qualification scope to have evidence.
 This kit deliberately reports its missing coverage instead of declaring a pass
 for the implemented subset. `qualificationComplete` is always false at this
 stage. `sliceComplete` is separately true only when every executable case passes, or
-is `not-applicable` by discovery, and provision/cleanup complete successfully. It is
-not a provider badge.
+is `not-applicable` by discovery, and provision/cleanup complete successfully. An
+`excepted` row is neither, so it leaves `sliceComplete` false. It is not a provider badge.
 
 ## Run
 
@@ -36,7 +36,7 @@ The runner's fixtures never invoke Beads commands or infer startup admission.
 To run against one Scope you already have, reached directly:
 
 ```sh
-node scripts/current-provider-kit.mjs --scope https://provider.example/acme/ [--token-env NAME] [--allow-mutation]
+node scripts/current-provider-kit.mjs --scope https://provider.example/acme/ [--token-env NAME] [--allow-mutation] [--recipe /absolute/recipe.json]
 ```
 
 `--scope` has no adapter, so no restart and no fixture conditions: durability and
@@ -44,7 +44,70 @@ graph cases stay `not-run`. The token, when there is one, comes only from the na
 environment variable. Without `--allow-mutation` the kit sends no mutation to that
 Scope, and a Scope advertising Write reports its mutating cases `not-run`, with that
 reason. Pass the flag only for a Scope you are willing to have changed: the kit creates,
-edits and deletes records under `provider-kit/<run id>/`.
+edits and deletes records under `provider-kit/<run id>/`, or, with a recipe, what the
+recipe spells.
+
+## A provider's recipe
+
+The portable fixture is a Type the provider must admit with properties it must return
+exactly. A provider whose Scope serves only its own Types, such as one that writes the
+Issue and Dependency Types and completes every record with members of its own, cannot run
+it. `--recipe` lets that provider say what it admits. It exists only beside `--scope`.
+
+```json
+{
+  "bead": {
+    "type": "https://github.com/gastownhall/bdp/types/issue/task",
+    "id": "acme-kit{unique}",
+    "create": {
+      "properties": { "title": "kit original", "status": "open", "priority": 2 },
+      "metadata": { "source": "provider-kit" }
+    },
+    "update": { "properties": { "title": "kit updated", "status": "open", "priority": 2 } }
+  },
+  "link": {
+    "type": "https://github.com/gastownhall/bdp/types/dependency/blocks",
+    "id": "service-allocated",
+    "metadata": { "source": "provider-kit" }
+  },
+  "excepted": {
+    "write.link-update": "updateLink waits for a durable Link identity"
+  }
+}
+```
+
+| Member | Meaning |
+| --- | --- |
+| `bead.type`, `link.type` | The absolute Type URI each record is affiliated with |
+| `bead.id`, `link.id` | `"service-allocated"`: the body carries no `id`, and the kit learns it from the result. Otherwise a Scope-relative spelling holding `{unique}`, which the kit fills differently for each record |
+| `bead.create` | `properties`, and optional `metadata` |
+| `bead.update` | Exactly one of `properties` or `propertiesChange`. Patch items are `add` or `replace` of one member `bead.create` writes. It must change something |
+| `link` | Optional; without it the Link rows are `not-run`. `properties` and `metadata` are optional |
+| `excepted` | Optional, row to reason. See below |
+
+A recipe that is not this shape, or names a row the kit does not have, is refused before
+anything is provisioned: a `harness-error` whose `harnessFailure` says why, exit 3, with no
+request sent. So is a file that cannot be read or is not JSON. Members are closed, so a
+misspelling cannot read as a check that quietly did not run.
+
+What changes under a recipe, and nothing else does:
+
+- The kit sends the provider's Types, bodies and identities.
+- Where the strict fixture compares whole `properties` or `metadata` with what it wrote, the
+  kit checks that every member it wrote comes back equal. Members the provider added are
+  allowed. A member's value is compared whole, so nesting gets no such allowance.
+- With a service-allocated identity there is nothing of the kit's to read back after the
+  refused create of `write.media-before-admission`, so the row compares the Bead inventory
+  before and after instead. A concurrent writer to that Scope fails the row.
+- The Link uses plain References, not pinned endpoints: pinned endpoints stay the strict
+  fixture's to witness. The presence of `link` is the provider's declaration of an unowned
+  Link fixture, which `--scope` has no adapter to make.
+
+Every other assertion is as strict as ever, including that a point read equals the whole
+mutation result and that creating a Link leaves its endpoint Beads' whole envelopes unchanged.
+The report carries a `recipe` member (`used`, `comparison`, a `statement`, the recipe's
+`sha256` and `exceptedRows`) so nobody reads this run as a strict one; a run without a recipe
+has none, and keeps the strict portable fixture unchanged.
 
 ## A provider without Write
 
@@ -66,6 +129,14 @@ directory that disagrees with discovery in either direction, or carries half of 
 fails `write.discovery-directory`, and no alias row is then `not-applicable`. A later
 navigation that changes the advertisement mid-run is a harness error, not a change of rows.
 
+Idempotency is optional within Write too ([Repetition without idempotency](../specs/profiles/write/write.md#repetition-without-idempotency)).
+A Write Scope that omits the `idempotency` capability retains nothing to replay, so the three
+`write.durable-original-*` rows report `not-applicable`, with the reason, by discovery, with
+`required: false`. `write.create` and the alias rows skip their same-key replay, no key is sent
+twice, and no detail window applies. `write.restart` still runs when an adapter has a restart
+hook, and `core.deleted-absence` runs either way. Withdrawing or adding the capability mid-run
+is a harness error. A provider that advertises it is held to everything as before.
+
 A read-only provider supplies its data by its own means, because it has no public way
 to receive it: its store, its importer, or its adapter's `provision`, which is free to
 write natively. The kit learns what exists from the public inventories and compares a
@@ -86,6 +157,17 @@ They are listed, with their citations, in `packages/conformance/catalog/current/
 in the report's `optional` array: `row`, `state`, and a `reason` or `note`. A failure there
 fails the run. They never change `sliceComplete` or `qualificationComplete`, and
 `claimEligible` is always false.
+
+The ledger and a recipe's `excepted` reach the `write.*` rows of the executable map as well, by
+the same rule: **the row still runs**, `state` reads `excepted`, `reason` is yours, and `observed`,
+`observedReason` and, for a row that failed, `observedAnswer` keep what really happened. An
+excepted row is never a pass: it leaves `sliceComplete` and `qualificationComplete` false and does
+not itself fail the run. A failure in an excepted row does not stop the rows after it, unless they
+need what it would have made (`write.create`, `write.effectful-update`, `write.delete`,
+`write.restart`, `write.link-create`, `write.alias-put`), and then they are `not-run`. With
+`write.link-update` excepted, `write.link-delete` deletes the Link at its last live revision. Core
+rows cannot be excepted, a recipe naming any other row is refused, and the ledger refuses a
+`write.*` name no case runs.
 
 | State | Meaning |
 | --- | --- |
@@ -248,7 +330,7 @@ cache-directive ordering is imposed.
 | `core.scope-discovery` | Successful canonical Scope GET and followed service-desc navigation | [Core discovery](../specs/profiles/core/core.md#discovery-and-capabilities) |
 | `write.discovery-directory` | Closed Write discovery, matching Scope, exact distinct ordinary targets: six, plus the alias pair exactly when discovery advertises `aliases` | [Write selection/directory](../specs/profiles/write/write.md#discover-and-select-write) |
 | `write.media-before-admission` | Generic-JSON create returns schema-valid 415 unsupported-media-type; public GET confirms the explicitly unused identity remains absent before a valid same-bytes/same-key create | [Contract and media](../specs/profiles/write/write.md#contract-and-media) |
-| `write.create` | Same key after the rejected media permits a complete created Bead and exact immediate replay; requested identity/affiliation, exact authored properties/metadata, opaque revision and mutation HTTP metadata | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
+| `write.create` | Same key after the rejected media permits a complete created Bead and, under `idempotency`, exact immediate replay; requested identity/affiliation, exact authored properties/metadata (authored members under a recipe), opaque revision and mutation HTTP metadata | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 | `core.point-read` | Actual GET agrees with created original envelope and Bead kind | [Resource reads](../specs/profiles/core/core.md#read-a-bead-or-link) |
 | `write.no-op` | Same covered state preserves the entire envelope, changed:false | [No-ops](../specs/profiles/write/write.md#covered-state-and-no-ops) |
 | `write.guard-failure` | Wrong independent revision guard gives revision-mismatch and leaves current state unchanged | [Ordinary requests](../specs/profiles/write/write.md#ordinary-requests) |
@@ -274,8 +356,9 @@ retention/erasure diagnoses. `UNCOVERED_REQUIRED` keeps them as required `not-ru
 rows, preventing this vertical slice from silently becoming full qualification. The
 completion calculation checks the exact independent fixed set of required IDs,
 unique rows, required flags, passed states and successful lifecycle; it cannot
-pass merely because a reduced subset passes. There is no waiver option, and the
-coverage-audit row remains required `not-run`.
+pass merely because a reduced subset passes. There is no waiver option: an `excepted`
+row is reported, not waived, and fails that calculation. The coverage-audit row remains
+required `not-run`.
 Optional Events, Types, historical-update, projection and batch have no selected
 cases here (Callables has; see above); running the base slice does not qualify their advertised obligations.
 
