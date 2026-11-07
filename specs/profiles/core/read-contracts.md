@@ -62,7 +62,7 @@ The following helpers describe decoded query values or preliminary selection pre
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 87 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 89 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -132,8 +132,10 @@ The entry-point roots reach 87 named definitions in the canonical bundle. They a
 - [retainedEventProblem](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRQcm9ibGVtIg)
 - [retainedEventQuery](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRRdWVyeSI)
 - [retainedEventSelection](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkRXZlbnRTZWxlY3Rpb24i)
+- [retainedNonResourceEvent](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkTm9uUmVzb3VyY2VFdmVudCI)
 - [retainedPostimageEffect](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkUG9zdGltYWdlRWZmZWN0Ig)
 - [retainedPostimageEvent](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkUG9zdGltYWdlRXZlbnQi)
+- [retainedResourceEventCommon](bdp-v0.1.schema.md#schema-def-InJldGFpbmVkUmVzb3VyY2VFdmVudENvbW1vbiI)
 - [retryDisposition](bdp-v0.1.schema.md#schema-def-InJldHJ5RGlzcG9zaXRpb24i)
 - [revision](bdp-v0.1.schema.md#schema-def-InJldmlzaW9uIg)
 - [revisionActor](bdp-v0.1.schema.md#schema-def-InJldmlzaW9uQWN0b3Ii)

@@ -2140,9 +2140,9 @@ page's cursor. It has no total Event cap or silent restart from now. An empty
 poll does not end follow. Finite JSON cannot complete an endless follow, so
 `--follow --output-format json` is invalid; use JSONL, detail or table.
 
-A Bead source includes its lifecycle and incident Link facts, preserving each
-fact's actual mutation kind. Facts are committed postimages or realized deltas,
-not later reads or commands that may be resubmitted. Explicit gaps, expired or
+A Bead source includes its lifecycle, incident Link facts and the non-Resource facts
+naming it, preserving each fact's actual mutation kind. Facts are committed postimages,
+realized deltas or non-Resource facts, not later reads or commands that may be resubmitted. Explicit gaps, expired or
 foreign cursors, and unknown required messages stop delivery at the last good
 progress. Replaying an older completed cursor may redeliver facts.
 
@@ -3050,14 +3050,15 @@ Do not overload one switch to mean all four. Do not select formats based on redi
 
 The following spellings are a concrete review proposal, not a claim that the existing CLI implements them. Integration may reuse the receiving CLI's already selected equivalent spellings. The semantic distinctions in section 1 must survive.
 
-    bd export --format transfer --output-format json|jsonl [--output FILE]
+    bd export --format transfer --output-format json|jsonl [--level current|history|continuity]
+              [--output FILE]
     bd import --format transfer --input-format json|jsonl FILE|-
-              [--mode upsert|insert-only] [--force] [--dry-run]
+              [--mode upsert|insert-only] [--force] [--accept-loss] [--dry-run]
               [--output-format default|detail|json|jsonl]
 
 New Transfer selection is explicit during the compatibility transition. This draft does not change the existing legacy export/import default. Under explicit Transfer selection, proposed export encoding default is JSONL; both encodings remain required. Exact flag registration/default must be recorded by the CLI owner before adoption. Import requires an explicit input encoding in this first grammar; extensions are advisory, not a decoder-selection authority. A future auto encoding choice would need a bounded unambiguous rule within the already selected Transfer family, not speculative fallback into legacy.
 
-For import the default mode is upsert. Insert-only rejects every destination lifetime-allocation collision. Force is explicit whole incoming Resource conflict resolution under upsert; reject force plus insert-only as conflicting arguments. Force cannot bypass kind/address/Types/erasure/authorization/ownership/nonreuse constraints. There is no automatic force after conflict and no field-wise merge.
+`--level` declares a whole [level](../../specs/profiles/transfer/transfer.md#24-levels-and-completeness), defaulting to `continuity`; it is not a filter. `--accept-loss` admits content loss on import, and without it a loss refuses. For import the default mode is upsert. Insert-only rejects every destination lifetime-allocation collision. Force is explicit whole incoming Resource conflict resolution under upsert; reject force plus insert-only as conflicting arguments. Force cannot bypass kind/address/Types/erasure/authorization/ownership/nonreuse constraints. There is no automatic force after conflict and no field-wise merge.
 
 There is no Transfer ID-root/prefix/remapping option in the first same-Scope identity-preserving contract. If the product exposes an ID prefix for legacy conversion, it remains a separate explicit compatibility behavior. Neither Write's optional rooted fresh allocation nor a human short ID authorizes relocation of an original canonical identity.
 

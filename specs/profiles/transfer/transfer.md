@@ -32,7 +32,7 @@ An all-retained package must account for the entire declared logical Scope at on
 
 Core's authorization-relative History window is not proof of a complete Scope backup. The exporter must establish authority to disclose the entire selected retained population, not just exhaust the caller's visible list. If authorization or acquisition prevents the complete profile, refuse that export; do not produce a completion declaring all-retained while quietly omitting hidden data. Diagnostics must still obey nondisclosure. An explicitly different limited profile is not this all-retained capability.
 
-Every retained native fact must have a specified mapping or a required versioned adjunct. Unmapped required facts cause refusal. A count of emitted rows, digest of emitted bytes, successful query, or empty current workspace is insufficient proof of enumeration completeness. Capture procedures must be reviewable and supply a bounded way to establish their actual source inventory and retained boundary.
+Every retained native fact must have a specified mapping or a required versioned adjunct. Unmapped required facts cause refusal, or under `complete:false` are listed in `losses` ([section 2.4](#24-levels-and-completeness)). A count of emitted rows, digest of emitted bytes, successful query, or empty current workspace is insufficient proof of enumeration completeness. Capture procedures must be reviewable and supply a bounded way to establish their actual source inventory and retained boundary.
 
 Export is not a field projection. Include/omit masks, query selection and display abbreviations must not silently alter a complete package. Properties and metadata retain all recorded admitted values. Comments and labels use the adopted Resource/Link model where one exists; otherwise the relevant required association adjunct preserves their actual native identities and associations. Do not synthesize historical associations from today's adjacency or flatten them irreversibly into current properties.
 
@@ -51,6 +51,20 @@ Package integrity is not authenticity. Supplied provenance remains carried data 
 Before retained content becomes visible, establish original identity/version and erasure status using appropriate authoritative evidence and apply known erasures, as Core History requires. A saved package alone cannot establish that no erasure occurred after capture. Unestablishable required status causes rejection or discard, not indefinite unmanaged quarantine or laundering into a new identity. Controlled copies, indexes, inline owned content and staging must obey applicable erasure duties.
 
 All retained operational facts must be classified. Old credentials, ciphertext, leases, sessions, retry tokens or authority claims must never activate an identity, reauthenticate a principal, reacquire a lease, execute a command or replay a source action. Sensitive recovery data may require an authorized protected adjunct; plaintext secret inclusion is not an implicit consequence of all-retained coverage. A profile cannot silently drop retained facts or expose secrets to avoid the classification problem. The security/custody mapping remains G4.
+
+### 2.4 Levels and completeness
+
+A package declares its `level` and whether it is `complete`. Levels are cumulative, and [Events](../events/events.md) shares the first two.
+
+| `level` | What the package accounts for |
+| --- | --- |
+| `current` | Live Resources at head, plus the fact families the producer advertises |
+| `history` | Also every retained version at its address, deletion, pruning and reorganization, so pins survive |
+| `continuity` | Also allocation, nonreuse, retry and recovery state |
+
+An all-retained package is `continuity` with `complete:true`.
+
+`complete` has Core's meaning. `complete:true` is positive knowledge that everything at the declared level is present; a producer that cannot establish this refuses or declares false. `complete:false` makes no such assertion. Its `description` says why, and its `losses` list each fact known to be absent or degraded and state the boundary of what cannot be known. It discloses no identity the exporter may not reveal: where the exporter's authority is partial, `losses` gives counts only.
 
 ## 3. Proposed portable package grammar
 
@@ -74,7 +88,10 @@ Proposed closed members:
 | resourceContract | Exact adopted Core prose/schema identity, never a producer build or mutable branch. |
 | sourceScope | Scope identity context under the selected Core contract; no transport-host-derived authority. G1 may require this binding to change before adoption. |
 | capture | Opaque source-defined capture identifier and exact capture-profile identity. It identifies one coherent retained boundary, not a globally comparable sequence or a credential. |
-| coverage | Literal all-retained for this profile. |
+| level | `current`, `history` or `continuity` ([section 2.4](#24-levels-and-completeness)). |
+| complete | Boolean with Core's meaning. |
+| description | Why the package is not complete; required when `complete` is false. |
+| losses | Known absent or degraded facts by family and address, or counts; present when `complete` is false. |
 | requirements | Ordered unique exact profile/version identities for required fact families and Type interpretation; unsupported requirements refuse before publication. |
 | inventory | One declared count for each supported fact family, including required empty families. The source profile defines and validates completeness. |
 
@@ -93,6 +110,8 @@ head marks the source's actual live head at the capture boundary. A live identit
 
 Captured owned Links are the same first-class versioned Links, not a second writable edge plane. Their full records must agree with the corresponding retained Link address/state. Preserve recorded bucket shape, affiliations and endpoint pins, including valid older captures. Do not recapture historical owners from the current graph or repin their endpoints. For different Link revisions, whole endpoint References may legitimately differ: current Write permits endpoint correction. Identity and kind, not all endpoints across time, are immutable.
 
+A `version` record's optional `representation` is `postimage`, the required form and the default, or `delta`, an optional capability named in the manifest's `requirements`. A delta carries the same create and update members as an [Events delta](../events/events.md#postimage-and-delta-representations), the version's own `revision`, and a `base` revision. `base` is an encoding reference, not lineage, which stays in history-state. The base version MUST be in the same package: where it is pruned, erased or incomplete, the next version is written whole. An importer folds each delta to the complete Resource and then validates it as usual. A reader that cannot apply deltas refuses. The digest covers records as written, so whole and delta packages of the same facts differ in digest.
+
 ### 3.3 Required retained fact families
 
 The following proposed families make missing protocol work visible. Their semantic requirements are specified here; their complete portable payload schemas and source mappings are **not yet frozen** (G2–G4). A completion may not claim them implemented using arbitrary native blobs.
@@ -106,7 +125,7 @@ The following proposed families make missing protocol work visible. Their semant
 | association-state | Original non-Resource comments/labels and associations not already represented losslessly by adopted Resources/Links, keyed to exact identities/revisions or specified native original addresses. No guessed historical linkage. |
 | recovery-state | Retained original admission/result and nonreuse/continuity facts required to preserve the logical Scope. Credentials and operational leases are inert; required anti-reexecution guarantees must still be enforced. G4 defines the safe principal/custody/secret mapping, not this table alone. |
 
-A native recovery adjunct must name its exact versioned profile, family, stable address, interpretation, required prerequisites and integrity coverage. It must distinguish original bytes from public projections. It must not expose packet-chosen SQL tables as the portable Resource authority. Necessary binary data may use a specified byte encoding; base64 is neither a data model nor permission to serialize everything as table cells. Required native data that cannot be faithfully mapped causes refusal. Optional Core Events support does not require manufacturing a seventh family. Existing retained Event facts must nevertheless be explicitly classified in the actual source recovery inventory and preserved by an applicable required adjunct when needed; they cannot disappear behind an all-retained claim (section 8).
+A native recovery adjunct must name its exact versioned profile, family, stable address, interpretation, required prerequisites and integrity coverage. It must distinguish original bytes from public projections. It must not expose packet-chosen SQL tables as the portable Resource authority. Necessary binary data may use a specified byte encoding; base64 is neither a data model nor permission to serialize everything as table cells. Required native data that cannot be faithfully mapped causes refusal, or under `complete:false` is listed in `losses`. Optional Core Events support does not require manufacturing a seventh family. Existing retained Event facts must nevertheless be explicitly classified in the actual source recovery inventory and preserved by an applicable required adjunct when needed; they cannot disappear behind an all-retained claim (section 8).
 
 ### 3.4 Retained-fact wrapper and family agreement
 
@@ -149,7 +168,7 @@ Resource limits bound capture time, raw/decoded bytes, records, per-value/proper
 
 ### 5.1 Frozen invocation and target prerequisites
 
-Import is a distinct operation, not repeated ordinary create calls or a batch of revision-stripped Resources. Freeze the destination logical Scope, selected contract/profile versions, package identity and bytes/semantic content, requested mode, force intent, guards and authenticated principal under one durable invocation key. Do not reread a changed input file on automatic retry.
+Import is a distinct operation, not repeated ordinary create calls or a batch of revision-stripped Resources. Freeze the destination logical Scope, selected contract/profile versions, package identity and bytes/semantic content, requested mode, force intent, loss acceptance, guards and authenticated principal under one durable invocation key. Do not reread a changed input file on automatic retry.
 
 Fresh means no prior user-data/allocation/key history that would conflict with admitting the complete source state. Trusted initialization and separately registered exact Type prerequisites are explicit exceptions, not permission to overwrite an arbitrary initialized workspace. Native required defaults/indexes/constraints/views and target custody must be established by trusted setup before import. The package is not executable schema setup or automatic migration.
 
@@ -160,6 +179,8 @@ When Types interpretation applies, all required exact definitions and complete s
 Validate the complete syntax, declared contracts/families, limits, completion/EOF/digest, exact addresses, counts and all prerequisites before publication. Establish original-version identity and authoritative erasure status before visibility. Validate the final graph and historical constraints appropriate to each recorded edition; do not apply today's Type default or current graph adjacency to historical versions.
 
 Whole incoming Resource selection includes its complete stored affiliation, properties, metadata, endpoints and owned state. Unknown optional-looking fields do not authorize partial application. Every duplicate/conflicting address, inconsistent inline Link, missing required history/prerequisite, unsupported adjunct, invalid kind or forbidden destination authority refuses the package.
+
+An import refuses a package with `complete:false`, or one the target cannot fully keep, unless the invocation accepts loss. Every importer can refuse; accepting loss is an advertised option. Accepted loss applies only to content, such as a field with no home, dropped provenance or absent older versions. It never applies to structure, an unsupported format or Resource contract, erasure or atomicity. An unknown fact family refuses unless loss is accepted, when it is skipped and listed. The result lists each loss by fact and member, and a dry run reports the same list. The same key with a different acceptance conflicts, like any changed intent.
 
 At publication revalidate destination custody, relevant current state/guards, authorization and preregistration. Mutable destination state must not change between the plan's guarded baseline and its atomic commit without detection. A successful observational dry run reserves nothing and cannot substitute for these checks.
 
@@ -191,7 +212,7 @@ The first implementation may refuse oversized packages; a future resumable/chunk
 
 Use Write's authoritative logical-Scope/authenticated-principal idempotency namespace, key syntax and at-most-once outcome semantics. Transfer does not create a key namespace partition by package format, endpoint, profile, media, serving host or epoch. After carrier/key admission, known-key resolution precedes fresh feature support, target liveness, current guards/defaults and limits. Retained compatible replay returns the original terminal disposition without effects; different intent conflicts; in-flight work does not execute again. Expired success preserves permanent compact anti-reexecution state and returns the truthful expired disposition, never fabricates discarded detail.
 
-Proposed successful transfer result fields: package digest and selected profile identity; destination Scope; explicit terminal committed decision; changed; per-family admitted/unchanged counts; bounded complete per-Resource dispositions, including incoming original head and chosen resulting head or terminal identity; and known displaced-version references for force. Large results must fit an admitted bound or use a separately specified complete result contract, not silently truncate. A result transaction/correlation appears only when the selected Write contract requires it for an effectful decision. No success receipt is allowed to claim source authentication or a lifetime body-retention promise.
+Proposed successful transfer result fields: package digest and selected profile identity; destination Scope; explicit terminal committed decision; changed; per-family admitted/unchanged counts; bounded complete per-Resource dispositions, including incoming original head and chosen resulting head or terminal identity; known displaced-version references for force; and `losses` for any accepted loss. Large results must fit an admitted bound or use a separately specified complete result contract, not silently truncate. A result transaction/correlation appears only when the selected Write contract requires it for an effectful decision. No success receipt is allowed to claim source authentication or a lifetime body-retention promise.
 
 These are a proposed Transfer result shape, not the ordinary CRUD mutationResult or a new public receipt service (G6). The invocation identity/key remains private client recovery state; a package digest is not a retry key or authentication token. Successful no-op still retains anti-reexecution state even without a new Resource revision/Event.
 
@@ -222,7 +243,7 @@ rules before adoption; this proposed profile does not invent those rules.
 | ID | Outstanding work; proposed direction |
 | --- | --- |
 | G1 | Stable DNS-neutral logical Scope identity/serving-location relationship. Donna's next design decision; use selected Core until changed, do not adopt a new identifier here. |
-| G2 | Complete portable family payloads, stable fact addresses/order and native recovery adjunct mappings, including aliases and positively known incomplete/terminal states. Owner engineering/spec correspondence; no table dump declared portable. |
+| G2 | Complete portable family payloads, stable fact addresses/order and native recovery adjunct mappings, including aliases and positively known incomplete/terminal states. Owner engineering/spec correspondence; no table dump declared portable. These payloads must match the [Events non-Resource fact](../events/events.md#non-resource-facts), which publishes `alias-state`, `identity-state`, `association-state` and `type-prerequisite` changes first. |
 | G3 | Original-version/head admission, common-baseline/no-op/conflict proof, exact retained Type eligibility including retired fresh restoration, and full History lineage/context mapping. Reconcile with Core immutable addresses and Write/Types before claiming these operations. |
 | G4 | Origin/erasure evidence, disclosure/security classification, inert operational data versus enforced allocation/key continuity, current-principal/custody mapping and disaster-recovery cutover. Raise only actual changed product choices; routine binding mechanisms remain engineering. |
 | G5 | Events conditional import effects and baseline policy under the selected optional Events contract. Recommend separate optional profile, no old-log replay or mandatory import head. |
@@ -238,7 +259,12 @@ No new vote is requested on both encodings, Resource-first bodies, all-retained 
 | Empty user graph with retained allocations/deletion facts | Preserve those facts; not an empty package merely because no live Resource exists. |
 | A→fresh B→fresh C | Exact all-retained identities, values, revisions, pins, provenance, captures, lineage, associations and nonreuse; target-local storage IDs/commit tokens are not mistaken for source facts. |
 | Incomplete retained version / erased content | Honest missing-state/disposition preservation; no invented full body, resurrection or omission from claimed coverage. |
-| Duplicate or conflicting address, changed pinned body, invalid inline Link | Atomic refusal including force; no first/last winner or recapture repair. |
+| Duplicate or conflicting address, changed pinned body, invalid inline Link | Atomic refusal including force or accepted loss; no first/last winner or recapture repair. |
+| `complete:false` package, or a target that cannot keep a fact, without loss acceptance | Refusal before publication. |
+| The same with loss acceptance | Content-only loss, each listed by fact and member; a dry run reports the same list. |
+| Same key with a different loss acceptance | Conflict. |
+| Exporter with partial authority at `complete:false` | `losses` gives counts and discloses no hidden identity. |
+| Delta whose base is not in the package | Refusal; a producer writes the next version whole instead. |
 | Missing/retired exact Type dependency | No auto-install/default/activation; refuse unsupported admission or apply the explicitly reconciled retained-use rule, never guess. |
 | Unchanged reimport / local-only edit / incoming-only edit / divergence | Proved no-op / retain local / guarded whole-state advance / conflict, respectively; ambiguity conflicts. |
 | Whole-Resource force | Preserve displaced History and all invariants, never field merge or authorization bypass. |
