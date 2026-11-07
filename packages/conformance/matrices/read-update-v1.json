@@ -96864,7 +96864,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/retry",
               "exists": true,
-              "equals": "never"
+              "equals": "after-state-change"
             },
             {
               "id": "1-no-outcome",
@@ -99824,7 +99824,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/retry",
               "exists": true,
-              "equals": "never"
+              "equals": "after-state-change"
             },
             {
               "id": "1-no-outcome",

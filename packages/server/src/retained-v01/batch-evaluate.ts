@@ -156,7 +156,7 @@ export function evaluateBatch(
         }
       }
       if (seen.has(id) || taken.has(id) || reserved(id))
-        return refusal(problem("identity-taken", 409));
+        return refusal(problem("identity-taken", 409, "after-state-change"));
       if (aliasTaken(id)) return refusal(problem("alias-path-taken", 409, "after-state-change"));
       const base = {
         id,

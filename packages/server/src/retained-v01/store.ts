@@ -727,7 +727,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       }
     }
     if (get("SELECT id FROM identities WHERE id=?", id) || isReserved(id))
-      return refusal(problem("identity-taken", 409));
+      return refusal(problem("identity-taken", 409, "after-state-change"));
     if (get("SELECT locator FROM aliases WHERE locator=?", id))
       return refusal(problem("alias-path-taken", 409, "after-state-change"));
     const time = new Date(now()).toISOString();
@@ -979,7 +979,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         operation === "putAlias" &&
         (get("SELECT id FROM identities WHERE id=?", input.alias) || isReserved(input.alias))
       )
-        return refusal(problem("identity-taken", 409));
+        return refusal(problem("identity-taken", 409, "after-state-change"));
       const previous = get("SELECT target FROM aliases WHERE locator=?", input.alias);
       if (operation === "deleteAlias") {
         if (!previous) return refusal(problem("resource-not-found", 404, "after-state-change"));

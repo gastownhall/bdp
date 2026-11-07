@@ -1121,7 +1121,7 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `unsupported-media-type` | `request` | 415 | `never` |
 | `validation-failed` | `validation` | 422 | `never` |
 | `type-not-installed` | `validation` | 422 | `after-state-change` |
-| `identity-taken` | `conflict` | 409 | `never` |
+| `identity-taken` | `conflict` | 409 | `after-state-change` |
 | `alias-path-taken` | `conflict` | 409 | `after-state-change` |
 | `revision-mismatch` | `conflict` | 409 | `after-state-change` |
 | `incident-links-exist` | `conflict` | 409 | `after-state-change` |
@@ -3754,7 +3754,7 @@ Required order: ["type","code","retry"]
             "const": 409
           },
           "retry": {
-            "const": "never"
+            "const": "after-state-change"
           }
         }
       }

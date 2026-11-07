@@ -708,7 +708,7 @@
           "type": "https://github.com/gastownhall/bdp/problems/conflict",
           "code": "identity-taken",
           "status": 409,
-          "retry": "never",
+          "retry": "after-state-change",
           "detail": "projects/alpha/tasks/t-1 was previously committed in this Scope"
         }
       }

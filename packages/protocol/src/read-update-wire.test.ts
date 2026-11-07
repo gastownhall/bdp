@@ -36,7 +36,7 @@ const READ_UPDATE_PROBLEM_ROWS: readonly (readonly [string, string, number, stri
   ["binding-unavailable", "request", 400, "never"],
   ["validation-failed", "validation", 422, "never"],
   ["type-not-installed", "validation", 422, "after-state-change"],
-  ["identity-taken", "conflict", 409, "never"],
+  ["identity-taken", "conflict", 409, "after-state-change"],
   ["alias-path-taken", "conflict", 409, "after-state-change"],
   ["revision-mismatch", "conflict", 409, "after-state-change"],
   ["incident-links-exist", "conflict", 409, "after-state-change"],
@@ -120,8 +120,11 @@ describe("Read+Update problem rows", () => {
   });
 
   it("places exactly the Read+Update additions in their own section", () => {
+    // The pinned 692d table predates Donna's ruling of identity-taken's retry; only that cell differs.
     expect(problemTableRows(markdownSection(specification, "Read+Update problem details"))).toEqual(
-      READ_UPDATE_PROBLEM_ROWS,
+      READ_UPDATE_PROBLEM_ROWS.map((row) =>
+        row[0] === "identity-taken" ? [row[0], row[1], row[2], "never"] : row,
+      ),
     );
   });
 

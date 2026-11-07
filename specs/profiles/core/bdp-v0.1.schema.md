@@ -5833,7 +5833,7 @@ Required order: ["type","code","retry"]
             "const": 409
           },
           "retry": {
-            "const": "never"
+            "const": "after-state-change"
           }
         }
       }
