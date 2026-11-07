@@ -105,9 +105,9 @@ listing OPTIONS does not itself implement preflight.
 A provider MAY refuse one of the six Resource operations it lists but does not serve.
 A POST to that target is refused with `operation-not-supported`, naming the operation
 in `operation`, before the provider reads the body or any state: it claims no key and
-produces no effects. The directory keeps its six members, and other methods keep their
-ordinary answers. The two alias operations are not covered: a Scope that does not serve
-them does not advertise `aliases`.
+produces no effects. Ordinary authentication and media checks come first. The directory
+keeps its six members, and other methods keep their ordinary answers. The two alias
+operations are not covered: a Scope that does not serve them does not advertise `aliases`.
 
 A Scope that refuses any of the six MUST say so in discovery, under the capability
 `https://github.com/gastownhall/bdp/capabilities/write-exceptions` at version `"1"`. Its closed detail has one required member,
@@ -1334,6 +1334,8 @@ HTTP422, `code:"capability-not-supported"`, `retry:"after-state-change"`, the
 capability URI, requested `capabilityVersion`, and `pointer:"/capabilityVersion"`.
 A disabled recognized member uses `operation-not-supported`, the same family/
 status/retry, its requested `operation`, and `pointer:"/operations/I/operation"`.
+An operation the Scope lists as [not served](#operations-a-scope-does-not-serve) is
+such a member, and `atomic-batch1` does not advertise it, so the whole batch is refused.
 Those feature Problems carry their specified selector fields, not an invented
 receipt or generic fallback envelope. Ordinary failures keep ordinary shapes.
 In-flight uses existing `idempotency-in-progress` or bounded waiting, not a public
