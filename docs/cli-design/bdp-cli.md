@@ -197,7 +197,8 @@ Keys and retry files apply only against a Scope advertising Write's `idempotency
 capability. Against a Scope without it the client sends no key, and
 `--idempotency-key` and `--retry-file` refuse before transmission. A lost response
 is then recovered by reading: `--if-revision` guards an update or deletion, and a
-supplied `--id` makes a repeated creation `identity-taken`. A repeated creation
+supplied `--id` makes a repeated creation `identity-taken` while that Bead is live; one
+arriving after its deletion adds a revision under that identity. A repeated creation
 without `--id` allocates a second identity, so the client reports such an uncertain
 outcome and does not retry it automatically. `alias put`, `alias delete` and
 `alias resolve` refuse before dispatch against a Scope that does not advertise
@@ -1143,13 +1144,17 @@ and retry inputs require apply intent; a saved retry already carries that intent
 
 With `--force`, invoke the ordinary deletion and recheck all admission conditions.
 The flag does not waive authorization, integrity or revision guards and does not
-reach the wire. The target remains unpinned. Deleted canonical IDs stay reserved.
+reach the wire. The target remains unpinned. A deleted canonical ID names no other
+Resource, and a later creation supplying it adds a revision under that identity.
 
-A Bead with live incident Links cannot be deleted by this command. Remove those
-Links explicitly; there is no implicit cascade. The separately selected
+A Bead with live incident Links through an unpinned endpoint cannot be deleted by this
+command. Remove those Links explicitly; there is no implicit cascade. A Link that
+[survives under its pin](../../specs/profiles/write/write.md#pinned-endpoints-on-deletion)
+does not block. The separately selected
 [delete-modes1 capability](../../specs/profiles/write/write.md#optional-deletion-modes-version-1)
-states a removal or cascade explicitly on the wire. Bead deletion accepts no
-revision-provenance input and creates no fictitious deleted Resource version.
+states a removal or cascade explicitly on the wire. Deletion removes the Bead's aliases
+and the result lists them. This command has no flag yet for the deletion's wire
+`revisionProvenance` input, and it creates no fictitious deleted Resource version.
 
 
 ##### Results
@@ -1207,8 +1212,8 @@ unless discovery advertises the capability.
 | Proposed input | Protocol request or client behavior |
 | --- | --- |
 | `--blocked-by any\|inbound\|none` | Set `blockedBy`. Omission with no other mode flag sends no member. |
-| `--cascade-through TYPE` | Set `cascade.through` to `{type:TYPE,match:"family"}`, matching `--type`. |
-| `--cascade-through-exact TYPE` | Set `cascade.through` to `{type:TYPE,match:"exact"}`, matching `--exact-type`; conflicts with `--cascade-through`. |
+| `--cascade-through TYPE` | Set `cascade.through` to the one-test list `[{type:TYPE,match:"family"}]`, matching `--type`. |
+| `--cascade-through-exact TYPE` | Set `cascade.through` to the one-test list `[{type:TYPE,match:"exact"}]`, matching `--exact-type`; conflicts with `--cascade-through`. |
 | `--cascade-except JSON` | Set `cascade.except` to the closed `{bind,predicate}` value; requires a through flag and advertised `except:true`. |
 | `--dry-run-mode service` | Set `dryRun:true` and print the service's preview, including declared deletion effects. It requires no `--force`. `batch` and `bdp` keep their meanings. |
 | More than one REF | POST one `deleteBead` with `beads` holding each distinct REF and the mode members. No batch capability is involved. `--if-revision` is refused here. |

@@ -32,7 +32,7 @@ to them as follows. One ID uses `bead` and several distinct IDs use `beads`.
 | --- | --- |
 | Guarded (no `force`, no `cascade`) | `blockedBy:"inbound"` |
 | `force` | `blockedBy:"none"` |
-| `cascade`, with or without `force` | `blockedBy:"none"`, `cascade:{through:{type:PARENT_CHILD,match:"exact"}}` |
+| `cascade`, with or without `force` | `blockedBy:"none"`, `cascade:{through:[{type:PARENT_CHILD,match:"exact"}]}` |
 | `dry_run` beside any of these | The same members plus `dryRun:true` |
 | `expected_version` on one ID | `expectedRevision` on that member |
 
@@ -40,7 +40,8 @@ Native `Orphaned` is computed from `removedLinks`: the sources of removed Links 
 target is deleted and whose source survives. Native `Dependencies` is the length of
 `removedLinks`. Native `ReferencesUpdated` corresponds to the `updated` rows of
 survivors a [declared deletion effect](../../specs/profiles/write/write.md#type-declared-deletion-effects)
-changed. Native `Labels` and `Events` counts and the `actor` member have no BDP field.
+changed. Native `actor` corresponds to `revisionProvenance`. Native `Labels` and `Events`
+counts have no BDP field.
 
 An unpinned authored Type URI is resolved by the service during Types admission.
 An exact authored Type pin stays exact. Creation requires no client definition
