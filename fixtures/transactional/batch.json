@@ -468,7 +468,7 @@
             "status": 409,
             "detail": "dec-9 has been committed in this Scope and is never reassigned.",
             "code": "identity-taken",
-            "retry": "never",
+            "retry": "after-state-change",
             "operationIndex": 0,
             "operationName": "decision",
             "pointer": "/operations/0/id"

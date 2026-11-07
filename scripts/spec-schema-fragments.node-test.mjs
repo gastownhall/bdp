@@ -132,6 +132,7 @@ test("actual profile fragments match both distributions and distinct feature res
       ],
     ],
     ["id-root", ["../specs/profiles/write/id-root-v1.schema.json"]],
+    ["delete-modes", ["../specs/profiles/write/delete-modes-v1.schema.json"]],
     ["types", ["../specs/profiles/types/types-v1.schema.json"]],
   ]) {
     const { definitions, sources } = collectProfileFragments(bundleName);

@@ -1488,7 +1488,7 @@ function applyCrossCarrierControl(value: CrossCarrierManifest, control: CrossCar
                 "https://github.com/gastownhall/bdp/problems/conflict",
                 "identity-taken",
                 409,
-                "never",
+                "after-state-change",
               ],
             ],
           },

@@ -16,6 +16,7 @@ import {
   isBdpClientProblem,
 } from "./index.js";
 
+const LEGACY_ACCEPT = "application/vnd.bdp.v0.1+json, application/json;q=0.9";
 const SCOPE = "https://beads.example/acme/";
 const RESOURCE = SCOPE;
 const BEADS_ROUTE = `${SCOPE}bdp/beads`;
@@ -1533,7 +1534,7 @@ describe("BdpClient", () => {
         credentials: "omit",
       });
       expect(new Headers(externalRequests[0]?.init.headers).get("authorization")).toBeNull();
-      expect(new Headers(externalRequests[0]?.init.headers).get("accept")).toBe("application/json");
+      expect(new Headers(externalRequests[0]?.init.headers).get("accept")).toBe(LEGACY_ACCEPT);
     },
   );
 
@@ -2204,8 +2205,8 @@ describe("createFetchTransport", () => {
     });
     expect(urls).toEqual([SCOPE, `${SCOPE}bdp.json`, BEADS_ROUTE]);
     expect(requests.map(({ redirect }) => redirect)).toEqual(["manual", "manual", "manual"]);
-    expect(new Headers(requests[1]?.headers).get("accept")).toBe("application/json");
-    expect(new Headers(requests[2]?.headers).get("accept")).toBe("application/json");
+    expect(new Headers(requests[1]?.headers).get("accept")).toBe(LEGACY_ACCEPT);
+    expect(new Headers(requests[2]?.headers).get("accept")).toBe(LEGACY_ACCEPT);
   });
 
   it.each([

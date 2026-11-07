@@ -140,7 +140,7 @@ class Failure extends Error {
 const failures = {
   "resource-not-found": ["not-found", 404, "after-state-change"],
   forbidden: ["authorization", 403, "after-state-change"],
-  "identity-taken": ["conflict", 409, "never"],
+  "identity-taken": ["conflict", 409, "after-state-change"],
   "alias-path-taken": ["conflict", 409, "after-state-change"],
   "type-not-installed": ["validation", 422, "after-state-change"],
   "revision-mismatch": ["conflict", 409, "after-state-change"],

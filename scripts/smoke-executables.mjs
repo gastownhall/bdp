@@ -238,18 +238,18 @@ await withPackedWorkspace(async (installed, signal) => {
       throw new Error(`${executable} --version failed`);
     }
 
-    const usageError = await run(signal, executable, entry, "--secret-token");
+    const usageError = await run(signal, executable, entry, "--no-such-flag=secret-token");
     const diagnostics = parseDiagnostics(usageError.stderr, executable);
     if (
       usageError.code !== 2 ||
       usageError.stdout !== "" ||
-      usageError.stderr.includes("--secret-token") ||
+      usageError.stderr.includes("secret-token") ||
       diagnostics.length !== 1 ||
       Object.keys(diagnostics[0] ?? {}).length !== 4 ||
       diagnostics[0]?.level !== "error" ||
       diagnostics[0]?.event !== "cli.usage" ||
       diagnostics[0]?.executable !== executable ||
-      diagnostics[0]?.message !== "1 unsupported argument(s); use --help for usage"
+      diagnostics[0]?.message !== "unsupported argument --no-such-flag; use --help for usage"
     ) {
       throw new Error(`${executable} structured usage diagnostic failed`);
     }

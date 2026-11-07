@@ -279,7 +279,7 @@ describe("private retained deletion admission", () => {
     { bead: "a", expectedRevision: "" },
     { bead: "a", expectedRevision: 1 },
     { bead: "a", operation: "deleteBead" },
-    { bead: "a", revisionProvenance: {} },
+    { bead: "a", revisionProvenance: { actor: 1 } },
     { bead: "a", properties: {} },
   ])("rejects malformed deletion carrier %j", (body) => {
     expect(() => prepareDelete(scope, JSON.stringify(body), "d")).toThrow(RetainedRequestError);

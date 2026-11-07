@@ -1,0 +1,728 @@
+import type { CallableDeclaration, CallableParameter, CallableValueSchema } from "@bdp/client";
+import { CALLABLE_QUERY_TYPE } from "@bdp/client";
+import { type AdmittedJsonValue, admitJsonNumbers, decodeJsonDocument } from "@bdp/protocol";
+import { unsupportedArgumentName } from "@bdp/config";
+import { CanonicalInputError } from "./canonical-input.js";
+
+/** §10: attribution, on either form and in any position. No parameter derives or aliases it. */
+const ACTOR_FLAG = "--actor";
+/** Flags §10 gives every Callable; a parameter deriving one is reachable only by `--arguments`. */
+const RESERVED_FLAGS = new Set(["--arguments", "--help"]);
+/** §2.5: who is acting is attribution, so no member projects to it. */
+const ACTING_MEMBERS = new Set(["actor", "author"]);
+const ACTING_FLAGS = new Set([ACTOR_FLAG, "--author"]);
+/** Literal client spellings, safe to name in a diagnostic. They belong before a tree command. */
+const CLIENT_FLAGS = new Set([
+  "--cli-profile",
+  "--config",
+  "--idempotency-key",
+  "--output-format",
+  "--output-mode",
+  "--revision-provenance",
+  "--scope",
+]);
+
+/** Diagnostics name flags, and never echo a supplied value. */
+export class CallableUsageError extends CanonicalInputError {}
+const refuse = (message: string): never => {
+  throw new CallableUsageError(message);
+};
+
+/** §10: split at `_`, `-` and lower-to-upper boundaries, lowercase, join with `-`. */
+export function parameterFlag(name: string): string {
+  const words = name
+    .replace(/(\p{Ll})(\p{Lu})/gu, "$1-$2")
+    .split(/[_-]+/)
+    .filter((word) => word.length > 0);
+  return `--${words.join("-").toLowerCase()}`;
+}
+
+type SchemaObject = Readonly<Record<string, AdmittedJsonValue>>;
+const asObject = (schema: unknown): SchemaObject | undefined =>
+  schema !== null && typeof schema === "object" && !Array.isArray(schema)
+    ? (schema as SchemaObject)
+    : undefined;
+
+/** Follow `$ref`s, which §2.3 confines to the document that carries them. */
+function dereference(schema: unknown, root: CallableValueSchema): SchemaObject | undefined {
+  const seen = new Set<string>();
+  let current = asObject(schema);
+  while (current !== undefined && typeof current.$ref === "string" && current.type === undefined) {
+    const ref: string = current.$ref;
+    if (seen.has(ref) || !ref.startsWith("#/")) return undefined;
+    seen.add(ref);
+    let target: unknown = root;
+    for (const part of ref.slice(2).split("/"))
+      target = asObject(target)?.[part.replace(/~1/g, "/").replace(/~0/g, "~")];
+    current = asObject(target);
+  }
+  return current;
+}
+
+/** Whether a schema admits strings and nothing else, however it says so. */
+function onlyStrings(schema: unknown, root: CallableValueSchema): boolean {
+  const node = dereference(schema, root);
+  if (node === undefined) return false;
+  if (node.type !== undefined) return node.type === "string";
+  if (Array.isArray(node.enum))
+    return node.enum.length > 0 && node.enum.every((value) => typeof value === "string");
+  if (Object.hasOwn(node, "const")) return typeof node.const === "string";
+  for (const keyword of ["anyOf", "oneOf"]) {
+    const branches = node[keyword];
+    if (Array.isArray(branches))
+      return branches.length > 0 && branches.every((branch) => onlyStrings(branch, root));
+  }
+  return Array.isArray(node.allOf) && node.allOf.some((branch) => onlyStrings(branch, root));
+}
+
+type ItemForm = "text" | "json";
+type ValueForm =
+  | { readonly kind: "boolean" }
+  | { readonly kind: "array"; readonly item: ItemForm }
+  | { readonly kind: "single"; readonly item: ItemForm };
+
+/** The §10 table: boolean, array, string, and JSON for any other non-string schema. `root` is the
+ * document a `$ref` resolves in: a member's schema resolves in its parameter's. */
+function schemaForm(schema: unknown, root: CallableValueSchema): ValueForm {
+  const node = dereference(schema, root);
+  if (node?.type === "boolean") return { kind: "boolean" };
+  if (node?.type === "array")
+    return { kind: "array", item: onlyStrings(node.items, root) ? "text" : "json" };
+  return { kind: "single", item: onlyStrings(schema, root) ? "text" : "json" };
+}
+const valueForm = ({ schema }: CallableParameter): ValueForm => schemaForm(schema, schema);
+
+/** The declared schema of one member of an object parameter. */
+function memberSchema({ schema }: CallableParameter, member: string): unknown {
+  const properties = asObject(dereference(schema, schema)?.properties);
+  return properties !== undefined && Object.hasOwn(properties, member)
+    ? properties[member]
+    : undefined;
+}
+
+interface FlagBinding {
+  readonly parameter: CallableParameter;
+  readonly form: ValueForm;
+  readonly negated: boolean;
+  /** A `cliMapping.fromFile` spelling: its value is a path, and `-` means stdin. */
+  readonly file: boolean;
+  /** A `cliMapping.memberFlags` spelling: it sets this one member of the parameter, by the form
+   * of that member's schema. */
+  readonly member?: string;
+}
+interface FlagTable {
+  /** undefined marks a spelling two parameters share: no use of it can be honest. */
+  readonly flags: ReadonlyMap<string, FlagBinding | undefined>;
+  readonly collisions: ReadonlySet<string>;
+}
+
+function flagTable(declaration: CallableDeclaration): FlagTable {
+  const flags = new Map<string, FlagBinding | undefined>();
+  const collisions = new Set<string>();
+  const claim = (spelling: string, binding: FlagBinding): void => {
+    if (RESERVED_FLAGS.has(spelling) || spelling === ACTOR_FLAG) collisions.add(spelling);
+    else if (flags.has(spelling)) {
+      collisions.add(spelling);
+      const held = flags.get(spelling);
+      if (held?.parameter !== binding.parameter || held.member !== binding.member)
+        flags.set(spelling, undefined);
+    } else flags.set(spelling, binding);
+  };
+  const bindings = declaration.parameters.map((parameter) => ({
+    parameter,
+    form: valueForm(parameter),
+    negated: false,
+    file: false,
+  }));
+  const derivesFlag = ({ parameter }: { parameter: CallableParameter }): boolean =>
+    parameterFlag(parameter.name) !== ACTOR_FLAG;
+  for (const binding of bindings.filter(derivesFlag))
+    claim(parameterFlag(binding.parameter.name), binding);
+  for (const mapping of declaration.cliMapping?.flags ?? []) {
+    const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
+    if (binding !== undefined) for (const name of mapping.names) claim(name, binding);
+  }
+  for (const mapping of declaration.cliMapping?.fromFile ?? []) {
+    const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
+    if (binding !== undefined)
+      for (const name of mapping.names) claim(name, { ...binding, file: true });
+  }
+  for (const mapping of declaration.cliMapping?.memberFlags ?? []) {
+    const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
+    const schema = binding && memberSchema(binding.parameter, mapping.member);
+    if (binding === undefined || schema === undefined) continue;
+    const spellings = [parameterFlag(mapping.member), ...(mapping.names ?? [])];
+    const acting = spellings.filter((spelling) => ACTING_FLAGS.has(spelling));
+    if (ACTING_MEMBERS.has(mapping.member) || acting.length > 0) {
+      for (const spelling of [...acting, spellings[0] ?? ""]) collisions.add(spelling);
+      continue;
+    }
+    const form = schemaForm(schema, binding.parameter.schema);
+    const member = { ...binding, form, member: mapping.member };
+    for (const spelling of spellings) claim(spelling, member);
+    if (form.kind === "boolean") {
+      const negated = `--no-${parameterFlag(mapping.member).slice(2)}`;
+      if (!flags.has(negated)) flags.set(negated, { ...member, negated: true });
+    }
+  }
+  // §10: a parameter declared with the flag `--no-x` keeps it, and `x` then has no derived one.
+  for (const binding of bindings.filter(derivesFlag))
+    if (binding.form.kind === "boolean") {
+      const spelling = `--no-${parameterFlag(binding.parameter.name).slice(2)}`;
+      if (!flags.has(spelling) && !RESERVED_FLAGS.has(spelling))
+        flags.set(spelling, { ...binding, negated: true });
+    }
+  return { flags, collisions };
+}
+
+/** The spellings §2.5 would call invalid: shared, or taken from a flag §10 reserves. */
+export function callableFlagCollisions(declaration: CallableDeclaration): readonly string[] {
+  return [...flagTable(declaration).collisions];
+}
+
+function jsonValue(text: string): AdmittedJsonValue | undefined {
+  try {
+    const admitted = admitJsonNumbers(decodeJsonDocument(text), {
+      diagnostics: 1,
+      diagnostic: () => ({ message: "inadmissible JSON number" }),
+    });
+    return admitted.ok ? admitted.value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A `cliMapping.fromFile` flag whose content is that parameter's flag value (§10). */
+export interface CallableFileInput {
+  readonly spelling: string;
+  readonly parameter: CallableParameter;
+  readonly path: string;
+}
+export type ParsedCallableArguments =
+  | { readonly help: true }
+  | {
+      readonly help: false;
+      readonly arguments: Readonly<Record<string, AdmittedJsonValue>>;
+      readonly files: readonly CallableFileInput[];
+    };
+
+/** `--actor` wherever it stands among a tree command's words, as client options, and the words
+ * without it. No flag's value can be `--actor`, since a value beginning with `--` takes the
+ * `--flag=VALUE` form, so every one before a bare `--` is attribution. Undefined when one has no
+ * value. */
+export function liftActorFlags(
+  words: readonly string[],
+): { readonly client: readonly string[]; readonly words: readonly string[] } | undefined {
+  const client: string[] = [];
+  const rest: string[] = [];
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index] ?? "";
+    if (word === "--") {
+      rest.push(...words.slice(index));
+      break;
+    }
+    if (word.startsWith(`${ACTOR_FLAG}=`)) client.push(word);
+    else if (word === ACTOR_FLAG) {
+      const value = words[++index];
+      if (value === undefined || value.startsWith("--")) return undefined;
+      client.push(word, value);
+    } else rest.push(word);
+  }
+  return { client, words: rest };
+}
+
+/** One Callable's arguments from the tokens after NAME. Offline and without a schema check:
+ * §4 makes checking the service's job. Omission stays omission, here and after
+ * completeCallableArguments: a default is the service's to apply. */
+export function parseCallableArguments(
+  declaration: CallableDeclaration,
+  tokens: readonly string[],
+): ParsedCallableArguments {
+  const { flags } = flagTable(declaration);
+  const supplied = new Map<string, AdmittedJsonValue>();
+  const members = new Map<string, Map<string, AdmittedJsonValue>>();
+  const operands: string[] = [];
+  const files: CallableFileInput[] = [];
+  let whole: Record<string, AdmittedJsonValue> | undefined;
+  const convert = (text: string, item: ItemForm, label: string): AdmittedJsonValue => {
+    if (item === "text") return text;
+    const value = jsonValue(text);
+    return value === undefined ? refuse(`${label} requires a JSON value`) : value;
+  };
+  const bind = ({ name }: CallableParameter, form: ValueForm, value: AdmittedJsonValue): void => {
+    const held = supplied.get(name);
+    if (form.kind === "array")
+      supplied.set(name, [...((held as AdmittedJsonValue[] | undefined) ?? []), value]);
+    else if (supplied.has(name) || files.some(({ parameter }) => parameter.name === name))
+      refuse(`${parameterFlag(name)} may be given only once`);
+    else supplied.set(name, value);
+  };
+  const bindMember = (
+    { parameter, form, member }: FlagBinding,
+    spelling: string,
+    value: AdmittedJsonValue,
+  ): void => {
+    const held = members.get(parameter.name) ?? new Map<string, AdmittedJsonValue>();
+    members.set(parameter.name, held);
+    const name = member ?? "";
+    if (form.kind === "array")
+      held.set(name, [...((held.get(name) as AdmittedJsonValue[] | undefined) ?? []), value]);
+    else if (held.has(name)) refuse(`${spelling} may be given only once`);
+    else held.set(name, value);
+  };
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index] ?? "";
+    if (token === "--") {
+      operands.push(...tokens.slice(index + 1));
+      break;
+    }
+    if (token === "--help" || (token === "-h" && !flags.has("-h"))) return { help: true };
+    if (!token.startsWith("-") || token === "-" || /^-[0-9.]/.test(token)) {
+      operands.push(token);
+      continue;
+    }
+    const at = token.indexOf("=");
+    const spelling = at < 0 ? token : token.slice(0, at);
+    const inline = at < 0 ? undefined : token.slice(at + 1);
+    const nextValue = (): string => {
+      if (inline !== undefined) return inline;
+      const next = tokens[index + 1];
+      if (next === undefined || next.startsWith("--"))
+        return refuse(`${spelling} requires a value`);
+      index++;
+      return next;
+    };
+    if (spelling === "--arguments") {
+      if (whole !== undefined) refuse("--arguments may be given only once");
+      const value = jsonValue(nextValue());
+      if (value === null || typeof value !== "object" || Array.isArray(value))
+        return refuse("--arguments requires one JSON object");
+      whole = value as Record<string, AdmittedJsonValue>;
+      continue;
+    }
+    if (CLIENT_FLAGS.has(spelling) && !flags.has(spelling))
+      return refuse(`that flag is a client option; put ${spelling} before the command`);
+    if (!flags.has(spelling))
+      return refuse(
+        `${unsupportedArgumentName(spelling) ?? "a flag"} is not a parameter of this Callable; use --help for its form`,
+      );
+    const binding = flags.get(spelling);
+    if (binding === undefined)
+      return refuse(`${spelling} belongs to more than one parameter; use --arguments`);
+    if (binding.member !== undefined) {
+      if (binding.form.kind !== "boolean")
+        bindMember(binding, spelling, convert(nextValue(), binding.form.item, spelling));
+      else if (inline !== undefined) refuse(`${spelling} takes no value`);
+      else bindMember(binding, spelling, !binding.negated);
+    } else if (binding.file) {
+      const path = nextValue();
+      if (path === "") refuse(`${spelling} requires a path`);
+      if (path === "-" && files.some((file) => file.path === "-"))
+        refuse("only one flag may read stdin");
+      const held = binding.form.kind !== "array" && supplied.has(binding.parameter.name);
+      if (held || (binding.form.kind !== "array" && files.some(sameParameter(binding))))
+        refuse(`${parameterFlag(binding.parameter.name)} may be given only once`);
+      files.push({ spelling, parameter: binding.parameter, path });
+    } else if (binding.form.kind === "boolean") {
+      if (inline !== undefined) refuse(`${spelling} takes no value`);
+      bind(binding.parameter, binding.form, !binding.negated);
+    } else bind(binding.parameter, binding.form, convert(nextValue(), binding.form.item, spelling));
+  }
+  const positions = declaration.cliMapping?.positionals ?? [];
+  let unmapped = 0;
+  operands.forEach((operand, position) => {
+    const mapped = positions.find((entry) => entry.position === position);
+    const parameter = declaration.parameters.find(({ name }) => name === mapped?.parameter);
+    if (parameter === undefined) {
+      unmapped++;
+      return;
+    }
+    const form = valueForm(parameter);
+    bind(
+      parameter,
+      form,
+      convert(operand, form.kind === "boolean" ? "json" : form.item, parameterFlag(parameter.name)),
+    );
+  });
+  if (unmapped > 0) refuse(`${unmapped} unmapped operand(s); use --help for this Callable's form`);
+  const final: Record<string, AdmittedJsonValue> = Object.fromEntries([
+    ...Object.entries(whole ?? {}),
+    ...supplied,
+  ]);
+  // §10: `--arguments`, then the parameter's own flag, then each member flag on what they left.
+  for (const [name, held] of members) {
+    const flag = parameterFlag(name);
+    if (files.some(({ parameter }) => parameter.name === name))
+      refuse(`${flag}'s member flags cannot be combined with reading ${flag} from a file`);
+    const base = Object.hasOwn(final, name) ? final[name] : {};
+    if (base === null || typeof base !== "object" || Array.isArray(base))
+      return refuse(`a member flag of ${flag} requires ${flag} to be a JSON object`);
+    final[name] = { ...base, ...Object.fromEntries(held) };
+  }
+  return { help: false, arguments: final, files };
+}
+
+/** `bdp call NAME`: one JSON object and nothing else, with no declaration to consult, so its
+ * `cliMapping` cannot matter. Only `--help` reaches here as a token. */
+export function parseCallArguments(
+  tokens: readonly string[],
+  whole: string | undefined,
+): ParsedCallableArguments {
+  if (tokens.length === 1 && tokens[0] === "--help") return { help: true };
+  if (tokens.length > 0)
+    return refuse(
+      "bdp call takes a Callable's arguments only in --arguments JSON; its command takes flags",
+    );
+  if (whole === undefined) return { help: false, arguments: {}, files: [] };
+  const value = jsonValue(whole);
+  if (value === undefined || value === null || typeof value !== "object" || Array.isArray(value))
+    return refuse("--arguments requires one JSON object");
+  return { help: false, arguments: value as Record<string, AdmittedJsonValue>, files: [] };
+}
+
+const sameParameter =
+  ({ parameter }: FlagBinding) =>
+  (file: CallableFileInput): boolean =>
+    file.parameter.name === parameter.name;
+
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+/** The invocation's final arguments: each `fromFile` content is treated as that parameter's flag
+ * value. Nothing else is filled in. */
+export async function completeCallableArguments(
+  parsed: Extract<ParsedCallableArguments, { help: false }>,
+  read: (path: string) => Promise<Uint8Array>,
+): Promise<Readonly<Record<string, AdmittedJsonValue>>> {
+  const complete: Record<string, AdmittedJsonValue> = { ...parsed.arguments };
+  for (const { spelling, parameter, path } of parsed.files) {
+    let bytes: Uint8Array;
+    try {
+      bytes = await read(path);
+    } catch (error) {
+      const reason = (error as NodeJS.ErrnoException).code ?? "not readable";
+      return refuse(`${spelling} could not read its input (${reason})`);
+    }
+    let text: string;
+    try {
+      text = utf8.decode(bytes);
+    } catch {
+      return refuse(`${spelling} requires UTF-8 text`);
+    }
+    const form = valueForm(parameter);
+    const item = form.kind === "boolean" ? "json" : form.item;
+    const value: AdmittedJsonValue =
+      item === "text" ? text : (jsonValue(text) ?? refuse(`${spelling} requires a JSON value`));
+    complete[parameter.name] =
+      form.kind === "array"
+        ? [...((complete[parameter.name] as AdmittedJsonValue[] | undefined) ?? []), value]
+        : value;
+  }
+  return complete;
+}
+
+export function callableKind({ type }: CallableDeclaration): "query" | "batch" {
+  return type === CALLABLE_QUERY_TYPE ? "query" : "batch";
+}
+
+export function callableCatalogItem(declaration: CallableDeclaration): SchemaObject {
+  return {
+    name: declaration.name,
+    kind: callableKind(declaration),
+    type: declaration.type,
+    ...(declaration.title === undefined ? {} : { title: declaration.title }),
+  };
+}
+
+/** A catalog may come from a server, so its text reaches the terminal without controls. */
+function clean(text: string): string {
+  return Array.from(text, (character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return character === "\n" || (code >= 32 && code < 127) || code > 159 ? character : " ";
+  }).join("");
+}
+
+function errorLines(schema: CallableValueSchema): readonly string[] {
+  const node = dereference(schema, schema);
+  if (Array.isArray(node?.oneOf)) {
+    const lines = node.oneOf.map((branch) => {
+      const arm = dereference(branch, schema);
+      const fixed = Object.entries(asObject(arm?.properties) ?? {}).find(([, member]) =>
+        Object.hasOwn(asObject(member) ?? {}, "const"),
+      );
+      const label = fixed
+        ? `${fixed[0]} ${JSON.stringify(asObject(fixed[1])?.const)}`
+        : JSON.stringify(branch);
+      return typeof arm?.description === "string" ? `${label}: ${arm.description}` : label;
+    });
+    return lines;
+  }
+  const fixed = Array.isArray(node?.allOf)
+    ? node.allOf.flatMap((branch) =>
+        Object.entries(asObject(dereference(branch, schema)?.properties) ?? {}).flatMap(
+          ([member, value]) => {
+            const held = asObject(value);
+            return Array.isArray(held?.enum)
+              ? [`${member}: ${held.enum.map((item) => String(item)).join(", ")}`]
+              : [];
+          },
+        ),
+      )
+    : [];
+  if (fixed.length > 0)
+    return [...(typeof node?.description === "string" ? [node.description] : []), ...fixed];
+  const { $defs: _defs, ...shown } = (asObject(schema) ?? { schema }) as Record<string, unknown>;
+  return [JSON.stringify(shown)];
+}
+
+const positionalWords = (declaration: CallableDeclaration): string =>
+  [...(declaration.cliMapping?.positionals ?? [])]
+    .sort((left, right) => left.position - right.position)
+    .map(({ parameter }) => {
+      const word = parameterFlag(parameter).slice(2).toUpperCase();
+      const required = declaration.parameters.find(({ name }) => name === parameter)?.required;
+      return required ? `${word} ` : `[${word}] `;
+    })
+    .join("");
+
+function schemaWord({ schema }: CallableParameter): string {
+  const form = valueForm({ schema } as CallableParameter);
+  if (form.kind === "boolean") return "boolean";
+  if (form.kind === "array") return "array";
+  return form.item === "text" ? "text" : "JSON";
+}
+
+const SUMMARY_WIDTH = 100;
+/** One line of possibly long, possibly markdown text: its first sentence, cut to fit. */
+function summaryLine(text: string): string {
+  const flat = (text.trim().split(/\n\s*\n/)[0] ?? "").replace(/\s+/g, " ");
+  const sentence = flat.split(/(?<=[.!?])\s+(?=[`A-Z(])/)[0] ?? "";
+  return sentence.length <= SUMMARY_WIDTH ? sentence : `${sentence.slice(0, SUMMARY_WIDTH - 1)}…`;
+}
+
+const flagPlaceholder = (form: ValueForm): string =>
+  form.kind === "boolean" ? "" : form.item === "text" ? " TEXT" : " JSON";
+
+/** §10: `bdp call NAME --help`. Title, description, the parameters and any declared errors,
+ * without invoking; `call` never reads cliMapping, so it derives no flag and names no position. */
+function renderCallHelp(declaration: CallableDeclaration): string {
+  const promises = [
+    callableKind(declaration) === "query" ? "CallableQuery" : "CallableBatch",
+    ...(declaration.idempotent ? ["idempotent"] : []),
+    ...(declaration.atomic ? ["atomic"] : []),
+  ];
+  const lines = [
+    ...(declaration.title === undefined ? [] : [declaration.title, ""]),
+    `${declaration.name} (${promises.join("; ")})`,
+    "",
+    declaration.description,
+    "",
+    `Usage: bdp call ${declaration.name} [--arguments JSON] [client options]`,
+    "",
+  ];
+  if (declaration.parameters.length > 0) lines.push("Members of --arguments:");
+  for (const parameter of declaration.parameters) {
+    const notes = [
+      ...(parameter.required ? ["required"] : []),
+      ...(Object.hasOwn(parameter, "default")
+        ? [`default ${JSON.stringify(parameter.default)}`]
+        : []),
+    ];
+    const suffix = notes.length > 0 ? `  (${notes.join("; ")})` : "";
+    lines.push(`  ${parameter.name}: ${schemaWord(parameter)}${suffix}`);
+    if (parameter.description !== undefined) lines.push(`      ${parameter.description}`);
+  }
+  lines.push(
+    ...(declaration.parameters.length > 0 ? [""] : []),
+    "Generic:",
+    "  --arguments JSON  The arguments object. Omitted means {}.",
+    ...(callableKind(declaration) === "batch"
+      ? ["  --actor ACTOR     Who is acting, as revisionProvenance.actor; anywhere on the line."]
+      : []),
+    "  --help            Print this help without invoking.",
+    "",
+  );
+  if (declaration.errorSchema !== undefined)
+    lines.push("Errors:", ...errorLines(declaration.errorSchema).map((line) => `  ${line}`), "");
+  return clean(lines.join("\n"));
+}
+
+/** §10: a tree command's `--help`. The usage, the title, then the parameters and their flags, each
+ * in one line of text at most. The whole declaration is `bdp call NAME --help`. */
+function renderTreeHelp(declaration: CallableDeclaration, command: readonly string[]): string {
+  const { flags } = flagTable(declaration);
+  const spellingsOf = (keep: (binding: FlagBinding) => boolean): readonly string[] =>
+    [...flags].flatMap(([spelling, binding]) =>
+      binding !== undefined && keep(binding) ? [spelling] : [],
+    );
+  const summary = declaration.title ?? summaryLine(declaration.description);
+  const lines = [
+    `Usage: bdp [client options] ${command.join(" ")} ${positionalWords(declaration)}[callable arguments]`,
+    ...(summary === "" ? [] : ["", summary]),
+    "",
+  ];
+  if (declaration.parameters.length > 0) lines.push("Parameters:");
+  for (const parameter of declaration.parameters) {
+    const form = valueForm(parameter);
+    const own = spellingsOf(
+      (binding) => binding.parameter === parameter && !binding.file && binding.member === undefined,
+    );
+    const fileSpellings = spellingsOf((binding) => binding.parameter === parameter && binding.file);
+    const position = declaration.cliMapping?.positionals?.find(
+      (entry) => entry.parameter === parameter.name,
+    )?.position;
+    const notes = [
+      ...(position === undefined ? [] : [`position ${position}`]),
+      ...(parameter.required ? ["required"] : []),
+      ...(form.kind === "array" ? ["repeatable"] : []),
+      ...(Object.hasOwn(parameter, "default")
+        ? [`default ${JSON.stringify(parameter.default)}`]
+        : []),
+    ];
+    const suffix = notes.length > 0 ? `  (${notes.join("; ")})` : "";
+    const shown = own.length > 0 ? own.join(", ") : "(--arguments only)";
+    lines.push(`  ${shown}${flagPlaceholder(form)}${suffix}`);
+    if (fileSpellings.length > 0)
+      lines.push(`  ${fileSpellings.join(", ")} PATH  (the value read from a file; - is stdin)`);
+    if (parameter.description !== undefined)
+      lines.push(`      ${summaryLine(parameter.description)}`);
+    const members = (declaration.cliMapping?.memberFlags ?? []).filter(
+      (mapping) => mapping.parameter === parameter.name,
+    );
+    if (members.length > 0) lines.push(`      Or set one member of it at a time:`);
+    for (const { member } of members) {
+      const spelled = spellingsOf(
+        (binding) => binding.parameter === parameter && binding.member === member,
+      );
+      const schema = asObject(memberSchema(parameter, member));
+      if (schema === undefined || spelled.length === 0) continue;
+      const about = typeof schema.description === "string" ? summaryLine(schema.description) : "";
+      const memberForm = schemaForm(schema, parameter.schema);
+      lines.push(
+        `        ${spelled.join(", ")}${flagPlaceholder(memberForm)}${memberForm.kind === "array" ? "  (repeatable)" : ""}`,
+        ...(about === "" ? [] : [`            ${about}`]),
+      );
+    }
+  }
+  lines.push(
+    ...(declaration.parameters.length > 0 ? [""] : []),
+    "Generic:",
+    "  --arguments JSON  Supply the whole arguments object; explicit flags override its members.",
+    ...(callableKind(declaration) === "batch"
+      ? ["  --actor ACTOR     Who is acting, as revisionProvenance.actor; anywhere on the line."]
+      : []),
+    "  --help            Print this help without invoking.",
+    "",
+    `For the full text and the declared errors: bdp call ${declaration.name} --help`,
+    "",
+  );
+  return clean(lines.join("\n"));
+}
+
+/** `command` is how the Callable was reached: a tree command's words, or undefined for `call`. */
+export function renderCallableHelp(
+  declaration: CallableDeclaration,
+  command?: readonly string[],
+): string {
+  return command === undefined ? renderCallHelp(declaration) : renderTreeHelp(declaration, command);
+}
+
+/** One word of the Callable command tree: its name's segments, one word each (§10). */
+export interface CallableCommandNode {
+  readonly path: readonly string[];
+  readonly children: ReadonlyMap<string, CallableCommandNode>;
+  readonly declaration?: CallableDeclaration;
+}
+export interface CallableCommandTree {
+  readonly roots: ReadonlyMap<string, CallableCommandNode>;
+  /** Callables a built-in command shadows; `bdp call NAME` still reaches them. */
+  readonly shadowed: readonly string[];
+}
+interface MutableNode {
+  path: readonly string[];
+  children: Map<string, MutableNode>;
+  declaration?: CallableDeclaration;
+}
+
+/** §10: mount every Callable by its name. A built-in command wins any collision. */
+export function callableCommandTree(
+  declarations: readonly CallableDeclaration[],
+  builtIns: ReadonlySet<string>,
+): CallableCommandTree {
+  const roots = new Map<string, MutableNode>();
+  const shadowed: string[] = [];
+  for (const declaration of declarations) {
+    const words = declaration.name.split("/");
+    if (builtIns.has(words[0] ?? "")) {
+      shadowed.push(declaration.name);
+      continue;
+    }
+    let level = roots;
+    let node: MutableNode | undefined;
+    words.forEach((word, index) => {
+      node = level.get(word);
+      if (node === undefined) {
+        node = { path: words.slice(0, index + 1), children: new Map() };
+        level.set(word, node);
+      }
+      level = node.children;
+    });
+    if (node !== undefined) node.declaration = declaration;
+  }
+  return { roots, shadowed };
+}
+
+/** The deepest node the leading words name, and the words after it. */
+export function resolveCallableCommand(
+  tree: CallableCommandTree,
+  words: readonly string[],
+): { readonly node: CallableCommandNode; readonly rest: readonly string[] } | undefined {
+  let node: CallableCommandNode | undefined = tree.roots.get(words[0] ?? "");
+  if (node === undefined) return undefined;
+  let index = 1;
+  for (; index < words.length; index++) {
+    const child: CallableCommandNode | undefined = node.children.get(words[index] ?? "");
+    if (child === undefined) break;
+    node = child;
+  }
+  return { node, rest: words.slice(index) };
+}
+
+const leaves = (node: CallableCommandNode): readonly CallableDeclaration[] => [
+  ...(node.declaration === undefined ? [] : [node.declaration]),
+  ...[...node.children.values()].flatMap(leaves),
+];
+
+/** Help for a word that groups Callables, from the declarations beneath it. */
+export function renderCallableGroupHelp(node: CallableCommandNode): string {
+  const rows = [...node.children].map(([word, child]) => {
+    const summary =
+      child.declaration === undefined
+        ? `${leaves(child).length} commands`
+        : `${child.declaration.title ?? child.declaration.name} (${callableKind(child.declaration)})`;
+    return [word, summary] as const;
+  });
+  const width = Math.max(0, ...rows.map(([word]) => word.length));
+  const spelled = node.path.join(" ");
+  return clean(
+    [
+      `Usage: bdp [client options] ${spelled} COMMAND [callable arguments]`,
+      "",
+      `The ${node.path.join("/")}/ Callables.`,
+      "",
+      "Commands:",
+      ...rows.map(([word, summary]) => `  ${word.padEnd(width)}  ${summary}`),
+      "",
+      `Use "bdp ${spelled} COMMAND --help" for one command's parameters.`,
+      "",
+    ].join("\n"),
+  );
+}
+
+export function callableGroupSummaries(
+  tree: CallableCommandTree,
+): readonly { readonly name: string; readonly description: string }[] {
+  return [...tree.roots].map(([name, node]) => ({
+    name,
+    description: `The ${name}/ Callables (${leaves(node).length}).`,
+  }));
+}

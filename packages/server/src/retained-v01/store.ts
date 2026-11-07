@@ -37,6 +37,7 @@ import {
   assertPreparedCreate,
   assertPreparedDelete,
   assertPreparedUpdate,
+  blocksBeadDeletion,
   canonicalLocalReference,
   captureNavigation,
   deletedIdentity,
@@ -52,6 +53,7 @@ import {
   problem,
   RETAINED_MEDIA,
   RETAINED_SPEC,
+  recordedProvenance,
   type ResourceKind,
   type ResourceState,
   type RetainedBead,
@@ -80,6 +82,23 @@ import { compareCapturedReferences, type ReferenceComparison } from "./reference
 export const PRIVATE_STORE_FORMAT = "bdp-private-retained-v01-5";
 export const BATCH_STORE_FORMAT = "bdp-private-retained-v01-6";
 export const HISTORICAL_STORE_FORMAT = "bdp-private-retained-v01-7";
+export const CALLABLES_STORE_FORMAT = "bdp-private-retained-v01-8";
+/** One proposed change to a record, for a provider's native Scope policy to judge. */
+export interface ScopePolicyChange {
+  readonly verb: "create" | "update";
+  readonly before?: ResourceState;
+  readonly after: ResourceState;
+  read(id: string): ResourceState | undefined;
+  links(): readonly RetainedLink[];
+}
+/** Core's native Scope policy, enforced at commit. Captured by `id`, so reopen cannot swap it. */
+export interface ScopePolicy {
+  readonly id: string;
+  /** A refusal Problem, or undefined to admit. */
+  admit(change: ScopePolicyChange): JsonObject | undefined;
+  /** Provider-set members, applied once a change is admitted and real. */
+  stamp?(change: ScopePolicyChange, time: string): JsonObject | undefined;
+}
 export interface PrivateStoreOptions {
   readonly directory: string;
   readonly create: boolean;
@@ -90,6 +109,9 @@ export interface PrivateStoreOptions {
   /** Explicit new-store mode; never upgrades a format5 store. */
   readonly atomicBatch?: boolean;
   readonly historicalUpdate?: boolean;
+  /** Explicit new-store mode: retains Callable outcomes and reserves `sys`. */
+  readonly callables?: boolean;
+  readonly policy?: ScopePolicy;
   readonly clock?: () => number;
   /** Fault timing only, private to the test process. No successful outcome injection. */
   readonly onPhase?: (phase: "resource-staged" | "alias-staged" | "committed") => void;
@@ -140,6 +162,11 @@ CREATE TABLE decision_facts(decision INTEGER NOT NULL REFERENCES outcomes(decisi
 CREATE TABLE boundaries(position INTEGER PRIMARY KEY,token TEXT NOT NULL UNIQUE) STRICT;
 CREATE TABLE cursors(token TEXT PRIMARY KEY,principal TEXT NOT NULL,source TEXT NOT NULL,subject TEXT NOT NULL,after_position INTEGER NOT NULL,through_position INTEGER NOT NULL,page_limit INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('next','resume')),expires INTEGER NOT NULL) STRICT;
 `;
+const callablesSchema =
+  schema +
+  `
+CREATE TABLE callable_outcomes(principal TEXT NOT NULL,key TEXT NOT NULL,name TEXT NOT NULL,identity TEXT NOT NULL,status INTEGER NOT NULL,body TEXT NOT NULL CHECK(retained_json(body)),PRIMARY KEY(principal,key)) STRICT;
+`;
 const historicalSchema =
   schema +
   `
@@ -158,16 +185,25 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     throw new TypeError("historical-update1 and atomicBatch composition is not supported");
   if (historicalMode && options.referenceCore !== true)
     throw new TypeError("historical-update1 requires the explicit reference Core composition");
+  if (options.callables !== undefined && typeof options.callables !== "boolean")
+    throw new TypeError("explicit boolean Callables mode required");
+  const callablesMode = options.callables === true;
+  if (callablesMode && (batchMode || historicalMode))
+    throw new TypeError("Callables with atomicBatch or historical-update1 is not supported");
+  if (callablesMode && options.referenceCore !== true)
+    throw new TypeError("Callables requires the explicit reference Core composition");
   const navigation = captureNavigation(options.navigation);
   const aliasNamespace = captureAliasNamespace(navigation.scope, navigation.aliases);
   const reserved = navigationAddresses(navigation);
+  // `sys` is the Callables profile's in-band prefix (§7): real records, placed by the provider.
+  let systemWriting = false;
   const isReserved = (uri: string) =>
     reserved.includes(uri) ||
     (options.referenceCore === true &&
-      (uri === navigation.scope + "bdp" ||
-        uri.startsWith(navigation.scope + "bdp/") ||
-        uri === navigation.scope + "sys" ||
-        uri.startsWith(navigation.scope + "sys/")));
+      (uri === navigation.scope + "bdp" || uri.startsWith(navigation.scope + "bdp/"))) ||
+    ((callablesMode || options.referenceCore === true) &&
+      !systemWriting &&
+      (uri === navigation.scope + "sys" || uri.startsWith(navigation.scope + "sys/")));
   const clock = options.clock ?? Date.now;
   if (
     !path.isAbsolute(options.directory) ||
@@ -200,6 +236,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
   let closed = false;
   let fenced = false;
   let active = false;
+  // An invocation holds one transaction across its effects and its retained outcome.
+  let invoking = false;
   const run = (sql: string, ...args: SQLInputValue[]) => db.prepare(sql).run(...args);
   const get = (sql: string, ...args: SQLInputValue[]) => db.prepare(sql).get(...args);
   const now = () => {
@@ -209,6 +247,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     return value;
   };
   function transaction<T>(callback: () => T): T {
+    if (invoking) return callback();
     if (closed || fenced || active) throw new Error("store closed, fenced or nested");
     active = true;
     let committing = false;
@@ -236,11 +275,15 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     }
   }
   const capture = serialized({
-    format: historicalMode
-      ? HISTORICAL_STORE_FORMAT
-      : batchMode
-        ? BATCH_STORE_FORMAT
-        : PRIVATE_STORE_FORMAT,
+    format: callablesMode
+      ? CALLABLES_STORE_FORMAT
+      : historicalMode
+        ? HISTORICAL_STORE_FORMAT
+        : batchMode
+          ? BATCH_STORE_FORMAT
+          : PRIVATE_STORE_FORMAT,
+    ...(callablesMode ? { callables: { capabilityVersion: "1" } } : {}),
+    ...(options.policy === undefined ? {} : { scopePolicy: options.policy.id }),
     ...(historicalMode ? { historicalUpdate: { capabilityVersion: "1", atomicBatch: false } } : {}),
     ...(batchMode ? { atomicBatch: { capabilityVersion: "1", ...BATCH_LIMITS } } : {}),
     specification: RETAINED_SPEC,
@@ -279,7 +322,15 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       throw new Error("durability mode unavailable");
     transaction(() => {
       if (options.create) {
-        db.exec(historicalMode ? historicalSchema : batchMode ? batchSchema : schema);
+        db.exec(
+          callablesMode
+            ? callablesSchema
+            : historicalMode
+              ? historicalSchema
+              : batchMode
+                ? batchSchema
+                : schema,
+        );
         run("INSERT INTO metadata VALUES ('capture',?)", capture);
         run("INSERT INTO metadata VALUES ('decisions','0')");
         run("INSERT INTO boundaries VALUES (0,?)", randomUUID());
@@ -287,6 +338,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       const expected = [
         "aliases",
         "boundaries",
+        ...(callablesMode ? ["callable_outcomes"] : []),
         "cursors",
         ...(batchMode ? ["decision_facts"] : []),
         "events",
@@ -376,6 +428,36 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     if (alias) return String(alias.target);
     return aliasNamespace.contains(uri) ? null : undefined;
   }
+  /** A batch's creation and deletion of one identity consumed it for good. */
+  function batchConsumed(id: string): boolean {
+    if (!batchMode) return false;
+    const rows = db
+      .prepare("SELECT body FROM outcomes WHERE operation='batch' AND status=200 AND instr(body,?)")
+      .iterate(JSON.stringify(id));
+    for (const row of rows)
+      if (
+        JSON.parse(String(row.body)).resources.some(
+          (entry: { id: string; outcome: string }) =>
+            entry.id === id && entry.outcome === "allocated",
+        )
+      )
+        return true;
+    return false;
+  }
+  /** Write's creation rule: a supplied createBead adds a revision on exactly this identity. */
+  function deletedBead(id: string): boolean {
+    return (
+      get("SELECT kind FROM identities WHERE id=?", id)?.kind === "bead" &&
+      !get("SELECT id FROM resources WHERE id=?", id) &&
+      !batchConsumed(id)
+    );
+  }
+  const aliasesTargeting = (id: string): readonly string[] =>
+    db
+      .prepare("SELECT locator FROM aliases WHERE target=?")
+      .all(id)
+      .map((row) => String(row.locator))
+      .sort();
   function decide(
     principal: string,
     operation: OrdinaryOperation,
@@ -390,7 +472,15 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         principal,
         input.key,
       );
-      if (previous && previous.operation !== operation)
+      if (
+        (previous && previous.operation !== operation) ||
+        (callablesMode &&
+          get(
+            "SELECT key FROM callable_outcomes WHERE principal=? AND key=?",
+            principal,
+            input.key,
+          ))
+      )
         return { status: 409, text: serialized(problem("idempotency-conflict", 409)) };
       const comparison = compareCapturedReferences(
         input,
@@ -505,6 +595,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
                 (id) => get("SELECT locator FROM aliases WHERE locator=?", id) !== undefined,
                 isReserved,
                 new Date(now()).toISOString(),
+                deletedBead,
+                aliasesTargeting,
               );
       }
       const facts = evaluation.effects.map((effect) => {
@@ -546,6 +638,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           else run("DELETE FROM resources WHERE id=?", row.id);
           options.onPhase?.("resource-staged");
         }
+        for (const alias of evaluation.removedAliases ?? [])
+          run("DELETE FROM aliases WHERE locator=?", alias);
       }
       const positions: number[] = [];
       for (const fact of facts) {
@@ -603,14 +697,23 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         : get("SELECT body FROM historical_versions WHERE id=? AND revision=?", id, revision);
     return row === undefined ? undefined : (JSON.parse(String(row.body)) as JsonObject);
   }
-  function endpointRefusal(state: ResourceState): JsonObject | undefined {
+  /** Only a supplied endpoint must resolve live: a Link surviving under its pin keeps its
+   * deleted endpoint, and still needs one live in-Scope Bead. */
+  function endpointRefusal(
+    state: ResourceState,
+    supplied: { readonly source: boolean; readonly target: boolean } = {
+      source: true,
+      target: true,
+    },
+  ): JsonObject | undefined {
     if (state.kind !== "link") return undefined;
-    let local = false;
+    let live = false;
     for (const name of ["source", "target"] as const) {
       const uri = referenceUri(state.resource[name]);
       if (!uri.startsWith(navigation.scope)) continue;
-      local = true;
       const endpoint = currentState(uri);
+      if (endpoint?.kind === "bead") live = true;
+      if (!supplied[name]) continue;
       if (!endpoint) return problem("resource-not-found", 404, "after-state-change");
       if (endpoint.kind !== "bead")
         return {
@@ -618,12 +721,31 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           diagnostics: [{ message: `${name} endpoint must identify a live in-Scope Bead` }],
         };
     }
-    return local
+    return live
       ? undefined
       : {
           ...problem("validation-failed", 422),
           diagnostics: [{ message: "a Link requires at least one in-Scope Bead endpoint" }],
         };
+  }
+  function policyChange(
+    verb: "create" | "update",
+    after: ResourceState,
+    before?: ResourceState,
+  ): ScopePolicyChange {
+    return {
+      verb,
+      after,
+      ...(before === undefined ? {} : { before }),
+      read: (id) => currentState(id),
+      links: () =>
+        db
+          .prepare(
+            "SELECT r.body FROM resources AS r JOIN identities AS i ON i.id=r.id WHERE i.kind='link'",
+          )
+          .all()
+          .map((row) => JSON.parse(String(row.body)) as RetainedLink),
+    };
   }
   function resourceState(
     kind: ResourceKind,
@@ -642,6 +764,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     time: string,
     text: string,
     historical?: { readonly context: HistoricalUpdateContext; readonly recovering: boolean },
+    provenance?: RevisionProvenanceInput,
   ): StoredResponse & { readonly position?: number } {
     const position = head() + 1;
     if (!Number.isSafeInteger(position)) throw new Error("event ordering capacity unavailable");
@@ -654,6 +777,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       time,
       historical?.context.previousRevision ?? before?.resource.revision,
     );
+    const terminalProvenance = recordedProvenance(provenance, time);
     const terminal =
       historicalMode && state.kind === "bead" && verb === "delete"
         ? {
@@ -661,6 +785,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
             revision: randomUUID(),
             state: "deleted",
             previousRevision: state.resource.revision,
+            ...(terminalProvenance === undefined ? {} : { revisionProvenance: terminalProvenance }),
           }
         : undefined;
     const fact = serialized(
@@ -676,7 +801,8 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       return refusal(problem("limit-exceeded", 413));
     const id = state.resource.id;
     if (verb === "create") {
-      run("INSERT INTO identities VALUES (?,?)", id, state.kind);
+      if (!get("SELECT id FROM identities WHERE id=?", id))
+        run("INSERT INTO identities VALUES (?,?)", id, state.kind);
       run("INSERT INTO resources VALUES (?,?)", id, serialized(state.resource));
     } else if (verb === "update") {
       if (historical?.recovering)
@@ -726,20 +852,29 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         id = navigation.scope + randomUUID();
       }
     }
-    if (get("SELECT id FROM identities WHERE id=?", id) || isReserved(id))
-      return refusal(problem("identity-taken", 409));
+    const recreating = kind === "bead" && input.id !== undefined && deletedBead(id);
+    if (!recreating && (get("SELECT id FROM identities WHERE id=?", id) || isReserved(id)))
+      return refusal(problem("identity-taken", 409, "after-state-change"));
     if (get("SELECT locator FROM aliases WHERE locator=?", id))
       return refusal(problem("alias-path-taken", 409, "after-state-change"));
     const time = new Date(now()).toISOString();
     const state = resourceState(kind, materializeBead(input, id, randomUUID(), time), input);
     const invalid = endpointRefusal(state);
     if (invalid) return refusal(invalid);
+    const change = policyChange("create", state);
+    const refused = options.policy?.admit(change);
+    if (refused) return refusal(refused);
+    const stamped = options.policy?.stamp?.(change, time);
+    const final =
+      stamped === undefined
+        ? state
+        : resourceState(kind, { ...state.resource, properties: stamped }, input);
     return complete(
       "create",
-      state,
+      final,
       undefined,
       time,
-      serialized({ outcome: "created", changed: true, resource: state.resource }),
+      serialized({ outcome: "created", changed: true, resource: final.resource }),
     );
   }
   function performUpdate(
@@ -840,8 +975,14 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       { ...before.resource, type, properties, metadata },
       endpoints,
     );
-    const invalid = endpointRefusal(candidate);
+    const invalid = endpointRefusal(candidate, {
+      source: input.source !== undefined,
+      target: input.target !== undefined,
+    });
     if (invalid) return refusal(invalid);
+    const proposed = policyChange("update", candidate, before);
+    const refused = options.policy?.admit(proposed);
+    if (refused) return refusal(refused);
     const changed =
       recovering ||
       !jsonValueEqual(type, before.resource.type) ||
@@ -871,7 +1012,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
       materializeBead(
         {
           type,
-          properties,
+          properties: options.policy?.stamp?.(proposed, time) ?? properties,
           metadata,
           ...(input.provenance === undefined ? {} : { provenance: input.provenance }),
         },
@@ -908,17 +1049,30 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         )
         .iterate()) {
         const link = JSON.parse(String(row.body)) as RetainedLink;
-        if ([link.source, link.target].some((reference) => referenceUri(reference) === id))
+        if (
+          blocksBeadDeletion(link, id, navigation.scope, (uri) => currentRow(uri)?.kind === "bead")
+        )
           return refusal(problem("incident-links-exist", 409, "after-state-change"));
       }
     }
-    return complete(
+    const removedAliases = kind === "bead" ? aliasesTargeting(id) : undefined;
+    const outcome = complete(
       "delete",
       before,
       before,
       new Date(now()).toISOString(),
-      serialized({ outcome: "deleted", changed: true, deleted: deletedIdentity(before) }),
+      serialized({
+        outcome: "deleted",
+        changed: true,
+        deleted: deletedIdentity(before),
+        ...(removedAliases === undefined ? {} : { removedAliases }),
+      }),
+      undefined,
+      input.provenance,
     );
+    if (outcome.status === 200 && removedAliases?.length)
+      run("DELETE FROM aliases WHERE target=?", id);
+    return outcome;
   }
   function linkFields(input: PreparedLink): EditFields {
     const value = input.value;
@@ -979,7 +1133,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         operation === "putAlias" &&
         (get("SELECT id FROM identities WHERE id=?", input.alias) || isReserved(input.alias))
       )
-        return refusal(problem("identity-taken", 409));
+        return refusal(problem("identity-taken", 409, "after-state-change"));
       const previous = get("SELECT target FROM aliases WHERE locator=?", input.alias);
       if (operation === "deleteAlias") {
         if (!previous) return refusal(problem("resource-not-found", 404, "after-state-change"));
@@ -1029,6 +1183,89 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     },
     get historicalUpdateEnabled(): boolean {
       return historicalMode;
+    },
+    get callablesEnabled(): boolean {
+      return callablesMode;
+    },
+    /** Provider-placed records under the reserved `sys` prefix, at startup only. */
+    asSystem<T>(callback: () => T): T {
+      systemWriting = true;
+      try {
+        return callback();
+      } finally {
+        systemWriting = false;
+      }
+    },
+    /** One consistent read-only observation for a CallableQuery. */
+    observeCallable<T>(callback: () => T): T {
+      return transaction(() => {
+        invoking = true;
+        try {
+          return callback();
+        } finally {
+          invoking = false;
+        }
+      });
+    },
+    /** A retained key's original answer, or undefined when this key has not run (§5). */
+    replayCallable(principal: string, key: string, identity: string): StoredResponse | undefined {
+      return transaction(() => {
+        const previous = get(
+          "SELECT identity,status,body FROM callable_outcomes WHERE principal=? AND key=?",
+          principal,
+          key,
+        );
+        if (previous) {
+          if (previous.identity !== identity)
+            return { status: 409, text: serialized(problem("idempotency-conflict", 409)) };
+          return { status: Number(previous.status), text: String(previous.body) };
+        }
+        if (get("SELECT key FROM outcomes WHERE principal=? AND key=?", principal, key))
+          return { status: 409, text: serialized(problem("idempotency-conflict", 409)) };
+        return undefined;
+      });
+    },
+    /**
+     * One CallableBatch invocation: its effects and its retained outcome are one transaction.
+     * A throw, or an atomic declaration's Problem, undoes every effect. A throw claims no key.
+     */
+    invokeCallable(
+      principal: string,
+      input: {
+        readonly name: string;
+        readonly key?: string;
+        readonly identity: string;
+        readonly atomic: boolean;
+      },
+      execute: () => StoredResponse,
+    ): StoredResponse {
+      return transaction(() => {
+        db.exec("SAVEPOINT callable_effects");
+        invoking = true;
+        let outcome: StoredResponse;
+        try {
+          outcome = execute();
+        } catch (error) {
+          db.exec("ROLLBACK TO callable_effects");
+          db.exec("RELEASE callable_effects");
+          throw error;
+        } finally {
+          invoking = false;
+        }
+        if (outcome.status !== 200 && input.atomic) db.exec("ROLLBACK TO callable_effects");
+        db.exec("RELEASE callable_effects");
+        if (input.key !== undefined)
+          run(
+            "INSERT INTO callable_outcomes VALUES (?,?,?,?,?,?)",
+            principal,
+            input.key,
+            input.name,
+            input.identity,
+            outcome.status,
+            outcome.text,
+          );
+        return outcome;
+      });
     },
     readHistoricalVersion(id: string, revision?: string): JsonObject | undefined {
       return historicalVersion(id, revision);
