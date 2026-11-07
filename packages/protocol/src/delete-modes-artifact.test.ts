@@ -28,18 +28,17 @@ describe("fixed delete-modes1 separate Write artifact", () => {
 
   it("requires exact version1 advertisement with closed detail", () => {
     expect(valid("deleteModesCapabilityAdvertisement", paper.advertisement)).toBe(true);
-    expect(valid("deleteModesCapabilityV1", { atomicBatch: false, except: false })).toBe(true);
+    // The capability's detail is all optional: except is offered, not required, and nothing
+    // about atomic batches is advertised here.
+    for (const detail of [{}, { except: false }, { except: true }])
+      expect(valid("deleteModesCapabilityV1", detail), JSON.stringify(detail)).toBe(true);
     for (const detail of [
-      {},
       { atomicBatch: true },
-      { atomicBatch: true, except: true, maximumClosure: 0 },
-      { atomicBatch: true, except: true, through: [] },
-      { atomicBatch: true, except: true, typeEffects: ["not-absolute"] },
-      {
-        atomicBatch: true,
-        except: true,
-        typeEffects: ["https://types.invalid/a", "https://types.invalid/a"],
-      },
+      { atomicBatch: false, except: false },
+      { except: true, maximumClosure: 0 },
+      { except: true, through: [] },
+      { except: true, typeEffects: ["not-absolute"] },
+      { except: true, typeEffects: ["https://types.invalid/a", "https://types.invalid/a"] },
     ])
       expect(valid("deleteModesCapabilityV1", detail), JSON.stringify(detail)).toBe(false);
     const unknown = { [paper.capability]: { "2": {} } };
@@ -58,23 +57,19 @@ describe("fixed delete-modes1 separate Write artifact", () => {
     expect(Object.keys(common.$defs.deleteBeadMembers.properties).sort()).toEqual([
       "bead",
       "expectedRevision",
+      "revisionProvenance",
     ]);
   });
 
   it("selects by presence: a request with no selector is only the base arm", () => {
-    for (const request of [{ bead: "a" }, { bead: "a", expectedRevision: "r7" }]) {
-      expect(valid("deleteBeadRequest", request, common)).toBe(true);
-      expect(valid("deleteModesRequest", request)).toBe(false);
+    for (const request of [
+      { bead: "a" },
+      { bead: "a", expectedRevision: "r7" },
+      { bead: "a", revisionProvenance: {} },
+    ]) {
+      expect(valid("deleteBeadRequest", request, common), JSON.stringify(request)).toBe(true);
+      expect(valid("deleteModesRequest", request), JSON.stringify(request)).toBe(false);
     }
-    const base = {
-      capabilityVersion: "1",
-      operations: [
-        { operation: "deleteBead", bead: "a" },
-        { operation: "deleteBead", bead: "b" },
-      ],
-    };
-    expect(valid("batchRequest", base, common)).toBe(true);
-    expect(valid("deleteModesBatchRequest", base)).toBe(false);
   });
 
   it("takes exactly one of bead and beads, and refuses a guard beside beads", () => {
@@ -88,23 +83,34 @@ describe("fixed delete-modes1 separate Write artifact", () => {
   });
 
   it("closes the request members and their nested carriers", () => {
-    const through = { type: "https://types.invalid/parent-child", match: "exact" };
+    const test = { type: "https://types.invalid/parent-child", match: "exact" };
+    const through = [test];
+    for (const request of [
+      { bead: "a", cascade: { through } },
+      { bead: "a", cascade: { through: [{ ...test, match: "family" }] } },
+      { bead: "a", cascade: { through: [test, { ...test, type: "https://types.invalid/other" }] } },
+      { bead: "a", cascade: { through, except: { bind: "b", predicate: true } } },
+      { bead: "a", revisionProvenance: {}, blockedBy: "any" },
+    ])
+      expect(valid("deleteModesRequest", request), JSON.stringify(request)).toBe(true);
     for (const request of [
       { bead: "a", blockedBy: "outbound" },
       { bead: "a", blockedBy: "none", force: true },
       { bead: "a", cascade: {} },
       { bead: "a", cascade: true },
-      { bead: "a", cascade: { through: { type: through.type } } },
-      { bead: "a", cascade: { through: { ...through, match: "subtype" } } },
-      { bead: "a", cascade: { through: { ...through, revision: "r1" } } },
-      { bead: "a", cascade: { through: { type: "not-absolute", match: "exact" } } },
+      { bead: "a", cascade: { through: test } },
+      { bead: "a", cascade: { through: [] } },
+      { bead: "a", cascade: { through: [test, test] } },
+      { bead: "a", cascade: { through: [{ type: test.type }] } },
+      { bead: "a", cascade: { through: [{ ...test, match: "subtype" }] } },
+      { bead: "a", cascade: { through: [{ ...test, revision: "r1" }] } },
+      { bead: "a", cascade: { through: [{ type: "not-absolute", match: "exact" }] } },
       { bead: "a", cascade: { through, depth: 2 } },
       { bead: "a", cascade: { through, except: { predicate: true } } },
       { bead: "a", cascade: { through, except: { bind: "1b", predicate: true } } },
       { bead: "a", cascade: { through, except: { bind: "b", predicate: "x" } } },
       { bead: "@name", blockedBy: "any" },
       { bead: "a", dryRun: "yes" },
-      { bead: "a", revisionProvenance: {}, blockedBy: "any" },
     ])
       expect(valid("deleteModesRequest", request), JSON.stringify(request)).toBe(false);
   });
@@ -121,28 +127,21 @@ describe("fixed delete-modes1 separate Write artifact", () => {
     expect(paper.nativeMulti.length).toBeGreaterThan(0);
   });
 
-  it("admits only blockedBy inside a batch, and keeps one guard per member", () => {
-    expect(valid("deleteModesBatchRequest", paper.mixedBatch)).toBe(true);
-    expect(valid("batchRequest", paper.mixedBatch, common)).toBe(false);
-    for (const member of paper.refusedBatchMembers)
-      expect(
-        valid("deleteModesBatchRequest", { capabilityVersion: "1", operations: [member] }),
-        JSON.stringify(member),
-      ).toBe(false);
-  });
-
-  it("composes no other feature selector into the closed batch grammar", () => {
-    const selected = { operation: "deleteBead", bead: "a", blockedBy: "none" };
+  it("adds nothing to atomic batches: every selector stays outside the closed batch grammar", () => {
+    const batch = (member: object) => ({
+      capabilityVersion: "1",
+      operations: [{ operation: "deleteBead", bead: "a", ...member }],
+    });
+    expect(valid("batchRequest", batch({}), common)).toBe(true);
     for (const member of [
-      { operation: "createBead", idRoot: "notes", type: "https://types.invalid/note" },
-      { operation: "updateBead", bead: "b", fromRevision: "r1" },
+      { blockedBy: "none" },
+      { cascade: { through: [{ type: "https://types.invalid/parent-child", match: "exact" }] } },
+      { dryRun: true },
+      { beads: ["b"] },
     ])
-      expect(
-        valid("deleteModesBatchRequest", {
-          capabilityVersion: "1",
-          operations: [selected, member],
-        }),
-      ).toBe(false);
+      expect(valid("batchRequest", batch(member), common), JSON.stringify(member)).toBe(false);
+    for (const name of ["deleteModesBatchRequest", "deleteModesBatchProblem"])
+      expect(feature.$defs[name], name).toBeUndefined();
   });
 
   it("reuses the common rows in a committed result and adds removed Link endpoints", () => {
@@ -184,24 +183,16 @@ describe("fixed delete-modes1 separate Write artifact", () => {
     ).toBe(false);
   });
 
-  it("states semantic and batch outcomes only in existing Problem codes", () => {
-    const codes = new Set(common.$defs.readUpdateProblemCode.enum);
-    const stated = [...paper.semanticCases, ...paper.batchOutcomes].flatMap(
-      (entry: { code?: string }) => (entry.code === undefined ? [] : [entry.code]),
+  it("states semantic outcomes only in existing Problem codes or the feature's own", () => {
+    const codes = new Set([
+      ...common.$defs.readUpdateProblemCode.enum,
+      feature.$defs.deleteModesCapabilityProblem.properties.code.const,
+    ]);
+    const stated = paper.semanticCases.flatMap((entry: { code?: string }) =>
+      entry.code === undefined ? [] : [entry.code],
     );
     expect(stated.length).toBeGreaterThan(0);
     for (const code of stated) expect(codes.has(code), code).toBe(true);
-    for (const { members } of paper.batchOutcomes) {
-      const operations = members.map((member: object) => ({
-        operation: "deleteBead",
-        ...member,
-      }));
-      const selected = members.some((member: object) => "blockedBy" in member);
-      expect(valid("deleteModesBatchRequest", { capabilityVersion: "1", operations })).toBe(
-        selected,
-      );
-      expect(valid("batchRequest", { capabilityVersion: "1", operations }, common)).toBe(!selected);
-    }
   });
 
   it("names the selecting member in its feature Problem", () => {
@@ -216,7 +207,6 @@ describe("fixed delete-modes1 separate Write artifact", () => {
     for (const pointer of paper.capabilityProblems) {
       expect(valid("deleteModesCapabilityProblem", { ...problem, pointer }), pointer).toBe(true);
       expect(valid("deleteModesProblem", { ...problem, pointer }), pointer).toBe(true);
-      expect(valid("deleteModesBatchProblem", { ...problem, pointer }), pointer).toBe(true);
     }
     for (const pointer of paper.refusedPointers)
       expect(valid("deleteModesCapabilityProblem", { ...problem, pointer }), pointer).toBe(false);
