@@ -8547,8 +8547,7 @@ Required order: ["family","profile","address","value","change"]
             "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
           },
           "address": {
-            "type": "array",
-            "maxItems": 2
+            "type": "array"
           },
           "value": {
             "enum": [
