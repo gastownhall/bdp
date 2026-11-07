@@ -226,13 +226,13 @@ function issueInvocations(ids, unique) {
     ["issue/reclaim", {}],
     [
       "issue/create-many",
-      { items: [{ title: `kit ${unique()}`, priority: 2, issue_type: "task" }] },
+      { items: [{ title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` }] },
     ],
     [
       "issue/batch",
       {
         items: [
-          { kind: "create", create: { title: `kit ${unique()}`, priority: 2, issue_type: "task" } },
+          { kind: "create", create: { title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` } },
         ],
       },
     ],
@@ -873,8 +873,8 @@ export async function runOptionalRows({
       callable = await named("issue/create-many");
       args = {
         items: [
-          { title: `kit ${unique()}`, priority: 2, issue_type: "task" },
-          { title: "", priority: 2, issue_type: "task" },
+          { title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` },
+          { title: "", priority: 2, type: `${ISSUE}task` },
         ],
       };
       provenance = ACTOR;
