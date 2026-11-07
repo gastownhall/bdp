@@ -129,7 +129,6 @@ async function withScope(
             profile: "write",
             scope,
             specRevision: "0123456789abcdef0123456789abcdef01234567",
-            operations: `${scope}bdp/write`,
             capabilities: {
               ...(options.callables === false ? {} : { [CALLABLES]: { "1": {} } }),
               ...(options.idempotency ? { [IDEMPOTENCY]: { "1": {} } } : {}),

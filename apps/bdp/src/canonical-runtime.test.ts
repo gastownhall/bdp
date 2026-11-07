@@ -130,19 +130,7 @@ it.each([true, false])(
   "selects historical media only for advertised source Update (advertised=%s)",
   async (advertised) => {
     const scope = "https://wire.example/work/";
-    const url = `${scope}custom-update`;
-    const directory = Object.fromEntries(
-      [
-        "createBead",
-        "updateBead",
-        "deleteBead",
-        "createLink",
-        "updateLink",
-        "deleteLink",
-        "putAlias",
-        "deleteAlias",
-      ].map((k) => [k, k === "updateBead" ? url : `${scope}${k}`]),
-    );
+    const url = `${scope}bdp/operations/updateBead`;
     const binding = new RetainedWriteBinding({
       scope,
       discovery: {
@@ -153,7 +141,6 @@ it.each([true, false])(
           scope,
           specRevision: "0123456789abcdef0123456789abcdef01234567",
           aliases: `${scope}aliases/`,
-          operations: `${scope}verbs`,
           ...(advertised
             ? {
                 capabilities: {
@@ -164,10 +151,6 @@ it.each([true, false])(
               }
             : {}),
         }),
-      },
-      directory: {
-        contentType: "application/vnd.bdp.v0.1+json",
-        bodyText: JSON.stringify(directory),
       },
       maximumDocumentBytes: 65536,
       maximumRequestBodyBytes: 65536,

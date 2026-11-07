@@ -314,30 +314,25 @@ export class RetainedClient {
       const discovery = parseRetainedDiscovery(text);
       if (discovery.scope !== selected) return invalid();
       if (discovery.profile !== "write") throw new RetainedClientError("unsupported-feature");
-      const directory = await this.#transport.get(discovery.operations as string, { signal });
-      this.#check(signal);
-      const directoryFault = failure(directory);
-      if (directoryFault) return directoryFault;
-      const directoryText = this.#document(directory);
+      // Core fixes every operation at <scope>/bdp/operations/NAME: discovery alone binds.
       let value: RetainedWriteBinding;
       try {
         value = new RetainedWriteBinding({
           scope: selected,
           discovery: { contentType: received.contentType!, bodyText: text },
-          directory: { contentType: directory.contentType!, bodyText: directoryText },
           maximumDocumentBytes: this.#documentBytes,
           maximumRequestBodyBytes: this.#requestBytes,
         });
       } catch (cause) {
         // Name what the provider got wrong: no mutation has been sent, and none will be.
         if (cause instanceof ProtocolArtifactValidationError)
-          return unusable(directory, cause.message);
+          return unusable(received, cause.message);
         throw cause;
       }
       return Object.freeze({
         kind: "success",
-        http: context(directory),
-        nativeBody: nativeBody(directory),
+        http: context(received),
+        nativeBody: nativeBody(received),
         value,
       });
     });

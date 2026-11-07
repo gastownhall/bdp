@@ -6,7 +6,7 @@ import {
 } from "@bdp/protocol";
 import { RetainedWriteBinding, type RetainedWriteBindingOptions } from "./retained-write.js";
 
-// Independent consumer example for advertised Write operations; inventory routes are fixed by Core.
+// Independent consumer example: Core fixes every operation at <scope>/bdp/operations/NAME.
 const media = "application/vnd.bdp.v0.1+json";
 const scope = "https://authority.example/work/";
 const discovery = {
@@ -14,25 +14,13 @@ const discovery = {
   profile: "write",
   scope,
   specRevision: "0123456789abcdef0123456789abcdef01234567",
-  events: "https://events.example/feed?edition=7",
-  operations: "https://navigation.example/verbs?edition=odd",
-  aliases: "https://names.example/lookup/",
+  aliases: "https://authority.example/work/names/",
 };
-const directory = {
-  createBead: "https://dispatch.example/a?token=%2B%2f",
-  updateBead: "https://dispatch.example/b?token=%2B%2f",
-  deleteBead: "https://dispatch.example/c?token=%2B%2f",
-  createLink: "https://dispatch.example/d?token=%2B%2f",
-  updateLink: "https://dispatch.example/e?token=%2B%2f",
-  deleteLink: "https://dispatch.example/f?token=%2B%2f",
-  putAlias: "https://dispatch.example/g?token=%2B%2f",
-  deleteAlias: "https://dispatch.example/h?token=%2B%2f",
-};
+const target = (operation: RetainedWriteOperation) => `${scope}bdp/operations/${operation}`;
 function options(): RetainedWriteBindingOptions {
   return {
     scope,
     discovery: { contentType: media, bodyText: JSON.stringify(discovery) },
-    directory: { contentType: media, bodyText: JSON.stringify(directory) },
     maximumDocumentBytes: 16_384,
     maximumRequestBodyBytes: 16_384,
   };
@@ -43,12 +31,9 @@ function withDiscovery(change: Record<string, unknown>): RetainedWriteBindingOpt
     discovery: { contentType: media, bodyText: JSON.stringify({ ...discovery, ...change }) },
   };
 }
-function withDirectory(value: unknown): RetainedWriteBindingOptions {
-  return { ...options(), directory: { contentType: media, bodyText: JSON.stringify(value) } };
-}
 
 describe("retained v0.1 base Write preparation", () => {
-  it("preserves the exact advertised destination, native body and selected headers", () => {
+  it("builds the fixed destination and preserves the native body and selected headers", () => {
     const request = new RetainedWriteBinding(options()).prepare(
       "createBead",
       ' { "type": "https://types.example/note" }\n',
@@ -58,7 +43,7 @@ describe("retained v0.1 base Write preparation", () => {
       specification: "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json",
       scope: "https://authority.example/work/",
       operation: "createBead",
-      url: "https://dispatch.example/a?token=%2B%2f",
+      url: "https://authority.example/work/bdp/operations/createBead",
       method: "POST",
       headers: {
         accept: "application/vnd.bdp.v0.1+json",
@@ -71,22 +56,21 @@ describe("retained v0.1 base Write preparation", () => {
     expect(Object.isFrozen(request.headers)).toBe(true);
   });
 
-  it.each<[RetainedWriteOperation, string, string]>([
-    ["createBead", '{"type":"https://types.example/note"}', "a"],
-    ["updateBead", '{"bead":"n","properties":{},"metadataChange":[]}', "b"],
-    ["deleteBead", '{"bead":"n","expectedRevision":"3"}', "c"],
+  it.each<[RetainedWriteOperation, string]>([
+    ["createBead", '{"type":"https://types.example/note"}'],
+    ["updateBead", '{"bead":"n","properties":{},"metadataChange":[]}'],
+    ["deleteBead", '{"bead":"n","expectedRevision":"3"}'],
     [
       "createLink",
       '{"type":{"uri":"https://types.example/edge","revision":"type /@=1"},"source":{"uri":"https://external.example/a","revision":"a /@=1"},"target":"urn:external:b"}',
-      "d",
     ],
-    ["updateLink", '{"link":"edge","source":"n","metadata":{}}', "e"],
-    ["deleteLink", '{"link":"edge"}', "f"],
-    ["putAlias", '{"alias":"ship","target":"n"}', "g"],
-    ["deleteAlias", '{"alias":"ship"}', "h"],
-  ])("prepares the native %s singleton", (operation, bodyText, route) => {
+    ["updateLink", '{"link":"edge","source":"n","metadata":{}}'],
+    ["deleteLink", '{"link":"edge"}'],
+    ["putAlias", '{"alias":"ship","target":"n"}'],
+    ["deleteAlias", '{"alias":"ship"}'],
+  ])("prepares the native %s singleton at its fixed route", (operation, bodyText) => {
     const request = new RetainedWriteBinding(options()).prepare(operation, bodyText, "same-key");
-    expect(request.url).toBe(`https://dispatch.example/${route}?token=%2B%2f`);
+    expect(request.url).toBe(target(operation));
     expect(request.bodyText).toBe(bodyText);
     expect(request.headers["idempotency-key"]).toBe("same-key");
   });
@@ -95,13 +79,10 @@ describe("retained v0.1 base Write preparation", () => {
     const input = options();
     const binding = new RetainedWriteBinding(input);
     const first = binding.prepare("deleteBead", '{"bead":"n"}', "frozen");
-    Object.assign(
-      input,
-      withDirectory({ ...directory, deleteBead: "https://elsewhere.example/x" }),
-    );
-    Object.assign(input.directory, { bodyText: "{}", contentType: "application/json" });
+    Object.assign(input, withDiscovery({ scope: "https://elsewhere.example/" }));
+    Object.assign(input.discovery, { bodyText: "{}", contentType: "application/json" });
     expect(binding.prepare("deleteBead", '{"bead":"n"}', "frozen")).toEqual(first);
-    expect(first.url).toBe("https://dispatch.example/c?token=%2B%2f");
+    expect(first.url).toBe(target("deleteBead"));
   });
 
   it("ignores unfamiliar advertised capabilities for base-only use", () => {
@@ -119,55 +100,50 @@ describe("retained v0.1 base Write preparation", () => {
     { profile: "read-update" },
     { scope: "https://another.example/work/" },
     { scope: "https://authority.example/work" },
-    { events: null },
     { types: "https://inventory.example/types/" },
+    // The retired navigation members: discovery is closed, and routes are fixed.
+    { operations: "https://authority.example/work/bdp/operations" },
+    { events: "https://authority.example/work/bdp/events" },
+    { events: null },
   ])("refuses incompatible or incomplete discovery %j", (change) => {
     expect(() => new RetainedWriteBinding(withDiscovery(change))).toThrow();
   });
 
-  it.each(["discovery", "directory"] as const)("refuses generic JSON for %s", (field) => {
+  it("refuses generic JSON for discovery", () => {
     const input = options();
-    Object.assign(input[field], { contentType: "application/json" });
+    Object.assign(input.discovery, { contentType: "application/json" });
     expect(() => new RetainedWriteBinding(input)).toThrow(/media type/);
   });
 
-  it.each(["discovery", "directory"] as const)("rejects duplicate members in %s", (field) => {
+  it("rejects duplicate members in discovery", () => {
     const input = options();
-    const duplicate =
-      field === "discovery" ? ',"profile":"core"}' : ',"createBead":"https://elsewhere.example/x"}';
-    Object.assign(input[field], { bodyText: input[field].bodyText.slice(0, -1) + duplicate });
+    Object.assign(input.discovery, {
+      bodyText: input.discovery.bodyText.slice(0, -1) + ',"profile":"core"}',
+    });
     expect(() => new RetainedWriteBinding(input)).toThrow(/duplicate/);
-  });
-
-  it("refuses a six-CRUD directory even when preparing only CRUD", () => {
-    const six: Record<string, string> = { ...directory };
-    delete six.putAlias;
-    delete six.deleteAlias;
-    expect(() => new RetainedWriteBinding(withDirectory(six))).toThrow();
   });
 
   describe("alias operations are optional (Write: Ordinary targets)", () => {
     const { aliases: _advertised, ...withoutAliases } = discovery;
-    const { putAlias: _put, deleteAlias: _delete, ...six } = directory;
-    const noAliases = (value: unknown): RetainedWriteBindingOptions => ({
-      ...withDirectory(value),
+    const noAliases = (): RetainedWriteBindingOptions => ({
+      ...options(),
       discovery: { contentType: media, bodyText: JSON.stringify(withoutAliases) },
     });
 
-    it("binds the six Resource members when discovery omits aliases", () => {
-      const binding = new RetainedWriteBinding(noAliases(six));
+    it("binds the six Resource operations when discovery omits aliases", () => {
+      const binding = new RetainedWriteBinding(noAliases());
       expect(binding.aliasesSupported).toBe(false);
       expect(binding.prepare("createBead", '{"type":"https://t.example/n"}', "k").url).toBe(
-        directory.createBead,
+        target("createBead"),
       );
-      expect(binding.prepare("deleteLink", '{"link":"edge"}', "k").url).toBe(directory.deleteLink);
+      expect(binding.prepare("deleteLink", '{"link":"edge"}', "k").url).toBe(target("deleteLink"));
     });
 
     it.each([
       ["putAlias", '{"alias":"ship","target":"n"}'],
       ["deleteAlias", '{"alias":"ship"}'],
     ] as const)("prepares no %s for a provider without aliases", (operation, body) => {
-      expect(() => new RetainedWriteBinding(noAliases(six)).prepare(operation, body, "k")).toThrow(
+      expect(() => new RetainedWriteBinding(noAliases()).prepare(operation, body, "k")).toThrow(
         /does not advertise aliases/,
       );
     });
@@ -176,55 +152,9 @@ describe("retained v0.1 base Write preparation", () => {
       const binding = new RetainedWriteBinding(options());
       expect(binding.aliasesSupported).toBe(true);
       expect(binding.prepare("deleteAlias", '{"alias":"ship"}', "k").url).toBe(
-        directory.deleteAlias,
+        target("deleteAlias"),
       );
     });
-
-    it("refuses alias members that discovery does not advertise", () => {
-      expect(() => new RetainedWriteBinding(noAliases(directory))).toThrow(
-        /carries alias operations, but discovery does not advertise aliases/,
-      );
-    });
-
-    it("refuses advertised aliases when the directory omits their operations", () => {
-      expect(() => new RetainedWriteBinding(withDirectory(six))).toThrow(
-        /advertises aliases, but the Write operation directory omits/,
-      );
-    });
-
-    it.each([
-      ["advertised, putAlias only", withDirectory, { ...six, putAlias: directory.putAlias }],
-      [
-        "advertised, deleteAlias only",
-        withDirectory,
-        { ...six, deleteAlias: directory.deleteAlias },
-      ],
-      ["unadvertised, putAlias only", noAliases, { ...six, putAlias: directory.putAlias }],
-      ["unadvertised, deleteAlias only", noAliases, { ...six, deleteAlias: directory.deleteAlias }],
-    ])("refuses half of the pair: %s", (_name, shape, value) => {
-      expect(() => new RetainedWriteBinding(shape(value))).toThrow();
-    });
-
-    it("holds a six-member directory to the same target rules", () => {
-      for (const value of [
-        { ...six, updateBead: six.createBead },
-        { ...six, createBead: "create-bead" },
-        { ...six, sequence: "https://dispatch.example/sequence" },
-        { createBead: six.createBead },
-      ])
-        expect(() => new RetainedWriteBinding(noAliases(value))).toThrow();
-    });
-  });
-
-  it.each([
-    { ...directory, updateBead: directory.createBead },
-    { ...directory, sequence: "https://dispatch.example/sequence" },
-    { ...directory, batch: "https://dispatch.example/batch" },
-    { ...directory, createBead: "create-bead" },
-    { ...directory, createBead: "https://user:secret@dispatch.example/a" },
-    { ...directory, createBead: "https://dispatch.example/a#fragment" },
-  ])("refuses an ambiguous or invalid operation directory %j", (value) => {
-    expect(() => new RetainedWriteBinding(withDirectory(value))).toThrow();
   });
 
   it.each(["", "key key", "key\n", "key\r", "é", "a".repeat(257)])(
@@ -329,7 +259,7 @@ describe("retained v0.1 base Write preparation", () => {
     expect(() => binding.prepare("createBead", bodyText, "bounded")).toThrow(RangeError);
   });
 
-  it("bounds discovery and directory documents before parsing", () => {
+  it("bounds the discovery document before parsing", () => {
     expect(() => new RetainedWriteBinding({ ...options(), maximumDocumentBytes: 1 })).toThrow(
       RangeError,
     );

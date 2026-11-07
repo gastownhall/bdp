@@ -10,27 +10,15 @@ const feature = "application/vnd.bdp.v0.1.historical-update.v1+json";
 const capability = "https://github.com/gastownhall/bdp/capabilities/historical-update";
 const scope = "https://owner.example/";
 const id = `${scope}note`;
-const destination = "https://delivery.example/update?literal=%2B%2f";
+// Core fixes the operation at <scope>/bdp/operations/updateBead.
+const destination = `${scope}bdp/operations/updateBead`;
 const discovery = {
   bdpVersion: "0.1",
   profile: "write",
   scope,
   specRevision: "0123456789abcdef0123456789abcdef01234567",
   aliases: `${scope}aliases/`,
-  operations: `${scope}verbs`,
 };
-const directory = Object.fromEntries(
-  [
-    "createBead",
-    "updateBead",
-    "deleteBead",
-    "createLink",
-    "updateLink",
-    "deleteLink",
-    "putAlias",
-    "deleteAlias",
-  ].map((k) => [k, k === "updateBead" ? destination : `https://delivery.example/${k}`]),
-);
 function binding(versions: unknown = { "1": { atomicBatch: false } }) {
   return new RetainedWriteBinding({
     scope,
@@ -38,7 +26,6 @@ function binding(versions: unknown = { "1": { atomicBatch: false } }) {
       contentType: base,
       bodyText: JSON.stringify({ ...discovery, capabilities: { [capability]: versions } }),
     },
-    directory: { contentType: base, bodyText: JSON.stringify(directory) },
     maximumDocumentBytes: 65536,
     maximumRequestBodyBytes: 65536,
   });
