@@ -109,7 +109,7 @@ A change that introduces, resolves or changes a recorded deferral should update 
 
 These are **not newly deferred protocol design**: the bounded URI/security/consumer review for [PR314](https://github.com/gastownhall/bdp/pull/314); the focused startup successor/coverage map for [PR272](https://github.com/gastownhall/bdp/pull/272#issuecomment-6537200254); item-by-item editorial reconciliation from [issue5](https://github.com/gastownhall/bdp/issues/5); and historical-stack obligation maps before archival. In particular PR334 requires comparison of its eight files with landed PR339 and a preserved gap map, not a second batch landing or relabeling an originally failed receipt. Decisions73–75 retain focused allocation/diagnostic, child-listener/source-binding and portable pre-admission media cases; these belong in current feature-owned engineering coverage, not deferred semantics. Historical qualification limits and current mandatory rules survive cleanup.
 
-## Preview-1 Callables
+## Preview-1 Callables and Issue package
 
 ### CALL-PREVIEW — Callables after preview-1
 
@@ -122,6 +122,18 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 **Design anticipated.** Preview-1 requires Write for a CallableBatch. Donna expects many services will want to expose commands without raw generic writes, and that is a common pattern, so the design should anticipate it when that requirement is revisited.
 
 **Owner / revisit:** Callables and Write owners with Donna, when a service asks for it or at the next Callables edition.
+
+### ISSUE-PREVIEW — Issue and Dependency Types after preview-1
+
+**Design deferred.** [Issue §11](types/issue/issue.md#11-carried-open-items) indexes the carried items: policy-dependent status meaning, operational observations, codified metadata, ownership, pinned endpoints, Link recovery, properties replacement, comments as Beads and custom classification lifecycle.
+
+**Owner / revisit:** Types and Issue package owners with Donna, after the preview. The October draft is [issue-draft-20261014](history/issue-draft-20261014/issue.md).
+
+### LINK-RECOVERY — Historical update and recovery for Links
+
+**Design open.** Donna ruled on 2026-11-05 that `--from-revision` should work on both `bd update` and `bd link update`, and that the current Bead-only text is a specification bug. [Issue 363](https://github.com/gastownhall/bdp/issues/363) lists what the extension has to settle. It is not a preview dependency.
+
+**Owner / revisit:** Write owner with Donna, after the preview.
 
 ### CALL-SYS — Reserving `sys` in Core
 

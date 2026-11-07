@@ -43,3 +43,8 @@ _Avoid_: registry, directory, catalog
 **Mount**:
 The URL that invokes one Callable: `<scope>/bdp/call/` followed by its name.
 _Avoid_: route
+
+**View**:
+A callable result built over complete Bead or Link records with added
+observations. It is not a Resource and carries no revision of its own.
+_Avoid_: projection, which Core uses for Resource projection

@@ -269,7 +269,7 @@
       "docs/cli-design/bdp-cli.md": "155f5c09d629ba05a2ae369109c78669021386187f18400b8dbc5052cd5f6898",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
       "scripts/generate-openapi.mjs": "40645cf6f6703a058178cfd6e8e3ab4fbb2ce32ff59289679520519014df4b6c",
-      "scripts/spec-schema-fragments.mjs": "3bc8c6480c898037a9af98bbd5a4037bb81e2795007f459015d9d5dea6922508",
+      "scripts/spec-schema-fragments.mjs": "7f5a974b1f0a34db7d6b7f84c847bb81ffa67f3a81969aa2a19dbdd1fbd3a766",
       "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
       "packages/protocol/schemas/bdp-v0.1.schema.json": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
       "specs/profiles/core/bdp-v0.1.schema.json": "c85875d5d58738bfeba8186951e172d9e8e5a3774547ccfd01ed3d374e87e9d6",
