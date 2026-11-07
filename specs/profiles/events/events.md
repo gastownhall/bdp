@@ -270,23 +270,22 @@ A source advertises its families in `policy.families`; absence means it publishe
 non-Resource fact, and a fact's family MUST be listed.
 
 Every traversal delivers the base stream: Resource facts and erasure facts. An erasure
-fact is a non-Resource fact whose `value` is `erased`, whatever its family. Any other
+fact is an `identity-state` fact whose `value` is `erased`, whatever it erased. Any other
 non-Resource fact is delivered only when the request names its family in `families`, or
 uses `families=all`. A source adding a family therefore changes nothing for a consumer
 that did not ask for it. Changing what the base stream carries requires a different
 contract.
 
-A consumer stops before advancing past a delivered fact whose family or profile it selected
-by name and cannot read. It need not know an erasure fact's family: the fact identifies
-state at that family and address, and a consumer holding that state removes it. A consumer
-using `families=all` may keep a fact it cannot read, and MUST NOT treat that fact as applied.
+A consumer stops before advancing past a delivered fact whose family or profile it cannot
+read. Every consumer can read `identity-state`, because the base stream carries it; a consumer
+holding what an erasure fact addresses removes it. A consumer using `families=all` may keep a fact it cannot read, and MUST NOT treat that fact as applied.
 
 | State | `family` and `profile` | `address` | `value` |
 | --- | --- | --- | --- |
 | Alias put or delete that changes a binding | `alias-state`, `https://github.com/gastownhall/bdp/families/alias-state/1` | The absolute alias URL | `{target}`: the new target, or for `deleted` the removed one |
 | A retained version or whole identity pruned, erased or reorganized | `identity-state`, `https://github.com/gastownhall/bdp/families/identity-state/1` | The canonical ID and, for one version, the revision | `pruned`, `erased` or `reorganized` |
 | Association state a Type's semantic contract keeps outside its record, such as comments | `association-state`, under the profile that contract names | As that profile fixes | As that profile fixes |
-| Association state erased | Its own family and profile | Its own address | `erased` |
+| Association state erased | `identity-state`, `https://github.com/gastownhall/bdp/families/identity-state/1` | That state's family name, then its address in that family | `erased` |
 | Type registration, withdrawal and default selection | `type-prerequisite`, under [Types](../types/types.md#70-definition-presence-and-explicit-registration) | As Types fixes | As Types fixes |
 
 An `erased` fact discloses no removed content. Publishing a pruned, erased or
@@ -301,7 +300,7 @@ projects its lifecycle; Bead source projects its lifecycle and lifecycle effects
 incident Links, including a Link Type-only change. Bead source also projects each
 non-Resource fact for the Beads its family profile names, under the same authorization
 gate: `alias-state` names the alias's former and new targets, and `identity-state` names
-the addressed identity. Visibility of a new alias target does not disclose the former
+the addressed identity, or the Beads the erased state's family profile names. Visibility of a new alias target does not disclose the former
 one, and a fact's `value` names no former target of a repoint. For an endpoint correction, incidence
 is the union of preceding and resulting published endpoints, so a departing Bead
 can observe the same correction. Apply the existing authorization/disclosure gate
@@ -1821,7 +1820,7 @@ Required order: ["family","profile","address","value","change"]
 | --- | --- | --- | --- | --- |
 | "address" | schema | yes | — | "Stable address of the changed state, with the arity and meaning its family profile fixes." |
 | "change" | schema | yes | — | "What happened to the state at address: created, updated or deleted." |
-| "family" | schema | yes | — | "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips." |
+| "family" | schema | yes | — | "Retained family the source advertises in its policy." |
 | "profile" | schema | yes | — | "Exact family profile identity fixing the address, value and projected Beads." |
 | "value" | schema | yes | — | "Family-defined value of the change." |
 
@@ -1889,8 +1888,7 @@ Required order: ["family","profile","address","value","change"]
             "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
           },
           "address": {
-            "type": "array",
-            "maxItems": 2
+            "type": "array"
           },
           "value": {
             "enum": [

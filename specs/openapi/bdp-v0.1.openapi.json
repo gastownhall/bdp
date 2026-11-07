@@ -109,17 +109,17 @@
     "sourceFingerprints": {
       "specs/profiles/core/core.md": "73a78131eb83975ca9a4fc9f7b4cf683cf2eaec71378ac87113185333429ccf3",
       "specs/profiles/write/write.md": "2482bfcd88891f46501002be230706fd6a2d3bc2b7b1e57b48cce2bc6e190d65",
-      "specs/profiles/events/events.md": "5912aef468efafd8f525c4df6d7ffecfa0bed194e40ce90d9362ff68ebf0255a",
+      "specs/profiles/events/events.md": "4c78f39f5bc6f73cd24e43f6a44d0c9a5fb61324806fd76b45433d0abac522c3",
       "specs/profiles/types/types.md": "77ebb6b61c51916050bd34e1bd2d8e53d16dac471ebeebcc5c1bc70b6afec676",
-      "specs/profiles/transfer/transfer.md": "433e65ff59fab4a159be09437d5346a534f9d0d8ccd8b34f294650d05c3a94b3",
+      "specs/profiles/transfer/transfer.md": "63be10c6ee7669ed6733cc6ec12ff8b43c94359a088d61406f130c0face3ddb8",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
-      "docs/cli-design/bdp-cli.md": "86089859c0f8140bb427c23f24600d9e4f8cfbe4a24127d136a5780b5421be29",
+      "docs/cli-design/bdp-cli.md": "aa41717c9cfe29a24731a631fc5a1d1cea84f575583a6ecc3c2884d6f8323782",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
       "scripts/generate-openapi.mjs": "40645cf6f6703a058178cfd6e8e3ab4fbb2ce32ff59289679520519014df4b6c",
       "scripts/spec-schema-fragments.mjs": "ec234c9e9a0c289dcb7294f2d00fcc528bc2aa6df64a474907d9c3792e80eeff",
       "fixtures/openapi/bindings.json": "450263cd5b28e21f2f2def3fddd1eebd1f23e1caf556320bbd05dc247fa7ed08",
-      "packages/protocol/schemas/bdp-v0.1.schema.json": "bf30eec1291f32ac08443d317eda2c31805fb50bc8a56b2b852466af9e18aa7e",
-      "specs/profiles/core/bdp-v0.1.schema.json": "bf30eec1291f32ac08443d317eda2c31805fb50bc8a56b2b852466af9e18aa7e",
+      "packages/protocol/schemas/bdp-v0.1.schema.json": "e605d0e87adb90dba262a715e651e54c5cfd7590b44b9c5e7882d6b21b7f7a15",
+      "specs/profiles/core/bdp-v0.1.schema.json": "e605d0e87adb90dba262a715e651e54c5cfd7590b44b9c5e7882d6b21b7f7a15",
       "specs/profiles/write/id-root-v1.schema.json": "abbb5259009577e91f829d269540f2b2bde65fa52403dc542bf88a6a30ec291a",
       "specs/profiles/write/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e",
       "packages/protocol/schemas/historical-update-v1.schema.json": "95eb39b44a32f02396fa78dfefda50eccc9c97706fd5bae19ace69ec7724383e"
@@ -14279,7 +14279,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2160
+              "line": 2158
             }
           ],
           "x-bdp-cli": {
@@ -14515,7 +14515,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2160
+              "line": 2158
             }
           ],
           "x-bdp-cli": {
@@ -14739,7 +14739,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2184
+              "line": 2182
             }
           ],
           "x-bdp-cli": {
@@ -14975,7 +14975,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2184
+              "line": 2182
             }
           ],
           "x-bdp-cli": {
@@ -15196,7 +15196,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2208
+              "line": 2206
             }
           ],
           "x-bdp-cli": {
@@ -15420,7 +15420,7 @@
           "x-bdp-sources": [
             {
               "file": "specs/profiles/events/events.md",
-              "line": 2208
+              "line": 2206
             }
           ],
           "x-bdp-cli": {
