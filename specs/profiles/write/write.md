@@ -902,7 +902,9 @@ The closed alias result is:
 
 A put to the same target succeeds as `updated` without a state change. Alias
 results carry no `changed`, Resource revision or provenance. Under `idempotency`,
-they still retain successful anti-reexecution state. Alias mutation emits no Resource Event.
+they still retain successful anti-reexecution state. When Events is advertised, a put or
+delete that changes a binding publishes one [non-Resource fact](../events/events.md#non-resource-facts)
+and no Resource fact.
 
 An admitted alias spelling may be used as an update/delete Bead subject or either
 Link endpoint, bare or as the uri of a pinned Reference. Resolve it to the current
