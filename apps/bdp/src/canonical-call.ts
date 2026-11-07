@@ -1,6 +1,7 @@
 import type { CallableDeclaration, CallableParameter, CallableValueSchema } from "@bdp/client";
 import { CALLABLE_QUERY_TYPE } from "@bdp/client";
 import { type AdmittedJsonValue, admitJsonNumbers, decodeJsonDocument } from "@bdp/protocol";
+import { unsupportedArgumentName } from "@bdp/config";
 import { CanonicalInputError } from "./canonical-input.js";
 
 /** §10: attribution, on either form and in any position. No parameter derives or aliases it. */
@@ -21,7 +22,7 @@ const CLIENT_FLAGS = new Set([
   "--scope",
 ]);
 
-/** Diagnostics name flags a declaration owns and never echo a supplied value. */
+/** Diagnostics name flags, and never echo a supplied value. */
 export class CallableUsageError extends CanonicalInputError {}
 const refuse = (message: string): never => {
   throw new CallableUsageError(message);
@@ -302,7 +303,9 @@ export function parseCallableArguments(
     if (CLIENT_FLAGS.has(spelling) && !flags.has(spelling))
       return refuse(`that flag is a client option; put ${spelling} before the command`);
     if (!flags.has(spelling))
-      return refuse("a flag is not a parameter of this Callable; use --help for its form");
+      return refuse(
+        `${unsupportedArgumentName(spelling) ?? "a flag"} is not a parameter of this Callable; use --help for its form`,
+      );
     const binding = flags.get(spelling);
     if (binding === undefined)
       return refuse(`${spelling} belongs to more than one parameter; use --arguments`);

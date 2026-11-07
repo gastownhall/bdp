@@ -12,7 +12,9 @@ import {
   formatStartupDiagnostic,
   LOCAL_TEST_SCOPE_URL,
   loadStartupConfig,
+  describeUnsupportedArguments,
   parseConfigArgs,
+  unsupportedArgumentName,
   REDACTED,
   redactStartupConfig,
   type StartupConfig,
@@ -66,6 +68,33 @@ const MAXIMUM_SERVER_LIMITS = {
   selector: { bytes: 65_536, depth: 128, nodes: 4_096 },
   cursorTtlMilliseconds: 86_400_000,
 } as const;
+
+describe("describeUnsupportedArguments", () => {
+  it("names a flag by its spelling and never its value", () => {
+    expect(describeUnsupportedArguments(["--title"])).toBe("unsupported argument --title");
+    expect(describeUnsupportedArguments(["--title=hunter2"])).toBe("unsupported argument --title");
+    expect(describeUnsupportedArguments(["-x"])).toBe("unsupported argument -x");
+    expect(describeUnsupportedArguments(["--title", "--title=a", "--body"])).toBe(
+      "unsupported arguments --title, --body",
+    );
+  });
+  it("only counts what is not shaped like a flag, which may be a credential", () => {
+    for (const argument of [
+      "hunter2",
+      "--Secret_Token",
+      "--sk-0123456789abcdef0123456789abcdef",
+      "--a b",
+      "=value",
+      "",
+    ]) {
+      expect(unsupportedArgumentName(argument)).toBeUndefined();
+      expect(describeUnsupportedArguments([argument])).toBe("1 unsupported argument(s) not shown");
+    }
+    expect(describeUnsupportedArguments(["hunter2", "--title", "other"])).toBe(
+      "unsupported argument --title; 2 unsupported argument(s) not shown",
+    );
+  });
+});
 
 describe("parseConfigArgs", () => {
   it("extracts --config in both spellings and preserves every other argument", () => {

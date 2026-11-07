@@ -510,12 +510,15 @@ value. Both are printed on startup, and both are variables a credential can be
 pasted into by mistake — a token typed into `BDP_SCOPE_URL` would otherwise be
 copied straight into a log line by the parse error that rejects it.
 
-The same rule covers the command line: an unsupported argument is reported by
-**count**, never echoed. Errors from `--config` itself are fixed strings that
-contain no user input, so they are surfaced verbatim. The Commander-based CLI
-parser stops at the first rejected option and reports that one refusal; its count
-is not an inventory of unparsed trailing arguments. Other command or configuration
-errors keep the generic sanitized diagnostic.
+On the command line, an unsupported flag is **named by its spelling** before any
+`=`, when that spelling is lowercase and short enough to be a flag: `bdp create
+--title x` has to say which argument it refused. Its value is never echoed. Anything
+else, a bare word or a spelling that is not shaped like a flag, is reported by
+**count**, because it may be a credential pasted in the wrong place. Errors from
+`--config` itself are fixed strings that contain no user input, so they are surfaced
+verbatim. The Commander-based CLI parser stops at the first rejected option and
+reports that one refusal, not an inventory of unparsed trailing arguments. Other
+command or configuration errors keep the generic sanitized diagnostic.
 
 ## Tests
 
@@ -553,7 +556,7 @@ inputs. All of it runs off injected `env` and `readFile`, so no test touches
 the real environment or disk.
 
 `scripts/smoke-executables.mjs` covers the command-line paths end to end
-against installed tarballs: an unsupported argument is not echoed, a
+against installed tarballs: an unsupported flag is named and its value is not echoed, a
 `--config` error is, and the `startup.config` diagnostic for each role
 contains exactly the sections that role owns. Extra runs assert non-default
 mappings for `BDP_SERVER_ADVERTISED_PROFILE` and `BDP_BDPTEST_FIXTURE` (and

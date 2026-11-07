@@ -346,7 +346,9 @@ describe("the §10 flag derivation", () => {
         { name: "plainText", schema: { type: "string" } },
       ],
     };
-    usage(declared, ["--actor", "sam"], /not a parameter of this Callable/);
+    usage(declared, ["--actor", "sam"], /--actor is not a parameter of this Callable/);
+    usage(declared, ["--nope=secret"], /^--nope is not a parameter of this Callable/);
+    usage(declared, ["--Secret_Token"], /^a flag is not a parameter of this Callable/);
     expect(callableFlagCollisions(declared)).toEqual([]);
     expect(argumentsOf(declared, ["--arguments", '{"actor":"sam"}'])).toEqual({ actor: "sam" });
     expect(renderCallableHelp(declared, ["shapes"])).toContain("(--arguments only)");

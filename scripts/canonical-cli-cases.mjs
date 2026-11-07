@@ -85,8 +85,20 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       assert.match(rootHelp.stdout, /^Usage: bdp/);
       assert.equal(rootHelp.stderr, "");
       for (const [args, message] of [
-        [["--secret-token"], "1 unsupported argument(s); use --help for usage"],
-        [["--secret-token", "--another-secret"], "1 unsupported argument(s); use --help for usage"],
+        [["--no-such-flag"], "unsupported argument --no-such-flag; use --help for usage"],
+        [
+          ["--no-such-flag", "--another-flag"],
+          "unsupported argument --no-such-flag; use --help for usage",
+        ],
+        [
+          ["--no-such-flag=secret-token"],
+          "unsupported argument --no-such-flag; use --help for usage",
+        ],
+        [["--Secret_Token"], "1 unsupported argument(s) not shown; use --help for usage"],
+        [
+          ["--secret-token-0123456789abcdef0123456789abcdef"],
+          "1 unsupported argument(s) not shown; use --help for usage",
+        ],
         [["--config="], "--config requires a non-empty path; use --help for usage"],
         [["--config", ""], "--config requires a non-empty path; use --help for usage"],
         [["--config"], "--config requires a path; use --help for usage"],

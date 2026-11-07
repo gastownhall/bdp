@@ -26,6 +26,7 @@ import {
   loadCanonicalCliConfig,
   loadCliProfile,
   loadStartupConfig,
+  describeUnsupportedArguments,
   parseConfigArgs,
 } from "@bdp/config";
 import { parseCanonicalScope, RETAINED_V01_SPECIFICATION, type ReadProblem } from "@bdp/protocol";
@@ -349,10 +350,11 @@ export async function runBdp(
     return status;
   } catch (error) {
     if (error instanceof CommanderError && error.exitCode === 0) return 0;
-    // A typo may contain a credential. No argv, option value, file contents or
-    // library exception text is copied to the diagnostic channel.
-    // Commander stops at the first rejected option: count that refusal, not
-    // every remaining token. The shared --config errors are fixed strings.
+    // A typo may contain a credential. No option value, file contents or library
+    // exception text is copied to the diagnostic channel; a rejected flag's own
+    // spelling is named when it is shaped like one. Commander stops at the first
+    // rejected option: that is the one refusal, not every remaining token. The
+    // shared --config errors are fixed strings.
     const message =
       error instanceof BootstrapConfigUsageError
         ? `${error.message}; use --help for usage`
@@ -361,7 +363,7 @@ export async function runBdp(
           : error instanceof CommanderError && error.code === ACTOR_CONFLICT
             ? "--actor was given with two different values"
             : error instanceof CommanderError && error.code === "commander.unknownOption"
-              ? "1 unsupported argument(s); use --help for usage"
+              ? `${describeUnsupportedArguments([/unknown option '(.*)'/.exec(error.message)?.[1] ?? ""])}; use --help for usage`
               : "invalid command or configuration; use --help for usage";
     diagnostic("error", "cli.usage", message);
     return 2;
@@ -450,10 +452,10 @@ async function runLegacyBdp(
     parsed.rest[1] !== "ready" ||
     parsed.errors.length > 0
   ) {
-    // Never echo argv: an unsupported argument may be a mistyped credential.
+    // A flag is named and nothing else is: an unsupported argument may be a mistyped credential.
     const details = [
       ...parsed.errors,
-      ...(parsed.rest.length > 0 ? [`${parsed.rest.length} unsupported argument(s)`] : []),
+      ...(parsed.rest.length > 0 ? [describeUnsupportedArguments(parsed.rest)] : []),
     ];
     diagnostic("error", "cli.usage", `${details.join("; ")}; use --help for usage`);
     return 2;
