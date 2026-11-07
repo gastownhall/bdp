@@ -6764,7 +6764,7 @@
       "required": ["representation"]
     },
     "retainedEventPolicy": {
-      "description": "Truthful observation mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional.",
+      "description": "Level, completeness, truthful mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -6798,9 +6798,13 @@
           "minimum": 1,
           "description": "Positive minimum retention promise for admitted Event facts."
         },
-        "observation": {
-          "enum": ["committed", "observed"],
-          "description": "Truthful observation mode: committed or observed, with its complete coverage obligations."
+        "complete": {
+          "type": "boolean",
+          "description": "Positive knowledge that every relevant published transition at this level is covered. False makes no such assertion."
+        },
+        "level": {
+          "enum": ["current", "history"],
+          "description": "What this source accounts for: current or history."
         },
         "representations": {
           "type": "array",
@@ -6816,7 +6820,8 @@
         }
       },
       "required": [
-        "observation",
+        "level",
+        "complete",
         "description",
         "minimumRetentionSeconds",
         "minimumCursorLifetimeSeconds",

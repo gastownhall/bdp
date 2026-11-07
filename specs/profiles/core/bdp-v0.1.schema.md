@@ -8208,25 +8208,26 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["observation","description","minimumRetentionSeconds","minimumCursorLifetimeSeconds","representations"]
+Required order: ["level","complete","description","minimumRetentionSeconds","minimumCursorLifetimeSeconds","representations"]
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Truthful observation mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional." |
+| description | "Level, completeness, truthful mechanism and positive retention/cursor promises. Postimage support is mandatory once Events is advertised; delta is optional." |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "complete" | boolean | yes | — | "Positive knowledge that every relevant published transition at this level is covered. False makes no such assertion." |
 | "description" | schema | yes | — | "Human-readable explanation of the advertised mechanism or limitation." |
 | "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
+| "level" | schema | yes | — | "What this source accounts for: current or history." |
 | "maximumPageSize" | schema | no | — | "Optional positive Event-page bound without permission to split or truncate a fact." |
 | "minimumCursorLifetimeSeconds" | schema | yes | — | "Positive minimum lifetime preserving issued cursor context and its captured range." |
 | "minimumRetentionSeconds" | schema | yes | — | "Positive minimum retention promise for admitted Event facts." |
-| "observation" | schema | yes | — | "Truthful observation mode: committed or observed, with its complete coverage obligations." |
 | "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
 
 ### Advanced
@@ -8247,6 +8248,12 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
         "minLength": 1
       }
     },
+    "level": {
+      "enum": [
+        "current",
+        "history"
+      ]
+    },
     "maximumPageSize": {
       "type": "integer",
       "minimum": 1
@@ -8258,12 +8265,6 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
     "minimumRetentionSeconds": {
       "type": "integer",
       "minimum": 1
-    },
-    "observation": {
-      "enum": [
-        "committed",
-        "observed"
-      ]
     },
     "representations": {
       "type": "array",
