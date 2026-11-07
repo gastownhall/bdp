@@ -6771,6 +6771,23 @@
         }
       },
       "properties": {
+        "families": {
+          "description": "Non-Resource families to include beyond the base stream, or all.",
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
         "after": {
           "$ref": "#/$defs/wireToken",
           "description": "Opaque issued resume cursor, bound to its original source, selection and context."
@@ -6796,6 +6813,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "families": {
+          "description": "Non-Resource families selected beyond the base stream, or all.",
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
         "representation": {
           "enum": ["postimage", "delta"],
           "description": "Explicit Event representation, postimage or delta."
@@ -8556,8 +8590,7 @@
                 "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
               },
               "address": {
-                "type": "array",
-                "maxItems": 2
+                "type": "array"
               },
               "value": {
                 "enum": ["pruned", "erased", "reorganized"]
@@ -8584,7 +8617,7 @@
         "family": {
           "type": "string",
           "minLength": 1,
-          "description": "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips."
+          "description": "Retained family the source advertises in its policy."
         },
         "profile": {
           "type": "string",

@@ -1416,11 +1416,15 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
           next.searchParams.set("after", nextToken as string);
           next.searchParams.set("representation", "postimage");
           next.searchParams.set("limit", String(selection.limit));
+          if (selection.families) next.searchParams.set("families", selection.families);
         }
         return {
           source,
           ...(subject ? { subject } : {}),
-          selection: { representation: "postimage" },
+          selection: {
+            representation: "postimage",
+            ...(selection.families ? { families: selection.families } : {}),
+          },
           policy: EVENT_POLICY,
           ...(options.referenceCore === true
             ? {

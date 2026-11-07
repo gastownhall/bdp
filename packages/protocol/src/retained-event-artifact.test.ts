@@ -30,12 +30,16 @@ describe("retained Event source/grammar correspondence, without CLI/provider exe
 
   it("admits default/explicit CLI query pairs and rejects ambiguous or new selectors", () => {
     expect(valid("retainedEventQuery", {})).toBe(true);
+    expect(valid("retainedEventQuery", { families: "all" })).toBe(true);
+    expect(valid("retainedEventQuery", { families: ["alias-state"] })).toBe(true);
     for (const p of paper.cliPairs) expect(valid("retainedEventQuery", p.query)).toBe(true);
     for (const value of [
       { from: "now", after: "cursor" },
       { from: "all" },
       { after: "" },
       { representation: "future" },
+      { families: [] },
+      { families: ["alias-state", "alias-state"] },
       { limit: 0 },
       { revision: "r1" },
       { selector: "$.x" },

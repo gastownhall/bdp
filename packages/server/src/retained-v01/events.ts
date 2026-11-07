@@ -9,9 +9,17 @@ export interface EventSelection {
   readonly from?: "retained" | "now";
   readonly after?: string;
   readonly limit: number;
+  readonly families?: "all";
 }
 export function parseEventSelection(url: URL, resource: boolean): EventSelection {
-  const allowed = ["from", "after", "representation", "limit", ...(resource ? ["view"] : [])];
+  const allowed = [
+    "from",
+    "after",
+    "representation",
+    "limit",
+    "families",
+    ...(resource ? ["view"] : []),
+  ];
   for (const name of url.searchParams.keys()) {
     if (!allowed.includes(name) || url.searchParams.getAll(name).length !== 1)
       throw new RetainedRequestError("invalid-parameter", 400);
@@ -21,7 +29,10 @@ export function parseEventSelection(url: URL, resource: boolean): EventSelection
   const from = url.searchParams.get("from");
   const after = url.searchParams.get("after");
   const representation = url.searchParams.get("representation");
+  // This service publishes no non-Resource family, so only `all` can be admitted.
+  const families = url.searchParams.get("families");
   if (
+    (families !== null && families !== "all") ||
     (from !== null && from !== "retained" && from !== "now") ||
     (from !== null && after !== null) ||
     after === "" ||
@@ -36,6 +47,7 @@ export function parseEventSelection(url: URL, resource: boolean): EventSelection
     ...(from === null ? {} : { from }),
     ...(after === null ? {} : { after }),
     limit: Number(rawLimit),
+    ...(families === null ? {} : { families }),
   };
 }
 export function lifecycleFact(

@@ -99,6 +99,8 @@ Parsed query `retainedEventQuery` admits:
 | `representation=postimage` | Required common mode and default |
 | `representation=delta` | Explicit optional mode; unsupported selection refuses |
 | `limit=N` | Positive native page bound under actual configured limits |
+| `families=NAME,NAME` | Optional [non-Resource families](#non-resource-facts) to include beyond the base stream; a name the source does not advertise refuses |
+| `families=all` | Every family the source publishes, including ones the consumer may not know |
 
 Duplicate/unknown parameters and invalid/conflicting values refuse; no silent
 ignoring of a new semantic selector. For a Resource, `view=events` selects this
@@ -109,7 +111,7 @@ start, never a repair automatically substituted for failed continuation.
 The first response confirms `selection`, `policy`, `coverage`, `source`, optional
 `subject`, `events`, `cursor` and `next`. Its captured upper boundary is fixed while
 following `next`. A native absolute `next` preserves source, selected contract,
-representation, principal/authorization context, coverage regime, traversal bound
+representation, family selection, principal/authorization context, coverage regime, traversal bound
 and issued page size. Clients follow it unchanged; ordinary collection resizing
 rules do not apply. `next:null` means this captured range is drained, not no future
 Events. `cursor` resumes after every fact/scanned position covered by the page;
@@ -257,14 +259,25 @@ at that address. It carries the common `id`, `source`, `time` and `origin`, with
 under either selected representation.
 
 A source advertises its families in `policy.families`; absence means it publishes no
-non-Resource fact, and a fact's family MUST be listed. A consumer that does not know a
-fact's family or profile stops before advancing past it, rather than skipping it.
+non-Resource fact, and a fact's family MUST be listed.
+
+Every traversal delivers the base stream: Resource facts and erasure facts. An erasure
+fact is an `identity-state` fact whose `value` is `erased`, whatever it erased. Any other
+non-Resource fact is delivered only when the request names its family in `families`, or
+uses `families=all`. A source adding a family therefore changes nothing for a consumer
+that did not ask for it. Changing what the base stream carries requires a different
+contract.
+
+A consumer stops before advancing past a delivered fact whose family or profile it cannot
+read. Every consumer can read `identity-state`, because the base stream carries it; a consumer
+holding what an erasure fact addresses removes it. A consumer using `families=all` may keep a fact it cannot read, and MUST NOT treat that fact as applied.
 
 | State | `family` and `profile` | `address` | `value` |
 | --- | --- | --- | --- |
 | Alias put or delete that changes a binding | `alias-state`, `https://github.com/gastownhall/bdp/families/alias-state/1` | The absolute alias URL | `{target}`: the new target, or for `deleted` the removed one |
 | A retained version or whole identity pruned, erased or reorganized | `identity-state`, `https://github.com/gastownhall/bdp/families/identity-state/1` | The canonical ID and, for one version, the revision | `pruned`, `erased` or `reorganized` |
 | Association state a Type's semantic contract keeps outside its record, such as comments | `association-state`, under the profile that contract names | As that profile fixes | As that profile fixes |
+| Association state erased | `identity-state`, `https://github.com/gastownhall/bdp/families/identity-state/1` | That state's family name, then its address in that family | `erased` |
 | Type registration, withdrawal and default selection | `type-prerequisite`, under [Types](../types/types.md#70-definition-presence-and-explicit-registration) | As Types fixes | As Types fixes |
 
 An `erased` fact discloses no removed content. Publishing a pruned, erased or
@@ -279,7 +292,7 @@ projects its lifecycle; Bead source projects its lifecycle and lifecycle effects
 incident Links, including a Link Type-only change. Bead source also projects each
 non-Resource fact for the Beads its family profile names, under the same authorization
 gate: `alias-state` names the alias's former and new targets, and `identity-state` names
-the addressed identity. Visibility of a new alias target does not disclose the former
+the addressed identity, or the Beads the erased state's family profile names. Visibility of a new alias target does not disclose the former
 one, and a fact's `value` names no former target of a repoint. For an endpoint correction, incidence
 is the union of preceding and resulting published endpoints, so a departing Bead
 can observe the same correction. Apply the existing authorization/disclosure gate
@@ -294,8 +307,8 @@ filter or property projection is added.
 
 Postimage/delta represent the same selected facts with the same source identity,
 relative order and revision meaning; they do not select a different coverage model.
-Changing representation requires a new explicit selection, not reuse of a cursor
-bound to another mode. Optional detail can be omitted only at a declared extension
+Changing representation or family selection requires a new explicit selection, not
+reuse of a cursor bound to another one. Optional detail can be omitted only at a declared extension
 point while preserving all base effects. New capabilities MUST project their base
 Resource effects truthfully for older subscribers. If that is impossible, they are
 not transparently additive under this contract: select a different supported contract
@@ -312,7 +325,7 @@ replica group application.
 ### Event carriers
 
 The closed page has required `source` (absolute Event source URL), `selection`
-(`{representation:"postimage"|"delta"}`), `policy`, `coverage`, `events` (ordered
+(`{representation:"postimage"|"delta", families?}`), `policy`, `coverage`, `events` (ordered
 array), nonempty opaque `cursor`, and `next` (absolute URL or null). `subject`, when
 present, is the canonical Resource URL for a subject projection. Page and facts
 must agree on source, and Resource facts on selected representation.
@@ -373,6 +386,7 @@ Required order: []
 | --- | --- | --- | --- | --- |
 | "after" | ref "#/$defs/wireToken" | no | — | "Opaque issued resume cursor, bound to its original source, selection and context." |
 | "from" | schema | no | — | "Initial Event boundary selection, retained or now; mutually exclusive with after." |
+| "families" | schema | no | — | "Non-Resource families to include beyond the base stream, or all." |
 | "limit" | schema | no | — | "Positive admitted per-page bound. It does not permit partial facts or false exhaustion." |
 | "representation" | schema | no | — | "Explicit Event representation, postimage or delta." |
 
@@ -392,6 +406,22 @@ Required order: []
     }
   },
   "properties": {
+    "families": {
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "from": {
       "enum": [
         "retained",
@@ -433,6 +463,7 @@ Required order: ["representation"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "families" | schema | no | — | "Non-Resource families selected beyond the base stream, or all." |
 | "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
 
 #### Advanced
@@ -440,6 +471,22 @@ Required order: ["representation"]
 ```json-schema
 {
   "properties": {
+    "families": {
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "representation": {
       "enum": [
         "postimage",
@@ -1761,7 +1808,7 @@ Required order: ["family","profile","address","value","change"]
 | --- | --- | --- | --- | --- |
 | "address" | schema | yes | — | "Stable address of the changed state, with the arity and meaning its family profile fixes." |
 | "change" | schema | yes | — | "What happened to the state at address: created, updated or deleted." |
-| "family" | schema | yes | — | "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips." |
+| "family" | schema | yes | — | "Retained family the source advertises in its policy." |
 | "profile" | schema | yes | — | "Exact family profile identity fixing the address, value and projected Beads." |
 | "value" | schema | yes | — | "Family-defined value of the change." |
 
@@ -1829,8 +1876,7 @@ Required order: ["family","profile","address","value","change"]
             "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
           },
           "address": {
-            "type": "array",
-            "maxItems": 2
+            "type": "array"
           },
           "value": {
             "enum": [

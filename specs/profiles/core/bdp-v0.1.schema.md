@@ -8427,6 +8427,7 @@ Required order: []
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "after" | ref "#/$defs/wireToken" | no | — | "Opaque issued resume cursor, bound to its original source, selection and context." |
+| "families" | schema | no | — | "Non-Resource families to include beyond the base stream, or all." |
 | "from" | schema | no | — | "Initial Event boundary selection, retained or now; mutually exclusive with after." |
 | "limit" | schema | no | — | "Positive admitted per-page bound. It does not permit partial facts or false exhaustion." |
 | "representation" | schema | no | — | "Explicit Event representation, postimage or delta." |
@@ -8447,6 +8448,22 @@ Required order: []
     }
   },
   "properties": {
+    "families": {
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "from": {
       "enum": [
         "retained",
@@ -8487,6 +8504,7 @@ Required order: ["representation"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "families" | schema | no | — | "Non-Resource families selected beyond the base stream, or all." |
 | "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
 
 ### Advanced
@@ -8494,6 +8512,22 @@ Required order: ["representation"]
 ```json-schema
 {
   "properties": {
+    "families": {
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "representation": {
       "enum": [
         "postimage",
@@ -8524,7 +8558,7 @@ Required order: ["family","profile","address","value","change"]
 | --- | --- | --- | --- | --- |
 | "address" | schema | yes | — | "Stable address of the changed state, with the arity and meaning its family profile fixes." |
 | "change" | schema | yes | — | "What happened to the state at address: created, updated or deleted." |
-| "family" | schema | yes | — | "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips." |
+| "family" | schema | yes | — | "Retained family the source advertises in its policy." |
 | "profile" | schema | yes | — | "Exact family profile identity fixing the address, value and projected Beads." |
 | "value" | any | yes | — | "Family-defined value of the change." |
 
@@ -8592,8 +8626,7 @@ Required order: ["family","profile","address","value","change"]
             "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
           },
           "address": {
-            "type": "array",
-            "maxItems": 2
+            "type": "array"
           },
           "value": {
             "enum": [
