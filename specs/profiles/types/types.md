@@ -2079,6 +2079,18 @@ existing affiliations, select a default or activate a new constraint on old reco
 Unpinned use additionally requires an explicitly selected eligible exact default.
 Ordinary operations and specialized interfaces must preserve these distinctions.
 
+When Events is advertised, registering an exact definition, withdrawing that
+registration or selecting a default publishes a
+[non-Resource fact](../events/events.md#non-resource-facts) in the `type-prerequisite`
+family. Its address is the Type identity and exact revision. Its value names the required
+dependency closure by identity and revision and states whether this revision is the
+selected default. Its family profile names the definition Bead. Definition content stays
+in the definition Beads' own facts. Installing a closure publishes one fact per registered
+definition under one `transaction`; moving a default publishes `updated` for the newly
+selected and the former default. Definitions the implementation supplies intrinsically
+publish nothing at startup. A Scope that does not advertise Types1 publishes none. A
+registration modeled as Links publishes Link facts instead, never both.
+
 The Bead ID is canonical identity; there is no additional required Type-specific
 name or display-name field. Generic admitted aliases do not change equality,
 conformance or permissions. Existing supported native creation and reads must retain
