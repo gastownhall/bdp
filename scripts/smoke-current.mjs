@@ -54,10 +54,10 @@ await withPackedWorkspace(async (installed, signal) => {
       signal.throwIfAborted();
       assert.equal(result.code, 0, result.stderr || result.stdout);
       assert.equal(result.signal, null);
-      assert.match(result.stdout, /^(?:#|ℹ) tests 9\s*$/m);
-      assert.match(result.stdout, /^(?:#|ℹ) pass 9\s*$/m);
+      assert.match(result.stdout, /^(?:#|ℹ) tests 10\s*$/m);
+      assert.match(result.stdout, /^(?:#|ℹ) pass 10\s*$/m);
       console.log(
-        JSON.stringify({ event: "installed.canonical-cli.observed", cases: 9, packaged: true }),
+        JSON.stringify({ event: "installed.canonical-cli.observed", cases: 10, packaged: true }),
       );
     },
   );
