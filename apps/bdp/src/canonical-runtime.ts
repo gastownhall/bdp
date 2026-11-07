@@ -1057,6 +1057,15 @@ export async function runCanonicalInvocation(
         if (!RETAINED_WRITE_OPERATIONS.includes(compiled.operation))
           return refuse("unsupported_capability", 5, "unsupported mutation");
         const binding = consume(await client.bindWrite(scope, call));
+        if (
+          (compiled.operation === "putAlias" || compiled.operation === "deleteAlias") &&
+          !binding.aliasesSupported
+        )
+          return refuse(
+            "unsupported_capability",
+            5,
+            "this provider does not advertise aliases, so it has no alias operations; no mutation was sent",
+          );
         const historical = options.fromRevision !== undefined;
         if (historical && !binding.historicalUpdateSupported)
           return refuse("unsupported_capability", 5, "historical-update1 is not advertised");

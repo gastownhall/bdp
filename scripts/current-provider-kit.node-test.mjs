@@ -1090,6 +1090,206 @@ test("--scope against a Write Scope changes nothing without --allow-mutation", a
   }
 });
 
+/**
+ * The real reference behind a real proxy that rewrites only what a Write provider says about
+ * aliases. `shape(requestCount)` names what discovery and the directory carry on that read:
+ * `advertised` and `members` booleans, or a member list for half of the pair.
+ */
+async function aliasShapedProvider(context, shape) {
+  const provider = await provision(context);
+  let upstream = new URL(provider.connections[0].connectOrigin);
+  let discoveryReads = 0;
+  const aliasPosts = [];
+  let directoryRead;
+  const proxy = http.createServer((request, response) => {
+    const forward = http.request(
+      {
+        hostname: upstream.hostname,
+        port: upstream.port,
+        method: request.method,
+        path: request.url,
+        headers: request.headers,
+      },
+      (reply) => {
+        const chunks = [];
+        reply.on("data", (chunk) => chunks.push(chunk));
+        reply.on("end", () => {
+          let body = Buffer.concat(chunks);
+          const headers = { ...reply.headers };
+          if (
+            request.method === "GET" &&
+            headers["content-type"]?.startsWith("application/vnd.bdp.v0.1+json")
+          ) {
+            const value = JSON.parse(body);
+            if (value.profile === "write") {
+              const { advertised } = shape(discoveryReads++);
+              if (!advertised) delete value.aliases;
+              body = Buffer.from(JSON.stringify(value));
+            } else if (value.createBead !== undefined) {
+              directoryRead = value;
+              const { members } = shape(discoveryReads - 1);
+              for (const name of ["putAlias", "deleteAlias"])
+                if (!members.includes(name)) delete value[name];
+              if (shape(discoveryReads - 1).duplicate) value.updateBead = value.createBead;
+              body = Buffer.from(JSON.stringify(value));
+            }
+            delete headers["content-length"];
+          }
+          if (
+            request.method === "POST" &&
+            [directoryRead?.putAlias, directoryRead?.deleteAlias].some(
+              (target) => target && new URL(target).pathname === request.url,
+            )
+          )
+            aliasPosts.push(request.url);
+          response.writeHead(reply.statusCode, headers);
+          response.end(body);
+        });
+      },
+    );
+    request.pipe(forward);
+  });
+  await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+  const connectOrigin = `http://127.0.0.1:${proxy.address().port}`;
+  const rerouted = (connections) =>
+    connections.map((connection) => {
+      upstream = new URL(connection.connectOrigin);
+      return { ...connection, connectOrigin };
+    });
+  return {
+    aliasPosts,
+    adapter: {
+      scope: provider.scope,
+      connections: rerouted(provider.connections),
+      conditions: provider.conditions,
+      async restart() {
+        return { connections: rerouted((await provider.restart()).connections) };
+      },
+      async cleanup() {
+        await new Promise((resolve) => proxy.close(resolve));
+        await provider.cleanup();
+      },
+    },
+  };
+}
+const ALIAS_PAIR = ["putAlias", "deleteAlias"];
+const withoutAliases = () => ({ advertised: false, members: [] });
+
+test("a Write provider without aliases runs every other Write row; alias rows are not applicable by discovery", async () => {
+  let shaped;
+  const report = await runCurrentProvider(async (context) => {
+    shaped = await aliasShapedProvider(context, withoutAliases);
+    return shaped.adapter;
+  });
+  assert.equal(report.state, "incomplete", JSON.stringify(report));
+  assert.equal(report.discovered.profile, "write");
+  for (const row of implemented(report))
+    if (row.id === "write.alias-put" || row.id === "write.alias-delete") {
+      assert.equal(row.state, "not-applicable", row.id);
+      assert.equal(row.required, false, row.id);
+      assert.match(row.reason, /by discovery/);
+    } else assert.equal(row.state, "pass", `${row.id}: ${row.reason}`);
+  assert.equal(report.sliceComplete, true);
+  assert.equal(report.qualificationComplete, false);
+  assert.deepEqual(shaped.aliasPosts, []);
+});
+
+test("alias rows stay not applicable, not unauthorized, when mutation is not allowed", async () => {
+  let shaped;
+  const report = await runCurrentProvider(
+    async (context) => {
+      shaped = await aliasShapedProvider(context, withoutAliases);
+      return shaped.adapter;
+    },
+    { allowMutation: false },
+  );
+  assert.equal(
+    report.obligations.find(({ id }) => id === "write.discovery-directory").state,
+    "pass",
+  );
+  for (const id of ["write.alias-put", "write.alias-delete"]) {
+    const row = report.obligations.find((entry) => entry.id === id);
+    assert.equal(row.state, "not-applicable");
+    assert.match(row.reason, /by discovery/);
+  }
+  const create = report.obligations.find(({ id }) => id === "write.create");
+  assert.equal(create.state, "not-run");
+  assert.match(create.reason, /--allow-mutation/);
+});
+
+test("a directory that disagrees with discovery about aliases fails, and nothing is not applicable", async () => {
+  for (const [name, shape] of [
+    ["members unadvertised", () => ({ advertised: false, members: ALIAS_PAIR })],
+    ["advertised, members omitted", () => ({ advertised: true, members: [] })],
+    ["advertised, one member", () => ({ advertised: true, members: ["putAlias"] })],
+    ["advertised, other member", () => ({ advertised: true, members: ["deleteAlias"] })],
+    ["unadvertised, one member", () => ({ advertised: false, members: ["putAlias"] })],
+    ["unadvertised, other member", () => ({ advertised: false, members: ["deleteAlias"] })],
+    ["unadvertised, duplicate target", () => ({ advertised: false, members: [], duplicate: true })],
+    [
+      "advertised, duplicate target",
+      () => ({ advertised: true, members: ALIAS_PAIR, duplicate: true }),
+    ],
+  ]) {
+    const report = await runCurrentProvider(
+      async (context) => (await aliasShapedProvider(context, shape)).adapter,
+    );
+    assert.equal(report.state, "fail", name);
+    assert.equal(
+      report.obligations.find(({ id }) => id === "write.discovery-directory").state,
+      "fail",
+      name,
+    );
+    for (const row of rowsOf(report, (id) => id.startsWith("write.")))
+      assert.notEqual(row.state, "not-applicable", `${name}: ${row.id}`);
+    assert.equal(report.obligations.find(({ id }) => id === "write.create").state, "not-run", name);
+    assert.equal(report.sliceComplete, false, name);
+  }
+});
+
+test("a provider cannot make its alias rows not applicable by withdrawing aliases mid-run", async () => {
+  for (const [name, shape] of [
+    [
+      "withdrawn",
+      (read) =>
+        read < 2 ? { advertised: true, members: ALIAS_PAIR } : { advertised: false, members: [] },
+    ],
+    [
+      "added",
+      (read) =>
+        read < 2 ? { advertised: false, members: [] } : { advertised: true, members: ALIAS_PAIR },
+    ],
+  ]) {
+    const report = await runCurrentProvider(
+      async (context) => (await aliasShapedProvider(context, shape)).adapter,
+    );
+    assert.equal(report.state, "harness-error", name);
+    assert.match(report.harnessFailure, /changed its aliases advertisement/, name);
+    assert.equal(report.sliceComplete, false, name);
+    const expected = name === "withdrawn" ? "not-run" : "not-applicable";
+    for (const id of ["write.alias-put", "write.alias-delete"])
+      assert.equal(report.obligations.find((row) => row.id === id).state, expected, name);
+  }
+});
+
+test("a provider that advertises aliases is still held to its alias rows", async () => {
+  // The same proxy, leaving the reference's answers alone, must measure the rows as before.
+  const report = await runCurrentProvider(
+    async (context) =>
+      (await aliasShapedProvider(context, () => ({ advertised: true, members: ALIAS_PAIR })))
+        .adapter,
+  );
+  assert.equal(report.state, "incomplete", JSON.stringify(report));
+  for (const row of implemented(report)) assert.equal(row.state, "pass", row.id);
+  assert.equal(report.sliceComplete, true);
+  // And a concealed real alias effect still fails with aliases advertised.
+  const mutant = await runCurrentProvider((context) =>
+    corruptingProvider(context, false, "alias-reexecution"),
+  );
+  assert.equal(mutant.state, "fail");
+  assert.equal(mutant.obligations.find((row) => row.id === "write.alias-put").state, "fail");
+});
+
 test("--scope takes a canonical Scope and reads its token only from a named variable", () => {
   assert.deepEqual(parseKitArguments(["--scope", "http://127.0.0.1:1/"]), {
     scope: "http://127.0.0.1:1/",

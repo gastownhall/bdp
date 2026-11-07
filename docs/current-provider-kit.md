@@ -11,8 +11,9 @@ The governing [stabilization plan](plans/bdp-stabilization.md#testing-and-cost-d
 requires every required obligation in a qualification scope to have evidence.
 This kit deliberately reports its missing coverage instead of declaring a pass
 for the implemented subset. `qualificationComplete` is always false at this
-stage. `sliceComplete` is separately true only when all 19 executable cases and
-provision/cleanup complete successfully. It is not a provider badge.
+stage. `sliceComplete` is separately true only when every executable case passes, or
+is `not-applicable` by discovery, and provision/cleanup complete successfully. It is
+not a provider badge.
 
 ## Run
 
@@ -56,6 +57,14 @@ Write is optional. The kit reads the Scope's discovery document and goes by its
   closed Core document, or a profile that is neither base literal, fails
   `core.scope-discovery`: only a valid `core` makes Write not applicable.
 - `write`: the Write cases run as below.
+
+Aliases are optional within Write: the directory carries the six Resource members always,
+and `putAlias` and `deleteAlias` exactly when discovery advertises `aliases`. A Write Scope
+that omits `aliases` reports `write.alias-put` and `write.alias-delete` `not-applicable`, with
+the reason, by discovery, with `required: false`; the other Write rows run as usual. A
+directory that disagrees with discovery in either direction, or carries half of the pair,
+fails `write.discovery-directory`, and no alias row is then `not-applicable`. A later
+navigation that changes the advertisement mid-run is a harness error, not a change of rows.
 
 A read-only provider supplies its data by its own means, because it has no public way
 to receive it: its store, its importer, or its adapter's `provision`, which is free to
@@ -182,8 +191,8 @@ expected values, verify a result or replace HTTP responses. The adapter can set
 up the requested fixture; it is not an oracle. Extra oracle fields are refused.
 The module is trusted operator code, not an untrusted plugin sandbox.
 
-All eight distinct operation URLs are read from public discovery/directory,
-without fixed path guesses. Discovery is followed through the Scope's registered
+All distinct operation URLs (six, or eight with advertised `aliases`) are read from public
+discovery/directory, without fixed path guesses. Discovery is followed through the Scope's registered
 `service-desc` Link. The initial kit can select one typed matching Link or one
 unambiguous candidate; ambiguous candidates are a harness limitation, not a new
 protocol rule forbidding multiple Links. Add explicit connections for every
@@ -237,7 +246,7 @@ cache-directive ordering is imposed.
 | Case | Public evidence | Owning rule |
 | --- | --- | --- |
 | `core.scope-discovery` | Successful canonical Scope GET and followed service-desc navigation | [Core discovery](../specs/profiles/core/core.md#discovery-and-capabilities) |
-| `write.discovery-directory` | Closed Write discovery, matching Scope, exact eight distinct ordinary targets | [Write selection/directory](../specs/profiles/write/write.md#discover-and-select-write) |
+| `write.discovery-directory` | Closed Write discovery, matching Scope, exact distinct ordinary targets: six, plus the alias pair exactly when discovery advertises `aliases` | [Write selection/directory](../specs/profiles/write/write.md#discover-and-select-write) |
 | `write.media-before-admission` | Generic-JSON create returns schema-valid 415 unsupported-media-type; public GET confirms the explicitly unused identity remains absent before a valid same-bytes/same-key create | [Contract and media](../specs/profiles/write/write.md#contract-and-media) |
 | `write.create` | Same key after the rejected media permits a complete created Bead and exact immediate replay; requested identity/affiliation, exact authored properties/metadata, opaque revision and mutation HTTP metadata | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 | `core.point-read` | Actual GET agrees with created original envelope and Bead kind | [Resource reads](../specs/profiles/core/core.md#read-a-bead-or-link) |

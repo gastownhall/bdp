@@ -1,4 +1,5 @@
 import {
+  ProtocolArtifactValidationError,
   HISTORICAL_UPDATE_MEDIA,
   type HistoricalUpdateTerminalView,
   type HistoricalUpdateView,
@@ -318,17 +319,26 @@ export class RetainedClient {
       const directoryFault = failure(directory);
       if (directoryFault) return directoryFault;
       const directoryText = this.#document(directory);
-      return Object.freeze({
-        kind: "success",
-        http: context(directory),
-        nativeBody: nativeBody(directory),
-        value: new RetainedWriteBinding({
+      let value: RetainedWriteBinding;
+      try {
+        value = new RetainedWriteBinding({
           scope: selected,
           discovery: { contentType: received.contentType!, bodyText: text },
           directory: { contentType: directory.contentType!, bodyText: directoryText },
           maximumDocumentBytes: this.#documentBytes,
           maximumRequestBodyBytes: this.#requestBytes,
-        }),
+        });
+      } catch (cause) {
+        // Name what the provider got wrong: no mutation has been sent, and none will be.
+        if (cause instanceof ProtocolArtifactValidationError)
+          return unusable(directory, cause.message);
+        throw cause;
+      }
+      return Object.freeze({
+        kind: "success",
+        http: context(directory),
+        nativeBody: nativeBody(directory),
+        value,
       });
     });
   }

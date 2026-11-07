@@ -135,6 +135,7 @@ export function hasCompleteRequiredCoverage(rows, lifecycle) {
   );
 }
 const isWriteRowId = (id) => id.startsWith("write.");
+const isAliasRowId = (id) => id === "write.alias-put" || id === "write.alias-delete";
 class HarnessError extends Error {}
 class Stop extends Error {}
 class NotRun extends Error {}
@@ -658,20 +659,18 @@ export async function runCurrentProvider(provision, { allowMutation = true, exce
         200,
         "writeOperationDirectory",
       );
-      assert.deepEqual(
-        Object.keys(nextDirectory).sort(),
-        [
-          "createBead",
-          "updateBead",
-          "deleteBead",
-          "createLink",
-          "updateLink",
-          "deleteLink",
-          "putAlias",
-          "deleteAlias",
-        ].sort(),
-      );
-      assert.equal(new Set(Object.values(nextDirectory)).size, 8);
+      // Write "Ordinary targets": the six always, the alias pair exactly with advertised `aliases`.
+      const expected = [
+        "createBead",
+        "updateBead",
+        "deleteBead",
+        "createLink",
+        "updateLink",
+        "deleteLink",
+        ...(nextAliases === undefined ? [] : ["putAlias", "deleteAlias"]),
+      ];
+      assert.deepEqual(Object.keys(nextDirectory).sort(), [...expected].sort());
+      assert.equal(new Set(Object.values(nextDirectory)).size, expected.length);
       return { directory: nextDirectory, aliases: nextAliases };
     }
     async function baseJourney() {
@@ -694,6 +693,12 @@ export async function runCurrentProvider(provision, { allowMutation = true, exce
       await step("write.discovery-directory", async () => {
         ({ directory, aliases } = await readNavigation(discoveryUrl));
       });
+      // Only after that case has held the directory to discovery: a disagreement fails above.
+      if (aliases === undefined)
+        notApplicable(
+          isAliasRowId,
+          "Not applicable by discovery: the Write Scope does not advertise aliases",
+        );
       if (!allowMutation) {
         for (const row of rows)
           if (isWriteRow(row.id) && row.state === "not-run")
@@ -877,7 +882,10 @@ export async function runCurrentProvider(provision, { allowMutation = true, exce
       "write.link-delete",
     ];
     const graphNotRun = (names, reason) => {
-      for (const name of names) rows.find((row) => row.id === name).reason = reason;
+      for (const name of names) {
+        const row = rows.find((entry) => entry.id === name);
+        if (row.state !== "not-applicable") row.reason = reason;
+      }
     };
     const baseFailed = rows.some(
       (row) => !graphRows.includes(row.id) && ["fail", "harness-error"].includes(row.state),
@@ -901,13 +909,19 @@ export async function runCurrentProvider(provision, { allowMutation = true, exce
       allowMutation &&
       discovered?.profile === "write" &&
       (conditions?.unownedLinkFixture === true ||
-        (conditions?.hierarchicalAliasFixture === true &&
+        (aliases !== undefined &&
+          conditions?.hierarchicalAliasFixture === true &&
           conditions.graphRetainedDetailWindowMs >= fixture.minimumGraphDetailWindowMs));
     let currentGraphNavigation = false;
     if (directory && !baseFailed && graphConditionsValid && graphRequested) {
       try {
-        // Original frozen retries are complete; fresh work follows current discovery.
+        // Original frozen retries are complete; fresh work follows current discovery. The alias
+        // rows were already decided by the discovery the base journey read, so a provider cannot
+        // withdraw aliases mid-run to make those rows not applicable, nor add them unmeasured.
+        const advertisedAliases = aliases !== undefined;
         ({ directory, aliases } = await readNavigation(await scopeDescription()));
+        if ((aliases !== undefined) !== advertisedAliases)
+          throw new HarnessError("Discovery changed its aliases advertisement during the run");
         currentGraphNavigation = true;
       } catch (error) {
         report.harnessFailure =
@@ -1119,7 +1133,9 @@ export async function runCurrentProvider(provision, { allowMutation = true, exce
           );
         assert.deepEqual(success(reply, "aliasResult"), expected);
       };
-      if (conditions?.hierarchicalAliasFixture !== true) {
+      if (aliases === undefined) {
+        // Not applicable by discovery; those rows and their reason are already recorded.
+      } else if (conditions?.hierarchicalAliasFixture !== true) {
         graphNotRun(
           ["write.alias-put", "write.alias-delete"],
           "No explicit hierarchical alias fixture condition; alias subjourney is not run",
