@@ -54,8 +54,9 @@ optional common members are `events`, `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
 Optional capabilities under `capabilities` are atomic batch, rooted allocation,
-historical update, [deletion modes](#optional-deletion-modes-version-1) and
-[idempotency](#idempotency-and-recovery). `atomic-batch1` and
+historical update, [deletion modes](#optional-deletion-modes-version-1),
+[idempotency](#idempotency-and-recovery) and
+[write exceptions](#operations-a-scope-does-not-serve). `atomic-batch1` and
 `historical-update1` require `idempotency`; a Scope advertising either without it
 is invalid and a client refuses it.
 The operation-directory URL is absolute HTTP(S) navigation. Clients use the fixed
@@ -84,7 +85,7 @@ when discovery advertises `aliases`:
 | `putAlias` | Create or repoint one alias | With `aliases` |
 | `deleteAlias` | Remove one alias | With `aliases` |
 
-Every value is a distinct absolute HTTP(S) operation URL served for this Scope.
+Every value is a distinct absolute HTTP(S) operation URL of this Scope.
 A directory missing a required member, carrying an alias member without advertised
 `aliases`, or omitting one when `aliases` is advertised is ambiguous and MUST be
 refused before dispatch. Sharing an implementation handler does not merge the wire
@@ -98,6 +99,65 @@ members. Other methods receive bodyless 405 with `Allow: POST`. The directory
 allows GET and HEAD and otherwise returns bodyless 405 with `Allow: GET, HEAD`.
 When cross-origin access is enabled, OPTIONS and `Allow` follow Core's CORS rules;
 listing OPTIONS does not itself implement preflight.
+
+### Operations a Scope does not serve
+
+A provider MAY refuse one of the six Resource operations it lists but does not serve.
+A POST to that target is refused with `operation-not-supported`, naming the operation
+in `operation`, before the provider reads the body or any state: it claims no key and
+produces no effects. The directory keeps its six members, and other methods keep their
+ordinary answers. The two alias operations are not covered: a Scope that does not serve
+them does not advertise `aliases`.
+
+A Scope that refuses any of the six MUST say so in discovery, under the capability
+`https://github.com/gastownhall/bdp/capabilities/write-exceptions` at version `"1"`. Its closed detail has one required member,
+`operationsNotSupported`: a nonempty, unique list of the operations it refuses, each
+one of the six directory names. A Scope that does not advertise this capability serves
+all six.
+
+Such a Scope is not a complete Write provider. A complete Write provider serves all six.
+The capability states a gap and adds nothing: it lets a client know before dispatch
+which operations will be refused, and every operation the Scope does serve keeps its
+ordinary obligations.
+
+<!-- bdp-schema:start writeExceptionsCapabilityV1 -->
+### Schema: "writeExceptionsCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["operationsNotSupported"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operationsNotSupported" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "operationsNotSupported": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/atomicBatchOperationName"
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end writeExceptionsCapabilityV1 -->
 
 ### Contract and media
 
@@ -1130,8 +1190,12 @@ supplied Problem `status`; `type`, `code` and `retry` are required.
 | `idempotency-in-progress` | `conflict` | 409 | `after-delay` |
 | `idempotency-expired` | `gone` | 410 | `never` |
 | `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
+| `operation-not-supported` | `request` | 422 | `after-state-change` |
 
-The `idempotency-*` codes arise only under `idempotency`. The singleton operations
+`operation-not-supported` here is the refusal of an
+[operation a Scope does not serve](#operations-a-scope-does-not-serve) and names it in a
+required `operation`. An atomic batch's refusal of a member is its own form, with a required
+`pointer`, under [its rules](#atomic-batch-results-and-recovery). The `idempotency-*` codes arise only under `idempotency`. The singleton operations
 have no sequence-only `binding-unavailable` case.
 The presence of an inherited helper in a schema artifact does not select it.
 `retryAfter`, when present, is a nonnegative integer transient-delay advice only
@@ -1803,13 +1867,14 @@ deleted set and a refusal refuses the whole request.
 
 ## Conformance boundary
 
-A Write provider must implement the six Resource operations, the two alias
+A complete Write provider implements the six Resource operations, the two alias
 operations when it advertises `aliases`, their complete outcomes, fact production required by advertised Events, native/admitted Types constraints,
 authorization, concurrency safety and, under `idempotency`, durable key/recovery
 duties. Without it, the rows of [Repetition without idempotency](#repetition-without-idempotency)
-apply. Optional
-capability advertisement requires its complete selected behavior and bounds; it
-never replaces ordinary obligations. Ordinary reads retain Core meaning: an
+apply. A Scope advertising [write exceptions](#operations-a-scope-does-not-serve) is
+not a complete Write provider, and these duties bind every operation it does serve.
+Optional capability advertisement requires its complete selected behavior and bounds;
+apart from that stated gap it never replaces ordinary obligations. Ordinary reads retain Core meaning: an
 authoritative result does not promise that another replica immediately observes
 it, or add read-your-writes checkpoints, a public epoch or hot-tier absence shortcut.
 
@@ -3963,6 +4028,38 @@ Required order: ["type","code","retry"]
       "if": {
         "properties": {
           "code": {
+            "const": "operation-not-supported"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "then": {
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "type": {
+            "const": "https://github.com/gastownhall/bdp/problems/request"
+          },
+          "status": {
+            "const": 422
+          },
+          "retry": {
+            "const": "after-state-change"
+          },
+          "operation": {
+            "$ref": "#/$defs/atomicBatchOperationName"
+          },
+          "pointer": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "code": {
             "const": "validation-failed"
           }
         },
@@ -4117,7 +4214,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","unsupported-media-type","binding-unavailable","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"] |
+| enum | ["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","revision-unknown","revision-unretained","revision-reorganized","revision-not-tracked","revision-unrepresentable","unsupported-media-type","binding-unavailable","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"] |
 <!-- bdp-schema:end readUpdateProblemCode -->
 
 <!-- bdp-schema:start removedAliases -->
@@ -6245,7 +6342,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"createBeadRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -6264,7 +6361,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"updateBeadRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -6283,7 +6380,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"deleteBeadRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -6302,7 +6399,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"createLinkRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -6321,7 +6418,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"updateLinkRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 
@@ -6340,7 +6437,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | request | `"deleteLinkRequest"` |
 | response | `"mutationResult"` |
 | problem | `"readUpdateProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe"]` |
+| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable","unsupported-media-type","validation-failed","type-not-installed","identity-taken","alias-path-taken","revision-mismatch","incident-links-exist","aggregate-constraint-violation","idempotency-conflict","idempotency-in-progress","idempotency-expired","revision-allocation-unsafe","operation-not-supported"]` |
 | continuation | `"none"` |
 | optional | `"Write profile"` |
 

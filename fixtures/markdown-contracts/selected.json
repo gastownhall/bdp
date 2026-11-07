@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "dd6b0589722013156bd251bfc2ec3904453fa45678d5c991751fbfb9c0fd429f",
+  "sourceSHA256": "ad381368da585121d22774253fb2eb59d439f31a94db916ab1ec987ce8e88dd3",
   "selections": {
     "read": {
       "entryPoints": [
@@ -122,6 +122,7 @@
         "wireToken",
         "writeAdvertisedLimits",
         "writeDiscovery",
+        "writeExceptionsCapabilityV1",
         "writeOperationDirectory"
       ],
       "externalReferences": []

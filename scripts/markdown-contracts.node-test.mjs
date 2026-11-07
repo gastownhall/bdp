@@ -65,7 +65,7 @@ test("read/write entry selection excludes historical operations without deleting
     ...new Set(Object.values(manifest.selections).flatMap((entry) => entry.definitions)),
   ].sort();
   assert.equal(roots.length, 46, "Body, header, parsed-query and dispatch entry points");
-  assert.equal(closure.length, 143, "Complete selected reference closure, including specRevision");
+  assert.equal(closure.length, 144, "Complete selected reference closure, including specRevision");
   for (const name of [
     "retainedEventQuery",
     "resourceProjectionSelection",
