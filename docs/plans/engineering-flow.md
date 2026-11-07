@@ -366,6 +366,13 @@ GitHub offers a check for requiring only after it has reported. `bringup-staging
 
 **Recommended, not ruled (F-15):** four required names on `bringup-staging`: `CI Gate / Required`, `G2 CLI surface`, `G3 conformance at the pin`, `Pin check`. Britt adds them on Donna's standing word, and step 6 of every rebuild reads the list back and reports any difference, since an empty list is what hid the last failure. No job among them is path-filtered. Changing protection is an account setting, so the realistic alternative is Donna doing it herself each time, which keeps the authority with her and adds a wait.
 
+### 6.7 What the sprint's landing taught the gates
+
+- **A branch with no PR has no CI.** The Sprint 1 set lived on a pushed branch for a day, and its first PR run found three gaps that no local gate had caught: tests missing from CI's baseline, a closed module list and a stale count. A long-lived integration branch gets a draft PR from its first push.
+- **Green can mean skipped.** CI's routing read #372 as spec-only, so `implementation` and full vitest didn't run, though it changed schema extracts and test scripts. Routing should run them when extracts or test scripts change. Until then, whoever merges reads the job list, not the summary.
+- **A stacked PR may report no checks.** #364, #370 and #375 showed none. Treat that as no evidence, not as passing.
+- **Local gates need CI's list.** A worker's "all gates pass" meant the list in its brief. The `implementation` job's own steps, `smoke`, `smoke:current` and the Node controls, belong in that list.
+
 ## 7. Evidence and who says done
 
 A claim counts when it carries the commit, the command or run link, the count, and what wasn't run. It must be at the current head. A number from another head is history: #374's wire proof is at `96d3b2104`, and its head is `9352c81be`. Its body says so, which is the right way to show it, and it isn't yet evidence for that head. Numbers recounted from raw captures by a second agent beat numbers the builder reports.
