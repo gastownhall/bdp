@@ -101,6 +101,13 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
 - **Results.** A Callable's `resultSchema` is its v0 operation's 200 response schema,
   verbatim, and `result` is the product's JSON.
 - **Identifiers.** Identifiers and classifications are v0's native forms: `bd-1`, `task`.
+- **Revision tokens.** A Callable's result carries v0's `revision`, the row version. A
+  generic Core record carries its own revision, which also moves on a change the row
+  version does not ([Issue §7](issue.md#7-revisions-and-attribution)). `expected_version`
+  on `issue/update`, `issue/close`, `issue/reopen` and `issue/delete` takes either: a Core
+  revision holds only if the record still carries exactly that revision, and otherwise the
+  invocation is `revision-mismatch` and writes nothing. An `issue/batch` item's
+  `expected_version` takes the row version only, as v0's own routes do.
 - **Schemas.** §9 carries each v0 component under its v0 name. OpenAPI 3.0's `nullable`
   is spelled as a JSON Schema type array, references point within this bundle, and the
   contract's code-generation annotations are absent. Declarations carry their own closure,
@@ -995,7 +1002,7 @@ Declared reasons: `dependency_cycle`.
 CLI mapping:
 
 ```json
-{"flags": [{"names": ["-t", "--type"], "parameter": "issue_type"}, {"names": ["-p"], "parameter": "priority"}, {"names": ["-s"], "parameter": "status"}, {"names": ["-a"], "parameter": "assignee"}, {"names": ["-d"], "parameter": "description"}, {"names": ["-l"], "parameter": "labels"}, {"names": ["--parent"], "parameter": "parent_id"}, {"names": ["--acceptance"], "parameter": "acceptance_criteria"}], "fromFile": [{"names": ["--body-file"], "parameter": "description"}, {"names": ["--design-file"], "parameter": "design"}], "positionals": [{"position": 0, "parameter": "title"}]}
+{"flags": [{"names": ["-t", "--type"], "parameter": "issue_type"}, {"names": ["-p"], "parameter": "priority"}, {"names": ["-s"], "parameter": "status"}, {"names": ["-a"], "parameter": "assignee"}, {"names": ["-d"], "parameter": "description"}, {"names": ["-l"], "parameter": "labels"}, {"names": ["--parent"], "parameter": "parent_id"}, {"names": ["--acceptance"], "parameter": "acceptance_criteria"}], "fromFile": [{"names": ["--body-file"], "parameter": "description"}, {"names": ["--design-file"], "parameter": "design"}], "memberFlags": [{"member": "spawner_id", "parameter": "waits_for"}, {"member": "gate", "names": ["--waits-for-gate"], "parameter": "waits_for"}], "positionals": [{"position": 0, "parameter": "title"}]}
 ```
 
 ### issue/update (CallableBatch)
@@ -1076,7 +1083,7 @@ Declared reasons: `already_claimed`, `dependency_cycle`, `dependency_exists`, `n
 CLI mapping:
 
 ```json
-{"positionals": [{"position": 0, "parameter": "id"}]}
+{"memberFlags": [{"member": "title", "parameter": "patch"}, {"member": "description", "names": ["-d"], "parameter": "patch"}, {"member": "design", "parameter": "patch"}, {"member": "acceptance_criteria", "names": ["--acceptance"], "parameter": "patch"}, {"member": "notes", "parameter": "patch"}, {"member": "append_notes", "parameter": "patch"}, {"member": "priority", "names": ["-p"], "parameter": "patch"}, {"member": "issue_type", "names": ["-t", "--type"], "parameter": "patch"}, {"member": "status", "names": ["-s"], "parameter": "patch"}, {"member": "assignee", "names": ["-a"], "parameter": "patch"}, {"member": "parent_id", "names": ["--parent"], "parameter": "patch"}, {"member": "labels", "names": ["--set-labels"], "parameter": "patch"}, {"member": "add_labels", "names": ["-l", "--add-label"], "parameter": "patch"}, {"member": "remove_labels", "names": ["--remove-label"], "parameter": "patch"}, {"member": "estimated_minutes", "names": ["-e", "--estimate"], "parameter": "patch"}, {"member": "external_ref", "parameter": "patch"}, {"member": "due_at", "names": ["--due"], "parameter": "patch"}, {"member": "defer_until", "names": ["--defer"], "parameter": "patch"}, {"member": "await_id", "parameter": "patch"}], "positionals": [{"position": 0, "parameter": "id"}]}
 ```
 
 ### issue/comment (CallableBatch)

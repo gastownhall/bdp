@@ -177,6 +177,7 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "flags" | array of flagMapping | no | cliMapping | "Aliases: additional flag spellings for parameters." |
 | "fromFile" | array of fileMapping | no | cliMapping | "Parameters whose value the client reads from a file or stdin." |
+| "memberFlags" | array of memberFlagMapping | no | cliMapping | "Members of an object parameter that take a flag of their own." |
 | "positionals" | array of positionalMapping | no | cliMapping | "Positions mapped onto parameters." |
 
 **flagMapping** — adds one or more aliases, CLI flag spellings, for a declared
@@ -208,6 +209,17 @@ Other fields: not allowed
 | "names" | array of text | yes | fileMapping | "Distinct nonempty flag spellings, such as --body-file; at least one. The flag's value is a path, and - means stdin." |
 | "parameter" | text | yes | fileMapping | "The nonempty name of a declared parameter of the same declaration." |
 
+**memberFlagMapping** — gives one member of an object parameter a flag of its own on
+the command tree (§10). The parameter and the wire are unchanged.
+
+Other fields: not allowed
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "member" | text | yes | memberFlagMapping | "The nonempty name of a member the parameter's schema declares." |
+| "names" | array of text | no | memberFlagMapping | "Aliases: additional distinct nonempty flag spellings, such as -s." |
+| "parameter" | text | yes | memberFlagMapping | "The nonempty name of a declared parameter of the same declaration whose schema is an object." |
+
 ### 2.4 callable-query and callable-batch — Bead Types
 
 **Meaning and use.** `callable-query` declares a read-only operation: invoking it
@@ -223,10 +235,12 @@ Concrete: `abstract` is absent. Neither adds properties.
 
 ### 2.5 Valid declarations and a worked example
 
-A declaration is invalid when it has duplicate parameter names, a flag, positional
-or file mapping naming an undeclared parameter, duplicate flag spellings (derived or
-added, apart from a derived `--no-x` that yields to a declared parameter, §10),
-duplicate positions, a `default` that fails its parameter's `schema`,
+A declaration is invalid when it has duplicate parameter names, a flag, positional,
+file or member mapping naming an undeclared parameter, a member mapping naming a member
+the parameter's schema does not declare, a member named `actor` or `author` or a member
+flag spelled `--actor` or `--author`, a member flag spelled `--arguments` or `--help`,
+duplicate flag spellings (derived or added, member flags included, apart from a derived
+`--no-x` that yields to a declared parameter, §10), duplicate positions, a `default` that fails its parameter's `schema`,
 `required` together with `default`, or a `$ref` that does not resolve inside its
 document. These are semantic checks the structural schema cannot express. A
 provider does not serve an invalid declaration.
@@ -569,10 +583,22 @@ A parameter declared with the flag `--no-x` keeps that flag, and a boolean param
 | `flags` | Adds aliases for a parameter's flag, such as `-l` |
 | `positionals` | Lets a position stand for a flag |
 | `fromFile` | Adds flags whose value is a path, with `-` meaning stdin; the client reads the content and treats it as that parameter's flag value |
+| `memberFlags` | Gives a member of an object parameter its own flag: `--kebab-member`, derived from the member's name as above, and any `names` |
 
 On a tree command, `--arguments JSON` supplies the whole object, and explicit flags
-override its members. `--help` after the command prints what it prints after `NAME`, with
-the flags.
+override its members.
+
+A member flag sets that one member and changes nothing on the wire: with `patch.status`
+mapped, `--status X` sends `{"patch": {"status": "X"}}`. Its value form comes from the
+member's schema, by the table above. The parameter's own flag still works. `--arguments`
+applies first, then the parameter's own flag, which replaces that parameter, then each
+member flag, which replaces its member and leaves the others. If what it would be
+written into is not an object, the client refuses. With no member flag and no other
+source, the parameter stays omitted.
+
+`--help` after the command prints the usage, then `title`, then the parameters and their
+flags, and names `bdp call NAME --help` for the full declaration. It does not print
+`description`.
 
 The client preserves omission and `null`, and never substitutes a default. A
 CallableBatch invocation
@@ -622,8 +648,8 @@ Not selected in preview-1:
   from a Bead graph, and whether a package can add parameters to an existing command,
   such as `--title` on `bd create`.
 - How much of `cliMapping` survives. It is judged during the detailed design of the
-  first package, whose declarations use `flags`, `positionals` and `fromFile`; a
-  parameter annotation may replace them.
+  first package, whose declarations use `flags`, `positionals`, `fromFile` and
+  `memberFlags`; a parameter annotation may replace them.
 - Result carriers beyond one JSON value: paged results, streamed results,
   collection-kind metadata.
 - A revision guard on an invocation. A general scrub of provenance, actor and
