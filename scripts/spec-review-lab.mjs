@@ -778,7 +778,11 @@ async function finiteCheck(execute, terminal, restart, root, state, scope) {
     (await run(["show", `a@=${first.revision}`], 1)).error.problem.code,
     "invalid-parameter",
   );
-  await run(["show", "a", "--include-links"], 5);
+  // The client now asks; this server does not offer the optional aggregate.
+  assert.equal(
+    (await run(["show", "a", "--include-links"], 1)).error.problem.code,
+    "invalid-parameter",
+  );
   // Batch is registered but execution is not implemented; use a valid input file.
   const batch = path.join(root, "members.jsonl");
   await writeFile(batch, '{"operation":"deleteBead","bead":"b"}\n', { flag: "wx", mode: 0o600 });

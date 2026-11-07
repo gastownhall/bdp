@@ -85,8 +85,20 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       assert.match(rootHelp.stdout, /^Usage: bdp/);
       assert.equal(rootHelp.stderr, "");
       for (const [args, message] of [
-        [["--secret-token"], "1 unsupported argument(s); use --help for usage"],
-        [["--secret-token", "--another-secret"], "1 unsupported argument(s); use --help for usage"],
+        [["--no-such-flag"], "unsupported argument --no-such-flag; use --help for usage"],
+        [
+          ["--no-such-flag", "--another-flag"],
+          "unsupported argument --no-such-flag; use --help for usage",
+        ],
+        [
+          ["--no-such-flag=secret-token"],
+          "unsupported argument --no-such-flag; use --help for usage",
+        ],
+        [["--Secret_Token"], "1 unsupported argument(s) not shown; use --help for usage"],
+        [
+          ["--secret-token-0123456789abcdef0123456789abcdef"],
+          "1 unsupported argument(s) not shown; use --help for usage",
+        ],
         [["--config="], "--config requires a non-empty path; use --help for usage"],
         [["--config", ""], "--config requires a non-empty path; use --help for usage"],
         [["--config"], "--config requires a path; use --help for usage"],
@@ -555,6 +567,134 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
         "replay returns the entire original envelope after later mutations",
       );
       assert.ok((await readdir(path.join(directory, "bdp", "retry"))).length > 0);
+    } finally {
+      await reference?.close();
+      await close(proxy);
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("a Write provider without aliases binds, refuses alias commands, and a disagreeing directory is refused", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "bdp-cli-no-aliases-"));
+    const media = "application/vnd.bdp.v0.1+json";
+    const requests = [];
+    let reference,
+      shape = "none";
+    const reshape = (value) => {
+      const next = { ...value };
+      const dropDiscovery = shape === "none" || shape === "members-unadvertised";
+      const dropMembers =
+        shape === "none" || shape === "advertised-no-members" ? ["putAlias", "deleteAlias"] : [];
+      if (shape === "half") dropMembers.push("deleteAlias");
+      if (value.profile === "write" && dropDiscovery) delete next.aliases;
+      if (value.createBead !== undefined) for (const name of dropMembers) delete next[name];
+      return next;
+    };
+    const proxy = createServer((incoming, outgoing) => {
+      requests.push({ method: incoming.method, path: incoming.url });
+      const listener = new URL(reference.listenUrl);
+      const forward = request(
+        {
+          hostname: listener.hostname,
+          port: listener.port,
+          path: incoming.url,
+          method: incoming.method,
+          headers: incoming.headers,
+        },
+        (response) => {
+          const bytes = [];
+          response.on("data", (chunk) => bytes.push(chunk));
+          response.on("end", () => {
+            let body = Buffer.concat(bytes);
+            const headers = { ...response.headers };
+            if (incoming.method === "GET" && headers["content-type"]?.startsWith(media)) {
+              body = Buffer.from(JSON.stringify(reshape(JSON.parse(body))));
+              headers["content-length"] = String(body.length);
+            }
+            outgoing.writeHead(response.statusCode, headers);
+            outgoing.end(body);
+          });
+        },
+      );
+      incoming.pipe(forward);
+    });
+    const port = await listen(proxy),
+      scope = `http://127.0.0.1:${port}/work/`;
+    const posts = () => requests.filter(({ method }) => method === "POST").length;
+    const refused = (result, status, code, message) => {
+      assert.equal(result.code, status, result.stderr || result.stdout);
+      const diagnostic = JSON.parse(result.stdout);
+      assert.equal(diagnostic.outcome, "failure");
+      assert.equal(diagnostic.error.problem.code, code);
+      assert.match(diagnostic.error.problem.message, message);
+    };
+    try {
+      reference = await startReferenceService({
+        directory: path.join(directory, "store"),
+        create: true,
+        instance: "canonical-cli-no-aliases",
+        scope,
+        specRevision,
+        credentials: [{ token, principal: "operator" }],
+      });
+      const created = success(
+        await cli(
+          ["create", "--id", "a", "--type", "https://types.invalid/Note", ...json],
+          directory,
+          scope,
+        ),
+        "mutation",
+      );
+      assert.equal(created.data.resource.id, `${scope}a`);
+      success(
+        await cli(["update", "a", "--properties", '{"n":1}', ...json], directory, scope),
+        "mutation",
+      );
+      const before = posts();
+      for (const args of [
+        ["alias", "put", "aliases/current", "--target", "a", ...json],
+        ["alias", "delete", "aliases/current", "--force", ...json],
+        ["alias", "resolve", "aliases/current", ...json],
+      ])
+        refused(
+          await cli(args, directory, scope),
+          5,
+          "unsupported_capability",
+          /does not advertise aliases/,
+        );
+      assert.equal(posts(), before, "an alias refusal sends no mutation");
+      assert(!requests.some((r) => r.path.includes("aliases/current")), "nor asks for the alias");
+      for (const [next, message] of [
+        ["members-unadvertised", /carries alias operations, but discovery does not advertise/],
+        ["advertised-no-members", /advertises aliases, but the Write operation directory omits/],
+        ["half", /invalid retained v0\.1 writeOperationDirectory/],
+      ]) {
+        shape = next;
+        refused(
+          await cli(
+            ["create", "--id", `b-${next}`, "--type", "https://types.invalid/Note", ...json],
+            directory,
+            scope,
+          ),
+          1,
+          "invalid_value",
+          message,
+        );
+        assert.equal(posts(), before, `${next} sends no mutation`);
+      }
+      shape = "advertised";
+      success(
+        await cli(["alias", "put", "aliases/current", "--target", "a", ...json], directory, scope),
+        "mutation",
+      );
+      assert.equal(posts(), before + 1);
+      assert.equal(
+        success(
+          await cli(["alias", "resolve", "aliases/current", ...json], directory, scope),
+          "reference",
+        ).data,
+        `${scope}a`,
+      );
     } finally {
       await reference?.close();
       await close(proxy);

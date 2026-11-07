@@ -1,0 +1,751 @@
+{
+  "status": "DRAFT_ARTIFACTS_NOT_PROVIDER_EXECUTION",
+  "scope": "https://work.invalid/acme/",
+  "capability": "https://github.com/gastownhall/bdp/capabilities/delete-modes",
+  "advertisement": {
+    "https://github.com/gastownhall/bdp/capabilities/delete-modes": {
+      "1": {
+        "except": true,
+        "maximumClosure": 10000,
+        "through": [
+          {
+            "type": "https://types.invalid/parent-child",
+            "match": "exact"
+          }
+        ],
+        "typeEffects": ["https://types.invalid/note"]
+      }
+    }
+  },
+  "modes": [
+    {
+      "intent": "Fail if incident Links",
+      "request": {
+        "bead": "a",
+        "blockedBy": "any"
+      }
+    },
+    {
+      "intent": "Delete incident Links, Bead survivors stay",
+      "request": {
+        "bead": "a",
+        "blockedBy": "none"
+      }
+    },
+    {
+      "intent": "Cascade, other Links removed",
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "intent": "Refuse only on Links whose target is this Bead",
+      "request": {
+        "bead": "a",
+        "blockedBy": "inbound"
+      }
+    },
+    {
+      "intent": "Cascade that refuses if anything outside is attached",
+      "request": {
+        "bead": "a",
+        "blockedBy": "any",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "intent": "Cascade with a default blockedBy and an exemption",
+      "request": {
+        "bead": "a",
+        "expectedRevision": "r7",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ],
+          "except": {
+            "bind": "b",
+            "predicate": {
+              "op": "compare",
+              "operator": "eq",
+              "left": {
+                "op": "field",
+                "of": {
+                  "op": "binding",
+                  "name": "b"
+                },
+                "path": ["properties", "status"]
+              },
+              "right": {
+                "op": "literal",
+                "value": "closed"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "intent": "Explicit committing form",
+      "request": {
+        "bead": "a",
+        "dryRun": false
+      }
+    },
+    {
+      "intent": "Several Beads, a Link between them does not block",
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "any"
+      }
+    },
+    {
+      "intent": "Several Beads with every default",
+      "request": {
+        "beads": ["a", "b"]
+      }
+    },
+    {
+      "intent": "Records who deleted it on every minted revision",
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "revisionProvenance": {
+          "actor": {
+            "id": "ana",
+            "basis": "writer-supplied"
+          }
+        }
+      }
+    }
+  ],
+  "nativeSingleton": [
+    {
+      "native": {
+        "ids": ["a"]
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "inbound"
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "expected_version": 7
+      },
+      "request": {
+        "bead": "a",
+        "expectedRevision": "r7",
+        "blockedBy": "inbound"
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "force": true
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "none"
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "force": true,
+        "expected_version": 7
+      },
+      "request": {
+        "bead": "a",
+        "expectedRevision": "r7",
+        "blockedBy": "none"
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "cascade": true
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "cascade": true,
+        "force": true
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "cascade": true,
+        "expected_version": 7
+      },
+      "request": {
+        "bead": "a",
+        "expectedRevision": "r7",
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "dry_run": true
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "inbound",
+        "dryRun": true
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "force": true,
+        "dry_run": true
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "dryRun": true
+      }
+    },
+    {
+      "native": {
+        "ids": ["a"],
+        "cascade": true,
+        "dry_run": true
+      },
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        },
+        "dryRun": true
+      }
+    }
+  ],
+  "result": {
+    "capabilityVersion": "1",
+    "changed": true,
+    "transaction": "t1",
+    "results": [
+      {
+        "operationIndex": 0,
+        "operation": "deleteBead",
+        "id": "https://work.invalid/acme/a"
+      },
+      {
+        "operationIndex": 1,
+        "operation": "deleteBead",
+        "id": "https://work.invalid/acme/a1"
+      }
+    ],
+    "resources": [
+      {
+        "id": "https://work.invalid/acme/a",
+        "resourceKind": "bead",
+        "outcome": "deleted",
+        "changed": true,
+        "deleted": {
+          "resourceKind": "bead",
+          "resource": {
+            "id": "https://work.invalid/acme/a",
+            "type": "https://types.invalid/note",
+            "revision": "r-last"
+          }
+        }
+      },
+      {
+        "id": "https://work.invalid/acme/a1",
+        "resourceKind": "bead",
+        "outcome": "deleted",
+        "changed": true,
+        "deleted": {
+          "resourceKind": "bead",
+          "resource": {
+            "id": "https://work.invalid/acme/a1",
+            "type": "https://types.invalid/note",
+            "revision": "r-last"
+          }
+        }
+      },
+      {
+        "id": "https://work.invalid/acme/l-child",
+        "resourceKind": "link",
+        "outcome": "deleted",
+        "changed": true,
+        "deleted": {
+          "resourceKind": "link",
+          "resource": {
+            "id": "https://work.invalid/acme/l-child",
+            "type": "https://types.invalid/parent-child",
+            "revision": "r-last"
+          }
+        },
+        "ownerRevisions": [
+          {
+            "id": "https://work.invalid/acme/a1",
+            "revision": "r-last"
+          }
+        ]
+      },
+      {
+        "id": "https://work.invalid/acme/l-other",
+        "resourceKind": "link",
+        "outcome": "deleted",
+        "changed": true,
+        "deleted": {
+          "resourceKind": "link",
+          "resource": {
+            "id": "https://work.invalid/acme/l-other",
+            "type": "https://types.invalid/parent-child",
+            "revision": "r-last"
+          }
+        },
+        "ownerRevisions": [
+          {
+            "id": "https://work.invalid/acme/z",
+            "revision": "r-new"
+          }
+        ]
+      },
+      {
+        "id": "https://work.invalid/acme/z",
+        "resourceKind": "bead",
+        "outcome": "updated",
+        "changed": true,
+        "resource": {
+          "id": "https://work.invalid/acme/z",
+          "type": "https://types.invalid/note",
+          "revision": "r-new",
+          "properties": {},
+          "metadata": {},
+          "ownedLinks": {}
+        }
+      }
+    ],
+    "removedLinks": [
+      {
+        "id": "https://work.invalid/acme/l-child",
+        "source": "https://work.invalid/acme/a1",
+        "target": "https://work.invalid/acme/a"
+      },
+      {
+        "id": "https://work.invalid/acme/l-other",
+        "source": "https://work.invalid/acme/z",
+        "target": {
+          "uri": "https://work.invalid/acme/a1",
+          "revision": "r1"
+        }
+      }
+    ],
+    "removedAliases": ["https://work.invalid/acme/k/a"]
+  },
+  "preview": {
+    "capabilityVersion": "1",
+    "dryRun": true,
+    "changed": false,
+    "results": [
+      {
+        "operationIndex": 0,
+        "operation": "deleteBead",
+        "id": "https://work.invalid/acme/a"
+      }
+    ],
+    "resources": [
+      {
+        "id": "https://work.invalid/acme/a",
+        "resourceKind": "bead",
+        "outcome": "deleted",
+        "deleted": {
+          "resourceKind": "bead",
+          "resource": {
+            "id": "https://work.invalid/acme/a",
+            "type": "https://types.invalid/note",
+            "revision": "r-last"
+          }
+        }
+      },
+      {
+        "id": "https://work.invalid/acme/z",
+        "resourceKind": "bead",
+        "outcome": "updated",
+        "revision": "r-current",
+        "proposed": {
+          "properties": {
+            "title": "edited by a declared effect"
+          }
+        }
+      }
+    ],
+    "removedLinks": [
+      {
+        "id": "https://work.invalid/acme/l-other",
+        "source": "https://work.invalid/acme/z",
+        "target": "https://work.invalid/acme/a"
+      }
+    ],
+    "removedAliases": ["https://work.invalid/acme/k/a"]
+  },
+  "capabilityProblems": [
+    "/beads",
+    "/blockedBy",
+    "/cascade",
+    "/cascade/except",
+    "/dryRun",
+    "/cascade/through"
+  ],
+  "semanticCases": [
+    {
+      "case": "self-Link, no selector",
+      "outcome": "incident-links-exist",
+      "code": "incident-links-exist"
+    },
+    {
+      "case": "self-Link, blockedBy any",
+      "outcome": "deleted; Link removed"
+    },
+    {
+      "case": "walk cycle a<-b<-a",
+      "outcome": "each Bead expanded once"
+    },
+    {
+      "case": "beads:[a,b] with b reachable from a under cascade",
+      "outcome": "one deleted row for b, two result mappings"
+    },
+    {
+      "case": "external source on an inbound Link, any or inbound",
+      "outcome": "incident-links-exist",
+      "code": "incident-links-exist"
+    },
+    {
+      "case": "external source on an inbound Link, none",
+      "outcome": "Link removed; URI untouched"
+    },
+    {
+      "case": "Link pinned to a@r1 keeping a live in-Scope Bead endpoint",
+      "outcome": "neither blocks nor is removed; not followed; no revision and no fact"
+    },
+    {
+      "case": "Link pinned to a@r1 whose other endpoint is external",
+      "outcome": "treated as unpinned: blocks or is removed"
+    },
+    {
+      "case": "cascade.through test not in an advertised list",
+      "code": "capability-not-supported",
+      "outcome": "refused at /cascade/through"
+    },
+    {
+      "case": "advertised exact test, request family test on the same Type",
+      "code": "capability-not-supported",
+      "outcome": "a test must equal a listed test exactly"
+    },
+    {
+      "case": "duplicate test in cascade.through",
+      "code": "malformed-request",
+      "outcome": "refused"
+    },
+    {
+      "case": "deleteBead selector inside an atomic batch",
+      "code": "malformed-request",
+      "outcome": "refused; plain deleteBead members unchanged"
+    },
+    {
+      "case": "Bead with aliases deleted, aliases advertised",
+      "outcome": "aliases removed in the same decision and listed in removedAliases; each locator released; a restore restores none"
+    },
+    {
+      "case": "dryRun on a Bead with aliases",
+      "outcome": "removedAliases lists them; none removed"
+    },
+    {
+      "case": "createBead supplying a deleted Bead's id",
+      "outcome": "a fresh revision under the same identity; nothing inherited"
+    },
+    {
+      "case": "createBead supplying a live, other-kind or retired id",
+      "code": "identity-taken",
+      "outcome": "refused"
+    },
+    {
+      "case": "deleted set over maximumClosure",
+      "outcome": "limit-exceeded; nothing deleted",
+      "code": "limit-exceeded"
+    },
+    {
+      "case": "except true of the named Bead",
+      "outcome": "validation-failed",
+      "code": "validation-failed"
+    },
+    {
+      "case": "through matches nothing",
+      "outcome": "named Bead alone; blocking decides"
+    },
+    {
+      "case": "hidden Link incident upon the deleted set, any mode",
+      "outcome": "incident-links-exist; no Resource named",
+      "code": "incident-links-exist"
+    },
+    {
+      "case": "hidden Bead admitted by a visible Link",
+      "outcome": "incident-links-exist; except not evaluated",
+      "code": "incident-links-exist"
+    },
+    {
+      "case": "dryRun with a retained different-meaning key",
+      "outcome": "idempotency-conflict",
+      "code": "idempotency-conflict"
+    },
+    {
+      "case": "dryRun with an unknown key",
+      "outcome": "preview; key not claimed"
+    },
+    {
+      "case": "replay of a committed cascade",
+      "outcome": "original result; no new walk"
+    },
+    {
+      "case": "no selector, singleton, Type listed in typeEffects",
+      "outcome": "unpinned incident Link refuses as ever"
+    },
+    {
+      "case": "no selector, batch removes the Link first, Type listed",
+      "outcome": "atomicBatchResult with an updated row for the survivor"
+    },
+    {
+      "case": "Type not listed",
+      "outcome": "no survivor changes other than owners; results byte-identical"
+    },
+    {
+      "case": "hidden Bead joined, Type listed, effect would not change it",
+      "code": "incident-links-exist",
+      "outcome": "refused regardless of hidden content"
+    },
+    {
+      "case": "visible survivor the principal cannot write, policy gives no grant",
+      "code": "forbidden",
+      "outcome": "whole request refused"
+    },
+    {
+      "case": "effect result fails final-graph validation",
+      "code": "validation-failed",
+      "outcome": "whole request refused"
+    },
+    {
+      "case": "replay after typeEffects or the definition changed",
+      "outcome": "original rows; effect not applied again"
+    },
+    {
+      "case": "beads:[a,b] with the only Link a->b, any",
+      "outcome": "both deleted; Link removed"
+    },
+    {
+      "case": "beads with one unknown or hidden Reference",
+      "code": "resource-not-found",
+      "outcome": "nothing deleted; the Reference is not named"
+    },
+    {
+      "case": "bead a and beads [a] under one key",
+      "code": "idempotency-conflict",
+      "outcome": "different invocations"
+    },
+    {
+      "case": "replay of a multi-Bead request",
+      "outcome": "original rows and transaction; nothing resolved again"
+    }
+  ],
+  "nativeMulti": [
+    {
+      "native": {
+        "ids": ["a", "b"]
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "inbound"
+      }
+    },
+    {
+      "native": {
+        "ids": ["a", "b"],
+        "force": true
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "none"
+      }
+    },
+    {
+      "native": {
+        "ids": ["a", "b"],
+        "cascade": true
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "native": {
+        "ids": ["a", "b"],
+        "cascade": true,
+        "force": true
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "native": {
+        "ids": ["a", "b"],
+        "dry_run": true
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "inbound",
+        "dryRun": true
+      }
+    },
+    {
+      "native": {
+        "ids": ["a", "b"],
+        "force": true,
+        "dry_run": true
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "none",
+        "dryRun": true
+      }
+    },
+    {
+      "native": {
+        "ids": ["a", "b"],
+        "cascade": true,
+        "dry_run": true
+      },
+      "request": {
+        "beads": ["a", "b"],
+        "blockedBy": "none",
+        "cascade": {
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
+        },
+        "dryRun": true
+      }
+    }
+  ],
+  "refusedRequests": [
+    {
+      "bead": "a",
+      "beads": ["a"]
+    },
+    {
+      "blockedBy": "any"
+    },
+    {
+      "beads": []
+    },
+    {
+      "beads": ["a", "a"]
+    },
+    {
+      "beads": ["a"],
+      "expectedRevision": "r7"
+    },
+    {
+      "beads": ["a", "b"],
+      "expectedRevision": "r7",
+      "blockedBy": "none"
+    },
+    {
+      "beads": ["@name"]
+    }
+  ],
+  "refusedPointers": [
+    "/bead",
+    "/operations/0/blockedBy",
+    "/operations/0/cascade",
+    "/operations/0/dryRun",
+    "/operations/0/beads",
+    "/fromRevision",
+    ""
+  ]
+}

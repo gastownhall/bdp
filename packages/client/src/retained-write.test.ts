@@ -146,6 +146,76 @@ describe("retained v0.1 base Write preparation", () => {
     expect(() => new RetainedWriteBinding(withDirectory(six))).toThrow();
   });
 
+  describe("alias operations are optional (Write: Ordinary targets)", () => {
+    const { aliases: _advertised, ...withoutAliases } = discovery;
+    const { putAlias: _put, deleteAlias: _delete, ...six } = directory;
+    const noAliases = (value: unknown): RetainedWriteBindingOptions => ({
+      ...withDirectory(value),
+      discovery: { contentType: media, bodyText: JSON.stringify(withoutAliases) },
+    });
+
+    it("binds the six Resource members when discovery omits aliases", () => {
+      const binding = new RetainedWriteBinding(noAliases(six));
+      expect(binding.aliasesSupported).toBe(false);
+      expect(binding.prepare("createBead", '{"type":"https://t.example/n"}', "k").url).toBe(
+        directory.createBead,
+      );
+      expect(binding.prepare("deleteLink", '{"link":"edge"}', "k").url).toBe(directory.deleteLink);
+    });
+
+    it.each([
+      ["putAlias", '{"alias":"ship","target":"n"}'],
+      ["deleteAlias", '{"alias":"ship"}'],
+    ] as const)("prepares no %s for a provider without aliases", (operation, body) => {
+      expect(() => new RetainedWriteBinding(noAliases(six)).prepare(operation, body, "k")).toThrow(
+        /does not advertise aliases/,
+      );
+    });
+
+    it("still reports and prepares aliases for a provider that advertises them", () => {
+      const binding = new RetainedWriteBinding(options());
+      expect(binding.aliasesSupported).toBe(true);
+      expect(binding.prepare("deleteAlias", '{"alias":"ship"}', "k").url).toBe(
+        directory.deleteAlias,
+      );
+    });
+
+    it("refuses alias members that discovery does not advertise", () => {
+      expect(() => new RetainedWriteBinding(noAliases(directory))).toThrow(
+        /carries alias operations, but discovery does not advertise aliases/,
+      );
+    });
+
+    it("refuses advertised aliases when the directory omits their operations", () => {
+      expect(() => new RetainedWriteBinding(withDirectory(six))).toThrow(
+        /advertises aliases, but the Write operation directory omits/,
+      );
+    });
+
+    it.each([
+      ["advertised, putAlias only", withDirectory, { ...six, putAlias: directory.putAlias }],
+      [
+        "advertised, deleteAlias only",
+        withDirectory,
+        { ...six, deleteAlias: directory.deleteAlias },
+      ],
+      ["unadvertised, putAlias only", noAliases, { ...six, putAlias: directory.putAlias }],
+      ["unadvertised, deleteAlias only", noAliases, { ...six, deleteAlias: directory.deleteAlias }],
+    ])("refuses half of the pair: %s", (_name, shape, value) => {
+      expect(() => new RetainedWriteBinding(shape(value))).toThrow();
+    });
+
+    it("holds a six-member directory to the same target rules", () => {
+      for (const value of [
+        { ...six, updateBead: six.createBead },
+        { ...six, createBead: "create-bead" },
+        { ...six, sequence: "https://dispatch.example/sequence" },
+        { createBead: six.createBead },
+      ])
+        expect(() => new RetainedWriteBinding(noAliases(value))).toThrow();
+    });
+  });
+
   it.each([
     { ...directory, updateBead: directory.createBead },
     { ...directory, sequence: "https://dispatch.example/sequence" },

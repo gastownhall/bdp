@@ -102,6 +102,19 @@ const rootedRequests = {
   createLink: "idRootCreateLinkRequest",
   atomicBatch: "idRootBatchRequest",
 };
+export const deleteModesSchemaFile = "specs/profiles/write/delete-modes-v1.schema.json";
+const deleteModesRef = (name) => ({
+  $ref: `../profiles/write/delete-modes-v1.schema.json#/$defs/${name}`,
+});
+const deleteModeArms = {
+  deleteBead: {
+    requests: ["deleteModesRequest"],
+    successes: ["deleteModesResult", "deleteModesPreview"],
+    problem: "deleteModesProblem",
+    selector: "beads, blockedBy, cascade or dryRun present on this delete body",
+    requiredComposition: "Write plus delete-modes1",
+  },
+};
 export const operationSources = [
   "specs/profiles/core/core.md",
   "specs/profiles/write/write.md",
@@ -716,6 +729,25 @@ export function pathItem(row) {
             op["x-bdp-applicable-problem-codes"].push("capability-not-supported");
         }
       }
+      const deleteModes = post ? deleteModeArms[row.id] : undefined;
+      if (deleteModes) {
+        op["x-bdp-feature-arms"] = [
+          {
+            capability: capability("delete-modes"),
+            version: "1",
+            selector: deleteModes.selector,
+            absence: "Unchanged base request, result and Problems; no implicit feature selection",
+            requiredComposition: deleteModes.requiredComposition,
+            operation: "Same existing operation URL and media",
+            request: { oneOf: deleteModes.requests.map(deleteModesRef) },
+            success: { oneOf: deleteModes.successes.map(deleteModesRef) },
+            problem: deleteModesRef(deleteModes.problem),
+            grammar: "specs/profiles/write/write.md#optional-deletion-modes-version-1",
+          },
+        ];
+        if (!op["x-bdp-applicable-problem-codes"].includes("capability-not-supported"))
+          op["x-bdp-applicable-problem-codes"].push("capability-not-supported");
+      }
       if (historical) {
         op["x-bdp-feature-selection"] = {
           ...row.navigation.feature,
@@ -826,6 +858,7 @@ export function generateArtifacts() {
       "packages/protocol/schemas/bdp-v0.1.schema.json",
       schemaFile,
       idRootSchemaFile,
+      deleteModesSchemaFile,
       historicalSchemaFile,
       "packages/protocol/schemas/historical-update-v1.schema.json",
     ].map((path) => [path, digest(readFileSync(resolve(root, path)))]),
@@ -997,7 +1030,7 @@ export function generateArtifacts() {
     "",
     "Scope landing and the Write directory are shared transport setup. Discovery also serves scope inspect. Exact-definition lookup is a selected interpreter operation whose public Type CLI remains deferred. Historical-update current/terminal reads are explicit SDK/HTTP feature methods with no selected public CLI read flag or verb; bd update --from-revision selects the existing Update route with feature media. HEAD and paging remain mechanics of the selected read.",
     "",
-    "[Command/wire exceptions and completion gaps](../../docs/cli-design/wire-correspondence.md) distinguish portable direct operations from host adapters, request composition and unfinished feature correspondence. [Wire coverage](coverage.md) retains all validation cases. Rooted allocation selects id-root1 on existing create/batch routes; it adds no public command or endpoint. Service-side Type default pinning requires no client definition prefetch.",
+    "[Command/wire exceptions and completion gaps](../../docs/cli-design/wire-correspondence.md) distinguish portable direct operations from host adapters, request composition and unfinished feature correspondence. [Wire coverage](coverage.md) retains all validation cases. Rooted allocation selects id-root1 on existing create/batch routes; it adds no public command or endpoint. Deletion modes select delete-modes1 on the existing deleteBead and atomic-batch1 routes; they add no endpoint. Service-side Type default pinning requires no client definition prefetch.",
     "",
   ];
   const coverage = [
@@ -1026,7 +1059,7 @@ export function generateArtifacts() {
     "",
     "JSON fields/media and exact response constraints are in the catalog. Problem unions may contain inherited inapplicable cases: singleton binding-unavailable is excluded; Type-specific duties remain conditional. Native authorization, admission order, id/key/owner/revision correlation, cursor context and capability checks require semantic implementation.",
     "",
-    "The narrow exact-definition wrapper forbids Resource/Collection kind headers and is not a Type inventory or application History advertisement. Projection fields are JSON encoded in one query value; parsed-query helpers are not raw HTTP bodies. Advertised optional Events are finite JSON; optional delta must be selected. The separately selected id-root1 composition adds rooted creates without changing base batch1. CLI encoder2 and display/JSONL/retry-file mechanics are not selected version1 HTTP grammar.",
+    "The narrow exact-definition wrapper forbids Resource/Collection kind headers and is not a Type inventory or application History advertisement. Projection fields are JSON encoded in one query value; parsed-query helpers are not raw HTTP bodies. Advertised optional Events are finite JSON; optional delta must be selected. The separately selected id-root1 composition adds rooted creates without changing base batch1. The separately selected delete-modes1 composition adds deletion modes without changing base deleteBead or batch1; its arms are recorded in x-bdp-feature-arms. CLI encoder2 and display/JSONL/retry-file mechanics are not selected version1 HTTP grammar.",
     "",
   );
   return {

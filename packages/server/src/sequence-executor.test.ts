@@ -773,7 +773,7 @@ const problemRows: readonly [ReadUpdateProblemCode, string, number, string][] = 
   ["binding-unavailable", "request", 400, "never"],
   ["validation-failed", "validation", 422, "never"],
   ["type-not-installed", "validation", 422, "after-state-change"],
-  ["identity-taken", "conflict", 409, "never"],
+  ["identity-taken", "conflict", 409, "after-state-change"],
   ["alias-path-taken", "conflict", 409, "after-state-change"],
   ["revision-mismatch", "conflict", 409, "after-state-change"],
   ["incident-links-exist", "conflict", 409, "after-state-change"],

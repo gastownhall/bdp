@@ -147,12 +147,13 @@ substitutes for ordinary flags.
 | link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
 | update REF [--type REF] [OBJECT-EDITS] [--from-revision REV] [--if-revision TOKEN] | updateBead; source-only historical Update requires its selected extension |
 | link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; whole endpoint corrections preserve Link identity |
-| delete REF --force [--if-revision TOKEN] | deleteBead apply |
+| delete REF --force [--if-revision TOKEN] | deleteBead apply; [proposed deletion-mode flags](#proposed-deletion-mode-flags) select delete-modes1 |
 | link delete REF --force [--if-revision TOKEN] | deleteLink apply |
 | alias resolve NAME | One-step alias Location, never target body |
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
 | alias delete NAME --force | deleteAlias, explicit apply intent |
 | batch [SCOPE] --file FILE [--input-format json|jsonl] | JSONL authoring or native JSON; no raw CLI text; [current grammar](#atomic-batch) |
+| call [NAME] [--arguments JSON] [CLIENT-OPTIONS] | POST the optional Callables mount, with the arguments as one JSON object; [`bd call`](#bd-call) |
 | type list [SCOPE] | Deferred Type CLI placeholder; no invented inventory payload/path |
 
 Read filters are --type (family), --exact-type (nominal), --selector, and Link
@@ -178,7 +179,8 @@ it does not make an otherwise empty update valid. No source-guard flag is invent
 
 Plain Resource delete without --force performs an observational point-read preview,
 not mutation admission. It returns the ordinary Resource descriptor with outer
-context.preview=delete. Preview reserves nothing. Mutation-only guard/provenance/key/
+context.preview=delete, and human output says nothing was deleted and how to apply it.
+Preview reserves nothing. Mutation-only guard/provenance/key/
 emission/retry inputs require apply intent; apply rechecks everything. Alias deletion
 requires --force and has no Resource preview. --force never reaches the wire or
 waives integrity/authorization. Bead deletion admits no induced-version provenance;
@@ -197,7 +199,8 @@ Keys and retry files apply only against a Scope advertising Write's `idempotency
 capability. Against a Scope without it the client sends no key, and
 `--idempotency-key` and `--retry-file` refuse before transmission. A lost response
 is then recovered by reading: `--if-revision` guards an update or deletion, and a
-supplied `--id` makes a repeated creation `identity-taken`. A repeated creation
+supplied `--id` makes a repeated creation `identity-taken` while that Bead is live; one
+arriving after its deletion adds a revision under that identity. A repeated creation
 without `--id` allocates a second identity, so the client reports such an uncertain
 outcome and does not retry it automatically. `alias put`, `alias delete` and
 `alias resolve` refuse before dispatch against a Scope that does not advertise
@@ -336,8 +339,9 @@ mapping from those canonical commands to BDP is defined here.
 The reference executable generates help and parsing from one command tree. Its
 help follows the product's grouped layout; this does not import the product's
 global flag inventory. The only imported product global is `--actor ACTOR`,
-registered on commands that admit per-version provenance: Bead create/update and
-Link create/update/delete. It lowers to
+registered on commands that admit per-version provenance: Bead create/update,
+Link create/update/delete, `call` and every command the [Callable tree](#bd-call)
+mounts, in any position on those last two. A CallableQuery refuses it. It lowers to
 `revisionProvenance.actor:{"id":ACTOR,"basis":"writer-supplied"}`.
 Conflicting explicit actor provenance refuses; no actor is silently overwritten.
 It supplies attribution, never authentication, credential selection or authority.
@@ -1143,11 +1147,17 @@ and retry inputs require apply intent; a saved retry already carries that intent
 
 With `--force`, invoke the ordinary deletion and recheck all admission conditions.
 The flag does not waive authorization, integrity or revision guards and does not
-reach the wire. The target remains unpinned. Deleted canonical IDs stay reserved.
+reach the wire. The target remains unpinned. A deleted canonical ID names no other
+Resource, and a later creation supplying it adds a revision under that identity.
 
-A Bead with live incident Links cannot be deleted. Remove those Links explicitly;
-there is no implicit cascade. Bead deletion accepts no revision-provenance input
-and creates no fictitious deleted Resource version.
+A Bead with live incident Links through an unpinned endpoint cannot be deleted by this
+command. Remove those Links explicitly; there is no implicit cascade. A Link that
+[survives under its pin](../../specs/profiles/write/write.md#pinned-endpoints-on-deletion)
+does not block. The separately selected
+[delete-modes1 capability](../../specs/profiles/write/write.md#optional-deletion-modes-version-1)
+states a removal or cascade explicitly on the wire. Deletion removes the Bead's aliases
+and the result lists them. This command has no flag yet for the deletion's wire
+`revisionProvenance` input, and it creates no fictitious deleted Resource version.
 
 
 ##### Results
@@ -1191,6 +1201,25 @@ bd delete note-1 --force --if-revision saved-r7
 bd delete note-1 --force --dry-run-mode batch
 
 ```
+
+##### Proposed deletion-mode flags
+
+These flags are a proposal for
+[delete-modes1](../../specs/profiles/write/write.md#optional-deletion-modes-version-1).
+The canonical parser does not register them, so they are outside the Flags table
+that `scripts/cli-spec-correspondence.mjs` compares with the parser, and using one
+today is a usage error. `--force` stays client apply intent with no native field;
+it does not mean `blockedBy:"none"`. A client refuses these flags before dispatch
+unless discovery advertises the capability.
+
+| Proposed input | Protocol request or client behavior |
+| --- | --- |
+| `--blocked-by any\|inbound\|none` | Set `blockedBy`. Omission with no other mode flag sends no member. |
+| `--cascade-through TYPE` | Set `cascade.through` to the one-test list `[{type:TYPE,match:"family"}]`, matching `--type`. |
+| `--cascade-through-exact TYPE` | Set `cascade.through` to the one-test list `[{type:TYPE,match:"exact"}]`, matching `--exact-type`; conflicts with `--cascade-through`. |
+| `--cascade-except JSON` | Set `cascade.except` to the closed `{bind,predicate}` value; requires a through flag and advertised `except:true`. |
+| `--dry-run-mode service` | Set `dryRun:true` and print the service's preview, including declared deletion effects. It requires no `--force`. `batch` and `bdp` keep their meanings. |
+| More than one REF | POST one `deleteBead` with `beads` holding each distinct REF and the mode members. No batch capability is involved. `--if-revision` is refused here. |
 
 #### `bd list`
 
@@ -2633,7 +2662,7 @@ The selected version must be implemented by the compiler and advertised by the
 authority for execution. Every native request states the exact version; no
 provider-driven version choice, automatic downgrade or reinterpretation is
 allowed. Transaction-scoped List and Query are advertised independently.
-Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1) separately selects rooted creation. Named List/Query selection and set targets belong
+Unextended version 1 retains six CRUD members and creation captures; [id-root1](../../specs/profiles/write/write.md#optional-rooted-allocation-version-1) separately selects rooted creation and [delete-modes1](../../specs/profiles/write/write.md#optional-deletion-modes-version-1) separately selects deletion modes. Named List/Query selection and set targets belong
 to the explicitly proposed version-2 grammar. Unsupported selection refuses;
 there is no downgrade, client-side preselection, independent-write fallback or
 automatic chunking.
@@ -2765,6 +2794,203 @@ bd batch --file review.json --input-format json
 
 # Recover an uncertain batch using its frozen original invocation.
 bd batch --retry-file private-replay.json
+
+```
+
+### Callables
+
+#### `bd call`
+
+Invoke one named Callable, or list what can be called. This is the client side of
+[Callables §10](../../specs/profiles/callables/callables.md#10-cli-correspondence),
+which the generic executable spells `bdp call`. `call` takes the arguments as one JSON
+object and never reads `cliMapping`. Each Callable is also mounted as a command by its
+name, and only those commands derive flags and positions. There is no
+per-Callable code, and native command spellings such as `bd ready` are separate work.
+
+##### Usage
+
+```text
+bd call NAME [--arguments JSON] [CLIENT-OPTIONS]
+bd call NAME --help
+bd call
+bd [CLIENT-OPTIONS] WORD... [CALLABLE-ARGUMENTS]
+bd [CLIENT-OPTIONS] WORD... --help
+```
+
+Client options may come anywhere on `call`. Any other flag or position after NAME is
+refused, and the refusal names `--arguments`. `call` sends exactly the `--arguments`
+object, or `{}`.
+
+##### The command tree
+
+A Callable's name gives its place in the tree, one word per segment: `issue/dep/add` is
+`bd issue dep add`, which reaches the same Callable as `bd call issue/dep/add`. Client
+options, `--revision-provenance` among them, come before the first word, and everything
+after the command is the Callable's own, except `--actor`, so a Callable may declare a
+flag spelled like any other client option. `--help` at a word
+that groups Callables lists what is beneath it, and the root help lists each first word. A built-in command wins any collision,
+whole first word included, and `call NAME` always reaches the Callable. The Issue
+document's 45 names collide with no built-in.
+
+##### `--actor`
+
+`--actor ACTOR` is attribution on both forms and in any position: before, between or
+after a tree command's words, and anywhere on `call`. It lowers to
+`revisionProvenance.actor` with `basis:"writer-supplied"` on a CallableBatch, and a
+CallableQuery refuses it. Repeating one value changes nothing, and two different values
+are refused. A parameter named `actor` derives no flag and its value goes in
+`--arguments`; a declaration cannot alias `--actor` to a parameter.
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| NAME | To invoke | The Callable's full local Resource ID, such as `reserve-room` or `rooms/reserve`. Without it, the command lists the names it knows. |
+| CALLABLE-ARGUMENTS | No | On a tree command, the flags and positions below. |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--arguments JSON` | `{}` | On `call`, the invocation's `arguments` object. |
+| `--scope SCOPE` | Command context | Choose the Scope to invoke against. See [Scope selection](#scope-selection). |
+| `--actor ACTOR` | None | In any position on `call` or a tree command, lower to `revisionProvenance.actor` as [Write commands do](#common-flags-and-reference-syntax). Refused on a CallableQuery. |
+| `--revision-provenance JSON` | None | Supply Write's attribution input, which conflicts with a different `--actor`. Refused on a CallableQuery. See [properties and provenance](#object-inputs). |
+| `--idempotency-key KEY` | Generated | Use this key on a CallableBatch under Write's `idempotency`. Refused on a CallableQuery and against a Scope without that capability. |
+| `--output-format FORMAT` | `default` | Accepts `default`, `detail`, `json` or `jsonl`. See [output](#output-controls). |
+
+##### Tree command arguments
+
+On a tree command, flags derive from the declaration, so most declarations need no CLI
+section. None of this applies to `call`:
+
+| Declared | CLI form |
+| --- | --- |
+| Any parameter other than `actor` | `--kebab-name`, from the parameter name split at `_`, `-` and lower-to-upper boundaries, lowercased and joined with `-`. |
+| `schema` of type `boolean` | `--flag` and `--no-flag`. |
+| `schema` of type `array` | The flag repeats, one item each. An item whose schema is not a string is parsed as JSON. |
+| Any other non-string `schema` | The flag's value is parsed as JSON. |
+| `cliMapping.flags` | Adds spellings such as `-l`; the derived flag remains. |
+| `cliMapping.positionals` | Lets a position stand for a flag. |
+| `cliMapping.fromFile` | Adds flags whose value is a path, `-` meaning stdin. The content, unchanged, is treated as that parameter's flag value. |
+| `cliMapping.memberFlags` | Gives a member of an object parameter its own flag: `--kebab-member` and any `names`, in the form its schema gives by the rows above. `--status X` on `issue update` sends `{"patch":{"status":"X"}}`. The parameter's own flag still works. |
+| `--arguments JSON` | Supplies the whole arguments object; explicit flags and positions override its members, and a repeated array flag replaces the whole array. A member flag then replaces its one member and leaves the others, over `--arguments` and over the parameter's own flag, and is refused if what it would be written into is not an object. |
+| `--help` | Prints the usage, then `title`, then the parameters and their flags with a line of text each, without invoking. It names `bd call NAME --help`, which prints the whole declaration: `title`, `description`, the parameters and any declared errors. |
+
+A `$ref` is followed inside the schema that carries it before its type is read, and a
+schema admitting only strings by `enum`, `const` or a union of strings counts as a
+string. A flag value that begins with `--` uses the `--flag=VALUE` form; after a bare
+`--`, every token is an operand. A flag given twice, other than an array's, is refused,
+as is a position together with its flag.
+
+Under [Callables §10](../../specs/profiles/callables/callables.md#10-cli-correspondence),
+a parameter declared with the flag `--no-x` keeps it, and a boolean parameter `x` then
+has no derived `--no-x`. So `--no-pinned` on `issue/list` is `no_pinned`, and
+`pinned: false` is reachable only through `--arguments`.
+
+##### Behavior
+
+The client preserves omission and `null`, and never substitutes a default, on either
+form: an omitted parameter stays omitted and the service applies its default, which
+`--help` shows as the parameter's declared `default`. So `bd issue close bd-1` sends no
+`reason`, and it behaves as `bd call` and an HTTP caller do. It does not check
+arguments or results against their schemas; checking arguments is the service's job
+and checking a result is optional. It sends unknown `--arguments` members unchanged,
+so the service refuses them.
+
+Callables §10 has the client learn what can be called from `GET <scope>/bdp/call`. This
+reference does not read it yet: its catalog is generated from the Issue document by
+`scripts/generate-callable-catalog.mjs` and checked in, so listing and `--help` need
+no Scope. Nothing above the catalog assumes that source.
+
+The command reads discovery and refuses a Scope that does not advertise Callables1. It
+asks for that capability and no profile, so a Core Scope advertising Callables1 may
+offer a CallableBatch.
+
+##### Results
+
+The global `--output-mode human|json` applies as for every command. `--pretty`, `--long`
+and `--silent` are not carried on these commands.
+
+Success returns the closed `callableResult` as `data` under `result_kind`
+`callable_result`, with `changed` on a CallableBatch. Human output is one generic form
+for every Callable, with no per-package presentation: `changed` when there is one, on
+one line when the result's own `changed` agrees and both labeled when it does not, a
+table for an array of records and for such a member of a record, `key: value` lines for
+any other record, and the value itself for anything else. A table leaves out a column
+empty in every row, and shortens a long cell and says so; `key: value` lines keep the
+value whole. `--output-format detail` prints that object as indented JSON. Listing uses
+`result_kind` `callable_catalog`.
+
+##### Errors and exit status
+
+Uses the [common exit statuses](#exit-status). A usage error, an unknown NAME, two
+different `--actor` values or an attribution or key on a CallableQuery returns `2`,
+before any request.
+`callable-not-found` returns `3`, `revision-mismatch` returns `4`, and a Scope that
+does not advertise what the invocation requires returns `5`. Every other failure
+returns `1`, with the native Problem unchanged under `origin:bdp`.
+
+Human output writes a failure to stderr as text a person reads, at the same status:
+`error:`, the codes, the Problem's `detail`, then its diagnostics and the members of an
+`error` value on lines of their own. `--output-mode json` is the structured form, on
+stdout, and carries the Problem unchanged.
+
+A failure with no Problem to show says what happened under `origin:cli`, with code
+`delivery_failed`: which stage failed and, when the service answered, its URL, status and
+content type, never its body. So a service with no BDP discovery reads
+`BDP discovery of SCOPE failed: SCOPE answered HTTP 404 (...)`.
+
+A `callable-error` is the operation's own answer: its `error` value stays inside that
+Problem, on the error path, with status `1`. A system failure is a different diagnosis
+at the same status: a standard 5xx Problem such as `temporarily-unavailable` carries
+no `error`. Tell them apart by `code`.
+
+What a Problem says about effects follows the declaration. From a CallableBatch
+declared `atomic`, nothing committed (`context.effects:"none"`). Otherwise a Problem
+does not establish that (`context.effects:"not-established"`), and a 5xx other than
+`callable-unavailable`, or a lost response, reports outcome `unknown`. A key that was
+sent is then in `context.idempotency_key`; repeat with `--idempotency-key` to recover.
+This command has no retry file. A CallableQuery changes nothing, so its outcome is
+never `unknown`.
+
+##### Protocol correspondence
+
+| CLI input | Protocol request or client behavior |
+| --- | --- |
+| NAME | `POST <scope>/bdp/call/NAME`, each segment encoded as in a canonical URL. |
+| Flags, positions, `--arguments` | The `arguments` object, `{}` when none is given. |
+| `--actor`, `--revision-provenance` | `revisionProvenance`, on a CallableBatch only, and never a member of `arguments`. |
+| CallableBatch under `idempotency` | One generated or supplied `Idempotency-Key`. |
+| CallableBatch without `idempotency`, CallableQuery | No `Idempotency-Key`. |
+| Any invocation | `Content-Type: application/vnd.bdp.v0.1+json`. |
+| WORD... | `POST <scope>/bdp/call/` and the words joined with `/`. |
+
+##### Examples
+
+```sh
+# List the names this client knows.
+bd call
+
+# Read one Callable's parameters and declared errors.
+bd call reserve-room --help
+
+# Supply the arguments and attribute the batch.
+bd call reserve-room --arguments '{"room":"cedar","day":"2026-11-20"}' --actor sam
+
+# Its command: a position and an alias. The service defaults the type.
+bd issue create "Fix login" -p 1 --actor sam
+
+# Two positions under a longer word path; --actor may also come first.
+bd --actor sam issue dep add bd-1 bd-2
+
+# A comment is signed by its actor.
+bd issue comment bd-1 "Looks right" --actor sam
+
+# Send the description from stdin; list what the tree mounts under one word.
+bd issue create "Fix login" --body-file - --actor sam < notes.md
+bd issue --help
 
 ```
 

@@ -48,6 +48,8 @@ export function createRetainedCollections(
   navigation: PrivateNavigation,
   epoch: string,
   list: (kind: ResourceKind) => readonly JsonObject[],
+  /** A native fixed catalog's `conformsTo`; undefined leaves the parameter unsupported. */
+  conformsTo?: (family: string, type: string) => boolean | undefined,
 ) {
   const paging = createContextualReadPagination<JsonObject>({
     scope: navigation.scope,
@@ -84,8 +86,9 @@ export function createRetainedCollections(
       for (const name of params.keys())
         if (!names.includes(name) || params.getAll(name).length !== 1)
           throw new RetainedRequestError("invalid-parameter", 400);
+      const family = params.get("conformsTo");
       if (
-        params.has("conformsTo") ||
+        (family !== null && conformsTo?.(family, family) !== true) ||
         (kind === "bead" && ["source", "target", "endpoint"].some((n) => params.has(n)))
       )
         throw new RetainedRequestError("invalid-parameter", 400);
@@ -154,6 +157,7 @@ export function createRetainedCollections(
           )
             return false;
           if (filters.type !== undefined && uri("type") !== filters.type) return false;
+          if (family !== null && conformsTo?.(family, uri("type")) !== true) return false;
           if (filters.source !== undefined && uri("source") !== filters.source) return false;
           if (filters.target !== undefined && uri("target") !== filters.target) return false;
           if (

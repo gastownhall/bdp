@@ -9,6 +9,8 @@ The editorial review corpus contains four selected protocol documents, the propo
 5. [Transfer — proposed](profiles/transfer/transfer.md) — complete retained-data packages and original-state admission; [remaining design work](../docs/spec-review/transfer-review.md) is explicit.
 6. [CLI](../docs/cli-design/bdp-cli.md) — shared command behavior, output and protocol correspondence. The [mismatch audit](../docs/spec-review/cli-mismatches.md) records its current reconciliation work.
 
+Editorial drafts for the preview pin, not selected until Donna marks them: [Callables](profiles/callables/callables.md), and the Issue package in two halves, [Issue and Dependency Types](types/issue/issue.md) and [Issue and Dependency Callables](types/issue/callables.md).
+
 Each document states its current rules directly. No retained-profile wrapper, amendment list, source map or historical document is required to reconstruct a rule. Core works without Write or Types. Write and Types add their stated responsibilities without changing Core identity or read meanings.
 
 ## Editorial review status
@@ -25,6 +27,6 @@ The two BDP v0 schema copies, [specs source](profiles/core/bdp-v0.schema.json) a
 - The [current OpenAPI catalog](openapi/README.md) is generated from visible profile appendices. Its checks are separate from implementation qualification.
 - The CLI is a client specification, not another protocol profile. Its proposed encodings remain proposals unless expressly selected.
 - [Historical source](history/pre-canonical-20261101/README.md) preserves the inputs to this consolidation and their immutable original revisions.
-- [Query design context](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md), [Issue/Dependency domain draft](types/issue/issue.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
+- [Query design context](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
 
 Protocol semantics, client design, implementation support and release qualification are distinct. A document's location or a schema-valid example is not an implementation claim.

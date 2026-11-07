@@ -239,7 +239,7 @@ describe("private Core-only Link decisions", () => {
   });
   it("keeps terminal incident refusal after the graph clears and never reuses a Link identity", () => {
     const { store } = setup();
-    store.createLink("p", create());
+    store.createLink("p", create("edge", { source: "left" }));
     const attempt = prepareDelete(scope, '{"bead":"left"}', "blocked");
     const blocked = store.deleteBead("p", attempt);
     expect(JSON.parse(blocked.text).code).toBe("incident-links-exist");

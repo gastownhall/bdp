@@ -192,7 +192,7 @@ Read+Update discovery row does not restore the Read-only shape.
 | `read-update.singleton.document-patch-merge-replace` | On both Beads and Links, top-level `add` replaces only the named member while root `replace` replaces the complete selected `properties` or `metadata` object; `{}` clears that object |
 | `read-update.singleton.document-patch-atomicity` | One update changes `properties` and `metadata` atomically under one revision; an equal combined result retains the revision and the entire `revisionProvenance` envelope |
 | `read-update.singleton.document-patch-validation` | A patch yielding a non-object document or Type-invalid `properties` fails the whole update without changing either document |
-| `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a live incident Link fails it with `incident-links-exist` |
+| `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a Link incident through an unpinned endpoint, or pinned with no other live in-Scope endpoint, fails it with `incident-links-exist` |
 | `read-update.singleton.incident-links-nondisclosure` | A Bead deletion blocked by hidden incident Links fails with `incident-links-exist` and withholds the hidden Links that caused it |
 | `read-update.singleton.create-link` | `create-link` resolves endpoint spellings to canonical URLs and echoes a pin byte-identically |
 | `read-update.singleton.update-link` | `update-link` returns the Link postimage; an unowned Link's update moves only the Link's own revision and versions no endpoint |
@@ -259,7 +259,7 @@ Read+Update discovery row does not restore the Read-only shape.
 | `read-update.problem.table` | Every Read+Update code serializes with its exact family, status, retry disposition, Problem media type, and `private, no-store` protection |
 | `read-update.validation.type-contract` | An inadmissible result fails with `validation-failed`, and an uninstalled Type fails with `type-not-installed`, changing nothing |
 | `read-update.validation.diagnostics` | A Type-contract `validation-failed` carries `diagnostics` naming the effective Type and absolute keyword location within advertised bounds, and flags omitted entries with `diagnosticsTruncated` |
-| `read-update.validation.identity-taken` | A supplied `id` that was ever committed, including a hidden or deleted one, fails with `identity-taken` — the one inherent existence signal, acknowledged as such |
+| `read-update.validation.identity-taken` | A supplied `id` that is live, was committed for the other Resource kind, is retired or names a deleted Link, including a hidden one, fails with `identity-taken` — the one inherent existence signal, acknowledged as such; `createBead` supplying a deleted Bead's `id` instead adds a revision under that identity |
 | `read-update.validation.aggregate-constraint` | A mutation that would cross an advertised maximum endpoint multiplicity fails with `aggregate-constraint-violation` |
 | `read-update.http.command-minimum-fields` | Mutation POSTs ignore the three read-consistency fields without a minimum-position barrier or command-identity effect, preserving ordinary admission and read minima |
 | `read-update.http.request-too-large` | A request body above the advertised `request.bodyBytes` is rejected with `request-too-large` before execution |

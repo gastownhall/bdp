@@ -2257,7 +2257,7 @@
                 "const": 409
               },
               "retry": {
-                "const": "never"
+                "const": "after-state-change"
               }
             }
           }

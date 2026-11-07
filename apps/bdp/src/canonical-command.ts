@@ -14,6 +14,8 @@ export interface CanonicalCommandOptions {
   readonly onInvocation: (invocation: CanonicalInvocation) => void | Promise<void>;
   readonly writeOut?: (text: string) => void;
   readonly writeErr?: (text: string) => void;
+  /** Words the Callable tree mounts, listed in root help (Callables §10). */
+  readonly callableGroups?: readonly { readonly name: string; readonly description: string }[];
 }
 
 type Flag = readonly [syntax: string, description: string, choices?: readonly string[]];
@@ -43,6 +45,31 @@ const repeated = new Set([
   "include",
   "omit",
 ]);
+
+/** The code of the Commander error for two different `--actor` values, so its message survives. */
+export const ACTOR_CONFLICT = "bdp.actorConflict";
+
+/** `bdp [client options] WORD ...`: the options before the first word and the words from it on,
+ * or undefined when there is no word. Used to mount the Callable tree (§10), where everything
+ * after the command is the Callable's own. */
+export function splitLeadingWords(
+  args: readonly string[],
+  arities: ReadonlyMap<string, boolean>,
+): { readonly client: readonly string[]; readonly words: readonly string[] } | undefined {
+  const client: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index] ?? "";
+    if (argument === "--") return undefined;
+    if (argument.length > 1 && argument.startsWith("-")) {
+      client.push(argument);
+      if (!argument.includes("=") && arities.get(argument) === true && index + 1 < args.length)
+        client.push(args[++index] ?? "");
+      continue;
+    }
+    return { client, words: args.slice(index) };
+  }
+  return undefined;
+}
 
 /** No storage, input-file reading, credentials, or network access occurs here. */
 export function createCanonicalCommand(settings: CanonicalCommandOptions): Command {
@@ -106,7 +133,12 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       });
   }
 
-  function flag(command: Command, [syntax, description, choices]: Flag): void {
+  function flag(
+    command: Command,
+    [syntax, description, choices]: Flag,
+    /** The same value may repeat, and two different values are refused rather than one winning. */
+    agreeing = false,
+  ): void {
     const option = new Option(syntax, description);
     if (choices) option.choices([...choices]);
     const name = option.attributeName();
@@ -116,8 +148,15 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
     command.addOption(option);
     registered.push({ owner: command, name });
     let count = 0;
-    command.on(`option:${option.name()}`, () => {
-      if (++count > 1 && !repeatable)
+    let held: unknown;
+    command.on(`option:${option.name()}`, (value: unknown) => {
+      if (agreeing) {
+        if (count++ > 0 && value !== held)
+          command.error(`${option.long} was given with different values`, {
+            code: ACTOR_CONFLICT,
+          });
+        held = value;
+      } else if (++count > 1 && !repeatable)
         command.error(`option '${option.long}' may only be specified once`);
     });
   }
@@ -178,6 +217,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   function execute(
     command: Command,
     validate?: (options: Record<string, unknown>, args: string[], explicit: Set<string>) => void,
+    operands: (command: Command) => string[] = (selected) => selected.processedArgs as string[],
   ): void {
     command.action(async () => {
       const options: Record<string, unknown> = command.optsWithGlobals();
@@ -197,7 +237,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
           )
           .map(({ name }) => (name === "from_revision" ? "fromRevision" : name)),
       );
-      const args = command.processedArgs as string[];
+      const args = operands(command);
       if (options.cliProfile !== undefined && options.cliProfile !== settings.profile)
         command.error("select the CLI profile before constructing its command tree");
       if (options.retryFile !== undefined) {
@@ -560,5 +600,22 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       "emission conflicts with display controls and execution keys",
     );
   });
+
+  const call = add(root, "call", "Invoke a named Callable.", "Callable Commands", ["[name]"])
+    .usage("[NAME] [--arguments JSON] [client options]")
+    .allowExcessArguments(true)
+    .allowUnknownOption(true);
+  flag(call, ["--arguments <json>", "The Callable's arguments, as one JSON object."]);
+  flag(call, ["--idempotency-key <key>", "Use this exact key on a CallableBatch."]);
+  flag(call, ["--revision-provenance <json>", "Supply admitted per-version provenance input."]);
+  flag(
+    call,
+    ["--actor <actor>", "Supply caller actor input; never authentication or authority."],
+    true,
+  );
+  outputFlags(call, false, false, false);
+  execute(call, undefined, (selected) => selected.args);
+  for (const { name, description } of settings.callableGroups ?? [])
+    add(root, name, description, "Callable Commands");
   return root;
 }

@@ -255,7 +255,7 @@ describe("Core-only Link wire correspondence", () => {
     const blocked = await wire(
       server.listenUrl,
       server.targets.deleteBead,
-      { bead: "left" },
+      { bead: "right" },
       { "idempotency-key": "blocked" },
     );
     expect(blocked.status).toBe(409);
@@ -279,7 +279,7 @@ describe("Core-only Link wire correspondence", () => {
         await wire(
           server.listenUrl,
           server.targets.deleteBead,
-          { bead: "left" },
+          { bead: "right" },
           { "idempotency-key": "blocked" },
         )
       ).text,
@@ -289,7 +289,7 @@ describe("Core-only Link wire correspondence", () => {
         await wire(
           server.listenUrl,
           server.targets.deleteBead,
-          { bead: "left" },
+          { bead: "right" },
           { "idempotency-key": "fresh-delete" },
         )
       ).status,

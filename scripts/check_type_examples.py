@@ -14,7 +14,7 @@ from referencing.jsonschema import DRAFT202012
 
 ROOT = Path(__file__).resolve().parent.parent
 HERE = ROOT / "specs/profiles/types"
-ISSUE = ROOT / "specs/types/issue"
+ISSUE = ROOT / "specs/history/issue-draft-20261014"
 NAMES = (
     "type-definition.properties.schema.json",
     "bead-type-definition.properties.schema.json",

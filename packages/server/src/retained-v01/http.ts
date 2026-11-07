@@ -11,6 +11,8 @@ import {
   BATCH_OPERATIONS,
   prepareBatch,
 } from "./batch-contract.js";
+import { CALLABLES_CAPABILITY, OPENAPI_MEDIA, RetainedRequestErrorWithBody } from "./callables.js";
+import { type CallablesComposition, createCallablesService } from "./callables-service.js";
 import { createRetainedCollections, inventoryRoute, REFERENCE_READ_LIMITS } from "./collections.js";
 import {
   captureNavigation,
@@ -35,6 +37,10 @@ export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
   readonly authentication?: "required" | "disabled";
   readonly specRevision?: string;
+  /** Explicit Callables composition; absence leaves the capability unadvertised. */
+  readonly callableComposition?: CallablesComposition;
+  /** A native fixed catalog's `conformsTo` families. */
+  readonly conformsTo?: (family: string, type: string) => boolean | undefined;
 }
 export const PRIVATE_FIXTURE_GAPS = Object.freeze([
   "complete authorization/disclosure",
@@ -174,10 +180,24 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
   )
     throw new TypeError("unique private credentials required");
   const store = openPrivateRetainedStore({ ...options, navigation });
+  const callables =
+    options.callableComposition === undefined
+      ? undefined
+      : (() => {
+          try {
+            return createCallablesService(options.callableComposition, store, navigation);
+          } catch (error) {
+            store.close();
+            throw error;
+          }
+        })();
   const collections = (() => {
     try {
-      return createRetainedCollections(navigation, options.instance, (kind) =>
-        store.listRecords(kind),
+      return createRetainedCollections(
+        navigation,
+        options.instance,
+        (kind) => store.listRecords(kind),
+        options.conformsTo,
       );
     } catch (error) {
       store.close();
@@ -230,6 +250,52 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
       const url = new URL(raw, `http://${host}`);
       if (url.pathname + url.search !== raw || url.hash)
         throw new RetainedRequestError("malformed-request", 400);
+      const scopeHost = new URL(navigation.scope).host;
+      const callRoot = `${new URL(navigation.scope).pathname}bdp/call`;
+      if (
+        callables !== undefined &&
+        host === scopeHost &&
+        (url.pathname === callRoot || url.pathname.startsWith(`${callRoot}/`))
+      ) {
+        const method = request.method ?? "GET";
+        if (url.pathname === callRoot) {
+          if (method !== "GET" && method !== "HEAD") {
+            empty(response, 405, "GET, HEAD");
+            return;
+          }
+          if (
+            !accepts(request.headers.accept) &&
+            !accepts(request.headers.accept, OPENAPI_MEDIA, true)
+          ) {
+            empty(response, 406);
+            return;
+          }
+          if (url.search) throw new RetainedRequestError("invalid-parameter", 400);
+          json(response, 200, serialized(callables.openApi()), {
+            "content-type": `${OPENAPI_MEDIA};version=3.1.0`,
+          });
+          return;
+        }
+        if (method !== "POST") {
+          empty(response, 405, "POST");
+          return;
+        }
+        if (one(request, "content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== RETAINED_MEDIA)
+          throw new RetainedRequestError("unsupported-media-type", 415);
+        if (!accepts(request.headers.accept)) {
+          empty(response, 406);
+          return;
+        }
+        if (url.search) throw new RetainedRequestError("invalid-parameter", 400);
+        const answer = callables.invoke(
+          principal,
+          url.pathname,
+          await receive(request),
+          one(request, "idempotency-key"),
+        );
+        if (!response.destroyed) json(response, answer.status, answer.text);
+        return;
+      }
       const route = known.get(host + raw);
       const inventory = inventoryRoute(url, navigation);
       const eventBase = new URL(navigation.events);
@@ -375,6 +441,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             aliases: navigation.aliases,
             capabilities: {
               [IDEMPOTENCY_CAPABILITY]: { "1": {} },
+              ...(callables === undefined ? {} : { [CALLABLES_CAPABILITY]: { "1": {} } }),
               ...(options.referenceCore === true && store.historicalUpdateEnabled
                 ? { [HISTORICAL_UPDATE_CAPABILITY]: { "1": { atomicBatch: false } } }
                 : {}),
@@ -535,6 +602,8 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
     } catch (error) {
       if (response.destroyed) return;
       if (error instanceof RetainedFixtureGap) empty(response, 501);
+      else if (error instanceof RetainedRequestErrorWithBody)
+        json(response, error.status, serialized(error.body));
       else if (error instanceof RetainedRequestError)
         json(response, error.status, serialized(problem(error.code, error.status, error.retry)));
       else {

@@ -30,6 +30,10 @@ These optional historical-update1 methods retain their independent feature schem
 
 The optional [id-root1 composition](write.md#optional-rooted-allocation-version-1) adds separately selected createBead, createLink and atomicBatch request/Problem arms in its [feature-owned schema](id-root-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of idRoot selects rooted allocation on the same operation URLs, while ordinary requests retain their common shape. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.
 
+## Independently selected deletion modes
+
+The optional [delete-modes1 composition](write.md#optional-deletion-modes-version-1) adds a separately selected deleteBead request, success and Problem arm in its [feature-owned schema](delete-modes-v1.schema.json). The common-bundle roots and closure below describe the unextended requests; they do not include or advertise this supplement. Presence of beads, blockedBy, cascade or dryRun selects a deletion mode on the same operation URLs, while ordinary requests retain their common shape and result. The [HTTP catalog](../../openapi/README.md) records the supplemental arms and their selection rules. This index does not merge the feature schema into the common schema identity.
+
 GET and HEAD share read selection; HEAD has no representation body. Alias resolution uses its bodyless redirect. Native 204/304/405/406/412/500 branches retain their actual bodyless rules rather than acquiring a Problem body. The informative [HTTP catalog](../../openapi/README.md) records headers, media, native query carriers and complete transport branches.
 
 Projection alternatives overlap and remain inclusive: an explicit request selects the applicable full or projected arm. Ordinary full output cannot silently become a projection. The optional History, exact-definition and batch entries retain their independent capability/context requirements; a row in this index never advertises them.
@@ -44,7 +48,7 @@ Every mutation carries the ordinary [idempotencyKey](../core/bdp-v0.1.schema.md#
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 83 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 84 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](../core/bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](../core/bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -112,6 +116,7 @@ The entry-point roots reach 83 named definitions in the canonical bundle. They a
 - [readUpdateProblem](../core/bdp-v0.1.schema.md#schema-def-InJlYWRVcGRhdGVQcm9ibGVtIg)
 - [readUpdateProblemCode](../core/bdp-v0.1.schema.md#schema-def-InJlYWRVcGRhdGVQcm9ibGVtQ29kZSI)
 - [reference](../core/bdp-v0.1.schema.md#schema-def-InJlZmVyZW5jZSI)
+- [removedAliases](../core/bdp-v0.1.schema.md#schema-def-InJlbW92ZWRBbGlhc2VzIg)
 - [resourceIdentity](../core/bdp-v0.1.schema.md#schema-def-InJlc291cmNlSWRlbnRpdHki)
 - [resourceKind](../core/bdp-v0.1.schema.md#schema-def-InJlc291cmNlS2luZCI)
 - [resourceReference](../core/bdp-v0.1.schema.md#schema-def-InJlc291cmNlUmVmZXJlbmNlIg)
