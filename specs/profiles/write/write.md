@@ -1276,7 +1276,7 @@ member `"1"` has a closed detail object:
 | Member | Required | Meaning |
 | --- | --- | --- |
 | `operation` | yes | Absolute HTTP(S) POST target in the owning Scope |
-| `operations` | yes | Nonempty unique subset of the six CRUD discriminators |
+| `operations` | yes | Nonempty unique subset of the eight member discriminators; `putAlias` and `deleteAlias` only when discovery advertises `aliases` |
 | `maximumOperations` | no | Positive integer member bound |
 | `maximumResultBytes` | no | Positive integer complete inline-result byte bound |
 
@@ -1287,20 +1287,22 @@ Idempotency-Key and a closed body with exactly `capabilityVersion:"1"` and a
 nonempty `operations` array. No per-member key or carrier-wide provenance occurs.
 The Types-required subtype independently selects Types when required.
 
-Each member is a closed ordinary CRUD record plus required `operation` and,
-for a creation only, optional `name`. The six exact discriminators are
-`createBead`, `updateBead`, `deleteBead`, `createLink`, `updateLink`, `deleteLink`.
-Aliases, reads, sets, nested batches and richer encodings are not members.
-Unknown operation names are malformed; a recognized CRUD omitted from the
-advertised subset is unsupported. Ordinary field grammar, object-mode exclusivity,
+Each member is a closed ordinary record plus required `operation` and,
+for a creation only, optional `name`. The eight exact discriminators are
+`createBead`, `updateBead`, `deleteBead`, `createLink`, `updateLink`, `deleteLink`,
+`putAlias` and `deleteAlias`. An alias member carries its operation's members,
+`alias` and `target` or `alias` alone, and admits no `expectedRevision`,
+`revisionProvenance` or `name`. Reads, sets, nested batches and richer encodings
+are not members. Unknown operation names are malformed; a recognized operation
+omitted from the advertised subset is unsupported. Ordinary field grammar, object-mode exclusivity,
 endpoint correction and provenance meanings are unchanged.
 
 ### Identity names
 
 Names match `[A-Za-z][A-Za-z0-9_-]*`, are unique in the batch and bind only prior
-creation identities. A later Bead/Link subject or endpoint may use `@name` only
-in a slot of the right kind. Unknown, forward and wrong-kind handles refuse the
-whole request. No handle is valid in Type input, caller-assigned ID, revision,
+creation identities. A later Bead/Link subject or endpoint, or a `putAlias` `target`,
+may use `@name` only in a slot of the right kind; a `target` names a Bead. Unknown, forward and wrong-kind handles refuse the
+whole request. No handle is valid in Type input, caller-assigned ID, alias path, revision,
 query/result path or arbitrary property strings. A pinned endpoint may combine
 a prior Bead handle with a literal pin under applicable admission; it captures no
 staged/future revision. Names have no member/property access or expression language.
@@ -1371,6 +1373,26 @@ promised recovery under originally admitted bounds; temporary inability is a
 service failure. Request/result budgets must support at least one admitted
 operation; a provider MUST NOT advertise a capability it cannot implement.
 
+### Alias members
+
+Alias members stage in authored order under [Aliases](#aliases), against the
+working graph:
+
+- A put's target that an earlier member created is live; one an earlier member
+  deleted is `resource-not-found`.
+- The alias path's uniqueness check counts every identity the batch created or
+  allocated before that member, so such a path is `identity-taken`.
+- A later member that uses an alias as a subject or endpoint resolves it through
+  the working graph, after any earlier put, repoint or delete of it.
+- A `deleteBead` removes every alias targeting that Bead at that point, including
+  one an earlier member put, and `removedAliases` lists each. A later member may
+  put the released locator again.
+
+Each alias's net outcome compares its committed binding before the batch with its
+final binding. Bound before and after is `updated`, even to the same target; bound
+only after is `created`; bound before only, or put and removed within the batch, is
+`deleted`. A binding changed when its final target differs from its target before.
+
 ## Final atomic publication
 
 ### Publish the final state once
@@ -1432,7 +1454,10 @@ When Events is advertised, Write MUST durably produce the [Events profile's requ
 together with its effects and terminal decision. The remainder of this subsection
 applies to that advertised support. Crash/retry cannot lose facts or mint duplicate transitions.
 Failure/rollback/no-op produces none; aliases and allocation-only outcomes produce
-no Resource lifecycle fact. [Events](../events/events.md) owns the Event carrier, observation source,
+no Resource lifecycle fact. Each alias whose binding changed publishes one
+`alias-state` [non-Resource fact](../events/events.md#non-resource-facts) for its final
+binding, with the decision's `transaction`; one put and removed within the batch
+publishes none. Alias facts follow the decision's Resource facts, ascending by alias URL. [Events](../events/events.md) owns the Event carrier, observation source,
 coverage, projection, replay, authorization and gap rules.
 
 For initially absent/finally live Resources produce one create fact; for live
@@ -1464,14 +1489,16 @@ HTTP200 returns the closed `atomicBatchResult`:
 | Member | Meaning |
 | --- | --- |
 | `capabilityVersion` | Exactly `"1"` |
-| `changed` | Boolean OR of final Resource-row flags, including allocation effects |
+| `changed` | Boolean OR of final Resource-row flags, including allocation effects, and of changed alias bindings |
 | `transaction` | Required opaque Scope-unique correlation if changed; absent for all-final-no-op |
 | `results` | Nonempty ordered identity mapping per input member |
-| `resources` | Nonempty unique final Resource outcomes, ordered by canonical URI |
+| `resources` | Unique final Resource outcomes, ordered by canonical URI; nonempty unless `aliases` is present |
+| `aliases` | Required exactly when a member is an alias member: one [alias result](#aliases) per distinct alias, with its net outcome, ascending by alias URL |
 | `removedAliases` | Required exactly when the decision deletes a Bead and discovery advertises `aliases`; the [aliases it removed](#aliases), ascending by code unit |
 
-Each closed mapping has zero-based `operationIndex`, `operation`, absolute `id`,
-and `operationName` exactly when the corresponding creation supplied a name. It
+Each closed mapping has zero-based `operationIndex`, `operation`, absolute `id`
+for a Resource member or absolute `alias` for an alias member, and `operationName`
+exactly when the corresponding creation supplied a name. It
 carries no intermediate body, revision, changed flag or execution outcome. Every
 mapping resolves to a final row of the right kind. Results distinguish ordered
 input identities from unique final outcomes, including induced owning sources.
@@ -2098,7 +2125,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| enum | ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink"] |
+| enum | ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink","putAlias","deleteAlias"] |
 <!-- bdp-schema:end atomicBatchOperationName -->
 
 <!-- bdp-schema:start atomicBatchOperationProblem -->
@@ -2396,6 +2423,7 @@ Required order: ["capabilityVersion","changed","results","resources"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "aliases" | schema | no | — | "Net alias outcomes, one per distinct alias, ascending by alias URL." |
 | "capabilityVersion" | schema | yes | — | — |
 | "changed" | boolean | yes | — | — |
 | "removedAliases" | ref "#/$defs/removedAliases" | no | — | — |
@@ -2441,33 +2469,73 @@ Required order: ["capabilityVersion","changed","results","resources"]
           "transaction"
         ],
         "properties": {
-          "transaction": true,
-          "resources": {
-            "type": "array",
-            "contains": {
-              "type": "object",
-              "required": [
-                "changed"
-              ],
-              "properties": {
-                "changed": {
-                  "const": true
+          "transaction": true
+        },
+        "anyOf": [
+          {
+            "required": [
+              "aliases"
+            ],
+            "properties": {
+              "aliases": true
+            }
+          },
+          {
+            "properties": {
+              "resources": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "changed"
+                  ],
+                  "properties": {
+                    "changed": {
+                      "const": true
+                    }
+                  }
                 }
               }
             }
           }
-        },
+        ],
         "type": "object"
       }
+    },
+    {
+      "anyOf": [
+        {
+          "required": [
+            "aliases"
+          ],
+          "properties": {
+            "aliases": true
+          }
+        },
+        {
+          "properties": {
+            "resources": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
     }
   ],
   "properties": {
+    "aliases": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/aliasResult"
+      }
+    },
     "capabilityVersion": {
       "const": "1"
     },
     "resources": {
       "type": "array",
-      "minItems": 1,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/atomicBatchResourceResult"
@@ -2492,7 +2560,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["operationIndex","operation","id"]
+Required order: ["operationIndex","operation"]
 
 #### Keywords
 
@@ -2504,7 +2572,8 @@ Required order: ["operationIndex","operation","id"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
+| "alias" | ref "#/$defs/absoluteHttpUrl" | no | — | "The alias of an alias member." |
+| "id" | ref "#/$defs/absoluteHttpUrl" | no | — | "The Resource of a Resource member." |
 | "operation" | ref "#/$defs/atomicBatchOperationName" | yes | — | — |
 | "operationIndex" | schema | yes | — | — |
 | "operationName" | ref "#/$defs/localName" | no | — | — |
@@ -2514,6 +2583,41 @@ Required order: ["operationIndex","operation","id"]
 ```json-schema
 {
   "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation": {
+            "enum": [
+              "putAlias",
+              "deleteAlias"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "alias"
+        ],
+        "properties": {
+          "alias": true,
+          "id": false,
+          "operationName": false
+        }
+      },
+      "else": {
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": true,
+          "alias": false
+        }
+      }
+    },
     {
       "if": {
         "type": "object",
@@ -2611,6 +2715,12 @@ Value: object
     },
     {
       "$ref": "#/$defs/deleteLinkOperation"
+    },
+    {
+      "$ref": "#/$defs/putAliasOperation"
+    },
+    {
+      "$ref": "#/$defs/deleteAliasOperation"
     }
   ]
 }
@@ -2864,6 +2974,44 @@ Required order: ["alias"]
 | --- | --- | --- | --- | --- |
 | "alias" | ref "#/$defs/durableResourceReference" | yes | — | — |
 <!-- bdp-schema:end deleteAliasMembers -->
+
+<!-- bdp-schema:start deleteAliasOperation -->
+### Schema: "deleteAliasOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/deleteAliasMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "deleteAlias"
+    }
+  }
+}
+```
+<!-- bdp-schema:end deleteAliasOperation -->
 
 <!-- bdp-schema:start deleteAliasRequest -->
 ### Schema: "deleteAliasRequest"
@@ -3622,6 +3770,44 @@ Required order: ["alias","target"]
 | "alias" | ref "#/$defs/durableResourceReference" | yes | — | — |
 | "target" | ref "#/$defs/resourceReference" | yes | — | — |
 <!-- bdp-schema:end putAliasMembers -->
+
+<!-- bdp-schema:start putAliasOperation -->
+### Schema: "putAliasOperation"
+
+Value: object
+
+Required order: ["operation"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "operation" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/putAliasMembers"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "operation": {
+      "const": "putAlias"
+    }
+  }
+}
+```
+<!-- bdp-schema:end putAliasOperation -->
 
 <!-- bdp-schema:start putAliasRequest -->
 ### Schema: "putAliasRequest"

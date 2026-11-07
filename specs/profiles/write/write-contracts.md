@@ -48,7 +48,7 @@ Every mutation carries the ordinary [idempotencyKey](../core/bdp-v0.1.schema.md#
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 84 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 86 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](../core/bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](../core/bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -76,6 +76,7 @@ The entry-point roots reach 84 named definitions in the canonical bundle. They a
 - [createLinkRequest](../core/bdp-v0.1.schema.md#schema-def-ImNyZWF0ZUxpbmtSZXF1ZXN0Ig)
 - [dateTime](../core/bdp-v0.1.schema.md#schema-def-ImRhdGVUaW1lIg)
 - [deleteAliasMembers](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUFsaWFzTWVtYmVycyI)
+- [deleteAliasOperation](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUFsaWFzT3BlcmF0aW9uIg)
 - [deleteAliasRequest](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUFsaWFzUmVxdWVzdCI)
 - [deleteBeadMembers](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUJlYWRNZW1iZXJzIg)
 - [deleteBeadOperation](../core/bdp-v0.1.schema.md#schema-def-ImRlbGV0ZUJlYWRPcGVyYXRpb24i)
@@ -110,6 +111,7 @@ The entry-point roots reach 84 named definitions in the canonical bundle. They a
 - [properties](../core/bdp-v0.1.schema.md#schema-def-InByb3BlcnRpZXMi)
 - [propertyChange](../core/bdp-v0.1.schema.md#schema-def-InByb3BlcnR5Q2hhbmdlIg)
 - [putAliasMembers](../core/bdp-v0.1.schema.md#schema-def-InB1dEFsaWFzTWVtYmVycyI)
+- [putAliasOperation](../core/bdp-v0.1.schema.md#schema-def-InB1dEFsaWFzT3BlcmF0aW9uIg)
 - [putAliasRequest](../core/bdp-v0.1.schema.md#schema-def-InB1dEFsaWFzUmVxdWVzdCI)
 - [readProblem](../core/bdp-v0.1.schema.md#schema-def-InJlYWRQcm9ibGVtIg)
 - [readProblemCode](../core/bdp-v0.1.schema.md#schema-def-InJlYWRQcm9ibGVtQ29kZSI)

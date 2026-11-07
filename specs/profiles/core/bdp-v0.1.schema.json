@@ -3661,6 +3661,12 @@
         },
         {
           "$ref": "#/$defs/deleteLinkOperation"
+        },
+        {
+          "$ref": "#/$defs/putAliasOperation"
+        },
+        {
+          "$ref": "#/$defs/deleteAliasOperation"
         }
       ]
     },
@@ -5967,7 +5973,16 @@
       ]
     },
     "atomicBatchOperationName": {
-      "enum": ["createBead", "updateBead", "deleteBead", "createLink", "updateLink", "deleteLink"]
+      "enum": [
+        "createBead",
+        "updateBead",
+        "deleteBead",
+        "createLink",
+        "updateLink",
+        "deleteLink",
+        "putAlias",
+        "deleteAlias"
+      ]
     },
     "atomicBatchCapabilityV1": {
       "type": "object",
@@ -6017,6 +6032,32 @@
             "required": ["operation"],
             "properties": {
               "operation": {
+                "enum": ["putAlias", "deleteAlias"]
+              }
+            }
+          },
+          "then": {
+            "required": ["alias"],
+            "properties": {
+              "alias": true,
+              "id": false,
+              "operationName": false
+            }
+          },
+          "else": {
+            "required": ["id"],
+            "properties": {
+              "id": true,
+              "alias": false
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["operation"],
+            "properties": {
+              "operation": {
                 "enum": ["updateBead", "deleteBead", "updateLink", "deleteLink"]
               }
             }
@@ -6029,8 +6070,13 @@
         }
       ],
       "properties": {
+        "alias": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "The alias of an alias member."
+        },
         "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "The Resource of a Resource member."
         },
         "operation": {
           "$ref": "#/$defs/atomicBatchOperationName"
@@ -6043,7 +6089,7 @@
           "$ref": "#/$defs/localName"
         }
       },
-      "required": ["operationIndex", "operation", "id"]
+      "required": ["operationIndex", "operation"]
     },
     "atomicBatchResult": {
       "type": "object",
@@ -6078,25 +6124,63 @@
           "else": {
             "required": ["transaction"],
             "properties": {
-              "transaction": true,
-              "resources": {
-                "type": "array",
-                "contains": {
-                  "type": "object",
-                  "required": ["changed"],
-                  "properties": {
-                    "changed": {
-                      "const": true
+              "transaction": true
+            },
+            "anyOf": [
+              {
+                "required": ["aliases"],
+                "properties": {
+                  "aliases": true
+                }
+              },
+              {
+                "properties": {
+                  "resources": {
+                    "type": "array",
+                    "contains": {
+                      "type": "object",
+                      "required": ["changed"],
+                      "properties": {
+                        "changed": {
+                          "const": true
+                        }
+                      }
                     }
                   }
                 }
               }
-            },
+            ],
             "type": "object"
           }
+        },
+        {
+          "anyOf": [
+            {
+              "required": ["aliases"],
+              "properties": {
+                "aliases": true
+              }
+            },
+            {
+              "properties": {
+                "resources": {
+                  "minItems": 1
+                }
+              }
+            }
+          ]
         }
       ],
       "properties": {
+        "aliases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/aliasResult"
+          },
+          "description": "Net alias outcomes, one per distinct alias, ascending by alias URL."
+        },
         "capabilityVersion": {
           "const": "1"
         },
@@ -6108,7 +6192,6 @@
         },
         "resources": {
           "type": "array",
-          "minItems": 1,
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/atomicBatchResourceResult"
@@ -8596,6 +8679,36 @@
         }
       },
       "required": ["family", "profile", "address", "value", "change"]
+    },
+    "deleteAliasOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "operation": {
+          "const": "deleteAlias"
+        }
+      },
+      "required": ["operation"]
+    },
+    "putAliasOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "operation": {
+          "const": "putAlias"
+        }
+      },
+      "required": ["operation"]
     }
   },
   "x-bdp-schema-definitions": [
@@ -8637,6 +8750,7 @@
     "currentLinkRecord",
     "dateTime",
     "deleteAliasMembers",
+    "deleteAliasOperation",
     "deleteAliasRequest",
     "deleteBeadMembers",
     "deleteBeadOperation",
@@ -8685,6 +8799,7 @@
     "properties",
     "propertyChange",
     "putAliasMembers",
+    "putAliasOperation",
     "putAliasRequest",
     "readProblem",
     "readProblemCode",
@@ -8856,6 +8971,7 @@
       "createLinkOperation",
       "createLinkRequest",
       "deleteAliasMembers",
+      "deleteAliasOperation",
       "deleteAliasRequest",
       "deleteBeadMembers",
       "deleteBeadOperation",
@@ -8881,6 +8997,7 @@
       "ownerRevisions",
       "propertyChange",
       "putAliasMembers",
+      "putAliasOperation",
       "putAliasRequest",
       "readUpdateProblem",
       "readUpdateProblemCode",
