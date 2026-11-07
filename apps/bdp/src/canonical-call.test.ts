@@ -638,7 +638,8 @@ describe("bdp call against a stub server", () => {
       ).resolves.toBe(1);
       expect(posts).toHaveLength(1);
       expect(stdout).toBe("");
-      expect(JSON.parse(stderr)).toEqual({ error: { origin: "bdp", problem } });
+      expect(stderr).toContain("error: callable-error");
+      expect(stderr).not.toContain('{"');
 
       stdout = "";
       stderr = "";

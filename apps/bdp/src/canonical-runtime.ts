@@ -57,7 +57,12 @@ import {
   readBoundedFile,
   saveCanonicalJournal,
 } from "./canonical-io.js";
-import { type CanonicalOutput, httpContext, renderCanonicalOutput } from "./canonical-output.js";
+import {
+  type CanonicalOutput,
+  httpContext,
+  renderCallableFailure,
+  renderCanonicalOutput,
+} from "./canonical-output.js";
 import {
   CanonicalProjectionError,
   projectCanonicalProperties,
@@ -337,7 +342,10 @@ export async function runCanonicalInvocation(
     const rendered = renderCanonicalOutput(value, displayOptions, scope);
     await io.stdout(rendered, value.outcome === "success" ? io.signal : failureSignal());
     const raw = Array.isArray(options.omit) && options.omit.includes("envelope");
-    if (value.outcome !== "success" && (raw || (format !== "json" && format !== "jsonl")))
+    const structured = format === "json" || format === "jsonl";
+    if (value.outcome !== "success" && isCall && !structured)
+      await io.stderr(renderCallableFailure(value), failureSignal());
+    else if (value.outcome !== "success" && (raw || !structured))
       await io.stderr(
         `${JSON.stringify({ error: value.error, ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }) })}\n`,
         failureSignal(),

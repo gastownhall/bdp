@@ -253,6 +253,51 @@ function callableLines(value: unknown, cut: { shortened: boolean }): string[] {
   });
 }
 
+/** Members of a v0 Problem carried in `error` that the first line already says. */
+const SAID_MEMBERS = new Set(["type", "status", "title", "code", "detail"]);
+
+/** A failed Callable in human mode: what was refused and why, in lines a person reads. Everything
+ * but the wording comes from the failure, and `--output-mode json` carries all of it unchanged. */
+export function renderCallableFailure(failure: CanonicalOutput): string {
+  const problem = record(record(failure.error).problem);
+  const operation = record(problem.error);
+  const word = (value: unknown): string | undefined =>
+    typeof value === "string" && value !== "" ? terminalText(value) : undefined;
+  const codes = [word(problem.code), word(operation.code)].filter((code) => code !== undefined);
+  const detail =
+    word(problem.detail) ??
+    word(operation.detail) ??
+    word(problem.message) ??
+    word(operation.title) ??
+    word(problem.title);
+  const diagnostics = Array.isArray(problem.diagnostics) ? problem.diagnostics.map(record) : [];
+  const context = record(failure.context);
+  const lines = [
+    `error: ${[...codes, ...(detail === undefined ? [] : [detail])].join(": ") || "the Callable failed"}`,
+    ...diagnostics.flatMap((diagnostic) => {
+      const message = word(diagnostic.message);
+      const location = word(diagnostic.instanceLocation);
+      const repeated = message === undefined || (detail !== undefined && message.endsWith(detail));
+      if (repeated && location === undefined) return [];
+      return [`  ${[location, repeated ? undefined : message].filter(Boolean).join(": ")}`];
+    }),
+    ...Object.entries(operation)
+      .filter(([member]) => !SAID_MEMBERS.has(member))
+      .map(([member, value]) => `  ${terminalText(member)}: ${plain(value)}`),
+    ...(diagnostics.some(({ instanceLocation }) => instanceLocation === "/revisionProvenance/actor")
+      ? ["  Say who is acting with --actor NAME."]
+      : []),
+    ...(context.effects === "none" ? ["  Nothing was changed."] : []),
+    ...(failure.outcome === "unknown" && record(failure.error).origin === "bdp"
+      ? ["  The outcome is unknown; read before repeating, or repeat with the same key."]
+      : []),
+    ...(typeof context.idempotency_key === "string"
+      ? [`  To recover, repeat with --idempotency-key ${terminalText(context.idempotency_key)}`]
+      : []),
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
 /** The one human form of every Callable result: boring, generic, with no per-package view. */
 function callableResultText(data: ObjectValue): string {
   const cut = { shortened: false };

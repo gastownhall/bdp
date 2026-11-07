@@ -2904,6 +2904,11 @@ before any request.
 does not advertise what the invocation requires returns `5`. Every other failure
 returns `1`, with the native Problem unchanged under `origin:bdp`.
 
+Human output writes a failure to stderr as text a person reads, at the same status:
+`error:`, the codes, the Problem's `detail`, then its diagnostics and the members of an
+`error` value on lines of their own. `--output-mode json` is the structured form, on
+stdout, and carries the Problem unchanged.
+
 A failure with no Problem to show says what happened under `origin:cli`, with code
 `delivery_failed`: which stage failed and, when the service answered, its URL, status and
 content type, never its body. So a service with no BDP discovery reads

@@ -26,6 +26,7 @@ import {
   resolveCallableCommand,
 } from "./canonical-call.js";
 import { createCanonicalCommand } from "./canonical-command.js";
+import { renderCallableFailure } from "./canonical-output.js";
 import { runBdp } from "./main.js";
 
 const media = "application/vnd.bdp.v0.1+json";
@@ -150,7 +151,6 @@ afterEach(async () => {
 });
 const bdp = (args: string[], callableCatalog: CallableCatalog = issueCallableCatalog()) =>
   runBdp(args, { callableCatalog });
-const failureOf = () => JSON.parse(stderr).error;
 
 const annotated: CallableDeclaration = {
   name: "pack/thing/make",
@@ -798,7 +798,7 @@ describe("the induced tree", () => {
           bdp(["--scope", scope, "issue", "create", "T", "--body-file", join(home, "nope")]),
         ).resolves.toBe(2);
         expect(posts).toHaveLength(1);
-        expect(failureOf().problem.message).toContain("--body-file could not read its input");
+        expect(stderr).toContain("--body-file could not read its input");
       },
     );
   });
@@ -920,7 +920,7 @@ describe("the induced tree", () => {
         ]) {
           stderr = "";
           await expect(bdp(["--scope", scope, ...form]), form.join(" ")).resolves.toBe(2);
-          expect(failureOf().problem.message).toContain("only to a CallableBatch");
+          expect(stderr).toContain("only to a CallableBatch");
         }
         expect(posts).toEqual([]);
       });
@@ -944,12 +944,10 @@ describe("the induced tree", () => {
         await expect(
           bdp(["--scope", scope, flag, supplied, ...form, "--actor", "kim"]),
         ).resolves.toBe(2);
-        expect(failureOf().problem.message).toContain(
-          "--actor conflicts with explicit provenance actor",
-        );
+        expect(stderr).toContain("--actor conflicts with explicit provenance actor");
         stderr = "";
         await expect(bdp(["--scope", scope, ...form, flag, supplied])).resolves.toBe(2);
-        expect(failureOf().problem.message).toContain("put --revision-provenance before");
+        expect(stderr).toContain("put --revision-provenance before");
         expect(posts).toEqual([]);
       });
     });
@@ -959,7 +957,7 @@ describe("the induced tree", () => {
         await expect(
           bdp(["--scope", scope, "--arguments", '{"id":"a"}', "issue", "claim"]),
         ).resolves.toBe(2);
-        expect(failureOf().problem.message).toContain("put it after the command");
+        expect(stderr).toContain("put it after the command");
         expect(posts).toEqual([]);
       });
     });
@@ -1128,6 +1126,132 @@ const PROBLEMS: readonly (readonly [string, ReturnType<typeof problem>, number])
   ["unsupported-media-type", problem("unsupported-media-type", "request", 415, "never"), 1],
 ];
 
+describe("a failed Callable in human mode", () => {
+  const refused = (body: object, args: readonly string[]) =>
+    withServe(
+      () => ({ status: (body as { status: number }).status, body }),
+      async (scope) => {
+        await bdp(["--scope", scope, ...args]);
+      },
+    );
+  it("reads as text on stderr, says the detail and where, and prints nothing on stdout", async () => {
+    await refused(
+      {
+        ...problem("validation-failed", "validation", 422, "never"),
+        detail: "`title` is required",
+        diagnostics: [
+          { message: "`title`: `title` is required", instanceLocation: "/arguments/title" },
+        ],
+      },
+      ["issue", "show", "a"],
+    );
+    expect(stdout).toBe("");
+    expect(stderr).toBe("error: validation-failed: `title` is required\n  /arguments/title\n");
+  });
+  it("points at --actor when who is acting is what is missing", async () => {
+    const message = "`revisionProvenance.actor` is required: issue/create has to say who is acting";
+    await refused(
+      {
+        ...problem("validation-failed", "validation", 422, "never"),
+        detail: message,
+        diagnostics: [{ message, instanceLocation: "/revisionProvenance/actor" }],
+      },
+      ["issue", "create", "x"],
+    );
+    expect(stderr).toBe(
+      `error: validation-failed: ${message}\n  /revisionProvenance/actor\n  Say who is acting with --actor NAME.\n`,
+    );
+  });
+  it("shows a callable-error's own code, detail and members", async () => {
+    await refused(
+      {
+        ...problem("callable-error", "conflict", 409, "after-state-change"),
+        detail: undefined,
+        error: {
+          status: 409,
+          title: "Conflict",
+          code: "already_claimed",
+          detail: "held by sam",
+          assignee: "sam",
+        },
+      },
+      ["issue", "claim", "a", "--actor", "kim"],
+    );
+    expect(stderr.split("\n").slice(0, 2)).toEqual([
+      "error: callable-error: already_claimed: held by sam",
+      "  assignee: sam",
+    ]);
+  });
+  it("takes the title when a Problem has no detail, and control characters do not reach the terminal", async () => {
+    await refused({ ...problem("malformed-request", "request", 400, "never"), detail: undefined }, [
+      "issue",
+      "show",
+      "a",
+    ]);
+    expect(stderr).toBe("error: malformed-request: HTTP title\n");
+    stderr = "";
+    await refused(
+      { ...problem("malformed-request", "request", 400, "never"), detail: "bad\u001b[31mred" },
+      ["issue", "show", "a"],
+    );
+    expect(stderr).toBe("error: malformed-request: bad [31mred\n");
+  });
+  it("says when the outcome is unknown", async () => {
+    await withServe(
+      () => ({
+        status: 503,
+        body: problem("temporarily-unavailable", "unavailable", 503, "after-delay"),
+      }),
+      async (scope) => {
+        await expect(bdp(["--scope", scope, "issue", "claim", "a", "--actor", "s"])).resolves.toBe(
+          1,
+        );
+      },
+    );
+    expect(stderr).toContain("error: temporarily-unavailable: what temporarily-unavailable says");
+    expect(stderr).toContain("The outcome is unknown");
+  });
+  it("says nothing changed after an atomic refusal", async () => {
+    await refused(problem("malformed-request", "request", 400, "never"), [
+      "issue",
+      "comment",
+      "a",
+      "b",
+      "--actor",
+      "s",
+    ]);
+    expect(stderr).toContain("Nothing was changed.");
+  });
+  it("names the key to recover with", () => {
+    expect(
+      renderCallableFailure({
+        schema_version: 2,
+        bdp_spec: null,
+        result_kind: "callable_result",
+        outcome: "unknown",
+        context: { idempotency_key: "k-1" },
+        error: { origin: "cli", problem: { code: "write_outcome_unknown", message: "lost" } },
+      }),
+    ).toBe("error: write_outcome_unknown: lost\n  To recover, repeat with --idempotency-key k-1\n");
+  });
+  it("a Callable usage refusal is text too, and JSON mode is unchanged", async () => {
+    await expect(bdp(["--scope", "http://127.0.0.1:1/", "issue", "show", "--nope"])).resolves.toBe(
+      2,
+    );
+    expect(stderr).toMatch(/^error: invalid_arguments: /);
+    expect(stdout).toBe("");
+    stderr = "";
+    await expect(
+      bdp(["--scope", "http://127.0.0.1:1/", "--output-mode", "json", "issue", "show", "--nope"]),
+    ).resolves.toBe(2);
+    expect(stderr).toBe("");
+    expect(JSON.parse(stdout)).toMatchObject({
+      outcome: "failure",
+      error: { origin: "cli", problem: { code: "invalid_arguments" } },
+    });
+  });
+});
+
 describe("every Problem shape", () => {
   it.each(PROBLEMS)("%s stays whole on the error path", async (_label, body, exit) => {
     await withServe(
@@ -1135,7 +1259,7 @@ describe("every Problem shape", () => {
       async (scope) => {
         await expect(bdp(["--scope", scope, "issue", "show", "a"])).resolves.toBe(exit);
         expect(stdout).toBe("");
-        expect(failureOf()).toEqual({ origin: "bdp", problem: body });
+        expect(stderr).toMatch(new RegExp(`^error: ${body.code}.*: what ${body.code} says\n`));
         stderr = "";
         await expect(
           bdp([
@@ -1182,10 +1306,9 @@ describe("every Problem shape", () => {
 
 describe("a failure says what happened", () => {
   const message = () => {
-    const { origin, problem: said } = failureOf();
-    expect(origin).toBe("cli");
-    expect(said.message).not.toMatch(/^command failed$|BDP delivery failed/);
-    return said.message as string;
+    expect(stderr).toMatch(/^error: /);
+    expect(stderr).not.toMatch(/command failed$|BDP delivery failed/);
+    return stderr;
   };
 
   it("a service with no BDP discovery: the v0 404 at GET /", async () => {
@@ -1245,10 +1368,9 @@ describe("a failure says what happened", () => {
       () => ok(),
       async (scope, posts) => {
         await expect(bdp(["--scope", scope, "issue", "stats"])).resolves.toBe(5);
-        expect(failureOf().problem).toMatchObject({
-          code: "unsupported_capability",
-          message: "the Scope does not advertise Callables1",
-        });
+        expect(stderr).toBe(
+          "error: unsupported_capability: the Scope does not advertise Callables1\n",
+        );
         expect(posts).toEqual([]);
       },
       { callables: false },
@@ -1262,7 +1384,7 @@ describe("a failure says what happened", () => {
         await expect(
           bdp(["--scope", scope, "--idempotency-key", "k", "issue", "claim", "a"]),
         ).resolves.toBe(5);
-        expect(failureOf().problem.message).toContain("does not advertise idempotency");
+        expect(stderr).toContain("does not advertise idempotency");
         expect(posts).toEqual([]);
       },
     );
