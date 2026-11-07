@@ -6863,6 +6863,16 @@
           "minLength": 1,
           "description": "Human-readable explanation of the advertised mechanism or limitation."
         },
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Non-Resource families this source publishes. Absence means it publishes none."
+        },
         "maximumPageSize": {
           "type": "integer",
           "minimum": 1,
@@ -6924,7 +6934,7 @@
       "required": ["start", "retainedFrom", "through"]
     },
     "retainedEventCommon": {
-      "description": "Shared immutable fact envelope. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations.",
+      "description": "Immutable fact envelope shared by Resource and non-Resource facts. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations.",
       "type": "object",
       "allOf": [
         {
@@ -6960,14 +6970,6 @@
           "enum": ["write", "observation"],
           "description": "Whether this fact came from Write’s own committed transition or truthful external observation."
         },
-        "previousRevision": {
-          "$ref": "#/$defs/revision",
-          "description": "Actual known observed predecessor; omission never invents intermediate revisions."
-        },
-        "revision": {
-          "$ref": "#/$defs/revision",
-          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
-        },
         "source": {
           "$ref": "#/$defs/absoluteHttpUrl",
           "description": "Absolute URL of the observation source that emitted this fact."
@@ -6981,7 +6983,7 @@
           "description": "Opaque commit correlation for Write-origin facts. It is neither a receipt nor a public replica-log position."
         }
       },
-      "required": ["id", "source", "time", "origin", "revision"]
+      "required": ["id", "source", "time", "origin"]
     },
     "retainedEventDeleted": {
       "description": "Deleted Resource identity and recorded affiliation/revision context. Write-origin deletion uses its actual final-live context; observation-origin disappearance uses the last complete observed sample and does not claim an unseen final backend edition. This is not a live postimage or permission to reuse identity.",
@@ -7492,7 +7494,7 @@
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/retainedEventCommon"
+          "$ref": "#/$defs/retainedResourceEventCommon"
         },
         {
           "if": {
@@ -7581,7 +7583,7 @@
       "type": "object",
       "allOf": [
         {
-          "$ref": "#/$defs/retainedEventCommon"
+          "$ref": "#/$defs/retainedResourceEventCommon"
         },
         {
           "if": {
@@ -7790,13 +7792,16 @@
       "required": ["representation", "effect"]
     },
     "retainedEvent": {
-      "description": "Union of the supported complete postimage and delta Event shapes. Schema acceptance does not prove truthful coverage, retention or atomic production.",
+      "description": "Union of the supported complete postimage and delta Resource facts and the non-Resource fact. Schema acceptance does not prove truthful coverage, retention or atomic production.",
       "oneOf": [
         {
           "$ref": "#/$defs/retainedPostimageEvent"
         },
         {
           "$ref": "#/$defs/retainedDeltaEvent"
+        },
+        {
+          "$ref": "#/$defs/retainedNonResourceEvent"
         }
       ]
     },
@@ -7826,7 +7831,14 @@
               "events": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/$defs/retainedPostimageEvent"
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/retainedPostimageEvent"
+                    },
+                    {
+                      "$ref": "#/$defs/retainedNonResourceEvent"
+                    }
+                  ]
                 }
               }
             }
@@ -7853,7 +7865,14 @@
               "events": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/$defs/retainedDeltaEvent"
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/retainedDeltaEvent"
+                    },
+                    {
+                      "$ref": "#/$defs/retainedNonResourceEvent"
+                    }
+                  ]
                 }
               },
               "policy": {
@@ -8509,6 +8528,124 @@
       "items": {
         "$ref": "#/$defs/absoluteHttpUrl"
       }
+    },
+    "retainedResourceEventCommon": {
+      "description": "Revision context shared by postimage and delta Resource facts. A non-Resource fact carries none of it.",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/retainedEventCommon"
+        }
+      ],
+      "properties": {
+        "previousRevision": {
+          "$ref": "#/$defs/revision",
+          "description": "Actual known observed predecessor; omission never invents intermediate revisions."
+        },
+        "revision": {
+          "$ref": "#/$defs/revision",
+          "description": "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector."
+        }
+      },
+      "required": ["revision"]
+    },
+    "retainedNonResourceEvent": {
+      "description": "Fact recording a change to state Transfer retains outside Resources. It mints no revision, carries no representation or provenance, and reads the same under either selected representation.",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/retainedEventCommon"
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["family"],
+            "properties": {
+              "family": {
+                "const": "alias-state"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "const": "https://github.com/gastownhall/bdp/families/alias-state/1"
+              },
+              "address": {
+                "type": "array",
+                "maxItems": 1
+              },
+              "value": {
+                "type": "object",
+                "required": ["target"],
+                "properties": {
+                  "target": {
+                    "$ref": "#/$defs/absoluteHttpUrl"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["family"],
+            "properties": {
+              "family": {
+                "const": "identity-state"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
+              },
+              "address": {
+                "type": "array",
+                "maxItems": 2
+              },
+              "value": {
+                "enum": ["pruned", "erased", "reorganized"]
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "address": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Stable address of the changed state, with the arity and meaning its family profile fixes."
+        },
+        "change": {
+          "enum": ["created", "updated", "deleted"],
+          "description": "What happened to the state at address: created, updated or deleted."
+        },
+        "family": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips."
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact family profile identity fixing the address, value and projected Beads."
+        },
+        "value": {
+          "description": "Family-defined value of the change."
+        }
+      },
+      "required": ["family", "profile", "address", "value", "change"]
     }
   },
   "x-bdp-schema-definitions": [
@@ -8629,8 +8766,10 @@
     "retainedEventProblem",
     "retainedEventQuery",
     "retainedEventSelection",
+    "retainedNonResourceEvent",
     "retainedPostimageEffect",
     "retainedPostimageEvent",
+    "retainedResourceEventCommon",
     "retryDisposition",
     "revision",
     "revisionActor",
@@ -8743,8 +8882,10 @@
       "retainedEventProblem",
       "retainedEventQuery",
       "retainedEventSelection",
+      "retainedNonResourceEvent",
       "retainedPostimageEffect",
-      "retainedPostimageEvent"
+      "retainedPostimageEvent",
+      "retainedResourceEventCommon"
     ],
     "specs/profiles/write/write.md": [
       "aliasResult",

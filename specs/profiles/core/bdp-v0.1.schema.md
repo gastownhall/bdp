@@ -17,8 +17,8 @@ Definitions: present
 | $schema | "https://json-schema.org/draft/2020-12/schema" |
 | description | "Staged JSON Schema2020-12 artifact for the v0.1 selected-contract binding. Version and optional capability discovery are explicit; remaining inherited profile, Type, Event and advanced grammar is not an adoption or retention commitment. Complete retained-surface composition is required before advertising v0.1. The separate v0 artifact remains unchanged for held runtime/evidence." |
 | title | "BDP v0.1 staged schema bundle" |
-| x-bdp-schema-definitions | ["absoluteHttpUrl","absoluteUri","aliasResult","aliasResultMembers","atomicBatchCapabilityProblem","atomicBatchCapabilityV1","atomicBatchOperationName","atomicBatchOperationProblem","atomicBatchProblem","atomicBatchResourceResult","atomicBatchResult","atomicBatchResultEntry","atomicBatchSelection","batchOperation","batchRequest","bdpVersion","beadCollection","beadRecord","capabilityAdvertisements","capabilityVersionAdvertisements","contextMessage","contextString","contextTime","coreAdvertisedLimits","coreDiscovery","countResult","createBeadMembers","createBeadOperation","createBeadRequest","createLinkMembers","createLinkOperation","createLinkRequest","currentBeadCollection","currentBeadRecord","currentLinkCollection","currentLinkRecord","dateTime","deleteAliasMembers","deleteAliasRequest","deleteBeadMembers","deleteBeadOperation","deleteBeadRequest","deleteLinkMembers","deleteLinkOperation","deleteLinkRequest","deletedIdentity","durableInputPinnedReference","durableInputReference","durableResourceReference","eventsCapabilityV1","exactTypeDefinitionRecord","expectedRevision","historicalBeadRecord","historicalLinkRecord","historyCapability","historyMissing","historyMissingItem","historyVersionRow","historyVersionsPage","historyWindow","idempotencyCapabilityV1","inputPinnedReference","inputReference","iso8601Duration","jsonPointer","linkCollection","linkRecord","localBindingReference","localName","maximumEndpointMultiplicityPolicy","metadata","mutationOutcome","mutationResult","mutationResultMembers","ordinaryUpdateChange","ownerRevision","ownerRevisions","pinnedReference","pinnedTypeReference","positiveInteger","projectedBeadCollection","projectedBeadRecord","projectedLinkCollection","projectedLinkRecord","properties","propertyChange","putAliasMembers","putAliasRequest","readProblem","readProblemCode","readUpdateProblem","readUpdateProblemCode","reference","removedAliases","resourceIdentity","resourceKind","resourceProjectionCapabilityProblem","resourceProjectionCapabilityV1","resourceProjectionInventoryQueryV1","resourceProjectionMask","resourceProjectionPointQueryV1","resourceProjectionProblem","resourceProjectionSelection","resourceReference","retainedDeltaEffect","retainedDeltaEvent","retainedDiscovery","retainedEvent","retainedEventCommon","retainedEventCoverage","retainedEventDeleted","retainedEventDerived","retainedEventPage","retainedEventPolicy","retainedEventProblem","retainedEventQuery","retainedEventSelection","retainedPostimageEffect","retainedPostimageEvent","retryDisposition","revision","revisionActor","revisionProvenance","revisionProvenanceInput","selector","specRevision","typeDefinitionReadCapabilityProblem","typeDefinitionReadCapabilityV1","typeDefinitionReadProblem","typeDefinitionReadQueryV1","typeDefinitionReadResult","typeDefinitionReadSelection","typeReference","updateBeadMembers","updateBeadOperation","updateBeadRequest","updateLinkMembers","updateLinkOperation","updateLinkRequest","validationDiagnostic","validationDiagnostics","wireToken","writeAdvertisedLimits","writeDiscovery","writeExceptionsCapabilityV1","writeOperationDirectory"] |
-| x-bdp-schema-sources | {"specs/profiles/core/core.md":["absoluteHttpUrl","absoluteUri","bdpVersion","beadCollection","beadRecord","capabilityAdvertisements","capabilityVersionAdvertisements","contextMessage","contextString","contextTime","coreAdvertisedLimits","coreDiscovery","countResult","currentBeadCollection","currentBeadRecord","currentLinkCollection","currentLinkRecord","dateTime","exactTypeDefinitionRecord","historicalBeadRecord","historicalLinkRecord","historyCapability","historyMissing","historyMissingItem","historyVersionRow","historyVersionsPage","historyWindow","iso8601Duration","jsonPointer","linkCollection","linkRecord","maximumEndpointMultiplicityPolicy","metadata","pinnedReference","pinnedTypeReference","positiveInteger","projectedBeadCollection","projectedBeadRecord","projectedLinkCollection","projectedLinkRecord","properties","readProblem","readProblemCode","reference","resourceIdentity","resourceKind","resourceProjectionCapabilityProblem","resourceProjectionCapabilityV1","resourceProjectionInventoryQueryV1","resourceProjectionMask","resourceProjectionPointQueryV1","resourceProjectionProblem","resourceProjectionSelection","retryDisposition","revision","revisionActor","revisionProvenance","selector","specRevision","typeDefinitionReadCapabilityProblem","typeDefinitionReadCapabilityV1","typeDefinitionReadProblem","typeDefinitionReadQueryV1","typeDefinitionReadResult","typeDefinitionReadSelection","typeReference","wireToken"],"specs/profiles/events/events.md":["eventsCapabilityV1","retainedDeltaEffect","retainedDeltaEvent","retainedEvent","retainedEventCommon","retainedEventCoverage","retainedEventDeleted","retainedEventDerived","retainedEventPage","retainedEventPolicy","retainedEventProblem","retainedEventQuery","retainedEventSelection","retainedPostimageEffect","retainedPostimageEvent"],"specs/profiles/write/write.md":["aliasResult","aliasResultMembers","atomicBatchCapabilityProblem","atomicBatchCapabilityV1","atomicBatchOperationName","atomicBatchOperationProblem","atomicBatchProblem","atomicBatchResourceResult","atomicBatchResult","atomicBatchResultEntry","atomicBatchSelection","batchOperation","batchRequest","createBeadMembers","createBeadOperation","createBeadRequest","createLinkMembers","createLinkOperation","createLinkRequest","deleteAliasMembers","deleteAliasRequest","deleteBeadMembers","deleteBeadOperation","deleteBeadRequest","deleteLinkMembers","deleteLinkOperation","deleteLinkRequest","deletedIdentity","durableInputPinnedReference","durableInputReference","durableResourceReference","expectedRevision","idempotencyCapabilityV1","inputPinnedReference","inputReference","localBindingReference","localName","mutationOutcome","mutationResult","mutationResultMembers","ordinaryUpdateChange","ownerRevision","ownerRevisions","propertyChange","putAliasMembers","putAliasRequest","readUpdateProblem","readUpdateProblemCode","removedAliases","resourceReference","retainedDiscovery","revisionProvenanceInput","updateBeadMembers","updateBeadOperation","updateBeadRequest","updateLinkMembers","updateLinkOperation","updateLinkRequest","validationDiagnostic","validationDiagnostics","writeAdvertisedLimits","writeDiscovery","writeExceptionsCapabilityV1","writeOperationDirectory"]} |
+| x-bdp-schema-definitions | ["absoluteHttpUrl","absoluteUri","aliasResult","aliasResultMembers","atomicBatchCapabilityProblem","atomicBatchCapabilityV1","atomicBatchOperationName","atomicBatchOperationProblem","atomicBatchProblem","atomicBatchResourceResult","atomicBatchResult","atomicBatchResultEntry","atomicBatchSelection","batchOperation","batchRequest","bdpVersion","beadCollection","beadRecord","capabilityAdvertisements","capabilityVersionAdvertisements","contextMessage","contextString","contextTime","coreAdvertisedLimits","coreDiscovery","countResult","createBeadMembers","createBeadOperation","createBeadRequest","createLinkMembers","createLinkOperation","createLinkRequest","currentBeadCollection","currentBeadRecord","currentLinkCollection","currentLinkRecord","dateTime","deleteAliasMembers","deleteAliasRequest","deleteBeadMembers","deleteBeadOperation","deleteBeadRequest","deleteLinkMembers","deleteLinkOperation","deleteLinkRequest","deletedIdentity","durableInputPinnedReference","durableInputReference","durableResourceReference","eventsCapabilityV1","exactTypeDefinitionRecord","expectedRevision","historicalBeadRecord","historicalLinkRecord","historyCapability","historyMissing","historyMissingItem","historyVersionRow","historyVersionsPage","historyWindow","idempotencyCapabilityV1","inputPinnedReference","inputReference","iso8601Duration","jsonPointer","linkCollection","linkRecord","localBindingReference","localName","maximumEndpointMultiplicityPolicy","metadata","mutationOutcome","mutationResult","mutationResultMembers","ordinaryUpdateChange","ownerRevision","ownerRevisions","pinnedReference","pinnedTypeReference","positiveInteger","projectedBeadCollection","projectedBeadRecord","projectedLinkCollection","projectedLinkRecord","properties","propertyChange","putAliasMembers","putAliasRequest","readProblem","readProblemCode","readUpdateProblem","readUpdateProblemCode","reference","removedAliases","resourceIdentity","resourceKind","resourceProjectionCapabilityProblem","resourceProjectionCapabilityV1","resourceProjectionInventoryQueryV1","resourceProjectionMask","resourceProjectionPointQueryV1","resourceProjectionProblem","resourceProjectionSelection","resourceReference","retainedDeltaEffect","retainedDeltaEvent","retainedDiscovery","retainedEvent","retainedEventCommon","retainedEventCoverage","retainedEventDeleted","retainedEventDerived","retainedEventPage","retainedEventPolicy","retainedEventProblem","retainedEventQuery","retainedEventSelection","retainedNonResourceEvent","retainedPostimageEffect","retainedPostimageEvent","retainedResourceEventCommon","retryDisposition","revision","revisionActor","revisionProvenance","revisionProvenanceInput","selector","specRevision","typeDefinitionReadCapabilityProblem","typeDefinitionReadCapabilityV1","typeDefinitionReadProblem","typeDefinitionReadQueryV1","typeDefinitionReadResult","typeDefinitionReadSelection","typeReference","updateBeadMembers","updateBeadOperation","updateBeadRequest","updateLinkMembers","updateLinkOperation","updateLinkRequest","validationDiagnostic","validationDiagnostics","wireToken","writeAdvertisedLimits","writeDiscovery","writeExceptionsCapabilityV1","writeOperationDirectory"] |
+| x-bdp-schema-sources | {"specs/profiles/core/core.md":["absoluteHttpUrl","absoluteUri","bdpVersion","beadCollection","beadRecord","capabilityAdvertisements","capabilityVersionAdvertisements","contextMessage","contextString","contextTime","coreAdvertisedLimits","coreDiscovery","countResult","currentBeadCollection","currentBeadRecord","currentLinkCollection","currentLinkRecord","dateTime","exactTypeDefinitionRecord","historicalBeadRecord","historicalLinkRecord","historyCapability","historyMissing","historyMissingItem","historyVersionRow","historyVersionsPage","historyWindow","iso8601Duration","jsonPointer","linkCollection","linkRecord","maximumEndpointMultiplicityPolicy","metadata","pinnedReference","pinnedTypeReference","positiveInteger","projectedBeadCollection","projectedBeadRecord","projectedLinkCollection","projectedLinkRecord","properties","readProblem","readProblemCode","reference","resourceIdentity","resourceKind","resourceProjectionCapabilityProblem","resourceProjectionCapabilityV1","resourceProjectionInventoryQueryV1","resourceProjectionMask","resourceProjectionPointQueryV1","resourceProjectionProblem","resourceProjectionSelection","retryDisposition","revision","revisionActor","revisionProvenance","selector","specRevision","typeDefinitionReadCapabilityProblem","typeDefinitionReadCapabilityV1","typeDefinitionReadProblem","typeDefinitionReadQueryV1","typeDefinitionReadResult","typeDefinitionReadSelection","typeReference","wireToken"],"specs/profiles/events/events.md":["eventsCapabilityV1","retainedDeltaEffect","retainedDeltaEvent","retainedEvent","retainedEventCommon","retainedEventCoverage","retainedEventDeleted","retainedEventDerived","retainedEventPage","retainedEventPolicy","retainedEventProblem","retainedEventQuery","retainedEventSelection","retainedNonResourceEvent","retainedPostimageEffect","retainedPostimageEvent","retainedResourceEventCommon"],"specs/profiles/write/write.md":["aliasResult","aliasResultMembers","atomicBatchCapabilityProblem","atomicBatchCapabilityV1","atomicBatchOperationName","atomicBatchOperationProblem","atomicBatchProblem","atomicBatchResourceResult","atomicBatchResult","atomicBatchResultEntry","atomicBatchSelection","batchOperation","batchRequest","createBeadMembers","createBeadOperation","createBeadRequest","createLinkMembers","createLinkOperation","createLinkRequest","deleteAliasMembers","deleteAliasRequest","deleteBeadMembers","deleteBeadOperation","deleteBeadRequest","deleteLinkMembers","deleteLinkOperation","deleteLinkRequest","deletedIdentity","durableInputPinnedReference","durableInputReference","durableResourceReference","expectedRevision","idempotencyCapabilityV1","inputPinnedReference","inputReference","localBindingReference","localName","mutationOutcome","mutationResult","mutationResultMembers","ordinaryUpdateChange","ownerRevision","ownerRevisions","propertyChange","putAliasMembers","putAliasRequest","readUpdateProblem","readUpdateProblemCode","removedAliases","resourceReference","retainedDiscovery","revisionProvenanceInput","updateBeadMembers","updateBeadOperation","updateBeadRequest","updateLinkMembers","updateLinkOperation","updateLinkRequest","validationDiagnostic","validationDiagnostics","writeAdvertisedLimits","writeDiscovery","writeExceptionsCapabilityV1","writeOperationDirectory"]} |
 
 <a id="schema-def-ImFic29sdXRlSHR0cFVybCI"></a>
 ## Schema: "absoluteHttpUrl"
@@ -7732,7 +7732,7 @@ Required order: ["representation","effect"]
 {
   "allOf": [
     {
-      "$ref": "#/$defs/retainedEventCommon"
+      "$ref": "#/$defs/retainedResourceEventCommon"
     },
     {
       "if": {
@@ -8016,7 +8016,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Union of the supported complete postimage and delta Event shapes. Schema acceptance does not prove truthful coverage, retention or atomic production." |
+| description | "Union of the supported complete postimage and delta Resource facts and the non-Resource fact. Schema acceptance does not prove truthful coverage, retention or atomic production." |
 
 ### Advanced
 
@@ -8028,6 +8028,9 @@ Value: object
     },
     {
       "$ref": "#/$defs/retainedDeltaEvent"
+    },
+    {
+      "$ref": "#/$defs/retainedNonResourceEvent"
     }
   ]
 }
@@ -8038,13 +8041,13 @@ Value: object
 
 Value: object
 
-Required order: ["id","source","time","origin","revision"]
+Required order: ["id","source","time","origin"]
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Shared immutable fact envelope. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations." |
+| description | "Immutable fact envelope shared by Resource and non-Resource facts. Write-origin facts carry commit correlation; observation-origin facts describe the source’s truthful observation limitations." |
 | type | "object" |
 
 ### Properties
@@ -8054,8 +8057,6 @@ Required order: ["id","source","time","origin","revision"]
 | "annotations" | schema | no | — | "Explicit extension annotations. Unsupported required meaning cannot silently become known meaning." |
 | "id" | ref "#/$defs/wireToken" | yes | — | "Opaque immutable fact identity scoped to this Event source; it is not a Resource ID or resume cursor." |
 | "origin" | schema | yes | — | "Whether this fact came from Write’s own committed transition or truthful external observation." |
-| "previousRevision" | ref "#/$defs/revision" | no | — | "Actual known observed predecessor; omission never invents intermediate revisions." |
-| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
 | "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute URL of the observation source that emitted this fact." |
 | "time" | ref "#/$defs/dateTime" | yes | — | "Recorded Event time, not a global ordering or an authentication proof." |
 | "transaction" | ref "#/$defs/wireToken" | no | — | "Opaque commit correlation for Write-origin facts. It is neither a receipt nor a public replica-log position." |
@@ -8296,7 +8297,14 @@ Required order: ["source","selection","policy","coverage","events","cursor","nex
           "events": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/retainedPostimageEvent"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/retainedPostimageEvent"
+                },
+                {
+                  "$ref": "#/$defs/retainedNonResourceEvent"
+                }
+              ]
             }
           }
         }
@@ -8327,7 +8335,14 @@ Required order: ["source","selection","policy","coverage","events","cursor","nex
           "events": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/retainedDeltaEvent"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/retainedDeltaEvent"
+                },
+                {
+                  "$ref": "#/$defs/retainedNonResourceEvent"
+                }
+              ]
             }
           },
           "policy": {
@@ -8381,6 +8396,7 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "description" | schema | yes | — | "Human-readable explanation of the advertised mechanism or limitation." |
+| "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
 | "maximumPageSize" | schema | no | — | "Optional positive Event-page bound without permission to split or truncate a fact." |
 | "minimumCursorLifetimeSeconds" | schema | yes | — | "Positive minimum lifetime preserving issued cursor context and its captured range." |
 | "minimumRetentionSeconds" | schema | yes | — | "Positive minimum retention promise for admitted Event facts." |
@@ -8395,6 +8411,15 @@ Required order: ["observation","description","minimumRetentionSeconds","minimumC
     "description": {
       "type": "string",
       "minLength": 1
+    },
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "maximumPageSize": {
       "type": "integer",
@@ -8569,6 +8594,137 @@ Required order: ["representation"]
         "postimage",
         "delta"
       ]
+    }
+  }
+}
+```
+
+<a id="schema-def-InJldGFpbmVkTm9uUmVzb3VyY2VFdmVudCI"></a>
+## Schema: "retainedNonResourceEvent"
+
+Value: object
+
+Required order: ["family","profile","address","value","change"]
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Fact recording a change to state Transfer retains outside Resources. It mints no revision, carries no representation or provenance, and reads the same under either selected representation." |
+| type | "object" |
+
+### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "address" | schema | yes | — | "Stable address of the changed state, with the arity and meaning its family profile fixes." |
+| "change" | schema | yes | — | "What happened to the state at address: created, updated or deleted." |
+| "family" | schema | yes | — | "Retained family the source advertises in its policy. A consumer that does not know it stops rather than skips." |
+| "profile" | schema | yes | — | "Exact family profile identity fixing the address, value and projected Beads." |
+| "value" | any | yes | — | "Family-defined value of the change." |
+
+### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/retainedEventCommon"
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "family"
+        ],
+        "properties": {
+          "family": {
+            "const": "alias-state"
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "const": "https://github.com/gastownhall/bdp/families/alias-state/1"
+          },
+          "address": {
+            "type": "array",
+            "maxItems": 1
+          },
+          "value": {
+            "type": "object",
+            "required": [
+              "target"
+            ],
+            "properties": {
+              "target": {
+                "$ref": "#/$defs/absoluteHttpUrl"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "family"
+        ],
+        "properties": {
+          "family": {
+            "const": "identity-state"
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "const": "https://github.com/gastownhall/bdp/families/identity-state/1"
+          },
+          "address": {
+            "type": "array",
+            "maxItems": 2
+          },
+          "value": {
+            "enum": [
+              "pruned",
+              "erased",
+              "reorganized"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "address": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "change": {
+      "enum": [
+        "created",
+        "updated",
+        "deleted"
+      ]
+    },
+    "family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1
     }
   }
 }
@@ -8819,7 +8975,7 @@ Required order: ["representation","effect"]
 {
   "allOf": [
     {
-      "$ref": "#/$defs/retainedEventCommon"
+      "$ref": "#/$defs/retainedResourceEventCommon"
     },
     {
       "if": {
@@ -8919,6 +9075,39 @@ Required order: ["representation","effect"]
       "const": "postimage"
     }
   }
+}
+```
+
+<a id="schema-def-InJldGFpbmVkUmVzb3VyY2VFdmVudENvbW1vbiI"></a>
+## Schema: "retainedResourceEventCommon"
+
+Value: object
+
+Required order: ["revision"]
+
+### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Revision context shared by postimage and delta Resource facts. A non-Resource fact carries none of it." |
+| type | "object" |
+
+### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "previousRevision" | ref "#/$defs/revision" | no | — | "Actual known observed predecessor; omission never invents intermediate revisions." |
+| "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
+
+### Advanced
+
+```json-schema
+{
+  "allOf": [
+    {
+      "$ref": "#/$defs/retainedEventCommon"
+    }
+  ]
 }
 ```
 

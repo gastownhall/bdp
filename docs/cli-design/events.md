@@ -58,7 +58,7 @@ fields is not a promise to suppress them over the wire.
 
 ## One vocabulary in both directions
 
-An Event's `effect` uses the same `operation` discriminator and field names as a
+A Resource fact's `effect` uses the same `operation` discriminator and field names as a
 batch member. Its surrounding envelope records an authority's published fact.
 
 | Mutation intent | Realized delta Event `effect` |
