@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/schemas/callables-v1.schema.json",
+  "title": "BDP Callables version 1 structural projections",
+  "$comment": "Feature-owned supplement to unchanged BDP v0.1. Shape validation does not establish support, authorization or implementation conformance.",
+  "$defs": {
+    "callablesCapabilityV1": {
+      "description": "Version-1 detail of the Callables capability: closed and empty, because invocation lives in a fixed namespace.",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "callablesDiscovery": {
+      "description": "A Core or Write discovery document that advertises Callables version 1 with its closed detail.",
+      "allOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/retainedDiscovery"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "capabilities": {
+              "type": "object",
+              "properties": {
+                "https://github.com/gastownhall/bdp/capabilities/callables": {
+                  "type": "object",
+                  "properties": {
+                    "1": {
+                      "$ref": "#/$defs/callablesCapabilityV1"
+                    }
+                  },
+                  "required": ["1"]
+                }
+              },
+              "required": ["https://github.com/gastownhall/bdp/capabilities/callables"]
+            }
+          },
+          "required": ["capabilities"]
+        }
+      ]
+    },
+    "callableInvocation": {
+      "description": "The closed invocation body. The mount supplies the operation; no operation, name or key member rides in the body.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "type": "object",
+          "description": "Object keyed by parameter name; an empty object when the declaration has no parameters."
+        },
+        "revisionProvenance": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/revisionProvenanceInput",
+          "description": "Write's attribution input, admitted on a CallableBatch invocation and carried onto every revision the batch commits; rejected on a CallableQuery."
+        }
+      },
+      "required": ["arguments"]
+    },
+    "callableResult": {
+      "description": "The closed success body of an invocation: the result value and, for a CallableBatch, whether anything committed.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "changed": {
+          "type": "boolean",
+          "description": "CallableBatch only, then required: false promises the batch committed no durable effect; true means it may have."
+        },
+        "result": {
+          "description": "Any JSON value; the declaration's resultSchema, when there is one, says what to expect."
+        }
+      },
+      "required": ["result"]
+    },
+    "callableProblemMembers": {
+      "description": "The members of a Problem whose code this profile adds. Core's and Write's codes keep their own shapes; an invocation Problem is one or the other.",
+      "type": "object",
+      "if": {
+        "properties": {
+          "code": {
+            "const": "callable-error"
+          }
+        }
+      },
+      "then": {
+        "required": ["error"]
+      },
+      "else": {
+        "not": {
+          "required": ["error"]
+        }
+      },
+      "properties": {
+        "code": {
+          "enum": ["callable-not-found", "callable-unavailable", "callable-error"],
+          "description": "One of the three codes this profile adds."
+        },
+        "error": {
+          "description": "Required with callable-error, absent otherwise: the operation's own error value, valid against the declaration's errorSchema when there is one."
+        },
+        "retry": {
+          "const": "after-state-change",
+          "description": "Always after-state-change for these three codes."
+        },
+        "type": {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteUri",
+          "description": "The BDP problem-family URI."
+        }
+      },
+      "required": ["type", "code", "retry"]
+    },
+    "callableProblem": {
+      "description": "A Problem answered by a mount: a Core or Write Problem, or one carrying a code this profile adds.",
+      "anyOf": [
+        {
+          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/readUpdateProblem"
+        },
+        {
+          "$ref": "#/$defs/callableProblemMembers"
+        }
+      ]
+    }
+  },
+  "x-bdp-schema-definitions": [
+    "callableInvocation",
+    "callableProblem",
+    "callableProblemMembers",
+    "callableResult",
+    "callablesCapabilityV1",
+    "callablesDiscovery"
+  ],
+  "x-bdp-schema-sources": {
+    "specs/profiles/callables/callables.md": [
+      "callableInvocation",
+      "callableProblem",
+      "callableProblemMembers",
+      "callableResult",
+      "callablesCapabilityV1",
+      "callablesDiscovery"
+    ]
+  }
+}

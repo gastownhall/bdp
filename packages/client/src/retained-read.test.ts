@@ -674,6 +674,26 @@ describe("retained transport and native Write delivery", () => {
     await expect(selected.bindWrite(scope)).rejects.toMatchObject({ code: "unsupported-feature" });
     expect(seen).toEqual([scope, description]);
   });
+  it("names a directory that disagrees with discovery about aliases, and sends nothing more", async () => {
+    const seen: string[] = [];
+    const selected = client(async (input) => {
+      const url = String(input);
+      seen.push(url);
+      if (url === scope) return response(url, null, { link: linkHeader }, 204);
+      if (url === description) {
+        const { aliases: _aliases, ...withoutAliases } = discovery("write");
+        return response(url, withoutAliases);
+      }
+      return response(url, directory);
+    });
+    await expect(selected.bindWrite(scope)).rejects.toMatchObject({
+      code: "invalid-response",
+      submission: "not-submitted",
+      detail:
+        "the Write operation directory carries alias operations, but discovery does not advertise aliases",
+    });
+    expect(seen).toEqual([scope, description, directoryUrl]);
+  });
   it("uses one target-aware credential policy for irregular discovery and saved delivery", async () => {
     const seen: {
       url: string;

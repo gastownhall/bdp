@@ -8,6 +8,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import {
   commandGroups,
   deferredSignatures,
+  deleteModesSchemaFile,
   generateArtifacts,
   idRootSchemaFile,
   historicalSchemaFile,
@@ -28,6 +29,7 @@ const catalog = load("specs/openapi/bdp-v0.1.openapi.json");
 const tooling = load("fixtures/openapi/generated.openapi.json");
 const canonical = load(schemaFile);
 const allocation = load(idRootSchemaFile);
+const deleteModes = load(deleteModesSchemaFile);
 const historical = load(historicalSchemaFile);
 const bindings = load("fixtures/openapi/bindings.json").bindings;
 const exchanges = load("fixtures/openapi/exchanges.json");
@@ -112,6 +114,7 @@ test("every schema reference resolves without rewriting or staging imports", () 
       const resources = new Map([
         [resolve(root, schemaFile), canonical],
         [resolve(root, idRootSchemaFile), allocation],
+        [resolve(root, deleteModesSchemaFile), deleteModes],
         [resolve(root, historicalSchemaFile), historical],
         [
           resolve(root, "specs/profiles/types/types-v1.schema.json"),
@@ -647,6 +650,55 @@ test("command-first map assigns every wire case once without adding public verbs
     commandGroups.find((group) => group.command === "bd events").signatures.includes("scopeEvents"),
   );
   assert(!commandGroups.some((group) => /projected|historical|Definition/.test(group.command)));
+});
+
+test("deletion modes use one existing route and leave every base arm unchanged", () => {
+  const expected = {
+    deleteBead: {
+      requests: ["deleteModesRequest"],
+      successes: ["deleteModesResult", "deleteModesPreview"],
+      problem: "deleteModesProblem",
+      body: { beads: ["a", "b"], blockedBy: "none" },
+    },
+  };
+  const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: false });
+  ajv.addKeyword({ keyword: "x-bdp-schema-definitions", schemaType: "array", valid: true });
+  ajv.addKeyword({ keyword: "x-bdp-schema-sources", schemaType: "object", valid: true });
+  ajv.addSchema(canonical);
+  ajv.addSchema(deleteModes);
+  const file = "../profiles/write/delete-modes-v1.schema.json#/$defs/";
+  for (const row of rows) {
+    if (!row.methods.includes("post")) continue;
+    const op = catalog.components.pathItems[row.id].post;
+    const arms = op["x-bdp-feature-arms"];
+    const want = expected[row.id];
+    if (!want) {
+      assert.equal(arms, undefined, row.id);
+      continue;
+    }
+    assert.equal(arms.length, 1);
+    const [arm] = arms;
+    assert.equal(arm.capability, "https://github.com/gastownhall/bdp/capabilities/delete-modes");
+    assert.equal(arm.version, "1");
+    assert.deepEqual(
+      arm.request.oneOf.map((schema) => schema.$ref),
+      want.requests.map((name) => file + name),
+    );
+    assert.deepEqual(
+      arm.success.oneOf.map((schema) => schema.$ref),
+      want.successes.map((name) => file + name),
+    );
+    assert.equal(arm.problem.$ref, file + want.problem);
+    assert(op["x-bdp-applicable-problem-codes"].includes("capability-not-supported"));
+    assert.equal(
+      op.responses["200"].content[media].schema.$ref,
+      `../profiles/core/bdp-v0.1.schema.json#/$defs/${row.response}`,
+    );
+    const selected = ajv.getSchema(`${deleteModes.$id}#/$defs/${want.requests[0]}`);
+    assert(selected(want.body), JSON.stringify(selected.errors));
+    const base = ajv.getSchema(`${canonical.$id}#/$defs/${row.request}`);
+    assert(!base(want.body), "Old closed grammar must reject a selected deletion mode");
+  }
 });
 
 test("rooted creation uses three existing routes and disjoint feature schema arms", () => {

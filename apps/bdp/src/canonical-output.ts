@@ -99,11 +99,30 @@ function document(value: unknown, scope?: string, long = false): string {
     lines.push("", "Properties:", JSON.stringify(properties, null, 2));
   if (Object.keys(record(r.metadata)).length)
     lines.push("", "Metadata:", JSON.stringify(r.metadata, null, 2));
+  if (r.links !== undefined) {
+    const included = record(r.links);
+    const rows = Array.isArray(included.items) ? included.items : [];
+    lines.push(
+      "",
+      "Links:",
+      rows.length === 0 ? "(none)" : resourceRows(rows, scope, long).trimEnd(),
+    );
+    if (typeof included.next === "string") lines.push(`More: ${included.next}`);
+  }
   if (long) {
     const detail = Object.fromEntries(
       Object.entries(r).filter(
         ([key]) =>
-          !["id", "type", "revision", "source", "target", "properties", "metadata"].includes(key),
+          ![
+            "id",
+            "type",
+            "revision",
+            "source",
+            "target",
+            "properties",
+            "metadata",
+            "links",
+          ].includes(key),
       ),
     );
     if (Object.keys(detail).length) lines.push("", "Context:", JSON.stringify(detail, null, 2));
@@ -171,6 +190,139 @@ function versionsDocument(value: unknown, scope?: string, long = false): string 
 
 /** Finite serialization completes before stdout is touched. JSONL never puts
  * success in the header; a compound mutation remains a single item. */
+const CELL_WIDTH = 48;
+
+/** A result's text reaches the terminal without controls, whatever the service sent. */
+function terminalText(text: string): string {
+  return Array.from(text, (character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return character === "\n" || (code >= 32 && code < 127) || code > 159 ? character : " ";
+  }).join("");
+}
+const isTabular = (value: unknown): value is readonly ObjectValue[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((item) => item !== null && typeof item === "object" && !Array.isArray(item));
+const isEmptyValue = (value: unknown): boolean =>
+  value === null ||
+  value === undefined ||
+  value === "" ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === "object" && value !== null && Object.keys(value).length === 0);
+const plain = (value: unknown): string =>
+  terminalText(typeof value === "string" ? value : JSON.stringify(value));
+
+/** Rows of one record kind. A column empty in every row says nothing and is left out. */
+function callableTable(rows: readonly ObjectValue[], cut: { shortened: boolean }): string[] {
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((column) =>
+    rows.some((row) => !isEmptyValue(row[column])),
+  );
+  const cell = (value: unknown): string => {
+    const text = isEmptyValue(value) ? "" : plain(value).replace(/\s+/g, " ");
+    if (text.length <= CELL_WIDTH) return text;
+    cut.shortened = true;
+    return `${text.slice(0, CELL_WIDTH - 1)}…`;
+  };
+  const cells = rows.map((row) => columns.map((column) => cell(row[column])));
+  const widths = columns.map((column, index) =>
+    Math.max(terminalText(column).length, ...cells.map((row) => (row[index] ?? "").length)),
+  );
+  const line = (row: readonly string[]): string =>
+    row
+      .map((text, index) => text.padEnd(widths[index] ?? 0))
+      .join("  ")
+      .trimEnd();
+  return [line(columns.map(terminalText)), ...cells.map(line)];
+}
+function callableLines(value: unknown, cut: { shortened: boolean }): string[] {
+  if (isTabular(value)) return callableTable(value, cut);
+  if (Array.isArray(value))
+    return value.length === 0 ? ["(none)"] : value.map((item) => plain(item));
+  if (value === null || typeof value !== "object") return plain(value).split("\n");
+  const members = Object.entries(value);
+  if (members.length === 0) return ["(empty)"];
+  return members.flatMap(([key, member]) => {
+    const name = terminalText(key);
+    if (isTabular(member)) return ["", `${name}:`, ...callableTable(member, cut), ""];
+    if (Array.isArray(member))
+      return [`${name}: ${member.length === 0 ? "(none)" : member.map(plain).join(", ")}`];
+    if (member !== null && typeof member === "object" && Object.keys(member).length > 0)
+      return [`${name}:`, ...callableLines(member, cut).map((text) => `  ${text}`)];
+    const [first, ...others] = plain(member).split("\n");
+    return [`${name}: ${first}`, ...others.map((text) => `  ${text}`)];
+  });
+}
+
+/** Members of a v0 Problem carried in `error` that the first line already says. */
+const SAID_MEMBERS = new Set(["type", "status", "title", "code", "detail"]);
+
+/** A failed Callable in human mode: what was refused and why, in lines a person reads. Everything
+ * but the wording comes from the failure, and `--output-mode json` carries all of it unchanged. */
+export function renderCallableFailure(failure: CanonicalOutput): string {
+  const problem = record(record(failure.error).problem);
+  const operation = record(problem.error);
+  const word = (value: unknown): string | undefined =>
+    typeof value === "string" && value !== "" ? terminalText(value) : undefined;
+  const codes = [word(problem.code), word(operation.code)].filter((code) => code !== undefined);
+  const detail =
+    word(problem.detail) ??
+    word(operation.detail) ??
+    word(problem.message) ??
+    word(operation.title) ??
+    word(problem.title);
+  const diagnostics = Array.isArray(problem.diagnostics) ? problem.diagnostics.map(record) : [];
+  const context = record(failure.context);
+  const lines = [
+    `error: ${[...codes, ...(detail === undefined ? [] : [detail])].join(": ") || "the Callable failed"}`,
+    ...diagnostics.flatMap((diagnostic) => {
+      const message = word(diagnostic.message);
+      const location = word(diagnostic.instanceLocation);
+      const repeated = message === undefined || (detail !== undefined && message.endsWith(detail));
+      if (repeated && location === undefined) return [];
+      return [`  ${[location, repeated ? undefined : message].filter(Boolean).join(": ")}`];
+    }),
+    ...Object.entries(operation)
+      .filter(([member]) => !SAID_MEMBERS.has(member))
+      .map(([member, value]) => `  ${terminalText(member)}: ${plain(value)}`),
+    ...(diagnostics.some(({ instanceLocation }) => instanceLocation === "/revisionProvenance/actor")
+      ? ["  Say who is acting with --actor NAME."]
+      : []),
+    ...(context.effects === "none" ? ["  Nothing was changed."] : []),
+    ...(failure.outcome === "unknown" && record(failure.error).origin === "bdp"
+      ? ["  The outcome is unknown; read before repeating, or repeat with the same key."]
+      : []),
+    ...(typeof context.idempotency_key === "string"
+      ? [`  To recover, repeat with --idempotency-key ${terminalText(context.idempotency_key)}`]
+      : []),
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/** The one human form of every Callable result: boring, generic, with no per-package view. */
+function callableResultText(data: ObjectValue): string {
+  const cut = { shortened: false };
+  const result = record(data.result);
+  // The envelope says `changed`, and a product's own result may too. One line when they agree;
+  // when they do not, both, because which of them is right is not this client's to pick.
+  const both = typeof data.changed === "boolean" && typeof result.changed === "boolean";
+  const { changed: _said, ...rest } = result;
+  const lines = [
+    ...(both && data.changed !== result.changed
+      ? [`changed (invocation): ${data.changed}`, `changed (result): ${result.changed}`]
+      : typeof data.changed === "boolean"
+        ? [`changed: ${data.changed}`]
+        : []),
+    ...(both && Object.keys(rest).length === 0
+      ? []
+      : callableLines(both ? rest : data.result, cut)),
+  ];
+  while (lines[0] === "") lines.shift();
+  while (lines.at(-1) === "") lines.pop();
+  if (cut.shortened)
+    lines.push("", "(long values shortened; --output-mode json carries them whole)");
+  return `${lines.join("\n")}\n`;
+}
+
 export function renderCanonicalOutput(
   output: CanonicalOutput,
   options: Readonly<Record<string, unknown>>,
@@ -221,7 +373,21 @@ export function renderCanonicalOutput(
     return versionsDocument(output.data, scope, options.long === true);
   if (output.result_kind === "reference")
     return `${ref(output.data, scope, options.long === true)}\n`;
-  if (output.result_kind === "resource") return document(output.data, scope, options.long === true);
+  if (output.result_kind === "resource") {
+    const long = options.long === true;
+    const text = document(output.data, scope, long);
+    if (output.context?.preview !== "delete") return text;
+    // A delete without --force is a read: say so, or it looks exactly like `show` and exit 0.
+    const words = [
+      "bdp",
+      ...(output.context.resource_kind === "link" ? ["link"] : []),
+      "delete",
+      ref(record(output.data).id, scope, long),
+      "--force",
+      ...(typeof options.scope === "string" ? ["--scope", options.scope] : []),
+    ];
+    return `Preview only: nothing was deleted.\n\n${text}\nTo delete it, run: ${terminalText(words.join(" "))}\n`;
+  }
   if (output.result_kind === "resource_collection") {
     const items = record(output.data).items;
     if (!Array.isArray(items)) return "";
@@ -229,6 +395,15 @@ export function renderCanonicalOutput(
       ? items.map((item) => document(item, scope, options.long === true)).join("\n")
       : resourceRows(items, scope, options.long === true);
   }
+  if (output.result_kind === "callable_catalog") {
+    const items = record(output.data).items;
+    if (!Array.isArray(items)) return "";
+    const rows = items.map((item) => record(item));
+    const width = Math.max(0, ...rows.map((row) => String(row.name).length));
+    return rows.map((row) => `${String(row.name).padEnd(width)}  ${String(row.kind)}\n`).join("");
+  }
+  if (output.result_kind === "callable_result" && format === "default")
+    return callableResultText(record(output.data));
   if (output.result_kind === "mutation") {
     const data = record(output.data);
     const result = data.result === undefined ? data : record(data.result);

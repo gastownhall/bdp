@@ -74,13 +74,18 @@ export class RetainedWriteBinding {
     this.#discovery = discovery;
     if (discovery.scope !== this.#scope)
       throw new TypeError("retained Write discovery does not match the verified owning Scope");
-    this.#directory = parseRetainedWriteDirectory(directoryText);
+    this.#directory = parseRetainedWriteDirectory(directoryText, discovery);
     this.#maximumRequestBodyBytes = maximumRequestBodyBytes;
     Object.freeze(this);
   }
 
   get historicalUpdateSupported(): boolean {
     return readHistoricalUpdateCapability(this.#discovery) !== undefined;
+  }
+
+  /** Whether discovery advertises `aliases`; the directory has been held to the same answer. */
+  get aliasesSupported(): boolean {
+    return this.#discovery.aliases !== undefined;
   }
 
   prepareHistoricalUpdate(bodyText: string, idempotencyKey: string): PreparedRetainedWrite {
@@ -103,6 +108,9 @@ export class RetainedWriteBinding {
     idempotencyKey: string,
     selected: typeof RETAINED_V01_MEDIA_TYPE | typeof HISTORICAL_UPDATE_MEDIA,
   ): PreparedRetainedWrite {
+    const url = this.#directory[operation];
+    if (url === undefined)
+      throw new TypeError(`${operation} is not served: this provider does not advertise aliases`);
     if (
       typeof idempotencyKey !== "string" ||
       idempotencyKey.length < 1 ||
@@ -117,7 +125,7 @@ export class RetainedWriteBinding {
       specification: RETAINED_V01_SPECIFICATION,
       scope: this.#scope,
       operation,
-      url: this.#directory[operation],
+      url,
       method: "POST",
       headers: Object.freeze({
         accept: selected,

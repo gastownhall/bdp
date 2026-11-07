@@ -227,14 +227,14 @@ describe("private two-artifact Read+Update set", () => {
     expect(currentText.slice(minimum.start - 6, minimum.start)).toBe(",\n    ");
     const manifestText = currentText.slice(0, minimum.start - 6) + currentText.slice(minimum.end);
     expect(createHash("sha256").update(manifestText).digest("hex")).toBe(
-      "1e3dfd0db35ac4609deb7fa52ce4a011079b4c4e78f6fd4ebe5600ec662b995b",
+      "e7be10de89f0211556da92dc98cd68cc998b82c5a0bf1ad007e87322eedd50e1",
     );
     expect(JSON.parse(manifestText).scenarios).toHaveLength(50);
     const span = coldDirectorySpan(manifestText, "scenarios");
     expect(manifestText.slice(span.end, span.end + 6)).toBe(",\n    ");
     const parent = manifestText.slice(0, span.start) + manifestText.slice(span.end + 6);
     expect(createHash("sha256").update(parent).digest("hex")).toBe(
-      "87d8fc04fbbb152a4c6170a8c613ccd3ccc320a08fb80b7d848fb2e981f27d71",
+      "f7bcfc706b72a0ebdb10184883c006dec0b2911201023716e609d0fd55be54fd",
     );
     expect(JSON.parse(parent).scenarios).toHaveLength(49);
     expect(

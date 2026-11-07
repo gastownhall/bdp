@@ -24,7 +24,7 @@ arbitrary-provider conformance certificate or a count of normative obligations.
 | Historical Update1 | Fresh explicit format7; exact consumed source, independently guarded current baseline, genuine terminal version and same-ID undelete. Initial batch composition refuses. Append-only whole-Scope reference coverage does not qualify pruning/erasure or partial disclosure. |
 | Default reference storage | Format5 remains the default. Optional compositions do not migrate an existing store or rewrite a consumer pin. |
 | Types | Current specification/schema artifacts and readable notation are distinct from a runtime Types1 implementation. Descriptor-document adoption is tracked by327/346; a Type parser/compiler is separately deferred. |
-| Callable and Package | Published draft/experimental for review. Publication does not adopt their unresolved semantics or implement them. Both follow Core/Write/Types before deeper Memory/Issues work. |
+| Callable and Package | Callables has a preview-1 profile, an opt-in generic [reference mechanism](docs/reference-service.md#optional-callables-and-the-issue-package) and [provider-kit rows](docs/current-provider-kit.md#optional-profiles-callables-and-the-issue-package). The reference does not serve the 45 Issue Callables. Package remains a draft and is not implemented. |
 | Testing and CI | Three categories remain separate: artifact consistency, portable interoperability and reference correctness/reliability, with separate performance trends. The existing full CI remains authoritative; additive routing/verifier work344/345 does not cut over gates. |
 
 The [packed smoke routes](docs/test-smoke-routes.md) preserve installation custody,

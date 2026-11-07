@@ -12,6 +12,7 @@ export const commandPaths = [
   "alias put",
   "alias delete",
 ];
+export const callCommandPaths = ["call"];
 const globalFlags = new Map([
   ["--version", false],
   ["--config", true],
@@ -80,35 +81,45 @@ function compare(expected, actual, context) {
 }
 
 export function checkCorrespondence(markdown, root = commandTree()) {
-  const options = (node) => {
-    const result = new Map();
-    for (const option of node.options) {
-      if (option.short) throw new Error(`Undocumented short spelling ${option.short}`);
-      if (!option.long || result.has(option.long))
-        throw new Error(`Missing or duplicate registered long flag ${option.long}`);
-      result.set(option.long, option.required || option.optional);
-    }
-    return result;
-  };
-  compare(globalFlags, options(root), "root globals");
-  for (const path of commandPaths) {
-    let node = root;
-    for (const name of path.split(" ")) {
-      const matches = node.commands.filter((command) => command.name() === name);
-      if (matches.length !== 1) throw new Error(`${path}: expected one registered command ${name}`);
-      node = matches[0];
-    }
-    const actual = new Map();
-    for (let current = node; current; current = current.parent) {
-      for (const [flag, valued] of options(current)) {
-        if (current === root && toolingFlags.has(flag)) continue;
-        if (actual.has(flag)) throw new Error(`${path}: duplicate registered flag ${flag}`);
-        actual.set(flag, valued);
-      }
-    }
-    compare(documentedFlags(markdown, path), actual, path);
-  }
+  compare(globalFlags, registeredOptions(root), "root globals");
+  for (const path of commandPaths) checkPath(markdown, root, path);
   return commandPaths.length;
+}
+
+function registeredOptions(node) {
+  const result = new Map();
+  for (const option of node.options) {
+    if (option.short) throw new Error(`Undocumented short spelling ${option.short}`);
+    if (!option.long || result.has(option.long))
+      throw new Error(`Missing or duplicate registered long flag ${option.long}`);
+    result.set(option.long, option.required || option.optional);
+  }
+  return result;
+}
+
+function checkPath(markdown, root, path) {
+  let node = root;
+  for (const name of path.split(" ")) {
+    const matches = node.commands.filter((command) => command.name() === name);
+    if (matches.length !== 1) throw new Error(`${path}: expected one registered command ${name}`);
+    node = matches[0];
+  }
+  const actual = new Map();
+  for (let current = node; current; current = current.parent) {
+    for (const [flag, valued] of registeredOptions(current)) {
+      if (current === root && toolingFlags.has(flag)) continue;
+      if (actual.has(flag)) throw new Error(`${path}: duplicate registered flag ${flag}`);
+      actual.set(flag, valued);
+    }
+  }
+  compare(documentedFlags(markdown, path), actual, path);
+}
+
+/** The client flags of `call`. A Callable's own flags derive from its declaration, so they are
+ * documented by rule and have no row to compare. */
+export function checkCallCorrespondence(markdown, root = commandTree()) {
+  for (const path of callCommandPaths) checkPath(markdown, root, path);
+  return callCommandPaths.length;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -119,4 +130,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   console.log(
     `CLI flag correspondence: ${checkCorrespondence(markdown)} singleton mutation commands`,
   );
+  console.log(`CLI flag correspondence: ${checkCallCorrespondence(markdown)} call command`);
 }

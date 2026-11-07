@@ -72,7 +72,7 @@ A change that introduces, resolves or changes a recorded deferral should update 
 
 **Design deferred where explicitly unselected.** Types retains exact definition/registration/Scope-wide interpretation requirements. Its [existing unselected-mechanism boundary](profiles/types/types.md#8-conformance-and-unselected-mechanisms) is authoritative. Experimental Package global/local Type correspondence, portable graph packaging, public lifecycle/acquisition commands and publisher/version/closure binding must be deliberately specified; provenance or available bytes alone do not establish nominal equality, registration or installation.
 
-**Owner / revisit:** Types plus Callable/Package owners with Donna, in the selected next Callable AND Package design work. [Experimental Callables](../experimental/callables.md) and [Packages](../experimental/packs.md) retain their selected direction and explicitly open questions. Publication on main does not make them adopted runtime capabilities or decide generic Scope identity. See the [Types appendix](profiles/types/types.md#appendix-open-design-questions).
+**Owner / revisit:** Types plus Callable/Package owners with Donna, in the selected next Callable AND Package design work. [Callables](profiles/callables/callables.md) and [Packages](../experimental/packs.md) retain their selected direction and explicitly open questions. Publication on main does not make them adopted runtime capabilities or decide generic Scope identity. See the [Types appendix](profiles/types/types.md#appendix-open-design-questions).
 
 ## Memory
 
@@ -108,3 +108,35 @@ A change that introduces, resolves or changes a recorded deferral should update 
 
 
 These are **not newly deferred protocol design**: the bounded URI/security/consumer review for [PR314](https://github.com/gastownhall/bdp/pull/314); the focused startup successor/coverage map for [PR272](https://github.com/gastownhall/bdp/pull/272#issuecomment-6537200254); item-by-item editorial reconciliation from [issue5](https://github.com/gastownhall/bdp/issues/5); and historical-stack obligation maps before archival. In particular PR334 requires comparison of its eight files with landed PR339 and a preserved gap map, not a second batch landing or relabeling an originally failed receipt. Decisions73–75 retain focused allocation/diagnostic, child-listener/source-binding and portable pre-admission media cases; these belong in current feature-owned engineering coverage, not deferred semantics. Historical qualification limits and current mandatory rules survive cleanup.
+
+## Preview-1 Callables and Issue package
+
+### CALL-PREVIEW — Callables after preview-1
+
+**Design deferred.** [Callables §12](profiles/callables/callables.md#12-deferred) lists what preview-1 leaves unselected: readable bodies and parameter binding, how an endpoint advertises what it supports, registration details settled together with packages, the command tree, how the CLI learns what Callables exist, how much of `cliMapping` survives, and paged or streamed results. CALL-O1, CALL-O2 and CALL-O3 of the experimental draft close at preview depth only as that document states, once its rulings are marked.
+
+**Owner / revisit:** Callables owner with Donna, after the preview; the advertising exercise follows the specification work, and registration is settled with packages. The archived draft is [callables-draft-20261030](history/callables-draft-20261030/callables.md).
+
+### CALL-COMMANDS — Commands without raw generic writes
+
+**Design anticipated.** Preview-1 requires Write for a CallableBatch. Donna expects many services will want to expose commands without raw generic writes, and that is a common pattern, so the design should anticipate it when that requirement is revisited.
+
+**Owner / revisit:** Callables and Write owners with Donna, when a service asks for it or at the next Callables edition.
+
+### ISSUE-PREVIEW — Issue and Dependency Types after preview-1
+
+**Design deferred.** [Issue §11](types/issue/issue.md#11-carried-open-items) indexes the carried items: policy-dependent status meaning, operational observations, codified metadata, ownership, pinned endpoints, Link recovery, properties replacement, comments as Beads and custom classification lifecycle.
+
+**Owner / revisit:** Types and Issue package owners with Donna, after the preview. The October draft is [issue-draft-20261014](history/issue-draft-20261014/issue.md).
+
+### LINK-RECOVERY — Historical update and recovery for Links
+
+**Design open.** Donna ruled on 2026-11-05 that `--from-revision` should work on both `bd update` and `bd link update`, and that the current Bead-only text is a specification bug. [Issue 363](https://github.com/gastownhall/bdp/issues/363) lists what the extension has to settle. It is not a preview dependency.
+
+**Owner / revisit:** Write owner with Donna, after the preview.
+
+### CALL-SYS — Reserving `sys` in Core
+
+**Design selected, text pending.** Donna ruled on 2026-11-05 that the specifications own two prefixes: `bdp` as the sideband and `sys` as the in-band home of reserved Beads and Links. Core reserves only `bdp` today; reserving `sys` changes Core and the reference's allocation checks.
+
+**Owner / revisit:** Core owner with Donna, as its own pull request.

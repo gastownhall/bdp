@@ -1959,7 +1959,8 @@ function expectProblemRow(problem: JsonRecord, label: string): void {
   if (row === undefined) throw new Error(`${label}: unknown problem code ${code}`);
   expect(problem.type, label).toBe(`${BDP_PROBLEM_FAMILY_PREFIX}${row[1]}`);
   expect(problem.status, label).toBe(row[2]);
-  expect(problem.retry, label).toBe(row[3]);
+  // The pinned 692d table predates Donna's ruling of identity-taken's retry; only that cell differs.
+  expect(problem.retry, label).toBe(code === "identity-taken" ? "after-state-change" : row[3]);
 }
 
 function expectValid(schemaRef: string, value: unknown, label: string): void {

@@ -6,12 +6,19 @@ import { fileURLToPath } from "node:url";
 import {
   BLOCKING_LINK_TYPE_ID,
   isReadinessProblem,
+  issueCallableCatalog,
   ReadyOutputCompatibilityError,
   readyBeadsFromClient,
   renderReadyJson,
   renderReadyText,
 } from "@bdp/bd-domain";
-import { BdpClient, BdpClientLocalError, createFetchTransport } from "@bdp/client";
+import {
+  BdpClient,
+  BdpClientLocalError,
+  bdpClientFailureReason,
+  type CallableCatalog,
+  createFetchTransport,
+} from "@bdp/client";
 import {
   ConfigError,
   formatConfigError,
@@ -19,11 +26,19 @@ import {
   loadCanonicalCliConfig,
   loadCliProfile,
   loadStartupConfig,
+  describeUnsupportedArguments,
   parseConfigArgs,
 } from "@bdp/config";
 import { parseCanonicalScope, RETAINED_V01_SPECIFICATION, type ReadProblem } from "@bdp/protocol";
 import { type Command, CommanderError } from "commander";
-import { createCanonicalCommand } from "./canonical-command.js";
+import {
+  callableCommandTree,
+  callableGroupSummaries,
+  liftActorFlags,
+  renderCallableGroupHelp,
+  resolveCallableCommand,
+} from "./canonical-call.js";
+import { ACTOR_CONFLICT, createCanonicalCommand, splitLeadingWords } from "./canonical-command.js";
 import {
   defaultCliConfigPath,
   readBoundedFile,
@@ -73,10 +88,27 @@ class BootstrapConfigUsageError extends Error {
 
 class CliOperationError extends Error {}
 
+const HELP = new Set(["--help", "-h"]);
+const noInvocation = () => undefined;
+
+/** The root commands a Callable's first word may not take (Callables §10). */
+function builtInWords(): ReadonlySet<string> {
+  const inventory = createCanonicalCommand({
+    version,
+    profile: "canonical",
+    onInvocation: noInvocation,
+  });
+  return new Set(inventory.commands.map((command) => command.name()));
+}
+
 /** Bootstrap registration policy using the declared option arities. No
  * command-specific parsing or network activity occurs until the profile is known. */
-export async function runBdp(args: readonly string[]): Promise<number> {
-  if (args.length === 0) return runNoArgumentHelp();
+export async function runBdp(
+  args: readonly string[],
+  overrides: { readonly callableCatalog?: CallableCatalog } = {},
+): Promise<number> {
+  const callableCatalog = overrides.callableCatalog ?? issueCallableCatalog();
+  if (args.length === 0) return runNoArgumentHelp(callableCatalog);
   let status = 0;
   try {
     const inventory = createCanonicalCommand({
@@ -96,14 +128,19 @@ export async function runBdp(args: readonly string[]): Promise<number> {
     let configFile: string | undefined, explicitProfile: "canonical" | "compat" | undefined;
     let configSeen = false,
       profileSeen = false;
-    for (let index = 0; index < args.length; index++) {
-      const argument = args[index] ?? "";
+    const builtIns = new Set(inventory.commands.map((command) => command.name()));
+    const leading = splitLeadingWords(args, arities);
+    const treeCandidate = builtIns.has(leading?.words[0] ?? "") ? undefined : leading;
+    // Nothing after a tree command is ours to read, including a --config it may declare.
+    const clientArguments = treeCandidate?.client ?? args;
+    for (let index = 0; index < clientArguments.length; index++) {
+      const argument = clientArguments[index] ?? "";
       if (argument === "--") break;
       const at = argument.indexOf("=");
       const name = at < 0 ? argument : argument.slice(0, at);
       if (!arities.has(name)) continue;
       const value =
-        at >= 0 ? argument.slice(at + 1) : arities.get(name) ? args[++index] : undefined;
+        at >= 0 ? argument.slice(at + 1) : arities.get(name) ? clientArguments[++index] : undefined;
       if (name === "--config") {
         if (value === undefined || (at < 0 && value.startsWith("--")))
           throw new BootstrapConfigUsageError("missing");
@@ -145,9 +182,44 @@ export async function runBdp(args: readonly string[]): Promise<number> {
     const selectedProfile =
       explicitProfile ??
       loadCliProfile({ configFile: selectedConfigFile, env: process.env, readFile });
+    // `bdp issue create ...` is `bdp call issue/create ...`, spelled as its name's segments.
+    let callableCommand: readonly string[] | undefined;
+    let callableInvocation: readonly string[] | undefined;
+    if (selectedProfile === "canonical" && treeCandidate !== undefined) {
+      // --actor is attribution in any position, even between a command's words (§10).
+      const lifted = liftActorFlags(treeCandidate.words);
+      const mounted = resolveCallableCommand(
+        callableCommandTree(await callableCatalog.list(), builtIns),
+        lifted?.words ?? treeCandidate.words,
+      );
+      if (mounted !== undefined) {
+        if (lifted === undefined) throw new CliOperationError("--actor requires a value");
+        const client = treeCandidate.client.filter((argument) => !HELP.has(argument));
+        const asked = client.length !== treeCandidate.client.length;
+        const rest = asked ? ["--help", ...mounted.rest] : mounted.rest;
+        const { declaration, path } = mounted.node;
+        if (declaration === undefined) {
+          if (rest.length > 0 && !HELP.has(rest[0] ?? ""))
+            throw new CliOperationError(
+              `no such command under ${path.join(" ")}; use bdp ${path.join(" ")} --help`,
+            );
+          process.stdout.write(renderCallableGroupHelp(mounted.node));
+          return 0;
+        }
+        callableCommand = path;
+        callableInvocation = ["call", ...client, ...lifted.client, "--", declaration.name, ...rest];
+      }
+    }
     const tree = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile: selectedProfile,
+      ...(selectedProfile === "canonical" && leading === undefined
+        ? {
+            callableGroups: callableGroupSummaries(
+              callableCommandTree(await callableCatalog.list(), builtIns),
+            ),
+          }
+        : {}),
       writeOut: (text) => {
         process.stdout.write(text);
       },
@@ -241,38 +313,64 @@ export async function runBdp(args: readonly string[]): Promise<number> {
         const interrupt = () => interruption.abort();
         process.on("SIGINT", interrupt);
         try {
-          status = await runCanonicalInvocation(invocation, config, {
-            signal: interruption.signal,
-            stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
-            stderr: (text, signal) => writeCanonicalOutput(process.stderr, text, signal),
-          });
+          status = await runCanonicalInvocation(
+            invocation,
+            config,
+            {
+              signal: interruption.signal,
+              stdout: (text, signal) => writeCanonicalOutput(process.stdout, text, signal),
+              stderr: (text, signal) => writeCanonicalOutput(process.stderr, text, signal),
+            },
+            callableCatalog,
+            callableCommand,
+          );
         } finally {
           process.removeListener("SIGINT", interrupt);
         }
       },
     });
-    await tree.parseAsync([...args], { from: "user" });
+    // Under `--`, Commander leaves a tree command's flags to its declaration, and `call NAME
+    // --help` to the declaration's help rather than the verb's.
+    const callHelp =
+      selectedProfile === "canonical" &&
+      leading?.words[0] === "call" &&
+      leading.words[1] !== undefined &&
+      !leading.words[1].startsWith("-") &&
+      leading.words.slice(2).some((word) => HELP.has(word));
+    await tree.parseAsync(
+      callableInvocation !== undefined
+        ? [...callableInvocation]
+        : callHelp
+          ? ["call", ...(leading?.client ?? []), "--", leading?.words[1] ?? "", "--help"]
+          : selectedProfile === "canonical" && leading?.words[0] === "call"
+            ? ["call", ...leading.client, ...leading.words.slice(1)]
+            : [...args],
+      { from: "user" },
+    );
     return status;
   } catch (error) {
     if (error instanceof CommanderError && error.exitCode === 0) return 0;
-    // A typo may contain a credential. No argv, option value, file contents or
-    // library exception text is copied to the diagnostic channel.
-    // Commander stops at the first rejected option: count that refusal, not
-    // every remaining token. The shared --config errors are fixed strings.
+    // A typo may contain a credential. No option value, file contents or library
+    // exception text is copied to the diagnostic channel; a rejected flag's own
+    // spelling is named when it is shaped like one. Commander stops at the first
+    // rejected option: that is the one refusal, not every remaining token. The
+    // shared --config errors are fixed strings.
     const message =
       error instanceof BootstrapConfigUsageError
         ? `${error.message}; use --help for usage`
         : error instanceof CliOperationError
           ? error.message
-          : error instanceof CommanderError && error.code === "commander.unknownOption"
-            ? "1 unsupported argument(s); use --help for usage"
-            : "invalid command or configuration; use --help for usage";
+          : error instanceof CommanderError && error.code === ACTOR_CONFLICT
+            ? "--actor was given with two different values"
+            : error instanceof CommanderError && error.code === "commander.unknownOption"
+              ? `${describeUnsupportedArguments([/unknown option '(.*)'/.exec(error.message)?.[1] ?? ""])}; use --help for usage`
+              : "invalid command or configuration; use --help for usage";
     diagnostic("error", "cli.usage", message);
     return 2;
   }
 }
 
-async function runNoArgumentHelp(): Promise<number> {
+async function runNoArgumentHelp(callableCatalog: CallableCatalog): Promise<number> {
   try {
     const configuredPath = process.env.BDP_CONFIG;
     const defaultPath = defaultCliConfigPath(process.env);
@@ -305,7 +403,14 @@ async function runNoArgumentHelp(): Promise<number> {
     const command = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile,
-      onInvocation: () => undefined,
+      onInvocation: noInvocation,
+      ...(profile === "canonical"
+        ? {
+            callableGroups: callableGroupSummaries(
+              callableCommandTree(await callableCatalog.list(), builtInWords()),
+            ),
+          }
+        : {}),
     });
     const scope = config.scope?.url ?? "not configured; set one with bdp scope set <scope>";
     process.stdout.write(`${command.helpInformation()}\nDefault Scope: ${scope}\n`);
@@ -347,10 +452,10 @@ async function runLegacyBdp(
     parsed.rest[1] !== "ready" ||
     parsed.errors.length > 0
   ) {
-    // Never echo argv: an unsupported argument may be a mistyped credential.
+    // A flag is named and nothing else is: an unsupported argument may be a mistyped credential.
     const details = [
       ...parsed.errors,
-      ...(parsed.rest.length > 0 ? [`${parsed.rest.length} unsupported argument(s)`] : []),
+      ...(parsed.rest.length > 0 ? [describeUnsupportedArguments(parsed.rest)] : []),
     ];
     diagnostic("error", "cli.usage", `${details.join("; ")}; use --help for usage`);
     return 2;
@@ -390,8 +495,21 @@ async function runLegacyBdp(
       return 2;
     }
     if (error instanceof BdpClientLocalError) {
-      if (json) process.stdout.write(renderReadyErrorJson({ kind: "local", code: error.code }));
-      else diagnostic("error", "bd.ready.failed", error.code);
+      const reason = bdpClientFailureReason(error);
+      if (json)
+        process.stdout.write(
+          renderReadyErrorJson({
+            kind: "local",
+            code: error.code,
+            ...(reason === undefined ? {} : { message: reason }),
+          }),
+        );
+      else
+        diagnostic(
+          "error",
+          "bd.ready.failed",
+          reason === undefined ? error.code : `${error.code}: ${reason}`,
+        );
       return 1;
     }
     if (error instanceof ReadyOutputCompatibilityError) {
@@ -409,7 +527,7 @@ async function runLegacyBdp(
 function renderReadyErrorJson(
   error:
     | { readonly kind: "protocol"; readonly problem: ReadProblem }
-    | { readonly kind: "local"; readonly code: string },
+    | { readonly kind: "local"; readonly code: string; readonly message?: string },
 ): string {
   return `${JSON.stringify({ error })}\n`;
 }

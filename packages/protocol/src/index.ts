@@ -12,6 +12,7 @@ export {
   RETAINED_V01_MEDIA_TYPE,
   RETAINED_V01_SPECIFICATION,
   RETAINED_WRITE_OPERATIONS,
+  type RetainedAliasOperation,
   type RetainedWriteDirectory,
   type RetainedWriteDiscovery,
   type RetainedWriteOperation,

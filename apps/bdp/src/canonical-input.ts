@@ -252,6 +252,28 @@ function provenance(value: AdmittedJsonValue): Record<string, AdmittedJsonValue>
   return { ...record };
 }
 
+/** `--revision-provenance` and `--actor` as the one attribution input Write defines. Conflicting
+ * actors refuse; no actor is silently overwritten. */
+export function lowerRevisionProvenance(
+  supplied: AdmittedJsonValue | undefined,
+  actorId: string | undefined,
+): Record<string, AdmittedJsonValue> {
+  const input = supplied === undefined ? {} : provenance(supplied);
+  if (actorId !== undefined) {
+    const actor = { id: actorId, basis: "writer-supplied" };
+    if (
+      input.actor !== undefined &&
+      stringifyJsonValue(input.actor) !== stringifyJsonValue(actor)
+    ) {
+      const explicit = object(input.actor, "actor");
+      if (explicit.id !== actor.id || explicit.basis !== actor.basis)
+        return refuse("--actor conflicts with explicit provenance actor");
+    }
+    input.actor = actor;
+  }
+  return input;
+}
+
 /** Freeze one ordinary Write invocation, without discovery, allocation, keys or I/O beyond injected inputs. */
 export async function compileCanonicalInput(
   request: CanonicalInputRequest,
@@ -493,22 +515,10 @@ async function compile(request: CanonicalInputRequest): Promise<CompiledCanonica
   if (attributes) {
     if (alias || operation === "deleteBead")
       return refuse("operation admits no caller attribution");
-    const input = has("revisionProvenance")
-      ? provenance(await read(option("revisionProvenance")))
-      : {};
-    if (has("actor")) {
-      const actor = { id: option("actor"), basis: "writer-supplied" };
-      if (
-        input.actor !== undefined &&
-        stringifyJsonValue(input.actor) !== stringifyJsonValue(actor)
-      ) {
-        const explicit = object(input.actor, "actor");
-        if (explicit.id !== actor.id || explicit.basis !== actor.basis)
-          return refuse("--actor conflicts with explicit provenance actor");
-      }
-      input.actor = actor;
-    }
-    body.revisionProvenance = input;
+    body.revisionProvenance = lowerRevisionProvenance(
+      has("revisionProvenance") ? await read(option("revisionProvenance")) : undefined,
+      has("actor") ? option("actor") : undefined,
+    );
   }
   if (
     update &&

@@ -1495,6 +1495,9 @@
         },
         "expectedRevision": {
           "$ref": "#/$defs/expectedRevision"
+        },
+        "revisionProvenance": {
+          "$ref": "#/$defs/revisionProvenanceInput"
         }
       },
       "required": ["bead"]
@@ -2079,6 +2082,11 @@
             "properties": {
               "ownerRevisions": false
             }
+          },
+          "else": {
+            "properties": {
+              "removedAliases": false
+            }
           }
         },
         {
@@ -2111,6 +2119,9 @@
         },
         "ownerRevisions": {
           "$ref": "#/$defs/ownerRevisions"
+        },
+        "removedAliases": {
+          "$ref": "#/$defs/removedAliases"
         },
         "resource": {
           "oneOf": [
@@ -2247,7 +2258,8 @@
         "idempotency-conflict",
         "idempotency-in-progress",
         "idempotency-expired",
-        "revision-allocation-unsafe"
+        "revision-allocation-unsafe",
+        "operation-not-supported"
       ]
     },
     "validationDiagnostic": {
@@ -2411,7 +2423,7 @@
                 "const": 409
               },
               "retry": {
-                "const": "never"
+                "const": "after-state-change"
               }
             }
           }
@@ -2597,6 +2609,34 @@
               "retry": {
                 "const": "after-state-change"
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "operation-not-supported"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "required": ["operation"],
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 422
+              },
+              "retry": {
+                "const": "after-state-change"
+              },
+              "operation": {
+                "$ref": "#/$defs/atomicBatchOperationName"
+              },
+              "pointer": false
             }
           }
         },
@@ -5837,6 +5877,22 @@
           ],
           "description": "Supported Write idempotency versions, each with closed empty detail."
         },
+        "https://github.com/gastownhall/bdp/capabilities/write-exceptions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/writeExceptionsCapabilityV1"
+                }
+              }
+            }
+          ],
+          "description": "Supported Write exception versions; the Scope does not serve the operations each lists and is not a complete Write provider."
+        },
         "https://github.com/gastownhall/bdp/capabilities/resource-projection": {
           "allOf": [
             {
@@ -6046,6 +6102,9 @@
         },
         "changed": {
           "type": "boolean"
+        },
+        "removedAliases": {
+          "$ref": "#/$defs/removedAliases"
         },
         "resources": {
           "type": "array",
@@ -6583,6 +6642,21 @@
         }
       },
       "required": ["bdpVersion", "profile", "scope", "specRevision"]
+    },
+    "writeExceptionsCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operationsNotSupported": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/atomicBatchOperationName"
+          }
+        }
+      },
+      "required": ["operationsNotSupported"]
     },
     "writeDiscovery": {
       "type": "object",
@@ -8436,6 +8510,14 @@
       "type": "object",
       "additionalProperties": false
     },
+    "removedAliases": {
+      "description": "Absolute URLs of the aliases a Bead deletion removed, ascending by code unit. Present exactly on a Bead deletion when discovery advertises aliases; empty when there were none.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/absoluteHttpUrl"
+      }
+    },
     "retainedResourceEventCommon": {
       "description": "Revision context shared by postimage and delta Resource facts. A non-Resource fact carries none of it.",
       "type": "object",
@@ -8647,6 +8729,7 @@
     "readUpdateProblem",
     "readUpdateProblemCode",
     "reference",
+    "removedAliases",
     "resourceIdentity",
     "resourceKind",
     "resourceProjectionCapabilityProblem",
@@ -8699,6 +8782,7 @@
     "wireToken",
     "writeAdvertisedLimits",
     "writeDiscovery",
+    "writeExceptionsCapabilityV1",
     "writeOperationDirectory"
   ],
   "x-bdp-schema-sources": {
@@ -8838,6 +8922,7 @@
       "putAliasRequest",
       "readUpdateProblem",
       "readUpdateProblemCode",
+      "removedAliases",
       "resourceReference",
       "retainedDiscovery",
       "revisionProvenanceInput",
@@ -8851,6 +8936,7 @@
       "validationDiagnostics",
       "writeAdvertisedLimits",
       "writeDiscovery",
+      "writeExceptionsCapabilityV1",
       "writeOperationDirectory"
     ]
   }

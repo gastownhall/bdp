@@ -15,6 +15,7 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 export const RETAINED_V01_SPECIFICATION =
   "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json";
 export const RETAINED_V01_MEDIA_TYPE = "application/vnd.bdp.v0.1+json";
+/** Every ordinary operation name this client knows. Two exist only with advertised `aliases`. */
 export const RETAINED_WRITE_OPERATIONS = Object.freeze([
   "createBead",
   "updateBead",
@@ -26,7 +27,13 @@ export const RETAINED_WRITE_OPERATIONS = Object.freeze([
   "deleteAlias",
 ] as const);
 export type RetainedWriteOperation = (typeof RETAINED_WRITE_OPERATIONS)[number];
-export type RetainedWriteDirectory = Readonly<Record<RetainedWriteOperation, AbsoluteHttpUrl>>;
+const RETAINED_ALIAS_OPERATIONS = Object.freeze(["putAlias", "deleteAlias"] as const);
+export type RetainedAliasOperation = (typeof RETAINED_ALIAS_OPERATIONS)[number];
+/** The six Resource members always; the alias pair exactly when discovery advertises `aliases`. */
+export type RetainedWriteDirectory = Readonly<
+  Record<Exclude<RetainedWriteOperation, RetainedAliasOperation>, AbsoluteHttpUrl>
+> &
+  Readonly<Partial<Record<RetainedAliasOperation, AbsoluteHttpUrl>>>;
 type JsonObject = Readonly<Record<string, AdmittedJsonValue>>;
 export type RetainedWriteDiscovery = JsonObject & {
   readonly bdpVersion: "0.1";
@@ -35,7 +42,7 @@ export type RetainedWriteDiscovery = JsonObject & {
   readonly specRevision: string;
   readonly events?: AbsoluteHttpUrl;
   readonly operations: AbsoluteHttpUrl;
-  readonly aliases: AbsoluteHttpUrl;
+  readonly aliases?: AbsoluteHttpUrl;
 };
 
 type SchemaRoot =
@@ -120,12 +127,26 @@ export function parseRetainedWriteDiscovery(text: string): RetainedWriteDiscover
   return value as RetainedWriteDiscovery;
 }
 
-/** No relative suffixes, inferred paths, extra operations or duplicate targets. */
-export function parseRetainedWriteDirectory(text: string): RetainedWriteDirectory {
+/** No relative suffixes, inferred paths, extra operations or duplicate targets. The closed
+ * schema holds the alias pair together; whether the pair belongs is discovery's to say, and a
+ * directory that disagrees with discovery in either direction is ambiguous and refused.
+ */
+export function parseRetainedWriteDirectory(
+  text: string,
+  discovery: Pick<RetainedWriteDiscovery, "aliases">,
+): RetainedWriteDirectory {
   const value = parseRetainedObject(text);
   validateRetainedValue("writeOperationDirectory", value);
+  const aliasMembers = RETAINED_ALIAS_OPERATIONS.some((name) => value[name] !== undefined);
+  if (aliasMembers !== (discovery.aliases !== undefined))
+    throw new ProtocolArtifactValidationError(
+      aliasMembers
+        ? "the Write operation directory carries alias operations, but discovery does not advertise aliases"
+        : "discovery advertises aliases, but the Write operation directory omits the alias operations",
+    );
   const targets = new Set<string>();
   for (const operation of RETAINED_WRITE_OPERATIONS) {
+    if (value[operation] === undefined) continue;
     const url = parseCanonicalHttpUrl(value[operation], `Write directory.${operation}`);
     if (targets.has(url))
       throw new ProtocolArtifactValidationError("retained Write directory has ambiguous targets");

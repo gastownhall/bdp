@@ -407,7 +407,7 @@ paged and do not version anything merely by being read.
 ### Native Scope policy
 
 A live Link MUST retain at least one live in-Scope Bead endpoint. Deletion is not
-erasure and cannot silently leave dangling native in-Scope endpoints; Write defines
+erasure and cannot silently leave dangling unpinned native in-Scope endpoints; Write defines
 explicit Link removal and the atomic deletion admission/rollback contract.
 
 Native Scope policies remain valid independently of optional Types. Their admission
@@ -3164,6 +3164,7 @@ Value: object
 | --- | --- | --- | --- | --- |
 | "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
 | "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
+| "https://github.com/gastownhall/bdp/capabilities/write-exceptions" | schema | no | — | "Supported Write exception versions; the Scope does not serve the operations each lists and is not a complete Write provider." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
 | "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
 
@@ -3203,6 +3204,21 @@ Value: object
           "properties": {
             "1": {
               "$ref": "#/$defs/idempotencyCapabilityV1"
+            }
+          }
+        }
+      ]
+    },
+    "https://github.com/gastownhall/bdp/capabilities/write-exceptions": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/writeExceptionsCapabilityV1"
             }
           }
         }

@@ -22,3 +22,29 @@ How anything in BDP points at anything: a URI — or a Pinned Reference,
 `{ uri, revision }`, the URI plus the revision it was made against. Either
 reference class may be pinned; the URI alone is identity.
 _Avoid_: external Type, remote Bead Type
+
+**Callable / CallableQuery / CallableBatch**:
+A Callable is a Bead declaring one named operation: help, parameters and the
+schemas of its result and errors. Its name is its local Resource ID. A
+CallableQuery is read-only; a CallableBatch mutates.
+_Avoid_: procedure, command (a command is a client spelling)
+
+**Declaration / definition**:
+A declaration says how to call an operation and nothing about how it works; a
+definition is a declaration with a readable body. Preview-1 has declarations only.
+_Avoid_: extern, which named the implementation form
+
+**Root Bead**:
+A real Bead under `sys` whose typed outgoing Links name what a Scope exposes; for
+Callables, `sys/callables`. A live Link is the whole fact. Registration is optional
+in preview-1.
+_Avoid_: registry, directory, catalog
+
+**Mount**:
+The URL that invokes one Callable: `<scope>/bdp/call/` followed by its name.
+_Avoid_: route
+
+**View**:
+A callable result built over complete Bead or Link records with added
+observations. It is not a Resource and carries no revision of its own.
+_Avoid_: projection, which Core uses for Resource projection

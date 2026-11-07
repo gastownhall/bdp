@@ -7,6 +7,7 @@ import https from "node:https";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { optionalRowNames, runOptionalRows } from "./current-provider-kit-callables.mjs";
 import {
   parseLinkHeader,
   withBdpSourceAnnotations,
@@ -133,9 +134,152 @@ export function hasCompleteRequiredCoverage(rows, lifecycle) {
     )
   );
 }
+const isWriteRowId = (id) => id.startsWith("write.");
+const isAliasRowId = (id) => id === "write.alias-put" || id === "write.alias-delete";
+// The rows that exist to replay a retained outcome; Write owes them only under `idempotency`.
+const isReplayRowId = (id) => id.startsWith("write.durable-original-");
+const IDEMPOTENCY = "https://github.com/gastownhall/bdp/capabilities/idempotency";
+// A later row reads what these leave behind, so a failure here stops its journey, excepted or not.
+const PRODUCER_ROWS = new Set([
+  "write.discovery-directory",
+  "write.create",
+  "write.effectful-update",
+  "write.delete",
+  "write.restart",
+  "write.link-create",
+  "write.alias-put",
+]);
+const exceptableWriteRows = definitions.map(([id]) => id).filter(isWriteRowId);
 class HarnessError extends Error {}
 class Stop extends Error {}
 class NotRun extends Error {}
+
+const SERVICE_ALLOCATED = "service-allocated";
+const isPlainObject = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+const httpUri = (value) => {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+};
+/** What a row's reason may repeat of a name the operator wrote: a token, or nothing. */
+const rowName = (name) => (/^[A-Za-z0-9._-]{1,64}$/.test(name) ? `\`${name}\`` : "a row");
+/**
+ * A provider's own fixture: see "A provider's recipe" in docs/current-provider-kit.md. Closed, so
+ * a misspelled member is refused here rather than read as a check that silently did not run.
+ */
+export function parseRecipe(recipe, optionalRows) {
+  const refuse = (message) => {
+    throw new HarnessError(`The recipe is refused: ${message}`);
+  };
+  const closed = (value, where, allowed, required = []) => {
+    if (!isPlainObject(value)) refuse(`${where} must be a JSON object`);
+    for (const member of Object.keys(value))
+      if (!allowed.includes(member)) refuse(`${where} has a member the kit does not read`);
+    for (const member of required)
+      if (!Object.hasOwn(value, member)) refuse(`${where} needs \`${member}\``);
+  };
+  const objectMember = (value, member, where) => {
+    if (Object.hasOwn(value, member) && !isPlainObject(value[member]))
+      refuse(`${where}.${member} must be a JSON object`);
+  };
+  const type = (value, where) => {
+    if (typeof value !== "string" || !httpUri(value))
+      refuse(`${where}.type must be an absolute HTTP(S) Type URI`);
+  };
+  const identity = (value, where) => {
+    if (value === SERVICE_ALLOCATED) return;
+    if (
+      typeof value !== "string" ||
+      !value.includes("{unique}") ||
+      value.startsWith("/") ||
+      /^[a-z][a-z0-9+.-]*:/i.test(value) ||
+      /[?#\\]/.test(value) ||
+      value.split("/").some((segment) => segment === "." || segment === "..")
+    )
+      refuse(
+        `${where}.id must be "${SERVICE_ALLOCATED}", or a Scope-relative spelling containing {unique}`,
+      );
+  };
+  closed(recipe, "the recipe", ["bead", "link", "excepted"], ["bead"]);
+  const { bead, link, excepted } = recipe;
+  closed(bead, "bead", ["type", "id", "create", "update"], ["type", "id", "create", "update"]);
+  type(bead.type, "bead");
+  identity(bead.id, "bead");
+  closed(bead.create, "bead.create", ["properties", "metadata"], ["properties"]);
+  objectMember(bead.create, "properties", "bead.create");
+  objectMember(bead.create, "metadata", "bead.create");
+  closed(bead.update, "bead.update", ["properties", "propertiesChange"]);
+  const created = bead.create.properties;
+  const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  if (Object.hasOwn(bead.update, "properties") === Object.hasOwn(bead.update, "propertiesChange"))
+    refuse("bead.update needs exactly one of `properties` and `propertiesChange`");
+  let changes;
+  if (Object.hasOwn(bead.update, "properties")) {
+    objectMember(bead.update, "properties", "bead.update");
+    changes = Object.entries(bead.update.properties).some(
+      ([member, value]) => !same(created[member], value),
+    );
+  } else {
+    const patch = bead.update.propertiesChange;
+    if (!Array.isArray(patch) || patch.length === 0)
+      refuse("bead.update.propertiesChange must be a nonempty array");
+    for (const item of patch) {
+      closed(item, "a propertiesChange item", ["op", "path", "value"], ["op", "path", "value"]);
+      if (!["add", "replace"].includes(item.op))
+        refuse('a propertiesChange item\'s op must be "add" or "replace"');
+      if (typeof item.path !== "string" || !/^\/[^/~]+$/.test(item.path))
+        refuse("a propertiesChange item's path must be one member, such as /title");
+      // The no-op sends the created value back at each path, so there must be one.
+      if (!Object.hasOwn(created, item.path.slice(1)))
+        refuse("a propertiesChange item must name a member bead.create writes");
+    }
+    changes = patch.some((item) => !same(created[item.path.slice(1)], item.value));
+  }
+  if (!changes) refuse("bead.update changes nothing bead.create wrote, so no update can be seen");
+  if (link !== undefined) {
+    closed(link, "link", ["type", "id", "properties", "metadata"], ["type", "id"]);
+    type(link.type, "link");
+    identity(link.id, "link");
+    objectMember(link, "properties", "link");
+    objectMember(link, "metadata", "link");
+  }
+  if (excepted !== undefined) {
+    if (!isPlainObject(excepted)) refuse("excepted must be an object of row to reason");
+    for (const [row, why] of Object.entries(excepted)) {
+      if (!exceptableWriteRows.includes(row) && !optionalRows.includes(row))
+        refuse(`excepted names ${rowName(row)}, which is no Write row or optional row of this kit`);
+      if (typeof why !== "string" || why === "") refuse(`excepted ${rowName(row)} needs a reason`);
+    }
+  }
+  return recipe;
+}
+/** What the update leaves of what the kit wrote, and the same edit at the created values. */
+function recipeUpdate({ create, update }) {
+  if (update.properties !== undefined)
+    return { wrote: update.properties, noop: { properties: create.properties } };
+  const wrote = { ...create.properties };
+  for (const item of update.propertiesChange) wrote[item.path.slice(1)] = item.value;
+  return {
+    wrote,
+    noop: {
+      propertiesChange: update.propertiesChange.map((item) => ({
+        ...item,
+        value: create.properties[item.path.slice(1)],
+      })),
+    },
+  };
+}
+/** Safe to repeat in a report: a status, and a code only when it is token-shaped. */
+function answerOf(reply) {
+  let code;
+  try {
+    code = JSON.parse(reply.bytes.toString("utf8"))?.code;
+  } catch {}
+  return `HTTP ${reply.status}${typeof code === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(code) ? ` ${code}` : ""}`;
+}
 
 // Internal timing control seam; the runner always supplies the actual monotonic clock.
 export function hasGraphDetailWindow(window, minimum, start, now) {
@@ -196,7 +340,7 @@ function exchange(
   method = "GET",
   value,
   key,
-  { contentType = media, accept = media } = {},
+  { contentType = media, accept = media, rawBody } = {},
 ) {
   const logical = new URL(target);
   if (
@@ -210,7 +354,7 @@ function exchange(
   if (!route)
     throw new HarnessError("Discovered origin has no explicitly authorized adapter connection");
   const physical = new URL(route.connectOrigin);
-  const text = value === undefined ? undefined : JSON.stringify(value);
+  const text = rawBody ?? (value === undefined ? undefined : JSON.stringify(value));
   return new Promise((resolve, reject) => {
     const req = (physical.protocol === "https:" ? https : http).request(
       {
@@ -225,9 +369,9 @@ function exchange(
           ...(text === undefined
             ? {}
             : {
-                "content-type": contentType,
+                ...(contentType === null ? {} : { "content-type": contentType }),
                 "content-length": String(Buffer.byteLength(text)),
-                "idempotency-key": key,
+                ...(key === undefined ? {} : { "idempotency-key": key }),
               }),
         },
       },
@@ -269,8 +413,33 @@ function exchange(
   });
 }
 
-/** Local trusted adapter module contract; no expected answers or custom validators. */
-export async function runCurrentProvider(provision) {
+/**
+ * `--scope` mode: one existing Scope, reached directly. No lifecycle, no fixture and no
+ * mutation of that Scope unless the operator says so; see `allowMutation` below.
+ */
+export function directScopeProvider(scopeUrl, authorization) {
+  return async () => ({
+    scope: scopeUrl,
+    connections: [
+      {
+        origin: new URL(scopeUrl).origin,
+        connectOrigin: new URL(scopeUrl).origin,
+        ...(authorization === undefined ? {} : { authorization }),
+      },
+    ],
+    async cleanup() {},
+  });
+}
+
+/**
+ * Local trusted adapter module contract; no expected answers or custom validators.
+ * `allowMutation: false` leaves every mutating case not-run with its reason, whatever the
+ * Scope advertises: an operator's existing Scope is not the kit's to change.
+ */
+export async function runCurrentProvider(
+  provision,
+  { allowMutation = true, exceptions: ledger, recipe: suppliedRecipe, recipeFailure } = {},
+) {
   const rows = definitions.map(([id, source]) => ({
     id,
     source,
@@ -286,13 +455,17 @@ export async function runCurrentProvider(provision) {
     qualificationComplete: false,
     sliceComplete: false,
     state: "incomplete",
+    claimEligible: false,
     lifecycle,
     obligations: rows,
   };
   let provider, cleanup;
   let provisionEntered = false;
+  let exceptions = ledger;
+  let lastPost;
   async function step(id, action) {
     const row = rows.find((entry) => entry.id === id);
+    lastPost = undefined;
     try {
       await action();
       row.state = "pass";
@@ -308,14 +481,37 @@ export async function runCurrentProvider(provision) {
         error instanceof NotRun
           ? error.message
           : error instanceof AssertionError
-            ? `Public assertion failed for ${id}`
+            ? // An authored message is fixed text; a generated one could quote a response value.
+              error.generatedMessage === false
+              ? `Public assertion failed for ${id}: ${error.message}`
+              : `Public assertion failed for ${id}`
             : error instanceof HarnessError
               ? error.message
               : "Harness/provider lifecycle or transport did not complete";
-      throw new Stop();
+      const excepted = exceptions?.[id] !== undefined;
+      if (excepted && lastPost !== undefined) row.observedAnswer = answerOf(lastPost);
+      if (!excepted || PRODUCER_ROWS.has(id)) throw new Stop();
     }
   }
   try {
+    if (recipeFailure !== undefined) throw new HarnessError(recipeFailure);
+    const optionalRows = await optionalRowNames();
+    const recipe =
+      suppliedRecipe === undefined ? undefined : parseRecipe(suppliedRecipe, optionalRows);
+    for (const row of Object.keys(ledger ?? {}))
+      if (isWriteRowId(row) && !exceptableWriteRows.includes(row))
+        throw new HarnessError(`The exceptions ledger names ${rowName(row)}, which no case runs`);
+    if (recipe?.excepted !== undefined && Object.keys(recipe.excepted).length > 0)
+      exceptions = { ...recipe.excepted, ...ledger };
+    if (recipe !== undefined)
+      report.recipe = {
+        used: true,
+        comparison: "authored-members",
+        statement:
+          "Not the strict portable fixture: the provider supplied its Types and bodies, the kit checked the members it wrote rather than whole properties, and a record may carry members the provider added.",
+        sha256: createHash("sha256").update(JSON.stringify(recipe)).digest("hex"),
+        exceptedRows: Object.keys(recipe.excepted ?? {}),
+      };
     if (typeof provision !== "function")
       throw new HarnessError("Provider module must export provision");
     const schemaText = await readFile(
@@ -331,6 +527,9 @@ export async function runCurrentProvider(provision) {
     const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
     report.inputs = {
       caseSourceSha256: sha256(caseSource),
+      optionalCaseSourceSha256: sha256(
+        await readFile(new URL("./current-provider-kit-callables.mjs", import.meta.url)),
+      ),
       coreProseSha256: sha256(coreProse),
       writeProseSha256: sha256(writeProse),
       schemaSha256: report.schemaSha256,
@@ -400,9 +599,30 @@ export async function runCurrentProvider(provision) {
     cleanup = Object.getOwnPropertyDescriptor(provider ?? {}, "cleanup")?.value;
     fields(
       provider,
-      ["scope", "connections", "conditions", "restart", "cleanup"],
+      ["scope", "connections", "conditions", "witnesses", "restart", "cleanup"],
       ["scope", "connections", "cleanup"],
     );
+    const witnesses =
+      provider.witnesses === undefined
+        ? {}
+        : fields(
+            provider.witnesses,
+            ["deletedResourceId", "callables", "issuePackage", "takesNoExceptions"],
+            [],
+          );
+    if (witnesses.callables !== undefined)
+      fields(
+        witnesses.callables,
+        ["unimplemented", "batch", "idempotentBatch", "callableError", "atomicProblem"],
+        [],
+      );
+    if (witnesses.takesNoExceptions === true && exceptions !== undefined)
+      throw new HarnessError("This provider takes no exceptions; a ledger cannot apply to it");
+    if (
+      witnesses.deletedResourceId !== undefined &&
+      typeof witnesses.deletedResourceId !== "string"
+    )
+      throw new HarnessError("Adapter witness must name a Resource by its local identity");
     if (
       typeof cleanup !== "function" ||
       (provider.restart !== undefined && typeof provider.restart !== "function")
@@ -441,21 +661,55 @@ export async function runCurrentProvider(provision) {
       throw new HarnessError("Adapter retained-detail condition must be a positive safe integer");
     let retentionStart;
     lifecycle.provision = "pass";
-    let discoveryUrl, directory, aliases, created, failed, updated, deleted;
-    const id = new URL(fixture.id, scope).href;
-    const create = {
-      id: fixture.id,
-      type: fixture.type,
-      properties: { title: "portable original" },
-      metadata: { source: "provider-kit" },
+    let discoveryUrl, discovered, directory, aliases, idempotent, created, failed, updated, deleted;
+    // Without a recipe every one of these is the portable fixture's, and the comparison is exact.
+    let spelled = 0;
+    const spell = (template) =>
+      template === SERVICE_ALLOCATED
+        ? undefined
+        : template.replaceAll("{unique}", `${runId.slice(0, 8)}${++spelled}`);
+    const identified = (local) => (local === undefined ? {} : { id: local });
+    const inScope = (value) => {
+      assert(
+        typeof value === "string" && value.startsWith(scope.href) && value !== scope.href,
+        "The allocated identity is not a URL under this Scope",
+      );
+      return value;
     };
+    const wroteBack = recipe
+      ? (actual, expected, where) => {
+          for (const [member, value] of Object.entries(expected))
+            assert.deepEqual(
+              actual?.[member],
+              value,
+              `${where}.${member} did not come back as the kit wrote it`,
+            );
+        }
+      : (actual, expected) => assert.deepEqual(actual, expected);
+    const beadType = recipe?.bead.type ?? fixture.type;
+    const beadMembers = recipe
+      ? { properties: recipe.bead.create.properties, metadata: recipe.bead.create.metadata ?? {} }
+      : { properties: { title: "portable original" }, metadata: { source: "provider-kit" } };
+    const beadLocal = recipe ? spell(recipe.bead.id) : fixture.id;
+    // Undefined until the service allocates it, when the recipe says it does.
+    let id = beadLocal === undefined ? undefined : new URL(beadLocal, scope).href;
+    const create = { ...identified(beadLocal), type: beadType, ...beadMembers };
     const createKey = `create-${runId}`,
       failureKey = `guard-${runId}`,
       deleteKey = `delete-${runId}`;
-    const update = { bead: id, properties: { title: "portable updated" } };
-    const remove = { bead: id };
-    const post = (operation, body, key) =>
-      exchange(routes, directory[operation], "POST", body, key);
+    const updateFixture = recipe
+      ? { edit: recipe.bead.update, ...recipeUpdate(recipe.bead) }
+      : {
+          edit: { properties: { title: "portable updated" } },
+          wrote: { title: "portable updated" },
+          noop: { properties: create.properties },
+        };
+    const update = () => ({ bead: id, ...updateFixture.edit });
+    const remove = () => ({ bead: id });
+    const post = async (operation, body, key) => {
+      lastPost = await exchange(routes, directory[operation], "POST", body, key);
+      return lastPost;
+    };
     async function scopeDescription() {
       const reply = await exchange(routes, scope.href, "GET", undefined, undefined, {
         accept: "*/*",
@@ -482,6 +736,117 @@ export async function runCurrentProvider(provision) {
         throw new HarnessError("Kit cannot select one discovery Link among available candidates");
       return new URL(selected.target, scope).href;
     }
+    function notApplicable(ids, reason) {
+      for (const row of rows)
+        if (ids(row.id)) {
+          row.state = "not-applicable";
+          row.required = false;
+          row.reason = reason;
+        }
+    }
+    const isWriteRow = isWriteRowId;
+    /** Read the discovery document only to learn the profile; Write's case checks its own shape. */
+    async function discoverProfile(description) {
+      const reply = await exchange(routes, description);
+      assert.equal(reply.status, 200);
+      let parsed;
+      try {
+        parsed = JSON.parse(new TextDecoder().decode(reply.bytes));
+      } catch {
+        assert.fail("The discovery document is not JSON");
+      }
+      if (parsed?.profile === "write") return parsed;
+      // The two base literals are closed (Core "Discovery and capabilities"): anything but
+      // `write` must be a valid closed Core document, or this is the provider's failure.
+      const discovery = json(reply, 200, "coreDiscovery");
+      assert.equal(discovery.profile, "core");
+      assert.equal(discovery.bdpVersion, "0.1");
+      assert.equal(discovery.scope, scope.href);
+      return discovery;
+    }
+    async function completePages(first, definition) {
+      let page = json(first, 200, definition);
+      const items = [...page.items];
+      for (let guard = 0; page.next !== null && page.next !== undefined; guard++) {
+        if (guard >= 100) throw new HarnessError("Inventory exceeded the kit's page budget");
+        page = json(await exchange(routes, new URL(page.next, scope).href), 200, definition);
+        items.push(...page.items);
+      }
+      return items;
+    }
+    /**
+     * Core's cases over whatever the Scope already holds. The provider seeds its records by
+     * its own means (its store, its adapter); the kit reads them through the public inventory,
+     * so nothing the provider says about its data becomes an expected answer.
+     */
+    async function coreJourney() {
+      let beads, links;
+      const independent = async (name, action) => {
+        try {
+          await step(name, action);
+        } catch (error) {
+          if (!(error instanceof Stop)) throw error;
+        }
+      };
+      await independent("core.inventory-fixed-routes", async () => {
+        const beadInventory = await exchange(routes, new URL("bdp/beads", scope).href);
+        assert.equal(beadInventory.status, 200);
+        assert.equal(beadInventory.headers["bdp-collection-kind"], "bead");
+        beads = await completePages(beadInventory, "currentBeadCollection");
+        const linkInventory = await exchange(routes, new URL("bdp/links", scope).href);
+        assert.equal(linkInventory.status, 200);
+        assert.equal(linkInventory.headers["bdp-collection-kind"], "link");
+        links = await completePages(linkInventory, "currentLinkCollection");
+      });
+      await independent("core.point-read", async () => {
+        const absent = await exchange(
+          routes,
+          new URL(`provider-kit/${runId}/never-created`, scope).href,
+        );
+        assert.equal(
+          absent.status,
+          404,
+          "A two-segment identity the Scope never held did not answer 404",
+        );
+        const absentProblem = (() => {
+          try {
+            return json(absent, 404, "readProblem", "application/problem+json");
+          } catch {
+            assert.fail("A two-segment identity's 404 is not a BDP Problem (readProblem)");
+          }
+        })();
+        assert.equal(absentProblem.code, "resource-not-found", "Absence is not resource-not-found");
+        assert.equal(absent.headers["bdp-resource-kind"], undefined);
+        if (beads === undefined)
+          throw new NotRun("The Bead inventory did not complete; no point-read subject is known");
+        if (beads.length === 0)
+          throw new NotRun(
+            "The Scope holds no Bead to read; a read-only provider seeds one by its own means",
+          );
+        const bead = await exchange(routes, beads[0].id);
+        assert.equal(bead.headers["bdp-resource-kind"], "bead");
+        assert.deepEqual(json(bead, 200, "currentBeadRecord"), beads[0]);
+        if (links?.length) {
+          const link = await exchange(routes, links[0].id);
+          assert.equal(link.headers["bdp-resource-kind"], "link");
+          assert.deepEqual(json(link, 200, "currentLinkRecord"), links[0]);
+        }
+      });
+      await independent("core.deleted-absence", async () => {
+        if (witnesses.deletedResourceId === undefined)
+          throw new NotRun(
+            "No Write delete and no adapter witness of a natively deleted Resource; reads after deletion are not run",
+          );
+        const reply = await exchange(routes, new URL(witnesses.deletedResourceId, scope).href);
+        assert([404, 410].includes(reply.status));
+        const problem = json(reply, reply.status, "readProblem", "application/problem+json");
+        assert(
+          reply.status === 404
+            ? problem.code === "resource-not-found"
+            : ["resource-pruned", "resource-erased"].includes(problem.code),
+        );
+      });
+    }
     async function readNavigation(description) {
       const discovery = json(await exchange(routes, description), 200, "writeDiscovery");
       assert.equal(discovery.bdpVersion, "0.1");
@@ -495,30 +860,91 @@ export async function runCurrentProvider(provision) {
         200,
         "writeOperationDirectory",
       );
-      assert.deepEqual(
-        Object.keys(nextDirectory).sort(),
-        [
-          "createBead",
-          "updateBead",
-          "deleteBead",
-          "createLink",
-          "updateLink",
-          "deleteLink",
-          "putAlias",
-          "deleteAlias",
-        ].sort(),
-      );
-      assert.equal(new Set(Object.values(nextDirectory)).size, 8);
-      return { directory: nextDirectory, aliases: nextAliases };
+      // Write "Ordinary targets": the six always, the alias pair exactly with advertised `aliases`.
+      const expected = [
+        "createBead",
+        "updateBead",
+        "deleteBead",
+        "createLink",
+        "updateLink",
+        "deleteLink",
+        ...(nextAliases === undefined ? [] : ["putAlias", "deleteAlias"]),
+      ];
+      assert.deepEqual(Object.keys(nextDirectory).sort(), [...expected].sort());
+      assert.equal(new Set(Object.values(nextDirectory)).size, expected.length);
+      return {
+        directory: nextDirectory,
+        aliases: nextAliases,
+        idempotent: discovery.capabilities?.[IDEMPOTENCY]?.["1"] !== undefined,
+      };
     }
+    const deletedAbsence = async () => {
+      const reply = await exchange(routes, id);
+      assert([404, 410].includes(reply.status));
+      const problem = json(reply, reply.status, "readProblem", "application/problem+json");
+      assert(
+        reply.status === 404
+          ? problem.code === "resource-not-found"
+          : ["resource-pruned", "resource-erased"].includes(problem.code),
+      );
+    };
+    const restartProvider = async () => {
+      const restarted = await provider.restart();
+      fields(restarted, ["connections"], ["connections"]);
+      routes = connections(restarted.connections);
+    };
     async function baseJourney() {
       await step("core.scope-discovery", async () => {
         discoveryUrl = await scopeDescription();
+        discovered = await discoverProfile(discoveryUrl);
+        report.discovered = {
+          profile: discovered.profile,
+          capabilities: Object.keys(discovered.capabilities ?? {}).sort(),
+        };
       });
+      if (discovered.profile === "core") {
+        notApplicable(
+          isWriteRow,
+          "Not applicable by discovery: the Scope advertises profile core, not write",
+        );
+        await coreJourney();
+        return;
+      }
       await step("write.discovery-directory", async () => {
-        ({ directory, aliases } = await readNavigation(discoveryUrl));
+        ({ directory, aliases, idempotent } = await readNavigation(discoveryUrl));
       });
+      // Only after that case has held the directory to discovery: a disagreement fails above.
+      if (aliases === undefined)
+        notApplicable(
+          isAliasRowId,
+          "Not applicable by discovery: the Write Scope does not advertise aliases",
+        );
+      // Write, "Repetition without idempotency": such a Scope retains nothing to replay.
+      if (!idempotent)
+        notApplicable(
+          isReplayRowId,
+          "Not applicable by discovery: the Write Scope does not advertise idempotency",
+        );
+      if (!allowMutation) {
+        for (const row of rows)
+          if (isWriteRow(row.id) && row.state === "not-run")
+            row.reason =
+              "Not run: this Scope advertises Write, but --scope mode does not change a Scope without --allow-mutation";
+        await coreJourney();
+        return;
+      }
       await step("write.media-before-admission", async () => {
+        // With no identity of its own to read back, the kit reads the whole inventory instead.
+        const inventoryIds = async () =>
+          (
+            await completePages(
+              await exchange(routes, new URL("bdp/beads", scope).href),
+              "currentBeadCollection",
+            )
+          )
+            .map((bead) => bead.id)
+            .sort();
+        const before = id === undefined ? await inventoryIds() : undefined;
         retentionStart = performance.now();
         const rejected = json(
           await exchange(routes, directory.createBead, "POST", create, createKey, {
@@ -529,6 +955,14 @@ export async function runCurrentProvider(provision) {
           "application/problem+json",
         );
         assert.equal(rejected.code, "unsupported-media-type");
+        if (id === undefined) {
+          assert.deepEqual(
+            await inventoryIds(),
+            before,
+            "A create refused for its media left a record behind",
+          );
+          return;
+        }
         const absent = json(
           await exchange(routes, id),
           404,
@@ -541,13 +975,15 @@ export async function runCurrentProvider(provision) {
         created = success(await post("createBead", create, createKey));
         assert.equal(created.outcome, "created");
         assert.equal(created.changed, true);
+        id ??= inScope(created.resource.id);
         assert.equal(created.resource.id, id);
-        assert.equal(created.resource.type, fixture.type);
-        assert.deepEqual(created.resource.properties, create.properties);
-        assert.deepEqual(created.resource.metadata, create.metadata);
+        assert.equal(created.resource.type, beadType);
+        wroteBack(created.resource.properties, create.properties, "properties");
+        wroteBack(created.resource.metadata, create.metadata, "metadata");
         assert.equal(typeof created.resource.revision, "string");
         assert.notEqual(created.resource.revision, "");
-        assert.deepEqual(success(await post("createBead", create, createKey)), created);
+        if (idempotent)
+          assert.deepEqual(success(await post("createBead", create, createKey)), created);
       });
       await step("core.point-read", async () => {
         const reply = await exchange(routes, id);
@@ -574,8 +1010,8 @@ export async function runCurrentProvider(provision) {
           await post(
             "updateBead",
             {
-              ...update,
-              properties: create.properties,
+              bead: id,
+              ...updateFixture.noop,
               expectedRevision: created.resource.revision,
             },
             `noop-${runId}`,
@@ -589,7 +1025,7 @@ export async function runCurrentProvider(provision) {
         created.resource.revision === "kit-wrong-guard"
           ? "kit-another-wrong-guard"
           : "kit-wrong-guard";
-      const guarded = { ...update, expectedRevision: badGuard };
+      const guarded = { ...update(), expectedRevision: badGuard };
       await step("write.guard-failure", async () => {
         failed = json(
           await post("updateBead", guarded, failureKey),
@@ -607,25 +1043,34 @@ export async function runCurrentProvider(provision) {
         updated = success(
           await post(
             "updateBead",
-            { ...update, expectedRevision: created.resource.revision },
+            { ...update(), expectedRevision: created.resource.revision },
             `update-${runId}`,
           ),
         );
         assert.equal(updated.outcome, "updated");
         assert.equal(updated.changed, true);
         assert.notEqual(updated.resource.revision, created.resource.revision);
-        assert.deepEqual(updated.resource.properties, update.properties);
-        assert.deepEqual(updated.resource.metadata, create.metadata);
+        wroteBack(updated.resource.properties, updateFixture.wrote, "properties");
+        wroteBack(updated.resource.metadata, create.metadata, "metadata");
       });
       await step("write.delete", async () => {
-        deleted = success(await post("deleteBead", remove, deleteKey));
+        deleted = success(await post("deleteBead", remove(), deleteKey));
         assert.equal(deleted.outcome, "deleted");
         assert.equal(deleted.changed, true);
         assert.deepEqual(deleted.deleted, {
           resourceKind: "bead",
-          resource: { id, type: fixture.type, revision: updated.resource.revision },
+          resource: { id, type: beadType, revision: updated.resource.revision },
         });
       });
+      // Nothing is retained, so no detail window applies and nothing waits on a replay.
+      if (!idempotent) {
+        if (provider.restart) await step("write.restart", restartProvider);
+        else
+          rows.find((row) => row.id === "write.restart").reason =
+            "No explicit adapter restart hook; restart is not run";
+        await step("core.deleted-absence", deletedAbsence);
+        return;
+      }
       if (
         !provider.restart ||
         !conditions ||
@@ -641,11 +1086,7 @@ export async function runCurrentProvider(provision) {
               : "Retained-detail fixture window elapsed before restart; durable Write slice is not run";
         throw new Stop();
       }
-      await step("write.restart", async () => {
-        const restarted = await provider.restart();
-        fields(restarted, ["connections"], ["connections"]);
-        routes = connections(restarted.connections);
-      });
+      await step("write.restart", restartProvider);
       if (performance.now() - retentionStart >= conditions.retainedDetailWindowMs) {
         rows.find((row) => row.id === "write.durable-original-success").reason =
           "Controlled restart exceeded the retained-detail fixture window";
@@ -658,27 +1099,20 @@ export async function runCurrentProvider(provision) {
         assert.deepEqual(success(reply), created);
       });
       await step("write.durable-original-failure", async () => {
+        if (failed === undefined)
+          throw new NotRun("No refused guard to replay: its row is excepted");
         const reply = await post("updateBead", guarded, failureKey);
         if (performance.now() - retentionStart >= conditions.retainedDetailWindowMs)
           throw new HarnessError("Retained-detail fixture window elapsed during replay");
         assert.deepEqual(json(reply, 409, "readUpdateProblem", "application/problem+json"), failed);
       });
       await step("write.durable-original-delete", async () => {
-        const reply = await post("deleteBead", remove, deleteKey);
+        const reply = await post("deleteBead", remove(), deleteKey);
         if (performance.now() - retentionStart >= conditions.retainedDetailWindowMs)
           throw new HarnessError("Retained-detail fixture window elapsed during replay");
         assert.deepEqual(success(reply), deleted);
       });
-      await step("core.deleted-absence", async () => {
-        const reply = await exchange(routes, id);
-        assert([404, 410].includes(reply.status));
-        const problem = json(reply, reply.status, "readProblem", "application/problem+json");
-        assert(
-          reply.status === 404
-            ? problem.code === "resource-not-found"
-            : ["resource-pruned", "resource-erased"].includes(problem.code),
-        );
-      });
+      await step("core.deleted-absence", deletedAbsence);
     }
     try {
       await baseJourney();
@@ -693,10 +1127,16 @@ export async function runCurrentProvider(provision) {
       "write.link-delete",
     ];
     const graphNotRun = (names, reason) => {
-      for (const name of names) rows.find((row) => row.id === name).reason = reason;
+      for (const name of names) {
+        const row = rows.find((entry) => entry.id === name);
+        if (row.state !== "not-applicable") row.reason = reason;
+      }
     };
     const baseFailed = rows.some(
-      (row) => !graphRows.includes(row.id) && ["fail", "harness-error"].includes(row.state),
+      (row) =>
+        !graphRows.includes(row.id) &&
+        exceptions?.[row.id] === undefined &&
+        ["fail", "harness-error"].includes(row.state),
     );
     let graphConditionsValid = true;
     try {
@@ -713,15 +1153,30 @@ export async function runCurrentProvider(provision) {
       graphConditionsValid = false;
       report.harnessFailure = "Graph fixture conditions are invalid";
     }
+    // A recipe's Link is the provider saying what its unowned Link fixture is.
+    const unownedLinkFixture =
+      conditions?.unownedLinkFixture === true || recipe?.link !== undefined;
     const graphRequested =
-      conditions?.unownedLinkFixture === true ||
-      (conditions?.hierarchicalAliasFixture === true &&
-        conditions.graphRetainedDetailWindowMs >= fixture.minimumGraphDetailWindowMs);
+      allowMutation &&
+      discovered?.profile === "write" &&
+      (unownedLinkFixture ||
+        (aliases !== undefined &&
+          conditions?.hierarchicalAliasFixture === true &&
+          (!idempotent ||
+            conditions.graphRetainedDetailWindowMs >= fixture.minimumGraphDetailWindowMs)));
     let currentGraphNavigation = false;
     if (directory && !baseFailed && graphConditionsValid && graphRequested) {
       try {
-        // Original frozen retries are complete; fresh work follows current discovery.
-        ({ directory, aliases } = await readNavigation(await scopeDescription()));
+        // Original frozen retries are complete; fresh work follows current discovery. The alias
+        // rows were already decided by the discovery the base journey read, so a provider cannot
+        // withdraw aliases mid-run to make those rows not applicable, nor add them unmeasured.
+        const advertisedAliases = aliases !== undefined;
+        const advertisedIdempotency = idempotent;
+        ({ directory, aliases, idempotent } = await readNavigation(await scopeDescription()));
+        if ((aliases !== undefined) !== advertisedAliases)
+          throw new HarnessError("Discovery changed its aliases advertisement during the run");
+        if (idempotent !== advertisedIdempotency)
+          throw new HarnessError("Discovery changed its idempotency advertisement during the run");
         currentGraphNavigation = true;
       } catch (error) {
         report.harnessFailure =
@@ -730,7 +1185,9 @@ export async function runCurrentProvider(provision) {
             : "Current graph discovery could not be established";
       }
     }
-    if (!currentGraphNavigation) {
+    if (discovered?.profile === "core" || !allowMutation) {
+      // Their reasons are already recorded: not applicable by discovery, or not authorized.
+    } else if (!currentGraphNavigation) {
       graphNotRun(
         graphRows,
         graphRequested
@@ -747,13 +1204,16 @@ export async function runCurrentProvider(provision) {
           performance.now(),
         );
       const requireDetail = () => {
-        if (!detailReady())
+        if (idempotent && !detailReady())
           throw new NotRun(
             "No current requested graph retained-detail window; remaining alias subjourney is not run",
           );
       };
       // Only this fixture setup is shared; aliases do not depend on Link ownership.
-      const linkId = new URL(fixture.linkId, scope).href;
+      const linkType = recipe?.link?.type ?? fixture.linkType;
+      const linkLocal = recipe?.link ? spell(recipe.link.id) : fixture.linkId;
+      // Undefined until the service allocates it, when the recipe says it does.
+      let linkId = linkLocal === undefined ? undefined : new URL(linkLocal, scope).href;
       let graphSetup, beads, linkCreated, linkUpdated;
       const unused = async (target) => {
         const reply = await exchange(routes, target);
@@ -772,13 +1232,17 @@ export async function runCurrentProvider(provision) {
       const prepareBeads = () =>
         (graphSetup ??= (async () => {
           const results = [];
-          for (const [index, local] of [fixture.graphSourceId, ...fixture.secondaryIds].entries()) {
-            await unused(new URL(local, scope).href);
+          const locals = recipe
+            ? [spell(recipe.bead.id), spell(recipe.bead.id), spell(recipe.bead.id)]
+            : [fixture.graphSourceId, ...fixture.secondaryIds];
+          for (const [index, local] of locals.entries()) {
+            if (local !== undefined) await unused(new URL(local, scope).href);
             const body = {
-              id: local,
-              type: fixture.type,
-              properties: { title: "portable endpoint" },
-              metadata: {},
+              ...identified(local),
+              type: beadType,
+              ...(recipe
+                ? beadMembers
+                : { properties: { title: "portable endpoint" }, metadata: {} }),
             };
             const reply = await post("createBead", body, `graph-bead-${index}-${runId}`);
             if (reply.status !== 200)
@@ -787,10 +1251,13 @@ export async function runCurrentProvider(provision) {
               const result = success(reply);
               assert.equal(result.outcome, "created");
               assert.equal(result.changed, true);
-              assert.equal(result.resource.id, new URL(local, scope).href);
-              assert.equal(result.resource.type, fixture.type);
-              assert.deepEqual(result.resource.properties, body.properties);
-              assert.deepEqual(result.resource.metadata, {});
+              assert.equal(
+                result.resource.id,
+                local === undefined ? inScope(result.resource.id) : new URL(local, scope).href,
+              );
+              assert.equal(result.resource.type, beadType);
+              wroteBack(result.resource.properties, body.properties, "properties");
+              wroteBack(result.resource.metadata, body.metadata, "metadata");
               assert.deepEqual(
                 json(await exchange(routes, result.resource.id), 200, "currentBeadRecord"),
                 result.resource,
@@ -846,7 +1313,7 @@ export async function runCurrentProvider(provision) {
           return false;
         }
       };
-      if (conditions?.unownedLinkFixture !== true) {
+      if (!unownedLinkFixture) {
         graphNotRun(
           ["write.link-create", "write.link-update", "write.link-delete"],
           "No explicit unowned Link fixture condition; Link subjourney is not run",
@@ -854,21 +1321,34 @@ export async function runCurrentProvider(provision) {
       } else {
         await graphStep("write.link-create", async () => {
           await prepareBeads();
-          await unused(linkId);
+          if (linkId !== undefined) await unused(linkId);
           const body = {
-            id: fixture.linkId,
-            type: fixture.linkType,
-            properties: { label: "portable relation" },
-            metadata: { source: "provider-kit" },
-            source: { uri: beads[0].id, revision: beads[0].revision },
-            target: { uri: beads[1].id, revision: beads[1].revision },
+            ...identified(linkLocal),
+            type: linkType,
+            // Plain References: pinned endpoints are the portable fixture's to witness.
+            ...(recipe
+              ? {
+                  properties: recipe.link.properties ?? {},
+                  metadata: recipe.link.metadata ?? {},
+                  source: beads[0].id,
+                  target: beads[1].id,
+                }
+              : {
+                  properties: { label: "portable relation" },
+                  metadata: { source: "provider-kit" },
+                  source: { uri: beads[0].id, revision: beads[0].revision },
+                  target: { uri: beads[1].id, revision: beads[1].revision },
+                }),
           };
           linkCreated = success(await post("createLink", body, `link-create-${runId}`));
           assert.equal(linkCreated.outcome, "created");
           assert.equal(linkCreated.changed, true);
+          linkId ??= inScope(linkCreated.resource.id);
           assert.equal(linkCreated.resource.id, linkId);
-          for (const field of ["type", "properties", "metadata", "source", "target"])
+          for (const field of ["type", "source", "target"])
             assert.deepEqual(linkCreated.resource[field], body[field]);
+          for (const field of ["properties", "metadata"])
+            wroteBack(linkCreated.resource[field], body[field], field);
           assert.equal(linkCreated.ownerRevisions, undefined);
           assert.deepEqual(await pointLink(), linkCreated.resource);
           await unchangedBeads();
@@ -923,6 +1403,7 @@ export async function runCurrentProvider(provision) {
         assert.equal(reply.headers["bdp-resource-kind"], undefined);
       };
       const aliasReplay = async (operation, body, key, expected) => {
+        if (!idempotent) return;
         requireDetail();
         const reply = await post(operation, body, key);
         if (!detailReady())
@@ -931,7 +1412,9 @@ export async function runCurrentProvider(provision) {
           );
         assert.deepEqual(success(reply, "aliasResult"), expected);
       };
-      if (conditions?.hierarchicalAliasFixture !== true) {
+      if (aliases === undefined) {
+        // Not applicable by discovery; those rows and their reason are already recorded.
+      } else if (conditions?.hierarchicalAliasFixture !== true) {
         graphNotRun(
           ["write.alias-put", "write.alias-delete"],
           "No explicit hierarchical alias fixture condition; alias subjourney is not run",
@@ -1023,12 +1506,18 @@ export async function runCurrentProvider(provision) {
             "Alias put prerequisite did not complete; remaining alias subjourney is not run",
           );
       }
-      if (rows.find((row) => row.id === "write.link-update").state === "pass")
+      // An excepted update need not have happened, so the Link's last live state is either one.
+      const linkUpdateExcepted = exceptions?.["write.link-update"] !== undefined;
+      if (
+        rows.find((row) => row.id === "write.link-update").state === "pass" ||
+        (linkUpdateExcepted && linkCreated !== undefined)
+      )
         await graphStep("write.link-delete", async () => {
+          const live = (linkUpdated ?? linkCreated).resource;
           const result = success(
             await post(
               "deleteLink",
-              { link: linkId, expectedRevision: linkUpdated.resource.revision },
+              { link: linkId, expectedRevision: live.revision },
               `link-delete-${runId}`,
             ),
           );
@@ -1038,8 +1527,8 @@ export async function runCurrentProvider(provision) {
             resourceKind: "link",
             resource: {
               id: linkId,
-              type: fixture.linkType,
-              revision: linkUpdated.resource.revision,
+              type: linkType,
+              revision: live.revision,
             },
           });
           assert.equal(result.ownerRevisions, undefined);
@@ -1054,6 +1543,17 @@ export async function runCurrentProvider(provision) {
           await unchangedBeads();
         });
     }
+    // Optional profiles the Scope may advertise. Their own rows; never a Core or Write row.
+    report.optional = await runOptionalRows({
+      scope: scope.href,
+      discovered,
+      runId,
+      allowMutation,
+      witnesses,
+      exceptions,
+      exchange: (target, method, value, key, options) =>
+        exchange(routes, target, method, value, key, options),
+    });
   } catch (error) {
     if (!(error instanceof Stop)) {
       if (provisionEntered && lifecycle.provision !== "pass") lifecycle.provision = "harness-error";
@@ -1077,9 +1577,20 @@ export async function runCurrentProvider(provision) {
       }
     } else if (provider !== undefined) lifecycle.cleanup = "harness-error";
   }
+  // The ledger's precedent: the row ran, `observed` keeps what happened, and it is never a pass.
+  for (const row of rows) {
+    const why = exceptions?.[row.id];
+    if (why === undefined || !exceptableWriteRows.includes(row.id)) continue;
+    row.observed = row.state;
+    if (row.reason !== undefined) row.observedReason = row.reason;
+    row.state = "excepted";
+    row.reason = why;
+  }
   const implemented = rows.slice(0, definitions.length);
   report.sliceComplete =
-    implemented.every((row) => row.state === "pass") &&
+    implemented.every(
+      (row) => row.state === "pass" || (row.state === "not-applicable" && isWriteRowId(row.id)),
+    ) &&
     lifecycle.provision === "pass" &&
     lifecycle.cleanup === "pass";
   report.qualificationComplete = hasCompleteRequiredCoverage(rows, lifecycle);
@@ -1087,38 +1598,126 @@ export async function runCurrentProvider(provision) {
     report.harnessFailure !== undefined ||
     lifecycle.provision === "harness-error" ||
     lifecycle.cleanup === "harness-error" ||
-    rows.some((row) => row.state === "harness-error")
+    rows.some((row) => row.state === "harness-error") ||
+    report.optional?.some((row) => row.state === "harness-error")
       ? "harness-error"
-      : rows.some((row) => row.state === "fail")
+      : rows.some((row) => row.state === "fail") ||
+          report.optional?.some((row) => row.state === "fail")
         ? "fail"
         : "incomplete";
   return report;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const USAGE =
+  "Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n" +
+  "       current-provider-kit.mjs --scope SCOPE_URL [--token-env NAME] [--allow-mutation] [--recipe /absolute/recipe.json]\n" +
+  "Either form also takes --exceptions /absolute/ledger.json\n";
+/** Null on misuse. A token comes only from a named environment variable, never argv. */
+export function parseKitArguments(argvWithLedger, env = {}) {
+  const ledgerAt = argvWithLedger.indexOf("--exceptions");
+  const argv =
+    ledgerAt < 0
+      ? argvWithLedger
+      : argvWithLedger.filter((_, index) => index !== ledgerAt && index !== ledgerAt + 1);
+  const ledger = ledgerAt < 0 ? undefined : argvWithLedger[ledgerAt + 1];
+  if (ledgerAt >= 0 && (ledger === undefined || !path.isAbsolute(ledger))) return null;
+  const parsed = parseSelection(argv, env);
+  return parsed === null || ledger === undefined ? parsed : { ...parsed, ledger };
+}
+function parseSelection(argv, env) {
+  if (argv.length === 2 && argv[0] === "--provider" && path.isAbsolute(argv[1]))
+    return { provider: argv[1] };
+  if (argv[0] !== "--scope" || argv.length < 2) return null;
+  let scope;
+  try {
+    scope = new URL(argv[1]);
+  } catch {
+    return null;
+  }
   if (
-    process.argv.length !== 4 ||
-    process.argv[2] !== "--provider" ||
-    !path.isAbsolute(process.argv[3])
-  ) {
-    process.stderr.write("Usage: current-provider-kit.mjs --provider /absolute/adapter.mjs\n");
+    !["http:", "https:"].includes(scope.protocol) ||
+    !scope.pathname.endsWith("/") ||
+    scope.search ||
+    scope.hash ||
+    scope.username ||
+    scope.password ||
+    scope.href !== argv[1]
+  )
+    return null;
+  const parsed = { scope: scope.href, allowMutation: false };
+  for (let index = 2; index < argv.length; index++) {
+    if (argv[index] === "--allow-mutation" && !parsed.allowMutation) parsed.allowMutation = true;
+    else if (argv[index] === "--token-env" && parsed.authorization === undefined) {
+      const token = env[argv[++index] ?? ""];
+      if (typeof token !== "string" || !token) return null;
+      parsed.authorization = `Bearer ${token}`;
+    } else if (argv[index] === "--recipe" && parsed.recipe === undefined) {
+      const file = argv[++index];
+      if (file === undefined || !path.isAbsolute(file)) return null;
+      parsed.recipe = file;
+    } else return null;
+  }
+  return parsed;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const parsed = parseKitArguments(process.argv.slice(2), process.env);
+  if (parsed === null) {
+    process.stderr.write(USAGE);
     process.exit(64);
   }
   let provision;
-  try {
-    ({ provision } = await import(pathToFileURL(process.argv[3]).href));
-  } catch (error) {
-    const category =
-      error?.code === "ERR_MODULE_NOT_FOUND"
-        ? "not-found"
-        : error instanceof SyntaxError
-          ? "syntax"
-          : "module";
-    provision = async () => {
-      throw new HarnessError(`Selected provider module did not load (${category})`);
-    };
+  if (parsed.scope !== undefined)
+    provision = directScopeProvider(parsed.scope, parsed.authorization);
+  else
+    try {
+      ({ provision } = await import(pathToFileURL(parsed.provider).href));
+    } catch (error) {
+      const category =
+        error?.code === "ERR_MODULE_NOT_FOUND"
+          ? "not-found"
+          : error instanceof SyntaxError
+            ? "syntax"
+            : "module";
+      provision = async () => {
+        throw new HarnessError(`Selected provider module did not load (${category})`);
+      };
+    }
+  let exceptions;
+  if (parsed.ledger !== undefined)
+    try {
+      // { "IT-11": "why", ... }: a row excepted here is reported excepted, whatever it did.
+      exceptions = JSON.parse(await readFile(parsed.ledger, "utf8"));
+      if (
+        exceptions === null ||
+        typeof exceptions !== "object" ||
+        Array.isArray(exceptions) ||
+        Object.values(exceptions).some((why) => typeof why !== "string" || !why)
+      )
+        throw new TypeError("ledger shape");
+    } catch {
+      process.stderr.write("The exceptions ledger must be an object of row to reason\n");
+      process.exit(64);
+    }
+  let recipe, recipeFailure;
+  if (parsed.recipe !== undefined) {
+    let text;
+    try {
+      text = await readFile(parsed.recipe, "utf8");
+      recipe = JSON.parse(text);
+    } catch {
+      recipeFailure =
+        text === undefined
+          ? "The recipe is refused: its file could not be read"
+          : "The recipe is refused: its file is not JSON";
+    }
   }
-  const report = await runCurrentProvider(provision);
+  const report = await runCurrentProvider(provision, {
+    ...(parsed.scope === undefined ? {} : { allowMutation: parsed.allowMutation }),
+    ...(exceptions === undefined ? {} : { exceptions }),
+    ...(recipe === undefined ? {} : { recipe }),
+    ...(recipeFailure === undefined ? {} : { recipeFailure }),
+  });
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = report.state === "harness-error" ? 3 : report.state === "fail" ? 1 : 2;
 }

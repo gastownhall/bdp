@@ -54,10 +54,14 @@ does not mutate an arbitrary existing Scope, and it does not accept fixture data
 or expected answers from the adapter as evidence. Adapter modules are trusted
 operator code and must be reviewed before use.
 
+To exercise one Scope you already have, without an adapter, pass `--scope <url>`. It
+sends no mutation unless you add `--allow-mutation`. A Scope that does not advertise
+Write reports the Write cases not applicable by discovery; see the
+[guide](current-provider-kit.md#a-provider-without-write).
+
 The current kit is an interoperability slice, not a full conformance suite: it
 has no complete obligation census, no complete qualification path, and its
-durability cases require adapter-provided lifecycle conditions. It currently
-requires an adapter module; a direct `--scope <url>` command is not available.
+durability cases require adapter-provided lifecycle conditions.
 The package matrices under `apps/bdptest` and `packages/conformance` are also
 repository-run test infrastructure, not a published standalone conformance
 command for arbitrary service and client implementations.

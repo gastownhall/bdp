@@ -1078,7 +1078,7 @@
             "method": "POST",
             "target": "development/create-bead",
             "body": {
-              "id": "a",
+              "id": "l",
               "type": "https://bdp.example/development/bead",
               "properties": {
                 "n": 1

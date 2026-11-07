@@ -84,6 +84,21 @@ checking aggregate capacity: at most64MiB of snapshot-copy weight, in addition
 to the bounded32MiB input scan and ordinary object overhead. The32MiB retained
 budget is Scope-wide; principals share it, so another caller can temporarily
 receive503 until snapshots expire. These are resource bounds, not RSS limits.
+## Deletion
+
+`deleteBead` admits `revisionProvenance`. An ordinary store records nothing for it, and it
+stays part of retry identity. A Bead's aliases go with it in the same decision and the result
+lists them in `removedAliases`; no later create or recovery restores one. A Link pinned to the
+deleted Bead survives while it keeps a live in-Scope Bead endpoint; otherwise it blocks as
+`incident-links-exist`. `createBead` supplying a deleted Bead's id adds a revision under that
+identity, inheriting nothing. `identity-taken` covers a live id, the other Resource kind, a
+deleted Link's id and an id one atomic batch both created and deleted. `delete-modes1` is
+neither implemented nor advertised, so its request members are `malformed-request`.
+
+These rules change what a valid store contains, under the same format names. A store that
+already holds a Bead deletion from before them has no `removedAliases` and refuses to open;
+nothing resets or migrates it.
+
 ## Canonical CLI increment
 
 The reference `bdp` executable defaults to the canonical CLI profile. Use
@@ -120,6 +135,44 @@ implementations. Current-contract wire assertions and reference regressions need
 separate subjects from installed legacy/private profile matrices. Existing matrix
 assertions remain intact until each has an explicit replacement or retained lane;
 this increment removes no test or CI gate and adds no testing framework.
+
+## Optional Callables and the Issue package
+
+`callables: { registration, declarations }` selects the Callables profile for a fresh
+store, format8. Absent, the capability is unadvertised and the namespace answers as any
+reserved path. It does not compose with `atomicBatch` or `historicalUpdate` yet, and
+refuses at startup. Each declaration is a name, a kind (`query` or `batch`), the properties
+object and optionally a synchronous `implementation`:
+
+```ts
+{
+  name: "rooms/reserve",
+  kind: "batch",
+  properties: { description: "...", idempotent: true, parameters: [/* ... */] },
+  implementation: ({ arguments: args, read, list, effects, provenance }) =>
+    ({ result: { /* ... */ } }), // or { error: value }, or { problem: outcome }
+}
+```
+
+Declarations are placed as real Beads at startup, and a changed one is updated on reopen.
+With `registration: "root"` a root Bead at `sys/callables` carries one `exposes` Link per
+reachable declaration, a client with Write can change those Links, and a client-created
+declaration is reachable once linked, answering `callable-unavailable` since nothing
+implements it. With `registration: "provider"` the listed declarations are what is
+reachable. §12 leaves the root's Type and the Link Type open, so both are Scope-local:
+`<scope>sys/types/callables-root` and `<scope>sys/types/exposes`. Clients read the Type from
+an existing Link. The `sys` prefix refuses client-chosen identities.
+
+A batch's `effects` run as ordinary store decisions inside one transaction with its retained
+outcome, so a key replay needs nothing but that outcome. `changed` is derived from the effects.
+A throw, or a `result` or `error` outside its declared schema, is a 503 with no key claimed, and
+an `atomic` declaration's Problem undoes every effect. A query gets no `effects`.
+
+`issuePackage: true` enforces the Issue and Dependency Types as native Scope policy: the fixed
+catalog, the property and pair rules, service-managed members and `conformsTo` over the two
+families. It does not serve the 45 Issue Callables. With both options the Scope breaks
+`IC-1` and `IC-2`, and the provider kit reports that. With no close operation, an Issue here
+cannot reach `closed` over Write, since Issue §3.3 refuses the direct edit without `closed_at`.
 
 ## Optional historical Update and same-ID recovery
 
