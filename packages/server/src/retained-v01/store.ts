@@ -14,8 +14,8 @@ import {
   decodeJsonDocument,
   HISTORICAL_UPDATE_CAPABILITY,
   type HistoricalUpdateContext,
-  parseRevisionProvenanceInput,
-  type RevisionProvenanceInput,
+  parseRetainedRevisionProvenanceInput,
+  type RetainedRevisionProvenanceInput,
 } from "@bdp/protocol";
 import { jsonValueEqual } from "../json-value-equality.js";
 import { isKnownNetworkFilesystem } from "../recovery-store.js";
@@ -128,7 +128,7 @@ interface EditFields {
   readonly metadataChange?: ObjectChange;
   readonly expectedRevision?: string;
   readonly fromRevision?: string;
-  readonly provenance?: RevisionProvenanceInput;
+  readonly provenance?: RetainedRevisionProvenanceInput;
   readonly source?: EndpointReference;
   readonly target?: EndpointReference;
 }
@@ -764,7 +764,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
     time: string,
     text: string,
     historical?: { readonly context: HistoricalUpdateContext; readonly recovering: boolean },
-    provenance?: RevisionProvenanceInput,
+    provenance?: RetainedRevisionProvenanceInput,
   ): StoredResponse & { readonly position?: number } {
     const position = head() + 1;
     if (!Number.isSafeInteger(position)) throw new Error("event ordering capacity unavailable");
@@ -1093,7 +1093,7 @@ export function openPrivateRetainedStore(options: PrivateStoreOptions) {
         : { expectedRevision: value.expectedRevision as string }),
       ...(value.revisionProvenance === undefined
         ? {}
-        : { provenance: parseRevisionProvenanceInput(value.revisionProvenance) }),
+        : { provenance: parseRetainedRevisionProvenanceInput(value.revisionProvenance) }),
     };
   }
   function applyLink(principal: string, input: PreparedLink, operation: LinkOperation) {

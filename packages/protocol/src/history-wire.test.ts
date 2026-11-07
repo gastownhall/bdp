@@ -436,10 +436,6 @@ describe("Immutable context wire boundary", () => {
       expect(() => parseRevisionProvenance({ ...context, ...change })).toThrow(
         ProtocolArtifactValidationError,
       );
-    expect(parseRevisionProvenanceInput({ metadata: { occurredAt: "2026-11-07" } })).toEqual({
-      metadata: { occurredAt: "2026-11-07" },
-    });
-    expect(() => parseRevisionProvenanceInput({ metadata: "not an object" })).toThrow();
     expect(parseRevisionProvenanceInput({ agent: null, message: "" })).toEqual({
       agent: null,
       message: "",
