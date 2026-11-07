@@ -582,7 +582,7 @@ the selected protocol text, not a server build or capability set. A build derive
 it from the source commit; a pull request or development build may identify its
 committed branch revision, and a build after merge identifies the commit on the
 canonical branch. A dirty change to a canonical source MUST NOT be reported as if
-it were represented by the prior commit. Optional members are `events`, `aliases`,
+it were represented by the prior commit. Optional members are `aliases`,
 `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
 `capabilities`.
 Write uses the same Core meaning with `profile:"write"`, required `operations`
@@ -602,7 +602,7 @@ All Beads and
 Links may share one Scope-relative ID space,
 such as `https://beads.example/acme/task-42` and
 `https://beads.example/acme/relation-81`. The `bdp/` route namespace is reserved
-for protocol navigation. Events and operation navigation are discovered absolute
+for protocol navigation. The Event source and operation navigation are discovered absolute
 HTTP(S) URLs.
 Aliases navigation is an in-Scope base, possibly the Scope itself, not authority
 for arbitrary paths without a binding. Clients MUST NOT infer Resource kind by
@@ -1527,7 +1527,7 @@ none weakens required Gone evidence, erasure or incident-Link refusal.
 ## Optional Events
 
 [Events](../events/events.md) is an independent optional observation profile for
-Core and Write. The discovery `events` member advertises its complete finite JSON
+Core and Write. Its [capability](../events/events.md#contract-and-advertisement) advertises its complete finite JSON
 contract, including Resource `view=events`, coverage, retention and continuation.
 Absence means no Event source may be assumed. Events adds no new base `profile`
 literal and is not an import/export or replica-application contract. A Scope without
@@ -3163,6 +3163,7 @@ Value: object
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "https://github.com/gastownhall/bdp/capabilities/atomic-batch" | schema | no | — | "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1." |
+| "https://github.com/gastownhall/bdp/capabilities/events" | schema | no | — | "Supported Events versions; detail states the source, offers, families and representations." |
 | "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
 | "https://github.com/gastownhall/bdp/capabilities/write-exceptions" | schema | no | — | "Supported Write exception versions; the Scope does not serve the operations each lists and is not a complete Write provider." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
@@ -3189,6 +3190,21 @@ Value: object
           "properties": {
             "1": {
               "$ref": "#/$defs/atomicBatchCapabilityV1"
+            }
+          }
+        }
+      ]
+    },
+    "https://github.com/gastownhall/bdp/capabilities/events": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/capabilityVersionAdvertisements"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/eventsCapabilityV1"
             }
           }
         }
@@ -3310,7 +3326,6 @@ Required order: ["bdpVersion","profile","scope","specRevision"]
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
 | "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
-| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
 | "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state." |

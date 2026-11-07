@@ -32,6 +32,7 @@ import { prepareLink } from "./link-contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 const IDEMPOTENCY_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/idempotency";
+const EVENTS_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/events";
 
 export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
@@ -441,6 +442,17 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             aliases: navigation.aliases,
             capabilities: {
               [IDEMPOTENCY_CAPABILITY]: { "1": {} },
+              ...(options.referenceCore === true
+                ? {}
+                : {
+                    [EVENTS_CAPABILITY]: {
+                      "1": {
+                        source: navigation.events,
+                        offers: [{ level: "current", complete: true }],
+                        representations: ["postimage"],
+                      },
+                    },
+                  }),
               ...(callables === undefined ? {} : { [CALLABLES_CAPABILITY]: { "1": {} } }),
               ...(options.referenceCore === true && store.historicalUpdateEnabled
                 ? { [HISTORICAL_UPDATE_CAPABILITY]: { "1": { atomicBatch: false } } }
@@ -461,7 +473,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
               ? {
                   limits: REFERENCE_READ_LIMITS,
                 }
-              : { events: navigation.events }),
+              : {}),
             operations: navigation.operations,
           }),
         );

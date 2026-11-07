@@ -17,9 +17,11 @@ when Events is advertised, its published facts must also satisfy this profile.
 > Streaming, replication and import-composition questions are preserved in the
 > [informative appendix](#appendix-open-design-questions), separately from this finite contract.
 
-Events is optional for both Core and Write. A Scope advertises support by including
-its absolute `events` URL in discovery; absence means that clients MUST NOT assume
-an Event source or `view=events` is supported. The member is an explicit promise of
+Events is optional for both Core and Write. A Scope advertises support through the
+capability `https://github.com/gastownhall/bdp/capabilities/events`, version `"1"`, whose
+detail states the absolute `source` URL, its `offers`, `families` and `representations`.
+An offer pairs a level with `complete`. Absence means that clients MUST NOT assume
+an Event source or `view=events` is supported. The capability is an explicit promise of
 the complete finite-observation contract below, not permission to provide only a
 live stream or to omit required facts. Advertising Events creates no export,
 import, snapshot or replica-application capability.
@@ -30,7 +32,7 @@ Resource representation in its place. Clients MUST NOT guess a Scope event URL.
 
 ### Advertised source, truthful coverage
 
-A Core/Write Scope advertising Events MUST expose its discovered `events` source
+A Core/Write Scope advertising Events MUST expose its advertised `source`
 and a Resource-scoped projection through `view=events`. A source is an observation
 endpoint, not a third Resource kind, public receipt or replica log. Resource
 selection uses canonical identity/kind and current disclosure; the source can
@@ -307,6 +309,87 @@ that target plus deleted context. These are facts, never accepted write commands
 
 Events owns the following definitions in the shared v0.1 bundle. Edit these visible
 markdown-json-schema/0.6 fragments; extraction preserves their shared reference context.
+
+<!-- bdp-schema:start eventsCapabilityV1 -->
+### Schema: "eventsCapabilityV1"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["source","offers","representations"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Events capability detail. It helps a reader choose a source; each page's policy still states its own level and completeness." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "families" | schema | no | — | "Non-Resource families this source publishes. Absence means it publishes none." |
+| "offers" | schema | yes | — | "What this source offers: a level paired with whether it is complete." |
+| "representations" | schema | yes | — | "Supported Event representations, necessarily including postimage." |
+| "source" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute Scope Event source URL." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "offers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "level",
+          "complete"
+        ],
+        "properties": {
+          "level": {
+            "enum": [
+              "current",
+              "history"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "representations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "contains": {
+        "const": "postimage"
+      },
+      "items": {
+        "enum": [
+          "postimage",
+          "delta"
+        ]
+      }
+    }
+  }
+}
+```
+<!-- bdp-schema:end eventsCapabilityV1 -->
 
 <!-- bdp-schema:start retainedEventQuery -->
 ### Schema: "retainedEventQuery"
@@ -1916,7 +1999,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"scopeEvents"` |
-| navigation | `{"role":"discovery-member","member":"events"}` |
+| navigation | `{"role":"capability-operation","capability":"https://github.com/gastownhall/bdp/capabilities/events","version":"1"}` |
 | response | `"retainedEventPage"` |
 | methods | `["get","head"]` |
 | problem | `"retainedEventProblem"` |

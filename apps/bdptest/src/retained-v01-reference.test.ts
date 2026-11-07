@@ -1,4 +1,5 @@
 /** Independent raw-HTTP witnesses for the private fixture and current reference reads. */
+import { discoveredEventSource } from "@bdp/protocol";
 import { fork, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
@@ -287,7 +288,7 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     const read = await wire(server.listenUrl, result.resource.id);
     expect(JSON.parse(read.text)).toEqual(result.resource);
     expect(read.headers["bdp-resource-kind"]).toBe("bead");
-    const events = JSON.parse((await wire(server.listenUrl, discovery.events)).text);
+    const events = JSON.parse((await wire(server.listenUrl, discoveredEventSource(discovery) as string)).text);
     expect(validator.validate("#/$defs/retainedEventPage", events)).toEqual([]);
     expect(events.events).toHaveLength(1);
     expect(events.events[0].effect.resource).toEqual(result.resource);
@@ -737,7 +738,7 @@ describe("private retained update wire witnesses, no profile qualification", () 
       ).text,
     ).toBe(updated.text);
     expect(JSON.parse((await wire(reopened.listenUrl, original.id)).text)).toEqual(current);
-    const page = JSON.parse((await wire(reopened.listenUrl, discovery.events)).text);
+    const page = JSON.parse((await wire(reopened.listenUrl, discoveredEventSource(discovery) as string)).text);
     expect(validator.validate("#/$defs/retainedEventPage", page)).toEqual([]);
     expect(page.events).toHaveLength(3);
     expect(page.events[1]).toMatchObject({

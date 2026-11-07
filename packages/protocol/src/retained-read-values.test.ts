@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  discoveredEventSource,
   parseRetainedDiscovery,
   parseRetainedProblem,
   parseRetainedProperties,
@@ -13,7 +14,6 @@ const core = {
   profile: "core",
   scope: "https://records.test/work/",
   specRevision: "0123456789abcdef0123456789abcdef01234567",
-  events: "https://facts.test/observations",
 };
 const bead = {
   id: "https://records.test/work/note",
@@ -142,5 +142,35 @@ describe("retained Core carrier values", () => {
         JSON.stringify({ ...created, resource: { ...bead, metadata: undefined } }),
       ),
     ).toThrow();
+  });
+});
+
+describe("Events capability", () => {
+  const events = "https://github.com/gastownhall/bdp/capabilities/events";
+  const base = {
+    bdpVersion: "0.1",
+    profile: "core",
+    scope: "https://work.example/acme/",
+    specRevision: "0123456789abcdef0123456789abcdef01234567",
+  };
+  const detail = {
+    source: "https://facts.test/observations",
+    offers: [{ level: "current", complete: true }],
+    representations: ["postimage"],
+  };
+  it("finds the Event source in the capability, and nowhere else", () => {
+    const parsed = parseRetainedDiscovery(
+      JSON.stringify({ ...base, capabilities: { [events]: { "1": detail } } }),
+    );
+    expect(discoveredEventSource(parsed)).toBe(detail.source);
+    expect(discoveredEventSource(parseRetainedDiscovery(JSON.stringify(base)))).toBeUndefined();
+  });
+  it.each([
+    ["a retired events member", { ...base, events: detail.source }],
+    ["a relative source", { ...base, capabilities: { [events]: { "1": { ...detail, source: "x" } } } }],
+    ["no offers", { ...base, capabilities: { [events]: { "1": { ...detail, offers: [] } } } }],
+    ["no postimage", { ...base, capabilities: { [events]: { "1": { ...detail, representations: ["delta"] } } } }],
+  ])("refuses %s", (_name, value) => {
+    expect(() => parseRetainedDiscovery(JSON.stringify(value))).toThrow();
   });
 });

@@ -5861,6 +5861,22 @@
           ],
           "description": "Supported atomic-batch versions and their admission detail. Core-only discovery separately prohibits advertising version 1."
         },
+        "https://github.com/gastownhall/bdp/capabilities/events": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/eventsCapabilityV1"
+                }
+              }
+            }
+          ],
+          "description": "Supported Events versions; detail states the source, offers, families and representations."
+        },
         "https://github.com/gastownhall/bdp/capabilities/idempotency": {
           "allOf": [
             {
@@ -6601,10 +6617,6 @@
           ],
           "description": "Independently versioned feature advertisements. Support does not select an invocation or grant permission."
         },
-        "events": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support."
-        },
         "historicalResolution": {
           "$ref": "#/$defs/historyCapability",
           "description": "Explicit History support advertisement; omission carries no History obligation."
@@ -6670,9 +6682,6 @@
         },
         "capabilities": {
           "$ref": "#/$defs/capabilityAdvertisements"
-        },
-        "events": {
-          "$ref": "#/$defs/absoluteHttpUrl"
         },
         "historicalResolution": {
           "$ref": "#/$defs/historyCapability"
@@ -6757,6 +6766,47 @@
         "updateLink",
         "deleteLink"
       ]
+    },
+    "eventsCapabilityV1": {
+      "description": "Events capability detail. It helps a reader choose a source; each page's policy still states its own level and completeness.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "offers", "representations"],
+      "properties": {
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "description": "Non-Resource families this source publishes. Absence means it publishes none."
+        },
+        "offers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "complete"],
+            "properties": {
+              "level": {"enum": ["current", "history"]},
+              "complete": {"type": "boolean"}
+            }
+          },
+          "description": "What this source offers: a level paired with whether it is complete."
+        },
+        "representations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": {"const": "postimage"},
+          "items": {"enum": ["postimage", "delta"]},
+          "description": "Supported Event representations, necessarily including postimage."
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Absolute Scope Event source URL."
+        }
+      }
     },
     "retainedEventQuery": {
       "description": "Decoded finite Event query. From and after are mutually exclusive; selection, cursor binding and raw HTTP duplicate-parameter refusal remain semantic rules.",
@@ -8511,6 +8561,7 @@
     "durableInputPinnedReference",
     "durableInputReference",
     "durableResourceReference",
+    "eventsCapabilityV1",
     "exactTypeDefinitionRecord",
     "expectedRevision",
     "historicalBeadRecord",
@@ -8679,6 +8730,7 @@
       "wireToken"
     ],
     "specs/profiles/events/events.md": [
+      "eventsCapabilityV1",
       "retainedDeltaEffect",
       "retainedDeltaEvent",
       "retainedEvent",

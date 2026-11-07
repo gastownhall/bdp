@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "ad381368da585121d22774253fb2eb59d439f31a94db916ab1ec987ce8e88dd3",
+  "sourceSHA256": "19bc5c8011c24092a1b00d3d751c578613d14ae0b3ad33ab0c74322d3fdffa04",
   "selections": {
     "read": {
       "entryPoints": [
@@ -56,6 +56,7 @@
         "currentLinkCollection",
         "currentLinkRecord",
         "dateTime",
+        "eventsCapabilityV1",
         "exactTypeDefinitionRecord",
         "historicalBeadRecord",
         "historicalLinkRecord",

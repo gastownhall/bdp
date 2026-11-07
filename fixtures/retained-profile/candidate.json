@@ -6,14 +6,12 @@
     "bdpVersion": "0.1",
     "profile": "core",
     "scope": "https://work.example/acme/",
-    "events": "https://work.example/acme/event-source",
     "specRevision": "0123456789abcdef0123456789abcdef01234567"
   },
   "write": {
     "bdpVersion": "0.1",
     "profile": "write",
     "scope": "https://work.example/acme/",
-    "events": "https://work.example/acme/event-source",
     "operations": "https://work.example/acme/commands",
     "aliases": "https://work.example/acme/",
     "specRevision": "0123456789abcdef0123456789abcdef01234567"
@@ -22,7 +20,6 @@
     "bdpVersion": "0.1",
     "profile": "write",
     "scope": "https://work.example/acme/",
-    "events": "https://work.example/acme/event-source",
     "operations": "https://work.example/acme/commands",
     "aliases": "https://work.example/acme/",
     "capabilities": {
@@ -61,7 +58,6 @@
     "bdpVersion": "0.1",
     "profile": "core",
     "scope": "https://work.example/acme/",
-    "events": "https://work.example/acme/event-source",
     "historicalResolution": {
       "version": 1
     },

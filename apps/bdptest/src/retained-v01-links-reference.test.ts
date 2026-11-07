@@ -1,4 +1,5 @@
 /** Independent raw HTTP assertions for the incomplete Core-only Link fixture. */
+import { discoveredEventSource } from "@bdp/protocol";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
@@ -194,7 +195,7 @@ describe("Core-only Link wire correspondence", () => {
     expect(result.resource.id).toBe(first.resource.id);
     expect(result.resource.revision).not.toBe(first.resource.revision);
     expect(result.resource.target).toEqual({ uri: external, revision: "foreign/+opaque" });
-    const scoped = JSON.parse((await wire(server.listenUrl, server.discovery.events)).text);
+    const scoped = JSON.parse((await wire(server.listenUrl, discoveredEventSource(server.discovery) as string)).text);
     expect(validator.validate("#/$defs/retainedEventPage", scoped)).toEqual([]);
     const event = scoped.events.at(-1);
     expect(event).toMatchObject({
@@ -355,7 +356,7 @@ describe("Core-only Link wire correspondence", () => {
       ).status,
     ).toBe(422);
     expect(
-      JSON.parse((await wire(server.listenUrl, server.discovery.events)).text).events,
+      JSON.parse((await wire(server.listenUrl, discoveredEventSource(server.discovery) as string)).text).events,
     ).toHaveLength(4);
   });
   it("classifies a scheme-shaped endpoint lexically and freezes its successful invocation", async () => {

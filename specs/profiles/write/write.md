@@ -50,7 +50,7 @@ identity members and the Core-required `specRevision`. `aliases` is optional; wh
 present it promises Core's alias resolution and the two alias operations below.
 Bead and Link inventories use the fixed Core routes
 `<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
-optional common members are `events`, `order`, `limits`,
+optional common members are `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
 Optional capabilities under `capabilities` are atomic batch, rooted allocation,
@@ -4919,7 +4919,6 @@ Required order: ["bdpVersion","profile","scope","specRevision","operations"]
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
-| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |

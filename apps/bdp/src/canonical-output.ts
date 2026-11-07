@@ -1,3 +1,4 @@
+import { discoveredEventSource } from "@bdp/protocol";
 import type { RetainedHttpContext } from "@bdp/client";
 
 export interface CanonicalOutput {
@@ -140,12 +141,13 @@ function scopeDocument(value: unknown, long = false): string {
     ["Beads inventory", "beads"],
     ["Links inventory", "links"],
     ["Aliases", "aliases"],
-    ["Events", "events"],
     ["Operations", "operations"],
   ] as const) {
     const item = r[key];
     if (typeof item === "string") lines.push(`${label}: ${item}`);
   }
+  const eventSource = discoveredEventSource(r as { capabilities?: Record<string, unknown> });
+  if (eventSource !== undefined) lines.push(`Events: ${eventSource}`);
   if (r.limits !== undefined) lines.push("Limits:", JSON.stringify(r.limits, null, 2));
   const displayed = new Set([
     "scope",
@@ -154,7 +156,6 @@ function scopeDocument(value: unknown, long = false): string {
     "beads",
     "links",
     "aliases",
-    "events",
     "operations",
     "limits",
   ]);

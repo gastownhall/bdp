@@ -15,8 +15,21 @@ export type RetainedDiscovery = RetainedJsonObject & {
   readonly profile: "core" | "write";
   readonly scope: AbsoluteHttpUrl;
   readonly specRevision: string;
-  readonly events?: AbsoluteHttpUrl;
+  readonly capabilities?: Readonly<Record<string, unknown>>;
 };
+
+export const EVENTS_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/events";
+
+/** The Scope's Event source, or undefined when Events is not advertised. */
+export function discoveredEventSource(discovery: {
+  readonly capabilities?: Readonly<Record<string, unknown>>;
+}): string | undefined {
+  const versions = discovery.capabilities?.[EVENTS_CAPABILITY] as
+    | Readonly<Record<string, { readonly source?: unknown }>>
+    | undefined;
+  const source = versions?.["1"]?.source;
+  return typeof source === "string" ? source : undefined;
+}
 
 /** Both selected profiles supply Core reads. Unknown advertisements are opaque;
  * parsing discovery does not select or qualify an optional feature.
@@ -27,8 +40,10 @@ export function parseRetainedDiscovery(text: string): RetainedDiscovery {
   if (value.types !== undefined && value.types !== new URL("types/", value.scope as string).href)
     throw new ProtocolArtifactValidationError("Types inventory must use the fixed Scope route");
   parseCanonicalScope(value.scope);
-  for (const name of ["events", "operations", "aliases"] as const)
+  for (const name of ["operations", "aliases"] as const)
     if (value[name] !== undefined) parseCanonicalHttpUrl(value[name], `discovery.${name}`);
+  const eventSource = discoveredEventSource(value as { capabilities?: Record<string, unknown> });
+  if (eventSource !== undefined) parseCanonicalHttpUrl(eventSource, "discovery Event source");
   return value as RetainedDiscovery;
 }
 

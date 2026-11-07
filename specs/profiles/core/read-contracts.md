@@ -62,7 +62,7 @@ The following helpers describe decoded query values or preliminary selection pre
 
 ## Shared shapes used by these entries
 
-The entry-point roots reach 87 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
+The entry-point roots reach 88 named definitions in the canonical bundle. They are linked below without copying a partial bundle under the original schema identity. Every link names the same definition represented in the complete Markdown companion.
 
 - [absoluteHttpUrl](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlSHR0cFVybCI)
 - [absoluteUri](bdp-v0.1.schema.md#schema-def-ImFic29sdXRlVXJpIg)
@@ -83,6 +83,7 @@ The entry-point roots reach 87 named definitions in the canonical bundle. They a
 - [currentLinkCollection](bdp-v0.1.schema.md#schema-def-ImN1cnJlbnRMaW5rQ29sbGVjdGlvbiI)
 - [currentLinkRecord](bdp-v0.1.schema.md#schema-def-ImN1cnJlbnRMaW5rUmVjb3JkIg)
 - [dateTime](bdp-v0.1.schema.md#schema-def-ImRhdGVUaW1lIg)
+- [eventsCapabilityV1](bdp-v0.1.schema.md#schema-def-ImV2ZW50c0NhcGFiaWxpdHlWMSI)
 - [exactTypeDefinitionRecord](bdp-v0.1.schema.md#schema-def-ImV4YWN0VHlwZURlZmluaXRpb25SZWNvcmQi)
 - [historicalBeadRecord](bdp-v0.1.schema.md#schema-def-Imhpc3RvcmljYWxCZWFkUmVjb3JkIg)
 - [historicalLinkRecord](bdp-v0.1.schema.md#schema-def-Imhpc3RvcmljYWxMaW5rUmVjb3JkIg)

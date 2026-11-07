@@ -675,6 +675,8 @@ export {
   type RetainedDiscovery,
   type RetainedJsonObject,
   type RetainedResourceKind,
+  discoveredEventSource,
+  EVENTS_CAPABILITY,
 } from "./retained-read-values.js";
 export { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 export {
