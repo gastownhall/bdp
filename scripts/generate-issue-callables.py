@@ -53,14 +53,27 @@ DEFAULT_FALSE = {
 }
 
 
-def call(op, name, kind, promises=(), positionals=(), flags=None, from_file=None, defaults=None):
+def call(op, name, kind, promises=(), positionals=(), flags=None, from_file=None, defaults=None, members=None):
     return {"op": op, "name": name, "kind": kind, "promises": tuple(promises),
             "positionals": tuple(positionals), "flags": flags or {},
-            "from_file": from_file or {}, "defaults": defaults or {}}
+            "from_file": from_file or {}, "defaults": defaults or {}, "members": members or {}}
 
 
 READY_FLAGS = {"limit": ["-n"], "priority": ["-p"], "assignee": ["-a"], "unassigned": ["-u"],
                "sort": ["-s"], "label": ["-l"], "type": ["-t"]}
+
+# issue/update's patch members with a flat flag on native `bd update`, under native's spelling.
+# Left out because native's flag is not this member: metadata (--set-metadata k=v and
+# --unset-metadata edit it) and persistence (--ephemeral, --persistent). waiters has no flag.
+PATCH_MEMBERS = {"title": [], "description": ["-d"], "design": [], "acceptance_criteria": ["--acceptance"],
+                 "notes": [], "append_notes": [], "priority": ["-p"], "issue_type": ["-t", "--type"],
+                 "status": ["-s"], "assignee": ["-a"], "parent_id": ["--parent"], "labels": ["--set-labels"],
+                 "add_labels": ["-l", "--add-label"], "remove_labels": ["--remove-label"],
+                 "estimated_minutes": ["-e", "--estimate"], "external_ref": [], "due_at": ["--due"],
+                 "defer_until": ["--defer"], "await_id": []}
+# What a member flag may not spell: attribution, and the flags the client keeps for itself.
+RESERVED_FLAGS = {"--actor", "--author", "--arguments", "--help", "-h", "--cli-profile", "--config",
+                  "--idempotency-key", "--output-format", "--output-mode", "--revision-provenance", "--scope"}
 
 # The name table: v0 operation, name, Type, promises and what is plain from cmd/bd at the pin.
 CALLABLES = [
@@ -79,13 +92,14 @@ CALLABLES = [
          flags={"issue_type": ["-t", "--type"], "priority": ["-p"], "status": ["-s"], "assignee": ["-a"],
                 "description": ["-d"], "labels": ["-l"], "parent_id": ["--parent"],
                 "acceptance_criteria": ["--acceptance"]},
-         from_file={"description": ["--body-file"], "design": ["--design-file"]}),
+         from_file={"description": ["--body-file"], "design": ["--design-file"]},
+         members={"waits_for": {"spawner_id": [], "gate": ["--waits-for-gate"]}}),
     call("queryIssues", "issue/query", QUERY, positionals=["q"],
          flags={"limit": ["-n"], "all": ["-a"], "reverse": ["-r"]}),
     call("countIssues", "issue/count", QUERY,
          flags={"status": ["-s"], "priority": ["-p"], "assignee": ["-a"], "type": ["-t"], "label": ["-l"]}),
     call("getIssue", "issue/show", QUERY, positionals=["id"]),
-    call("updateIssue", "issue/update", BATCH, positionals=["id"]),
+    call("updateIssue", "issue/update", BATCH, positionals=["id"], members={"patch": PATCH_MEMBERS}),
     call("listRelatedIssues", "issue/dep/list", QUERY, positionals=["id"], flags={"type": ["-t"]},
          defaults={"direction": "out"}),
     call("addComment", "issue/comment", BATCH, ["atomic"], positionals=["id", "text"],
@@ -389,11 +403,20 @@ def adapt(entry, rows):
     return rows
 
 
-def cli_mapping(entry, rows):
+def member_schemas(contract, label, parameter, schema):
+    """An object parameter's members, by name, or die: only an object has any."""
+    if "$ref" in schema:
+        schema = translate(contract.schemas[schema["$ref"].rsplit("/", 1)[-1]])
+    if schema.get("type") != "object" or not schema.get("properties"):
+        die(f"{label}: {parameter} is no object with declared members")
+    return schema["properties"]
+
+
+def cli_mapping(contract, entry, rows):
     """The declaration's cliMapping, checked against Callables section 2.5."""
     label = entry["name"]
     schemas = {name: schema for name, _, _, schema in rows}
-    for group in (entry["positionals"], entry["flags"], entry["from_file"], entry["defaults"]):
+    for group in (entry["positionals"], entry["flags"], entry["from_file"], entry["defaults"], entry["members"]):
         for name in group:
             if name not in schemas:
                 die(f"{label}: {name} is no parameter")
@@ -410,6 +433,24 @@ def cli_mapping(entry, rows):
                 if spelling in taken:
                     die(f"{label}: {spelling} is taken by {taken[spelling]}")
                 taken[spelling] = name
+    member_flags = []
+    for parameter, members in entry["members"].items():
+        declared = member_schemas(contract, label, parameter, schemas[parameter])
+        for member, aliases in members.items():
+            if member not in declared:
+                die(f"{label}: {member} is no member of {parameter}")
+            if member in ACTOR_MEMBERS:
+                die(f"{label}: {parameter}.{member} would project to who is acting")
+            spellings = ["--" + kebab(member), *aliases]
+            if declared[member].get("type") == "boolean":
+                spellings.append("--no-" + kebab(member))
+            for spelling in spellings:
+                if spelling in RESERVED_FLAGS:
+                    die(f"{label}: {parameter}.{member} would take the reserved flag {spelling}")
+                if spelling in taken:
+                    die(f"{label}: {parameter}.{member} would take {spelling} from {taken[spelling]}")
+                taken[spelling] = f"{parameter}.{member}"
+            member_flags.append({"member": member, **({"names": aliases} if aliases else {}), "parameter": parameter})
     for name in entry["positionals"]:
         if schemas[name].get("type") == "array":
             die(f"{label}: {name} would need a variadic position")
@@ -423,6 +464,8 @@ def cli_mapping(entry, rows):
         mapping["flags"] = [{"names": names, "parameter": name} for name, names in entry["flags"].items()]
     if entry["from_file"]:
         mapping["fromFile"] = [{"names": names, "parameter": name} for name, names in entry["from_file"].items()]
+    if member_flags:
+        mapping["memberFlags"] = member_flags
     if entry["positionals"]:
         mapping["positionals"] = [{"position": index, "parameter": name} for index, name in enumerate(entry["positionals"])]
     return mapping
@@ -473,7 +516,7 @@ def section(contract, entry, fragments, expected):
             f"Routes to: v0 `{op_id}`, `{method} {path}`.", ""]
     if reasons:
         out += ["Declared reasons: " + ", ".join(f"`{code}`" for code in reasons) + ".", ""]
-    mapping = cli_mapping(entry, rows)
+    mapping = cli_mapping(contract, entry, rows)
     if mapping:
         out += ["CLI mapping:", "", "```json", json.dumps(mapping, ensure_ascii=False), "```", ""]
     return "\n".join(out)
@@ -588,6 +631,13 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
 - **Results.** A Callable's `resultSchema` is its v0 operation's 200 response schema,
   verbatim, and `result` is the product's JSON.
 - **Identifiers.** Identifiers and classifications are v0's native forms: `bd-1`, `task`.
+- **Revision tokens.** A Callable's result carries v0's `revision`, the row version. A
+  generic Core record carries its own revision, which also moves on a change the row
+  version does not ([Issue §7](issue.md#7-revisions-and-attribution)). `expected_version`
+  on `issue/update`, `issue/close`, `issue/reopen` and `issue/delete` takes either: a Core
+  revision holds only if the record still carries exactly that revision, and otherwise the
+  invocation is `revision-mismatch` and writes nothing. An `issue/batch` item's
+  `expected_version` takes the row version only, as v0's own routes do.
 - **Schemas.** §9 carries each v0 component under its v0 name. OpenAPI 3.0's `nullable`
   is spelled as a JSON Schema type array, references point within this bundle, and the
   contract's code-generation annotations are absent. Declarations carry their own closure,
