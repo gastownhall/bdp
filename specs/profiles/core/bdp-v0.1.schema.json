@@ -6697,6 +6697,23 @@
         }
       },
       "properties": {
+        "families": {
+          "description": "Non-Resource families to include beyond the base stream, or all.",
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
         "after": {
           "$ref": "#/$defs/wireToken",
           "description": "Opaque issued resume cursor, bound to its original source, selection and context."
@@ -6722,6 +6739,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "families": {
+          "description": "Non-Resource families selected beyond the base stream, or all.",
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
         "representation": {
           "enum": ["postimage", "delta"],
           "description": "Explicit Event representation, postimage or delta."

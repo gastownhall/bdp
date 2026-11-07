@@ -8348,6 +8348,7 @@ Required order: []
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "after" | ref "#/$defs/wireToken" | no | — | "Opaque issued resume cursor, bound to its original source, selection and context." |
+| "families" | schema | no | — | "Non-Resource families to include beyond the base stream, or all." |
 | "from" | schema | no | — | "Initial Event boundary selection, retained or now; mutually exclusive with after." |
 | "limit" | schema | no | — | "Positive admitted per-page bound. It does not permit partial facts or false exhaustion." |
 | "representation" | schema | no | — | "Explicit Event representation, postimage or delta." |
@@ -8368,6 +8369,22 @@ Required order: []
     }
   },
   "properties": {
+    "families": {
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "from": {
       "enum": [
         "retained",
@@ -8408,6 +8425,7 @@ Required order: ["representation"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
+| "families" | schema | no | — | "Non-Resource families selected beyond the base stream, or all." |
 | "representation" | schema | yes | — | "Explicit Event representation, postimage or delta." |
 
 ### Advanced
@@ -8415,6 +8433,22 @@ Required order: ["representation"]
 ```json-schema
 {
   "properties": {
+    "families": {
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "representation": {
       "enum": [
         "postimage",
