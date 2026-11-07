@@ -8,6 +8,7 @@ import {
   formatConfigError,
   formatStartupDiagnostic,
   loadStartupConfig,
+  describeUnsupportedArguments,
   parseConfigArgs,
   type ServerReadLimitsConfig,
 } from "@bdp/config";
@@ -119,10 +120,10 @@ async function main(args: readonly string[]): Promise<number> {
   const serve = args.includes("--serve");
   const parsed = parseConfigArgs(args.filter((arg) => arg !== "--serve"));
   if (parsed.rest.length > 0 || parsed.errors.length > 0) {
-    // Never echo argv: an unsupported argument may be a mistyped credential.
+    // A flag is named and nothing else is: an unsupported argument may be a mistyped credential.
     const details = [
       ...parsed.errors,
-      ...(parsed.rest.length > 0 ? [`${parsed.rest.length} unsupported argument(s)`] : []),
+      ...(parsed.rest.length > 0 ? [describeUnsupportedArguments(parsed.rest)] : []),
     ];
     diagnostic("error", "cli.usage", `${details.join("; ")}; use --help for usage`);
     return 2;

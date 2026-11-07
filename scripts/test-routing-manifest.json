@@ -4,6 +4,24 @@
   "scope": "Explicit source-file routing, not complete requirement coverage, performance or provider qualification. Legacy includes historical and conservatively retained mixed-purpose tests. Shared entries execute in both current and legacy routes.",
   "tests": [
     {
+      "path": "apps/bdp/src/canonical-call.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/canonical-callable-tree.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
+      "path": "apps/bdp/src/canonical-core-reads.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
       "path": "apps/bdp/src/canonical-command.test.ts",
       "runner": "vitest",
       "lane": "current",
@@ -388,10 +406,22 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "packages/bd-domain/src/issue-callables.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
       "path": "packages/bd-domain/src/ready-output.test.ts",
       "runner": "vitest",
       "lane": "legacy",
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "packages/client/src/callable.test.ts",
+      "runner": "vitest",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
     },
     {
       "path": "packages/client/src/historical-update.test.ts",
@@ -1384,6 +1414,12 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
+      "path": "scripts/canonical-call.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
+    },
+    {
       "path": "scripts/canonical-cli.node-test.mjs",
       "runner": "node",
       "lane": "current",
@@ -1442,6 +1478,12 @@
       "runner": "vitest",
       "lane": "legacy",
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
+    },
+    {
+      "path": "scripts/generate-callable-catalog.node-test.mjs",
+      "runner": "node",
+      "lane": "artifact",
+      "reason": "Offline artifact/generator controls; no provider qualification."
     },
     {
       "path": "scripts/markdown-contracts.node-test.mjs",

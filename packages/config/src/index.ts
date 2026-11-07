@@ -301,6 +301,26 @@ export function parseConfigArgs(argv: readonly string[]): ParsedConfigArgs {
   return { configFile, rest, errors };
 }
 
+/** The name of an unsupported argument, when it is shaped like a flag: the spelling before any `=`,
+ * lowercase, short. A value is never shown, and neither is anything else, because what was typed
+ * may be a mistyped credential. Undefined means it is not safe to repeat. */
+export function unsupportedArgumentName(argument: string): string | undefined {
+  const spelling = argument.split("=", 1)[0] ?? "";
+  return /^--?[a-z][a-z0-9-]{0,31}$/.test(spelling) ? spelling : undefined;
+}
+
+/** The refusal for arguments nothing accepted: flags by name, and the rest only by how many. */
+export function describeUnsupportedArguments(rest: readonly string[]): string {
+  const named = [...new Set(rest.flatMap((argument) => unsupportedArgumentName(argument) ?? []))];
+  const others = rest.filter((argument) => unsupportedArgumentName(argument) === undefined).length;
+  return [
+    ...(named.length === 0
+      ? []
+      : [`unsupported argument${named.length === 1 ? "" : "s"} ${named.join(", ")}`]),
+    ...(others === 0 ? [] : [`${others} unsupported argument(s) not shown`]),
+  ].join("; ");
+}
+
 export interface LoadOptions {
   readonly configFile?: string | undefined;
   readonly env: NodeJS.ProcessEnv;

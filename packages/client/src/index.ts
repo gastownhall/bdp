@@ -6,13 +6,26 @@ import {
 } from "./history-session.js";
 
 export {
-  RetainedWriteBinding,
-  type RetainedWriteDocument,
-  type RetainedWriteBindingOptions,
-  type PreparedRetainedWrite,
-} from "./retained-write.js";
+  CALLABLE_BATCH_TYPE,
+  CALLABLE_QUERY_TYPE,
+  type CallableCatalog,
+  type CallableCliMapping,
+  type CallableDeclaration,
+  type CallableParameter,
+  type CallableValueSchema,
+  callableMount,
+  createStaticCallableCatalog,
+  parseCallableProblem,
+  parseCallableResult,
+} from "./callable.js";
 
 export type { HistoryRequest, HistoryResultFor } from "./history-session.js";
+export {
+  type PreparedRetainedWrite,
+  RetainedWriteBinding,
+  type RetainedWriteBindingOptions,
+  type RetainedWriteDocument,
+} from "./retained-write.js";
 
 import { SessionCore } from "./continuations.js";
 import {
@@ -78,6 +91,8 @@ export interface FetchTransportOptions {
   readonly maximumJsonContainerEntries?: number;
   readonly responseTimeoutMs?: number;
 }
+
+const LEGACY_ACCEPT = "application/vnd.bdp.v0.1+json, application/json;q=0.9";
 
 export function createFetchTransport(
   fetchImplementation: typeof fetch = fetch,
@@ -210,7 +225,8 @@ export function createFetchTransport(
             fetchImplementation,
             url,
             {
-              headers: { accept: "application/json" },
+              // A Core Scope answers 406 to anything that does not admit the BDP media type.
+              headers: { accept: LEGACY_ACCEPT },
               signal,
               redirect: "manual",
               credentials: "omit",
@@ -817,6 +833,15 @@ export class BdpClientTransportError extends BdpClientLocalError {
     super("the BDP transport failed before producing a protocol result", options);
     this.name = "BdpClientTransportError";
   }
+}
+
+/** The fixed text of this client's own response checks, when that is what failed. A cause
+ * from anywhere else may carry private text, so it is never repeated. */
+export function bdpClientFailureReason(error: BdpClientLocalError): string | undefined {
+  const { cause } = error;
+  return cause instanceof Error && /^Response[A-Za-z]*Error$/.test(cause.name)
+    ? cause.message
+    : undefined;
 }
 
 export class BdpClientRequestError extends BdpClientLocalError {
@@ -1616,26 +1641,29 @@ function legacyReadSession<T>(action: () => T): T {
 }
 
 export {
-  createHistoricalUpdateFetchTransport,
-  createRetainedFetchTransport,
-  RetainedTransportError,
-  type RetainedFetchTransportOptions,
-  type RetainedTransport,
-  type RetainedTransportLimits,
-  type RetainedAbortSettlement,
-  type RetainedTransportCallOptions,
-  type RetainedHttpContext,
-  type RetainedHttpResponse,
-} from "./retained-transport.js";
-export {
+  CallableBinding,
+  type CallableInvocationInput,
+  type PreparedCallableInvocation,
   RetainedClient,
+  type RetainedClientCallOptions,
   RetainedClientError,
   type RetainedClientOptions,
-  type RetainedClientCallOptions,
-  type RetainedPointReadOptions,
   type RetainedCollectionFilters,
   type RetainedPageReadOptions,
   type RetainedPageValue,
+  type RetainedPointReadOptions,
   type RetainedPointValue,
   type RetainedReply,
 } from "./retained-read.js";
+export {
+  createHistoricalUpdateFetchTransport,
+  createRetainedFetchTransport,
+  type RetainedAbortSettlement,
+  type RetainedFetchTransportOptions,
+  type RetainedHttpContext,
+  type RetainedHttpResponse,
+  type RetainedTransport,
+  type RetainedTransportCallOptions,
+  RetainedTransportError,
+  type RetainedTransportLimits,
+} from "./retained-transport.js";

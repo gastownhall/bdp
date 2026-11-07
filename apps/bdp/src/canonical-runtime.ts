@@ -2,35 +2,51 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   BdpClient,
   BdpClientLocalError,
+  bdpClientFailureReason,
+  CALLABLE_QUERY_TYPE,
+  type CallableCatalog,
+  type CallableDeclaration,
   createFetchTransport,
-  isBdpClientProblem,
   createHistoricalUpdateFetchTransport,
   createRetainedFetchTransport,
+  isBdpClientProblem,
   type PreparedRetainedWrite,
   RetainedClient,
   RetainedClientError,
+  type RetainedHttpContext,
   type RetainedPageValue,
   type RetainedReply,
   RetainedTransportError,
 } from "@bdp/client";
 import type { CanonicalCliConfig } from "@bdp/config";
 import {
+  type AdmittedJsonValue,
   admitJsonNumbers,
   decodeJsonDocument,
+  type HistoryVersionRow,
+  type HistoryVersionsPage,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   RETAINED_V01_SPECIFICATION,
   RETAINED_WRITE_OPERATIONS,
   type RetainedJsonObject,
   type RetainedResourceKind,
-  type HistoryVersionRow,
-  type HistoryVersionsPage,
 } from "@bdp/protocol";
+import {
+  CallableUsageError,
+  callableCatalogItem,
+  completeCallableArguments,
+  type ParsedCallableArguments,
+  parseCallArguments,
+  parseCallableArguments,
+  renderCallableHelp,
+} from "./canonical-call.js";
 import type { CanonicalInvocation } from "./canonical-command.js";
 import {
   CanonicalInputError,
   CanonicalUnsupportedInputError,
   compileCanonicalInput,
+  lowerRevisionProvenance,
   parseCanonicalReference,
   parseCanonicalReferenceSelection,
   parseHistoricalSourceSelector,
@@ -41,7 +57,12 @@ import {
   readBoundedFile,
   saveCanonicalJournal,
 } from "./canonical-io.js";
-import { type CanonicalOutput, httpContext, renderCanonicalOutput } from "./canonical-output.js";
+import {
+  type CanonicalOutput,
+  httpContext,
+  renderCallableFailure,
+  renderCanonicalOutput,
+} from "./canonical-output.js";
 import {
   CanonicalProjectionError,
   projectCanonicalProperties,
@@ -151,9 +172,55 @@ function integer(value: unknown, fallback: number, minimum: number): number {
     return refuse("invalid_value", 2, "paging values must be canonical bounded integers");
   return Number(value);
 }
+const answered = (http: RetainedHttpContext): string =>
+  `${http.url} answered HTTP ${http.status}${http.contentType ? ` (${http.contentType})` : ""}`;
+const TRANSPORT_FAILURES: Readonly<Record<string, string>> = Object.freeze({
+  network: "could not connect, or the connection was lost",
+  timeout: "the request timed out",
+  aborted: "the request was interrupted",
+  redirect: "the service answered with a redirect, which this client does not follow",
+  "invalid-response": "the response could not be read",
+  "response-too-large": `the response exceeded this client's limit of ${MAX_BYTES} bytes`,
+  "invalid-input": "the request could not be formed",
+});
+/** What happened, for a failure with no Problem to show. Never a response body. */
+function callFailure(
+  error: RetainedClientError | RetainedTransportError,
+  phase: "discovery" | "invocation" | "request",
+  scope: string,
+): string {
+  if (error instanceof RetainedClientError && error.code === "unsupported-feature")
+    return error.detail ?? "the Scope does not advertise what this invocation requires";
+  if (error instanceof RetainedClientError && error.code === "invalid-input")
+    return "the client refused this invocation's input before sending it";
+  const stage =
+    { discovery: `BDP discovery of ${scope} failed`, invocation: "Invocation failed" }[
+      phase as "discovery"
+    ] ?? `The request against ${scope} failed`;
+  if (error instanceof RetainedTransportError) {
+    if (error.code === "invalid-response" && error.httpStatus !== undefined)
+      return `${stage}: the service answered HTTP ${error.httpStatus}${
+        error.contentType ? ` (${error.contentType})` : ""
+      }, which is not a BDP response`;
+    return `${stage}: ${TRANSPORT_FAILURES[error.code] ?? error.code}`;
+  }
+  return [stage, error.http && answered(error.http), error.detail ?? "not a usable BDP response"]
+    .filter((part) => part)
+    .join(": ");
+}
+/** A legacy client failure, with the fixed reason its own checks give. */
+const localFailure = (error: BdpClientLocalError): string => {
+  const reason = bdpClientFailureReason(error);
+  return reason === undefined ? error.message : `${error.message}: ${reason}`;
+};
 function problemExit(problem: RetainedJsonObject): number {
   const code = problem.code;
-  if (code === "resource-not-found" || code === "revision-not-found" || code === "alias-not-found")
+  if (
+    code === "resource-not-found" ||
+    code === "revision-not-found" ||
+    code === "alias-not-found" ||
+    code === "callable-not-found"
+  )
     return 3;
   if (code === "revision-mismatch") return 4;
   if (
@@ -164,6 +231,27 @@ function problemExit(problem: RetainedJsonObject): number {
   )
     return 5;
   return 1;
+}
+/** Same admission as a Write command's JSON input, with `@FILE` and `@-`. */
+async function jsonInput(
+  value: string,
+  reader: ReturnType<typeof canonicalInputReader>,
+  maxBytes: number,
+): Promise<AdmittedJsonValue> {
+  const path = value.startsWith("@") ? value.slice(1) : undefined;
+  if (path === "") return refuse("invalid_value", 2, "file input requires a path");
+  const text =
+    path === undefined
+      ? value
+      : utf8.decode(
+          await (path === "-" ? reader.readStdin(maxBytes) : reader.readFile(path, maxBytes)),
+        );
+  try {
+    return json(text) as AdmittedJsonValue;
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    return refuse("invalid_value", 2, "expected one admitted JSON object");
+  }
 }
 function json(text: string): Record<string, unknown> {
   const admitted = admitJsonNumbers(decodeJsonDocument(text), {
@@ -205,6 +293,9 @@ export async function runCanonicalInvocation(
     readonly stderr: (text: string, signal?: AbortSignal) => void | Promise<void>;
     readonly signal?: AbortSignal;
   },
+  callables?: CallableCatalog,
+  /** The words that reached a Callable through the command tree, for its help. */
+  callableCommand?: readonly string[],
 ): Promise<number> {
   const options = invocation.options;
   const command = [...invocation.command];
@@ -215,16 +306,23 @@ export async function runCanonicalInvocation(
   const alias = command[0] === "alias";
   const collection = leaf === "list";
   const mutation = ["create", "update", "delete", "put", "batch"].includes(leaf ?? "");
+  const isCall = command[0] === "call";
+  // The Callable being invoked and the key sent, once they are known.
+  let callable: CallableDeclaration | undefined;
+  let callableKey: string | undefined;
+  let callPhase: "discovery" | "invocation" = "invocation";
   let specification: string | null = null;
-  let descriptor = mutation
-    ? "mutation"
-    : collection
-      ? "resource_collection"
-      : alias
-        ? "reference"
-        : command[0] === "scope"
-          ? "scope"
-          : "resource";
+  let descriptor = isCall
+    ? "callable_result"
+    : mutation
+      ? "mutation"
+      : collection
+        ? "resource_collection"
+        : alias
+          ? "reference"
+          : command[0] === "scope"
+            ? "scope"
+            : "resource";
   // Used only as an offline parser base until an absolute subject supplies its
   // verified owner. Never a network destination or a configured default.
   let scope = config.scope?.url ?? "https://unbound.invalid/";
@@ -244,7 +342,10 @@ export async function runCanonicalInvocation(
     const rendered = renderCanonicalOutput(value, displayOptions, scope);
     await io.stdout(rendered, value.outcome === "success" ? io.signal : failureSignal());
     const raw = Array.isArray(options.omit) && options.omit.includes("envelope");
-    if (value.outcome !== "success" && (raw || (format !== "json" && format !== "jsonl")))
+    const structured = format === "json" || format === "jsonl";
+    if (value.outcome !== "success" && isCall && !structured)
+      await io.stderr(renderCallableFailure(value), failureSignal());
+    else if (value.outcome !== "success" && (raw || !structured))
       await io.stderr(
         `${JSON.stringify({ error: value.error, ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }) })}\n`,
         failureSignal(),
@@ -263,6 +364,54 @@ export async function runCanonicalInvocation(
       (outputMode === "json" && format !== "json" && format !== "jsonl")
     )
       return refuse("invalid_arguments", 2, "output mode conflicts with output format");
+    let callableArguments: Readonly<Record<string, AdmittedJsonValue>> = {};
+    let parsedCall: Extract<ParsedCallableArguments, { help: false }> | undefined;
+    if (isCall) {
+      if (callables === undefined)
+        return refuse("unsupported_capability", 5, "no Callable catalog is configured");
+      const name = invocation.positionals[0];
+      if (name === undefined) {
+        descriptor = "callable_catalog";
+        await output({
+          schema_version: 2,
+          bdp_spec: null,
+          result_kind: descriptor,
+          outcome: "success",
+          data: { items: (await callables.list()).map(callableCatalogItem) },
+        });
+        return 0;
+      }
+      callable =
+        (await callables.get(name)) ??
+        refuse("invalid_arguments", 2, "unknown Callable; run bdp call to list the names");
+      const tokens = invocation.positionals.slice(1);
+      if (callableCommand !== undefined && invocation.explicitOptions.includes("arguments"))
+        return refuse(
+          "invalid_arguments",
+          2,
+          "--arguments is the command's own; put it after the command",
+        );
+      const parsed =
+        callableCommand === undefined
+          ? parseCallArguments(tokens, stringOption(options, "arguments"))
+          : parseCallableArguments(callable, tokens);
+      if (parsed.help) {
+        await io.stdout(renderCallableHelp(callable, callableCommand), io.signal);
+        return 0;
+      }
+      parsedCall = parsed;
+      if (
+        callable.type === CALLABLE_QUERY_TYPE &&
+        ["actor", "revisionProvenance", "idempotencyKey"].some((key) =>
+          invocation.explicitOptions.includes(key),
+        )
+      )
+        return refuse(
+          "invalid_arguments",
+          2,
+          "attribution and keys apply only to a CallableBatch; this Callable is a CallableQuery",
+        );
+    }
     const scopePositional =
       command[0] === "scope" ||
       (!link && !alias && ["create", "list", "batch"].includes(leaf ?? ""))
@@ -316,6 +465,10 @@ export async function runCanonicalInvocation(
     const historicalSource = stringOption(options, "fromRevision");
     if (historicalSource !== undefined) parseHistoricalSourceSelector(historicalSource);
     const reader = canonicalInputReader(io.signal);
+    if (callable !== undefined && parsedCall !== undefined)
+      callableArguments = await completeCallableArguments(parsedCall, (path) =>
+        path === "-" ? reader.readStdin(MAX_INPUT_BYTES) : reader.readFile(path, MAX_INPUT_BYTES),
+      );
     const dryRun = stringOption(options, "dryRunMode");
     if (dryRun !== undefined && !mutation)
       return refuse("invalid_arguments", 2, "emission requires a mutation");
@@ -359,7 +512,7 @@ export async function runCanonicalInvocation(
       savedJournal = saved;
     }
     const subjectCommand =
-      (!mutation && !collection && !alias && command[0] !== "scope") ||
+      (!mutation && !collection && !alias && command[0] !== "scope" && !isCall) ||
       (!alias && (leaf === "update" || leaf === "delete"));
     const initial = subjectCommand ? invocation.positionals[0] : undefined;
     let initialRef: ReturnType<typeof parseCanonicalReference> | undefined;
@@ -474,6 +627,40 @@ export async function runCanonicalInvocation(
         context: httpContext(reply.http, scope),
         data: inspection,
       };
+    } else if (isCall && callable !== undefined) {
+      const actor = stringOption(options, "actor");
+      const supplied = stringOption(options, "revisionProvenance");
+      const key = stringOption(options, "idempotencyKey");
+      if (actor === "") return refuse("invalid_arguments", 2, "--actor requires a value");
+      const attributed = actor !== undefined || supplied !== undefined;
+      const revisionProvenance = attributed
+        ? lowerRevisionProvenance(
+            supplied === undefined ? undefined : await jsonInput(supplied, reader, MAX_INPUT_BYTES),
+            actor,
+          )
+        : undefined;
+      callPhase = "discovery";
+      const binding = consume(await client.bindCallables(scope, call));
+      callPhase = "invocation";
+      const prepared = binding.prepare({
+        declaration: callable,
+        arguments: callableArguments,
+        ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
+        ...(key === undefined ? {} : { idempotencyKey: key }),
+      });
+      callableKey = prepared.idempotencyKey;
+      submitted = prepared.kind === "batch";
+      const reply = await client.invokeCallable(prepared, call);
+      const data = consume(reply);
+      if (reply.kind !== "success") throw reply;
+      known = {
+        schema_version: 2,
+        bdp_spec: specification,
+        result_kind: descriptor,
+        outcome: "success",
+        context: httpContext(reply.http, prepared.url),
+        data,
+      };
     } else if (alias && leaf === "resolve") {
       const operand = invocation.positionals[0];
       if (!operand) return refuse("invalid_arguments", 2, "alias name required");
@@ -515,12 +702,6 @@ export async function runCanonicalInvocation(
           invocation.explicitOptions.some((key) => selectors.includes(key)))
       )
         return refuse("invalid_arguments", 2, "continuation cannot reselect its population");
-      if (options.type !== undefined && options.type !== "any")
-        return refuse(
-          "unsupported_capability",
-          5,
-          "Type-family filtering requires the Types capability",
-        );
       if (
         options.include !== undefined ||
         (Array.isArray(options.omit) && options.omit.some((value) => value !== "envelope"))
@@ -532,7 +713,10 @@ export async function runCanonicalInvocation(
         );
       const kind: RetainedResourceKind = link ? "link" : "bead";
       const filters: Record<string, string> = {};
+      // The family filter is the service's to interpret or refuse (Core, Issue §8), and never
+      // falls back to exact matching. `--type any` applies no filter.
       for (const [flag, field] of [
+        ...(options.type === "any" ? [] : [["type", "conformsTo"] as const]),
         ["exactType", "type"],
         ["from", "source"],
         ["to", "target"],
@@ -544,7 +728,7 @@ export async function runCanonicalInvocation(
             return refuse("invalid_value", 2, "--exact-type any is not admitted");
           const ref = parseCanonicalReference(raw, scope, {
             mutationSubject: true,
-            allowOpaqueUri: flag !== "exactType",
+            allowOpaqueUri: flag !== "exactType" && flag !== "type",
           });
           filters[field] = referenceUri(ref);
         }
@@ -716,7 +900,18 @@ export async function runCanonicalInvocation(
             },
             call,
           );
-          if (isBdpClientProblem(result)) throw { kind: "problem", problem: result };
+          if (isBdpClientProblem(result)) {
+            // This legacy read path cannot parse Core discovery. History is optional, so ask
+            // the current reader whether the Scope advertises it before blaming the Scope.
+            const current = await client.inspectScope(scope, call).catch(() => undefined);
+            if (current?.kind === "success" && current.value.historicalResolution === undefined)
+              return refuse(
+                "unsupported_capability",
+                5,
+                `${scope} does not advertise History, so it has no versions to list`,
+              );
+            throw { kind: "problem", problem: result };
+          }
           const page = result as HistoryVersionsPage;
           firstPage ??= page;
           items.push(...page.items);
@@ -765,12 +960,7 @@ export async function runCanonicalInvocation(
       };
       const masked = Object.keys(masks).length > 0;
       if (options.propertiesOnly) validateCanonicalPropertiesMasks(masks);
-      if (
-        options.includeLinks ||
-        options.linksLimit ||
-        options.direction ||
-        (masked && !options.propertiesOnly)
-      )
+      if (masked && !options.propertiesOnly)
         return refuse(
           "unsupported_capability",
           5,
@@ -789,6 +979,17 @@ export async function runCanonicalInvocation(
       if (!raw) return refuse("invalid_arguments", 2, "Resource operand required");
       const ref =
         initialRef ?? parseCanonicalReference(raw, scope, { currentRead: leaf === "show" });
+      if (options.includeLinks && typeof ref !== "string")
+        return refuse(
+          "invalid_arguments",
+          2,
+          "--include-links reads the current Bead; a historical read has no included Links",
+        );
+      const linksLimit =
+        options.linksLimit === undefined ? undefined : integer(options.linksLimit, 0, 1);
+      const linksDirection = ({ in: "inbound", out: "outbound", both: "both" } as const)[
+        String(options.direction) as "in" | "out" | "both"
+      ];
       const reply = await client.read({
         ...call,
         reference: ref,
@@ -796,6 +997,14 @@ export async function runCanonicalInvocation(
         followAlias: true,
         ...(link ? { expectedKind: "link" as const } : {}),
         ...(options.propertiesOnly ? { view: "properties" as const } : {}),
+        ...(options.includeLinks
+          ? {
+              includeLinks: {
+                ...(linksDirection === undefined ? {} : { direction: linksDirection }),
+                ...(linksLimit === undefined ? {} : { limit: linksLimit }),
+              },
+            }
+          : {}),
         ...(selectedScope === undefined ? {} : { scope }),
       });
       const data = consume(reply);
@@ -892,12 +1101,17 @@ export async function runCanonicalInvocation(
   } catch (error) {
     let status = 1,
       code = "invalid_value",
-      message = "command failed",
+      message = `unexpected client failure (${error instanceof Error ? error.name : typeof error})`,
       unknown = submitted && known === undefined;
     let nativeProblem: RetainedJsonObject | undefined;
+    let cause: string | undefined;
     if (error instanceof CliError) {
       status = error.status;
       code = error.code;
+      message = error.message;
+    } else if (error instanceof CallableUsageError) {
+      status = 2;
+      code = "invalid_arguments";
       message = error.message;
     } else if (error instanceof CanonicalUnsupportedInputError) {
       status = 5;
@@ -910,35 +1124,61 @@ export async function runCanonicalInvocation(
     } else if (error instanceof BdpClientLocalError) {
       status = error.code === "invalid-request" ? 2 : 1;
       code = error.code;
-      message = error.message;
+      message = localFailure(error);
     } else if (error instanceof RetainedClientError || error instanceof RetainedTransportError) {
-      unknown = error.submission === "unknown";
+      // A CallableQuery changes nothing, so no outcome of one is uncertain.
+      unknown = error.submission === "unknown" && callable?.type !== CALLABLE_QUERY_TYPE;
       status = error.code === "unsupported-feature" ? 5 : error.code === "invalid-input" ? 2 : 1;
       code = unknown
         ? "write_outcome_unknown"
         : error.code === "unsupported-feature"
           ? "unsupported_capability"
-          : "invalid_value";
+          : isCall
+            ? "delivery_failed"
+            : "invalid_value";
+      cause = callFailure(error, isCall ? callPhase : "request", scope);
       message = unknown
         ? "Write disposition is unknown; recover the saved invocation with the same key"
-        : "BDP delivery failed";
+        : cause;
+    } else if (
+      typeof error === "object" &&
+      error !== null &&
+      "kind" in error &&
+      error.kind === "http"
+    ) {
+      const { http } = error as unknown as { http: RetainedHttpContext };
+      cause = `${answered(http)} with no Problem body`;
+      if (isCall) code = "delivery_failed";
+      message = cause;
     } else if (
       typeof error === "object" &&
       error !== null &&
       "kind" in error &&
       error.kind === "problem"
     ) {
-      const reply = error as unknown as { problem: RetainedJsonObject };
+      const reply = error as unknown as {
+        problem: RetainedJsonObject;
+        http?: { status?: number };
+      };
       nativeProblem = reply.problem;
       status = problemExit(reply.problem);
+      const replay = String(reply.problem.code).startsWith("idempotency-");
       unknown =
         submitted &&
-        (String(reply.problem.code).startsWith("idempotency-") ||
-          reply.problem.code === "temporarily-unavailable");
+        (isCall
+          ? // §5: a Problem from an atomic batch means nothing committed; §9: 503
+            // callable-unavailable means the operation did not run.
+            replay ||
+            (callable?.atomic !== true &&
+              (reply.http?.status ?? 0) >= 500 &&
+              reply.problem.code !== "callable-unavailable")
+          : replay || reply.problem.code === "temporarily-unavailable");
     }
     if (unknown && nativeProblem === undefined) {
       code = "write_outcome_unknown";
-      message = "Write disposition is unknown; recover the saved invocation with the same key";
+      message = isCall
+        ? `${cause === undefined ? "" : `${cause}; `}the Callable's outcome is unknown; read before repeating, or repeat with the same key`
+        : "Write disposition is unknown; recover the saved invocation with the same key";
     }
     if (io.signal?.aborted && !(error instanceof CanonicalOutputError)) {
       status = 130;
@@ -960,6 +1200,10 @@ export async function runCanonicalInvocation(
       ...(known?.data === undefined ? {} : { data: known.data }),
       context: {
         ...(known === undefined ? {} : { operation_outcome: known.outcome }),
+        ...(unknown && callableKey !== undefined ? { idempotency_key: callableKey } : {}),
+        ...(isCall && submitted && !unknown && nativeProblem !== undefined
+          ? { effects: callable?.atomic === true ? "none" : "not-established" }
+          : {}),
         ...(unknown && pendingRecovery
           ? {
               recovery: {
