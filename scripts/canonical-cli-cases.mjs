@@ -654,6 +654,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       for (const args of [
         ["alias", "put", "aliases/current", "--target", "a", ...json],
         ["alias", "delete", "aliases/current", "--force", ...json],
+        ["alias", "resolve", "aliases/current", ...json],
       ])
         refused(
           await cli(args, directory, scope),
@@ -662,6 +663,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
           /does not advertise aliases/,
         );
       assert.equal(posts(), before, "an alias refusal sends no mutation");
+      assert(!requests.some((r) => r.path.includes("aliases/current")), "nor asks for the alias");
       for (const [next, message] of [
         ["members-unadvertised", /carries alias operations, but discovery does not advertise/],
         ["advertised-no-members", /advertises aliases, but the Write operation directory omits/],
@@ -686,6 +688,13 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
         "mutation",
       );
       assert.equal(posts(), before + 1);
+      assert.equal(
+        success(
+          await cli(["alias", "resolve", "aliases/current", ...json], directory, scope),
+          "reference",
+        ).data,
+        `${scope}a`,
+      );
     } finally {
       await reference?.close();
       await close(proxy);

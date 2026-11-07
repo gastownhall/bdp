@@ -665,6 +665,12 @@ export async function runCanonicalInvocation(
       const operand = invocation.positionals[0];
       if (!operand) return refuse("invalid_arguments", 2, "alias name required");
       const reference = parseCanonicalReference(operand, scope, { mutationSubject: true });
+      if (consume(await client.inspectScope(scope, call)).aliases === undefined)
+        return refuse(
+          "unsupported_capability",
+          5,
+          "this provider does not advertise aliases, so it has no alias to resolve; the alias URL was not requested",
+        );
       const reply = await client.resolveAlias(referenceUri(reference), scope, call);
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
