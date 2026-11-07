@@ -9,8 +9,8 @@ version: "preview-1"
 Editorial draft preview-1 · November 5, 2026 · lifted from the experimental draft of October 30, 2026
 
 Callables is the optional capability by which a Scope exposes named,
-parameterized operations over BDP. A **Callable** is a Bead that declares one
-such operation: its help, its parameters, the schema of its result and the
+parameterized operations over BDP. A **Callable** declares one such operation,
+as a Bead or compiled into the provider (§2.1): its help, its parameters, the schema of its result and the
 schema of its errors. A **CallableQuery** is read-only; a **CallableBatch**
 mutates. Either can be declared and invoked on its own.
 [Core](../core/core.md) supplies identity, records, reads, authorization,
@@ -101,6 +101,14 @@ that wants only other records selects by `type` or `conformsTo`. The three Types
 are a fixed catalog: a provider may enforce them as native Scope policy under
 Core alone, and a Scope advertising Types1 serves them as definition Beads
 unchanged.
+
+A provider MAY instead compile a declaration in. A **compiled declaration** is not
+a Bead: it has no canonical URL, record, revision or inventory row, and nothing in
+Core, Write, Types or Events applies to it as a Resource. `GET <scope>/bdp/call` is
+where it is published. Its operation there is the whole declaration, marked
+`x-bdp-callable.compiled` (§14), and a client rebuilds it by §14's rule. Its name
+follows the same rules as any other, and everything else in this profile holds:
+invocation, checking, results, authorization and problems. (**preview**)
 
 **A Callable's name is its full local Resource ID**, its canonical URL relative
 to the Scope: `reserve-room`, or `rooms/reserve`. There is no separate name
@@ -329,7 +337,7 @@ the Scope `https://beads.example/acme/` is
 its descendants against Resources and aliases. A mount admits `POST` only
 and answers other methods with a bodyless 405 and `Allow: POST`. `GET` of a
 declaration's canonical URL is always the ordinary record read and never an
-invocation.
+invocation. A compiled declaration has no canonical URL (§2.1).
 
 `GET` of `<scope>/bdp/call` itself says what can be called: it returns an OpenAPI
 document for this Scope's reachable Callables, as §14 projects them, and allows `HEAD`.
@@ -480,7 +488,8 @@ currently available (`callable-unavailable`, §9) nor that the caller is authori
 (§8).
 
 On a Scope without a root Bead, which Callables are reachable is the provider's own,
-and `GET <scope>/bdp/call` reports them.
+and `GET <scope>/bdp/call` reports them. A compiled declaration has no Bead for a Link
+to reach, so the same holds for it on any Scope.
 
 The root Bead's Type, the Link Type's final name and how a package's Callables join it
 are settled with packages, because the installed-package root is the same pattern and
@@ -617,7 +626,7 @@ bdp reserve-room cedar --day 2026-11-20
 | Row | Expectation |
 | --- | --- |
 | CB-1 | Discovery advertises the capability at version `"1"` with empty detail |
-| CB-2 | Each reachable name resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.5 |
+| CB-2 | Each reachable name resolves to a Bead affiliated with `callable-query` or `callable-batch` whose properties satisfy §§2.2–2.5; for a compiled declaration, its operation rebuilds to properties that do |
 | CB-3 | `POST` to a mount with valid `arguments` returns 200 and a `callableResult` |
 | CB-4 | An unknown argument member is rejected as `validation-failed` naming it |
 | CB-5 | A missing required parameter is rejected as `validation-failed`; an omitted defaulted parameter runs with its default |
@@ -626,7 +635,7 @@ bdp reserve-room cedar --day 2026-11-20
 | CB-8 | A CallableQuery invocation leaves every Resource revision in the Scope unchanged |
 | CB-9 | A reachable Callable with no working implementation answers `callable-unavailable` |
 | CB-10 | A `callable-error` is HTTP 409 with an `error` member, valid against the declaration's `errorSchema` when there is one |
-| CB-11 | `GET` of a declaration's canonical URL returns the ordinary Bead record |
+| CB-11 | `GET` of a declaration Bead's canonical URL returns the ordinary Bead record |
 | CB-12 | On a Scope with a root Bead at `sys/callables`, a declaration with no live Link from it is `callable-not-found`, and creating that Link makes it reachable |
 | CB-13 | A Problem from a declaration marked `atomic` leaves every Resource revision in the Scope unchanged |
 | CB-14 | `GET <scope>/bdp/call` returns an OpenAPI document with one operation per Callable reachable by the caller, each matching its declaration under §14 |
@@ -843,7 +852,7 @@ from the operation. `GET <scope>/bdp/call` serves these operations (§3):
 | 200 response | `callableResult`, with `result` as the declaration's `resultSchema` |
 | 409 response | `callableProblem`, with `error` as the declaration's `errorSchema` on `callable-error` |
 | `default` response | `callableProblem` |
-| `x-bdp-callable` extension | The Type, `idempotent`, `atomic` and `cliMapping`, so they survive into the document |
+| `x-bdp-callable` extension | The Type, `idempotent`, `atomic` and `cliMapping`, so they survive into the document; and `compiled: true` on a compiled declaration (§2.1), absent otherwise |
 
 A `oneOf` in `errorSchema` whose branches each fix one member to a constant may project
 OpenAPI's `discriminator` on that member. Two Callables whose names give the same
