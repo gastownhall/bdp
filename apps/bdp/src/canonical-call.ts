@@ -481,8 +481,6 @@ const positionalWords = (declaration: CallableDeclaration): string =>
     })
     .join("");
 
-/** §10: title, description, the parameters and any declared errors, without invoking.
- * `command` is how the Callable was reached; it defaults to `call NAME`. */
 function schemaWord({ schema }: CallableParameter): string {
   const form = valueForm({ schema } as CallableParameter);
   if (form.kind === "boolean") return "boolean";
@@ -490,13 +488,20 @@ function schemaWord({ schema }: CallableParameter): string {
   return form.item === "text" ? "text" : "JSON";
 }
 
-export function renderCallableHelp(
-  declaration: CallableDeclaration,
-  command?: readonly string[],
-): string {
-  // `bdp call` never reads cliMapping, so its help derives no flag and names no position.
-  const flags: FlagTable["flags"] =
-    command === undefined ? new Map() : flagTable(declaration).flags;
+const SUMMARY_WIDTH = 100;
+/** One line of possibly long, possibly markdown text: its first sentence, cut to fit. */
+function summaryLine(text: string): string {
+  const flat = (text.trim().split(/\n\s*\n/)[0] ?? "").replace(/\s+/g, " ");
+  const sentence = flat.split(/(?<=[.!?])\s+(?=[`A-Z(])/)[0] ?? "";
+  return sentence.length <= SUMMARY_WIDTH ? sentence : `${sentence.slice(0, SUMMARY_WIDTH - 1)}…`;
+}
+
+const flagPlaceholder = (form: ValueForm): string =>
+  form.kind === "boolean" ? "" : form.item === "text" ? " TEXT" : " JSON";
+
+/** §10: `bdp call NAME --help`. Title, description, the parameters and any declared errors,
+ * without invoking; `call` never reads cliMapping, so it derives no flag and names no position. */
+function renderCallHelp(declaration: CallableDeclaration): string {
   const promises = [
     callableKind(declaration) === "query" ? "CallableQuery" : "CallableBatch",
     ...(declaration.idempotent ? ["idempotent"] : []),
@@ -508,54 +513,25 @@ export function renderCallableHelp(
     "",
     declaration.description,
     "",
-    ...(command === undefined
-      ? [`Usage: bdp call ${declaration.name} [--arguments JSON] [client options]`]
-      : [
-          `Usage: bdp [client options] ${command.join(" ")} ${positionalWords(declaration)}[callable arguments]`,
-          `  Or:  bdp call ${declaration.name} [--arguments JSON] [client options]`,
-        ]),
+    `Usage: bdp call ${declaration.name} [--arguments JSON] [client options]`,
     "",
   ];
-  if (declaration.parameters.length > 0)
-    lines.push(command === undefined ? "Members of --arguments:" : "Parameters:");
+  if (declaration.parameters.length > 0) lines.push("Members of --arguments:");
   for (const parameter of declaration.parameters) {
-    const form = valueForm(parameter);
-    const spellings = [...flags].flatMap(([spelling, binding]) =>
-      binding?.parameter === parameter && !binding.file ? [spelling] : [],
-    );
-    const fileSpellings = [...flags].flatMap(([spelling, binding]) =>
-      binding?.parameter === parameter && binding.file ? [spelling] : [],
-    );
-    const shown = spellings.length > 0 ? spellings.join(", ") : "(--arguments only)";
-    const placeholder = form.kind === "boolean" ? "" : form.item === "text" ? " TEXT" : " JSON";
-    const position =
-      command === undefined
-        ? undefined
-        : declaration.cliMapping?.positionals?.find((entry) => entry.parameter === parameter.name)
-            ?.position;
     const notes = [
-      ...(position === undefined ? [] : [`position ${position}`]),
       ...(parameter.required ? ["required"] : []),
-      ...(form.kind === "array" && command !== undefined ? ["repeatable"] : []),
       ...(Object.hasOwn(parameter, "default")
         ? [`default ${JSON.stringify(parameter.default)}`]
         : []),
     ];
     const suffix = notes.length > 0 ? `  (${notes.join("; ")})` : "";
-    if (command === undefined) lines.push(`  ${parameter.name}: ${schemaWord(parameter)}${suffix}`);
-    else {
-      lines.push(`  ${shown}${placeholder}${suffix}`);
-      if (fileSpellings.length > 0)
-        lines.push(`  ${fileSpellings.join(", ")} PATH  (the value read from a file; - is stdin)`);
-    }
+    lines.push(`  ${parameter.name}: ${schemaWord(parameter)}${suffix}`);
     if (parameter.description !== undefined) lines.push(`      ${parameter.description}`);
   }
   lines.push(
     ...(declaration.parameters.length > 0 ? [""] : []),
     "Generic:",
-    command === undefined
-      ? "  --arguments JSON  The arguments object. Omitted means {}."
-      : "  --arguments JSON  Supply the whole arguments object; explicit flags override its members.",
+    "  --arguments JSON  The arguments object. Omitted means {}.",
     ...(callableKind(declaration) === "batch"
       ? ["  --actor ACTOR     Who is acting, as revisionProvenance.actor; anywhere on the line."]
       : []),
@@ -564,7 +540,87 @@ export function renderCallableHelp(
   );
   if (declaration.errorSchema !== undefined)
     lines.push("Errors:", ...errorLines(declaration.errorSchema).map((line) => `  ${line}`), "");
-  return `${clean(lines.join("\n"))}`;
+  return clean(lines.join("\n"));
+}
+
+/** §10: a tree command's `--help`. The usage, the title, then the parameters and their flags, each
+ * in one line of text at most. The whole declaration is `bdp call NAME --help`. */
+function renderTreeHelp(declaration: CallableDeclaration, command: readonly string[]): string {
+  const { flags } = flagTable(declaration);
+  const spellingsOf = (keep: (binding: FlagBinding) => boolean): readonly string[] =>
+    [...flags].flatMap(([spelling, binding]) =>
+      binding !== undefined && keep(binding) ? [spelling] : [],
+    );
+  const summary = declaration.title ?? summaryLine(declaration.description);
+  const lines = [
+    `Usage: bdp [client options] ${command.join(" ")} ${positionalWords(declaration)}[callable arguments]`,
+    ...(summary === "" ? [] : ["", summary]),
+    "",
+  ];
+  if (declaration.parameters.length > 0) lines.push("Parameters:");
+  for (const parameter of declaration.parameters) {
+    const form = valueForm(parameter);
+    const own = spellingsOf(
+      (binding) => binding.parameter === parameter && !binding.file && binding.member === undefined,
+    );
+    const fileSpellings = spellingsOf((binding) => binding.parameter === parameter && binding.file);
+    const position = declaration.cliMapping?.positionals?.find(
+      (entry) => entry.parameter === parameter.name,
+    )?.position;
+    const notes = [
+      ...(position === undefined ? [] : [`position ${position}`]),
+      ...(parameter.required ? ["required"] : []),
+      ...(form.kind === "array" ? ["repeatable"] : []),
+      ...(Object.hasOwn(parameter, "default")
+        ? [`default ${JSON.stringify(parameter.default)}`]
+        : []),
+    ];
+    const suffix = notes.length > 0 ? `  (${notes.join("; ")})` : "";
+    const shown = own.length > 0 ? own.join(", ") : "(--arguments only)";
+    lines.push(`  ${shown}${flagPlaceholder(form)}${suffix}`);
+    if (fileSpellings.length > 0)
+      lines.push(`  ${fileSpellings.join(", ")} PATH  (the value read from a file; - is stdin)`);
+    if (parameter.description !== undefined)
+      lines.push(`      ${summaryLine(parameter.description)}`);
+    const members = (declaration.cliMapping?.memberFlags ?? []).filter(
+      (mapping) => mapping.parameter === parameter.name,
+    );
+    if (members.length > 0) lines.push(`      Or set one member of it at a time:`);
+    for (const { member } of members) {
+      const spelled = spellingsOf(
+        (binding) => binding.parameter === parameter && binding.member === member,
+      );
+      const schema = asObject(memberSchema(parameter, member));
+      if (schema === undefined || spelled.length === 0) continue;
+      const about = typeof schema.description === "string" ? summaryLine(schema.description) : "";
+      const memberForm = schemaForm(schema, parameter.schema);
+      lines.push(
+        `        ${spelled.join(", ")}${flagPlaceholder(memberForm)}${memberForm.kind === "array" ? "  (repeatable)" : ""}`,
+        ...(about === "" ? [] : [`            ${about}`]),
+      );
+    }
+  }
+  lines.push(
+    ...(declaration.parameters.length > 0 ? [""] : []),
+    "Generic:",
+    "  --arguments JSON  Supply the whole arguments object; explicit flags override its members.",
+    ...(callableKind(declaration) === "batch"
+      ? ["  --actor ACTOR     Who is acting, as revisionProvenance.actor; anywhere on the line."]
+      : []),
+    "  --help            Print this help without invoking.",
+    "",
+    `For the full text and the declared errors: bdp call ${declaration.name} --help`,
+    "",
+  );
+  return clean(lines.join("\n"));
+}
+
+/** `command` is how the Callable was reached: a tree command's words, or undefined for `call`. */
+export function renderCallableHelp(
+  declaration: CallableDeclaration,
+  command?: readonly string[],
+): string {
+  return command === undefined ? renderCallHelp(declaration) : renderTreeHelp(declaration, command);
 }
 
 /** One word of the Callable command tree: its name's segments, one word each (§10). */

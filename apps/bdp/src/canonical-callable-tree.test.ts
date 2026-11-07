@@ -242,6 +242,49 @@ const patching: CallableDeclaration = {
   },
 };
 
+describe("a tree command's --help", () => {
+  const help = () =>
+    issueCallableCatalog()
+      .get("issue/update")
+      .then((update) => {
+        if (update === undefined) throw new Error("catalog");
+        return { update, text: renderCallableHelp(update, ["issue", "update"]) };
+      });
+  it("opens with the usage, then the title, and leaves out the description", async () => {
+    const { update, text } = await help();
+    expect(text.split("\n").slice(0, 3)).toEqual([
+      "Usage: bdp [client options] issue update ID [callable arguments]",
+      "",
+      update.title,
+    ]);
+    expect(text).not.toContain(update.description);
+    expect(text).not.toContain("#####");
+    expect(text).not.toContain("Errors:");
+  });
+  it("lists every parameter, every member flag, and one line of text for each", async () => {
+    const { update, text } = await help();
+    for (const parameter of update.parameters)
+      expect(text).toContain(parameterFlag(parameter.name));
+    expect(text).toMatch(/--status, -s TEXT/);
+    expect(text).toMatch(/--priority, -p JSON/);
+    expect(text).toMatch(/--labels, --set-labels TEXT {2}\(repeatable\)/);
+    for (const line of text.split("\n")) expect(line.length).toBeLessThanOrEqual(120);
+  });
+  it("says where the full text is", async () => {
+    const { text } = await help();
+    expect(text).toContain("bdp call issue/update --help");
+  });
+  it("bdp call NAME --help keeps printing the whole declaration, with no flags", async () => {
+    const update = await issueCallableCatalog().get("issue/update");
+    if (update === undefined) throw new Error("catalog");
+    const text = renderCallableHelp(update);
+    expect(text).toContain(update.description);
+    expect(text).toContain("Errors:");
+    expect(text).toContain("Usage: bdp call issue/update");
+    expect(text).not.toContain("--status");
+  });
+});
+
 describe("cliMapping.memberFlags", () => {
   it("a member flag sets that member of the parameter, and no other", async () => {
     await expect(complete(patching, ["a", "--status", "open"])).resolves.toEqual({
