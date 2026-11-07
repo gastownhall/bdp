@@ -8,15 +8,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "atomicBatch": {
-          "type": "boolean"
-        },
         "except": {
           "type": "boolean"
         },
         "maximumClosure": {
           "type": "integer",
           "minimum": 1
+        },
+        "through": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/deleteModesLinkTypeTest"
+          }
         },
         "typeEffects": {
           "type": "array",
@@ -25,8 +30,7 @@
             "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/absoluteHttpUrl"
           }
         }
-      },
-      "required": ["atomicBatch", "except"]
+      }
     },
     "deleteModesCapabilityAdvertisement": {
       "description": "A capabilities map which includes fixed delete-modes1. Unknown versions may coexist but never authorize version1.",
@@ -103,7 +107,12 @@
           "$ref": "#/$defs/deleteModesExcept"
         },
         "through": {
-          "$ref": "#/$defs/deleteModesLinkTypeTest"
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/deleteModesLinkTypeTest"
+          }
         }
       },
       "required": ["through"]
@@ -204,78 +213,6 @@
         }
       }
     },
-    "deleteModesOperation": {
-      "description": "A deleteBead batch member selecting blockedBy. beads, cascade and dryRun are not admitted inside a batch.",
-      "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteBeadMembers"
-        }
-      ],
-      "unevaluatedProperties": false,
-      "properties": {
-        "blockedBy": {
-          "$ref": "#/$defs/deleteModesBlockedBy"
-        },
-        "operation": {
-          "const": "deleteBead"
-        }
-      },
-      "required": ["operation", "blockedBy"]
-    },
-    "deleteModesBatchOperation": {
-      "oneOf": [
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createBeadOperation"
-        },
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateBeadOperation"
-        },
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteBeadOperation"
-        },
-        {
-          "$ref": "#/$defs/deleteModesOperation"
-        },
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createLinkOperation"
-        },
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateLinkOperation"
-        },
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteLinkOperation"
-        }
-      ]
-    },
-    "deleteModesBatchRequest": {
-      "description": "Feature-owned composition of fixed delete-modes1 and atomic-batch1. This does not modify or validate as the old closed base batchRequest.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "capabilityVersion": {
-          "const": "1"
-        },
-        "operations": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/$defs/deleteModesBatchOperation"
-          },
-          "contains": {
-            "type": "object",
-            "properties": {
-              "blockedBy": true,
-              "operation": {
-                "const": "deleteBead"
-              }
-            },
-            "required": ["operation", "blockedBy"]
-          }
-        }
-      },
-      "required": ["capabilityVersion", "operations"]
-    },
     "deleteModesRemovedLink": {
       "type": "object",
       "additionalProperties": false,
@@ -301,7 +238,7 @@
       }
     },
     "deleteModesResult": {
-      "description": "A committed delete-modes1 outcome, singleton or batch. Result entries and Resource rows are the common atomic-batch definitions.",
+      "description": "A committed delete-modes1 outcome. Result entries and Resource rows are the common atomic-batch definitions.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -467,7 +404,7 @@
         },
         "pointer": {
           "type": "string",
-          "pattern": "^(?:/(?:beads|blockedBy|cascade(?:/except)?|dryRun)|/operations/(?:0|[1-9][0-9]*)/blockedBy)$"
+          "pattern": "^/(?:beads|blockedBy|cascade(?:/except|/through)?|dryRun)$"
         },
         "retry": {
           "const": "after-state-change"
@@ -493,22 +430,9 @@
           "$ref": "#/$defs/deleteModesCapabilityProblem"
         }
       ]
-    },
-    "deleteModesBatchProblem": {
-      "anyOf": [
-        {
-          "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchProblem"
-        },
-        {
-          "$ref": "#/$defs/deleteModesCapabilityProblem"
-        }
-      ]
     }
   },
   "x-bdp-schema-definitions": [
-    "deleteModesBatchOperation",
-    "deleteModesBatchProblem",
-    "deleteModesBatchRequest",
     "deleteModesBlockedBy",
     "deleteModesCapabilityAdvertisement",
     "deleteModesCapabilityProblem",
@@ -516,7 +440,6 @@
     "deleteModesCascade",
     "deleteModesExcept",
     "deleteModesLinkTypeTest",
-    "deleteModesOperation",
     "deleteModesPreview",
     "deleteModesPreviewRow",
     "deleteModesProblem",
@@ -528,9 +451,6 @@
   ],
   "x-bdp-schema-sources": {
     "specs/profiles/write/write.md": [
-      "deleteModesBatchOperation",
-      "deleteModesBatchProblem",
-      "deleteModesBatchRequest",
       "deleteModesBlockedBy",
       "deleteModesCapabilityAdvertisement",
       "deleteModesCapabilityProblem",
@@ -538,7 +458,6 @@
       "deleteModesCascade",
       "deleteModesExcept",
       "deleteModesLinkTypeTest",
-      "deleteModesOperation",
       "deleteModesPreview",
       "deleteModesPreviewRow",
       "deleteModesProblem",

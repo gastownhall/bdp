@@ -652,22 +652,13 @@ test("command-first map assigns every wire case once without adding public verbs
   assert(!commandGroups.some((group) => /projected|historical|Definition/.test(group.command)));
 });
 
-test("deletion modes use two existing routes and leave every base arm unchanged", () => {
+test("deletion modes use one existing route and leave every base arm unchanged", () => {
   const expected = {
     deleteBead: {
       requests: ["deleteModesRequest"],
       successes: ["deleteModesResult", "deleteModesPreview"],
       problem: "deleteModesProblem",
       body: { beads: ["a", "b"], blockedBy: "none" },
-    },
-    atomicBatch: {
-      requests: ["deleteModesBatchRequest"],
-      successes: ["deleteModesResult"],
-      problem: "deleteModesBatchProblem",
-      body: {
-        capabilityVersion: "1",
-        operations: [{ operation: "deleteBead", bead: "a", blockedBy: "none" }],
-      },
     },
   };
   const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: false });

@@ -5,9 +5,14 @@
   "advertisement": {
     "https://github.com/gastownhall/bdp/capabilities/delete-modes": {
       "1": {
-        "atomicBatch": true,
         "except": true,
         "maximumClosure": 10000,
+        "through": [
+          {
+            "type": "https://types.invalid/parent-child",
+            "match": "exact"
+          }
+        ],
         "typeEffects": ["https://types.invalid/note"]
       }
     }
@@ -33,10 +38,12 @@
         "bead": "a",
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -53,10 +60,12 @@
         "bead": "a",
         "blockedBy": "any",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -66,10 +75,12 @@
         "bead": "a",
         "expectedRevision": "r7",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          },
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ],
           "except": {
             "bind": "b",
             "predicate": {
@@ -110,6 +121,19 @@
       "intent": "Several Beads with every default",
       "request": {
         "beads": ["a", "b"]
+      }
+    },
+    {
+      "intent": "Records who deleted it on every minted revision",
+      "request": {
+        "bead": "a",
+        "blockedBy": "none",
+        "revisionProvenance": {
+          "actor": {
+            "id": "ana",
+            "basis": "writer-supplied"
+          }
+        }
       }
     }
   ],
@@ -165,10 +189,12 @@
         "bead": "a",
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -182,10 +208,12 @@
         "bead": "a",
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -200,10 +228,12 @@
         "expectedRevision": "r7",
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -240,39 +270,17 @@
         "bead": "a",
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         },
         "dryRun": true
       }
     }
   ],
-  "mixedBatch": {
-    "capabilityVersion": "1",
-    "operations": [
-      {
-        "operation": "createBead",
-        "name": "n",
-        "type": "https://types.invalid/note"
-      },
-      {
-        "operation": "deleteLink",
-        "link": "l1"
-      },
-      {
-        "operation": "deleteBead",
-        "bead": "a",
-        "expectedRevision": "r1",
-        "blockedBy": "any"
-      },
-      {
-        "operation": "deleteBead",
-        "bead": "plain"
-      }
-    ]
-  },
   "result": {
     "capabilityVersion": "1",
     "changed": true,
@@ -387,7 +395,8 @@
           "revision": "r1"
         }
       }
-    ]
+    ],
+    "removedAliases": ["https://work.invalid/acme/k/a"]
   },
   "preview": {
     "capabilityVersion": "1",
@@ -432,7 +441,8 @@
         "source": "https://work.invalid/acme/z",
         "target": "https://work.invalid/acme/a"
       }
-    ]
+    ],
+    "removedAliases": ["https://work.invalid/acme/k/a"]
   },
   "capabilityProblems": [
     "/beads",
@@ -440,7 +450,7 @@
     "/cascade",
     "/cascade/except",
     "/dryRun",
-    "/operations/2/blockedBy"
+    "/cascade/through"
   ],
   "semanticCases": [
     {
@@ -470,8 +480,49 @@
       "outcome": "Link removed; URI untouched"
     },
     {
-      "case": "Link pinned to a@r1",
-      "outcome": "incident and walkable by URI; pin unchanged"
+      "case": "Link pinned to a@r1 keeping a live in-Scope Bead endpoint",
+      "outcome": "neither blocks nor is removed; not followed; no revision and no fact"
+    },
+    {
+      "case": "Link pinned to a@r1 whose other endpoint is external",
+      "outcome": "treated as unpinned: blocks or is removed"
+    },
+    {
+      "case": "cascade.through test not in an advertised list",
+      "code": "capability-not-supported",
+      "outcome": "refused at /cascade/through"
+    },
+    {
+      "case": "advertised exact test, request family test on the same Type",
+      "code": "capability-not-supported",
+      "outcome": "a test must equal a listed test exactly"
+    },
+    {
+      "case": "duplicate test in cascade.through",
+      "code": "malformed-request",
+      "outcome": "refused"
+    },
+    {
+      "case": "deleteBead selector inside an atomic batch",
+      "code": "malformed-request",
+      "outcome": "refused; plain deleteBead members unchanged"
+    },
+    {
+      "case": "Bead with aliases deleted, aliases advertised",
+      "outcome": "aliases removed in the same decision and listed in removedAliases; each locator released; a restore restores none"
+    },
+    {
+      "case": "dryRun on a Bead with aliases",
+      "outcome": "removedAliases lists them; none removed"
+    },
+    {
+      "case": "createBead supplying a deleted Bead's id",
+      "outcome": "a fresh revision under the same identity; nothing inherited"
+    },
+    {
+      "case": "createBead supplying a live, other-kind or retired id",
+      "code": "identity-taken",
+      "outcome": "refused"
     },
     {
       "case": "deleted set over maximumClosure",
@@ -512,7 +563,7 @@
     },
     {
       "case": "no selector, singleton, Type listed in typeEffects",
-      "outcome": "incident Link refuses as ever; success joins no survivor; mutationResult unchanged"
+      "outcome": "unpinned incident Link refuses as ever"
     },
     {
       "case": "no selector, batch removes the Link first, Type listed",
@@ -560,66 +611,6 @@
       "outcome": "original rows and transaction; nothing resolved again"
     }
   ],
-  "batchOutcomes": [
-    {
-      "members": [
-        {
-          "bead": "a"
-        },
-        {
-          "bead": "b"
-        }
-      ],
-      "code": "incident-links-exist"
-    },
-    {
-      "members": [
-        {
-          "bead": "a",
-          "blockedBy": "any"
-        },
-        {
-          "bead": "b",
-          "blockedBy": "any"
-        }
-      ],
-      "removed": true
-    },
-    {
-      "members": [
-        {
-          "bead": "a",
-          "blockedBy": "inbound"
-        },
-        {
-          "bead": "b",
-          "blockedBy": "inbound"
-        }
-      ],
-      "removed": true
-    },
-    {
-      "members": [
-        {
-          "bead": "a",
-          "blockedBy": "any"
-        },
-        {
-          "bead": "b"
-        }
-      ],
-      "code": "incident-links-exist"
-    },
-    {
-      "members": [
-        {
-          "bead": "a",
-          "blockedBy": "any"
-        }
-      ],
-      "code": "incident-links-exist"
-    }
-  ],
   "nativeMulti": [
     {
       "native": {
@@ -649,10 +640,12 @@
         "beads": ["a", "b"],
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -666,10 +659,12 @@
         "beads": ["a", "b"],
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         }
       }
     },
@@ -706,40 +701,15 @@
         "beads": ["a", "b"],
         "blockedBy": "none",
         "cascade": {
-          "through": {
-            "type": "https://types.invalid/parent-child",
-            "match": "exact"
-          }
+          "through": [
+            {
+              "type": "https://types.invalid/parent-child",
+              "match": "exact"
+            }
+          ]
         },
         "dryRun": true
       }
-    }
-  ],
-  "refusedBatchMembers": [
-    {
-      "operation": "deleteBead",
-      "beads": ["a", "b"]
-    },
-    {
-      "operation": "deleteBead",
-      "bead": "a",
-      "cascade": {
-        "through": {
-          "type": "https://types.invalid/parent-child",
-          "match": "exact"
-        }
-      }
-    },
-    {
-      "operation": "deleteBead",
-      "bead": "a",
-      "dryRun": true
-    },
-    {
-      "operation": "deleteBead",
-      "bead": "a",
-      "blockedBy": "none",
-      "dryRun": false
     }
   ],
   "refusedRequests": [
@@ -771,7 +741,7 @@
   ],
   "refusedPointers": [
     "/bead",
-    "/operations/x/blockedBy",
+    "/operations/0/blockedBy",
     "/operations/0/cascade",
     "/operations/0/dryRun",
     "/operations/0/beads",

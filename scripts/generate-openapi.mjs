@@ -114,13 +114,6 @@ const deleteModeArms = {
     selector: "beads, blockedBy, cascade or dryRun present on this delete body",
     requiredComposition: "Write plus delete-modes1",
   },
-  atomicBatch: {
-    requests: ["deleteModesBatchRequest"],
-    successes: ["deleteModesResult"],
-    problem: "deleteModesBatchProblem",
-    selector: "blockedBy present at a deleteBead member",
-    requiredComposition: "atomic-batch1 plus delete-modes1 with atomicBatch:true",
-  },
 };
 export const operationSources = [
   "specs/profiles/core/core.md",

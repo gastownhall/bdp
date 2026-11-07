@@ -1540,16 +1540,15 @@ member `"1"` has a closed detail object:
 
 | Member | Required | Meaning |
 | --- | --- | --- |
-| `atomicBatch` | yes | Boolean; whether `blockedBy` is admitted on atomic-batch1 members |
-| `except` | yes | Boolean; whether `cascade.except` is admitted |
+| `except` | no | Boolean; whether `cascade.except` is admitted; absent means not admitted |
 | `maximumClosure` | no | Positive integer bound on the Beads one request deletes |
+| `through` | no | Nonempty unique `{type,match}` tests admitted in `cascade.through`; absent means any Link Type |
 | `typeEffects` | no | Unique nominal Type URIs whose [declared deletion effects](#type-declared-deletion-effects) this Scope applies |
 
 Only Write advertises it. Advertisement promises the complete behavior below and
-conveys no authorization. Everything except batch composition is independent of
-atomic-batch1. `atomicBatch:true` requires advertised atomic-batch1 with `deleteBead`
-in its `operations`; a Scope advertising otherwise is invalid and a client refuses
-it. Unknown versions do not establish version1.
+conveys no authorization, and neither does listing a test. It is independent of
+atomic-batch1. An empty `through` list is invalid and a client refuses it. Unknown
+versions do not establish version1.
 
 Presence of `beads`, `blockedBy`, `cascade` or `dryRun` on a `deleteBead` body selects
 this form on the SAME target, media and key. A request carrying none of them keeps
@@ -1586,9 +1585,10 @@ After ordinary carrier/key admission and known-key comparison, a fresh invocatio
 without selected support receives feature-local `capability-not-supported`,
 request family/422/after-state-change, its capability URI, `capabilityVersion:"1"`
 and a pointer. The pointer names the first of `/beads`, `/blockedBy`, `/cascade` and
-`/dryRun` present. `except:false` refuses `/cascade/except` this way, and
-`atomicBatch:false` refuses the first selecting batch member at
-`/operations/N/blockedBy`. Missing advertisement causes a feature-aware client to
+`/dryRun` present. `cascade.except` that is not admitted refuses `/cascade/except` this
+way. Under an advertised `through` list, a request test that does not equal a listed test
+exactly refuses `/cascade/through` this way: listing `exact` does not admit `family`, nor
+the reverse. Missing advertisement causes a feature-aware client to
 refuse before fresh dispatch. A supporting receiver never discards a selector or
 substitutes another mode. No selector stripping, new key or sequential singleton
 fallback is automatic recovery. Issued recovery survives withdrawal under the
@@ -1601,7 +1601,8 @@ below admits. It is resolved in the deciding transaction under the
 [serializable outcome rule](#admission-authorization-and-limits), so a matching
 `expectedRevision` does not pin it.
 
-`cascade.through` is the closed `{type,match}` pair of the single Link Type test
+`cascade.through` is a nonempty list of tests; a duplicate test is `malformed-request`.
+Each test is the closed `{type,match}` pair of the single Link Type test
 in Core's [`graph` profile](../core/core.md#list-graph-and-query-subsets). `type`
 is an unpinned absolute nominal Type identity. `match` is `exact` or `family`, with
 the meanings of Core's `typeIs`. A `family` test without its required authority
@@ -1609,11 +1610,11 @@ refuses `type-not-installed`; there is no exact-only fallback.
 
 The walk is rooted at every named Bead, in Core's `incoming` direction, with no
 semantic depth bound. At each reached Bead it inspects the live Links whose target
-is that Bead. A Link passing the test admits its source. A Link failing the test
+is that Bead. A Link passing any test admits its source. A Link passing none
 is not followed and remains subject to blocking. Each Bead expands at most once,
 so cycles, back Links, self-Links and parallel Links terminate, and a named Bead
-reachable from another named Bead is deleted once, with one row. A test matching no
-Link leaves the named Beads alone in the deleted set.
+reachable from another named Bead is deleted once, with one row. Tests matching no
+Link leave the named Beads alone in the deleted set.
 
 Endpoints match by Reference URI. A Link whose target endpoint is pinned is not
 followed. An external endpoint is not acquired,
@@ -1695,34 +1696,7 @@ no unpinned Link joins a survivor to it. An ordinary atomic-batch1
 
 ### Composition with atomic-batch1
 
-Atomic batch is not required to delete several Beads. Inside a batch, under
-`atomicBatch:true`, a `deleteBead` member may carry `blockedBy` under the closed feature
-batch grammar on the advertised target. `beads`, `cascade` and `dryRun`, and a request
-carrying an `idRoot` or `fromRevision` selector beside `blockedBy`, are outside that
-grammar and are `malformed-request`. Members stage in authored order under the
-[working graph rules](#working-graph-and-guards), with these additions.
-
-At its position a selecting member checks its named Bead's working liveness and
-compares any `expectedRevision` with the committed baseline. The named Bead then
-leaves working liveness, so a later member naming it is `resource-not-found` and a
-later Link cannot use it as an endpoint. Its incident Links stay in the working
-graph, where later members may update or delete them.
-
-After the last member, the deleted set is every Bead named by a selecting member, and
-blocking, removal and validation apply once to the final working graph. Each crossing
-Link is evaluated under the `blockedBy` of the member naming its deleted endpoint.
-
-A `deleteBead` member with no selecting member keeps the ordinary rule at its
-position: any Link live there refuses it, including a Link incident upon a Bead
-that another member named. With a Link between `a` and `b`:
-
-| Members | Outcome |
-| --- | --- |
-| `deleteBead a`, `deleteBead b` | `incident-links-exist` at the first member |
-| Both with `blockedBy:"any"` | Succeeds; the Link is removed |
-| Both with `blockedBy:"inbound"` | Succeeds; the Link is removed |
-| `deleteBead a` with `blockedBy:"any"`, then `deleteBead b` with no selector | `incident-links-exist` at the second member |
-| `deleteBead a` alone with `blockedBy:"any"` | `incident-links-exist` |
+`deleteBead` selectors are not admitted in an atomic batch and are `malformed-request`.
 
 ### Dry run
 
@@ -1745,19 +1719,18 @@ A successful committing request returns the closed `deleteModesResult`: the
 [`atomicBatchResult` members](#atomic-batch-results-and-recovery) with their meanings,
 plus `removedLinks`. `changed` is always true and `transaction` is always present.
 `results` has one mapping per named Reference, with `operation:"deleteBead"` and
-`operationIndex` its position in `beads`, or zero for `bead`; in a batch it has one
-mapping per input member. `resources` has the unique final rows, with ordinary batch
-members keeping their ordinary rows:
+`operationIndex` its position in `beads`, or zero for `bead`. `resources` has the
+unique final rows:
 
 | Resource | Row |
 | --- | --- |
-| Bead in the deleted set | `deleted`, with its final live identity; `allocated` when the same batch created it |
-| Removed Link | `deleted`, with `ownerRevisions` for its initial owners; `allocated` when the same batch created it |
+| Bead in the deleted set | `deleted`, with its final live identity |
+| Removed Link | `deleted`, with `ownerRevisions` for its initial owners |
 | Surviving Bead whose covered state changes | `updated`, with its complete final record and one new revision |
 
 `removedLinks` has one closed `{id,source,target}` entry per `deleted` Link row,
 ascending by canonical id, with its final live recorded References. A request with
-no selecting member returns its ordinary `mutationResult` or `atomicBatchResult`.
+no selecting member returns its ordinary `mutationResult`.
 
 `deleteModesPreview` has `capabilityVersion`, `dryRun:true`, `changed:false`,
 `results`, `resources` and `removedLinks`, `removedAliases` as a committing request would
@@ -5522,8 +5495,6 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["atomicBatch","except"]
-
 #### Keywords
 
 | Keyword | JSON value |
@@ -5534,9 +5505,9 @@ Required order: ["atomicBatch","except"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "atomicBatch" | boolean | yes | — | — |
-| "except" | boolean | yes | — | — |
+| "except" | boolean | no | — | — |
 | "maximumClosure" | schema | no | — | — |
+| "through" | schema | no | — | — |
 | "typeEffects" | schema | no | — | — |
 
 #### Advanced
@@ -5547,6 +5518,14 @@ Required order: ["atomicBatch","except"]
     "maximumClosure": {
       "type": "integer",
       "minimum": 1
+    },
+    "through": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/deleteModesLinkTypeTest"
+      }
     },
     "typeEffects": {
       "type": "array",
@@ -5731,7 +5710,24 @@ Required order: ["through"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "except" | ref "#/$defs/deleteModesExcept" | no | — | — |
-| "through" | ref "#/$defs/deleteModesLinkTypeTest" | yes | — | — |
+| "through" | schema | yes | — | — |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "through": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/deleteModesLinkTypeTest"
+      }
+    }
+  }
+}
+```
 <!-- bdp-schema:end deleteModesCascade bundle=delete-modes -->
 
 <!-- bdp-schema:start deleteModesSelection bundle=delete-modes -->
@@ -5872,138 +5868,6 @@ Other fields: not allowed
 ```
 <!-- bdp-schema:end deleteModesRequest bundle=delete-modes -->
 
-<!-- bdp-schema:start deleteModesOperation bundle=delete-modes -->
-### Schema: "deleteModesOperation"
-
-Value: object
-
-Required order: ["operation","blockedBy"]
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| description | "A deleteBead batch member selecting blockedBy. beads, cascade and dryRun are not admitted inside a batch." |
-| type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "blockedBy" | ref "#/$defs/deleteModesBlockedBy" | yes | — | — |
-| "operation" | schema | yes | — | — |
-
-#### Advanced
-
-```json-schema
-{
-  "allOf": [
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteBeadMembers"
-    }
-  ],
-  "unevaluatedProperties": false,
-  "properties": {
-    "operation": {
-      "const": "deleteBead"
-    }
-  }
-}
-```
-<!-- bdp-schema:end deleteModesOperation bundle=delete-modes -->
-
-<!-- bdp-schema:start deleteModesBatchOperation bundle=delete-modes -->
-### Schema: "deleteModesBatchOperation"
-
-Value: object
-
-#### Advanced
-
-```json-schema
-{
-  "oneOf": [
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createBeadOperation"
-    },
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateBeadOperation"
-    },
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteBeadOperation"
-    },
-    {
-      "$ref": "#/$defs/deleteModesOperation"
-    },
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/createLinkOperation"
-    },
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/updateLinkOperation"
-    },
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/deleteLinkOperation"
-    }
-  ]
-}
-```
-<!-- bdp-schema:end deleteModesBatchOperation bundle=delete-modes -->
-
-<!-- bdp-schema:start deleteModesBatchRequest bundle=delete-modes -->
-### Schema: "deleteModesBatchRequest"
-
-Value: object
-
-Other fields: not allowed
-
-Required order: ["capabilityVersion","operations"]
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| description | "Feature-owned composition of fixed delete-modes1 and atomic-batch1. This does not modify or validate as the old closed base batchRequest." |
-| type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "capabilityVersion" | schema | yes | — | — |
-| "operations" | schema | yes | — | — |
-
-#### Advanced
-
-```json-schema
-{
-  "properties": {
-    "capabilityVersion": {
-      "const": "1"
-    },
-    "operations": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "$ref": "#/$defs/deleteModesBatchOperation"
-      },
-      "contains": {
-        "type": "object",
-        "properties": {
-          "blockedBy": true,
-          "operation": {
-            "const": "deleteBead"
-          }
-        },
-        "required": [
-          "operation",
-          "blockedBy"
-        ]
-      }
-    }
-  }
-}
-```
-<!-- bdp-schema:end deleteModesBatchRequest bundle=delete-modes -->
-
 <!-- bdp-schema:start deleteModesRemovedLink bundle=delete-modes -->
 ### Schema: "deleteModesRemovedLink"
 
@@ -6065,7 +5929,7 @@ Required order: ["capabilityVersion","changed","transaction","results","resource
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "A committed delete-modes1 outcome, singleton or batch. Result entries and Resource rows are the common atomic-batch definitions." |
+| description | "A committed delete-modes1 outcome. Result entries and Resource rows are the common atomic-batch definitions." |
 | type | "object" |
 
 #### Properties
@@ -6305,7 +6169,7 @@ Required order: ["type","status","code","retry","capability","capabilityVersion"
     },
     "pointer": {
       "type": "string",
-      "pattern": "^(?:/(?:beads|blockedBy|cascade(?:/except)?|dryRun)|/operations/(?:0|[1-9][0-9]*)/blockedBy)$"
+      "pattern": "^/(?:beads|blockedBy|cascade(?:/except|/through)?|dryRun)$"
     },
     "retry": {
       "const": "after-state-change"
@@ -6341,27 +6205,6 @@ Value: object
 }
 ```
 <!-- bdp-schema:end deleteModesProblem bundle=delete-modes -->
-
-<!-- bdp-schema:start deleteModesBatchProblem bundle=delete-modes -->
-### Schema: "deleteModesBatchProblem"
-
-Value: object
-
-#### Advanced
-
-```json-schema
-{
-  "anyOf": [
-    {
-      "$ref": "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json#/$defs/atomicBatchProblem"
-    },
-    {
-      "$ref": "#/$defs/deleteModesCapabilityProblem"
-    }
-  ]
-}
-```
-<!-- bdp-schema:end deleteModesBatchProblem bundle=delete-modes -->
 
 ## OpenAPI
 
@@ -6575,13 +6418,11 @@ in [Optional rooted creation](#optional-rooted-allocation-version-1) remain bind
 
 ### Optional delete-modes1 composition
 
-The deleteBead and atomicBatch signatures keep the same URLs and media when
-delete-modes1 is explicitly selected. Their additional request arms are
-deleteModesRequest and deleteModesBatchRequest from the delete-modes schema resource.
-deleteBead's additional success arms are deleteModesResult and deleteModesPreview, and
-atomicBatch's is deleteModesResult. Their feature Problem schemas are deleteModesProblem
-and deleteModesBatchProblem. Presence of `beads`, `blockedBy`, `cascade` or `dryRun` on
-deleteBead, or `blockedBy` on a batch member, selects this feature; absence keeps the
+The deleteBead signature keeps the same URL and media when delete-modes1 is explicitly
+selected. Its additional request arm is deleteModesRequest from the delete-modes schema
+resource, its additional success arms are deleteModesResult and deleteModesPreview, and
+its feature Problem schema is deleteModesProblem. Presence of `beads`, `blockedBy`,
+`cascade` or `dryRun` on deleteBead selects this feature; absence keeps the
 base contract. The rules in [Optional deletion modes](#optional-deletion-modes-version-1)
 remain binding.
 
