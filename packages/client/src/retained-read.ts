@@ -311,7 +311,13 @@ export class RetainedClient {
       const refused = failure(received);
       if (refused) return refused;
       const text = this.#document(received);
-      const discovery = parseRetainedDiscovery(text);
+      // As every other discovery read does: name what the provider got wrong, send nothing.
+      let discovery: RetainedDiscovery;
+      try {
+        discovery = parseRetainedDiscovery(text);
+      } catch (cause) {
+        return unusable(received, reasonOf(cause) ?? "its discovery document is not valid");
+      }
       if (discovery.scope !== selected) return invalid();
       if (discovery.profile !== "write") throw new RetainedClientError("unsupported-feature");
       // Core fixes every operation at <scope>/bdp/operations/NAME: discovery alone binds.

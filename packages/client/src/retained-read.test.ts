@@ -686,7 +686,11 @@ describe("retained transport and native Write delivery", () => {
         return response(url, { ...discovery("write"), ...retired });
       });
       // Closed discovery refuses the retired member before anything is bound or sent.
-      await expect(selected.bindWrite(scope)).rejects.toThrow(/invalid retained v0\.1/);
+      await expect(selected.bindWrite(scope)).rejects.toMatchObject({
+        code: "invalid-response",
+        submission: "not-submitted",
+        detail: "invalid retained v0.1 retainedDiscovery",
+      });
       expect(seen).toEqual([scope, description]);
     }
   });
