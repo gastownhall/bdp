@@ -262,14 +262,13 @@ test("actual installed finite journey and private relay preserve bytes, stdin an
         properties,
       );
       assert.equal(created.code, 0, created.stderr.toString());
-      assert.deepEqual(JSON.parse(created.stdout).data.resource.properties, JSON.parse(properties));
+      // JSON is the data alone (the mutation result), without the envelope.
+      assert.deepEqual(JSON.parse(created.stdout).resource.properties, JSON.parse(properties));
       await absent(marker);
       const shown = await relay(socket, [
         "show",
         "stdin",
         "--properties-only",
-        "--omit",
-        "envelope",
         "--output-format",
         "json",
       ]);
