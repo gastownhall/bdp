@@ -5793,6 +5793,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Open caller-written data about this change; immutable and uninterpreted."
+        },
         "actor": {
           "$ref": "#/$defs/revisionActor",
           "description": "Carried principal attribution and explicit basis, independent of the optional History context tuple."
@@ -5815,6 +5819,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
         "actor": {
           "$ref": "#/$defs/revisionActor"
         },
@@ -6654,9 +6661,18 @@
           "items": {
             "$ref": "#/$defs/atomicBatchOperationName"
           }
+        },
+        "provenanceMembersNotRecorded": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["actor", "agent", "message", "metadata"]
+          }
         }
       },
-      "required": ["operationsNotSupported"]
+      "required": [],
+      "minProperties": 1
     },
     "writeDiscovery": {
       "type": "object",

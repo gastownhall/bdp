@@ -622,7 +622,8 @@ unsupported faithful lowering fails rather than doing a client read/modify/write
 See [complete object-edit rules](object-edits.md).
 
 `--revision-provenance JSON` supplies attribution input where the operation
-admits it. It is separate from metadata, revision selection and write guards.
+admits it. It is separate from a Resource's metadata, revision selection and write guards.
+Its open `metadata` member is data about this change, written by the caller.
 It neither invents a revision nor makes an otherwise empty update valid.
 Bead deletion does not accept it; Link deletion may attribute an induced owner
 revision. The provider determines whether any fresh version is produced.

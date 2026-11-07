@@ -9133,6 +9133,7 @@ Other fields: not allowed
 | "agent" | ref "#/$defs/contextString" | no | — | "Immutable carried agent label, not an authentication result." |
 | "committedAt" | ref "#/$defs/contextTime" | no | — | "Immutable recorded commit-time context, present with agent and message as one complete tuple." |
 | "message" | ref "#/$defs/contextMessage" | no | — | "Immutable carried change message, present with committedAt and agent." |
+| "metadata" | ref "#/$defs/metadata" | no | — | "Open caller-written data about this change; immutable and uninterpreted." |
 
 <a id="schema-def-InJldmlzaW9uUHJvdmVuYW5jZUlucHV0Ig"></a>
 ## Schema: "revisionProvenanceInput"
@@ -9156,6 +9157,7 @@ Required order: []
 | "actor" | ref "#/$defs/revisionActor" | no | — | — |
 | "agent" | schema | no | — | — |
 | "message" | schema | no | — | — |
+| "metadata" | ref "#/$defs/metadata" | no | — | — |
 
 ### Advanced
 
@@ -11956,19 +11958,21 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["operationsNotSupported"]
+Required order: []
 
 ### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| minProperties | 1 |
 | type | "object" |
 
 ### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "operationsNotSupported" | schema | yes | — | — |
+| "operationsNotSupported" | schema | no | — | — |
+| "provenanceMembersNotRecorded" | schema | no | — | — |
 
 ### Advanced
 
@@ -11981,6 +11985,19 @@ Required order: ["operationsNotSupported"]
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/atomicBatchOperationName"
+      }
+    },
+    "provenanceMembersNotRecorded": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "actor",
+          "agent",
+          "message",
+          "metadata"
+        ]
       }
     }
   }

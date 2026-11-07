@@ -200,7 +200,8 @@ export function typeReference(value: LosslessJsonValue | undefined): void {
 }
 export function provenanceInput(value: LosslessJsonValue): void {
   const provenance = record(value);
-  closed(provenance, ["actor", "agent", "message"]);
+  closed(provenance, ["actor", "agent", "message", "metadata"]);
+  if (provenance.metadata !== undefined) record(provenance.metadata);
   for (const name of ["agent", "message"]) {
     const member = provenance[name];
     if (
@@ -445,6 +446,7 @@ export function recordedProvenance(
           agent: context(provenance.agent),
           message: context(provenance.message),
         }),
+    ...(provenance.metadata === undefined ? {} : { metadata: provenance.metadata }),
   } as JsonObject;
 }
 export function materializeBead(

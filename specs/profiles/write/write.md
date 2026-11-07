@@ -110,10 +110,11 @@ keeps its six members, and other methods keep their ordinary answers. The two al
 operations are not covered: a Scope that does not serve them does not advertise `aliases`.
 
 A Scope that refuses any of the six MUST say so in discovery, under the capability
-`https://github.com/gastownhall/bdp/capabilities/write-exceptions` at version `"1"`. Its closed detail has one required member,
-`operationsNotSupported`: a nonempty, unique list of the operations it refuses, each
-one of the six directory names. A Scope that does not advertise this capability serves
-all six.
+`https://github.com/gastownhall/bdp/capabilities/write-exceptions` at version `"1"`. Its closed detail has at least one of two members.
+`operationsNotSupported` is a nonempty, unique list of the operations it refuses, each
+one of the six directory names. `provenanceMembersNotRecorded` is a nonempty, unique list
+of the `revisionProvenance` input members it refuses. A Scope that does not advertise this
+capability serves all six and records every member.
 
 Such a Scope is not a complete Write provider. A complete Write provider serves all six.
 The capability states a gap and adds nothing: it lets a client know before dispatch
@@ -127,19 +128,21 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["operationsNotSupported"]
+Required order: []
 
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
+| minProperties | 1 |
 | type | "object" |
 
 #### Properties
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "operationsNotSupported" | schema | yes | — | — |
+| "operationsNotSupported" | schema | no | — | — |
+| "provenanceMembersNotRecorded" | schema | no | — | — |
 
 #### Advanced
 
@@ -152,6 +155,19 @@ Required order: ["operationsNotSupported"]
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/atomicBatchOperationName"
+      }
+    },
+    "provenanceMembersNotRecorded": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "actor",
+          "agent",
+          "message",
+          "metadata"
+        ]
       }
     }
   }
@@ -877,12 +893,17 @@ remain literal while S@r2 captures that Link; S@r1 does not retroactively gain i
 
 Create/update Bead and Link, deleteBead and an owned-capable deleteLink may supply the
 closed `revisionProvenance` input. Alias operations have no such input.
-Its optional members are `actor`, `agent` and `message`; callers supply no time.
+Its optional members are `actor`, `agent`, `message` and an open `metadata` object; callers supply no time.
 Actor is the closed `{id,basis}` object from Core: nonempty `id`, with basis
 `writer-supplied` or `unknown`. Agent is a nonempty string or null; message is a
 string or null. Omission means undetermined; null explicitly records known
 absence. Omitted input and `{}` normalize to no actor/undetermined agent/message;
 explicit null remains distinct. Actor omission does not copy an earlier actor.
+
+A provider that cannot record a supplied member refuses the write with `validation-failed`,
+naming the member, and MUST NOT drop it. A Scope that refuses a member MUST say so in discovery,
+in `provenanceMembersNotRecorded` under the
+[`write-exceptions` capability](#operations-a-scope-does-not-serve).
 
 Attribution belongs immutably to the version minted by that decision. One
 operation minting several versions records its one input on each, including all
@@ -4315,6 +4336,7 @@ Required order: []
 | "actor" | ref "#/$defs/revisionActor" | no | — | — |
 | "agent" | schema | no | — | — |
 | "message" | schema | no | — | — |
+| "metadata" | ref "#/$defs/metadata" | no | — | — |
 
 #### Advanced
 
