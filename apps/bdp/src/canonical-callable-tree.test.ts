@@ -17,8 +17,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CallableUsageError,
   callableCommandTree,
+  callableFlagCollisions,
   completeCallableArguments,
   parameterFlag,
+  parseCallArguments,
   parseCallableArguments,
   renderCallableHelp,
   resolveCallableCommand,
@@ -198,6 +200,223 @@ const complete = (
       throw Object.assign(new Error("no such file"), { code: "ENOENT" });
     return new TextEncoder().encode(files[path]);
   });
+
+const patching: CallableDeclaration = {
+  name: "pack/thing/edit",
+  type: CALLABLE_BATCH_TYPE,
+  title: "Edit a thing",
+  description: "Edit one thing.",
+  parameters: [
+    { name: "id", schema: { type: "string" }, required: true },
+    {
+      name: "patch",
+      required: true,
+      schema: {
+        $ref: "#/$defs/Patch",
+        $defs: {
+          Status: { type: "string" },
+          Patch: {
+            type: "object",
+            properties: {
+              status: { $ref: "#/$defs/Status" },
+              priority: { type: "integer" },
+              labels: { type: "array", items: { type: "string" } },
+              pinned: { type: "boolean" },
+              extra: { type: "object" },
+              title: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+  ],
+  cliMapping: {
+    positionals: [{ position: 0, parameter: "id" }],
+    memberFlags: [
+      { member: "status", names: ["-s"], parameter: "patch" },
+      { member: "priority", parameter: "patch" },
+      { member: "labels", names: ["--set-labels"], parameter: "patch" },
+      { member: "pinned", parameter: "patch" },
+      { member: "extra", parameter: "patch" },
+    ],
+  },
+};
+
+describe("cliMapping.memberFlags", () => {
+  it("a member flag sets that member of the parameter, and no other", async () => {
+    await expect(complete(patching, ["a", "--status", "open"])).resolves.toEqual({
+      id: "a",
+      patch: { status: "open" },
+    });
+    await expect(complete(patching, ["a", "-s=open"])).resolves.toEqual({
+      id: "a",
+      patch: { status: "open" },
+    });
+  });
+  it("takes its value's form from the member's schema, $ref included", async () => {
+    await expect(
+      complete(patching, [
+        "--priority",
+        "2",
+        "--labels",
+        "x",
+        "--set-labels",
+        "y,z",
+        "--pinned",
+        "--extra",
+        '{"a":1}',
+      ]),
+    ).resolves.toEqual({
+      patch: { priority: 2, labels: ["x", "y,z"], pinned: true, extra: { a: 1 } },
+    });
+    await expect(complete(patching, ["--no-pinned"])).resolves.toEqual({
+      patch: { pinned: false },
+    });
+    expect(() => parsed(patching, ["--priority", "high"])).toThrow(
+      /--priority requires a JSON value/,
+    );
+    expect(() => parsed(patching, ["--pinned=yes"])).toThrow(/takes no value/);
+  });
+  it("overrides that member of --patch and of --arguments, and keeps the others", async () => {
+    await expect(
+      complete(patching, ["--patch", '{"status":"old","title":"kept"}', "--status", "new"]),
+    ).resolves.toEqual({ patch: { status: "new", title: "kept" } });
+    await expect(
+      complete(patching, [
+        "--arguments",
+        '{"id":"a","patch":{"status":"old","title":"kept"}}',
+        "-s",
+        "new",
+      ]),
+    ).resolves.toEqual({ id: "a", patch: { status: "new", title: "kept" } });
+    await expect(
+      complete(patching, [
+        "--arguments",
+        '{"patch":{"title":"gone"}}',
+        "--patch",
+        '{"status":"held"}',
+        "--priority",
+        "1",
+      ]),
+    ).resolves.toEqual({ patch: { status: "held", priority: 1 } });
+    await expect(
+      complete(patching, ["--patch", '{"labels":["a"]}', "--labels", "b"]),
+    ).resolves.toEqual({ patch: { labels: ["b"] } });
+  });
+  it("--patch alone still works, and nothing is filled in", async () => {
+    await expect(complete(patching, ["a", "--patch", '{"status":"x"}'])).resolves.toEqual({
+      id: "a",
+      patch: { status: "x" },
+    });
+    await expect(complete(patching, ["a"])).resolves.toEqual({ id: "a" });
+  });
+  it("refuses a second value, and writing into what is not an object", () => {
+    expect(() => parsed(patching, ["-s", "a", "--status", "b"])).toThrow(
+      /-?-status may be given only once/,
+    );
+    for (const value of ["[1]", "null", "5"])
+      expect(() => parsed(patching, ["--patch", value, "--status", "x"])).toThrow(
+        /requires --patch to be a JSON object/,
+      );
+    expect(() => parsed(patching, ["--arguments", '{"patch":"nope"}', "--status", "x"])).toThrow(
+      /requires --patch to be a JSON object/,
+    );
+  });
+  it("a declaration cannot project a member to who is acting", () => {
+    const withMembers = (
+      memberFlags: NonNullable<NonNullable<CallableDeclaration["cliMapping"]>["memberFlags"]>,
+    ) => ({
+      ...patching,
+      cliMapping: { memberFlags },
+    });
+    expect(
+      callableFlagCollisions(
+        withMembers([{ member: "status", names: ["--actor"], parameter: "patch" }]),
+      ),
+    ).toContain("--actor");
+    expect(
+      callableFlagCollisions(
+        withMembers([{ member: "status", names: ["--author"], parameter: "patch" }]),
+      ),
+    ).toContain("--author");
+    const actorMember = {
+      ...withMembers([{ member: "actor", parameter: "patch" }]),
+      parameters: [
+        {
+          name: "patch",
+          schema: { type: "object", properties: { actor: { type: "string" } } },
+        },
+      ],
+    } as CallableDeclaration;
+    expect(callableFlagCollisions(actorMember)).toContain("--actor");
+    expect(() => parsed(actorMember, ["--actor", "sam"])).toThrow(/not a parameter/);
+  });
+  it("a member colliding with a parameter's flag is reported, and no use of it is honest", () => {
+    const clash = {
+      ...patching,
+      cliMapping: { memberFlags: [{ member: "status", names: ["--id"], parameter: "patch" }] },
+    };
+    expect(callableFlagCollisions(clash)).toEqual(["--id"]);
+    expect(() => parsed(clash, ["--id", "a"])).toThrow(/more than one parameter/);
+  });
+  it("is the tree's alone: bdp call takes one JSON object", () => {
+    expect(() => parseCallArguments(["--status", "x"], undefined)).toThrow(/--arguments JSON/);
+  });
+  it("the catalog's issue/update and issue/create carry it, with native's spellings", async () => {
+    const update = await issueCallableCatalog().get("issue/update");
+    const create = await issueCallableCatalog().get("issue/create");
+    if (update === undefined || create === undefined) throw new Error("catalog");
+    expect(callableFlagCollisions(update)).toEqual([]);
+    expect(callableFlagCollisions(create)).toEqual([]);
+    expect(
+      parseCallableArguments(update, [
+        "a",
+        "-s",
+        "open",
+        "--title",
+        "T",
+        "-p",
+        "1",
+        "-l",
+        "x",
+        "--add-label",
+        "y",
+        "--acceptance",
+        "AC",
+        "--estimate",
+        "30",
+      ]),
+    ).toMatchObject({
+      arguments: {
+        id: "a",
+        patch: {
+          status: "open",
+          title: "T",
+          priority: 1,
+          add_labels: ["x", "y"],
+          acceptance_criteria: "AC",
+          estimated_minutes: 30,
+        },
+      },
+    });
+    expect(
+      parseCallableArguments(create, [
+        "t",
+        "--spawner-id",
+        "s-1",
+        "--waits-for-gate",
+        "any-children",
+      ]),
+    ).toMatchObject({
+      arguments: { title: "t", waits_for: { spawner_id: "s-1", gate: "any-children" } },
+    });
+    expect(
+      (update.cliMapping?.memberFlags ?? []).filter(({ member }) =>
+        ["metadata", "waiters", "persistence"].includes(member),
+      ),
+    ).toEqual([]);
+  });
+});
 
 describe("every cliMapping annotation", () => {
   it("positionals stand for their flags, in place", async () => {

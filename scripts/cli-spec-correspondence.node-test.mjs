@@ -52,6 +52,7 @@ test("the call section matches Callables §10's form and keeps its mismatch row 
     "bd [CLIENT-OPTIONS] WORD... [CALLABLE-ARGUMENTS]",
     "A built-in command wins any collision",
     "`cliMapping.fromFile`",
+    "`cliMapping.memberFlags`",
     "never reads `cliMapping`",
     "`--actor ACTOR` is attribution on both forms and in any position",
     "two different values\nare refused",

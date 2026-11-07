@@ -130,6 +130,16 @@ describe("the static Issue catalog", () => {
     expect(
       (await catalog.list()).filter(({ cliMapping }) => cliMapping !== undefined),
     ).toHaveLength(28);
+    expect((await catalog.get("issue/update"))?.cliMapping?.memberFlags).toEqual(
+      expect.arrayContaining([
+        { member: "title", parameter: "patch" },
+        { member: "status", names: ["-s"], parameter: "patch" },
+      ]),
+    );
+    expect((await catalog.get("issue/create"))?.cliMapping?.memberFlags).toEqual([
+      { member: "spawner_id", parameter: "waits_for" },
+      { member: "gate", names: ["--waits-for-gate"], parameter: "waits_for" },
+    ]);
     expect((await catalog.get("issue/create"))?.cliMapping).toMatchObject({
       positionals: [{ position: 0, parameter: "title" }],
       flags: expect.arrayContaining([{ names: ["-t", "--type"], parameter: "issue_type" }]),

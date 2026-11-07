@@ -193,6 +193,31 @@ function assertValidCliMapping(declaration) {
       assert(mapping.names.length > 0, `${name}: ${kind} entry without a spelling`);
       for (const spelling of mapping.names) claim(spelling, mapping.parameter);
     }
+  for (const { member, names = [], parameter } of cliMapping.memberFlags ?? []) {
+    known(parameter, "memberFlags");
+    const holder = parameters.find((candidate) => candidate.name === parameter);
+    let schema = holder.schema;
+    while (typeof schema?.$ref === "string" && schema.type === undefined)
+      schema = schema.$ref
+        .slice(2)
+        .split("/")
+        .reduce((node, part) => node?.[part], holder.schema);
+    assert(
+      schema?.properties !== undefined && Object.hasOwn(schema.properties, member),
+      `${name}: memberFlags names ${member}, which ${parameter} does not declare`,
+    );
+    assert(!["actor", "author"].includes(member), `${name}: member ${member} is who is acting`);
+    const flags = [derivedFlag(member), ...names];
+    if (schema.properties[member].type === "boolean")
+      flags.push(`--no-${derivedFlag(member).slice(2)}`);
+    for (const spelling of flags) {
+      assert(
+        !["--actor", "--author", "--arguments", "--help"].includes(spelling),
+        `${name}: member ${member} takes the reserved flag ${spelling}`,
+      );
+      claim(spelling, parameter);
+    }
+  }
   const positions = new Set();
   for (const { position, parameter } of cliMapping.positionals ?? []) {
     known(parameter, "positionals");

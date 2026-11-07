@@ -6497,6 +6497,17 @@
             "parameter": "design"
           }
         ],
+        "memberFlags": [
+          {
+            "member": "spawner_id",
+            "parameter": "waits_for"
+          },
+          {
+            "member": "gate",
+            "names": ["--waits-for-gate"],
+            "parameter": "waits_for"
+          }
+        ],
         "positionals": [
           {
             "position": 0,
@@ -7272,6 +7283,97 @@
         }
       },
       "cliMapping": {
+        "memberFlags": [
+          {
+            "member": "title",
+            "parameter": "patch"
+          },
+          {
+            "member": "description",
+            "names": ["-d"],
+            "parameter": "patch"
+          },
+          {
+            "member": "design",
+            "parameter": "patch"
+          },
+          {
+            "member": "acceptance_criteria",
+            "names": ["--acceptance"],
+            "parameter": "patch"
+          },
+          {
+            "member": "notes",
+            "parameter": "patch"
+          },
+          {
+            "member": "append_notes",
+            "parameter": "patch"
+          },
+          {
+            "member": "priority",
+            "names": ["-p"],
+            "parameter": "patch"
+          },
+          {
+            "member": "issue_type",
+            "names": ["-t", "--type"],
+            "parameter": "patch"
+          },
+          {
+            "member": "status",
+            "names": ["-s"],
+            "parameter": "patch"
+          },
+          {
+            "member": "assignee",
+            "names": ["-a"],
+            "parameter": "patch"
+          },
+          {
+            "member": "parent_id",
+            "names": ["--parent"],
+            "parameter": "patch"
+          },
+          {
+            "member": "labels",
+            "names": ["--set-labels"],
+            "parameter": "patch"
+          },
+          {
+            "member": "add_labels",
+            "names": ["-l", "--add-label"],
+            "parameter": "patch"
+          },
+          {
+            "member": "remove_labels",
+            "names": ["--remove-label"],
+            "parameter": "patch"
+          },
+          {
+            "member": "estimated_minutes",
+            "names": ["-e", "--estimate"],
+            "parameter": "patch"
+          },
+          {
+            "member": "external_ref",
+            "parameter": "patch"
+          },
+          {
+            "member": "due_at",
+            "names": ["--due"],
+            "parameter": "patch"
+          },
+          {
+            "member": "defer_until",
+            "names": ["--defer"],
+            "parameter": "patch"
+          },
+          {
+            "member": "await_id",
+            "parameter": "patch"
+          }
+        ],
         "positionals": [
           {
             "position": 0,

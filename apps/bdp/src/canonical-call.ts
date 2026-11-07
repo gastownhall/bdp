@@ -7,6 +7,9 @@ import { CanonicalInputError } from "./canonical-input.js";
 const ACTOR_FLAG = "--actor";
 /** Flags §10 gives every Callable; a parameter deriving one is reachable only by `--arguments`. */
 const RESERVED_FLAGS = new Set(["--arguments", "--help"]);
+/** §2.5: who is acting is attribution, so no member projects to it. */
+const ACTING_MEMBERS = new Set(["actor", "author"]);
+const ACTING_FLAGS = new Set([ACTOR_FLAG, "--author"]);
 /** Literal client spellings, safe to name in a diagnostic. They belong before a tree command. */
 const CLIENT_FLAGS = new Set([
   "--cli-profile",
@@ -77,13 +80,23 @@ type ValueForm =
   | { readonly kind: "array"; readonly item: ItemForm }
   | { readonly kind: "single"; readonly item: ItemForm };
 
-/** The §10 table: boolean, array, string, and JSON for any other non-string schema. */
-function valueForm({ schema }: CallableParameter): ValueForm {
-  const node = dereference(schema, schema);
+/** The §10 table: boolean, array, string, and JSON for any other non-string schema. `root` is the
+ * document a `$ref` resolves in: a member's schema resolves in its parameter's. */
+function schemaForm(schema: unknown, root: CallableValueSchema): ValueForm {
+  const node = dereference(schema, root);
   if (node?.type === "boolean") return { kind: "boolean" };
   if (node?.type === "array")
-    return { kind: "array", item: onlyStrings(node.items, schema) ? "text" : "json" };
-  return { kind: "single", item: onlyStrings(schema, schema) ? "text" : "json" };
+    return { kind: "array", item: onlyStrings(node.items, root) ? "text" : "json" };
+  return { kind: "single", item: onlyStrings(schema, root) ? "text" : "json" };
+}
+const valueForm = ({ schema }: CallableParameter): ValueForm => schemaForm(schema, schema);
+
+/** The declared schema of one member of an object parameter. */
+function memberSchema({ schema }: CallableParameter, member: string): unknown {
+  const properties = asObject(dereference(schema, schema)?.properties);
+  return properties !== undefined && Object.hasOwn(properties, member)
+    ? properties[member]
+    : undefined;
 }
 
 interface FlagBinding {
@@ -92,6 +105,9 @@ interface FlagBinding {
   readonly negated: boolean;
   /** A `cliMapping.fromFile` spelling: its value is a path, and `-` means stdin. */
   readonly file: boolean;
+  /** A `cliMapping.memberFlags` spelling: it sets this one member of the parameter, by the form
+   * of that member's schema. */
+  readonly member?: string;
 }
 interface FlagTable {
   /** undefined marks a spelling two parameters share: no use of it can be honest. */
@@ -106,7 +122,9 @@ function flagTable(declaration: CallableDeclaration): FlagTable {
     if (RESERVED_FLAGS.has(spelling) || spelling === ACTOR_FLAG) collisions.add(spelling);
     else if (flags.has(spelling)) {
       collisions.add(spelling);
-      if (flags.get(spelling)?.parameter !== binding.parameter) flags.set(spelling, undefined);
+      const held = flags.get(spelling);
+      if (held?.parameter !== binding.parameter || held.member !== binding.member)
+        flags.set(spelling, undefined);
     } else flags.set(spelling, binding);
   };
   const bindings = declaration.parameters.map((parameter) => ({
@@ -127,6 +145,24 @@ function flagTable(declaration: CallableDeclaration): FlagTable {
     const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
     if (binding !== undefined)
       for (const name of mapping.names) claim(name, { ...binding, file: true });
+  }
+  for (const mapping of declaration.cliMapping?.memberFlags ?? []) {
+    const binding = bindings.find(({ parameter }) => parameter.name === mapping.parameter);
+    const schema = binding && memberSchema(binding.parameter, mapping.member);
+    if (binding === undefined || schema === undefined) continue;
+    const spellings = [parameterFlag(mapping.member), ...(mapping.names ?? [])];
+    const acting = spellings.filter((spelling) => ACTING_FLAGS.has(spelling));
+    if (ACTING_MEMBERS.has(mapping.member) || acting.length > 0) {
+      for (const spelling of [...acting, spellings[0] ?? ""]) collisions.add(spelling);
+      continue;
+    }
+    const form = schemaForm(schema, binding.parameter.schema);
+    const member = { ...binding, form, member: mapping.member };
+    for (const spelling of spellings) claim(spelling, member);
+    if (form.kind === "boolean") {
+      const negated = `--no-${parameterFlag(mapping.member).slice(2)}`;
+      if (!flags.has(negated)) flags.set(negated, { ...member, negated: true });
+    }
   }
   // §10: a parameter declared with the flag `--no-x` keeps it, and `x` then has no derived one.
   for (const binding of bindings.filter(derivesFlag))
@@ -203,6 +239,7 @@ export function parseCallableArguments(
 ): ParsedCallableArguments {
   const { flags } = flagTable(declaration);
   const supplied = new Map<string, AdmittedJsonValue>();
+  const members = new Map<string, Map<string, AdmittedJsonValue>>();
   const operands: string[] = [];
   const files: CallableFileInput[] = [];
   let whole: Record<string, AdmittedJsonValue> | undefined;
@@ -218,6 +255,19 @@ export function parseCallableArguments(
     else if (supplied.has(name) || files.some(({ parameter }) => parameter.name === name))
       refuse(`${parameterFlag(name)} may be given only once`);
     else supplied.set(name, value);
+  };
+  const bindMember = (
+    { parameter, form, member }: FlagBinding,
+    spelling: string,
+    value: AdmittedJsonValue,
+  ): void => {
+    const held = members.get(parameter.name) ?? new Map<string, AdmittedJsonValue>();
+    members.set(parameter.name, held);
+    const name = member ?? "";
+    if (form.kind === "array")
+      held.set(name, [...((held.get(name) as AdmittedJsonValue[] | undefined) ?? []), value]);
+    else if (held.has(name)) refuse(`${spelling} may be given only once`);
+    else held.set(name, value);
   };
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index] ?? "";
@@ -256,7 +306,12 @@ export function parseCallableArguments(
     const binding = flags.get(spelling);
     if (binding === undefined)
       return refuse(`${spelling} belongs to more than one parameter; use --arguments`);
-    if (binding.file) {
+    if (binding.member !== undefined) {
+      if (binding.form.kind !== "boolean")
+        bindMember(binding, spelling, convert(nextValue(), binding.form.item, spelling));
+      else if (inline !== undefined) refuse(`${spelling} takes no value`);
+      else bindMember(binding, spelling, !binding.negated);
+    } else if (binding.file) {
       const path = nextValue();
       if (path === "") refuse(`${spelling} requires a path`);
       if (path === "-" && files.some((file) => file.path === "-"))
@@ -287,11 +342,21 @@ export function parseCallableArguments(
     );
   });
   if (unmapped > 0) refuse(`${unmapped} unmapped operand(s); use --help for this Callable's form`);
-  return {
-    help: false,
-    arguments: Object.fromEntries([...Object.entries(whole ?? {}), ...supplied]),
-    files,
-  };
+  const final: Record<string, AdmittedJsonValue> = Object.fromEntries([
+    ...Object.entries(whole ?? {}),
+    ...supplied,
+  ]);
+  // §10: `--arguments`, then the parameter's own flag, then each member flag on what they left.
+  for (const [name, held] of members) {
+    const flag = parameterFlag(name);
+    if (files.some(({ parameter }) => parameter.name === name))
+      refuse(`${flag}'s member flags cannot be combined with reading ${flag} from a file`);
+    const base = Object.hasOwn(final, name) ? final[name] : {};
+    if (base === null || typeof base !== "object" || Array.isArray(base))
+      return refuse(`a member flag of ${flag} requires ${flag} to be a JSON object`);
+    final[name] = { ...base, ...Object.fromEntries(held) };
+  }
+  return { help: false, arguments: final, files };
 }
 
 /** `bdp call NAME`: one JSON object and nothing else, with no declaration to consult, so its

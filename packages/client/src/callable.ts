@@ -29,6 +29,11 @@ export interface CallableCliMapping {
   readonly flags?: readonly { readonly names: readonly string[]; readonly parameter: string }[];
   readonly positionals?: readonly { readonly position: number; readonly parameter: string }[];
   readonly fromFile?: readonly { readonly names: readonly string[]; readonly parameter: string }[];
+  readonly memberFlags?: readonly {
+    readonly member: string;
+    readonly names?: readonly string[];
+    readonly parameter: string;
+  }[];
 }
 
 /** A declaration in the Callables shape, plus its name and Type, however it was learned. */

@@ -151,6 +151,53 @@ test("§2.5: every invalid cliMapping is refused", () => {
     /duplicate flag spelling/,
   );
 });
+test("§2.5: an invalid member flag is refused", () => {
+  const patched = (memberFlags) => ({
+    ...declaration({
+      name: "patch",
+      schema: {
+        $ref: "#/$defs/Patch",
+        $defs: {
+          Patch: {
+            type: "object",
+            properties: { status: { type: "string" }, actor: { type: "string" } },
+          },
+        },
+      },
+    }),
+    cliMapping: { memberFlags },
+  });
+  assert.doesNotThrow(() =>
+    assertValidDeclaration(patched([{ member: "status", names: ["-s"], parameter: "patch" }])),
+  );
+  assert.throws(
+    () => assertValidDeclaration(patched([{ member: "status", parameter: "nope" }])),
+    /memberFlags names undeclared/,
+  );
+  assert.throws(
+    () => assertValidDeclaration(patched([{ member: "nope", parameter: "patch" }])),
+    /does not declare/,
+  );
+  assert.throws(
+    () => assertValidDeclaration(patched([{ member: "actor", parameter: "patch" }])),
+    /who is acting/,
+  );
+  for (const spelling of ["--actor", "--author", "--arguments", "--help"])
+    assert.throws(
+      () =>
+        assertValidDeclaration(
+          patched([{ member: "status", names: [spelling], parameter: "patch" }]),
+        ),
+      /reserved flag/,
+    );
+  assert.throws(
+    () =>
+      assertValidDeclaration(
+        patched([{ member: "status", names: ["--patch"], parameter: "patch" }]),
+      ),
+    /duplicate flag spelling/,
+  );
+});
 test("§10: a boolean's derived --no-x yields to a parameter declared with that flag", () => {
   assert.doesNotThrow(() =>
     assertValidDeclaration({

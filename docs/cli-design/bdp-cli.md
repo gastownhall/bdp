@@ -2847,7 +2847,8 @@ section. None of this applies to `call`:
 | `cliMapping.flags` | Adds spellings such as `-l`; the derived flag remains. |
 | `cliMapping.positionals` | Lets a position stand for a flag. |
 | `cliMapping.fromFile` | Adds flags whose value is a path, `-` meaning stdin. The content, unchanged, is treated as that parameter's flag value. |
-| `--arguments JSON` | Supplies the whole arguments object; explicit flags and positions override its members, and a repeated array flag replaces the whole array. |
+| `cliMapping.memberFlags` | Gives a member of an object parameter its own flag: `--kebab-member` and any `names`, in the form its schema gives by the rows above. `--status X` on `issue update` sends `{"patch":{"status":"X"}}`. The parameter's own flag still works. |
+| `--arguments JSON` | Supplies the whole arguments object; explicit flags and positions override its members, and a repeated array flag replaces the whole array. A member flag then replaces its one member and leaves the others, over `--arguments` and over the parameter's own flag, and is refused if what it would be written into is not an object. |
 | `--help` | Prints `title`, `description`, the parameters and any declared errors, without invoking. |
 
 A `$ref` is followed inside the schema that carries it before its type is read, and a
