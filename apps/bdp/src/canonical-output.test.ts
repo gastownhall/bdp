@@ -29,6 +29,39 @@ describe("canonical delivery framing and human References", () => {
     expect(JSON.parse(renderCanonicalOutput(result, { outputMode: "json" }))).toEqual(result);
   });
 
+  it("a delete preview says nothing was deleted and how to apply it", () => {
+    const preview = (resource_kind: string): CanonicalOutput => ({
+      schema_version: 2,
+      bdp_spec: "selected",
+      result_kind: "resource",
+      outcome: "success",
+      context: { subject: "https://work.example/team/a", resource_kind, preview: "delete" },
+      data: {
+        id: "https://work.example/team/a",
+        type: "https://work.example/team/t",
+        revision: "r1",
+        properties: { title: "Keep me" },
+      },
+    });
+    const scope = "https://work.example/team/";
+    const human = renderCanonicalOutput(preview("bead"), {}, scope);
+    expect(human.split("\n")[0]).toBe("Preview only: nothing was deleted.");
+    expect(human).toContain("Keep me");
+    expect(human.trimEnd().split("\n").at(-1)).toBe("To delete it, run: bdp delete a --force");
+    expect(renderCanonicalOutput(preview("link"), {}, scope)).toContain(
+      "run: bdp link delete a --force",
+    );
+    expect(renderCanonicalOutput(preview("bead"), { scope: "https://other/" }, scope)).toContain(
+      "bdp delete a --force --scope https://other/",
+    );
+    const { context, ...read } = preview("bead");
+    expect(context?.preview).toBe("delete");
+    expect(renderCanonicalOutput(read, {}, scope)).not.toContain("Preview");
+    expect(JSON.parse(renderCanonicalOutput(preview("bead"), { outputMode: "json" }))).toEqual(
+      preview("bead"),
+    );
+  });
+
   it("uses bracketed absolute pin syntax and never shortens foreign identities", () => {
     const result: CanonicalOutput = {
       schema_version: 2,

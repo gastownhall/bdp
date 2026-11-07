@@ -179,7 +179,8 @@ it does not make an otherwise empty update valid. No source-guard flag is invent
 
 Plain Resource delete without --force performs an observational point-read preview,
 not mutation admission. It returns the ordinary Resource descriptor with outer
-context.preview=delete. Preview reserves nothing. Mutation-only guard/provenance/key/
+context.preview=delete, and human output says nothing was deleted and how to apply it.
+Preview reserves nothing. Mutation-only guard/provenance/key/
 emission/retry inputs require apply intent; apply rechecks everything. Alias deletion
 requires --force and has no Resource preview. --force never reaches the wire or
 waives integrity/authorization. Bead deletion admits no induced-version provenance;

@@ -373,7 +373,21 @@ export function renderCanonicalOutput(
     return versionsDocument(output.data, scope, options.long === true);
   if (output.result_kind === "reference")
     return `${ref(output.data, scope, options.long === true)}\n`;
-  if (output.result_kind === "resource") return document(output.data, scope, options.long === true);
+  if (output.result_kind === "resource") {
+    const long = options.long === true;
+    const text = document(output.data, scope, long);
+    if (output.context?.preview !== "delete") return text;
+    // A delete without --force is a read: say so, or it looks exactly like `show` and exit 0.
+    const words = [
+      "bdp",
+      ...(output.context.resource_kind === "link" ? ["link"] : []),
+      "delete",
+      ref(record(output.data).id, scope, long),
+      "--force",
+      ...(typeof options.scope === "string" ? ["--scope", options.scope] : []),
+    ];
+    return `Preview only: nothing was deleted.\n\n${text}\nTo delete it, run: ${terminalText(words.join(" "))}\n`;
+  }
   if (output.result_kind === "resource_collection") {
     const items = record(output.data).items;
     if (!Array.isArray(items)) return "";
