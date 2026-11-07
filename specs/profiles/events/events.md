@@ -17,20 +17,23 @@ when Events is advertised, its published facts must also satisfy this profile.
 > Streaming, replication and import-composition questions are preserved in the
 > [informative appendix](#appendix-open-design-questions), separately from this finite contract.
 
-Events is optional for both Core and Write. A Scope advertises support by including
-its absolute `events` URL in discovery; absence means that clients MUST NOT assume
-an Event source or `view=events` is supported. The member is an explicit promise of
+Events is optional for both Core and Write. A Scope advertises support through the
+capability `https://github.com/gastownhall/bdp/capabilities/events`; absence means
+that clients MUST NOT assume an Event source or `view=events` is supported. Its source
+sits at Core's fixed `<scope>/bdp/events` ([fixed navigation](../core/core.md#fixed-navigation)).
+The advertisement is an explicit promise of
 the complete finite-observation contract below, not permission to provide only a
 live stream or to omit required facts. Advertising Events creates no export,
 import, snapshot or replica-application capability.
 
 A request selecting `view=events` on a Scope without Events support MUST be refused
 as an unsupported view using `invalid-parameter`; it MUST NOT return an ordinary
-Resource representation in its place. Clients MUST NOT guess a Scope event URL.
+Resource representation in its place. Clients MUST NOT read the Event source of a
+Scope that does not advertise Events.
 
 ### Advertised source, truthful coverage
 
-A Core/Write Scope advertising Events MUST expose its discovered `events` source
+A Core/Write Scope advertising Events MUST expose its source at `<scope>/bdp/events`
 and a Resource-scoped projection through `view=events`. A source is an observation
 endpoint, not a third Resource kind, public receipt or replica log. Resource
 selection uses canonical identity/kind and current disclosure; the source can
@@ -80,7 +83,7 @@ observation restart or an unobserved interval MUST NOT be hidden by an empty pag
 
 ### HTTP selection and finite replay
 
-Scope observation GETs the discovered absolute URL. Resource observation GETs its
+Scope observation GETs the fixed `<scope>/bdp/events`. Resource observation GETs its
 canonical URL with `view=events`. Requests select the existing v0.1 JSON media type
 through `Accept`; response Content-Type MUST confirm it before interpretation.
 The complete selected contract defines the required Event vocabulary. This contract
@@ -2091,8 +2094,9 @@ Value: object
 
 The following visible operation tables are the authoring source for the generated
 [OpenAPI catalog](../../openapi/README.md), using the
-[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Targets are
-navigated URLs, not prescribed deployment paths. Shared media, authorization,
+[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Protocol routes
+are Core's [fixed navigation](../core/core.md#fixed-navigation); Resource targets are
+canonical Resource URLs. Shared media, authorization,
 conditional HTTP, bodyless HEAD/status and Problem rules remain defined by Core.
 Schema names resolve in the shared bundle; optional feature compositions retain
 their distinct schema resources. Generation does not qualify an implementation.
@@ -2151,7 +2155,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"scopeEvents"` |
-| navigation | `{"role":"discovery-member","member":"events"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/events"}` |
 | response | `"retainedEventPage"` |
 | methods | `["get","head"]` |
 | problem | `"retainedEventProblem"` |

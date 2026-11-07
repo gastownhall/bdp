@@ -139,7 +139,7 @@ Scope URL. Removing kind prefixes changes none of these identity obligations.
 
 Segments imply neither containment nor a child Scope: `projects/alpha/task-42`
 implies nothing at `projects/alpha`. Collection and operation URLs are
-advertised navigation, not Resource-ID prefixes. The authority MUST keep
+[fixed navigation](#fixed-navigation), not Resource-ID prefixes. The authority MUST keep
 protocol navigation addresses from being assigned as canonical Resource or
 alias URLs with a conflicting interpretation. Different Scopes' URI spaces
 remain disjoint. BDP emits absolute canonical Resource URLs.
@@ -582,18 +582,55 @@ the selected protocol text, not a server build or capability set. A build derive
 it from the source commit; a pull request or development build may identify its
 committed branch revision, and a build after merge identifies the commit on the
 canonical branch. A dirty change to a canonical source MUST NOT be reported as if
-it were represented by the prior commit. Optional members are `events`, `aliases`,
+it were represented by the prior commit. Optional members are `aliases`,
 `order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
 `capabilities`.
-Write uses the same Core meaning with `profile:"write"`, required `operations`
-navigation and optional `aliases` navigation. Its operation directory belongs to Write. These discovery
-objects are closed; there is no required or guessed `beads` or `links` member.
+Write uses the same Core meaning with `profile:"write"` and optional `aliases`
+navigation. These discovery objects are closed; there is no `beads`, `links`,
+`events` or `operations` member, because those routes are [fixed](#fixed-navigation).
 When a Scope supports Types, its optional `types` member identifies the fixed
 `<scope>/types/` inventory. Unknown optional
 capabilities use the declared extension map, not arbitrary discovery members.
 
-Core and Write use the fixed in-Scope collection routes `<scope>/bdp/beads` and
-`<scope>/bdp/links`; discovery does not advertise those routes. They are collection
+<a id="fixed-navigation"></a>
+
+### Fixed navigation
+
+Protocol routes sit at fixed paths under the Scope's reserved `bdp` name, and
+discovery advertises none of them. What a client reads is a noun at `bdp/NAME`:
+`beads`, `links`, `events`. An operation is at `bdp/operations/NAME`. A Callable is
+at `bdp/call/NAME`. A client builds each one from the canonical Scope
+URL and the path below; a Scope cannot move one, and a client MUST NOT look for one
+anywhere else. This is the one statement of the rule; the profiles that own each
+route refer to it.
+
+| Route | What it serves | Present |
+| --- | --- | --- |
+| `<scope>/bdp/beads` and `<scope>/bdp/links` | The Bead and Link [inventories](#inventory-entry-points) | Always |
+| `<scope>/bdp/openapi` | The Scope's OpenAPI description | When the Scope serves one |
+| `<scope>/bdp/events` | The Scope's [Event source](../events/events.md#advertised-source-truthful-coverage) | When the Scope advertises Events |
+| `<scope>/bdp/operations/NAME` | The protocol operation `NAME`, from the table below | When the profile or capability that defines it is advertised |
+| `<scope>/bdp/call/NAME` | The [Callable](../callables/callables.md) mounted as `NAME` | When the Scope advertises Callables |
+
+Every protocol operation of every profile and capability mounts under
+`<scope>/bdp/operations/`, in one flat namespace. Operation names belong to the BDP
+specifications, not to a Scope, so each name is unique across all of them; a
+specification that adds an operation adds its name here. Callable names belong to
+the Scope, so Callables keep `bdp/call/`.
+
+| Name | Defined by |
+| --- | --- |
+| `createBead`, `updateBead`, `deleteBead`, `createLink`, `updateLink`, `deleteLink` | [Write](../write/write.md#ordinary-targets) |
+| `putAlias`, `deleteAlias` | [Write](../write/write.md#aliases), when the Scope advertises `aliases` |
+| `atomicBatch` | Write's [atomic batch](../write/write.md#optional-atomic-batch-version-1) capability |
+| `exactDefinition` | The [exact Type-definition lookup](#optional-exact-type-definition-lookup) capability |
+
+Discovery says which routes a Scope serves: its profile, its `aliases` member and its
+capabilities, read under each route's own rules. A route the Scope does not serve,
+and any other path under `bdp/`, answers as an unknown Resource does: `404`
+`resource-not-found`. A client does not probe a route to learn whether it is served.
+
+The inventories are collection
 entry points, not base URIs for Resource identity, and do not divide the Resource
 namespace. When the optional Types profile is enabled, discovery MAY include
 `types: <scope>/types/`; its Type inventory is at that fixed route, and a
@@ -602,8 +639,7 @@ All Beads and
 Links may share one Scope-relative ID space,
 such as `https://beads.example/acme/task-42` and
 `https://beads.example/acme/relation-81`. The `bdp/` route namespace is reserved
-for protocol navigation. Events and operation navigation are discovered absolute
-HTTP(S) URLs.
+for protocol navigation.
 Aliases navigation is an in-Scope base, possibly the Scope itself, not authority
 for arbitrary paths without a binding. Clients MUST NOT infer Resource kind by
 stripping/prefixing path segments. No `order` means `canonical-uri`.
@@ -630,7 +666,7 @@ read discovery to establish the selected Scope/profile, GET `<scope>/bdp/beads` 
 record. Collection entries are the same Resource records returned by point reads.
 The collection endpoint is not an ID prefix.
 
-These fixed routes reserve `bdp` and its `bdp/` descendants against Resource and
+The [fixed routes](#fixed-navigation) reserve `bdp` and its `bdp/` descendants against Resource and
 alias collisions. This reservation does not impose `beads/` or `links/` prefixes on
 Resource IDs.
 
@@ -1527,8 +1563,9 @@ none weakens required Gone evidence, erasure or incident-Link refusal.
 ## Optional Events
 
 [Events](../events/events.md) is an independent optional observation profile for
-Core and Write. The discovery `events` member advertises its complete finite JSON
-contract, including Resource `view=events`, coverage, retention and continuation.
+Core and Write. Its [advertisement](../events/events.md#contract-and-advertisement)
+promises its complete finite JSON contract at the fixed
+[Event source](#fixed-navigation), including Resource `view=events`, coverage, retention and continuation.
 Absence means no Event source may be assumed. Events adds no new base `profile`
 literal and is not an import/export or replica-application contract. A Scope without
 Events MUST refuse `view=events` with `invalid-parameter`, never return an ordinary
@@ -1733,8 +1770,9 @@ Types defines definition category, completeness and interpretation.
 ### Capability and query dispatch
 
 Capability `https://github.com/gastownhall/bdp/capabilities/type-definition-read`,
-exact version `"1"`, has closed detail `{operation:ABSOLUTE_HTTP_URL}` served by the
-advertising lookup Scope. No path prefix is prescribed. Base clients can ignore
+exact version `"1"`, has the closed empty detail `{}`. The advertising lookup Scope
+serves the operation at its [fixed route](#fixed-navigation),
+`<scope>/bdp/operations/exactDefinition`. Base clients can ignore
 this advertisement while retaining their actual supported base behavior. Advertising
 it alone does not claim Types, grant authorization or imply application History.
 Optional [Types](../types/types.md) defines any required complete-definition obligation.
@@ -3166,7 +3204,7 @@ Value: object
 | "https://github.com/gastownhall/bdp/capabilities/idempotency" | schema | no | — | "Supported Write idempotency versions, each with closed empty detail." |
 | "https://github.com/gastownhall/bdp/capabilities/write-exceptions" | schema | no | — | "Supported Write exception versions; the Scope does not serve the operations each lists and is not a complete Write provider." |
 | "https://github.com/gastownhall/bdp/capabilities/resource-projection" | schema | no | — | "Supported projection versions and their point/exact/inventory support flags." |
-| "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions and their independently advertised operation navigation." |
+| "https://github.com/gastownhall/bdp/capabilities/type-definition-read" | schema | no | — | "Supported exact-definition lookup versions; the operation sits at its fixed route." |
 
 #### Advanced
 
@@ -3310,7 +3348,6 @@ Required order: ["bdpVersion","profile","scope","specRevision"]
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
 | "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
-| "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
 | "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | "Native endpoint incidence policies enforced against the storing Scope’s authoritative in-Scope state." |
@@ -4695,20 +4732,12 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["operation"]
-
 #### Keywords
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds." |
+| description | "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds. The operation sits at the fixed `<scope>/bdp/operations/exactDefinition`; advertising it grants no permission and does not change the definition’s owner." |
 | type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "operation" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Advertised absolute exact-definition lookup operation URL. It grants no permission and does not change the definition’s owner." |
 <!-- bdp-schema:end typeDefinitionReadCapabilityV1 -->
 
 <!-- bdp-schema:start exactTypeDefinitionRecord -->
@@ -5545,8 +5574,9 @@ Required order: ["type","code","retry"]
 
 The following visible operation tables are the authoring source for the generated
 [OpenAPI catalog](../../openapi/README.md), using the
-[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Targets are
-navigated URLs, not prescribed deployment paths. Shared media, authorization,
+[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Protocol routes
+are Core's [fixed navigation](#fixed-navigation); Resource targets are
+canonical Resource URLs. Shared media, authorization,
 conditional HTTP, bodyless HEAD/status and Problem rules remain defined by Core.
 Schema names resolve in the shared bundle; optional feature compositions retain
 their distinct schema resources. Generation does not qualify an implementation.
@@ -6021,7 +6051,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"exactDefinition"` |
-| navigation | `{"role":"capability-operation","capability":"https://github.com/gastownhall/bdp/capabilities/type-definition-read","version":"1"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/exactDefinition","capability":"https://github.com/gastownhall/bdp/capabilities/type-definition-read","version":"1"}` |
 | response | `"typeDefinitionReadResult"` |
 | methods | `["get","head"]` |
 | problem | `"typeDefinitionReadProblem"` |

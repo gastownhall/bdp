@@ -37,8 +37,8 @@ closed fields remain rejectable. Feature presence grants neither authorization n
 a portable identity/Scope relocation guarantee. Drop/rebuild of history does not
 reset successful keys or identity allocation while claiming the same logical Scope.
 
-The new native helpers are coreDiscovery, writeDiscovery, retainedDiscovery,
-writeOperationDirectory and their two closed limit groups. Earlier read/read-update/
+The new native helpers are coreDiscovery, writeDiscovery, retainedDiscovery
+and their two closed limit groups. Earlier read/read-update/
 transactional helpers are staging inputs, not the selected front door. Existing
 runtime constants/parsers, catalog profile tags and prior PASS artifacts are not
 rewritten to look like target support. Offline emission verifies implemented grammar/

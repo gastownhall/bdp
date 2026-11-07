@@ -1,6 +1,6 @@
 # Canonical commands first
 
-Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 38 wire signature families contain 28 GETs, their 28 HEAD counterparts and ten POSTs; options and transport forms do not add public commands.
+Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 37 wire signature families contain 27 GETs, their 27 HEAD counterparts and ten POSTs; options and transport forms do not add public commands.
 
 | Canonical command | Wire signature variants |
 | --- | --- |
