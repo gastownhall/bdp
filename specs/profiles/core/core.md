@@ -407,7 +407,7 @@ paged and do not version anything merely by being read.
 ### Native Scope policy
 
 A live Link MUST retain at least one live in-Scope Bead endpoint. Deletion is not
-erasure and cannot silently leave dangling native in-Scope endpoints; Write defines
+erasure and cannot silently leave dangling unpinned native in-Scope endpoints; Write defines
 explicit Link removal and the atomic deletion admission/rollback contract.
 
 Native Scope policies remain valid independently of optional Types. Their admission

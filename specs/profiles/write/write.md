@@ -206,7 +206,8 @@ A Resource's canonical identity is established at creation and never changes. A
 caller MAY supply an already canonical local `id` consisting of one or more safe
 segments. Omitting it asks the authority to allocate one opaque segment. The
 allocator MUST NOT encode meaning into its minted segment or choose a live alias
-URL, for either Resource kind. Bead and Link creation use the same Scope-relative
+URL or any URL ever committed, including a deleted identity, for either Resource
+kind. Bead and Link creation use the same Scope-relative
 identity space: neither kind requires or implies a `beads/` or `links/` prefix, and
 either kind MAY use either spelling as an ordinary ID path. There are no mandatory
 Type prefixes. Hierarchy authored in an ID implies neither containment nor a nested
@@ -217,13 +218,19 @@ noncanonical spelling — leading/trailing separator, empty or dot segment, inva
 UTF-8/escaping, encoded separator or other prohibited form — is rejected, never
 trimmed, decoded twice or normalized into another identity.
 
-The complete canonical URL supplied for a creation MUST never previously have
-been committed for either Resource kind in this logical Scope. Deletion does not
-release it. Lifetime non-reuse covers kind and authority changes; comparing only a
-suffix after stripping a kind/root segment is forbidden. A live alias at that URL
-is instead `alias-path-taken`; removing the alias can clear that condition. A
-committed creation/deletion in one atomic batch still consumes its identity.
-Rollback commits no allocation or non-reuse claim.
+A `createBead` that supplies the identity of a deleted Bead adds a revision under
+that same identity. It mints a fresh revision, and the new state is what the request
+supplies, with nothing inherited from an earlier revision. A provider MAY permanently
+retire a deleted identity.
+
+A complete canonical URL supplied for a creation that is live, was committed for the
+other Resource kind or is retired is `identity-taken`. A deleted Link's identity stays
+reserved and is also `identity-taken`. Lifetime non-reuse covers kind and authority
+changes; comparing only a suffix after stripping a kind/root segment is forbidden. A
+live alias at that URL is instead `alias-path-taken`; removing the alias can clear that
+condition. A committed creation/deletion in one atomic batch still consumes its
+identity, so a creation naming one, or naming a Bead the same batch deleted, is
+`identity-taken`. Rollback commits no allocation or non-reuse claim.
 
 Allocation, all Resource/owner effects, facts required by advertised Events and, under
 `idempotency`, durable terminal key state commit together or none. Concurrent distinct invocations cannot commit the
@@ -233,13 +240,22 @@ explicit supplied identity or root.
 
 Deleting a Bead removes it from the live graph; deletion does not require physical
 erasure. A Bead deletion fails with `incident-links-exist` while any live Link is
-incident upon it. The caller must explicitly remove those Links first, stage
-legal removals in the same atomic batch, or select
+incident upon it through an unpinned endpoint. The caller must explicitly remove those
+Links first, stage legal removals in the same atomic batch, or select
 [deletion modes](#optional-deletion-modes-version-1). Hidden Links are not disclosed
 by this failure. Link deletion creates no new Link revision and may atomically update its
 owners. A Bead deletion otherwise changes a surviving Bead only through a
 [declared deletion effect](#type-declared-deletion-effects). Deletion is not
 controlled-content erasure.
+
+<a id="pinned-endpoints-on-deletion"></a>
+
+A Link endpoint pinned to a revision identifies that retained edition, not the Bead's
+latest state. Deleting the Bead neither blocks on nor removes a Link whose endpoint on
+it is pinned, provided the Link keeps a live in-Scope Bead endpoint. That Link stays
+live with no new revision and no Event fact. A read of the pinned endpoint resolves to
+the retained edition or answers the ordinary `resource-pruned` or `resource-erased`. A
+Link that would keep no live in-Scope Bead endpoint is treated as unpinned.
 
 <a id="mutation-authorization"></a>
 <a id="validation-and-results"></a>
@@ -719,6 +735,10 @@ uses the accepted recovery Inception direction, and revives no Link. Ordinary
 deleted Resource reads remain unchanged. Effects describe the actual current-to-
 result transition, never a patch against R1 presented as if R1 were current.
 
+Association state retained for a deleted subject, such as comments, outlives the
+deletion and returns with recovery through `fromRevision`. A create on the deleted
+identity starts with none of it, and no alias returns either way.
+
 The exact selector and selected feature intent participate in semantic request
 identity. Changing R1 with the same key conflicts. A retained success/no-op
 replays its original complete outcome under current disclosure/erasure rules;
@@ -1066,10 +1086,13 @@ its target, a repeated `updateBead` or `updateLink` carrying the prior
 `expectedRevision` fails `revision-mismatch`; if the first execution was a genuine
 no-op, the repeat is one too. A repeated `deleteBead` or `deleteLink` of a target
 the first execution deleted is `resource-not-found`. A repeated creation carrying
-`id` is `identity-taken`. A repeated creation without `id` allocates a second
-identity. A client that needs at-most-once creation SHOULD supply an unguessable
+`id` is `identity-taken` while that Resource is live; a repeated `createBead` arriving
+after that Bead's deletion adds a revision under its identity. A repeated creation
+without `id` allocates a second identity. At-most-once creation needs an idempotency
+key on a Scope advertising `idempotency`. Elsewhere a client SHOULD supply an unguessable
 `id` where the provider admits one and, on `identity-taken`, read that identity to
-establish whether its own request committed. A client MUST NOT infer replay from a
+establish whether its own request committed; that does not cover a retry delayed past a
+deletion. A client MUST NOT infer replay from a
 200 that happens to match an earlier result.
 
 ## Problems and diagnostics
@@ -1117,7 +1140,8 @@ target, forbidden external-endpoint policy, a nonobject edit result, missing
 replace/remove target, Type/properties mismatch or owned-set overflow is
 `validation-failed`. Type validation is conditional on actual Types semantics;
 native invalidity still refuses. No complete required closure is
-`type-not-installed`. A supplied identity ever committed is `identity-taken`;
+`type-not-installed`. A supplied identity the [creation rule](#creation-and-identity-allocation)
+refuses (live, the other kind, retired or reserved) is `identity-taken`;
 a live alias at a proposed Resource identity is `alias-path-taken`. Endpoint
 nonexistence/hiddenness remains the non-disclosing `resource-not-found` case.
 
@@ -1576,8 +1600,8 @@ so cycles, back Links, self-Links and parallel Links terminate, and a named Bead
 reachable from another named Bead is deleted once, with one row. A test matching no
 Link leaves the named Beads alone in the deleted set.
 
-Endpoints match by Reference URI, whether floating or pinned. A pin neither
-excludes a Link from the walk nor changes. An external endpoint is not acquired,
+Endpoints match by Reference URI. A Link whose target endpoint is pinned is not
+followed. An external endpoint is not acquired,
 admitted or expanded; it is outside the deleted set.
 
 `cascade.except` is the closed `{bind,predicate}` pair: a Core binding name and a
@@ -1591,8 +1615,9 @@ Link. A predicate true of a named Bead refuses the whole request with
 
 ### Blocking Links
 
-A crossing Link is a live Link with exactly one endpoint in the deleted set. Its other
-endpoint is a surviving Bead or an external endpoint. A Link with both endpoints in
+A crossing Link is a live Link with exactly one endpoint in the deleted set, other than a
+Link that [survives under its pin](#pinned-endpoints-on-deletion), which neither blocks
+nor is removed. Its other endpoint is a surviving Bead or an external endpoint. A Link with both endpoints in
 the deleted set, including a self-Link, never blocks and is removed.
 
 | `blockedBy` | Crossing Link whose target is deleted | Crossing Link whose source is deleted |
@@ -1648,8 +1673,8 @@ own. Caller-input and `propertyAccess` restrictions do not bind an effect. Final
 validation does, and a failure refuses the whole request. Effects commit in the same
 atomic decision as the deletion, or not at all.
 
-An ordinary singleton `deleteBead` succeeds only when no Link is incident, so it
-joins no survivor and its `mutationResult` is unchanged. An ordinary atomic-batch1
+An ordinary singleton `deleteBead` succeeds only when no unpinned Link is incident, so
+no unpinned Link joins a survivor to it. An ordinary atomic-batch1
 `deleteBead` whose Links other members removed or moved can join one, and its
 `atomicBatchResult` reports that change as an ordinary `updated` row.
 
@@ -1732,7 +1757,8 @@ object plane.
 Hidden Resources are never deleted, removed or newly versioned by this form, and
 the deleted set does not depend on what the principal can see. The request refuses
 with `incident-links-exist`, under every `blockedBy` value and under `dryRun`, when
-a hidden Link is incident upon the deleted set, when a Link passing the test admits
+a hidden Link, other than one [surviving under its pin](#pinned-endpoints-on-deletion), is
+incident upon the deleted set, when a Link passing the test admits
 a hidden Bead, when a surviving owner that would gain a revision is hidden, or when
 a hidden Bead is joined to a deleted Bead whose Type is listed in `typeEffects`.
 This Problem names no Resource and carries no count, Type, path or position. The
