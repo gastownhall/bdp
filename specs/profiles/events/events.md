@@ -165,6 +165,9 @@ a guard. Delete carries its final live `revision`, no fresh revision, and no
 `previousRevision`. Deletion `effect.deleted` contains kind, recorded affiliation,
 identity and final live revision; for a Link it also contains its complete recorded
 source/target References. It retains no properties. Delete is not erase.
+A Link that a Bead deletion made [dormant](../write/write.md#endpoint-deletion-policy)
+publishes this same delete fact with `dormant: true` in `effect.deleted`. Its waking
+publishes an ordinary create fact under the same identity and revision.
 The operation target, record/deleted identity and envelope revision MUST agree.
 Each Event's source, and a Resource fact's representation, MUST agree with its
 selected page. These
@@ -714,6 +717,9 @@ Value: object
         },
         "target": {
           "$ref": "#/$defs/reference"
+        },
+        "dormant": {
+          "const": true
         }
       },
       "additionalProperties": false

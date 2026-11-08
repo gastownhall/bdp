@@ -6601,6 +6601,13 @@
           ],
           "description": "Independently versioned feature advertisements. Support does not select an invocation or grant permission."
         },
+        "endpointDeletion": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/endpointDeletionPolicy"
+          },
+          "description": "Native endpoint deletion policies; absence means block for every Link."
+        },
         "events": {
           "$ref": "#/$defs/absoluteHttpUrl",
           "description": "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support."
@@ -6670,6 +6677,12 @@
         },
         "capabilities": {
           "$ref": "#/$defs/capabilityAdvertisements"
+        },
+        "endpointDeletion": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/endpointDeletionPolicy"
+          }
         },
         "events": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -6966,6 +6979,9 @@
             },
             "target": {
               "$ref": "#/$defs/reference"
+            },
+            "dormant": {
+              "const": true
             }
           },
           "additionalProperties": false
@@ -8596,6 +8612,22 @@
         }
       },
       "required": ["family", "profile", "address", "value", "change"]
+    },
+    "endpointDeletionPolicy": {
+      "description": "Native Scope endpoint deletion policy for a Link family. A Link matching no entry takes block.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "linkConformsTo": {
+          "$ref": "#/$defs/absoluteHttpUrl",
+          "description": "Nominal Link-Type family this native policy applies to."
+        },
+        "policy": {
+          "enum": ["removed", "dormant"],
+          "description": "What a deletion that leaves the Link no live in-Scope Bead endpoint does to it."
+        }
+      },
+      "required": ["linkConformsTo", "policy"]
     }
   },
   "x-bdp-schema-definitions": [
@@ -8648,6 +8680,7 @@
     "durableInputPinnedReference",
     "durableInputReference",
     "durableResourceReference",
+    "endpointDeletionPolicy",
     "exactTypeDefinitionRecord",
     "expectedRevision",
     "historicalBeadRecord",
@@ -8767,6 +8800,7 @@
       "currentLinkCollection",
       "currentLinkRecord",
       "dateTime",
+      "endpointDeletionPolicy",
       "exactTypeDefinitionRecord",
       "historicalBeadRecord",
       "historicalLinkRecord",

@@ -51,7 +51,7 @@ present it promises Core's alias resolution and the two alias operations below.
 Bead and Link inventories use the fixed Core routes
 `<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
 optional common members are `events`, `order`, `limits`,
-`maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
+`maximumEndpointMultiplicity`, `endpointDeletion`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
 Optional capabilities under `capabilities` are atomic batch, rooted allocation,
 historical update, [deletion modes](#optional-deletion-modes-version-1),
@@ -316,6 +316,36 @@ it is pinned, provided the Link keeps a live in-Scope Bead endpoint. That Link s
 live with no new revision and no Event fact. A read of the pinned endpoint resolves to
 the retained edition or answers the ordinary `resource-pruned` or `resource-erased`. A
 Link that would keep no live in-Scope Bead endpoint is treated as unpinned.
+
+### Endpoint deletion policy
+
+A Bead deletion can leave a live Link with no live in-Scope Bead endpoint, because
+its other endpoint is external. Such a Link follows its endpoint deletion policy, which
+is the Scope's native [`endpointDeletion`](../core/core.md#native-scope-policy) entry
+for its Link family, or `block` when none applies:
+
+| Policy | Effect of the deletion on the Link |
+| --- | --- |
+| `block` | As for any incident Link: a plain `deleteBead` fails with `incident-links-exist`, and [deletion modes](#blocking-links) apply their table |
+| `removed` | Deleted in the same decision, as `deleteLink` deletes it; it never blocks |
+| `dormant` | Made dormant in the same decision; it never blocks |
+
+A Link with both endpoints in the deleted set is removed whatever its policy, as
+[Blocking Links](#blocking-links) says.
+
+A dormant Link is retained but not live. Going dormant mints no revision. Reads,
+inventories, incident views and selections answer for it as for a deleted Resource,
+and graph rules ignore it. `updateLink` and `deleteLink` on it are `resource-not-found`.
+A `createLink` naming it is `identity-taken`.
+
+Only recovery of the Bead whose deletion made it dormant wakes it. Recovery returns
+the Link live, under its identity and revision, with its endpoints as recorded.
+A `createBead` naming the deleted identity wakes nothing; the Link stays dormant.
+Erasing the Bead erases its dormant Links.
+
+When Events is advertised, going dormant publishes the Link's delete fact with
+`dormant: true` and the deletion's `transaction`. Waking publishes the Link's
+create fact under its identity and revision, with the recovery's `transaction`.
 
 <a id="mutation-authorization"></a>
 <a id="validation-and-results"></a>
@@ -791,7 +821,8 @@ lifecycle Event. Retain the ordinary durable successful retry outcome.
 Deleted-to-live recovery changes presence and mints a fresh live revision under
 the existing identity, even when editable content equals an earlier live record.
 It preserves deletion/history evidence and current initialization authority,
-uses the accepted recovery Inception direction, and revives no Link. Ordinary
+uses the accepted recovery Inception direction, and revives no Link other than those
+its deletion made [dormant](#endpoint-deletion-policy). Ordinary
 deleted Resource reads remain unchanged. Effects describe the actual current-to-
 result transition, never a patch against R1 presented as if R1 were current.
 
@@ -4921,6 +4952,7 @@ Required order: ["bdpVersion","profile","scope","specRevision","operations"]
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | — |
 | "capabilities" | ref "#/$defs/capabilityAdvertisements" | no | — | — |
+| "endpointDeletion" | array of (ref "#/$defs/endpointDeletionPolicy") | no | — | — |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
