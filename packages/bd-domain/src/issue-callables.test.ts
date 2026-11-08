@@ -142,7 +142,7 @@ describe("the static Issue catalog", () => {
     ]);
     expect((await catalog.get("issue/create"))?.cliMapping).toMatchObject({
       positionals: [{ position: 0, parameter: "title" }],
-      flags: expect.arrayContaining([{ names: ["-t"], parameter: "type" }]),
+      flags: expect.arrayContaining([{ names: ["-t", "--type"], parameter: "issue_type" }]),
       fromFile: [
         { names: ["--body-file"], parameter: "description" },
         { names: ["--design-file"], parameter: "design" },
@@ -156,7 +156,7 @@ describe("the static Issue catalog", () => {
         expect(held?.required, `${name}.${parameter}`).toBeUndefined();
       }
     };
-    await declares("issue/create", { type: "https://github.com/gastownhall/bdp/types/issue/task" });
+    await declares("issue/create", { issue_type: "https://github.com/gastownhall/bdp/types/issue/task" });
     await declares("issue/list", { sort: "priority" });
     await declares("issue/dep/list", { direction: "out" });
     await declares("issue/close", { reason: "Closed" });
