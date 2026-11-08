@@ -512,6 +512,7 @@ RevisionProvenance {
   committedAt? // optional version time value state
   agent?       // optional agent value state
   message?     // optional message value state
+  metadata?    // optional open object about this change
 }
 ```
 
@@ -1260,8 +1261,13 @@ history rows. No provenance is synthesized on deleted identities, aliases,
 References or properties views. These requirements do not establish full Memory
 compatibility.
 
-The closed envelope permits only `actor`, `committedAt`, `agent`, and `message`.
-The last three fields are an all-or-none group, independently of actor presence.
+`metadata` is an optional open JSON object about this change, written by the caller. It is
+immutable with the rest of the envelope, and nothing in the protocol interprets it. It is
+distinct from a Resource's common `metadata`, which is mutable covered state. A member becomes
+a defined field only by explicit amendment.
+
+The closed envelope permits only `actor`, `committedAt`, `agent`, `message` and `metadata`.
+`committedAt`, `agent` and `message` are an all-or-none group, independently of the others.
 `committedAt` is `{ "state": "present", "value": <RFC 3339 date-time> }` or
 `{ "state": "undetermined" }`. Agent and message are each a closed
 `{ "state": "present", "value": <string> }` or `{ "state": "absent" }` or
@@ -3154,6 +3160,7 @@ Other fields: not allowed
 | "agent" | ref "#/$defs/contextString" | no | — | "Immutable carried agent label, not an authentication result." |
 | "committedAt" | ref "#/$defs/contextTime" | no | — | "Immutable recorded commit-time context, present with agent and message as one complete tuple." |
 | "message" | ref "#/$defs/contextMessage" | no | — | "Immutable carried change message, present with committedAt and agent." |
+| "metadata" | ref "#/$defs/metadata" | no | — | "Open caller-written data about this change; immutable and uninterpreted." |
 <!-- bdp-schema:end revisionProvenance -->
 
 <!-- bdp-schema:start specRevision -->

@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "0393066b8caef4fcae70a8a5623d11f6d853aed5dad630438fb7447326109d08",
+  "sourceSHA256": "8996acb96dbe2c417ed31dcfeaa1e0384555cd476ccae31c96995a43ededd000",
   "selections": {
     "read": {
       "entryPoints": [

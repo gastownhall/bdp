@@ -809,7 +809,7 @@ bd create --retry-file FILE
 | `--id-root ROOT` | Ordinary allocation | Allocate beneath a local prefix where the adapter supports it. See [creation IDs](#creation-ids). |
 | `--properties JSON` | `{}` | Initialize properties. See [object inputs](#object-inputs). |
 | `--metadata JSON` | `{}` | Initialize metadata. See [object inputs](#object-inputs). |
-| `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input. See [object inputs](#object-inputs). |
+| `--revision-provenance JSON` | No caller attribution | Supply admitted version attribution input, which may include an open `metadata` object about this change. See [object inputs](#object-inputs). |
 | `--actor ACTOR` | No caller actor | Supply writer-supplied attribution; conflicts with a different explicit provenance actor. It is not authority or an update by itself. |
 | `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
 | `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. See [write delivery](#mutation-delivery). |

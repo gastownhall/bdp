@@ -1,6 +1,9 @@
 /** One in-memory working graph; persistence happens only after complete admission. */
 import { randomUUID } from "node:crypto";
-import { parseRevisionProvenanceInput, type RevisionProvenanceInput } from "@bdp/protocol";
+import {
+  parseRetainedRevisionProvenanceInput,
+  type RetainedRevisionProvenanceInput,
+} from "@bdp/protocol";
 import { jsonValueEqual } from "../json-value-equality.js";
 import {
   BATCH_LIMITS,
@@ -104,7 +107,7 @@ export function evaluateBatch(
     id: string;
     operationName?: string;
   }[] = [];
-  const provenance = new Map<string, RevisionProvenanceInput[]>();
+  const provenance = new Map<string, RetainedRevisionProvenanceInput[]>();
   const seen = new Set<string>();
   function endpointFailure(
     state: ResourceState,
@@ -281,7 +284,7 @@ export function evaluateBatch(
     touched.set(id, kind);
     if (value.revisionProvenance !== undefined) {
       const list = provenance.get(id) ?? [];
-      list.push(parseRevisionProvenanceInput(value.revisionProvenance));
+      list.push(parseRetainedRevisionProvenanceInput(value.revisionProvenance));
       provenance.set(id, list);
     }
     mappings.push({

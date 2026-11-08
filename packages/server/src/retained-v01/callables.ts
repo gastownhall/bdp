@@ -10,8 +10,8 @@ import {
   decodeJsonDocument,
   JsonNumberLiteral,
   type LosslessJsonValue,
-  parseRevisionProvenanceInput,
-  type RevisionProvenanceInput,
+  parseRetainedRevisionProvenanceInput,
+  type RetainedRevisionProvenanceInput,
   snapshotJsonValue,
 } from "@bdp/protocol";
 import { CONTRACT_ARTIFACT_CEILINGS } from "../installed-contract-artifact.js";
@@ -315,7 +315,7 @@ function parameterViews(properties: JsonObject): readonly ParameterView[] {
 
 export interface ParsedInvocation {
   readonly arguments: Readonly<Record<string, LosslessJsonValue>>;
-  readonly provenance?: RevisionProvenanceInput;
+  readonly provenance?: RetainedRevisionProvenanceInput;
   readonly provenanceInput?: LosslessJsonValue;
   /** Stable meaning of this invocation under its key. */
   identity(name: string): string;
@@ -333,10 +333,10 @@ export function parseInvocation(text: string): ParsedInvocation {
   closed(body, ["arguments", "revisionProvenance"]);
   if (!Object.hasOwn(body, "arguments")) throw new RetainedRequestError("malformed-request", 400);
   const args = record(body.arguments);
-  let provenance: RevisionProvenanceInput | undefined;
+  let provenance: RetainedRevisionProvenanceInput | undefined;
   if (Object.hasOwn(body, "revisionProvenance")) {
     try {
-      provenance = parseRevisionProvenanceInput(
+      provenance = parseRetainedRevisionProvenanceInput(
         snapshotJsonValue(body.revisionProvenance as LosslessJsonValue),
       );
     } catch {
@@ -671,7 +671,7 @@ export interface CallableInvocationContext {
   readonly name: string;
   /** Defaults applied; an omitted parameter with no default is absent, never `null`. */
   readonly arguments: Readonly<Record<string, AdmittedJsonValue>>;
-  readonly provenance?: RevisionProvenanceInput;
+  readonly provenance?: RetainedRevisionProvenanceInput;
   readonly scope: string;
   read(id: string): Readonly<Record<string, unknown>> | undefined;
   list(kind: "bead" | "link"): readonly Readonly<Record<string, unknown>>[];
