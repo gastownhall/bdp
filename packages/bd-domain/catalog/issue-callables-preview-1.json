@@ -105,8 +105,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\n\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\n\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\n\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\n\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above."
           },
           "description": "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\n\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\n\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above."
         },
@@ -333,8 +333,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -388,8 +388,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -654,8 +654,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2). Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. Setting it drops the default type exclusions and makes `exclude_type` ignored, there and here alike.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2). Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. Setting it drops the default type exclusions and makes `exclude_type` ignored, there and here alike."
           },
           "description": "A Bead Type reference (§2). Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. Setting it drops the default type exclusions and makes `exclude_type` ignored, there and here alike."
         },
@@ -995,8 +995,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -1244,8 +1244,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -1376,8 +1376,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -1434,8 +1434,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -1741,8 +1741,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -1796,8 +1796,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -2039,8 +2039,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2). Issue type. Shorthand aliases are expanded exactly as `bd list --type` expands them (`mr`, `feat`, `mol`, `enhancement`, `dec`, `adr`); there is no plural folding. Unlike on `ready`, an unknown type is a 400 `invalid_argument` with `reason: \"invalid_value\"`, because `bd list` validates the type against the workspace's configured vocabulary and this operation keeps that behavior.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2). Issue type. Shorthand aliases are expanded exactly as `bd list --type` expands them (`mr`, `feat`, `mol`, `enhancement`, `dec`, `adr`); there is no plural folding. Unlike on `ready`, an unknown type is a 400 `invalid_argument` with `reason: \"invalid_value\"`, because `bd list` validates the type against the workspace's configured vocabulary and this operation keeps that behavior."
           },
           "description": "A Bead Type reference (§2). Issue type. Shorthand aliases are expanded exactly as `bd list --type` expands them (`mr`, `feat`, `mol`, `enhancement`, `dec`, `adr`); there is no plural folding. Unlike on `ready`, an unknown type is a 400 `invalid_argument` with `reason: \"invalid_value\"`, because `bd list` validates the type against the workspace's configured vocabulary and this operation keeps that behavior."
         },
@@ -2607,8 +2607,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -2662,8 +2662,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -3031,8 +3031,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -3086,8 +3086,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -3334,8 +3334,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2). One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which expands aliases.\n\nIt has a SECOND effect under `include_infra`: a type this workspace calls infra routes the count to the ephemeral tier, unless `include_ephemeral` is also set. See that parameter.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2). One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which expands aliases.\n\nIt has a SECOND effect under `include_infra`: a type this workspace calls infra routes the count to the ephemeral tier, unless `include_ephemeral` is also set. See that parameter."
           },
           "description": "A Bead Type reference (§2). One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which expands aliases.\n\nIt has a SECOND effect under `include_infra`: a type this workspace calls infra routes the count to the ephemeral tier, unless `include_ephemeral` is also set. See that parameter."
         },
@@ -3734,8 +3734,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2).",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2)."
           },
           "is_blocked": {
             "type": "boolean"
@@ -4036,8 +4036,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -4091,8 +4091,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -4390,8 +4390,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -4445,8 +4445,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -4719,8 +4719,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -4964,8 +4964,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -5060,8 +5060,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -5573,8 +5573,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -5799,8 +5799,8 @@
             "format": "uri",
             "pattern": "^https?://.+",
             "default": "https://github.com/gastownhall/bdp/types/issue/task",
-            "description": "Omitted, this Callable uses `\"https://github.com/gastownhall/bdp/types/issue/task\"`. A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "Omitted, this Callable uses `\"https://github.com/gastownhall/bdp/types/issue/task\"`. A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`."
           },
           "default": "https://github.com/gastownhall/bdp/types/issue/task",
           "description": "Omitted, this Callable uses `\"https://github.com/gastownhall/bdp/types/issue/task\"`. A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`."
@@ -5971,8 +5971,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes."
                   },
                   "reverse": {
                     "type": "boolean",
@@ -6107,8 +6107,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
           },
           "is_blocked": {
             "type": "boolean",
@@ -6348,8 +6348,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -6401,8 +6401,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -6717,8 +6717,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400` — this server cannot read the vocabulary without a transaction, so it checks only what this schema declares.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400` — this server cannot read the vocabulary without a transaction, so it checks only what this schema declares."
                   },
                   "status": {
                     "type": "string",
@@ -6956,8 +6956,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -7014,8 +7014,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -7242,8 +7242,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -7660,8 +7660,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -7718,8 +7718,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -7937,8 +7937,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -8220,8 +8220,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -8278,8 +8278,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -8497,8 +8497,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -8755,8 +8755,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -9078,8 +9078,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -9136,8 +9136,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -9355,8 +9355,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -9657,8 +9657,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -9715,8 +9715,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -10017,8 +10017,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -10075,8 +10075,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -10981,8 +10981,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries. It is spelled `type` because that is the member an edge carries everywhere else on this surface.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries. It is spelled `type` because that is the member an edge carries everywhere else on this surface."
                   }
                 },
                 "required": ["target_id", "type"]
@@ -11015,8 +11015,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types — an unknown one is a `400`.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types — an unknown one is a `400`."
                   },
                   "assignee": {
                     "type": "string",
@@ -11114,8 +11114,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -11172,8 +11172,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -11447,8 +11447,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`."
                   },
                   "status": {
                     "type": "string",
@@ -11562,8 +11562,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes."
                   },
                   "metadata": {
                     "$ref": "#/$defs/MetadataValue"
@@ -11702,8 +11702,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`."
                   },
                   "status": {
                     "type": "string",
@@ -11949,8 +11949,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -12217,8 +12217,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
@@ -12326,8 +12326,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -12384,8 +12384,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary."
               },
               "is_blocked": {
                 "type": "boolean",
@@ -12601,8 +12601,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\n\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\n\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\n\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\n\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above."
           },
           "description": "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\n\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\n\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above."
         },
@@ -12800,8 +12800,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). Edge type. Not a closed vocabulary."
               },
               "created_at": {
                 "type": "string",
@@ -12855,8 +12855,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Bead Type reference (§2).",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Bead Type reference (§2)."
               },
               "is_blocked": {
                 "type": "boolean"
@@ -13128,8 +13128,8 @@
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
-                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for being a storable value, never for membership of a known-types list, so a workspace's own type passes.",
-                    "x-bdp-type-reference": true
+                    "x-bdp-type-reference": true,
+                    "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for being a storable value, never for membership of a known-types list, so a workspace's own type passes."
                   }
                 },
                 "required": ["issue_id", "depends_on_id", "type"]
@@ -13164,8 +13164,8 @@
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
-            "description": "A Link Type reference (§2). The edge's Link Type. Flat form only; omitted, it is `https://github.com/gastownhall/bdp/types/dependency/blocks`.",
-            "x-bdp-type-reference": true
+            "x-bdp-type-reference": true,
+            "description": "A Link Type reference (§2). The edge's Link Type. Flat form only; omitted, it is `https://github.com/gastownhall/bdp/types/dependency/blocks`."
           },
           "description": "A Link Type reference (§2). The edge's Link Type. Flat form only; omitted, it is `https://github.com/gastownhall/bdp/types/dependency/blocks`."
         }
@@ -13204,8 +13204,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for being a storable value, never for membership of a known-types list, so a workspace's own type passes.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for being a storable value, never for membership of a known-types list, so a workspace's own type passes."
               }
             },
             "required": ["issue_id", "depends_on_id", "type"]
@@ -13243,8 +13243,8 @@
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
-                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker.",
-                "x-bdp-type-reference": true
+                "x-bdp-type-reference": true,
+                "description": "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker."
               }
             },
             "required": ["id", "kind"]
