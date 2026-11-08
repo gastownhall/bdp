@@ -76,7 +76,17 @@ TYPE_NOTE = {BEAD: "A Bead Type reference (§2).", LINK: "A Link Type reference 
 def type_schema(kind, schema):
     """A member or parameter the Types rule reaches: a Type reference, or an array of them."""
     note = TYPE_NOTE[kind] + (" " + schema["description"] if schema.get("description") else "")
-    reference = {"type": "string", "format": "uri", "pattern": "^https?://.+"}
+    # `x-bdp-type-reference` marks an argument the Types rule reaches, so the reference client
+    # resolves a short Type name (`issue/task`) against BDP's Types then the Scope's `types/`
+    # before sending, as canonical `create`/`update` already do. Interim: the sprint-1 target is
+    # a dedicated `format` token (`bdp-type-reference`); the server ignores this keyword and
+    # enforces the full URL by its own rule.
+    reference = {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": True,
+    }
     if schema.get("type") == "array":
         return {"type": "array", "items": reference, "description": note}
     if schema.get("type") != "string":

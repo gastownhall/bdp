@@ -40,6 +40,7 @@ import {
   parseCallArguments,
   parseCallableArguments,
   renderCallableHelp,
+  resolveCallableTypeReferences,
 } from "./canonical-call.js";
 import type { CanonicalInvocation } from "./canonical-command.js";
 import {
@@ -576,6 +577,10 @@ export async function runCanonicalInvocation(
       callableArguments = await completeCallableArguments(parsedCall, (path) =>
         path === "-" ? reader.readStdin(MAX_INPUT_BYTES) : reader.readFile(path, MAX_INPUT_BYTES),
       );
+    // A short Type name in a Callable argument resolves against the bound Scope, like canonical
+    // `--type`; an absolute URL is left as given (see `resolveCallableTypeReferences`).
+    if (callable !== undefined)
+      callableArguments = resolveCallableTypeReferences(callable, callableArguments, scope);
     const dryRun = stringOption(options, "dryRunMode");
     if (dryRun !== undefined && !mutation)
       return refuse("invalid_arguments", 2, "emission requires a mutation");

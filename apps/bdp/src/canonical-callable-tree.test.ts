@@ -735,7 +735,7 @@ describe("the induced tree", () => {
             "a",
             "b",
             "-t",
-            "tracks",
+            "dependency/tracks",
             "--actor",
             "sam",
           ]),
@@ -745,7 +745,15 @@ describe("the induced tree", () => {
           ["issue/create", { arguments: { title: "Fix login", priority: 1 }, revisionProvenance }],
           [
             "issue/dep/add",
-            { arguments: { source: "a", target: "b", type: "tracks" }, revisionProvenance },
+            {
+              arguments: {
+                source: "a",
+                target: "b",
+                // A short Link Type name resolves on the call path, like canonical `--type`.
+                type: "https://github.com/gastownhall/bdp/types/dependency/tracks",
+              },
+              revisionProvenance,
+            },
           ],
         ]);
       },

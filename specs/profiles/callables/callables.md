@@ -177,6 +177,17 @@ is its own root and shared parts sit in its own `$defs`, and a `$ref` naming
 another document is invalid. Authoring tools may keep shared schemas and copy
 them in when they generate a declaration. (**preview**)
 
+**Type-reference arguments.** A valueSchema marked `x-bdp-type-reference: true`,
+or an array whose items are so marked, declares a Bead or Link Type reference
+(Types §2). On the command form the client resolves a short Type name the way
+canonical `create`/`update` resolve `--type` — against BDP's published Types,
+then the bound Scope's `types/` — while an absolute URL is sent unchanged, and
+the Scope judges the result. The server does not depend on the keyword: it
+requires a full, Core-spelled Type reference by its own rule, so a resolved short
+name and a literal URL reach it identically. *(preview; the sprint-1 target is a
+dedicated `format` token, `bdp-type-reference`, in place of this interim extension
+keyword.)*
+
 **cliMapping** — additions to the CLI form derived from parameters (§10). It
 chooses no command route and grants nothing.
 

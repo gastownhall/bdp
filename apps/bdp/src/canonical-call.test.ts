@@ -18,6 +18,7 @@ import {
   parameterFlag,
   parseCallableArguments,
   renderCallableHelp,
+  resolveCallableTypeReferences,
 } from "./canonical-call.js";
 import { createCanonicalCommand } from "./canonical-command.js";
 import { runBdp } from "./main.js";
@@ -814,5 +815,50 @@ describe("bdp call against a stub server", () => {
 
   it("does not exist under the compat profile", async () => {
     await expect(bdp(["--cli-profile", "compat", "call", "issue/stats"])).resolves.toBe(2);
+  });
+});
+
+describe("resolveCallableTypeReferences", () => {
+  const scope = "https://example.test/s/";
+  const TASK = "https://github.com/gastownhall/bdp/types/issue/task";
+  const typed: CallableDeclaration = {
+    name: "typed",
+    type: CALLABLE_BATCH_TYPE,
+    description: "Type-reference arguments the Types rule reaches.",
+    parameters: [
+      {
+        name: "type",
+        schema: { type: "string", format: "uri", pattern: "^https?://.+", "x-bdp-type-reference": true },
+      },
+      {
+        name: "types",
+        schema: {
+          type: "array",
+          items: { type: "string", format: "uri", pattern: "^https?://.+", "x-bdp-type-reference": true },
+        },
+      },
+      // A URI that is NOT a Type reference (no marker): left exactly as given.
+      { name: "endpoint", schema: { type: "string", format: "uri", pattern: "^https?://.+" } },
+      { name: "title", schema: { type: "string" } },
+    ],
+  };
+
+  it("resolves a short Type name on a marked parameter, by BDP's Types then the Scope's types/", () => {
+    expect(resolveCallableTypeReferences(typed, { type: "issue/task" }, scope)).toEqual({ type: TASK });
+    expect(resolveCallableTypeReferences(typed, { type: "issue/research" }, scope)).toEqual({
+      type: `${scope}types/issue/research`,
+    });
+  });
+
+  it("leaves an absolute Type URL literal, and maps an array elementwise", () => {
+    expect(resolveCallableTypeReferences(typed, { type: TASK }, scope)).toEqual({ type: TASK });
+    expect(resolveCallableTypeReferences(typed, { types: ["issue/task", TASK] }, scope)).toEqual({
+      types: [TASK, TASK],
+    });
+  });
+
+  it("does not touch a URI argument that is not a marked Type reference, or other arguments", () => {
+    const args = { endpoint: "issue/task", title: "issue/task" };
+    expect(resolveCallableTypeReferences(typed, args, scope)).toEqual(args);
   });
 });
