@@ -382,9 +382,13 @@ An endpoint constraint is exactly one of:
 | Opaque Resource | Exactly `resourceKind:"resource"` | The opaque external-resource form; no `types` or `scope` member and no new permission for local Link endpoints. |
 
 An endpoint pair is a closed object containing exactly `source` and `target`,
-each one endpoint constraint. Both endpoints must satisfy the **same** alternative.
-Scope eligibility and accepted Type facts are separate checks; URI shape alone
-establishes neither kind nor Type. Section5.1 defines the narrow checked exact
+each one endpoint constraint. `source` and `target` are chosen independently and
+need not be the same alternative: a pair may constrain a typed-bead endpoint
+against an opaque-resource one, as when a Bead Links to an external resource. (The
+Refines bootstrap's `BeadType → BeadType | LinkType → LinkType` category rule, §6,
+is a separate constraint on that intrinsic, not a general bead/resource homogeneity
+requirement.) Scope eligibility and accepted Type facts are separate checks; URI
+shape alone establishes neither kind nor Type. Section5.1 defines the narrow checked exact
 foreign-definition path and ordinary external opacity.
 
 #### Link constraints
