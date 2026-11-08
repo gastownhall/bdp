@@ -49,6 +49,7 @@ import {
   lowerRevisionProvenance,
   parseCanonicalReference,
   parseCanonicalReferenceSelection,
+  parseCanonicalTypeReference,
   parseHistoricalSourceSelector,
 } from "./canonical-input.js";
 import {
@@ -60,8 +61,8 @@ import {
 import {
   type CanonicalOutput,
   httpContext,
-  renderCallableFailure,
   renderCanonicalOutput,
+  renderHumanFailure,
 } from "./canonical-output.js";
 import {
   CanonicalProjectionError,
@@ -286,6 +287,62 @@ function credentialBoundary(config: CanonicalCliConfig, scope: string | null): s
     .digest("hex");
 }
 
+/** `bdp connect URL` reads the Scope's discovery before anything is stored, as `bd connect`
+ * checks its server first. The configured credential goes only to its own Scope. */
+export async function verifyConnectScope(
+  scope: string,
+  config: CanonicalCliConfig,
+  signal?: AbortSignal,
+): Promise<
+  | { readonly ok: true; readonly bdpVersion: string; readonly profile: string }
+  | { readonly ok: false; readonly message: string; readonly status: number }
+> {
+  const origin = new URL(scope).origin;
+  const credentialScope = config.scope?.url;
+  const transportOptions = {
+    limits: {
+      requestBodyBytes: MAX_INPUT_BYTES,
+      responseBodyBytes: MAX_BYTES,
+      responseTimeoutMs: 30_000,
+      cleanupTimeoutMs: 1_000,
+    },
+    allowTarget: (target: string) => new URL(target).origin === origin,
+    credentialForTarget: (target: string) =>
+      credentialScope !== undefined && target.startsWith(credentialScope)
+        ? config.auth.token
+        : undefined,
+  };
+  const client = new RetainedClient({
+    transport: createRetainedFetchTransport(transportOptions),
+    historicalUpdateTransport: createHistoricalUpdateFetchTransport(transportOptions),
+    maximumDocumentBytes: MAX_BYTES,
+    maximumRequestBodyBytes: MAX_INPUT_BYTES,
+    operationTimeoutMs: 60_000,
+  });
+  try {
+    const reply = await client.inspectScope(scope, signal === undefined ? {} : { signal });
+    if (reply.kind === "success")
+      return { ok: true, bdpVersion: reply.value.bdpVersion, profile: reply.value.profile };
+    if (reply.kind === "problem")
+      return {
+        ok: false,
+        status: 1,
+        message: `BDP discovery of ${scope} failed: ${String(reply.problem.code ?? "")}${
+          typeof reply.problem.detail === "string" ? `: ${reply.problem.detail}` : ""
+        }`,
+      };
+    return {
+      ok: false,
+      status: 1,
+      message: `BDP discovery of ${scope} failed: ${answered(reply.http)} with no Problem body`,
+    };
+  } catch (error) {
+    if (error instanceof RetainedClientError || error instanceof RetainedTransportError)
+      return { ok: false, status: 1, message: callFailure(error, "discovery", scope) };
+    throw error;
+  }
+}
+
 export async function runCanonicalInvocation(
   invocation: CanonicalInvocation,
   config: CanonicalCliConfig,
@@ -339,18 +396,52 @@ export async function runCanonicalInvocation(
   const outputMode = options.outputMode;
   const format = options.outputFormat ?? (outputMode === "json" ? "json" : "default");
   const displayOptions = { ...options, outputFormat: format };
+  // Without --response-context, JSON is the data alone, as `bd --json` prints it (row 4).
+  const raw = options.responseContext !== true;
   const output = async (value: CanonicalOutput): Promise<void> => {
     const rendered = renderCanonicalOutput(value, displayOptions, scope);
     await io.stdout(rendered, value.outcome === "success" ? io.signal : failureSignal());
-    const raw = Array.isArray(options.omit) && options.omit.includes("envelope");
     const structured = format === "json" || format === "jsonl";
-    if (value.outcome !== "success" && isCall && !structured)
-      await io.stderr(renderCallableFailure(value), failureSignal());
-    else if (value.outcome !== "success" && (raw || !structured))
+    if (value.outcome !== "success" && !structured)
+      await io.stderr(renderHumanFailure(value), failureSignal());
+    else if (value.outcome !== "success" && raw)
       await io.stderr(
-        `${JSON.stringify({ error: value.error, ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }) })}\n`,
+        `${JSON.stringify({
+          error: value.error,
+          ...(value.context?.recovery === undefined ? {} : { recovery: value.context.recovery }),
+          ...(value.context?.scope === undefined ? {} : { scope: value.context.scope }),
+        })}\n`,
         failureSignal(),
       );
+  };
+  // Where the Scope in use came from, so that a failure involving it can say (row 3).
+  // Set once a Scope is bound, so that a usage error before then names none.
+  let scopeSource: string | undefined;
+  // The selected Scope's discovery `bdpVersion` and `specRevision`, read once, and only for
+  // --response-context.
+  let triple: { bdpVersion: string | null; specRevision: string | null } | undefined;
+  const contextTriple = async (
+    client: RetainedClient,
+  ): Promise<{ bdpVersion: string | null; specRevision: string | null }> => {
+    if (triple !== undefined) return triple;
+    // A retry replays its frozen request and never rediscovers, so it has no triple to give.
+    if (stringOption(options, "retryFile") !== undefined) {
+      triple = { bdpVersion: null, specRevision: null };
+      return triple;
+    }
+    const reply = await client.inspectScope(scope, call).catch(() => undefined);
+    triple =
+      reply?.kind === "success"
+        ? { bdpVersion: reply.value.bdpVersion, specRevision: reply.value.specRevision }
+        : { bdpVersion: null, specRevision: null };
+    return triple;
+  };
+  const withTriple = (
+    value: CanonicalOutput,
+    found: { bdpVersion: string | null; specRevision: string | null },
+  ): CanonicalOutput => {
+    const { schema_version, bdp_spec, ...rest } = value;
+    return { schema_version, bdp_spec, ...found, ...rest };
   };
   try {
     if (outputMode !== undefined && outputMode !== "human" && outputMode !== "json")
@@ -365,6 +456,12 @@ export async function runCanonicalInvocation(
       (outputMode === "json" && format !== "json" && format !== "jsonl")
     )
       return refuse("invalid_arguments", 2, "output mode conflicts with output format");
+    if (Array.isArray(options.omit) && options.omit.includes("envelope"))
+      return refuse(
+        "invalid_arguments",
+        2,
+        "--omit envelope is retired: --output-mode json now prints the data alone; add --response-context for the envelope",
+      );
     let callableArguments: Readonly<Record<string, AdmittedJsonValue>> = {};
     let parsedCall: Extract<ParsedCallableArguments, { help: false }> | undefined;
     if (isCall) {
@@ -422,6 +519,14 @@ export async function runCanonicalInvocation(
     if (scopePositional !== undefined && selectedScope !== undefined)
       return refuse("scope_binding_conflict", 2, "positional Scope conflicts with --scope");
     scope = parseCanonicalScope(scopePositional ?? selectedScope ?? scope);
+    scopeSource =
+      scopePositional !== undefined
+        ? "the positional Scope"
+        : selectedScope !== undefined
+          ? "--scope"
+          : config.scope === undefined
+            ? undefined
+            : (config.scope.source ?? "configuration");
     const retry = stringOption(options, "retryFile");
     if (retry !== undefined) {
       const allowed = new Set([
@@ -430,6 +535,7 @@ export async function runCanonicalInvocation(
         "cliProfile",
         "outputFormat",
         "outputMode",
+        "responseContext",
         "long",
       ]);
       if (
@@ -461,7 +567,7 @@ export async function runCanonicalInvocation(
       return refuse(
         "missing_target_scope",
         2,
-        "supply a Scope or configure scope.url / BDP_SCOPE_URL",
+        "no Scope is selected: connect one with bdp connect URL, or pass --scope or set BDP_SCOPE_URL",
       );
     const historicalSource = stringOption(options, "fromRevision");
     if (historicalSource !== undefined) parseHistoricalSourceSelector(historicalSource);
@@ -504,6 +610,7 @@ export async function runCanonicalInvocation(
       )
         return refuse("retry_state_invalid", 2, "invalid or incompatible frozen invocation");
       scope = parseCanonicalScope(saved.prepared.scope);
+      scopeSource = "the retry file";
       if (saved.credentialScope !== null && parseCanonicalScope(saved.credentialScope) !== scope)
         return refuse(
           "retry_state_invalid",
@@ -608,6 +715,7 @@ export async function runCanonicalInvocation(
             followAlias: true,
           }),
         );
+        if (read.scope !== scope) scopeSource = "the Resource's URL";
         scope = read.scope;
       }
     }
@@ -615,18 +723,15 @@ export async function runCanonicalInvocation(
       const reply = await client.inspectScope(scope, call);
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
-      const inspection = {
-        ...data,
-        beads: new URL("bdp/beads", scope).href,
-        links: new URL("bdp/links", scope).href,
-      };
+      // The server's document as it sent it: nothing of the client's is added (row 5).
+      triple = { bdpVersion: data.bdpVersion, specRevision: data.specRevision };
       known = {
         schema_version: 2,
         bdp_spec: specification,
         result_kind: "scope",
         outcome: "success",
         context: httpContext(reply.http, scope),
-        data: inspection,
+        data,
       };
     } else if (isCall && callable !== undefined) {
       const actor = stringOption(options, "actor");
@@ -733,10 +838,13 @@ export async function runCanonicalInvocation(
         if (raw !== undefined) {
           if (flag === "exactType" && raw === "any")
             return refuse("invalid_value", 2, "--exact-type any is not admitted");
-          const ref = parseCanonicalReference(raw, scope, {
-            mutationSubject: true,
-            allowOpaqueUri: flag !== "exactType" && flag !== "type",
-          });
+          const ref =
+            flag === "exactType" || flag === "type"
+              ? parseCanonicalTypeReference(raw, scope, { mutationSubject: true })
+              : parseCanonicalReference(raw, scope, {
+                  mutationSubject: true,
+                  allowOpaqueUri: true,
+                });
           filters[field] = referenceUri(ref);
         }
       }
@@ -826,13 +934,10 @@ export async function runCanonicalInvocation(
           return refuse("invalid_value", 1, "provider exceeded the requested page budget");
         if (format === "jsonl") {
           if (stream === undefined) {
-            stream = {
-              raw: Array.isArray(options.omit) && options.omit.includes("envelope"),
-              returned: 0,
-            };
+            stream = { raw, returned: 0 };
             if (!stream.raw)
               await io.stdout(
-                `${JSON.stringify({ record_type: "header", schema_version: 2, bdp_spec: specification, result_kind: "resource_collection", context: httpContext(latest.http, subject ?? scope, kind) })}\n`,
+                `${JSON.stringify({ record_type: "header", schema_version: 2, bdp_spec: specification, ...(await contextTriple(client)), result_kind: "resource_collection", context: httpContext(latest.http, subject ?? scope, kind) })}\n`,
                 io.signal,
               );
           }
@@ -1016,6 +1121,7 @@ export async function runCanonicalInvocation(
       });
       const data = consume(reply);
       if (reply.kind !== "success") throw reply;
+      if (data.scope !== scope) scopeSource = "the Resource's URL";
       scope = data.scope;
       descriptor = options.propertiesOnly ? "properties" : "resource";
       const body =
@@ -1035,12 +1141,26 @@ export async function runCanonicalInvocation(
         data: body,
       };
     } else {
-      if (leaf === "batch")
+      if (leaf === "batch") {
+        // Say which of the two is missing: the Scope's advertisement, or this client (row 25).
+        const discovery = consume(await client.inspectScope(scope, call));
+        const capabilities = discovery.capabilities;
+        const advertised =
+          typeof capabilities === "object" &&
+          capabilities !== null &&
+          !Array.isArray(capabilities) &&
+          Object.hasOwn(
+            capabilities,
+            "https://github.com/gastownhall/bdp/capabilities/atomic-batch",
+          );
         return refuse(
           "unsupported_capability",
           5,
-          "atomic batch is not yet received by this client",
+          advertised
+            ? `${scope} advertises atomic batches, but this client does not send them yet; nothing was sent`
+            : `${scope} does not advertise atomic batches (atomic-batch1); nothing was sent`,
         );
+      }
       let prepared: PreparedRetainedWrite;
       if (retry !== undefined) {
         const saved = savedJournal ?? refuse("retry_state_invalid", 2, "missing frozen invocation");
@@ -1112,6 +1232,8 @@ export async function runCanonicalInvocation(
         data,
       };
     }
+    if (known && options.responseContext === true)
+      known = withTriple(known, await contextTriple(client));
     if (known) await output(known);
     return 0;
   } catch (error) {
@@ -1211,11 +1333,13 @@ export async function runCanonicalInvocation(
     const failure: CanonicalOutput = {
       schema_version: 2,
       bdp_spec: specification,
+      ...(options.responseContext === true && triple !== undefined ? triple : {}),
       result_kind: descriptor,
       outcome: unknown ? "unknown" : "failure",
       ...(known?.data === undefined ? {} : { data: known.data }),
       context: {
         ...(known === undefined ? {} : { operation_outcome: known.outcome }),
+        ...(scopeSource === undefined ? {} : { scope: { url: scope, source: scopeSource } }),
         ...(unknown && callableKey !== undefined ? { idempotency_key: callableKey } : {}),
         ...(isCall && submitted && !unknown && nativeProblem !== undefined
           ? { effects: callable?.atomic === true ? "none" : "not-established" }

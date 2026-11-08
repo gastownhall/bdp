@@ -39,13 +39,24 @@ it("bounds a blocked failure terminal after interruption between complete pages"
     interruption.abort();
     throw interruption.signal.reason;
   });
+  // --response-context reads the Scope's discovery once, for bdpVersion and specRevision.
+  const inspect = vi.spyOn(RetainedClient.prototype, "inspectScope").mockResolvedValue({
+    kind: "success",
+    http: { status: 200, url: `${scope}bdp`, headers: {}, contentType: null, retryAfter: null },
+    value: {
+      bdpVersion: "0.1",
+      profile: "core",
+      scope,
+      specRevision: "0123456789abcdef0123456789abcdef01234567",
+    },
+  } as Awaited<ReturnType<RetainedClient["inspectScope"]>>);
   const diagnostics: string[] = [];
   const running = runCanonicalInvocation(
     {
       command: ["list"],
       positionals: [],
-      options: { outputFormat: "jsonl" },
-      explicitOptions: ["outputFormat"],
+      options: { outputFormat: "jsonl", responseContext: true },
+      explicitOptions: ["outputFormat", "responseContext"],
     },
     { scope: { url: scope }, auth: {} },
     {
@@ -69,6 +80,11 @@ it("bounds a blocked failure terminal after interruption between complete pages"
     ]);
     expect(status).toBe(130);
     expect(records.map((record) => record.record_type)).toEqual(["header", "item", "terminal"]);
+    expect(records[0]).toMatchObject({
+      bdp_spec: RETAINED_V01_SPECIFICATION,
+      bdpVersion: "0.1",
+      specRevision: "0123456789abcdef0123456789abcdef01234567",
+    });
     expect(sink.destroyed).toBe(true);
     const diagnostic = JSON.parse(diagnostics.join(""));
     expect(diagnostic.outcome).toBe("failure");
@@ -82,6 +98,7 @@ it("bounds a blocked failure terminal after interruption between complete pages"
     sink.destroy();
     list.mockRestore();
     fetch.mockRestore();
+    inspect.mockRestore();
   }
 }, 3000);
 
@@ -103,8 +120,8 @@ it.each([
           {
             command: ["update"],
             positionals: ["https://wire.example/work/note"],
-            options: { fromRevision: source, outputFormat: "json" },
-            explicitOptions: ["fromRevision", "outputFormat"],
+            options: { fromRevision: source, outputFormat: "json", responseContext: true },
+            explicitOptions: ["fromRevision", "outputFormat", "responseContext"],
           },
           { auth: {} },
           {
@@ -186,7 +203,7 @@ it.each([true, false])(
         },
       );
       expect(status).toBe(advertised ? 0 : 5);
-      const value = JSON.parse(advertised ? stdout : stderr);
+      const value = advertised ? JSON.parse(stdout) : undefined;
       if (advertised)
         expect(value).toMatchObject({
           method: "POST",
@@ -201,7 +218,7 @@ it.each([true, false])(
             expectedRevision: "current + /@=",
           },
         });
-      else expect(value.error.problem.code).toBe("unsupported_capability");
+      else expect(stderr).toMatch(/^error: unsupported_capability: historical-update1/);
       expect(submit).not.toHaveBeenCalled();
     } finally {
       bind.mockRestore();
@@ -428,8 +445,8 @@ it("uses output-mode json for machine-readable failures without output-format", 
     {
       command: ["show"],
       positionals: ["note@9223372036854775808"],
-      options: { outputMode: "json" },
-      explicitOptions: ["outputMode"],
+      options: { outputMode: "json", responseContext: true },
+      explicitOptions: ["outputMode", "responseContext"],
     },
     { scope: { url: "https://wire.example/work/" }, auth: {} },
     {
@@ -562,8 +579,8 @@ it.each([
           {
             command: ["link", "list"],
             positionals: [operand],
-            options: { allRevisions, outputFormat: "json" },
-            explicitOptions: ["allRevisions", "outputFormat"],
+            options: { allRevisions, outputFormat: "json", responseContext: true },
+            explicitOptions: ["allRevisions", "outputFormat", "responseContext"],
           },
           { scope: { url: "https://wire.example/work/" }, auth: {} },
           {

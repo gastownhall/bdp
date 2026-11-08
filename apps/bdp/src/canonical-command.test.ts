@@ -1,6 +1,11 @@
 import { type Command, CommanderError } from "commander";
 import { describe, expect, it } from "vitest";
-import { type CanonicalInvocation, createCanonicalCommand } from "./canonical-command.js";
+import {
+  type CanonicalInvocation,
+  createCanonicalCommand,
+  nearestCommand,
+  UnknownCommandError,
+} from "./canonical-command.js";
 
 function fixture(profile: "canonical" | "compat" = "canonical") {
   const invocations: CanonicalInvocation[] = [];
@@ -98,12 +103,28 @@ describe("canonical command registration and generated help", () => {
     async (name) => {
       const result = fixture();
       await expect(result.command.parseAsync([name], { from: "user" })).rejects.toBeInstanceOf(
-        CommanderError,
+        UnknownCommandError,
       );
       expect(result.invocations).toEqual([]);
       expect(result.command.helpInformation()).not.toMatch(new RegExp(`^  ${name}(?: |$)`, "m"));
     },
   );
+
+  it("suggests the nearest command, and only one near enough (row 2)", () => {
+    expect(nearestCommand("inspcet", ["set", "inspect"])).toBe("inspect");
+    expect(nearestCommand("ins", ["set", "inspect"])).toBe("inspect");
+    expect(nearestCommand("lnk", ["show", "link", "list"])).toBe("link");
+    expect(nearestCommand("status", ["set", "inspect"])).toBeUndefined();
+  });
+
+  it("registers connect with --clear and the global --response-context (rows 1 and 4)", async () => {
+    const { invocations } = await parse(["--response-context", "connect", "--clear"]);
+    expect(onlyInvocation(invocations)).toMatchObject({
+      command: ["connect"],
+      positionals: [],
+      options: { clear: true, responseContext: true },
+    });
+  });
 
   it.each([
     ["versions", "note-1"],
@@ -121,7 +142,7 @@ describe("canonical command registration and generated help", () => {
     expect(result.command.commands.map((command) => command.name())).toEqual(["bd"]);
     await expect(
       result.command.parseAsync(["show", "note"], { from: "user" }),
-    ).rejects.toBeInstanceOf(CommanderError);
+    ).rejects.toBeInstanceOf(UnknownCommandError);
     expect(result.invocations).toEqual([]);
   });
 

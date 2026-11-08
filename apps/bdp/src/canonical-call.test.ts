@@ -454,6 +454,7 @@ describe("bdp call against a stub server", () => {
           scope,
           "--output-mode",
           "json",
+          "--response-context",
           "--actor",
           "sam",
           "call",
@@ -650,6 +651,7 @@ describe("bdp call against a stub server", () => {
           scope,
           "--output-mode",
           "json",
+          "--response-context",
           "call",
           "issue/claim",
           "--arguments",
@@ -673,7 +675,7 @@ describe("bdp call against a stub server", () => {
       retry: "after-delay",
     };
     await withScope({ answer: { status: 503, body: problem } }, async (scope) => {
-      const json = ["--scope", scope, "--output-mode", "json", "call"];
+      const json = ["--scope", scope, "--output-mode", "json", "--response-context", "call"];
       await expect(bdp([...json, "issue/ready"])).resolves.toBe(1);
       const query = JSON.parse(stdout);
       expect(query).toMatchObject({ outcome: "failure", error: { origin: "bdp", problem } });
@@ -698,7 +700,7 @@ describe("bdp call against a stub server", () => {
     await withScope(
       { answer: { status: 502, body: "<html>private</html>", contentType: "text/html" } },
       async (scope) => {
-        const json = ["--scope", scope, "--output-mode", "json", "call"];
+        const json = ["--scope", scope, "--output-mode", "json", "--response-context", "call"];
         await expect(bdp([...json, "issue/ready"])).resolves.toBe(1);
         expect(stdout).not.toContain("private");
         expect(JSON.parse(stdout)).toMatchObject({ outcome: "failure", error: { origin: "cli" } });
@@ -797,7 +799,9 @@ describe("bdp call against a stub server", () => {
     await expect(bdp(["call"], testCatalog)).resolves.toBe(0);
     expect(stdout.trim().split("\n")).toEqual(["reserve-room  batch", "shapes        query"]);
     stdout = "";
-    await expect(bdp(["--output-mode", "json", "call"], testCatalog)).resolves.toBe(0);
+    await expect(
+      bdp(["--output-mode", "json", "--response-context", "call"], testCatalog),
+    ).resolves.toBe(0);
     expect(JSON.parse(stdout)).toMatchObject({
       result_kind: "callable_catalog",
       outcome: "success",

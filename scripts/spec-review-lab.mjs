@@ -658,7 +658,8 @@ async function finiteCheck(execute, terminal, restart, root, state, scope) {
   let step = 0;
   const run = async (args, expected = 0) => {
     event("check-step", { number: ++step });
-    const reply = await execute([...args, "--output-format", "json"]);
+    // The journey reads the result envelope, which JSON carries only on request.
+    const reply = await execute([...args, "--output-format", "json", "--response-context"]);
     assert.equal(reply.code, expected, "Unexpected installed CLI exit");
     return reply.stdout
       ? JSON.parse(Buffer.from(reply.stdout, "base64").toString("utf8"))
@@ -676,7 +677,10 @@ async function finiteCheck(execute, terminal, restart, root, state, scope) {
       '{"title":"First","decimal":0.5,"nested":[{"a":1},{"a":2}]}',
     ])
   ).resource;
-  assert.equal((await run(["scope", "inspect"])).data.beads, `${scope}bdp/beads`);
+  // The server's discovery as it was sent: Core's closed discovery has no beads member.
+  const described = await run(["scope", "inspect"]);
+  assert.equal(described.data.scope, scope);
+  assert.equal(described.data.beads, undefined);
   assert.deepEqual((await run(["show", "a"])).data, first);
   assert.deepEqual(
     (await run(["show", "a", "--properties-only", "--include", "/nested/1/a"])).data,

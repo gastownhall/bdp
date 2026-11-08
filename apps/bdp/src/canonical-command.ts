@@ -49,6 +49,72 @@ const repeated = new Set([
 /** The code of the Commander error for two different `--actor` values, so its message survives. */
 export const ACTOR_CONFLICT = "bdp.actorConflict";
 
+/** A word no command at that level takes, or a group given without one (row 2). */
+export class UnknownCommandError extends Error {
+  /** The group's words, without `bdp`. */
+  readonly path: readonly string[];
+  /** The word, when it is shaped like a command word and safe to repeat. */
+  readonly word: string | undefined;
+  /** The nearest command at that level, if one is near enough to suggest. */
+  readonly suggestion: string | undefined;
+  /** The commands at that level. */
+  readonly commands: readonly string[];
+  constructor(
+    path: readonly string[],
+    word: string | undefined,
+    suggestion: string | undefined,
+    commands: readonly string[],
+  ) {
+    const where = ["bdp", ...path].join(" ");
+    super(
+      `unknown command ${word === undefined ? "(not shown, since it may be a value)" : `'${word}'`} for '${where}'; ${
+        suggestion === undefined
+          ? `its commands are ${commands.join(", ")}`
+          : `did you mean '${where} ${suggestion}'?`
+      }; run '${where} --help' for usage`,
+    );
+    this.path = path;
+    this.word = word;
+    this.suggestion = suggestion;
+    this.commands = commands;
+  }
+}
+
+/** A word typed where a command goes is repeated only when it looks like one, since what was
+ * typed may be a mistyped value. */
+export function commandWord(word: string): string | undefined {
+  return /^[a-z][a-z0-9_-]{0,31}$/.test(word) ? word : undefined;
+}
+/** Optimal string alignment distance. */
+function distance(a: string, b: string): number {
+  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 0; j <= b.length; j++) (d[0] as number[])[j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) {
+      const row = d[i] as number[];
+      const above = d[i - 1] as number[];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min((above[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (above[j - 1] ?? 0) + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        row[j] = Math.min(row[j] ?? 0, ((d[i - 2] as number[])[j - 2] ?? 0) + 1);
+    }
+  return (d[a.length] as number[])[b.length] ?? 0;
+}
+/** The nearest of `commands` to `word`: a prefix of one, or within three edits of one and more
+ * alike than not. */
+export function nearestCommand(word: string, commands: readonly string[]): string | undefined {
+  let best: { name: string; score: number } | undefined;
+  for (const name of commands) {
+    const edits = distance(word, name);
+    const prefix = word.length >= 2 && name.startsWith(word);
+    const near = edits <= 3 && (Math.max(word.length, name.length) - edits) / name.length > 0.4;
+    if (!prefix && !near) continue;
+    const score = prefix ? 0 : edits;
+    if (best === undefined || score < best.score) best = { name, score };
+  }
+  return best?.name;
+}
+
 /** `bdp [client options] WORD ...`: the options before the first word and the words from it on,
  * or undefined when there is no word. Used to mount the Callable tree (§10), where everything
  * after the command is the Callable's own. */
@@ -82,7 +148,9 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
 
   function configure(command: Command): Command {
     return command
-      .exitOverride()
+      .exitOverride((failure) => {
+        throw Object.assign(failure, { commandPath: paths.get(command) ?? [] });
+      })
       .allowExcessArguments(false)
       .showSuggestionAfterError(false)
       .configureOutput({ writeOut: output, writeErr: error })
@@ -185,7 +253,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
     if (detail) flag(command, long);
     if (masks) {
       flag(command, ["--include <pointer>", "Include an original-value JSON Pointer; repeatable."]);
-      flag(command, ["--omit <pointer>", "Omit an optional field, or envelope; repeatable."]);
+      flag(command, ["--omit <pointer>", "Omit an optional field; repeatable."]);
     }
   }
 
@@ -245,6 +313,7 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
           "retryFile",
           "outputFormat",
           "outputMode",
+          "responseContext",
           "long",
           "config",
           "cliProfile",
@@ -272,6 +341,25 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
     });
   }
 
+  /** A group given alone prints its help; given a word it does not know, it names the word and
+   * the nearest command (row 2). */
+  function group(command: Command): Command {
+    return command.allowExcessArguments(true).action(() => {
+      const word = command.args[0];
+      if (word === undefined) {
+        command.outputHelp();
+        return;
+      }
+      const names = command.commands.map((child) => child.name());
+      const shown = commandWord(word);
+      throw new UnknownCommandError(
+        paths.get(command) ?? [],
+        shown,
+        shown === undefined ? undefined : nearestCommand(shown, names),
+        names,
+      );
+    });
+  }
   const fail = (command: Command, condition: boolean, message: string) => {
     if (condition) command.error(message);
   };
@@ -284,11 +372,11 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
     "Select the CLI grammar for this invocation.",
     ["canonical", "compat"],
   ]);
-  root.action(() => root.outputHelp());
+  group(root);
 
   // Domain membership is independent of the selected CLI profile. This is the
   // existing command-specific legacy JSON spelling, never a global flag.
-  const bd = add(root, "bd", "Bead-domain commands.", "Domain Commands");
+  const bd = group(add(root, "bd", "Bead-domain commands.", "Domain Commands"));
   const ready = add(
     bd,
     "ready",
@@ -300,12 +388,47 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   if (settings.profile === "compat") return root;
   flag(root, [
     "--output-mode <mode>",
-    "Choose human-friendly output or the structured JSON envelope.",
+    "Choose human-friendly output or JSON data.",
     ["human", "json"],
+  ]);
+  flag(root, [
+    "--response-context",
+    "Wrap JSON output in the result envelope, with the Scope's bdpVersion and specRevision.",
   ]);
   flag(root, scope);
 
-  const scopeGroup = add(root, "scope", "Discover the selected Scope.", "Read Commands");
+  const connect = add(
+    root,
+    "connect",
+    "Store the default Scope, or show the Scope in use and where it came from.",
+    "Setup Commands",
+    ["[url]"],
+  );
+  connect.summary("Store the default Scope, or show the Scope in use and where it came from.");
+  connect.description(
+    [
+      "Store the default Scope, or show the Scope in use and where it came from.",
+      "",
+      "With a URL, bdp reads the Scope's BDP discovery first and stores the URL in the",
+      "client configuration only when that succeeds. Alone, it prints the Scope a command",
+      "would use and its source: --scope, then BDP_SCOPE_URL, then the stored Scope.",
+      "--clear forgets the stored Scope.",
+    ].join("\n"),
+  );
+  flag(connect, ["--clear", "Forget the stored Scope."]);
+  outputFlags(connect, false, false, false);
+  execute(connect, (options, args) => {
+    fail(connect, !!options.clear && !!args[0], "connect --clear takes no URL");
+  });
+
+  const scopeGroup = group(
+    add(
+      root,
+      "scope",
+      "Discover the selected Scope; bdp connect shows which Scope is in use.",
+      "Read Commands",
+    ),
+  );
   const setScope = add(
     scopeGroup,
     "set",
@@ -330,8 +453,8 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       "positional Scope conflicts with --scope",
     ),
   );
-  const link = add(root, "link", "Read and change Links.", "Resource Commands");
-  const alias = add(root, "alias", "Resolve and change Scope aliases.", "Resource Commands");
+  const link = group(add(root, "link", "Read and change Links.", "Resource Commands"));
+  const alias = group(add(root, "alias", "Resolve and change Scope aliases.", "Resource Commands"));
 
   for (const parent of [root, link]) {
     const isLink = parent === link;
@@ -463,6 +586,20 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       );
       if (operation !== "create")
         command.usage(`${isLink ? "<link-id>" : "<bead-id>"} | --retry-file <file>`);
+      if (operation === "create") command.summary(command.description());
+      if (operation === "create")
+        command.description(
+          [
+            command.description(),
+            "",
+            "--type takes a short Type name, such as issue/task (a Type BDP publishes) or",
+            "issue/research (the Scope's own, under its types/), or a full Type URL. The",
+            "Scope and the Type decide which properties are required and what a",
+            "supplied --id must look like; this client knows neither. Supply properties with",
+            "--properties, and omit --id to let the Scope allocate one. A refusal lists what",
+            "the Scope says is missing or wrong.",
+          ].join("\n"),
+        );
       if (operation !== "delete") {
         flag(command, ["--type <type>", "Set the whole Type Reference."]);
         for (const entry of operation === "create" ? objectFlags : editFlags) flag(command, entry);
@@ -531,8 +668,8 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
         if (options.dryRunMode !== undefined)
           fail(
             command,
-            ["outputFormat", "outputMode", "long", "idempotencyKey"].some((name) =>
-              explicit.has(name),
+            ["outputFormat", "outputMode", "responseContext", "long", "idempotencyKey"].some(
+              (name) => explicit.has(name),
             ),
             "emission conflicts with display controls and execution keys",
           );
@@ -596,7 +733,9 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
     fail(
       batch,
       options.dryRunMode !== undefined &&
-        ["outputFormat", "outputMode", "long", "idempotencyKey"].some((name) => explicit.has(name)),
+        ["outputFormat", "outputMode", "responseContext", "long", "idempotencyKey"].some((name) =>
+          explicit.has(name),
+        ),
       "emission conflicts with display controls and execution keys",
     );
   });
@@ -616,6 +755,6 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
   outputFlags(call, false, false, false);
   execute(call, undefined, (selected) => selected.args);
   for (const { name, description } of settings.callableGroups ?? [])
-    add(root, name, description, "Callable Commands");
+    group(add(root, name, description, "Callable Commands"));
   return root;
 }
