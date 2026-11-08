@@ -44,9 +44,72 @@ ADAPTER_FALSE = {"issue/comment": "The caller always names the author and the se
 # v0's members for who is acting. Each is the invocation's revisionProvenance.actor, so no
 # declaration carries one; see the routing rule.
 ACTOR_MEMBERS = {"actor", "author"}
+# The Types rule (section 2), in one place: where a Callable carries a Bead's Type or a
+# dependency's kind, the member is `type` and its value is a Type reference, as Core spells
+# it. These tables say where v0 carries one; everything else keeps v0's name and value.
+BEAD_TYPES = "https://github.com/gastownhall/bdp/types/issue/"
+LINK_TYPES = "https://github.com/gastownhall/bdp/types/dependency/"
+BEAD, LINK = "Bead", "Link"
+TYPE_RENAME = {"issue_type": "type"}
+# v0 query parameters, by operation. Their names already are `type` and `exclude_type`.
+TYPE_PARAMETERS = {
+    **{op: {"type": BEAD, "exclude_type": BEAD}
+       for op in ("listReadyWork", "countReadyWork", "listIssues", "countIssues", "claimNextIssue")},
+    **{op: {"type": LINK} for op in ("listRelatedIssues", "listDependencies", "countDependencyEdges")},
+}
+# v0 component members, by component; a request body's members are its component's.
+TYPE_MEMBERS = {
+    **{name: {"issue_type": BEAD} for name in (
+        "Issue", "BatchGetIssue", "IssueWithCounts", "IssueDetails", "IssueWithDependencyMetadata",
+        "TreeNode", "BlockedIssue", "CreateIssueRequest", "IssuePatchBody", "BatchCreateItem",
+        "ApplyCreateItem", "ApplyPatchBody")},
+    **{name: {"type": LINK} for name in (
+        "Dependency", "DependencyEdge", "CreateIssueDependency", "BatchCreateDependency",
+        "ApplyDepAddItem", "Blocker")},
+}
+# Members v0 declares only as `object`, whose contents the rule reaches all the same.
+TYPE_OPAQUE = {("EventRecord", "issue"): "it is an `Issue`, and §2's rule for `Issue` applies to it.",
+               ("EventRecord", "dep"): "its `kind` is renamed `type`, a Link Type reference (§2)."}
+TYPE_NOTE = {BEAD: "A Bead Type reference (§2).", LINK: "A Link Type reference (§2)."}
+
+
+def type_schema(kind, schema):
+    """A member or parameter the Types rule reaches: a Type reference, or an array of them."""
+    note = TYPE_NOTE[kind] + (" " + schema["description"] if schema.get("description") else "")
+    reference = {"type": "string", "format": "uri", "pattern": "^https?://.+"}
+    if schema.get("type") == "array":
+        return {"type": "array", "items": reference, "description": note}
+    if schema.get("type") != "string":
+        die(f"a {kind} Type member is {schema.get('type')}, not a string")
+    return {**reference, "description": note}
+
+
+def project_component(name, schema):
+    """A translated v0 component under the Types rule."""
+    members = TYPE_MEMBERS.get(name, {})
+    properties = schema.get("properties")
+    if not members and not any(component == name for component, _ in TYPE_OPAQUE):
+        return schema
+    out = {}
+    for member, value in properties.items():
+        if member in members:
+            out[TYPE_RENAME.get(member, member)] = type_schema(members[member], value)
+        elif (name, member) in TYPE_OPAQUE:
+            out[member] = {**value, "description": "Under §2, " + TYPE_OPAQUE[(name, member)] + " " + value.get("description", "")}
+        else:
+            out[member] = value
+    missing = set(members) - set(properties)
+    if missing:
+        die(f"{name}: the Types rule names {sorted(missing)}, which v0 does not declare")
+    renamed = {**schema, "properties": out}
+    if "required" in schema:
+        renamed["required"] = [TYPE_RENAME.get(m, m) if m in members else m for m in schema["required"]]
+    return renamed
+
+
 # Carried text about omitting a parameter that a service default (section 4) makes false.
 DEFAULT_FALSE = {
-    "issue_type": r"SEND ONE\..*?(?:\n\s*\n|$)",
+    "type": r"SEND ONE\..*?(?:\n\s*\n|$)",
     "tier": r"Required, with no default[^.]*\.\s*",
     "older_than_seconds": r"Absent means `0`[^.]*\.\s*",
     "direction": r"An absent or unrecognized value[^.]*\.\s*",
@@ -66,7 +129,7 @@ READY_FLAGS = {"limit": ["-n"], "priority": ["-p"], "assignee": ["-a"], "unassig
 # Left out because native's flag is not this member: metadata (--set-metadata k=v and
 # --unset-metadata edit it) and persistence (--ephemeral, --persistent). waiters has no flag.
 PATCH_MEMBERS = {"title": [], "description": ["-d"], "design": [], "acceptance_criteria": ["--acceptance"],
-                 "notes": [], "append_notes": [], "priority": ["-p"], "issue_type": ["-t", "--type"],
+                 "notes": [], "append_notes": [], "priority": ["-p"], "type": ["-t"],
                  "status": ["-s"], "assignee": ["-a"], "parent_id": ["--parent"], "labels": ["--set-labels"],
                  "add_labels": ["-l", "--add-label"], "remove_labels": ["--remove-label"],
                  "estimated_minutes": ["-e", "--estimate"], "external_ref": [], "due_at": ["--due"],
@@ -88,8 +151,8 @@ CALLABLES = [
     call("listIssues", "issue/list", QUERY,
          flags={"status": ["-s"], "assignee": ["-a"], "type": ["-t"], "label": ["-l"], "limit": ["-n"]},
          defaults={"sort": "priority"}),
-    call("createIssue", "issue/create", BATCH, positionals=["title"], defaults={"issue_type": "task"},
-         flags={"issue_type": ["-t", "--type"], "priority": ["-p"], "status": ["-s"], "assignee": ["-a"],
+    call("createIssue", "issue/create", BATCH, positionals=["title"], defaults={"type": BEAD_TYPES + "task"},
+         flags={"type": ["-t"], "priority": ["-p"], "status": ["-s"], "assignee": ["-a"],
                 "description": ["-d"], "labels": ["-l"], "parent_id": ["--parent"],
                 "acceptance_criteria": ["--acceptance"]},
          from_file={"description": ["--body-file"], "design": ["--design-file"]},
@@ -308,6 +371,9 @@ def first_sentence(text):
 
 
 def display_type(schema):
+    for kind, note in TYPE_NOTE.items():
+        if note in (schema.get("description") or ""):
+            return f"{kind} Type reference" + (" array" if schema.get("type") == "array" else "")
     if "$ref" in schema:
         return "`" + schema["$ref"].rsplit("/", 1)[-1] + "`"
     kind = schema.get("type")
@@ -341,15 +407,19 @@ class Contract:
             text = carry(parameter.get("description", ""))
             if text:
                 schema = {**schema, "description": text}
+            kind = TYPE_PARAMETERS.get(op_id, {}).get(parameter["name"])
+            if kind:
+                schema = type_schema(kind, schema)
             rows.append((parameter["name"], parameter["in"], bool(parameter.get("required")), schema))
         rows.sort(key=lambda row: row[1] != "path")
         body = op.get("requestBody")
         if body:
             schema = body["content"]["application/json"]["schema"]
-            schema = self.schemas[schema["$ref"].rsplit("/", 1)[-1]] if "$ref" in schema else schema
+            component = schema["$ref"].rsplit("/", 1)[-1] if "$ref" in schema else None
+            schema = project_component(component, translate(self.schemas[component])) if component else translate(schema)
             required = schema.get("required", [])
             for name, member in schema.get("properties", {}).items():
-                rows.append((name, "body", name in required, translate(member)))
+                rows.append((name, "body", name in required, member))
         for name, *_ in rows:
             if name in seen:
                 die(f"{op_id}: {name} is in two places")
@@ -394,10 +464,12 @@ def adapt(entry, rows):
     if entry["name"] == "issue/dep/add":
         edge = {"source": ("issue_id", "The edge's source. Flat form only; exactly one of this form and `edges`."),
                 "target": ("depends_on_id", "The edge's target. Flat form only; exactly one of this form and `edges`."),
-                "type": ("type", "The edge type. Flat form only; omitted, it is `blocks`.")}
+                "type": ("type", f"The edge's Link Type. Flat form only; omitted, it is `{LINK_TYPES}blocks`.")}
         adapted = [(n, loc, False if n == "edges" else req, s) for n, loc, req, s in rows]
         for name, (member, text) in edge.items():
             base = {k: v for k, v in EDGE_MEMBERS[member].items() if k != "description"}
+            if name == "type":
+                text = TYPE_NOTE[LINK] + " " + text
             adapted.append((name, "adapter", False, {**base, "description": text}))
         return adapted
     return rows
@@ -406,7 +478,8 @@ def adapt(entry, rows):
 def member_schemas(contract, label, parameter, schema):
     """An object parameter's members, by name, or die: only an object has any."""
     if "$ref" in schema:
-        schema = translate(contract.schemas[schema["$ref"].rsplit("/", 1)[-1]])
+        component = schema["$ref"].rsplit("/", 1)[-1]
+        schema = project_component(component, translate(contract.schemas[component]))
     if schema.get("type") != "object" or not schema.get("properties"):
         die(f"{label}: {parameter} is no object with declared members")
     return schema["properties"]
@@ -543,16 +616,30 @@ def document(contract, expected):
     pending = set(used)
     while pending:
         found = set()
-        references(translate(contract.schemas[pending.pop()]), found)
+        references(translate(contract.schemas[pending.pop()]), found)  # the rule adds no reference
         pending |= found - used
         used |= found
     components = []
     for name, schema in contract.schemas.items():
         if name in used:
-            translated = translate(schema)
+            translated = project_component(name, translate(schema))
             components.append(fragment(name, translated))
             expected[name] = translated
 
+    groups = {}
+    for op, parameters in TYPE_PARAMETERS.items():
+        name = next(f"`{entry['name']}`" for entry in CALLABLES if entry["op"] == op)
+        spelled = ", ".join(f"`{p}`" for p in parameters)
+        groups.setdefault(("Parameters of", spelled, parameters["type"]), []).append(name)
+    for component, members in TYPE_MEMBERS.items():
+        for member, kind in members.items():
+            spelled = f"`{member}`, renamed `{TYPE_RENAME[member]}`" if member in TYPE_RENAME else f"`{member}`"
+            groups.setdefault(("Members of", spelled, kind), []).append(f"`{component}`")
+    rows = [[f"{where} " + ", ".join(names), spelled, kind] for (where, spelled, kind), names in groups.items()]
+    rows.append(["Parameter of `issue/dep/add` (§3)", "`type`", LINK])
+    rows += [[f"`{component}.{member}`", text[0].upper() + text[1:].rstrip("."), LINK if "Link" in text else BEAD]
+             for (component, member), text in TYPE_OPAQUE.items()]
+    type_table = "\n".join("  " + line for line in table(["Where", "v0 member", "Type"], rows).split("\n"))
     names = table(["Name", "Type", "v0 operation", "Route"], [
         [f"`{entry['name']}`", entry["kind"], f"`{entry['op']}`",
          f"`{contract.ops[entry['op']][0]} {contract.ops[entry['op']][1]}`"] for entry in CALLABLES])
@@ -624,13 +711,28 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
 - **Arguments.** A Callable's parameters are its v0 operation's path, query and body
   parameters, flattened into one closed `arguments` object under the Callables
   [OpenAPI rule](../../profiles/callables/callables.md#14-openapi), with v0's names, types
-  and defaults, apart from §3 and §4. Each section's table says where each parameter goes.
+  and defaults, apart from the Types rule below, §3 and §4. Each section's table says where
+  each parameter goes.
 - **Actor.** No declaration has an `actor` parameter. A CallableBatch invocation says who
   is acting in `revisionProvenance.actor`, and the product's router passes its `id` to v0
   (§3). It is caller-asserted data on every Callable, and never authentication.
 - **Results.** A Callable's `resultSchema` is its v0 operation's 200 response schema,
-  verbatim, and `result` is the product's JSON.
-- **Identifiers.** Identifiers and classifications are v0's native forms: `bd-1`, `task`.
+  verbatim but for the Types rule, and `result` is the product's JSON under that rule.
+- **Identifiers.** Identifiers are v0's native forms: `bd-1`.
+- **Types.** Wherever a Callable carries a Bead's Type or a dependency's kind, in its
+  arguments, a patch, a filter, a result or an error, the member is `type` and its value is
+  a Type reference, as Core spells it ([Issue §2](issue.md#2-bead-and-link-types)): a Bead
+  Type such as `{BEAD_TYPES}task`, a Link Type such as
+  `{LINK_TYPES}blocks`, or the Scope-local identity of a configured
+  name. v0's `issue_type` is renamed `type`. `exclude_type` keeps its name, as
+  `exclude_label` and `exclude_status` keep theirs beside `label` and `status`, and takes
+  Bead Type references. An abstract Type, a Type of the
+  other kind, and a reference with no identity in the Scope's table are refused as
+  `validation-failed` and never guessed at; a reference has no aliases and is never split at
+  a comma. A stored name with no identity is not served, as in Core, and the invocation is
+  `temporarily-unavailable`. The rule reaches these members:
+
+{type_table}
 - **Revision tokens.** A Callable's result carries v0's `revision`, the row version. A
   generic Core record carries its own revision, which also moves on a change the row
   version does not ([Issue §7](issue.md#7-revisions-and-attribution)). `expected_version`
@@ -644,7 +746,9 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
   as Callables §2.3 requires.
 - **Carried text.** Descriptions are v0's, and speak in v0's terms: "this surface" is the
   v0 API, "this document" and its document-level rules are `{V0_PATH}` at {V0_COMMIT}, a
-  status is v0's, and an operation path is the v0 route. §5 says how a v0 refusal reaches
+  status is v0's, and an operation path is the v0 route. Where it names `issue_type`, a
+  type's short name, its aliases or a comma-separated list of types, it speaks of v0's
+  spelling of the value the Types rule spells as a reference. §5 says how a v0 refusal reaches
   a Callable's caller.
 
 ## 3. Product adapters
@@ -654,7 +758,7 @@ document is the routing rule above.
 
 | Callable | Adapter |
 | --- | --- |
-| `issue/dep/add` | Accepts flat `source`, `target` and optional `type` beside `edges`, exactly one form per call, and sends v0 one edge built from the flat form. An omitted `type` is `blocks`. Both forms present, or neither, is `validation-failed` |
+| `issue/dep/add` | Accepts flat `source`, `target` and optional `type` beside `edges`, exactly one form per call, and sends v0 one edge built from the flat form. An omitted `type` is `{LINK_TYPES}blocks`. Both forms present, or neither, is `validation-failed` |
 | Every CallableBatch whose v0 operation has `actor` | `revisionProvenance.actor.id` is sent as v0's `actor`. Where v0 requires it, an invocation with no actor is refused as `validation-failed`; `issue/purge`, `issue/prune` and `issue/delete` run without one. On `issue/claim`, `issue/claim-next`, `issue/unclaim`, `issue/heartbeat` and `issue/advance` the value also names the holder or the fence's subject, as v0's `actor` does |
 | `issue/comment` | `revisionProvenance.actor.id` is sent as v0's `author`, and the comment stays signed under `author`. An invocation with no actor is refused as `validation-failed` |
 | `config/set`, `config/unset`, `memory/remember`, `memory/forget` | v0 records no actor on these, so an invocation that supplies one is refused as `validation-failed` rather than dropped |
@@ -681,7 +785,7 @@ A failure that meets the condition of a Core or Write code uses that code, as Ca
 
 Every other code a v0 operation documents is a declared reason of its Callable. It
 answers `callable-error` at HTTP 409, and the `error` member is v0's `Problem` body
-verbatim, whose `code` is the reason. That body keeps its own `status`, `title`,
+verbatim but for §2's Types rule, whose `code` is the reason. That body keeps its own `status`, `title`,
 `request_id` and extension members, so its `status` can differ from the invocation's.
 
 ```json
@@ -734,7 +838,7 @@ def main():
         die(f"input is not the contract at {V0_COMMIT}: sha256 {digest}")
     contract = Contract(doc)
     global EDGE_MEMBERS
-    EDGE_MEMBERS = {name: translate(member) for name, member in contract.schemas["DependencyEdge"]["properties"].items()}
+    EDGE_MEMBERS = project_component("DependencyEdge", translate(contract.schemas["DependencyEdge"]))["properties"]
     declared = {entry["op"] for entry in CALLABLES}
     if declared | NOT_DECLARED != set(contract.ops):
         die(f"the name table and the contract differ: {sorted(declared ^ (set(contract.ops) - NOT_DECLARED))}")

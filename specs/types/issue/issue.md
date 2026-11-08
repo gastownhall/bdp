@@ -80,9 +80,10 @@ claiming or closure; those are operations and ride the Callables profile. It
 states what a record means, what a Link means, and what a provider refuses.
 
 The tracker's Callables route to the product and return its JSON, while generic Core
-and Write serve the same store as Bead records. An identifier is the same on both. A
-Core revision works as a Callable's `expected_version` guard, beside the row version a
-Callable returns ([Callables §2](callables.md#2-the-routing-rule)).
+and Write serve the same store as Bead records. An identifier is the same on both, and so
+is a Type: a Callable carries a Bead's Type or a dependency's kind as `type`, valued with
+§2's identity. A Core revision works as a Callable's `expected_version` guard, beside the
+row version a Callable returns ([Callables §2](callables.md#2-the-routing-rule)).
 
 ## 2. Bead and Link Types
 
@@ -531,7 +532,7 @@ changes for a client that does. Rows marked **open** rest on a question not yet 
 | HD-1 | Routes | 46 operations under `/v0/beads` | Core reads, the Write verbs, and `POST <scope>/bdp/call/<name>`, which `GET <scope>/bdp/call` lists as OpenAPI |
 | HD-2 | Discovery | `GET /v0/beads/context`, with capability tokens | Core discovery with capability advertisements, and the OpenAPI document at `<scope>/bdp/openapi`; `issue/context` keeps the product's answer |
 | HD-3 | Identity | The native identifier, such as `bd-1a2b` | The tracker's Callables keep the product's identifier. Core and Write use the canonical URL, `<scope>bd-1a2b`, and their arguments accept a Scope-relative path or the URL |
-| HD-4 | Classification | Short names, such as `task` and `blocks`, with aliases like `feat` | The tracker's Callables keep the product's short names. Core and Write use absolute Type URIs |
+| HD-4 | Classification | Short names, such as `task` and `blocks`, with aliases like `feat`, under `issue_type` and `type` | Absolute Type URIs, under `type`, in Core, Write and the tracker's Callables alike ([Callables §2](callables.md#2-the-routing-rule)); a URI has no aliases |
 | HD-5 | Revision | A label-only write does not advance the row version | Every committed change mints a revision, label-only writes included (§7); it is opaque and compared for equality only. The sprint keeps the product's behavior, excepted from IT-11 in the sprint's ledger, not by this document |
 | HD-6 | Guards | `expected_version` | The tracker's Callables keep `expected_version`, which also takes a Core revision ([Callables §2](callables.md#2-the-routing-rule)), `expectedRevision` on Write; a stale guard is `revision-mismatch` at 409 and writes nothing |
 | HD-7 | Lease and readiness | Fields of the flat issue struct | The tracker's Callables keep them in the product's JSON. They are outside the Bead record, so a client reading only the record does not see them (§3.4) |
