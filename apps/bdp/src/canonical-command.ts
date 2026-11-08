@@ -64,6 +64,7 @@ export class UnknownCommandError extends Error {
     word: string | undefined,
     suggestion: string | undefined,
     commands: readonly string[],
+    hint?: string,
   ) {
     const where = ["bdp", ...path].join(" ");
     super(
@@ -71,7 +72,7 @@ export class UnknownCommandError extends Error {
         suggestion === undefined
           ? `its commands are ${commands.join(", ")}`
           : `did you mean '${where} ${suggestion}'?`
-      }; run '${where} --help' for usage`,
+      }; run '${where} --help' for usage${hint === undefined ? "" : `. ${hint}`}`,
     );
     this.path = path;
     this.word = word;
@@ -343,22 +344,28 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
 
   /** A group given alone prints its help; given a word it does not know, it names the word and
    * the nearest command (row 2). */
-  function group(command: Command): Command {
-    return command.allowExcessArguments(true).action(() => {
-      const word = command.args[0];
-      if (word === undefined) {
-        command.outputHelp();
-        return;
-      }
-      const names = command.commands.map((child) => child.name());
-      const shown = commandWord(word);
-      throw new UnknownCommandError(
-        paths.get(command) ?? [],
-        shown,
-        shown === undefined ? undefined : nearestCommand(shown, names),
-        names,
-      );
-    });
+  function group(command: Command, hint?: string): Command {
+    // Tolerate unknown options so a stray flag (e.g. `bdp link a b --type x`) does not preempt the
+    // more helpful unknown-command error below with a bare "unsupported argument".
+    return command
+      .allowExcessArguments(true)
+      .allowUnknownOption(true)
+      .action(() => {
+        const word = command.args[0];
+        if (word === undefined) {
+          command.outputHelp();
+          return;
+        }
+        const names = command.commands.map((child) => child.name());
+        const shown = commandWord(word);
+        throw new UnknownCommandError(
+          paths.get(command) ?? [],
+          shown,
+          shown === undefined ? undefined : nearestCommand(shown, names),
+          names,
+          hint,
+        );
+      });
   }
   const fail = (command: Command, condition: boolean, message: string) => {
     if (condition) command.error(message);
@@ -453,7 +460,10 @@ export function createCanonicalCommand(settings: CanonicalCommandOptions): Comma
       "positional Scope conflicts with --scope",
     ),
   );
-  const link = group(add(root, "link", "Read and change Links.", "Resource Commands"));
+  const link = group(
+    add(root, "link", "Read and change Links.", "Resource Commands"),
+    "To create a Link, use `bdp link create SOURCE TARGET --type TYPE`; to add a dependency, use `bdp issue dep add SOURCE TARGET --type TYPE`.",
+  );
   const alias = group(add(root, "alias", "Resolve and change Scope aliases.", "Resource Commands"));
 
   for (const parent of [root, link]) {
