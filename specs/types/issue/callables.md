@@ -164,7 +164,7 @@ route keeps its behavior.
 | Callable | Omitted parameters |
 | --- | --- |
 | `issue/list` | `{"sort": "priority"}` |
-| `issue/create` | `{"type": "https://github.com/gastownhall/bdp/types/issue/task"}` |
+| `issue/create` | `{"type": "task"}` |
 | `issue/dep/list` | `{"direction": "out"}` |
 | `issue/close` | `{"reason": "Closed"}` |
 | `issue/purge` | `{"dry_run": true, "tier": "ephemeral", "protect_referenced": false, "protect_live_dependents": true}` |
@@ -992,7 +992,7 @@ Its `errorSchema` is `issueCreateError`.
 | `design` | text | no | body | — |
 | `acceptance_criteria` | text | no | body | — |
 | `notes` | text | no | body | — |
-| `type` | Bead Type reference | no | body | Omitted, this Callable uses `"https://github.com/gastownhall/bdp/types/issue/task"`. |
+| `type` | Bead Type reference | no | body | Omitted, this Callable uses `"task"`, which the call path resolves to `https://github.com/gastownhall/bdp/types/issue/task`. |
 | `status` | text | no | body | The status the issue is created in, from this workspace's own configured vocabulary. |
 | `priority` | integer | no | body | 0 is P0/critical. |
 | `assignee` | text | no | body | — |
