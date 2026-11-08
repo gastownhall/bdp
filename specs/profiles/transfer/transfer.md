@@ -64,6 +64,10 @@ A package declares its `level` and whether it is `complete`. Levels are cumulati
 
 An all-retained package is `continuity` with `complete:true`.
 
+A [dormant](../write/write.md#endpoint-deletion-policy) Link is not live, so `current`
+omits it. `history` and `continuity` carry it with the deletion that made it dormant,
+so recovering that Bead after import wakes it.
+
 `complete` has Core's meaning. `complete:true` is positive knowledge that everything at the declared level is present; a producer that cannot establish this refuses or declares false. `complete:false` makes no such assertion. Its `description` says why, and its `losses` list each fact known to be absent or degraded and state the boundary of what cannot be known. It discloses no identity the exporter may not reveal: where the exporter's authority is partial, `losses` gives counts only.
 
 ## 3. Proposed portable package grammar

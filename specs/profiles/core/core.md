@@ -408,7 +408,9 @@ paged and do not version anything merely by being read.
 
 A live Link MUST retain at least one live in-Scope Bead endpoint. Deletion is not
 erasure and cannot silently leave dangling unpinned native in-Scope endpoints; Write defines
-explicit Link removal and the atomic deletion admission/rollback contract.
+explicit Link removal, the atomic deletion admission/rollback contract, and the
+[endpoint deletion policy](../write/write.md#endpoint-deletion-policy) under which such a
+Link may instead become dormant: retained, not live, and absent from every read of live state.
 
 Native Scope policies remain valid independently of optional Types. Their admission
 must be consistent with the common identity, endpoint, ownership and authorization
@@ -423,6 +425,14 @@ are not counted or constrained. Absence or an empty array means no such Scope
 policies. This policy requires the applicable conformance interpretation; Core's
 opaque type carrying cannot fabricate it. Administrative configuration is outside
 this contract. Other graph constraints require their own supported semantics.
+
+Discovery MAY advertise `endpointDeletion`, an unordered array of closed objects
+`{linkConformsTo: ABSOLUTE_HTTP_URL, policy: "removed"|"dormant"}`: the Scope's
+native [endpoint deletion policy](../write/write.md#endpoint-deletion-policy) for Links
+whose effective Link Type conforms to the named identity, including conforming children.
+A Link matching entries with different policies takes `removed`. A Link matching none
+takes `block`, today's behavior; absence or an empty array means every Link does. Like
+`maximumEndpointMultiplicity`, this requires the applicable conformance interpretation.
 
 ## Values and revisions
 
@@ -583,7 +593,7 @@ it from the source commit; a pull request or development build may identify its
 committed branch revision, and a build after merge identifies the commit on the
 canonical branch. A dirty change to a canonical source MUST NOT be reported as if
 it were represented by the prior commit. Optional members are `events`, `aliases`,
-`order`, `limits`, `maximumEndpointMultiplicity`, `historicalResolution`, and
+`order`, `limits`, `maximumEndpointMultiplicity`, `endpointDeletion`, `historicalResolution`, and
 `capabilities`.
 Write uses the same Core meaning with `profile:"write"`, required `operations`
 navigation and optional `aliases` navigation. Its operation directory belongs to Write. These discovery
@@ -3310,6 +3320,7 @@ Required order: ["bdpVersion","profile","scope","specRevision"]
 | "aliases" | ref "#/$defs/absoluteHttpUrl" | no | — | "Advertised in-Scope alias-resolution namespace, possibly the Scope itself. A spelling requires an actual alias binding." |
 | "bdpVersion" | ref "#/$defs/bdpVersion" | yes | — | "Exact complete protocol discriminator, not a nearest-version negotiation." |
 | "capabilities" | schema | no | — | "Independently versioned feature advertisements. Support does not select an invocation or grant permission." |
+| "endpointDeletion" | array of (ref "#/$defs/endpointDeletionPolicy") | no | — | "Native endpoint deletion policies; absence means block for every Link." |
 | "events" | ref "#/$defs/absoluteHttpUrl" | no | — | "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support." |
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | "Explicit History support advertisement; omission carries no History obligation." |
 | "limits" | ref "#/$defs/coreAdvertisedLimits" | no | — | "Optional declared operational bounds. Omitted values are not infinite and failures cannot silently truncate data." |
@@ -3489,6 +3500,45 @@ Required order: ["linkConformsTo","endpoint","max"]
 }
 ```
 <!-- bdp-schema:end maximumEndpointMultiplicityPolicy -->
+
+<!-- bdp-schema:start endpointDeletionPolicy -->
+### Schema: "endpointDeletionPolicy"
+
+Value: object
+
+Other fields: not allowed
+
+Required order: ["linkConformsTo","policy"]
+
+#### Keywords
+
+| Keyword | JSON value |
+| --- | --- |
+| description | "Native Scope endpoint deletion policy for a Link family. A Link matching no entry takes block." |
+| type | "object" |
+
+#### Properties
+
+| Name | Type | Required | Defined by | Meaning |
+| --- | --- | --- | --- | --- |
+| "linkConformsTo" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Nominal Link-Type family this native policy applies to." |
+| "policy" | schema | yes | — | "What a deletion that leaves the Link no live in-Scope Bead endpoint does to it." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "policy": {
+      "enum": [
+        "removed",
+        "dormant"
+      ]
+    }
+  }
+}
+```
+<!-- bdp-schema:end endpointDeletionPolicy -->
 
 <!-- bdp-schema:start beadCollection -->
 ### Schema: "beadCollection"
