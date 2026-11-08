@@ -384,7 +384,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -991,7 +991,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -1430,7 +1430,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -1792,7 +1792,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -2658,7 +2658,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -3082,7 +3082,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -3730,7 +3730,7 @@
           "priority": {
             "type": "integer"
           },
-          "type": {
+          "issue_type": {
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
@@ -4087,7 +4087,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -4441,7 +4441,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -4715,7 +4715,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -5793,7 +5793,7 @@
           }
         },
         {
-          "name": "type",
+          "name": "issue_type",
           "schema": {
             "type": "string",
             "format": "uri",
@@ -6103,7 +6103,7 @@
             "type": "integer",
             "description": "0 (most urgent) through 4. Always present; 0 is a real value."
           },
-          "type": {
+          "issue_type": {
             "type": "string",
             "format": "uri",
             "pattern": "^https?://.+",
@@ -6571,8 +6571,8 @@
       "cliMapping": {
         "flags": [
           {
-            "names": ["-t"],
-            "parameter": "type"
+            "names": ["-t", "--type"],
+            "parameter": "issue_type"
           },
           {
             "names": ["-p"],
@@ -6713,7 +6713,7 @@
                     "minimum": 0,
                     "maximum": 4
                   },
-                  "type": {
+                  "issue_type": {
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
@@ -7010,7 +7010,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -7443,8 +7443,8 @@
             "parameter": "patch"
           },
           {
-            "member": "type",
-            "names": ["-t"],
+            "member": "issue_type",
+            "names": ["-t", "--type"],
             "parameter": "patch"
           },
           {
@@ -7714,7 +7714,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -8274,7 +8274,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -9132,7 +9132,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -9711,7 +9711,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -10071,7 +10071,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -11011,7 +11011,7 @@
                     "maximum": 4,
                     "description": "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly."
                   },
-                  "type": {
+                  "issue_type": {
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
@@ -11168,7 +11168,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -11443,7 +11443,7 @@
                   "notes": {
                     "type": "string"
                   },
-                  "type": {
+                  "issue_type": {
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
@@ -11698,7 +11698,7 @@
                     "minimum": 0,
                     "maximum": 4
                   },
-                  "type": {
+                  "issue_type": {
                     "type": "string",
                     "format": "uri",
                     "pattern": "^https?://.+",
@@ -12380,7 +12380,7 @@
                 "type": "integer",
                 "description": "0 (most urgent) through 4. Always present; 0 is a real value."
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
@@ -12851,7 +12851,7 @@
               "priority": {
                 "type": "integer"
               },
-              "type": {
+              "issue_type": {
                 "type": "string",
                 "format": "uri",
                 "pattern": "^https?://.+",
