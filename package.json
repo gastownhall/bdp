@@ -31,6 +31,7 @@
     "smoke": "node scripts/smoke-executables.mjs",
     "e2e:ready:preflight": "vitest run scripts/e2e-ready.test.mjs --reporter=verbose",
     "e2e:ready": "node scripts/e2e-ready.mjs",
+    "e2e:fixtures:check": "node scripts/bdp-client-e2e.mjs --lint",
     "evidence:generate": "vitest run --config vitest.evidence.config.ts",
     "evidence:verify": "node scripts/read-cohort-evidence.mjs",
     "test": "vitest run --reporter=verbose",

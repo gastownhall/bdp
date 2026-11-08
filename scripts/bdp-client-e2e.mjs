@@ -48,17 +48,58 @@ const DROPPED = [
 ];
 
 function options(argv) {
-  const parsed = { keep: false };
+  const parsed = { keep: false, lint: false };
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index];
     if (flag === "--keep") parsed.keep = true;
+    else if (flag === "--lint") parsed.lint = true;
     else if (["--bd", "--dolt", "--out", "--only"].includes(flag))
       parsed[flag.slice(2)] = argv[++index];
     else throw new Error(`unknown argument ${flag}`);
   }
-  for (const name of ["bd", "dolt", "out"])
-    if (parsed[name] === undefined) throw new Error(`--${name} is required`);
+  // --lint is offline: it validates the fixtures against the catalog and starts no bd.
+  if (!parsed.lint)
+    for (const name of ["bd", "dolt", "out"])
+      if (parsed[name] === undefined) throw new Error(`--${name} is required`);
   return parsed;
+}
+
+/** Offline canary: every positive-fixture argument is a declared parameter of its Callable, and a
+ * Type-reference argument is a full Type URL (fixtures are sent on the raw `curl` channel, which
+ * does not resolve short names). Catches the fixture drift — a renamed parameter (`issue_type` →
+ * `type`) or a bare Type name — that silently broke this harness against Sprint 1. No bd is run. */
+function lintFixtures(declarations) {
+  const declared = new Map(
+    declarations.map((declaration) => [
+      declaration.name,
+      {
+        names: new Set((declaration.parameters ?? []).map((parameter) => parameter.name)),
+        typeRefs: new Set(
+          (declaration.parameters ?? [])
+            .filter((parameter) => parameter.schema?.["x-bdp-type-reference"])
+            .map((parameter) => parameter.name),
+        ),
+      },
+    ]),
+  );
+  const violations = [];
+  const check = (name, wire, where) => {
+    const spec = declared.get(name);
+    if (spec === undefined) {
+      violations.push(`${where}: unknown Callable ${name}`);
+      return;
+    }
+    if (wire === null || typeof wire !== "object" || Array.isArray(wire)) return;
+    for (const [key, value] of Object.entries(wire)) {
+      if (!spec.names.has(key)) violations.push(`${where}: ${name} has no parameter "${key}"`);
+      if (spec.typeRefs.has(key) && typeof value === "string" && !/^https?:\/\//.test(value))
+        violations.push(`${where}: ${name}.${key} must be a full Type URL, not "${value}"`);
+    }
+  };
+  for (const seed of READ_SEED) check("issue/create", seed, "READ_SEED");
+  for (const [name, wire] of READ_BEFORE) check(name, wire, "READ_BEFORE");
+  for (const kase of READS) check(kase.name, kase.wire, `READS ${kase.name}`);
+  return violations;
 }
 
 const freePort = () =>
@@ -1836,10 +1877,18 @@ function wireAudit(posts) {
 
 async function main() {
   const settings = options(process.argv.slice(2));
-  mkdirSync(settings.out, { recursive: true });
   const declarations = JSON.parse(
     await import("node:fs/promises").then(({ readFile }) => readFile(catalogFile, "utf8")),
   ).declarations;
+  if (settings.lint) {
+    const violations = lintFixtures(declarations);
+    for (const violation of violations) process.stderr.write(`${violation}\n`);
+    process.stderr.write(
+      `${violations.length === 0 ? "ok" : "FAIL"}: fixture conformance (${violations.length} violation${violations.length === 1 ? "" : "s"})\n`,
+    );
+    process.exit(violations.length === 0 ? 0 : 1);
+  }
+  mkdirSync(settings.out, { recursive: true });
   const stack = new Stack(settings);
   const results = { started_at: new Date().toISOString(), bd: settings.bd };
   let proxy;
