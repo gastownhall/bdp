@@ -110,6 +110,17 @@ describe("canonical command registration and generated help", () => {
     },
   );
 
+  it("a misused `bdp link` keeps its helpful error through a stray flag and points at issue dep add", async () => {
+    const result = fixture();
+    // A stray `--type` must not preempt the unknown-command error with a bare "unsupported argument".
+    await expect(
+      result.command.parseAsync(["link", "a", "b", "--type", "parent-child"], { from: "user" }),
+    ).rejects.toThrow(
+      /unknown command 'a' for 'bdp link'.*To create a Link, use `bdp link create.*to add a dependency, use `bdp issue dep add/s,
+    );
+    expect(result.invocations).toEqual([]);
+  });
+
   it("suggests the nearest command, and only one near enough (row 2)", () => {
     expect(nearestCommand("inspcet", ["set", "inspect"])).toBe("inspect");
     expect(nearestCommand("ins", ["set", "inspect"])).toBe("inspect");
