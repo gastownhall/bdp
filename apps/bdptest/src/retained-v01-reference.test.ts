@@ -1,5 +1,5 @@
+import { fixedNavigation } from "../../../packages/server/src/retained-v01/contract.js";
 /** Independent raw-HTTP witnesses for the private fixture and current reference reads. */
-import { discoveredEventSource } from "@bdp/protocol";
 import { fork, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
@@ -20,26 +20,8 @@ const token = "a".repeat(32);
 const otherToken = "b".repeat(32);
 const thirdToken = "c".repeat(32);
 const scope = "https://records.invalid/tenant/";
-// Deliberately irregular navigation, authored independently from implementation routes.
-const navigation = {
-  scope,
-  description: "https://navigation.invalid/contract?tenant=one",
-  beads: "https://inventory.invalid/bead-set?tenant=one",
-  links: "https://inventory.invalid/link-set?tenant=one",
-  aliases: `${scope}names/`,
-  events: `${scope}bdp/events`,
-  operations: "https://navigation.invalid/invocations?tenant=one",
-  targets: {
-    createBead: "https://commands.invalid/insert?tenant=one",
-    updateBead: "https://commands.invalid/amend?tenant=one",
-    deleteBead: "https://commands.invalid/remove?tenant=one",
-    createLink: "https://commands.invalid/connect?tenant=one",
-    updateLink: "https://commands.invalid/correct?tenant=one",
-    deleteLink: "https://commands.invalid/disconnect?tenant=one",
-    putAlias: "https://commands.invalid/name?tenant=one",
-    deleteAlias: "https://commands.invalid/unname?tenant=one",
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}names/`);
 const validator = createJsonSchemaValidator(
   JSON.parse(
     readFileSync(
@@ -269,8 +251,14 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     const discovery = JSON.parse((await wire(server.listenUrl, navigation.description)).text);
     expect(validator.validate("#/$defs/retainedDiscovery", discovery)).toEqual([]);
     expect(discovery).not.toHaveProperty("claimEligible");
-    const directory = JSON.parse((await wire(server.listenUrl, discovery.operations)).text);
-    expect(validator.validate("#/$defs/writeOperationDirectory", directory)).toEqual([]);
+    // Core fixes every route: no navigation member, the retired directory is an absent path.
+    for (const retired of ["operations", "events", "beads", "links"])
+      expect(discovery).not.toHaveProperty(retired);
+    const absent = await wire(server.listenUrl, `${scope}bdp/operations`);
+    expect(absent.status).toBe(404);
+    expect(JSON.parse(absent.text).code).toBe("resource-not-found");
+    const directory = navigation.targets;
+    expect(directory.createBead).toBe(`${scope}bdp/operations/createBead`);
     const created = await wire(
       server.listenUrl,
       directory.createBead,
@@ -288,9 +276,7 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     const read = await wire(server.listenUrl, result.resource.id);
     expect(JSON.parse(read.text)).toEqual(result.resource);
     expect(read.headers["bdp-resource-kind"]).toBe("bead");
-    const events = JSON.parse(
-      (await wire(server.listenUrl, discoveredEventSource(discovery) as string)).text,
-    );
+    const events = JSON.parse((await wire(server.listenUrl, `${scope}bdp/events`)).text);
     expect(validator.validate("#/$defs/retainedEventPage", events)).toEqual([]);
     expect(events.events).toHaveLength(1);
     expect(events.events[0].effect.resource).toEqual(result.resource);
@@ -493,7 +479,7 @@ describe("private retained fixture: targeted wire interactions, no profile quali
     const first = JSON.parse((await wire(server.listenUrl, `${navigation.events}?limit=1`)).text);
     expect(first.events).toHaveLength(1);
     expect(first.next).toBeTruthy();
-    expect(first.next.startsWith(`${navigation.events}?`)).toBe(true);
+    expect(first.next).toContain(`${scope}bdp/events?`);
     await wire(server.listenUrl, navigation.targets.createBead, "POST", payload(), {
       "idempotency-key": "c",
     });
@@ -671,8 +657,7 @@ describe("private retained fixture: targeted wire interactions, no profile quali
 describe("private retained update wire witnesses, no profile qualification", () => {
   it("returns original create and update postimages after later updates and restart", async () => {
     const server = await fixture();
-    const discovery = JSON.parse((await wire(server.listenUrl, navigation.description)).text);
-    const directory = JSON.parse((await wire(server.listenUrl, discovery.operations)).text);
+    const directory = navigation.targets;
     const creationBody = payload("a:b/child");
     const created = await wire(server.listenUrl, directory.createBead, "POST", creationBody, {
       "idempotency-key": "original-create",
@@ -740,9 +725,7 @@ describe("private retained update wire witnesses, no profile qualification", () 
       ).text,
     ).toBe(updated.text);
     expect(JSON.parse((await wire(reopened.listenUrl, original.id)).text)).toEqual(current);
-    const page = JSON.parse(
-      (await wire(reopened.listenUrl, discoveredEventSource(discovery) as string)).text,
-    );
+    const page = JSON.parse((await wire(reopened.listenUrl, navigation.events)).text);
     expect(validator.validate("#/$defs/retainedEventPage", page)).toEqual([]);
     expect(page.events).toHaveLength(3);
     expect(page.events[1]).toMatchObject({
@@ -1071,7 +1054,7 @@ describe("private wire admission and retry coverage gaps", () => {
 describe("private Bead deletion wire witnesses", () => {
   it("returns the final-live identity, preserves historical retry and keeps deleted-subject Events readable", async () => {
     const server = await fixture();
-    const directory = JSON.parse((await wire(server.listenUrl, navigation.operations)).text);
+    const directory = navigation.targets;
     const creation = payload("task");
     const created = await wire(server.listenUrl, directory.createBead, "POST", creation, {
       "idempotency-key": "c",
@@ -1463,18 +1446,13 @@ describe("current reference native conditional reads", () => {
   }
   it.each(
     ["GET", "HEAD"].flatMap((method) =>
-      ["scope", "description", "directory"].map((route) => [method, route] as const),
+      ["scope", "description"].map((route) => [method, route] as const),
     ),
   )(
     "evaluates untagged %s %s preconditions before emitting a representation",
     async (method, route) => {
       const server = await currentReference();
-      const target =
-        route === "scope"
-          ? scope
-          : route === "description"
-            ? server.navigation.description
-            : server.navigation.operations;
+      const target = route === "scope" ? scope : server.navigation.description;
       const ordinary = route === "scope" ? 204 : 200;
       const cases: [Record<string, string>, number][] = [
         [{}, ordinary],
@@ -1569,7 +1547,7 @@ describe("current reference native conditional reads", () => {
           401,
           "unauthenticated",
         ],
-        [server.navigation.operations, { accept: "image/png" }, 406, undefined],
+        [server.navigation.description, { accept: "image/png" }, 406, undefined],
         [scope + "a?view=properties&unknown=1", {}, 400, "invalid-parameter"],
         [page.next, { authorization: `Bearer ${thirdToken}` }, 409, "foreign-view"],
         [scope + "missing", {}, 404, "resource-not-found"],

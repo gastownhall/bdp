@@ -1,10 +1,6 @@
 /** Explicit Core + ordinary Write reference composition for the canonical draft. */
 import { parseCanonicalScope } from "@bdp/protocol";
-import {
-  ORDINARY_OPERATIONS,
-  type PrivateNavigation,
-  RETAINED_SPEC,
-} from "./retained-v01/contract.js";
+import { fixedNavigation, type PrivateNavigation, RETAINED_SPEC } from "./retained-v01/contract.js";
 import type { CallablesComposition } from "./retained-v01/callables-service.js";
 import { startRetainedListener } from "./retained-v01/http.js";
 import { issueConformsTo, issueScopePolicy } from "./retained-v01/issue-policy.js";
@@ -47,21 +43,7 @@ export function referenceNavigation(scope: string): PrivateNavigation {
   const selected = parseCanonicalScope(scope);
   if (Buffer.byteLength(selected) > 4096)
     throw new TypeError("reference Scope URL exceeds its4096-byte configuration bound");
-  const control = selected + "bdp";
-  return Object.freeze({
-    scope: selected,
-    description: control,
-    beads: control + "/beads",
-    links: control + "/links",
-    aliases: selected + "aliases/",
-    events: control + "/events",
-    operations: control + "/operations",
-    targets: Object.freeze(
-      Object.fromEntries(
-        ORDINARY_OPERATIONS.map((operation) => [operation, control + "/operations/" + operation]),
-      ) as Record<(typeof ORDINARY_OPERATIONS)[number], string>,
-    ),
-  });
+  return fixedNavigation(selected);
 }
 /** No global installation, implicit provisioning, legacy admission or Type activation.
  * Route the explicit canonical Scope to listenUrl through the deployment's proxy.

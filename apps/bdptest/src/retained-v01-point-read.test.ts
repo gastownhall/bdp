@@ -1,3 +1,4 @@
+import { fixedNavigation } from "../../../packages/server/src/retained-v01/contract.js";
 /** Independent HTTP oracles for the current full/properties read increment.
  * Test-only loopback routing preserves advertised Host/path/query; no TLS claim.
  */
@@ -11,28 +12,10 @@ import { startPrivateRetainedFixture } from "../../../packages/server/src/retain
 
 const media = "application/vnd.bdp.v0.1+json";
 const scope = "https://point-records.invalid/tenant/";
-const navigation = {
-  scope,
-  description: "https://point-nav.invalid/contract?edition=%2B%2f",
-  beads: "https://point-list.invalid/nodes",
-  links: "https://point-list.invalid/edges",
-  aliases: `${scope}names/`,
-  events: `${scope}bdp/events`,
-  operations: "https://point-nav.invalid/verbs?edition=%2B%2f",
-  targets: {
-    createBead: "https://point-write.invalid/a",
-    updateBead: "https://point-write.invalid/b",
-    deleteBead: "https://point-write.invalid/c",
-    createLink: "https://point-write.invalid/d",
-    updateLink: "https://point-write.invalid/e",
-    deleteLink: "https://point-write.invalid/f",
-    putAlias: "https://point-write.invalid/g",
-    deleteAlias: "https://point-write.invalid/h",
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}names/`);
 const token = "a".repeat(32);
-const owner =
-  '<https://point-nav.invalid/contract?edition=%2B%2f>; rel="service-desc"; type="application/vnd.bdp.v0.1+json"';
+const owner = `<${scope}bdp>; rel="service-desc"; type="application/vnd.bdp.v0.1+json"`;
 const properties = {
   id: "literal-id",
   type: null,
@@ -341,7 +324,6 @@ describe("private retained current point read delivery", () => {
     expect(observed).toEqual([
       { url: scope, method: "GET" },
       { url: navigation.description, method: "GET" },
-      { url: navigation.operations, method: "GET" },
       { url: navigation.targets.createBead, method: "POST" },
       { url: `${scope}from-client?view=properties`, method: "GET" },
       { url: navigation.description, method: "GET" },

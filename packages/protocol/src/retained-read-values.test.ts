@@ -32,7 +32,6 @@ describe("retained Core carrier values", () => {
           : {
               ...core,
               profile,
-              operations: "https://verbs.test/execute",
               aliases: "https://names.test/",
             };
       const parsed = parseRetainedDiscovery(JSON.stringify(value));
@@ -40,7 +39,7 @@ describe("retained Core carrier values", () => {
       expect(Object.isFrozen(parsed)).toBe(true);
     },
   );
-  it.each(["core", "write"])("accepts absent optional Events on %s", (profile) => {
+  it.each(["core", "write"])("accepts discovery with no navigation member on %s", (profile) => {
     const base = core;
     const value =
       profile === "core"
@@ -48,7 +47,6 @@ describe("retained Core carrier values", () => {
         : {
             ...base,
             profile: "write",
-            operations: "https://verbs.test/execute",
             aliases: "https://records.test/work/names/",
           };
     expect(parseRetainedDiscovery(JSON.stringify(value))).toEqual(value);
@@ -65,7 +63,12 @@ describe("retained Core carrier values", () => {
   it.each([
     ["old-version", { ...core, bdpVersion: "0" }],
     ["old-profile", { ...core, profile: "read" }],
-    ["malformed-events", { ...core, events: "relative-events" }],
+    // The retired members: Core fixes bdp/events and bdp/operations/NAME.
+    ["retired-events", { ...core, events: "https://records.test/work/bdp/events" }],
+    [
+      "retired-operations",
+      { ...core, profile: "write", operations: "https://records.test/work/bdp/operations" },
+    ],
     [
       "advertised-inventory",
       { ...core, beads: "https://lists.test/nodes", links: "https://lists.test/edges" },
@@ -165,7 +168,6 @@ describe("Events capability", () => {
     expect(discoveredEventSource(parseRetainedDiscovery(JSON.stringify(base)))).toBeUndefined();
   });
   it.each([
-    ["a retired events member", { ...base, events: "https://work.example/acme/bdp/events" }],
     [
       "a source member",
       {

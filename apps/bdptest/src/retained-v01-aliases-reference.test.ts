@@ -1,3 +1,4 @@
+import { fixedNavigation } from "../../../packages/server/src/retained-v01/contract.js";
 /** Independent HTTP alias witnesses for the incomplete private fixture. */
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
@@ -10,25 +11,8 @@ import { startPrivateRetainedFixture } from "../../../packages/server/src/retain
 const media = "application/vnd.bdp.v0.1+json";
 const token = "Q".repeat(32);
 const scope = "https://records.invalid/alias-http/";
-const navigation = {
-  scope,
-  aliases: `${scope}decisions/`,
-  description: "https://discovery.invalid/about?owner=a",
-  beads: "https://inventory.invalid/nodes?owner=a",
-  links: "https://inventory.invalid/edges?owner=a",
-  events: `${scope}bdp/events`,
-  operations: "https://discovery.invalid/commands?owner=a",
-  targets: {
-    createBead: "https://invoke.invalid/z?slot=17",
-    updateBead: "https://invoke.invalid/y?slot=31",
-    deleteBead: "https://invoke.invalid/x?slot=45",
-    createLink: "https://invoke.invalid/w?slot=59",
-    updateLink: "https://invoke.invalid/v?slot=73",
-    deleteLink: "https://invoke.invalid/u?slot=87",
-    putAlias: "https://invoke.invalid/t?slot=101",
-    deleteAlias: "https://invoke.invalid/s?slot=115",
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}decisions/`);
 const validator = createJsonSchemaValidator(
   JSON.parse(
     readFileSync(
@@ -130,7 +114,10 @@ async function fixture(selectedNavigation = navigation) {
   expect(server.missing).not.toContain("putAlias");
   expect(server.missing).not.toContain("deleteAlias");
   const discovery = JSON.parse((await wire(server.listenUrl, navigation.description)).text);
-  const targets = JSON.parse((await wire(server.listenUrl, discovery.operations)).text);
+  // Core fixes every operation at bdp/operations/NAME; discovery names none of them.
+  expect(discovery).not.toHaveProperty("operations");
+  expect(discovery).not.toHaveProperty("events");
+  const targets = navigation.targets;
   expect(targets).toEqual(navigation.targets);
   for (const id of ["a", "b"]) {
     const created = await wire(
@@ -146,8 +133,8 @@ async function fixture(selectedNavigation = navigation) {
 }
 
 describe("private alias wire correspondence, no full profile qualification", () => {
-  it("preserves query-based Event traversal in a Scope-wide alias namespace", async () => {
-    const selected = { ...navigation, aliases: scope, events: `${scope}bdp/events` };
+  it("preserves fixed-route Event traversal in a Scope-wide alias namespace", async () => {
+    const selected = { ...navigation, aliases: scope };
     const server = await fixture(selected);
     const collision = await wire(
       server.listenUrl,

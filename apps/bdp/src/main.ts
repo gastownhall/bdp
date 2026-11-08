@@ -38,15 +38,24 @@ import {
   renderCallableGroupHelp,
   resolveCallableCommand,
 } from "./canonical-call.js";
-import { ACTOR_CONFLICT, createCanonicalCommand, splitLeadingWords } from "./canonical-command.js";
 import {
+  ACTOR_CONFLICT,
+  type CanonicalInvocation,
+  commandWord,
+  createCanonicalCommand,
+  nearestCommand,
+  splitLeadingWords,
+  UnknownCommandError,
+} from "./canonical-command.js";
+import {
+  clearDefaultScope,
   defaultCliConfigPath,
   readBoundedFile,
   saveDefaultScope,
   writeCanonicalOutput,
 } from "./canonical-io.js";
 import { type CanonicalOutput, renderCanonicalOutput } from "./canonical-output.js";
-import { runCanonicalInvocation } from "./canonical-runtime.js";
+import { runCanonicalInvocation, verifyConnectScope } from "./canonical-runtime.js";
 
 const executable = "bdp";
 const version = JSON.parse(
@@ -199,10 +208,16 @@ export async function runBdp(
         const rest = asked ? ["--help", ...mounted.rest] : mounted.rest;
         const { declaration, path } = mounted.node;
         if (declaration === undefined) {
-          if (rest.length > 0 && !HELP.has(rest[0] ?? ""))
-            throw new CliOperationError(
-              `no such command under ${path.join(" ")}; use bdp ${path.join(" ")} --help`,
+          if (rest.length > 0 && !HELP.has(rest[0] ?? "")) {
+            const names = [...mounted.node.children.keys()];
+            const word = commandWord(rest[0] ?? "");
+            throw new UnknownCommandError(
+              path,
+              word,
+              word === undefined ? undefined : nearestCommand(word, names),
+              names,
             );
+          }
           process.stdout.write(renderCallableGroupHelp(mounted.node));
           return 0;
         }
@@ -213,7 +228,8 @@ export async function runBdp(
     const tree = createCanonicalCommand({
       version: `${executable} ${version}`,
       profile: selectedProfile,
-      ...(selectedProfile === "canonical" && leading === undefined
+      // The Callable groups are listed in root help, and named when a mistyped word is near one.
+      ...(selectedProfile === "canonical"
         ? {
             callableGroups: callableGroupSummaries(
               callableCommandTree(await callableCatalog.list(), builtIns),
@@ -226,6 +242,15 @@ export async function runBdp(
       // Commander can echo unknown operands; diagnostics never echo argv.
       writeErr: () => undefined,
       onInvocation: async (invocation) => {
+        if (invocation.command.join(" ") === "connect") {
+          status = await runConnect(invocation, {
+            explicitConfig: configFile !== undefined,
+            target: process.env.BDP_CONFIG ?? defaultPath,
+            selectedConfigFile,
+            readFile: configText === undefined ? undefined : readFile,
+          });
+          return;
+        }
         if (invocation.command.join(" ") === "scope set") {
           if (configFile !== undefined)
             throw new CliOperationError(
@@ -273,7 +298,10 @@ export async function runBdp(
             process.stdout.write(
               renderCanonicalOutput(
                 result,
-                { outputFormat: outputFormat === "jsonl" ? "jsonl" : "json" },
+                {
+                  outputFormat: outputFormat === "jsonl" ? "jsonl" : "json",
+                  responseContext: invocation.options.responseContext,
+                },
                 scope,
               ),
             );
@@ -358,16 +386,209 @@ export async function runBdp(
     const message =
       error instanceof BootstrapConfigUsageError
         ? `${error.message}; use --help for usage`
-        : error instanceof CliOperationError
+        : error instanceof CliOperationError || error instanceof UnknownCommandError
           ? error.message
           : error instanceof CommanderError && error.code === ACTOR_CONFLICT
             ? "--actor was given with two different values"
-            : error instanceof CommanderError && error.code === "commander.unknownOption"
-              ? `${describeUnsupportedArguments([/unknown option '(.*)'/.exec(error.message)?.[1] ?? ""])}; use --help for usage`
+            : error instanceof CommanderError
+              ? commanderMessage(error)
               : "invalid command or configuration; use --help for usage";
     diagnostic("error", "cli.usage", message);
     return 2;
   }
+}
+
+/** What Commander refused, said without repeating any value that was typed (row 2). */
+function commanderMessage(error: CommanderError): string {
+  const path = (error as CommanderError & { commandPath?: readonly string[] }).commandPath ?? [];
+  const where = ["bdp", ...path].join(" ");
+  const usage = `run '${where} --help' for usage`;
+  const quoted = (pattern: RegExp): string | undefined => pattern.exec(error.message)?.[1];
+  switch (error.code) {
+    case "commander.unknownOption": {
+      const name = quoted(/unknown option '([^']*)'/) ?? "";
+      // The flag that once dropped the envelope; JSON is now the data alone by default.
+      const retired =
+        name.split("=", 1)[0] === "--omit"
+          ? "; --omit envelope is retired: --output-mode json prints the data alone, and --response-context adds the envelope"
+          : "";
+      return `${describeUnsupportedArguments([name])}${retired}; use --help for usage`;
+    }
+    case "commander.missingArgument":
+      return `'${where}' needs <${quoted(/missing required argument '([^']*)'/) ?? "argument"}>; ${usage}`;
+    case "commander.excessArguments":
+      return `too many arguments for '${where}'; ${usage}`;
+    case "commander.optionMissingArgument": {
+      const option = quoted(/option '([^' ]*)/);
+      return `${option === undefined ? "an option" : option} needs a value; ${usage}`;
+    }
+    case "commander.invalidArgument": {
+      const option = quoted(/option '([^' ]*)/);
+      const choices = /Allowed choices are (.*)\.$/.exec(error.message)?.[1];
+      return choices === undefined
+        ? `invalid value for ${option ?? "an argument"}; ${usage}`
+        : `${option ?? "this option"} takes one of: ${choices}; ${usage}`;
+    }
+    case "commander.error":
+      // The command tree's own refusals: fixed text, with no value in it.
+      return `${error.message.replace(/^error: /, "")}; ${usage}`;
+    default:
+      return `invalid command or configuration; ${usage}`;
+  }
+}
+
+/** `bdp connect`: store the default Scope after reading its discovery, show the Scope in use and
+ * its source, or forget the stored one (row 1). */
+async function runConnect(
+  invocation: CanonicalInvocation,
+  context: {
+    readonly explicitConfig: boolean;
+    readonly target: string;
+    readonly selectedConfigFile: string | undefined;
+    readonly readFile: ((path: string) => string) | undefined;
+  },
+): Promise<number> {
+  const options = invocation.options;
+  const outputMode = options.outputMode;
+  const outputFormat = options.outputFormat;
+  if (
+    (outputMode === "human" && (outputFormat === "json" || outputFormat === "jsonl")) ||
+    (outputMode === "json" &&
+      outputFormat !== undefined &&
+      outputFormat !== "json" &&
+      outputFormat !== "jsonl")
+  )
+    throw new CliOperationError("output mode conflicts with output format");
+  const json = outputMode === "json" || outputFormat === "json" || outputFormat === "jsonl";
+  const emit = (data: Record<string, unknown>, human: readonly string[]): void => {
+    if (!json) {
+      process.stdout.write(`${human.join("\n")}\n`);
+      return;
+    }
+    const result: CanonicalOutput = {
+      schema_version: 2,
+      bdp_spec: null,
+      result_kind: "scope",
+      outcome: "success",
+      data,
+    };
+    process.stdout.write(
+      renderCanonicalOutput(result, {
+        outputFormat: outputFormat === "jsonl" ? "jsonl" : "json",
+        responseContext: options.responseContext,
+      }),
+    );
+  };
+  const environment = process.env.BDP_SCOPE_URL;
+  const overridden =
+    environment === undefined
+      ? []
+      : [`Note: BDP_SCOPE_URL (${environment}) is set, and wins over the stored Scope.`];
+  const supplied = invocation.positionals[0];
+  if (options.clear === true || supplied !== undefined) {
+    if (context.explicitConfig)
+      throw new CliOperationError(
+        "connect cannot modify an explicitly selected --config file; remove --config and try again",
+      );
+  }
+  if (options.clear === true) {
+    let cleared: boolean;
+    try {
+      cleared = await clearDefaultScope(context.target);
+    } catch {
+      throw new CliOperationError(
+        "could not update the BDP config; check the config file and directory permissions",
+      );
+    }
+    emit({ scope: null, cleared, file: context.target }, [
+      cleared
+        ? `Forgot the stored Scope in ${context.target}.`
+        : `No Scope was stored in ${context.target}.`,
+      ...overridden,
+    ]);
+    return 0;
+  }
+  const config = loadCanonicalCliConfig({
+    configFile: context.selectedConfigFile,
+    env: process.env,
+    ...(context.readFile === undefined ? {} : { readFile: context.readFile }),
+  });
+  if (supplied !== undefined) {
+    let scope: string;
+    try {
+      const candidate =
+        /^https?:\/\//.test(supplied) && !supplied.endsWith("/") ? `${supplied}/` : supplied;
+      scope = parseCanonicalScope(candidate);
+    } catch {
+      throw new CliOperationError("connect needs an admissible canonical Scope URL");
+    }
+    const verified = await verifyConnectScope(scope, config);
+    if (!verified.ok) {
+      diagnostic("error", "cli.connect.failed", `${verified.message}; nothing was stored`);
+      return verified.status;
+    }
+    try {
+      await saveDefaultScope(context.target, scope);
+    } catch {
+      throw new CliOperationError(
+        "could not save the BDP config; check the config file and directory permissions",
+      );
+    }
+    emit(
+      {
+        scope,
+        source: `config file ${context.target}`,
+        bdpVersion: verified.bdpVersion,
+        profile: verified.profile,
+      },
+      [
+        `Connected to ${scope} (BDP ${verified.bdpVersion}, ${verified.profile} profile).`,
+        `Stored in ${context.target}.`,
+        ...(environment !== undefined && environment !== scope ? overridden : []),
+      ],
+    );
+    return 0;
+  }
+  // Alone: the Scope a command would use, and where it came from.
+  const flag = typeof options.scope === "string" ? options.scope : undefined;
+  const stored = (() => {
+    if (context.selectedConfigFile === undefined || context.readFile === undefined)
+      return undefined;
+    try {
+      return loadCanonicalCliConfig({
+        configFile: context.selectedConfigFile,
+        env: {},
+        readFile: context.readFile,
+      }).scope;
+    } catch {
+      return undefined;
+    }
+  })();
+  const used =
+    flag !== undefined
+      ? { url: flag, source: "--scope" }
+      : config.scope === undefined
+        ? undefined
+        : { url: config.scope.url, source: config.scope.source ?? "configuration" };
+  const shadowed = stored !== undefined && used?.source !== stored.source ? stored : undefined;
+  emit(
+    {
+      scope: used?.url ?? null,
+      source: used?.source ?? null,
+      ...(shadowed === undefined
+        ? {}
+        : { stored: { scope: shadowed.url, source: shadowed.source } }),
+    },
+    used === undefined
+      ? ["No Scope is set; connect one with bdp connect URL."]
+      : [
+          `Scope: ${used.url} (from ${used.source})`,
+          ...(shadowed === undefined
+            ? []
+            : [`Stored: ${shadowed.url} (from ${shadowed.source}), not used`]),
+        ],
+  );
+  return 0;
 }
 
 async function runNoArgumentHelp(callableCatalog: CallableCatalog): Promise<number> {
@@ -412,7 +633,10 @@ async function runNoArgumentHelp(callableCatalog: CallableCatalog): Promise<numb
           }
         : {}),
     });
-    const scope = config.scope?.url ?? "not configured; set one with bdp scope set <scope>";
+    const scope =
+      config.scope === undefined
+        ? "not configured; set one with bdp connect <url>"
+        : `${config.scope.url}${config.scope.source === undefined ? "" : ` (from ${config.scope.source})`}`;
     process.stdout.write(`${command.helpInformation()}\nDefault Scope: ${scope}\n`);
     return 0;
   } catch (error) {

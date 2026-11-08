@@ -11,16 +11,16 @@ const media = "application/vnd.bdp.v0.1+json";
 const scope = "https://records.example/work/";
 const resource = `${scope}note@literal`;
 const description = "https://navigation.example/contract?literal=%2B%2f";
-const directoryUrl = "https://navigation.example/verbs?literal=%2B%2f";
+// Core fixes every operation at <scope>/bdp/operations/NAME; there is no directory.
 const directory = {
-  createBead: "https://commands.example/a?literal=%2B%2f",
-  updateBead: "https://commands.example/b",
-  deleteBead: "https://commands.example/c",
-  createLink: "https://commands.example/d",
-  updateLink: "https://commands.example/e",
-  deleteLink: "https://commands.example/f",
-  putAlias: "https://commands.example/g",
-  deleteAlias: "https://commands.example/h",
+  createBead: `${scope}bdp/operations/createBead`,
+  updateBead: `${scope}bdp/operations/updateBead`,
+  deleteBead: `${scope}bdp/operations/deleteBead`,
+  createLink: `${scope}bdp/operations/createLink`,
+  updateLink: `${scope}bdp/operations/updateLink`,
+  deleteLink: `${scope}bdp/operations/deleteLink`,
+  putAlias: `${scope}bdp/operations/putAlias`,
+  deleteAlias: `${scope}bdp/operations/deleteAlias`,
 };
 const record = {
   id: resource,
@@ -42,7 +42,7 @@ function discovery(profile: "core" | "write" = "core") {
     profile,
     scope,
     specRevision: "0123456789abcdef0123456789abcdef01234567",
-    ...(profile === "write" ? { operations: directoryUrl, aliases: "https://names.example/" } : {}),
+    ...(profile === "write" ? { aliases: `${scope}names/` } : {}),
   };
 }
 function response(
@@ -673,25 +673,26 @@ describe("retained transport and native Write delivery", () => {
     await expect(selected.bindWrite(scope)).rejects.toMatchObject({ code: "unsupported-feature" });
     expect(seen).toEqual([scope, description]);
   });
-  it("names a directory that disagrees with discovery about aliases, and sends nothing more", async () => {
-    const seen: string[] = [];
-    const selected = client(async (input) => {
-      const url = String(input);
-      seen.push(url);
-      if (url === scope) return response(url, null, { link: linkHeader }, 204);
-      if (url === description) {
-        const { aliases: _aliases, ...withoutAliases } = discovery("write");
-        return response(url, withoutAliases);
-      }
-      return response(url, directory);
-    });
-    await expect(selected.bindWrite(scope)).rejects.toMatchObject({
-      code: "invalid-response",
-      submission: "not-submitted",
-      detail:
-        "the Write operation directory carries alias operations, but discovery does not advertise aliases",
-    });
-    expect(seen).toEqual([scope, description, directoryUrl]);
+  it("names a discovery that still carries a retired navigation member, and sends nothing more", async () => {
+    for (const retired of [
+      { operations: `${scope}bdp/operations` },
+      { events: `${scope}bdp/events` },
+    ]) {
+      const seen: string[] = [];
+      const selected = client(async (input) => {
+        const url = String(input);
+        seen.push(url);
+        if (url === scope) return response(url, null, { link: linkHeader }, 204);
+        return response(url, { ...discovery("write"), ...retired });
+      });
+      // Closed discovery refuses the retired member before anything is bound or sent.
+      await expect(selected.bindWrite(scope)).rejects.toMatchObject({
+        code: "invalid-response",
+        submission: "not-submitted",
+        detail: "invalid retained v0.1 retainedDiscovery",
+      });
+      expect(seen).toEqual([scope, description]);
+    }
   });
   it("uses one target-aware credential policy for irregular discovery and saved delivery", async () => {
     const seen: {
@@ -721,13 +722,12 @@ describe("retained transport and native Write delivery", () => {
         });
         if (url === scope) return response(url, null, { link: linkHeader }, 204);
         if (url === description) return response(url, discovery("write"));
-        if (url === directoryUrl) return response(url, directory);
         return response(url, success);
       },
       {
         credentialForTarget: (url) => {
           credentialTargets.push(url);
-          return new URL(url).origin === "https://commands.example" ? token : undefined;
+          return url.startsWith(`${scope}bdp/operations/`) ? token : undefined;
         },
       },
     );
@@ -738,10 +738,10 @@ describe("retained transport and native Write delivery", () => {
     expect(await selected.submit(prepared)).toMatchObject({ kind: "success", value: success });
     token = "rotated-token";
     expect(await selected.submit(prepared)).toMatchObject({ kind: "success", value: success });
+    // Discovery alone binds Write: no directory is requested.
     expect(credentialTargets).toEqual([
       scope,
       description,
-      directoryUrl,
       directory.createBead,
       directory.createBead,
     ]);
@@ -756,7 +756,7 @@ describe("retained transport and native Write delivery", () => {
       })),
     ).toEqual(
       ["first-token", "rotated-token"].map((value) => ({
-        url: "https://commands.example/a?literal=%2B%2f",
+        url: directory.createBead,
         method: "POST",
         body: text,
         media: "application/vnd.bdp.v0.1+json",
@@ -764,7 +764,7 @@ describe("retained transport and native Write delivery", () => {
         auth: `Bearer ${value}`,
       })),
     );
-    expect(seen.slice(0, 3).every((x) => x.headers.authorization === undefined)).toBe(true);
+    expect(seen.slice(0, 2).every((x) => x.headers.authorization === undefined)).toBe(true);
   });
   it("delivers the exact native retained conflict through the client", async () => {
     const binding = new RetainedWriteBinding({
@@ -772,7 +772,6 @@ describe("retained transport and native Write delivery", () => {
       maximumDocumentBytes: 65536,
       maximumRequestBodyBytes: 65536,
       discovery: { contentType: media, bodyText: JSON.stringify(discovery("write")) },
-      directory: { contentType: media, bodyText: JSON.stringify(directory) },
     });
     const prepared = binding.prepare(
       "createBead",

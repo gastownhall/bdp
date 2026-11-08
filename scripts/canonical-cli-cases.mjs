@@ -12,7 +12,7 @@ import { canonicalSpecRevision } from "./canonical-spec-revision.mjs";
 export function registerCanonicalCliCases({ binary, startReferenceService }) {
   const specRevision = canonicalSpecRevision();
   const specification = "https://github.com/gastownhall/bdp/schemas/bdp-v0.1.schema.json";
-  const json = ["--output-format", "json"];
+  const json = ["--output-format", "json", "--response-context"];
   const token = "canonical-cli-test-secret-00000000000000000000";
   async function cli(args, directory, scope, extras = {}, controls = {}) {
     const env = Object.fromEntries(
@@ -231,9 +231,14 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     try {
       reference = await startReferenceService(serviceOptions);
       const savedScope = success(
-        await cli(["scope", "set", scope, "--output-mode", "json"], directory, undefined, {
-          XDG_CONFIG_HOME: configHome,
-        }),
+        await cli(
+          ["scope", "set", scope, "--output-mode", "json", "--response-context"],
+          directory,
+          undefined,
+          {
+            XDG_CONFIG_HOME: configHome,
+          },
+        ),
         "scope",
       );
       assert.equal(savedScope.data.scope, scope);
@@ -275,8 +280,12 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
         }),
         "scope",
       );
-      assert.equal(description.data.beads, scope + "bdp/beads");
+      // The server's discovery as it sent it: the client adds no beads or links member (row 5).
+      assert.equal(description.data.beads, undefined);
+      assert.equal(description.data.links, undefined);
       assert.equal(description.data.events, undefined);
+      assert.equal(description.bdpVersion, "0.1");
+      assert.equal(description.specRevision, description.data.specRevision);
       const humanDescription = await cli(
         ["scope", "inspect", "--output-mode", "human"],
         directory,
@@ -285,7 +294,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       );
       assert.equal(humanDescription.code, 0, humanDescription.stderr);
       assert.ok(humanDescription.stdout.includes(`Scope: ${scope}`));
-      assert.match(humanDescription.stdout, /Beads inventory:/);
+      assert.doesNotMatch(humanDescription.stdout, /inventory/);
       assert.doesNotMatch(humanDescription.stdout, /"schema_version"/);
       const anotherWorkingDirectory = path.join(directory, "unrelated-project-directory");
       await mkdir(anotherWorkingDirectory);
@@ -376,14 +385,26 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
         "resource_collection",
       );
       assert.notEqual(next.data.items[0].id, page.data.items[0].id);
-      const stream = await cli(
+      // Without --response-context, JSONL is the records alone (row 4).
+      const rawStream = await cli(
         ["list", "--page-size", "1", "--output-format", "jsonl"],
+        directory,
+        scope,
+      );
+      assert.equal(rawStream.code, 0, rawStream.stderr);
+      const rawLines = rawStream.stdout.trim().split("\n").map(JSON.parse);
+      assert.equal(rawLines.length, 3);
+      assert.ok(rawLines.every((line) => line.record_type === undefined && line.id));
+      const stream = await cli(
+        ["list", "--page-size", "1", "--output-format", "jsonl", "--response-context"],
         directory,
         scope,
       );
       assert.equal(stream.code, 0, stream.stderr);
       const lines = stream.stdout.trim().split("\n").map(JSON.parse);
       assert.equal(lines[0].record_type, "header");
+      assert.equal(lines[0].bdpVersion, "0.1");
+      assert.equal(lines[0].specRevision, specRevision);
       assert.equal(lines[0].outcome, undefined);
       assert.equal(lines.filter((line) => line.record_type === "item").length, 3);
       assert.deepEqual(lines.at(-1).completion, {
@@ -489,8 +510,9 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       assert.equal(incident.data.items[0].id, scope + "edge");
       assert.equal(incident.context.resource_kind, "link");
       assert.ok(requests.some((r) => r.path.startsWith("/work/a?view=links")));
+      // JSON is the data alone by default (row 4): a failure leaves stdout empty.
       const rawMissing = await cli(
-        ["show", "missing", "--omit", "envelope", ...json],
+        ["show", "missing", "--output-format", "json"],
         directory,
         scope,
       );
@@ -574,20 +596,21 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     }
   });
 
-  test("a Write provider without aliases binds, refuses alias commands, and a disagreeing directory is refused", async () => {
+  test("a Write provider without aliases binds, refuses alias commands, and retired navigation is refused", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "bdp-cli-no-aliases-"));
     const media = "application/vnd.bdp.v0.1+json";
     const requests = [];
     let reference,
       shape = "none";
+    // Core fixes every route: the client reads no directory, and a discovery that still
+    // names one (or an Event source) is refused before anything is sent.
     const reshape = (value) => {
       const next = { ...value };
-      const dropDiscovery = shape === "none" || shape === "members-unadvertised";
-      const dropMembers =
-        shape === "none" || shape === "advertised-no-members" ? ["putAlias", "deleteAlias"] : [];
-      if (shape === "half") dropMembers.push("deleteAlias");
-      if (value.profile === "write" && dropDiscovery) delete next.aliases;
-      if (value.createBead !== undefined) for (const name of dropMembers) delete next[name];
+      if (value.profile !== "write") return next;
+      if (shape === "none") delete next.aliases;
+      if (shape === "retired-operations")
+        next.operations = new URL("bdp/operations", next.scope).href;
+      if (shape === "retired-events") next.events = new URL("bdp/events", next.scope).href;
       return next;
     };
     const proxy = createServer((incoming, outgoing) => {
@@ -665,9 +688,8 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       assert.equal(posts(), before, "an alias refusal sends no mutation");
       assert(!requests.some((r) => r.path.includes("aliases/current")), "nor asks for the alias");
       for (const [next, message] of [
-        ["members-unadvertised", /carries alias operations, but discovery does not advertise/],
-        ["advertised-no-members", /advertises aliases, but the Write operation directory omits/],
-        ["half", /invalid retained v0\.1 writeOperationDirectory/],
+        ["retired-operations", /invalid retained v0\.1 retainedDiscovery/],
+        ["retired-events", /invalid retained v0\.1 retainedDiscovery/],
       ]) {
         shape = next;
         refused(
@@ -767,7 +789,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
           return false;
         };
         const running = cli(
-          ["list", "--page-size", "1", "--output-format", "jsonl"],
+          ["list", "--page-size", "1", "--output-format", "jsonl", "--response-context"],
           directory,
           scope,
           {},
@@ -815,7 +837,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
           let result;
           try {
             result = await cli(
-              ["list", "--page-size", "1", "--output-format", "jsonl"],
+              ["list", "--page-size", "1", "--output-format", "jsonl", "--response-context"],
               directory,
               scope,
               {},
@@ -1078,7 +1100,7 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       );
       assert.equal(batchRefusal.code, 5, batchRefusal.stderr || batchRefusal.stdout);
       assert.equal(batchRefusal.stdout, "");
-      assert.equal(JSON.parse(batchRefusal.stderr).error.problem.code, "unsupported_capability");
+      assert.match(batchRefusal.stderr, /^error: unsupported_capability: /);
       assert.equal(writes.length, beforeBatch);
       assert.equal(exchanges, beforeBatchExchanges);
       dropNext = true;

@@ -77,7 +77,6 @@ it("selects only advertised exact version1 and keeps batch composition explicit"
         scope,
         specRevision: "0123456789abcdef0123456789abcdef01234567",
         aliases: `${scope}aliases/`,
-        operations: `${scope}operations`,
         capabilities: { [HISTORICAL_UPDATE_CAPABILITY]: versions },
       }),
     );

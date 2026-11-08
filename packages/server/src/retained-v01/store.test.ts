@@ -3,32 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { prepareCreate, prepareUpdate, prepareDelete, type PrivateNavigation } from "./contract.js";
+import { prepareCreate, prepareUpdate, prepareDelete, fixedNavigation } from "./contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 const scope = "https://scope.invalid/acme/";
-const navigationFor = (scope: string): PrivateNavigation => ({
-  scope,
-  description: "https://navigation.invalid/description?tenant=a",
-  beads: `${scope}inventory-b`,
-  links: `${scope}inventory-l`,
-  aliases: `${scope}aliases`,
-  events: `${scope}bdp/events`,
-  operations: "https://navigation.invalid/commands?tenant=a",
-  targets: {
-    createBead: "https://commands.invalid/new?tenant=a",
-    updateBead: `${scope}u-b`,
-    deleteBead: `${scope}d-b`,
-    createLink: `${scope}c-l`,
-    updateLink: `${scope}u-l`,
-    deleteLink: `${scope}d-l`,
-    putAlias: `${scope}p-a`,
-    deleteAlias: `${scope}d-a`,
-  },
-});
-const navigation = navigationFor(scope);
-// The Event source is fixed, so only a long Scope URL makes a fact outgrow its result.
-const longScope = `https://scope.invalid/${"s".repeat(50000)}/`;
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}aliases`);
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   vi.restoreAllMocks();
@@ -43,8 +23,8 @@ afterEach(() => {
   if (errors.length) throw new AggregateError(errors, "private store cleanup failed");
 });
 
-const updateInput = (edit: Record<string, unknown>, key = "u", within = scope) =>
-  prepareUpdate(within, JSON.stringify({ bead: "projects/a", ...edit }), key);
+const updateInput = (edit: Record<string, unknown>, key = "u") =>
+  prepareUpdate(scope, JSON.stringify({ bead: "projects/a", ...edit }), key);
 const deleteInput = (edit: Record<string, unknown> = {}, key = "d") =>
   prepareDelete(scope, JSON.stringify({ bead: "projects/a", ...edit }), key);
 describe("private retained SQLite updates", () => {
@@ -301,14 +281,17 @@ describe("private retained SQLite updates", () => {
     expect(store.events("p", navigation.events, "", { limit: 20 }).events).toHaveLength(1);
   });
   it("retains fact-size refusal across restart while preserving the previous Resource", () => {
-    const configuredNavigation = navigationFor(longScope);
+    const configuredNavigation = {
+      ...navigation,
+      events: `https://events.invalid/${"s".repeat(50000)}`,
+    };
     const { config, store } = setup({ navigation: configuredNavigation });
-    const first = store.create("p", input("c", "projects/a", longScope));
-    const edit = updateInput({ properties: { large: "x".repeat(205000) } }, "fact-size", longScope);
+    const first = store.create("p", input("c", "projects/a"));
+    const edit = updateInput({ properties: { large: "x".repeat(251000) } }, "fact-size");
     const result = store.update("p", edit);
     expect(result.status).toBe(413);
     expect(store.update("p", edit)).toEqual(result);
-    expect(JSON.parse(store.read(`${longScope}projects/a`) ?? "null")).toEqual(
+    expect(JSON.parse(store.read(`${scope}projects/a`) ?? "null")).toEqual(
       JSON.parse(first.text).resource,
     );
     expect(store.events("p", configuredNavigation.events, "", { limit: 20 }).events).toHaveLength(
@@ -318,9 +301,7 @@ describe("private retained SQLite updates", () => {
     const reopened = openPrivateRetainedStore({ ...config, create: false });
     cleanups.push(() => reopened.close());
     expect(reopened.update("p", edit)).toEqual(result);
-    expect(reopened.update("p", updateInput({ properties: {} }, "small", longScope)).status).toBe(
-      200,
-    );
+    expect(reopened.update("p", updateInput({ properties: {} }, "small")).status).toBe(200);
     expect(reopened.update("p", edit)).toEqual(result);
   });
   it.each(["format", "current", "transition-outcome", "noop-outcome"])(
@@ -602,9 +583,9 @@ function setup(overrides: Partial<PrivateStoreOptions> = {}) {
   cleanups.push(() => store.close());
   return { config, store };
 }
-const input = (key = "k", id?: string, within = scope) =>
+const input = (key = "k", id?: string) =>
   prepareCreate(
-    within,
+    scope,
     JSON.stringify({
       type: { uri: "https://types.invalid/T", revision: "t1" },
       ...(id ? { id } : {}),
@@ -677,38 +658,40 @@ describe("private retained SQLite owner", () => {
   it.each(["result", "fact"] as const)(
     "retains the terminal %s size refusal with zero committed allocations",
     (bound) => {
-      const within = bound === "fact" ? longScope : scope;
-      const configuredNavigation = navigationFor(within);
+      const configuredNavigation =
+        bound === "fact"
+          ? { ...navigation, events: `${navigation.events}&padding=${"x".repeat(60000)}` }
+          : navigation;
       const { config, store } = setup({ navigation: configuredNavigation });
       const body = JSON.stringify({
         id: "size-refusal",
         type: "https://types.invalid/T",
-        properties: { padding: "x".repeat(bound === "result" ? 262144 : 205000) },
+        properties: { padding: "x".repeat(bound === "result" ? 262144 : 245000) },
       });
-      const prepared = prepareCreate(within, body, "too-large");
+      const prepared = prepareCreate(scope, body, "too-large");
       const first = store.create("p", prepared);
       expect(first.status).toBe(413);
       expect(JSON.parse(first.text)).toMatchObject({ code: "limit-exceeded", retry: "never" });
-      expect(store.create("p", prepareCreate(within, body, "too-large"))).toEqual(first);
+      expect(store.create("p", prepareCreate(scope, body, "too-large"))).toEqual(first);
       const changed = prepareCreate(
-        within,
+        scope,
         JSON.stringify({ id: "size-refusal", type: "https://types.invalid/T", properties: {} }),
         "too-large",
       );
       expect(JSON.parse(store.create("p", changed).text).code).toBe("idempotency-conflict");
-      expect(store.read(`${within}size-refusal`)).toBeUndefined();
+      expect(store.read(`${scope}size-refusal`)).toBeUndefined();
       expect(store.events("p", configuredNavigation.events, "", { limit: 20 }).events).toHaveLength(
         0,
       );
       store.close();
       const reopened = openPrivateRetainedStore({ ...config, create: false });
       cleanups.push(() => reopened.close());
-      expect(reopened.create("p", prepareCreate(within, body, "too-large"))).toEqual(first);
+      expect(reopened.create("p", prepareCreate(scope, body, "too-large"))).toEqual(first);
       // Reusing this supplied ID under a new key proves the refusal reserved no identity.
       const valid = reopened.create(
         "p",
         prepareCreate(
-          within,
+          scope,
           JSON.stringify({ id: "size-refusal", type: "https://types.invalid/T", properties: {} }),
           "fresh-key",
         ),
@@ -716,7 +699,7 @@ describe("private retained SQLite owner", () => {
       expect(valid.status).toBe(200);
       const page = reopened.events("p", configuredNavigation.events, "", { limit: 20 });
       expect(page.events).toHaveLength(1);
-      expect(page.events[0]).toMatchObject({ effect: { id: `${within}size-refusal` } });
+      expect(page.events[0]).toMatchObject({ effect: { id: `${scope}size-refusal` } });
     },
   );
   it("fixes a traversal upper bound, protects source/principal context and resumes later", () => {

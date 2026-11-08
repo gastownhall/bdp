@@ -132,17 +132,6 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
       );
       return;
     }
-    if (
-      corruption === "restart-navigation" &&
-      restarted &&
-      /^(graph-bead-|link-|alias-)/.test(request.headers["idempotency-key"] ?? "") &&
-      !request.url.startsWith("/refreshed")
-    ) {
-      request.resume();
-      response.writeHead(404);
-      response.end();
-      return;
-    }
     const aliasReplay =
       corruption === "alias-reexecution" &&
       originalAlias !== undefined &&
@@ -174,12 +163,9 @@ async function corruptingProvider(context, cleanupFails = false, corruption = "p
           ) {
             const value = JSON.parse(body);
             if (corruption === "restart-navigation" && restarted) {
-              if (value.profile === "write") {
-                value.operations = refreshed(value.operations);
+              // Core fixes every operation route; only the alias base can move on restart.
+              if (value.profile === "write")
                 value.aliases = `${value.aliases.replace(/\/?$/, "/")}fresh`;
-              } else if (value.createBead) {
-                for (const field of Object.keys(value)) value[field] = refreshed(value[field]);
-              }
               body = Buffer.from(JSON.stringify(value));
             }
             if (corruption === "alias-base" && value.profile === "write") {
@@ -800,7 +786,7 @@ test("graph timing boundaries require the full budget and reject already elapsed
   assert.equal(kit.hasGraphDetailWindow(undefined, 360000, 100, 101), false);
 });
 
-test("fresh graph operations rediscover navigation after restart while original retries retain their original targets", async () => {
+test("fresh alias work rediscovers the alias base after restart while original retries retain their original targets", async () => {
   const report = await runCurrentProvider((context) =>
     corruptingProvider(context, false, "restart-navigation"),
   );
@@ -1078,7 +1064,7 @@ test("--scope against a Write Scope changes nothing without --allow-mutation", a
     assert.deepEqual(mutating, []);
     assert.equal(report.discovered.profile, "write");
     assert.equal(
-      report.obligations.find(({ id }) => id === "write.discovery-directory").state,
+      report.obligations.find(({ id }) => id === "write.discovery-fixed-routes").state,
       "pass",
     );
     const create = report.obligations.find(({ id }) => id === "write.create");
@@ -1093,23 +1079,45 @@ test("--scope against a Write Scope changes nothing without --allow-mutation", a
 });
 
 /**
- * The real reference behind a real proxy that rewrites only what a Write provider says about
- * aliases. `shape(requestCount)` names what discovery and the directory carry on that read:
- * `advertised` and `members` booleans, or a member list for half of the pair.
+ * The real reference behind a real proxy that reshapes only what a Write provider says and
+ * serves about aliases. `shape(discoveryRead)` names, for that read and the requests after it:
+ * `advertised` (discovery's `aliases`), `members` (which alias operations its fixed routes
+ * serve; an unserved one answers as the absent path it then is), `extra` (members added to
+ * discovery) and `directory` (the retired operation directory, served anyway).
  */
 async function aliasShapedProvider(context, shape) {
   const provider = await provision(context);
   let upstream = new URL(provider.connections[0].connectOrigin);
+  const scopePath = new URL(provider.scope).pathname;
   let discoveryReads = 0;
   const aliasPosts = [];
-  let directoryRead;
+  const aliasTarget = (url) =>
+    ALIAS_PAIR.find((name) => url === `${scopePath}bdp/operations/${name}`);
   const proxy = http.createServer((request, response) => {
+    const current = shape(Math.max(discoveryReads - 1, 0));
+    const name = aliasTarget(request.url);
+    if (current.directory && request.url === `${scopePath}bdp/operations`) {
+      request.resume();
+      response.writeHead(200, { "content-type": "application/vnd.bdp.v0.1+json" });
+      response.end(
+        JSON.stringify(
+          Object.fromEntries(
+            ["createBead", "updateBead", "deleteBead", "createLink", "updateLink", "deleteLink"]
+              .concat(ALIAS_PAIR)
+              .map((op) => [op, new URL(`bdp/operations/${op}`, provider.scope).href]),
+          ),
+        ),
+      );
+      return;
+    }
+    // An alias operation the shape does not serve gets the upstream's own absent-path answer.
+    const served = name === undefined || current.members.includes(name);
     const forward = http.request(
       {
         hostname: upstream.hostname,
         port: upstream.port,
         method: request.method,
-        path: request.url,
+        path: served ? request.url : `${scopePath}bdp/absent-${name}`,
         headers: request.headers,
       },
       (reply) => {
@@ -1124,25 +1132,14 @@ async function aliasShapedProvider(context, shape) {
           ) {
             const value = JSON.parse(body);
             if (value.profile === "write") {
-              const { advertised } = shape(discoveryReads++);
+              const { advertised, extra } = shape(discoveryReads++);
               if (!advertised) delete value.aliases;
-              body = Buffer.from(JSON.stringify(value));
-            } else if (value.createBead !== undefined) {
-              directoryRead = value;
-              const { members } = shape(discoveryReads - 1);
-              for (const name of ["putAlias", "deleteAlias"])
-                if (!members.includes(name)) delete value[name];
-              if (shape(discoveryReads - 1).duplicate) value.updateBead = value.createBead;
+              Object.assign(value, extra ?? {});
               body = Buffer.from(JSON.stringify(value));
             }
             delete headers["content-length"];
           }
-          if (
-            request.method === "POST" &&
-            [directoryRead?.putAlias, directoryRead?.deleteAlias].some(
-              (target) => target && new URL(target).pathname === request.url,
-            )
-          )
+          if (request.method === "POST" && name !== undefined && served)
             aliasPosts.push(request.url);
           response.writeHead(reply.statusCode, headers);
           response.end(body);
@@ -1206,7 +1203,7 @@ test("alias rows stay not applicable, not unauthorized, when mutation is not all
     { allowMutation: false },
   );
   assert.equal(
-    report.obligations.find(({ id }) => id === "write.discovery-directory").state,
+    report.obligations.find(({ id }) => id === "write.discovery-fixed-routes").state,
     "pass",
   );
   for (const id of ["write.alias-put", "write.alias-delete"]) {
@@ -1219,7 +1216,8 @@ test("alias rows stay not applicable, not unauthorized, when mutation is not all
   assert.match(create.reason, /--allow-mutation/);
 });
 
-test("a directory that disagrees with discovery about aliases fails, and nothing is not applicable", async () => {
+test("fixed routes that disagree with discovery, or retired navigation, fail, and nothing is not applicable", async () => {
+  const scope = (path) => ({ extra: path });
   for (const [name, shape] of [
     ["members unadvertised", () => ({ advertised: false, members: ALIAS_PAIR })],
     ["advertised, members omitted", () => ({ advertised: true, members: [] })],
@@ -1227,10 +1225,25 @@ test("a directory that disagrees with discovery about aliases fails, and nothing
     ["advertised, other member", () => ({ advertised: true, members: ["deleteAlias"] })],
     ["unadvertised, one member", () => ({ advertised: false, members: ["putAlias"] })],
     ["unadvertised, other member", () => ({ advertised: false, members: ["deleteAlias"] })],
-    ["unadvertised, duplicate target", () => ({ advertised: false, members: [], duplicate: true })],
     [
-      "advertised, duplicate target",
-      () => ({ advertised: true, members: ALIAS_PAIR, duplicate: true }),
+      "retired operations member",
+      () => ({
+        advertised: true,
+        members: ALIAS_PAIR,
+        ...scope({ operations: "https://current-provider.invalid/ops" }),
+      }),
+    ],
+    [
+      "retired events member",
+      () => ({
+        advertised: true,
+        members: ALIAS_PAIR,
+        ...scope({ events: "https://current-provider.invalid/events" }),
+      }),
+    ],
+    [
+      "retired directory still served",
+      () => ({ advertised: true, members: ALIAS_PAIR, directory: true }),
     ],
   ]) {
     const report = await runCurrentProvider(
@@ -1238,7 +1251,7 @@ test("a directory that disagrees with discovery about aliases fails, and nothing
     );
     assert.equal(report.state, "fail", name);
     assert.equal(
-      report.obligations.find(({ id }) => id === "write.discovery-directory").state,
+      report.obligations.find(({ id }) => id === "write.discovery-fixed-routes").state,
       "fail",
       name,
     );
@@ -1636,7 +1649,8 @@ test("a recipe run says it is one; a run without a recipe says nothing of it", a
   assert.equal(report.sliceComplete, true, JSON.stringify(report));
   // The provider's bodies went on the wire, and its Link's endpoints are plain References.
   const creates = seen.filter(
-    ({ url, contentType }) => url.endsWith("/createBead") && contentType !== "application/json",
+    ({ method, url, contentType }) =>
+      method === "POST" && url.endsWith("/createBead") && contentType !== "application/json",
   );
   assert(creates.every(({ body }) => body.properties.title === "written"));
   assert(creates.every(({ body }) => /\/recipe\/|^recipe\//.test(body.id)));
@@ -1644,7 +1658,7 @@ test("a recipe run says it is one; a run without a recipe says nothing of it", a
     new Set(creates.filter(({ key }) => !key.startsWith("create-")).map((c) => c.body.id)).size,
     3,
   );
-  const link = seen.find(({ url }) => url.endsWith("/createLink"));
+  const link = seen.find(({ method, url }) => method === "POST" && url.endsWith("/createLink"));
   assert.equal(typeof link.body.source, "string");
   assert.equal(typeof link.body.target, "string");
   assert.deepEqual(link.body.properties, { label: "linked" });
@@ -1665,7 +1679,9 @@ test("a recipe's patch update runs, with its no-op sending the created values ba
   );
   assert.equal(rowOf(report, "write.no-op").state, "pass", JSON.stringify(report));
   assert.equal(rowOf(report, "write.effectful-update").state, "pass", JSON.stringify(report));
-  const updates = seen.filter(({ url }) => url.endsWith("/updateBead"));
+  const updates = seen.filter(
+    ({ method, url }) => method === "POST" && url.endsWith("/updateBead"),
+  );
   assert.deepEqual(updates[0].body.propertiesChange, [
     { op: "replace", path: "/title", value: "written" },
   ]);
@@ -1682,7 +1698,7 @@ test("a recipe lets the service allocate identities, and still catches a refused
   const { report, seen } = await runReshaped({}, { recipe: allocated });
   assert.equal(report.state, "incomplete", JSON.stringify(report));
   assert.equal(report.sliceComplete, true, JSON.stringify(report));
-  for (const { url, body } of seen)
+  for (const { url, body } of seen.filter((entry) => entry.method === "POST"))
     if (url.endsWith("/createBead") || url.endsWith("/createLink"))
       assert.equal(Object.hasOwn(body, "id"), false, url);
 
@@ -1821,10 +1837,11 @@ test("without idempotency the replay rows are not applicable and nothing replays
 
 test("without idempotency a repeat the Scope really refuses cannot fail write.create; with it, it still does", async () => {
   // The first answer is the real one; the same key's second is what Write says without the capability.
-  const refuseSecond = ({ url, seen }) => {
-    if (!url.endsWith("/createBead")) return undefined;
+  const refuseSecond = ({ method, url, seen }) => {
+    if (method !== "POST" || !url.endsWith("/createBead")) return undefined;
     const sent = seen.filter(
-      (entry) => entry.url === url && entry.contentType !== "application/json",
+      (entry) =>
+        entry.method === "POST" && entry.url === url && entry.contentType !== "application/json",
     );
     return sent.length > 1 && sent.at(-1).key === sent[0].key
       ? {
@@ -1899,8 +1916,8 @@ test("a provider that advertises idempotency is still held to its replays", asyn
   assert.equal(rowOf(wrong, "write.durable-original-delete").state, "fail");
 });
 
-const refuseUpdateLink = ({ url }) =>
-  url.endsWith("/updateLink")
+const refuseUpdateLink = ({ method, url }) =>
+  method === "POST" && url.endsWith("/updateLink")
     ? {
         status: 422,
         contentType: "application/problem+json",

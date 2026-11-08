@@ -1,9 +1,14 @@
 import { discoveredEventSource } from "@bdp/protocol";
 import type { RetainedHttpContext } from "@bdp/client";
+import { BDP_PUBLISHED_TYPE_NAMES } from "@bdp/bd-domain";
+import { BDP_TYPES, scopeTypes, shortTypeBase } from "./canonical-input.js";
 
 export interface CanonicalOutput {
   readonly schema_version: 2;
   readonly bdp_spec: string | null;
+  /** With `--response-context`, the selected Scope's discovery `bdpVersion` and `specRevision`. */
+  readonly bdpVersion?: string | null;
+  readonly specRevision?: string | null;
   readonly result_kind: string;
   readonly outcome: "success" | "failure" | "unknown";
   readonly data?: unknown;
@@ -43,6 +48,46 @@ function ref(value: unknown, scope?: string, long = false): string {
   }
   return !long && scope && value.startsWith(scope) ? value.slice(scope.length) : value;
 }
+/** A Type for people: its short name when it sits under BDP's published Types or the Scope's
+ * `types/` and reads back to the same Type (rows 14 and 18), else its full URL. `--long` prints
+ * every Type in full. */
+export function typeRef(value: unknown, long = false, scope?: string): string {
+  if (typeof value !== "string") {
+    const pinned = record(value);
+    if (typeof pinned.uri !== "string") return "";
+    const identity = typeRef(pinned.uri, long, scope);
+    return `${/^https?:\/\//.test(identity) ? `[${identity}]` : identity}@=${String(pinned.revision)}`;
+  }
+  if (long) return value;
+  for (const base of [BDP_TYPES, ...(scope === undefined ? [] : [scopeTypes(scope)])]) {
+    const name = value.startsWith(base) ? value.slice(base.length) : "";
+    if (name !== "" && scope !== undefined && shortTypeBase(name, scope) === base) return name;
+    if (
+      name !== "" &&
+      scope === undefined &&
+      base === BDP_TYPES &&
+      BDP_PUBLISHED_TYPE_NAMES.has(name)
+    )
+      return name;
+  }
+  return value;
+}
+/** The labeled head `bdp show` and a Callable's record result share: `ID:`, `Type:`, `Title:`,
+ * `Revision:`, in that order, each only when present. */
+function recordHeader(
+  fields: { id?: unknown; type?: unknown; title?: unknown; revision?: unknown },
+  scope: string | undefined,
+  long: boolean,
+): string[] {
+  return [
+    ...(fields.id === undefined ? [] : [`ID: ${terminalText(ref(fields.id, scope, long))}`]),
+    ...(fields.type === undefined
+      ? []
+      : [`Type: ${terminalText(typeRef(fields.type, long, scope))}`]),
+    ...(typeof fields.title === "string" ? [`Title: ${terminalText(fields.title)}`] : []),
+    ...(fields.revision === undefined ? [] : [`Revision: ${plain(fields.revision)}`]),
+  ];
+}
 export function resourceRows(items: readonly unknown[], scope?: string, long = false): string {
   const links = items.some((item) => Object.hasOwn(record(item), "source"));
   const status = items.some((item) => Object.hasOwn(record(record(item).properties), "status"));
@@ -51,7 +96,7 @@ export function resourceRows(items: readonly unknown[], scope?: string, long = f
       p = record(r.properties);
     return [
       ref(r.id, scope, long),
-      ref(r.type, scope, long),
+      typeRef(r.type, long, scope),
       typeof p.title === "string" ? p.title : "",
       ...(links ? [ref(r.source, scope, long), ref(r.target, scope, long)] : []),
       ...(status ? [p.status === undefined ? "" : String(p.status)] : []),
@@ -85,21 +130,28 @@ export function resourceRows(items: readonly unknown[], scope?: string, long = f
 function document(value: unknown, scope?: string, long = false): string {
   const r = record(value),
     p = record(r.properties);
-  const lines = [`${ref(r.id, scope, long)} [${ref(r.type, scope, long)}]`];
-  if (typeof p.title === "string") lines.push(p.title);
-  if (r.revision !== undefined) lines.push(`Revision: ${String(r.revision)}`);
+  const cut: RenderPass = { shortened: false, long, ...(scope === undefined ? {} : { scope }) };
+  const lines = recordHeader(
+    { id: r.id, type: r.type, title: p.title, revision: r.revision },
+    scope,
+    long,
+  );
   if (r.source !== undefined)
     lines.push(`Source: ${ref(r.source, scope, long)}`, `Target: ${ref(r.target, scope, long)}`);
-  if (typeof p.body === "string") lines.push("", p.body);
   const properties = Object.fromEntries(
     Object.entries(p).filter(
       ([key, val]) => !((key === "title" || key === "body") && typeof val === "string"),
     ),
   );
-  if (Object.keys(properties).length)
-    lines.push("", "Properties:", JSON.stringify(properties, null, 2));
+  if (Object.keys(properties).length) lines.push(...callableLines(properties, cut));
+  while (lines.at(-1) === "") lines.pop();
+  if (typeof p.body === "string") lines.push("", terminalText(p.body));
   if (Object.keys(record(r.metadata)).length)
-    lines.push("", "Metadata:", JSON.stringify(r.metadata, null, 2));
+    lines.push(
+      "",
+      "Metadata:",
+      ...callableLines(r.metadata, cut).map((text) => (text === "" ? "" : `  ${text}`)),
+    );
   if (r.links !== undefined) {
     const included = record(r.links);
     const rows = Array.isArray(included.items) ? included.items : [];
@@ -128,6 +180,8 @@ function document(value: unknown, scope?: string, long = false): string {
     );
     if (Object.keys(detail).length) lines.push("", "Context:", JSON.stringify(detail, null, 2));
   }
+  if (cut.shortened)
+    lines.push("", "(long values shortened; --output-mode json carries them whole)");
   return `${lines.join("\n")}\n`;
 }
 
@@ -213,8 +267,21 @@ const isEmptyValue = (value: unknown): boolean =>
 const plain = (value: unknown): string =>
   terminalText(typeof value === "string" ? value : JSON.stringify(value));
 
+/** What a rendering pass shares: whether a value was shortened, and whether `--long` asked for
+ * full references. */
+interface RenderPass {
+  shortened: boolean;
+  readonly long?: boolean;
+  readonly scope?: string;
+}
+/** A member named `type` holding a BDP Type URL prints by its short name, as everywhere else. */
+const shown = (key: string, value: unknown, cut: RenderPass): unknown =>
+  key === "type" && typeof value === "string"
+    ? typeRef(value, cut.long === true, cut.scope)
+    : value;
+
 /** Rows of one record kind. A column empty in every row says nothing and is left out. */
-function callableTable(rows: readonly ObjectValue[], cut: { shortened: boolean }): string[] {
+function callableTable(rows: readonly ObjectValue[], cut: RenderPass): string[] {
   const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((column) =>
     rows.some((row) => !isEmptyValue(row[column])),
   );
@@ -224,7 +291,7 @@ function callableTable(rows: readonly ObjectValue[], cut: { shortened: boolean }
     cut.shortened = true;
     return `${text.slice(0, CELL_WIDTH - 1)}…`;
   };
-  const cells = rows.map((row) => columns.map((column) => cell(row[column])));
+  const cells = rows.map((row) => columns.map((column) => cell(shown(column, row[column], cut))));
   const widths = columns.map((column, index) =>
     Math.max(terminalText(column).length, ...cells.map((row) => (row[index] ?? "").length)),
   );
@@ -235,15 +302,16 @@ function callableTable(rows: readonly ObjectValue[], cut: { shortened: boolean }
       .trimEnd();
   return [line(columns.map(terminalText)), ...cells.map(line)];
 }
-function callableLines(value: unknown, cut: { shortened: boolean }): string[] {
+function callableLines(value: unknown, cut: RenderPass): string[] {
   if (isTabular(value)) return callableTable(value, cut);
   if (Array.isArray(value))
     return value.length === 0 ? ["(none)"] : value.map((item) => plain(item));
   if (value === null || typeof value !== "object") return plain(value).split("\n");
   const members = Object.entries(value);
   if (members.length === 0) return ["(empty)"];
-  return members.flatMap(([key, member]) => {
+  return members.flatMap(([key, given]) => {
     const name = terminalText(key);
+    const member = shown(key, given, cut);
     if (isTabular(member)) return ["", `${name}:`, ...callableTable(member, cut), ""];
     if (Array.isArray(member))
       return [`${name}: ${member.length === 0 ? "(none)" : member.map(plain).join(", ")}`];
@@ -254,12 +322,24 @@ function callableLines(value: unknown, cut: { shortened: boolean }): string[] {
   });
 }
 
+/** The earlier name of {@link renderHumanFailure}, from when only Callables used it. */
+export const renderCallableFailure = (failure: CanonicalOutput): string =>
+  renderHumanFailure(failure);
+
 /** Members of a v0 Problem carried in `error` that the first line already says. */
 const SAID_MEMBERS = new Set(["type", "status", "title", "code", "detail"]);
 
-/** A failed Callable in human mode: what was refused and why, in lines a person reads. Everything
- * but the wording comes from the failure, and `--output-mode json` carries all of it unchanged. */
-export function renderCallableFailure(failure: CanonicalOutput): string {
+/** The Scope a failure involved and where it came from, as a person reads it. */
+export function scopeLine(scope: unknown): string | undefined {
+  const selected = record(scope);
+  return typeof selected.url === "string"
+    ? `Scope: ${terminalText(selected.url)}${typeof selected.source === "string" ? ` (from ${terminalText(selected.source)})` : ""}`
+    : undefined;
+}
+
+/** A failure in human mode: what was refused and why, in lines a person reads. Everything but
+ * the wording comes from the failure, and `--output-mode json` carries all of it unchanged. */
+export function renderHumanFailure(failure: CanonicalOutput): string {
   const problem = record(record(failure.error).problem);
   const operation = record(problem.error);
   const word = (value: unknown): string | undefined =>
@@ -295,27 +375,71 @@ export function renderCallableFailure(failure: CanonicalOutput): string {
     ...(typeof context.idempotency_key === "string"
       ? [`  To recover, repeat with --idempotency-key ${terminalText(context.idempotency_key)}`]
       : []),
+    ...(Array.isArray(record(context.recovery).argv)
+      ? [
+          `  To recover, run: ${terminalText((record(context.recovery).argv as unknown[]).map(String).join(" "))}`,
+        ]
+      : []),
+    ...(scopeLine(context.scope) === undefined ? [] : [`  ${scopeLine(context.scope)}`]),
   ];
   return `${lines.join("\n")}\n`;
 }
 
-/** The one human form of every Callable result: boring, generic, with no per-package view. */
-function callableResultText(data: ObjectValue): string {
-  const cut = { shortened: false };
+/** The one human form of every Callable result: boring, generic, with no per-package view. A
+ * record result (one with `id`, `title` or `revision`) opens with the labeled head `bdp show`
+ * prints, and every other member follows as `key: value` lines (row 16). */
+function callableResultText(data: ObjectValue, long = false, scope?: string): string {
+  const cut: RenderPass = { shortened: false, long, ...(scope === undefined ? {} : { scope }) };
   const result = record(data.result);
   // The envelope says `changed`, and a product's own result may too. One line when they agree;
   // when they do not, both, because which of them is right is not this client's to pick.
   const both = typeof data.changed === "boolean" && typeof result.changed === "boolean";
   const { changed: _said, ...rest } = result;
+  const body: unknown = both ? rest : data.result;
+  const isRecord =
+    body !== null &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    ["id", "title", "revision"].some((key) => Object.hasOwn(body, key));
+  const headed = isRecord ? (body as ObjectValue) : undefined;
+  const header =
+    headed === undefined
+      ? []
+      : recordHeader(
+          {
+            id: headed.id,
+            type: typeof headed.type === "string" ? headed.type : undefined,
+            title: headed.title,
+            revision: headed.revision,
+          },
+          scope,
+          long,
+        );
+  const remaining =
+    headed === undefined
+      ? body
+      : Object.fromEntries(
+          Object.entries(headed).filter(
+            ([key, value]) =>
+              !(
+                key === "id" ||
+                key === "revision" ||
+                (key === "title" && typeof value === "string") ||
+                (key === "type" && typeof value === "string")
+              ),
+          ),
+        );
   const lines = [
     ...(both && data.changed !== result.changed
       ? [`changed (invocation): ${data.changed}`, `changed (result): ${result.changed}`]
       : typeof data.changed === "boolean"
         ? [`changed: ${data.changed}`]
         : []),
-    ...(both && Object.keys(rest).length === 0
+    ...header,
+    ...((both && Object.keys(rest).length === 0) ||
+    (headed !== undefined && Object.keys(record(remaining)).length === 0)
       ? []
-      : callableLines(both ? rest : data.result, cut)),
+      : callableLines(remaining, cut)),
   ];
   while (lines[0] === "") lines.shift();
   while (lines.at(-1) === "") lines.pop();
@@ -330,8 +454,9 @@ export function renderCanonicalOutput(
   scope?: string,
 ): string {
   const format = options.outputFormat ?? (options.outputMode === "json" ? "json" : "default");
-  const omit = Array.isArray(options.omit) ? options.omit : [];
-  const raw = omit.includes("envelope");
+  // `--output-mode json` prints the data itself, as `bd --json` does; `--response-context`
+  // asks for the envelope around it (row 4).
+  const raw = options.responseContext !== true;
   if (format === "json")
     return raw
       ? output.data === undefined
@@ -404,7 +529,7 @@ export function renderCanonicalOutput(
     return rows.map((row) => `${String(row.name).padEnd(width)}  ${String(row.kind)}\n`).join("");
   }
   if (output.result_kind === "callable_result" && format === "default")
-    return callableResultText(record(output.data));
+    return callableResultText(record(output.data), options.long === true, scope);
   if (output.result_kind === "mutation") {
     const data = record(output.data);
     const result = data.result === undefined ? data : record(data.result);

@@ -4,7 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prepareAlias } from "./alias-contract.js";
-import { prepareCreate, prepareDelete, prepareUpdate, type PrivateNavigation } from "./contract.js";
+import { prepareCreate, prepareDelete, prepareUpdate, fixedNavigation } from "./contract.js";
 import { prepareLink } from "./link-contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
@@ -16,25 +16,8 @@ vi.mock("node:crypto", async (importOriginal) => {
 
 const scope = "https://scope.invalid/alias-unit/";
 const type = "https://types.invalid/T";
-const navigation: PrivateNavigation = {
-  scope,
-  aliases: `${scope}names/`,
-  description: "https://discover.invalid/about?a=one",
-  beads: `${scope}inventory-nodes`,
-  links: `${scope}inventory-edges`,
-  events: `${scope}bdp/events`,
-  operations: "https://discover.invalid/commands?a=one",
-  targets: {
-    createBead: "https://invoke.invalid/new?n=1",
-    updateBead: "https://invoke.invalid/edit?n=2",
-    deleteBead: "https://invoke.invalid/drop?n=3",
-    createLink: "https://invoke.invalid/new?n=4",
-    updateLink: "https://invoke.invalid/edit?n=5",
-    deleteLink: "https://invoke.invalid/drop?n=6",
-    putAlias: "https://invoke.invalid/bind?n=7",
-    deleteAlias: "https://invoke.invalid/unbind?n=8",
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}names/`);
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   controlled.ids.length = 0;
@@ -75,9 +58,9 @@ const code = (result: { readonly text: string }) => JSON.parse(result.text).code
 
 describe("private atomic alias decisions and original Reference witnesses", () => {
   it("protects actual navigation route bases in a Scope-wide alias namespace", () => {
-    const selected = { ...navigation, aliases: scope, events: `${scope}bdp/events` };
+    const selected = { ...navigation, aliases: scope, events: `${scope}stream?owner=one` };
     const { store } = setup(undefined, selected);
-    expect(code(store.putAlias("p", put("bdp/events", "a", "navigation-collision")))).toBe(
+    expect(code(store.putAlias("p", put("stream", "a", "navigation-collision")))).toBe(
       "identity-taken",
     );
     expect(store.events("p", selected.events, "", { limit: 20 }).events).toHaveLength(2);

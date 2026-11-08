@@ -38,6 +38,10 @@ baseline brief's Donna-only merger and wait-for-the-complete-review sequencing
 are superseded by this explicit direction. Its original source and failed-run
 receipts remain historical evidence, not current execution authority.
 
+## Changes by other agents
+
+This loop handles Donna's markers. A change another agent wants to make to this repository goes through the coordinator, Trish, under [rule 6.9 of the fleet's `RULES.md`](https://github.com/donnabox/agent-coordination/blob/main/RULES.md): tell the coordinator first, take in what the coordinator says to consider, agree who builds and lands, and the coordinator merges once CI is green and the text is something Donna has ruled on.
+
 ## Schema and OpenAPI authoring
 
 Read the prose with its JSON exemplars first. Each profile ends with **Schemas**

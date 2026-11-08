@@ -29,7 +29,7 @@ export const RETAINED_WRITE_OPERATIONS = Object.freeze([
 export type RetainedWriteOperation = (typeof RETAINED_WRITE_OPERATIONS)[number];
 const RETAINED_ALIAS_OPERATIONS = Object.freeze(["putAlias", "deleteAlias"] as const);
 export type RetainedAliasOperation = (typeof RETAINED_ALIAS_OPERATIONS)[number];
-/** The six Resource members always; the alias pair exactly when discovery advertises `aliases`. */
+/** The six Resource operations always; the alias pair exactly when discovery advertises `aliases`. */
 export type RetainedWriteDirectory = Readonly<
   Record<Exclude<RetainedWriteOperation, RetainedAliasOperation>, AbsoluteHttpUrl>
 > &
@@ -40,13 +40,11 @@ export type RetainedWriteDiscovery = JsonObject & {
   readonly profile: "write";
   readonly scope: AbsoluteHttpUrl;
   readonly specRevision: string;
-  readonly operations: AbsoluteHttpUrl;
   readonly aliases?: AbsoluteHttpUrl;
 };
 
 type SchemaRoot =
   | "writeDiscovery"
-  | "writeOperationDirectory"
   | RetainedWriteOperation
   | "retainedDiscovery"
   | "currentBeadRecord"
@@ -121,37 +119,27 @@ export function parseRetainedWriteDiscovery(text: string): RetainedWriteDiscover
   const value = parseRetainedObject(text);
   validateRetainedValue("writeDiscovery", value);
   parseCanonicalScope(value.scope);
-  for (const field of ["operations", "aliases"] as const)
-    if (value[field] !== undefined) parseCanonicalHttpUrl(value[field], `Write discovery.${field}`);
+  if (value.aliases !== undefined) parseCanonicalHttpUrl(value.aliases, "Write discovery.aliases");
   return value as RetainedWriteDiscovery;
 }
 
-/** No relative suffixes, inferred paths, extra operations or duplicate targets. The closed
- * schema holds the alias pair together; whether the pair belongs is discovery's to say, and a
- * directory that disagrees with discovery in either direction is ambiguous and refused.
+/** Core's fixed navigation (core.md#fixed-navigation): every ordinary operation sits at
+ * `<scope>/bdp/operations/NAME`. The alias pair exists exactly when discovery advertises
+ * `aliases`; nothing is read from any other member or document.
  */
-export function parseRetainedWriteDirectory(
-  text: string,
+export function retainedWriteTargets(
+  scope: string,
   discovery: Pick<RetainedWriteDiscovery, "aliases">,
 ): RetainedWriteDirectory {
-  const value = parseRetainedObject(text);
-  validateRetainedValue("writeOperationDirectory", value);
-  const aliasMembers = RETAINED_ALIAS_OPERATIONS.some((name) => value[name] !== undefined);
-  if (aliasMembers !== (discovery.aliases !== undefined))
-    throw new ProtocolArtifactValidationError(
-      aliasMembers
-        ? "the Write operation directory carries alias operations, but discovery does not advertise aliases"
-        : "discovery advertises aliases, but the Write operation directory omits the alias operations",
-    );
-  const targets = new Set<string>();
-  for (const operation of RETAINED_WRITE_OPERATIONS) {
-    if (value[operation] === undefined) continue;
-    const url = parseCanonicalHttpUrl(value[operation], `Write directory.${operation}`);
-    if (targets.has(url))
-      throw new ProtocolArtifactValidationError("retained Write directory has ambiguous targets");
-    targets.add(url);
-  }
-  return value as RetainedWriteDirectory;
+  const owning = parseCanonicalScope(scope);
+  const aliases = discovery.aliases !== undefined;
+  return Object.freeze(
+    Object.fromEntries(
+      RETAINED_WRITE_OPERATIONS.filter(
+        (operation) => aliases || !RETAINED_ALIAS_OPERATIONS.includes(operation as never),
+      ).map((operation) => [operation, `${owning}bdp/operations/${operation}`]),
+    ),
+  ) as RetainedWriteDirectory;
 }
 
 /** Native singleton root, without a sequence/client envelope. Exact JSON text

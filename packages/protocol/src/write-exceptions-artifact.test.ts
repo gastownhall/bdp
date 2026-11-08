@@ -29,7 +29,6 @@ const discovery = (detail: unknown) => ({
   profile: "write",
   scope: "https://beads.example/acme/",
   specRevision: "0".repeat(40),
-  operations: "https://beads.example/acme/bdp/operations",
   capabilities: { [capability]: { "1": detail } },
 });
 
@@ -84,8 +83,9 @@ describe("write-exceptions1 and the ordinary operation-not-supported Problem", (
     expect(valid("writeDiscovery", discovery(detail))).toBe(false);
   });
 
-  it("keeps the directory's six members required for a Scope with exceptions", () => {
-    const check = common.$defs.writeOperationDirectory.required;
+  it("names only the six Resource operations, each at its fixed route", () => {
+    expect(common.$defs.writeOperationDirectory).toBeUndefined();
+    const check = common.$defs.atomicBatchOperationName.enum;
     expect(check).toEqual([
       "createBead",
       "updateBead",

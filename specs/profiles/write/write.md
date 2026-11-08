@@ -45,11 +45,11 @@ authorization, atomicity, retention or conformance.
 ## Discover and select Write
 
 A Write Scope advertises `bdpVersion:"0.1"` and `profile:"write"`. Its closed
-machine discovery requires `scope` and `operations`, in addition to those two
-identity members and the Core-required `specRevision`. `aliases` is optional; when
-present it promises Core's alias resolution and the two alias operations below.
-Bead and Link inventories use the fixed Core routes
-`<scope>/bdp/beads` and `<scope>/bdp/links`; they are not discovery members. The
+machine discovery requires `scope`, in addition to those two identity members and
+the Core-required `specRevision`. `aliases` is optional; when present it promises
+Core's alias resolution and the two alias operations below.
+Bead and Link inventories and every operation below sit at Core's
+[fixed routes](../core/core.md#fixed-navigation); they are not discovery members. The
 optional common members are `order`, `limits`,
 `maximumEndpointMultiplicity`, `historicalResolution` and `capabilities`, with
 their Core meanings. There is no required Type inventory.
@@ -59,10 +59,9 @@ historical update, [deletion modes](#optional-deletion-modes-version-1),
 [write exceptions](#operations-a-scope-does-not-serve). `atomic-batch1` and
 `historical-update1` require `idempotency`; a Scope advertising either without it
 is invalid and a client refuses it.
-The operation-directory URL is absolute HTTP(S) navigation. Clients use the fixed
-inventory paths and follow the discovered operation-directory members, verifying
-the owning Scope, Resource kind and selected contract; they MUST NOT infer an
-operation from a Resource, Type or endpoint path.
+Clients build each operation's address from the Scope and its name, verifying the
+owning Scope, Resource kind and selected contract; they MUST NOT infer an operation
+from a Resource, Type or endpoint path.
 
 <a id="operation-directory-and-singleton-targets"></a>
 
@@ -70,11 +69,12 @@ operation from a Resource, Type or endpoint path.
 
 ### Ordinary targets
 
-A GET of `operations` returns a closed `writeOperationDirectory` object with exactly
-these members: the six Resource members always, and the two alias members exactly
-when discovery advertises `aliases`:
+Each ordinary operation sits at `<scope>/bdp/operations/NAME`, under Core's
+[fixed navigation](../core/core.md#fixed-navigation). A Write Scope has the six
+Resource operations always, and the two alias operations exactly when discovery
+advertises `aliases`:
 
-| Member | Decision | Present |
+| Name | Decision | Present |
 | --- | --- | --- |
 | `createBead` | Create one Bead | Always |
 | `updateBead` | Edit one Bead | Always |
@@ -85,34 +85,31 @@ when discovery advertises `aliases`:
 | `putAlias` | Create or repoint one alias | With `aliases` |
 | `deleteAlias` | Remove one alias | With `aliases` |
 
-Every value is a distinct absolute HTTP(S) operation URL of this Scope.
-A directory missing a required member, carrying an alias member without advertised
-`aliases`, or omitting one when `aliases` is advertised is ambiguous and MUST be
-refused before dispatch. Sharing an implementation handler does not merge the wire
-addresses. No fixed URL suffix is required.
-Atomic batch is separately advertised; it is not a directory member. There
-is no sequence, set-write or public-receipt operation in this directory.
+Sharing an implementation handler does not merge the wire addresses. A Scope
+without `aliases` has no alias operation: `bdp/operations/putAlias` and
+`bdp/operations/deleteAlias` answer as an absent path. Atomic batch is a separately
+advertised capability at its own fixed route. There is no operation directory, and
+no sequence, set-write or public-receipt operation.
 
 Each ordinary target accepts POST. The target URL supplies its operation kind;
 `operation`, `name` and a body-level idempotency key are not singleton request
-members. Other methods receive bodyless 405 with `Allow: POST`. The directory
-allows GET and HEAD and otherwise returns bodyless 405 with `Allow: GET, HEAD`.
+members. Other methods receive bodyless 405 with `Allow: POST`.
 When cross-origin access is enabled, OPTIONS and `Allow` follow Core's CORS rules;
 listing OPTIONS does not itself implement preflight.
 
 ### Operations a Scope does not serve
 
-A provider MAY refuse one of the six Resource operations it lists but does not serve.
+A provider MAY refuse one of the six Resource operations that it does not serve.
 A POST to that target is refused with `operation-not-supported`, naming the operation
 in `operation`, before the provider reads the body or any state: it claims no key and
-produces no effects. Ordinary authentication and media checks come first. The directory
-keeps its six members, and other methods keep their ordinary answers. The two alias
+produces no effects. Ordinary authentication and media checks come first. The target
+stays at its fixed route, and other methods keep their ordinary answers. The two alias
 operations are not covered: a Scope that does not serve them does not advertise `aliases`.
 
 A Scope that refuses any of the six MUST say so in discovery, under the capability
 `https://github.com/gastownhall/bdp/capabilities/write-exceptions` at version `"1"`. Its closed detail has one required member,
 `operationsNotSupported`: a nonempty, unique list of the operations it refuses, each
-one of the six directory names. A Scope that does not advertise this capability serves
+one of the six Resource operation names. A Scope that does not advertise this capability serves
 all six.
 
 Such a Scope is not a complete Write provider. A complete Write provider serves all six.
@@ -961,7 +958,7 @@ advertise `aliases`, and keeps every other Write rule unchanged.
 An alias is a reusable locator to one canonical in-Scope Bead, not a Resource,
 revision, owned state or member of the target's properties. Put creates or repoints
 it; delete removes it. A put at an existing alias repoints it rather than treating
-that alias as a collision. Both operations use the discovered ordinary targets.
+that alias as a collision. Both operations use their [ordinary targets](#ordinary-targets).
 
 `alias` is a canonical Scope-relative path or absolute URL in the advertised alias
 base. Resolve relative operands against `scope`; do not prepend the alias base or
@@ -1275,14 +1272,14 @@ member `"1"` has a closed detail object:
 
 | Member | Required | Meaning |
 | --- | --- | --- |
-| `operation` | yes | Absolute HTTP(S) POST target in the owning Scope |
 | `operations` | yes | Nonempty unique subset of the six CRUD discriminators |
 | `maximumOperations` | no | Positive integer member bound |
 | `maximumResultBytes` | no | Positive integer complete inline-result byte bound |
 
 No batch support is inferred from ordinary CRUD and support conveys no permission.
-Unknown capability/version entries remain ignorable for base use. Follow the
-advertised target; do not guess a path. A batch uses selected Write media, one
+Unknown capability/version entries remain ignorable for base use. The POST target
+is the fixed `<scope>/bdp/operations/atomicBatch`, under Core's
+[fixed navigation](../core/core.md#fixed-navigation). A batch uses selected Write media, one
 Idempotency-Key and a closed body with exactly `capabilityVersion:"1"` and a
 nonempty `operations` array. No per-member key or carrier-wide provenance occurs.
 The Types-required subtype independently selects Types when required.
@@ -2046,7 +2043,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["operation","operations"]
+Required order: ["operations"]
 
 #### Keywords
 
@@ -2060,7 +2057,6 @@ Required order: ["operation","operations"]
 | --- | --- | --- | --- | --- |
 | "maximumOperations" | schema | no | — | — |
 | "maximumResultBytes" | schema | no | — | — |
-| "operation" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "operations" | schema | yes | — | — |
 
 #### Advanced
@@ -4906,7 +4902,7 @@ Value: object
 
 Other fields: not allowed
 
-Required order: ["bdpVersion","profile","scope","specRevision","operations"]
+Required order: ["bdpVersion","profile","scope","specRevision"]
 
 #### Keywords
 
@@ -4924,7 +4920,6 @@ Required order: ["bdpVersion","profile","scope","specRevision","operations"]
 | "historicalResolution" | ref "#/$defs/historyCapability" | no | — | — |
 | "limits" | ref "#/$defs/writeAdvertisedLimits" | no | — | — |
 | "maximumEndpointMultiplicity" | array of (ref "#/$defs/maximumEndpointMultiplicityPolicy") | no | — | — |
-| "operations" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "order" | schema | no | — | — |
 | "profile" | schema | yes | — | — |
 | "scope" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
@@ -4947,36 +4942,6 @@ Required order: ["bdpVersion","profile","scope","specRevision","operations"]
 }
 ```
 <!-- bdp-schema:end writeDiscovery -->
-
-<!-- bdp-schema:start writeOperationDirectory -->
-### Schema: "writeOperationDirectory"
-
-Value: object
-
-Other fields: not allowed
-
-Required order: ["createBead","updateBead","deleteBead","createLink","updateLink","deleteLink"]
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| dependentRequired | {"putAlias":["deleteAlias"],"deleteAlias":["putAlias"]} |
-| type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "createBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "createLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "deleteAlias" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
-| "deleteBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "deleteLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "putAlias" | ref "#/$defs/absoluteHttpUrl" | no | — | — |
-| "updateBead" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "updateLink" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-<!-- bdp-schema:end writeOperationDirectory -->
 
 <!-- bdp-schema:start idRootCapabilityV1 bundle=id-root -->
 ### Schema: "idRootCapabilityV1"
@@ -6310,29 +6275,12 @@ Value: object
 
 The following visible operation tables are the authoring source for the generated
 [OpenAPI catalog](../../openapi/README.md), using the
-[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Targets are
-navigated URLs, not prescribed deployment paths. Shared media, authorization,
+[BDP Markdown OpenAPI notation](../../formats/markdown-openapi.md). Protocol routes
+are Core's [fixed navigation](../core/core.md#fixed-navigation); Resource targets are
+canonical Resource URLs. Shared media, authorization,
 conditional HTTP, bodyless HEAD/status and Problem rules remain defined by Core.
 Schema names resolve in the shared bundle; optional feature compositions retain
 their distinct schema resources. Generation does not qualify an implementation.
-
-<!-- bdp-operation:start writeDirectory -->
-### Operation: writeDirectory
-
-| Field | JSON value |
-| --- | --- |
-| id | `"writeDirectory"` |
-| navigation | `{"role":"discovery-member","member":"operations"}` |
-| response | `"writeOperationDirectory"` |
-| methods | `["get","head"]` |
-| problem | `"readProblem"` |
-| codes | `["malformed-request","invalid-parameter","unauthenticated","forbidden","resource-not-found","resource-pruned","resource-erased","foreign-view","cursor-expired","request-too-large","limit-exceeded","rate-limited","temporarily-unavailable"]` |
-| continuation | `"none"` |
-| optional | `"Write profile"` |
-
-| Parameter | Location | Required | JSON Schema | Meaning | Parsed schema |
-| --- | --- | --- | --- | --- | --- |
-<!-- bdp-operation:end writeDirectory -->
 
 <!-- bdp-operation:start createBead -->
 ### Operation: createBead
@@ -6340,7 +6288,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"createBead"` |
-| navigation | `{"role":"write-directory-member","member":"createBead"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/createBead"}` |
 | methods | `["post"]` |
 | request | `"createBeadRequest"` |
 | response | `"mutationResult"` |
@@ -6359,7 +6307,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"updateBead"` |
-| navigation | `{"role":"write-directory-member","member":"updateBead"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/updateBead"}` |
 | methods | `["post"]` |
 | request | `"updateBeadRequest"` |
 | response | `"mutationResult"` |
@@ -6378,7 +6326,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"deleteBead"` |
-| navigation | `{"role":"write-directory-member","member":"deleteBead"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/deleteBead"}` |
 | methods | `["post"]` |
 | request | `"deleteBeadRequest"` |
 | response | `"mutationResult"` |
@@ -6397,7 +6345,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"createLink"` |
-| navigation | `{"role":"write-directory-member","member":"createLink"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/createLink"}` |
 | methods | `["post"]` |
 | request | `"createLinkRequest"` |
 | response | `"mutationResult"` |
@@ -6416,7 +6364,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"updateLink"` |
-| navigation | `{"role":"write-directory-member","member":"updateLink"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/updateLink"}` |
 | methods | `["post"]` |
 | request | `"updateLinkRequest"` |
 | response | `"mutationResult"` |
@@ -6435,7 +6383,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"deleteLink"` |
-| navigation | `{"role":"write-directory-member","member":"deleteLink"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/deleteLink"}` |
 | methods | `["post"]` |
 | request | `"deleteLinkRequest"` |
 | response | `"mutationResult"` |
@@ -6454,7 +6402,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"putAlias"` |
-| navigation | `{"role":"write-directory-member","member":"putAlias"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/putAlias"}` |
 | methods | `["post"]` |
 | request | `"putAliasRequest"` |
 | response | `"aliasResult"` |
@@ -6473,7 +6421,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"deleteAlias"` |
-| navigation | `{"role":"write-directory-member","member":"deleteAlias"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/deleteAlias"}` |
 | methods | `["post"]` |
 | request | `"deleteAliasRequest"` |
 | response | `"aliasResult"` |
@@ -6492,7 +6440,7 @@ their distinct schema resources. Generation does not qualify an implementation.
 | Field | JSON value |
 | --- | --- |
 | id | `"atomicBatch"` |
-| navigation | `{"role":"capability-operation","capability":"https://github.com/gastownhall/bdp/capabilities/atomic-batch","version":"1"}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/atomicBatch","capability":"https://github.com/gastownhall/bdp/capabilities/atomic-batch","version":"1"}` |
 | methods | `["post"]` |
 | request | `"batchRequest"` |
 | response | `"atomicBatchResult"` |
@@ -7101,7 +7049,7 @@ Required order: ["type","status","code","retry","capability","capabilityVersion"
 
 ## Selected historical-update HTTP signatures
 
-These informative signatures catalog the already selected [historical-update binding](#historical-base-bead-update-and-recovery). They use the existing discovered `updateBead` operation and canonical Bead URL, not new endpoints. The explicit feature media selects closed feature schemas; ordinary media keeps the base grammar. Current and terminal reads have SDK/HTTP correspondence only; no new CLI read flag or verb is selected. Feature composition with full History or Events is not inferred.
+These informative signatures catalog the already selected [historical-update binding](#historical-base-bead-update-and-recovery). They use the existing `updateBead` operation at its fixed route and canonical Bead URL, not new endpoints. The explicit feature media selects closed feature schemas; ordinary media keeps the base grammar. Current and terminal reads have SDK/HTTP correspondence only; no new CLI read flag or verb is selected. Feature composition with full History or Events is not inferred.
 
 <!-- bdp-operation:start historicalUpdateBead -->
 ### Operation: historicalUpdateBead
@@ -7109,7 +7057,7 @@ These informative signatures catalog the already selected [historical-update bin
 | Field | JSON value |
 | --- | --- |
 | id | `"historicalUpdateBead"` |
-| navigation | `{"role":"write-directory-feature","member":"updateBead","feature":{"capability":"https://github.com/gastownhall/bdp/capabilities/historical-update","version":"1","media":"application/vnd.bdp.v0.1.historical-update.v1+json","schema":"specs/profiles/write/historical-update-v1.schema.json"}}` |
+| navigation | `{"role":"fixed-scope-path","path":"bdp/operations/updateBead","feature":{"capability":"https://github.com/gastownhall/bdp/capabilities/historical-update","version":"1","media":"application/vnd.bdp.v0.1.historical-update.v1+json","schema":"specs/profiles/write/historical-update-v1.schema.json"}}` |
 | methods | `["post"]` |
 | request | `"historicalUpdateRequest"` |
 | response | `"historicalUpdateResult"` |

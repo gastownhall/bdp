@@ -6,7 +6,7 @@ export type {
   PropertyValidator,
 } from "./property-validation.js";
 export {
-  parseRetainedWriteDirectory,
+  retainedWriteTargets,
   parseRetainedWriteDiscovery,
   parseRetainedWriteInput,
   RETAINED_V01_MEDIA_TYPE,

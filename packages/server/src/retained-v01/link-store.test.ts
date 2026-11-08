@@ -3,30 +3,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { prepareCreate, prepareDelete, prepareUpdate, type PrivateNavigation } from "./contract.js";
+import { prepareCreate, prepareDelete, prepareUpdate, fixedNavigation } from "./contract.js";
 import { prepareLink, type LinkOperation } from "./link-contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 const scope = "https://records.invalid/tenant/";
-const navigation: PrivateNavigation = {
-  scope,
-  description: "https://nav.invalid/description?t=one",
-  beads: "https://inventory.invalid/nodes?t=one",
-  links: "https://inventory.invalid/edges?t=one",
-  aliases: `${scope}names`,
-  events: `${scope}bdp/events`,
-  operations: "https://nav.invalid/commands?t=one",
-  targets: {
-    createBead: "https://commands.invalid/new-node?t=one",
-    updateBead: "https://commands.invalid/edit-node?t=one",
-    deleteBead: "https://commands.invalid/remove-node?t=one",
-    createLink: "https://commands.invalid/new-edge?t=one",
-    updateLink: "https://commands.invalid/edit-edge?t=one",
-    deleteLink: "https://commands.invalid/remove-edge?t=one",
-    putAlias: "https://commands.invalid/name?t=one",
-    deleteAlias: "https://commands.invalid/unname?t=one",
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}names`);
 type Store = ReturnType<typeof openPrivateRetainedStore>;
 const cleanups: (() => void)[] = [];
 afterEach(() => {

@@ -29,11 +29,12 @@ describe("optional atomic batch artifacts; no compiler/provider execution", () =
     expect(valid("capabilityAdvertisements", mixed)).toBe(true);
     expect(
       valid("atomicBatchCapabilityV1", {
-        operation: `${cases.scope}commands/atomic`,
         operations: ["updateBead"],
       }),
     ).toBe(true);
     for (const fields of [
+      // The target is Core's fixed bdp/operations/atomicBatch, not a detail member.
+      { operation: `${cases.scope}bdp/operations/atomicBatch` },
       { operations: [] },
       { operations: ["updateBead", "updateBead"] },
       { operations: ["deleteWhere"] },

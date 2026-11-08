@@ -17,8 +17,8 @@ const historicalRef = (name) => ({
 });
 const historicalTargets = {
   historicalUpdateBead: {
-    role: "write-directory-feature",
-    member: "updateBead",
+    role: "fixed-scope-path",
+    path: "bdp/operations/updateBead",
     request: "historicalUpdateRequest",
     response: "historicalUpdateResult",
     methods: ["post"],
@@ -52,11 +52,11 @@ function validateHistoricalRow(row) {
     "Wrong historical feature media/schema selection",
   );
   assert.equal(row.navigation.role, target.role, "Wrong historical operation target");
-  assert.equal(row.navigation.member, target.member, "Wrong historical directory member");
+  assert.equal(row.navigation.path, target.path, "Wrong historical fixed route");
   assert.equal(row.navigation.kind, target.kind, "Wrong historical subject kind");
   assert.deepEqual(
     Object.keys(row.navigation).sort(),
-    ["role", ...(target.member ? ["member"] : ["kind"]), "feature"].sort(),
+    ["role", ...(target.path ? ["path"] : ["kind"]), "feature"].sort(),
     "Unknown historical navigation field",
   );
   assert.equal(row.kind, target.kind, "Wrong historical response kind");
@@ -199,7 +199,7 @@ export const commandGroups = [
   ["bd alias delete", ["deleteAlias"]],
   ["bd batch", ["atomicBatch"]],
 ].map(([command, signatures]) => ({ command, signatures }));
-export const transportSignatures = ["scopeLanding", "writeDirectory"];
+export const transportSignatures = ["scopeLanding"];
 export const deferredSignatures = [
   "exactDefinition",
   "historicalUpdateCurrent",
@@ -1019,7 +1019,7 @@ export function generateArtifacts() {
   const commands = [
     "# Canonical commands first",
     "",
-    "Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 38 wire signature families contain 28 GETs, their 28 HEAD counterparts and ten POSTs; options and transport forms do not add public commands.",
+    "Nineteen specified public command signatures own the wire variants below. These are design signatures, not a claim of shipped commands or nineteen generated SDK methods. The 37 wire signature families contain 27 GETs, their 27 HEAD counterparts and ten POSTs; options and transport forms do not add public commands.",
     "",
     "| Canonical command | Wire signature variants |",
     "| --- | --- |",

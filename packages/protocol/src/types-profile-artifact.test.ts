@@ -47,12 +47,7 @@ function discovery(profile: "core" | "write") {
     profile,
     scope: "https://example.test/scope/",
     specRevision: "0123456789abcdef0123456789abcdef01234567",
-    ...(profile === "write"
-      ? {
-          operations: "https://example.test/scope/operations",
-          aliases: "https://example.test/scope/aliases",
-        }
-      : {}),
+    ...(profile === "write" ? { aliases: "https://example.test/scope/aliases" } : {}),
   };
 }
 
@@ -140,7 +135,8 @@ describe("selected Types source artifacts, without provider or CLI execution", (
       const base = discovery(profile);
       expect(valid("discovery", base)).toBe(true);
       expect(valid("typesDiscovery", base)).toBe(false);
-      const detail = { operation: "https://example.test/scope/definition-lookup" };
+      // Lookup1's detail is empty: its operation sits at Core's fixed bdp/operations/exactDefinition.
+      const detail = {};
       const capabilities = {
         [types]: { "1": {}, "2": { future: true } },
         [lookup]: { "1": detail, "2": { future: true } },
@@ -151,7 +147,7 @@ describe("selected Types source artifacts, without provider or CLI execution", (
       for (const bad of [
         { [types]: { "1": {} } },
         { [types]: { "1": {} }, [lookup]: { "2": {} } },
-        { [types]: { "1": {} }, [lookup]: { "1": {} } },
+        { [types]: { "1": {} }, [lookup]: { "1": { operation: "https://example.test/lookup" } } },
         { [types]: { "1": { extra: true } }, [lookup]: { "1": detail } },
         { [types]: { "1": {} }, [lookup]: { "1": { ...detail, extra: true } } },
       ])
