@@ -94,13 +94,37 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
 - **Arguments.** A Callable's parameters are its v0 operation's path, query and body
   parameters, flattened into one closed `arguments` object under the Callables
   [OpenAPI rule](../../profiles/callables/callables.md#14-openapi), with v0's names, types
-  and defaults, apart from §3 and §4. Each section's table says where each parameter goes.
+  and defaults, apart from the Types rule below, §3 and §4. Each section's table says where
+  each parameter goes.
 - **Actor.** No declaration has an `actor` parameter. A CallableBatch invocation says who
   is acting in `revisionProvenance.actor`, and the product's router passes its `id` to v0
   (§3). It is caller-asserted data on every Callable, and never authentication.
 - **Results.** A Callable's `resultSchema` is its v0 operation's 200 response schema,
-  verbatim, and `result` is the product's JSON.
-- **Identifiers.** Identifiers and classifications are v0's native forms: `bd-1`, `task`.
+  verbatim but for the Types rule, and `result` is the product's JSON under that rule.
+- **Identifiers.** Identifiers are v0's native forms: `bd-1`.
+- **Types.** A Type reference a Callable carries as a filter, a parameter, or a dependency's
+  kind is a `type` member, and its value is
+  a Type reference, as Core spells it ([Issue §2](issue.md#2-bead-and-link-types)): a Bead
+  Type such as `https://github.com/gastownhall/bdp/types/issue/task`, a Link Type such as
+  `https://github.com/gastownhall/bdp/types/dependency/blocks`, or the Scope-local identity of a configured
+  name. The Issue Bead's own Type keeps v0's `issue_type` — the member the `Issue` record carries — in the
+  create arguments, the patch, and the result bodies below. `exclude_type` keeps its name, as
+  `exclude_label` and `exclude_status` keep theirs beside `label` and `status`, and takes
+  Bead Type references. An abstract Type, a Type of the
+  other kind, and a reference with no identity in the Scope's table are refused as
+  `validation-failed` and never guessed at; a reference has no aliases and is never split at
+  a comma. A stored name with no identity is not served, as in Core, and the invocation is
+  `temporarily-unavailable`. The rule reaches these members:
+
+  | Where | v0 member | Type |
+  | --- | --- | --- |
+  | Parameters of `issue/ready`, `issue/ready-count`, `issue/list`, `issue/count`, `issue/claim-next` | `type`, `exclude_type` | Bead |
+  | Parameters of `issue/dep/list`, `issue/dep/edges`, `issue/dep/count` | `type` | Link |
+  | Members of `Issue`, `BatchGetIssue`, `IssueWithCounts`, `IssueDetails`, `IssueWithDependencyMetadata`, `TreeNode`, `BlockedIssue`, `CreateIssueRequest`, `IssuePatchBody`, `BatchCreateItem`, `ApplyCreateItem`, `ApplyPatchBody` | `issue_type` (v0's own member, kept) | Bead |
+  | Members of `Dependency`, `DependencyEdge`, `CreateIssueDependency`, `BatchCreateDependency`, `ApplyDepAddItem`, `Blocker` | `type` | Link |
+  | Parameter of `issue/dep/add` (§3) | `type` | Link |
+  | `EventRecord.issue` | It is an `Issue`, and §2's rule for `Issue` applies to it | Bead |
+  | `EventRecord.dep` | Its `kind` is renamed `type`, a Link Type reference (§2) | Link |
 - **Revision tokens.** A Callable's result carries v0's `revision`, the row version. A
   generic Core record carries its own revision, which also moves on a change the row
   version does not ([Issue §7](issue.md#7-revisions-and-attribution)). `expected_version`
@@ -114,7 +138,9 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
   as Callables §2.3 requires.
 - **Carried text.** Descriptions are v0's, and speak in v0's terms: "this surface" is the
   v0 API, "this document" and its document-level rules are `internal/httpapi/spec/openapi.v0.yaml` at 6d713a74, a
-  status is v0's, and an operation path is the v0 route. §5 says how a v0 refusal reaches
+  status is v0's, and an operation path is the v0 route. Where it names `issue_type`, a
+  type's short name, its aliases or a comma-separated list of types, it speaks of v0's
+  spelling of the value the Types rule spells as a reference. §5 says how a v0 refusal reaches
   a Callable's caller.
 
 ## 3. Product adapters
@@ -124,7 +150,7 @@ document is the routing rule above.
 
 | Callable | Adapter |
 | --- | --- |
-| `issue/dep/add` | Accepts flat `source`, `target` and optional `type` beside `edges`, exactly one form per call, and sends v0 one edge built from the flat form. An omitted `type` is `blocks`. Both forms present, or neither, is `validation-failed` |
+| `issue/dep/add` | Accepts flat `source`, `target` and optional `type` beside `edges`, exactly one form per call, and sends v0 one edge built from the flat form. An omitted `type` is `https://github.com/gastownhall/bdp/types/dependency/blocks`. Both forms present, or neither, is `validation-failed` |
 | Every CallableBatch whose v0 operation has `actor` | `revisionProvenance.actor.id` is sent as v0's `actor`. Where v0 requires it, an invocation with no actor is refused as `validation-failed`; `issue/purge`, `issue/prune` and `issue/delete` run without one. On `issue/claim`, `issue/claim-next`, `issue/unclaim`, `issue/heartbeat` and `issue/advance` the value also names the holder or the fence's subject, as v0's `actor` does |
 | `issue/comment` | `revisionProvenance.actor.id` is sent as v0's `author`, and the comment stays signed under `author`. An invocation with no actor is refused as `validation-failed` |
 | `config/set`, `config/unset`, `memory/remember`, `memory/forget` | v0 records no actor on these, so an invocation that supplies one is refused as `validation-failed` rather than dropped |
@@ -168,7 +194,7 @@ A failure that meets the condition of a Core or Write code uses that code, as Ca
 
 Every other code a v0 operation documents is a declared reason of its Callable. It
 answers `callable-error` at HTTP 409, and the `error` member is v0's `Problem` body
-verbatim, whose `code` is the reason. That body keeps its own `status`, `title`,
+verbatim but for §2's Types rule, whose `code` is the reason. That body keeps its own `status`, `title`,
 `request_id` and extension members, so its `status` can differ from the invocation's.
 
 ```json
@@ -220,8 +246,8 @@ SOME TYPES ARE EXCLUDED BY DEFAULT, exactly as `bd ready` excludes them: `merge-
 | --- | --- | --- | --- | --- |
 | `assignee` | text | no | query | Only issues assigned to this actor. |
 | `unassigned` | boolean | no | query | Only issues with no assignee. |
-| `type` | text | no | query | Issue type. |
-| `exclude_type` | array of text | no | query | Issue types to exclude. |
+| `type` | Bead Type reference | no | query | A Bead Type reference (§2). |
+| `exclude_type` | Bead Type reference array | no | query | A Bead Type reference (§2). |
 | `label` | array of text | no | query | Labels that must ALL be present (AND). |
 | `label_any` | array of text | no | query | Labels of which at least one must be present (OR). |
 | `exclude_label` | array of text | no | query | Labels that must not be present. |
@@ -263,8 +289,8 @@ It costs a query of its own. A client that only needs to know whether MORE work 
 | --- | --- | --- | --- | --- |
 | `assignee` | text | no | query | Only issues assigned to this actor. |
 | `unassigned` | boolean | no | query | Only issues with no assignee. |
-| `type` | text | no | query | Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. |
-| `exclude_type` | array of text | no | query | Issue types to exclude. |
+| `type` | Bead Type reference | no | query | A Bead Type reference (§2). |
+| `exclude_type` | Bead Type reference array | no | query | A Bead Type reference (§2). |
 | `label` | array of text | no | query | Labels that must ALL be present (AND). |
 | `label_any` | array of text | no | query | Labels of which at least one must be present (OR). |
 | `exclude_label` | array of text | no | query | Labels that must not be present. |
@@ -417,7 +443,7 @@ THE ROWS CARRY NO COMMENT BODIES, AND THE DETAIL READ DOES. This operation has n
 | Name | Type | Required | In | Meaning |
 | --- | --- | --- | --- | --- |
 | `status` | array of text | no | query | Status filter. |
-| `type` | text | no | query | Issue type. |
+| `type` | Bead Type reference | no | query | A Bead Type reference (§2). |
 | `assignee` | text | no | query | Only issues assigned to this actor. |
 | `label` | array of text | no | query | Labels that must ALL be present (AND). |
 | `label_any` | array of text | no | query | Labels of which at least one must be present (OR). |
@@ -458,7 +484,7 @@ THE ROWS CARRY NO COMMENT BODIES, AND THE DETAIL READ DOES. This operation has n
 | `empty_description` | boolean | no | query | Only issues with an empty description: `bd list --empty-description`. |
 | `no_labels` | boolean | no | query | Only issues carrying no label: `bd list --no-labels`. |
 | `no_parent` | boolean | no | query | Only top-level issues, those with no parent: `bd list --no-parent`. |
-| `exclude_type` | array of text | no | query | Issue types to leave out (repeat the parameter; a value may also be comma-separated): `bd list --exclude-type`. |
+| `exclude_type` | Bead Type reference array | no | query | A Bead Type reference (§2). |
 | `exclude_status` | array of text | no | query | Statuses to leave out (repeat the parameter; a value may also be comma-separated), on top of what `status` or the default exclusions select; it never re-admits a row they hide. |
 | `pinned` | boolean | no | query | Only issues carrying the pinned FLAG, at any status: `bd list --pinned`. |
 | `no_pinned` | boolean | no | query | Only issues without the pinned flag, held in place where `all` or a pinned/hooked `status` would otherwise drop that predicate: `bd list --no-pinned`. |
@@ -548,7 +574,7 @@ A count is DURABLE-PLANE ONLY unless `include_infra` or `include_ephemeral` is s
 | Name | Type | Required | In | Meaning |
 | --- | --- | --- | --- | --- |
 | `status` | text | no | query | One stored status. |
-| `type` | text | no | query | One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which expands aliases. |
+| `type` | Bead Type reference | no | query | A Bead Type reference (§2). |
 | `assignee` | text | no | query | Only issues assigned to this actor. |
 | `priority` | integer | no | query | Exact priority. |
 | `priority_min` | integer | no | query | Lowest priority to count, inclusive. |
@@ -575,7 +601,7 @@ A count is DURABLE-PLANE ONLY unless `include_infra` or `include_ephemeral` is s
 | `include_infra` | boolean | no | query | Count the cardinality of `bd list --include-infra --all` instead of the durable plane. |
 | `parent` | text | no | query | Restrict to one issue's children through one predicate with two arms: a parent-child dependency edge onto `parent`, OR — for an issue carrying no parent-child edge at all — a dotted-id prefix match (`parent.anything`). |
 | `no_parent` | boolean | no | query | Only issues carrying NO parent-child dependency edge. |
-| `exclude_type` | array of text | no | query | Issue types to exclude from the count. |
+| `exclude_type` | Bead Type reference array | no | query | A Bead Type reference (§2). |
 | `exclude_status` | array of text | no | query | Statuses to exclude from the count. |
 | `group_by` | text | no | query | Bucket the count by one dimension and return `groups` beside `total`. |
 
@@ -646,7 +672,7 @@ THERE IS NO `both` DIRECTION, for the reason `GET /v0/beads/dependencies:count` 
 | --- | --- | --- | --- | --- |
 | `id` | text | yes | path | Exact canonical issue id. |
 | `direction` | text | no | query | Omitted, this Callable uses `"out"`. |
-| `type` | array of text | no | query | Edge types to include. |
+| `type` | Link Type reference array | no | query | A Link Type reference (§2). |
 
 Result: `RelatedIssues`
 
@@ -711,7 +737,7 @@ THERE IS NO `limit` AND NO CURSOR. `bd dep list` has no limit either, so one her
 | Name | Type | Required | In | Meaning |
 | --- | --- | --- | --- | --- |
 | `issue_id` | array of text | yes | query | The issues to read edges for. |
-| `type` | array of text | no | query | Edge types to include. |
+| `type` | Link Type reference array | no | query | A Link Type reference (§2). |
 
 Result: `DependencyEdges`
 
@@ -741,7 +767,7 @@ THERE IS NO `both` DIRECTION. A caller that wants the pair asks twice, which is 
 | --- | --- | --- | --- | --- |
 | `issue_id` | array of text | yes | query | The anchors to count around. |
 | `direction` | text | yes | query | Which end of the edge the anchors sit on. |
-| `type` | array of text | no | query | Edge types to include. |
+| `type` | Link Type reference array | no | query | A Link Type reference (§2). |
 | `status` | text | no | query | Count only edges whose DEPENDENT — the issue at the source end, the one doing the depending — is in this stored status. |
 
 Result: `EdgeCounts`
@@ -967,7 +993,7 @@ Its `errorSchema` is `issueCreateError`.
 | `design` | text | no | body | — |
 | `acceptance_criteria` | text | no | body | — |
 | `notes` | text | no | body | — |
-| `issue_type` | text | no | body | Omitted, this Callable uses `"task"`. |
+| `issue_type` | Bead Type reference | no | body | Omitted, this Callable uses `"task"`. |
 | `status` | text | no | body | The status the issue is created in, from this workspace's own configured vocabulary. |
 | `priority` | integer | no | body | 0 is P0/critical. |
 | `assignee` | text | no | body | — |
@@ -1778,8 +1804,8 @@ Declared `atomic`.
 | --- | --- | --- | --- | --- |
 | `assignee` | text | no | query | Only issues assigned to this actor. |
 | `unassigned` | boolean | no | query | Only issues with no assignee. |
-| `type` | text | no | query | Issue type. |
-| `exclude_type` | array of text | no | query | Issue types to exclude. |
+| `type` | Bead Type reference | no | query | A Bead Type reference (§2). |
+| `exclude_type` | Bead Type reference array | no | query | A Bead Type reference (§2). |
 | `label` | array of text | no | query | Labels that must ALL be present (AND). |
 | `label_any` | array of text | no | query | Labels of which at least one must be present (OR). |
 | `exclude_label` | array of text | no | query | Labels that must not be present. |
@@ -1830,7 +1856,7 @@ Declared `idempotent` and `atomic`. Its `errorSchema` is `issueDepAddError`.
 | `edges` | array of `DependencyEdge` | no | body | The edges to assert, in the caller's order. |
 | `source` | text | no | adapter | The edge's source. |
 | `target` | text | no | adapter | The edge's target. |
-| `type` | text | no | adapter | The edge type. |
+| `type` | Link Type reference | no | adapter | A Link Type reference (§2). |
 
 Result: `AddDependenciesResponse`
 
@@ -2069,8 +2095,8 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "assignee" | text | no | — | "Only issues assigned to this actor." |
 | "unassigned" | boolean | no | — | "Only issues with no assignee." |
-| "type" | text | no | — | "Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\\n\\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\\n\\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above." |
-| "exclude_type" | array of (text) | no | — | "Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set." |
+| "type" | schema | no | — | "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\\n\\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\\n\\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above." |
+| "exclude_type" | schema | no | — | "A Bead Type reference (§2). Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set." |
 | "label" | array of (text) | no | — | "Labels that must ALL be present (AND)." |
 | "label_any" | array of (text) | no | — | "Labels of which at least one must be present (OR)." |
 | "exclude_label" | array of (text) | no | — | "Labels that must not be present." |
@@ -2091,6 +2117,21 @@ Other fields: not allowed
 ```json-schema
 {
   "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
+    "exclude_type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
+    },
     "include_ephemeral": {
       "type": "boolean",
       "default": false
@@ -2143,8 +2184,8 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "assignee" | text | no | — | "Only issues assigned to this actor." |
 | "unassigned" | boolean | no | — | "Only issues with no assignee." |
-| "type" | text | no | — | "Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. Setting it drops the default type exclusions and makes `exclude_type` ignored, there and here alike." |
-| "exclude_type" | array of (text) | no | — | "Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set." |
+| "type" | schema | no | — | "A Bead Type reference (§2). Issue type, with the shorthand alias expansion and the match-nothing-rather-than-fail treatment `GET /v0/beads/ready` documents. Setting it drops the default type exclusions and makes `exclude_type` ignored, there and here alike." |
+| "exclude_type" | schema | no | — | "A Bead Type reference (§2). Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set." |
 | "label" | array of (text) | no | — | "Labels that must ALL be present (AND)." |
 | "label_any" | array of (text) | no | — | "Labels of which at least one must be present (OR)." |
 | "exclude_label" | array of (text) | no | — | "Labels that must not be present." |
@@ -2162,6 +2203,21 @@ Other fields: not allowed
 ```json-schema
 {
   "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
+    "exclude_type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
+    },
     "include_ephemeral": {
       "type": "boolean",
       "default": false
@@ -2322,7 +2378,7 @@ Other fields: not allowed
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "status" | array of (text) | no | — | "Status filter. Repeat the parameter, or pass a comma-separated list. Custom statuses configured for the workspace are honored.\\n\\nSetting this REPLACES the default status exclusions rather than fighting with them: `status=closed` on its own returns closed issues, and does NOT also need `all=true`. Leave it unset to get the default view described above." |
-| "type" | text | no | — | "Issue type. Shorthand aliases are expanded exactly as `bd list --type` expands them (`mr`, `feat`, `mol`, `enhancement`, `dec`, `adr`); there is no plural folding. Unlike on `ready`, an unknown type is a 400 `invalid_argument` with `reason: \\"invalid_value\\"`, because `bd list` validates the type against the workspace's configured vocabulary and this operation keeps that behavior." |
+| "type" | schema | no | — | "A Bead Type reference (§2). Issue type. Shorthand aliases are expanded exactly as `bd list --type` expands them (`mr`, `feat`, `mol`, `enhancement`, `dec`, `adr`); there is no plural folding. Unlike on `ready`, an unknown type is a 400 `invalid_argument` with `reason: \\"invalid_value\\"`, because `bd list` validates the type against the workspace's configured vocabulary and this operation keeps that behavior." |
 | "assignee" | text | no | — | "Only issues assigned to this actor." |
 | "label" | array of (text) | no | — | "Labels that must ALL be present (AND)." |
 | "label_any" | array of (text) | no | — | "Labels of which at least one must be present (OR)." |
@@ -2363,7 +2419,7 @@ Other fields: not allowed
 | "empty_description" | schema | no | — | "Only issues with an empty description: `bd list --empty-description`.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
 | "no_labels" | schema | no | — | "Only issues carrying no label: `bd list --no-labels`.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
 | "no_parent" | schema | no | — | "Only top-level issues, those with no parent: `bd list --no-parent`. Sending it with `parent` is a 400 on `no_parent`, as on `GET /v0/beads/issues:count`.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
-| "exclude_type" | array of (text) | no | — | "Issue types to leave out (repeat the parameter; a value may also be comma-separated): `bd list --exclude-type`. Normalized by the role as the local listing normalizes it.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
+| "exclude_type" | schema | no | — | "A Bead Type reference (§2). Issue types to leave out (repeat the parameter; a value may also be comma-separated): `bd list --exclude-type`. Normalized by the role as the local listing normalizes it.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
 | "exclude_status" | array of (text) | no | — | "Statuses to leave out (repeat the parameter; a value may also be comma-separated), on top of what `status` or the default exclusions select; it never re-admits a row they hide. With `all` there are no default exclusions, so the listing keeps every status not named here (the `pinned` and `hooked` statuses and custom done or frozen statuses included unless named). Each name is validated against the workspace's statuses (built-in and custom), as `GET /v0/beads/issues:count` validates it: an unknown name is a 400 `invalid_value` on this parameter, never an exclusion that excludes nothing.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
 | "pinned" | schema | no | — | "Only issues carrying the pinned FLAG, at any status: `bd list --pinned`. The pinned STATUS is `status`; the flag is a separate predicate. Sending it with `no_pinned` is a 400 on `no_pinned`.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
 | "no_pinned" | schema | no | — | "Only issues without the pinned flag, held in place where `all` or a pinned/hooked `status` would otherwise drop that predicate: `bd list --no-pinned`. Sending it with `pinned` is a 400 on `no_pinned`.\\n\\nBehind the `issues.list.filters` behavior token: an older server answers `unknown_parameter` for this name. A client with the handshake's capabilities cached refuses the request locally against a server that does not advertise the token, rather than paying for that round trip or answering a wider listing." |
@@ -2381,6 +2437,12 @@ Other fields: not allowed
 ```json-schema
 {
   "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "all": {
       "type": "boolean",
       "default": false
@@ -2463,6 +2525,15 @@ Other fields: not allowed
     "no_parent": {
       "type": "boolean",
       "default": false
+    },
+    "exclude_type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
     },
     "pinned": {
       "type": "boolean",
@@ -2606,7 +2677,7 @@ Other fields: not allowed
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "status" | text | no | — | "One stored status. The empty value and the literal `all` both mean EVERY status, which is what makes a bare count answer for closed rows as well as open ones.\\n\\nIT IS ONE STATUS, NOT A COMMA-SEPARATED SET, and that is the one parameter name this operation shares with `GET /v0/beads/issues` while meaning something narrower — that one takes a comma-separated OR set. It is stated here rather than quietly reconciled, because a client that assumed otherwise would read a plausible number instead of an error.\\n\\nIt is NOT validated against this workspace's configured vocabulary. An unrecognized name matches nothing and the answer is `0`, not a refusal — the shipped behavior of `bd count`, published rather than tightened, because a scripted caller counting a status its workspace has since dropped currently reads 0 and would otherwise start reading an error." |
-| "type" | text | no | — | "One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which expands aliases.\\n\\nIt has a SECOND effect under `include_infra`: a type this workspace calls infra routes the count to the ephemeral tier, unless `include_ephemeral` is also set. See that parameter." |
+| "type" | schema | no | — | "A Bead Type reference (§2). One issue type, with `status`'s match-nothing-rather-than-fail treatment and NO shorthand alias expansion at all — unlike `GET /v0/beads/ready`'s `type`, which expands aliases.\\n\\nIt has a SECOND effect under `include_infra`: a type this workspace calls infra routes the count to the ephemeral tier, unless `include_ephemeral` is also set. See that parameter." |
 | "assignee" | text | no | — | "Only issues assigned to this actor. Sending it beside `no_assignee` is not refused: the two are handed to the filter as written and answer with the empty intersection, which is `0`." |
 | "priority" | integer | no | — | "Exact priority. Absent means unfiltered — the distinction matters because `0` is a real priority, which is why the role models this as a pointer." |
 | "priority_min" | integer | no | — | "Lowest priority to count, inclusive." |
@@ -2633,7 +2704,7 @@ Other fields: not allowed
 | "include_infra" | schema | no | — | "Count the cardinality of `bd list --include-infra --all` instead of the durable plane. IT CHANGES FOUR THINGS AT ONCE, and they are listed rather than summarized because a caller reading \\"include infra\\" would expect one:\\n\\nthe ephemeral wisps tier is MERGED IN, picking up both wisps and the `no_history` beads that are durable work stored in that tier; template molecules are EXCLUDED, which a default count includes; gate beads are EXCLUDED unless `type=gate` asks for them by name; and a `type` this workspace calls infra ROUTES the count to the ephemeral tier instead of the durable one — unless `include_ephemeral` is also set, which keeps the durable tier as well, as `GET /v0/beads/issues` does.\\n\\nThe infra vocabulary is the WORKSPACE's, read from its configuration inside the role. A caller does not supply it and cannot — that config load is what this role exists to keep off both front doors.\\n\\nUnset — and with `include_ephemeral` also unset — the count is durable-plane only and applies none of the four: the historical `bd count` answer, kept exactly so a scripted caller reads the same number it read yesterday." |
 | "parent" | text | no | — | "Restrict to one issue's children through one predicate with two arms: a parent-child dependency edge onto `parent`, OR — for an issue carrying no parent-child edge at all — a dotted-id prefix match (`parent.anything`). NEITHER ARM WALKS. The edge arm stops at one level, so a grandchild with an edge of its own is not counted, while the prefix arm reaches every edge-less dotted id at any depth (`X.1.1` as well as `X.1`). It is the same predicate `GET /v0/beads/issues`'s own `parent` applies, so `bd count --parent X` agrees in cardinality with `bd list --parent X --flat --all` (or `--json`) for the shared part of the predicate — NOT with a bare `bd list --parent X --all`, whose default tree mode walks every descendant reachable through either arm (grandchildren and below) by re-querying this same predicate once per level client-side (cmd/bd/list_show_filter_modes.go). `--flat` and `--json` both skip that walk and return this field's answer directly.\\n\\nSending it beside `no_parent` IS refused: `invalid_argument` on `no_parent` with `reason: invalid_value`, matching `bd list`'s CLI refusal of the same combination.\\n\\nBehind the `issues.count.scope` behavior token: an older server answers `unknown_parameter` for this name." |
 | "no_parent" | schema | no | — | "Only issues carrying NO parent-child dependency edge. Unlike `parent`, this does NOT consult the dotted-id convention — an issue named `X.1` with no edge to `X` is still counted here, which is the one place `parent` and `no_parent` are not exact opposites of each other.\\n\\nSending it beside `parent` IS refused: `invalid_argument` on this parameter with `reason: invalid_value`, matching `bd list`'s CLI refusal of the same combination (cmd/bd/list_input.go) rather than the empty-intersection treatment `assignee`/`no_assignee` get.\\n\\nBehind the `issues.count.scope` behavior token: an older server answers `unknown_parameter` for this name." |
-| "exclude_type" | array of (text) | no | — | "Issue types to exclude from the count. Repeat the parameter, or pass a comma-separated list; entries are split and trimmed inside the role and are NOT validated against this workspace's vocabulary — an unrecognized name excludes nothing rather than failing, `status`'s own treatment. It is NOT ignored when `type` is set (unlike `GET /v0/beads/ready`'s `exclude_type`): the two compose, and it also composes with the exclusions `include_infra` applies on its own rather than replacing them.\\n\\nBehind the `issues.count.scope` behavior token: an older server answers `unknown_parameter` for this name." |
+| "exclude_type" | schema | no | — | "A Bead Type reference (§2). Issue types to exclude from the count. Repeat the parameter, or pass a comma-separated list; entries are split and trimmed inside the role and are NOT validated against this workspace's vocabulary — an unrecognized name excludes nothing rather than failing, `status`'s own treatment. It is NOT ignored when `type` is set (unlike `GET /v0/beads/ready`'s `exclude_type`): the two compose, and it also composes with the exclusions `include_infra` applies on its own rather than replacing them.\\n\\nBehind the `issues.count.scope` behavior token: an older server answers `unknown_parameter` for this name." |
 | "exclude_status" | array of (text) | no | — | "Statuses to exclude from the count. Repeat the parameter, or pass a comma-separated list; entries are taken as written (no normalization) but — UNLIKE `status` and `exclude_type` above — each name IS validated against this workspace's vocabulary (built-in statuses plus this workspace's own custom ones): an unrecognized name is `invalid_argument` on this parameter with `reason: invalid_value`, rather than silently excluding nothing and overcounting. `GET /v0/beads/issues` takes the same parameter behind the `issues.list.filters` token and validates it by the same rule; there it narrows on top of the listing's default status exclusions, which a count does not apply.\\n\\nBehind the `issues.count.scope` behavior token: an older server answers `unknown_parameter` for this name." |
 | "group_by" | schema | no | — | "Bucket the count by one dimension and return `groups` beside `total`. Absent, the response carries `total` alone.\\n\\nThe set is CLOSED, and a value outside it is a `400` rather than an empty answer: a caller that misspelled a dimension and got zero buckets back has no way to tell that from a workspace with nothing in it. That is the role's own rule, applied at the edge here so the refusal names the parameter.\\n\\nBucket KEYS are normalized and printed unmodified by every front door, so the normalization is part of this contract: a priority bucket is `P` followed by the number (`P1`); the assignee bucket for unassigned rows is `(unassigned)`, never the empty string, which would be indistinguishable from a stored empty assignee; the label bucket for rows carrying no label at all is `(no labels)`, and it is ABSENT rather than zero when every matching row has one; `status` and `type` buckets are the stored value verbatim." |
 
@@ -2642,6 +2713,12 @@ Other fields: not allowed
 ```json-schema
 {
   "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_after": {
       "type": "string",
       "format": "date-time"
@@ -2689,6 +2766,15 @@ Other fields: not allowed
     "no_parent": {
       "type": "boolean",
       "default": false
+    },
+    "exclude_type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
     },
     "group_by": {
       "type": "string",
@@ -2776,7 +2862,7 @@ Required order: ["id"]
 | --- | --- | --- | --- | --- |
 | "id" | text | yes | — | "Exact canonical issue id. No fuzzy, prefix or substring resolution." |
 | "direction" | schema | no | — | "Omitted, this Callable uses `\\"out\\"`. Which way this issue's edges are walked. `out` answers the issues it DEPENDS ON — the `dependencies` member of `GET /v0/beads/issues/{id}`. `in` answers the issues that depend on it — that read's `dependents` member.\\n\\nIT IS REQUIRED AND HAS NO DEFAULT, on `GET /v0/beads/dependencies:count`'s terms and for the reason `issueops.RelationDirection` gives: the two answers have the same shape and the same member names, so a caller handed the inverse graph has nothing to notice. The vocabulary is CLOSED — unlike `type` below — because it is a property of the edge's shape rather than of a workspace's configuration." |
-| "type" | array of (text) | no | — | "Edge types to include. Repeat the parameter. Empty means every type.\\n\\n`GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value is not an error and simply matches no edge, while a value no edge could ever carry — empty, or longer than the column — is a 400 `invalid_argument` with `param: \\"type\\"`.\\n\\nThe filter narrows EDGES, never the anchor. An issue whose every edge it rejects is answered with an empty `items` and not with a 404, which is a different fact from an id that names nothing." |
+| "type" | schema | no | — | "A Link Type reference (§2). Edge types to include. Repeat the parameter. Empty means every type.\\n\\n`GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value is not an error and simply matches no edge, while a value no edge could ever carry — empty, or longer than the column — is a 400 `invalid_argument` with `param: \\"type\\"`.\\n\\nThe filter narrows EDGES, never the anchor. An issue whose every edge it rejects is answered with an empty `items` and not with a 404, which is a different fact from an id that names nothing." |
 
 #### Advanced
 
@@ -2790,6 +2876,15 @@ Required order: ["id"]
         "in"
       ],
       "default": "out"
+    },
+    "type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
     }
   }
 }
@@ -2858,7 +2953,7 @@ Required order: ["issue_id"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "issue_id" | schema | yes | — | "The issues to read edges for. Repeat the parameter; at least one is required and at most 100 are accepted, and either bound is a 400 `invalid_argument` with `param: \\"issue_id\\"`, `reason: \\"invalid_value\\"`.\\n\\nEach value must be an EXACT canonical issue id: there is no fuzzy, prefix or substring resolution on this surface, for the reason `GET /v0/beads/issues/{id}` gives. A value that matches nothing is reported in `missing` rather than refused. An empty value is a 400.\\n\\nRepeats collapse: an id named twice is one entry in `missing` at most once, and its edges appear once." |
-| "type" | array of (text) | no | — | "Edge types to include. Repeat the parameter. Empty means every type.\\n\\nThe vocabulary is OPEN — a workspace configures its own edge types — so an unrecognized value is not an error here: it simply matches no edge. What IS refused, with a 400 `invalid_argument`, is a value no edge could ever carry: empty, or longer than the column.\\n\\nThe filter narrows EDGES, never the named issues. An issue whose every edge the filter rejects is still not in `missing`." |
+| "type" | schema | no | — | "A Link Type reference (§2). Edge types to include. Repeat the parameter. Empty means every type.\\n\\nThe vocabulary is OPEN — a workspace configures its own edge types — so an unrecognized value is not an error here: it simply matches no edge. What IS refused, with a 400 `invalid_argument`, is a value no edge could ever carry: empty, or longer than the column.\\n\\nThe filter narrows EDGES, never the named issues. An issue whose every edge the filter rejects is still not in `missing`." |
 
 #### Advanced
 
@@ -2871,6 +2966,15 @@ Required order: ["issue_id"]
       "maxItems": 100,
       "items": {
         "type": "string"
+      }
+    },
+    "type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     }
   }
@@ -2901,7 +3005,7 @@ Required order: ["issue_id", "direction"]
 | --- | --- | --- | --- | --- |
 | "issue_id" | schema | yes | — | "The anchors to count around. Repeat the parameter; at least one is required and at most 100 are accepted, and either bound is a 400 `invalid_argument` with `param: \\"issue_id\\"`, `reason: \\"invalid_value\\"`.\\n\\nEach value must be an EXACT canonical issue id, for the reason `GET /v0/beads/dependencies` gives. A value that matches nothing is reported on its own anchor rather than refused. An EMPTY value is a 400: the empty string names nothing a caller can have meant, and reporting it as a missing anchor would put a nameless row in an answer keyed by name.\\n\\nRepeats collapse onto the first mention — a second entry carries no second fact and would only invite a caller summing the result to count the same edges twice." |
 | "direction" | schema | yes | — | "Which end of the edge the anchors sit on. `out` counts what each anchor DEPENDS ON — the direction `bd dep list` reads and the number `bd show` prints as the dependency count. `in` counts what depends on it.\\n\\nIT IS REQUIRED, and that is the one deliberate unfriendliness on this request. The two answers are about DIFFERENT EDGE SETS, and a workspace where most issues have edges in only one direction returns the same number for both often enough that a caller who meant the other one would not notice for a long time. An absent or unrecognized value is a 400 `invalid_argument` with `param: \\"direction\\"`, never a count in some default direction.\\n\\nThe vocabulary is CLOSED — unlike `type` below — because it is a property of the edge's shape rather than of a workspace's configuration." |
-| "type" | array of (text) | no | — | "Edge types to include. Repeat the parameter. Empty means every type.\\n\\n`GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value is not an error and simply matches no edge, while a value no edge could ever carry — empty, or longer than the column — is a 400 `invalid_argument`.\\n\\nThe filter narrows EDGES, never anchors. An anchor whose every edge it rejects comes back present with a count of 0, which is a different fact from an anchor that is not there." |
+| "type" | schema | no | — | "A Link Type reference (§2). Edge types to include. Repeat the parameter. Empty means every type.\\n\\n`GET /v0/beads/dependencies`'s `type` exactly: the vocabulary is OPEN, so an unrecognized value is not an error and simply matches no edge, while a value no edge could ever carry — empty, or longer than the column — is a 400 `invalid_argument`.\\n\\nThe filter narrows EDGES, never anchors. An anchor whose every edge it rejects comes back present with a count of 0, which is a different fact from an anchor that is not there." |
 | "status" | text | no | — | "Count only edges whose DEPENDENT — the issue at the source end, the one doing the depending — is in this stored status. Empty means every status.\\n\\nIT IS LEGAL ONLY WITH `direction=in`. Sending it beside `direction=out` is a 400 `invalid_argument` with `param: \\"status\\"` and `reason: \\"invalid_value\\"`, rather than a filter that is quietly ignored. The asymmetry is the substrate's and `issueops.EdgeCountRequest.Status` states why: narrowing by status joins the far end of the edge to the row holding its status, and an OUTBOUND edge's far end may be an `external:` reference or an id belonging to another repository — rows this database does not hold — so the filter would silently drop every dangling edge.\\n\\nIt is ONE status, not a comma-separated OR set, and it is NOT validated against the workspace vocabulary: an unrecognized name matches nothing and counts 0 rather than failing, exactly as `GET /v0/beads/issues:count`'s `status` does. A scripted caller counting a status its workspace has since dropped reads 0 and should keep reading 0." |
 
 #### Advanced
@@ -2923,6 +3027,15 @@ Required order: ["issue_id", "direction"]
         "out",
         "in"
       ]
+    },
+    "type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
     }
   }
 }
@@ -3194,7 +3307,7 @@ Required order: ["title"]
 | "design" | text | no | — | — |
 | "acceptance_criteria" | text | no | — | — |
 | "notes" | text | no | — | — |
-| "issue_type" | schema | no | — | "Omitted, this Callable uses `\\"task\\"`. Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
+| "issue_type" | schema | no | — | "Omitted, this Callable uses `\\"https://github.com/gastownhall/bdp/types/issue/task\\"`. A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
 | "status" | schema | no | — | "The status the issue is created in, from this workspace's own configured vocabulary. Absent means the workspace's own default, which is `open` today — unlike `issue_type`, the role fills this one in before it validates." |
 | "priority" | schema | no | — | "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly." |
 | "assignee" | schema | no | — | — |
@@ -3235,8 +3348,10 @@ Required order: ["title"]
     },
     "issue_type": {
       "type": "string",
-      "maxLength": 255,
-      "default": "task"
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "default": "https://github.com/gastownhall/bdp/types/issue/task",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -4361,8 +4476,8 @@ Other fields: not allowed
 | --- | --- | --- | --- | --- |
 | "assignee" | text | no | — | "Only issues assigned to this actor." |
 | "unassigned" | boolean | no | — | "Only issues with no assignee." |
-| "type" | text | no | — | "Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\\n\\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\\n\\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above." |
-| "exclude_type" | array of (text) | no | — | "Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set." |
+| "type" | schema | no | — | "A Bead Type reference (§2). Issue type. The only normalization is shorthand ALIAS expansion, exactly what `bd ready --type` does: `mr` → `merge-request`, `feat` → `feature`, `mol` → `molecule`, `enhancement` → `feature`, `dec`/`adr` → `decision`. Every other value is used as written — there is NO plural folding, so `bugs` is not `bug`.\\n\\nAn unrecognized type is not an error here: the type vocabulary is workspace-configurable, and `bd ready` does not validate it either, so it simply matches nothing and `items` comes back empty. (The list operation differs — `bd list` DOES validate the type, so `GET /v0/beads/issues?type=bugs` is a 400.)\\n\\nWhen set, `exclude_type` is ignored, and so are the default type exclusions described above." |
+| "exclude_type" | schema | no | — | "A Bead Type reference (§2). Issue types to exclude. Repeat the parameter, or pass a comma-separated list. Ignored when `type` is set." |
 | "label" | array of (text) | no | — | "Labels that must ALL be present (AND)." |
 | "label_any" | array of (text) | no | — | "Labels of which at least one must be present (OR)." |
 | "exclude_label" | array of (text) | no | — | "Labels that must not be present." |
@@ -4381,6 +4496,21 @@ Other fields: not allowed
 ```json-schema
 {
   "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
+    "exclude_type": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
+      }
+    },
     "include_ephemeral": {
       "type": "boolean",
       "default": false
@@ -4425,7 +4555,7 @@ Other fields: not allowed
 | "edges" | schema | no | — | "The edges to assert, in the caller's order. An empty array is a `400` rather than a successful no-op: a write request that writes nothing is a client bug, and answering it cheerfully is how a client whose own list filtered to nothing silently stops wiring anything.\\n\\nThe 100-edge cap is a bound on how long one request may hold a write transaction, not a statement about batch semantics. Split a larger graph; each request is atomic on its own — but note that splitting it changes what the cycle gate can see, since the gate runs over one request at a time.\\n\\nA per-edge refusal names its offender as `edges[i].member`." |
 | "source" | schema | no | — | "The edge's source. Flat form only; exactly one of this form and `edges`." |
 | "target" | schema | no | — | "The edge's target. Flat form only; exactly one of this form and `edges`." |
-| "type" | schema | no | — | "The edge type. Flat form only; omitted, it is `blocks`." |
+| "type" | schema | no | — | "A Link Type reference (§2). The edge's Link Type. Flat form only; omitted, it is `https://github.com/gastownhall/bdp/types/dependency/blocks`." |
 
 #### Advanced
 
@@ -4452,8 +4582,9 @@ Other fields: not allowed
     },
     "type": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -4704,7 +4835,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at"]
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | "`open`, `in_progress`, `blocked`, `closed`, or any custom status configured for the workspace. NOT a closed vocabulary: clients must treat an unrecognized value as \\"some status I do not know\\"." |
 | "priority" | integer | yes | — | "0 (most urgent) through 4. Always present; 0 is a real value." |
-| "issue_type" | text | no | — | "`bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
 | "is_blocked" | boolean | no | — | "The persisted readiness projection — true when an open blocking dependency keeps this issue out of the ready set. Derived from the dependency graph; never set by a client.\\n\\nNOT POPULATED by the /v0 read endpoints today: they hydrate issues without it, so the field is absent from their responses and its absence says nothing about whether an issue is blocked. Use `/v0/beads/ready` or the dependency endpoints to answer that. The field is carried by events-journal snapshots, which is where it is read back, and it is documented here because those snapshots serialize the same type this schema is pinned to." |
 | "assignee" | text | no | — | "The actor currently holding the issue, if any." |
 | "owner" | text | no | — | — |
@@ -4758,6 +4889,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at"]
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -4839,7 +4976,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | "`open`, `in_progress`, `blocked`, `closed`, or any custom status configured for the workspace. NOT a closed vocabulary: clients must treat an unrecognized value as \\"some status I do not know\\"." |
 | "priority" | integer | yes | — | "0 (most urgent) through 4. Always present; 0 is a real value." |
-| "issue_type" | text | no | — | "`bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
 | "is_blocked" | boolean | no | — | "The persisted readiness projection — true when an open blocking dependency keeps this issue out of the ready set. Derived from the dependency graph; never set by a client.\\n\\nNOT POPULATED by the /v0 read endpoints today: they hydrate issues without it, so the field is absent from their responses and its absence says nothing about whether an issue is blocked. Use `/v0/beads/ready` or the dependency endpoints to answer that. The field is carried by events-journal snapshots, which is where it is read back, and it is documented here because those snapshots serialize the same type this schema is pinned to." |
 | "assignee" | text | no | — | "The actor currently holding the issue, if any." |
 | "owner" | text | no | — | — |
@@ -4894,6 +5031,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -4975,7 +5118,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "issue_type" | text | no | — | — |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5034,6 +5177,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -5115,7 +5264,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "issue_type" | text | no | — | — |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5182,6 +5331,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -5303,7 +5458,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "issue_type" | text | no | — | — |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5358,6 +5513,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -5439,7 +5600,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depth",
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "issue_type" | text | no | — | — |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5498,6 +5659,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depth",
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -5573,7 +5740,7 @@ Required order: ["issue_id", "depends_on_id", "type", "created_at"]
 | "id" | text | no | — | — |
 | "issue_id" | text | yes | — | — |
 | "depends_on_id" | text | yes | — | — |
-| "type" | text | yes | — | "Edge type. Not a closed vocabulary." |
+| "type" | schema | yes | — | "A Link Type reference (§2). Edge type. Not a closed vocabulary." |
 | "created_at" | schema | yes | — | — |
 | "created_by" | text | no | — | — |
 | "metadata" | text | no | — | "Free-form edge annotation. A STRING, unlike `Issue.metadata`." |
@@ -5584,6 +5751,12 @@ Required order: ["issue_id", "depends_on_id", "type", "created_at"]
 ```json-schema
 {
   "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -6111,7 +6284,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "blocked
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "issue_type" | text | no | — | — |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -6167,6 +6340,12 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "blocked
 ```json-schema
 {
   "properties": {
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"
@@ -6333,8 +6512,8 @@ Required order: ["seq", "ts", "op", "issue_id", "issue"]
 | "op" | text | yes | — | "What was done: `create`, `update`, `close`, `delete`, `dep_add`, `dep_remove` or `comment`. The set is closed in v0; a client MUST default-branch on an unknown value rather than fail, so that adding one stays additive." |
 | "issue_id" | text | yes | — | "The mutated issue's canonical id." |
 | "actor" | text | no | — | "The acting identity that performed the mutation, as resolved for the audit-events table; on a `comment` record it is the comment's author (the same value as `comment.author`). Absent when the mutation path has no actor — derived maintenance, deletes (other than a rename's synthetic `delete` record), and records written before the journal recorded actors. An absent actor is never user attribution: read it as system/unknown, not as a conflicting writer." |
-| "issue" | schema | yes | — | "The full issue state after the mutation — the same object shape `Issue` describes — or `null` on a delete. Always present. A post-image of a wisp-plane record carries its `arrival_seq`, and the `create` record that stamped it has `seq` equal to it." |
-| "dep" | object | no | — | "On `dep_add` and `dep_remove` only: `{\\"kind\\",\\"target\\",\\"metadata\\"}` for the edge. Absent on every other op.\\n\\n`metadata` differs in PROVENANCE between the two: on `dep_add` it is the value being written as the caller supplied it, on `dep_remove` it is the stored column read back just before the delete. The two can differ byte for byte while meaning the same thing, so compare parsed values rather than strings." |
+| "issue" | schema | yes | — | "Under §2, it is an `Issue`, and §2's rule for `Issue` applies to it. The full issue state after the mutation — the same object shape `Issue` describes — or `null` on a delete. Always present. A post-image of a wisp-plane record carries its `arrival_seq`, and the `create` record that stamped it has `seq` equal to it." |
+| "dep" | object | no | — | "Under §2, its `kind` is renamed `type`, a Link Type reference (§2). On `dep_add` and `dep_remove` only: `{\\"kind\\",\\"target\\",\\"metadata\\"}` for the edge. Absent on every other op.\\n\\n`metadata` differs in PROVENANCE between the two: on `dep_add` it is the value being written as the caller supplied it, on `dep_remove` it is the stored column read back just before the delete. The two can differ byte for byte while meaning the same thing, so compare parsed values rather than strings." |
 | "comment" | object | no | — | "On `comment` only: `{\\"id\\",\\"author\\",\\"text\\",\\"created_at\\",\\"source\\"}`. Absent on every other op." |
 
 #### Advanced
@@ -6729,7 +6908,7 @@ Required order: ["title"]
 | "design" | text | no | — | — |
 | "acceptance_criteria" | text | no | — | — |
 | "priority" | schema | no | — | "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly." |
-| "issue_type" | text | no | — | "Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types — an unknown one is a `400`." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types — an unknown one is a `400`." |
 | "assignee" | schema | no | — | — |
 | "labels" | schema | no | — | — |
 | "dependencies" | schema | no | — | "The edges this issue is created carrying. They are written in the same transaction as the issue, so this operation never publishes an issue whose declared relationships are not there yet." |
@@ -6748,6 +6927,12 @@ Required order: ["title"]
       "type": "integer",
       "minimum": 0,
       "maximum": 4
+    },
+    "issue_type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "assignee": {
       "type": "string",
@@ -6793,7 +6978,7 @@ Required order: ["target_id", "type"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "target_id" | schema | yes | — | "The far end of the edge: an issue this workspace holds, an `external:` reference, or an id whose prefix belongs to another repository. Anything else is a `400` and nothing is created.\\n\\nNOT AN ITEM OF THIS REQUEST. The server assigns every id and an item carries no name, so there is nothing here a caller could write to address one; see the operation's description for the operation that can." |
-| "type" | schema | yes | — | "The edge type, from the same OPEN vocabulary `Dependency.type` carries. It is spelled `type` because that is the member an edge carries everywhere else on this surface." |
+| "type" | schema | yes | — | "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries. It is spelled `type` because that is the member an edge carries everywhere else on this surface." |
 
 #### Advanced
 
@@ -6807,8 +6992,9 @@ Required order: ["target_id", "type"]
     },
     "type": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -6952,7 +7138,7 @@ Required order: ["title"]
 | "design" | text | no | — | — |
 | "acceptance_criteria" | text | no | — | — |
 | "notes" | text | no | — | — |
-| "issue_type" | schema | no | — | "Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
 | "status" | schema | no | — | "The status the issue is created in, from this workspace's own configured vocabulary. Absent means the workspace default." |
 | "priority" | schema | no | — | "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly." |
 | "assignee" | schema | no | — | — |
@@ -6994,7 +7180,9 @@ Required order: ["title"]
     },
     "issue_type": {
       "type": "string",
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -7154,7 +7342,7 @@ Other fields: not allowed
 | "notes" | text | no | — | "Replaces the notes. Mutually exclusive with `append_notes`; sending both is a `400`. Replacing EXISTING non-empty notes with different non-empty content is refused with `409 notes_overwrite_refused` unless `force_notes_overwrite` is set; an explicit clear (empty string) is not fenced." |
 | "append_notes" | text | no | — | "Appends to the notes rather than replacing them. Mutually exclusive with `notes`." |
 | "priority" | schema | no | — | — |
-| "issue_type" | schema | no | — | "The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`." |
 | "status" | schema | no | — | "The issue's status, from this workspace's own configured vocabulary.\\n\\nA STATUS THAT CROSSES INTO THE DONE CATEGORY ANSWERS TO CLOSE POLICY: the item is refused with `409 not_closable` for open children or a live blocker unless `force_close_policy` is set. A done-to-done change and a move OUT of the done category are unaffected — which is how a plan reopens a row, since there is no reopen item." |
 | "assignee" | schema | no | — | "The assignee. A transfer away from a live foreign in-progress owner is refused with `409 already_claimed` unless `force_assignee_transfer` is set or `expected_assignee` matched." |
 | "owner" | schema | no | — | — |
@@ -7184,7 +7372,9 @@ Other fields: not allowed
     },
     "issue_type": {
       "type": "string",
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -7407,7 +7597,7 @@ Required order: ["source", "target", "type"]
 | --- | --- | --- | --- | --- |
 | "source" | ref "#/$defs/Ref" | yes | — | — |
 | "target" | ref "#/$defs/Ref" | yes | — | — |
-| "type" | schema | yes | — | "The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes." |
+| "type" | schema | yes | — | "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes." |
 | "metadata" | ref "#/$defs/MetadataValue" | no | — | — |
 | "has_spawner" | boolean | no | — | "Gated by `issues.batchApply.depAddLineage`. Ignored for every `type` but `waits-for`: on a `waits-for` edge, `true` stamps `metadata.spawner_id` with this item's `target` (the id `bd create --graph`'s spawner_key/spawner_id resolved to), so a reader learns which spawned row to watch without re-deriving it from the graph plan. Absent or `false` leaves `metadata` exactly as given." |
 | "thread_id" | schema | no | — | "Gated by `issues.batchApply.depAddLineage`. A plain column on the stored edge, separate from `metadata`'s blob — the graph-plan thread this edge belongs to, for a reader that groups edges by thread without parsing every edge's metadata." |
@@ -7419,8 +7609,9 @@ Required order: ["source", "target", "type"]
   "properties": {
     "type": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "thread_id": {
       "type": "string",
@@ -7536,7 +7727,7 @@ Required order: ["issue_id", "depends_on_id", "type"]
 | --- | --- | --- | --- | --- |
 | "issue_id" | schema | yes | — | "The edge's SOURCE — the issue that depends on the other end. An EXACT canonical id, and one this database holds: an edge follows its source, so a source that names nothing is a `400`." |
 | "depends_on_id" | schema | yes | — | "The edge's TARGET — the issue depended upon. An exact canonical id, an `external:` reference, or an id belonging to another repository. Only an absence this database can SEE is refused. It must differ from `issue_id`." |
-| "type" | schema | yes | — | "The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for being a storable value, never for membership of a known-types list, so a workspace's own type passes." |
+| "type" | schema | yes | — | "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for being a storable value, never for membership of a known-types list, so a workspace's own type passes." |
 
 #### Advanced
 
@@ -7555,8 +7746,9 @@ Required order: ["issue_id", "depends_on_id", "type"]
     },
     "type": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -7829,7 +8021,22 @@ Required order: ["id", "kind"]
 | --- | --- | --- | --- | --- |
 | "id" | text | yes | — | "The blocker: a local issue id, or the full `external:<project>:<capability>` reference." |
 | "kind" | text | yes | — | "`local` for an issue this database holds, which clears when it closes; `external` for an `external:` reference, which clears when the named project ships the capability. The set may grow; default-branch on unknown values." |
-| "type" | text | no | — | "The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker." |
+| "type" | schema | no | — | "A Link Type reference (§2). The blocking edge's dependency type (`blocks`, `waits-for`, `conditional-blocks`). ABSENT when the refusal did not report it, which is the case for an `external:` blocker." |
+
+#### Advanced
+
+```json-schema
+{
+  "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
+    }
+  }
+}
+```
 
 <!-- bdp-schema:end Blocker bundle=issue-callables -->
 
@@ -7967,7 +8174,7 @@ Other fields: not allowed
 | "notes" | text | no | — | "Replaces the notes. Mutually exclusive with `append_notes`; sending both is a `400`. Replacing EXISTING non-empty notes with different non-empty content is refused with `409 notes_overwrite_refused` unless `force_notes_overwrite` is set; an explicit clear (empty string) is not fenced." |
 | "append_notes" | text | no | — | "Appends to the notes rather than replacing them. Mutually exclusive with `notes`." |
 | "priority" | schema | no | — | — |
-| "issue_type" | schema | no | — | "The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400` — this server cannot read the vocabulary without a transaction, so it checks only what this schema declares." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400` — this server cannot read the vocabulary without a transaction, so it checks only what this schema declares." |
 | "status" | schema | no | — | "The issue's status, from this workspace's own configured vocabulary.\\n\\nA STATUS THAT CROSSES INTO THE DONE CATEGORY ANSWERS TO CLOSE POLICY: the update is refused with `409 not_closable` for open children or a live blocker unless `force_close_policy` is set. A done-to-done change and a move OUT of the done category are unaffected.\\n\\nIT IS NOT A SECOND SPELLING OF `{id}:close` AND `{id}:reopen`. Those two carry semantics a status write has nowhere to put — the reason and session under first-close-wins, the done-status normalization, the `already_closed`/`already_open` idempotence flags — and they remain the operations to reach for when what you mean is \\"close this\\". This member is for the edit that moves a status ALONGSIDE other fields in one transaction, which is the thing two calls cannot do. `ApplyPatchBody.status` has meant exactly this since `issues:batchApply` landed." |
 | "assignee" | schema | no | — | "The assignee. A transfer away from a live foreign in-progress owner is refused with `409 already_claimed` unless `force_assignee_transfer` is set or `expected_assignee` matched. Setting it to the empty string unassigns.\\n\\n`{id}:claim` remains the operation that ACQUIRES work: it carries its own eligibility rules and sets the status with the assignee in one act. This member is the raw write, fenced." |
 | "parent_id" | schema | no | — | "Replaces the issue's parents atomically: a nonempty value makes THAT issue the only parent, and an EMPTY STRING removes every parent-child edge the issue has. Labels are not inherited — that is a create-time choice (`CreateIssueRequest.inherit_labels_from_parent`) and a reparent does not re-run it.\\n\\nIT IS A GRAPH EDIT, and it earns the graph's refusals: a new parent this workspace holds no row for is a `400`, a pair that already carries an edge of another type is `409 dependency_exists`, and a move under the issue's own descendant is `409 dependency_cycle` — the PLAIN one, carrying no `issue_id`/`blocker_id`/ `blocker_is_ancestor`, because the hierarchy refusal answers only to blocking edges and this member writes a `parent-child` edge. Naming the issue itself is a `400`. One call rather than a remove-then-add pair, which is the whole reason it is here: the two-call spelling leaves the issue parentless if the second call fails." |
@@ -8000,7 +8207,9 @@ Other fields: not allowed
     },
     "issue_type": {
       "type": "string",
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -8120,7 +8329,7 @@ Required order: ["target_id", "type"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "target_id" | schema | yes | — | "The other endpoint of the edge." |
-| "type" | schema | yes | — | "The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes." |
+| "type" | schema | yes | — | "A Link Type reference (§2). The edge type, from the same OPEN vocabulary `Dependency.type` carries: checked for BEING a storable value, never for membership of a known-types list, so a workspace's own type passes." |
 | "reverse" | schema | no | — | "Writes the edge from `target_id` TO the new issue rather than from it. It is what lets a create declare an edge that points INTO the row being minted — the id no caller could have spelled beforehand — and it is the member that makes `dependency_cycle` reachable on this operation at all." |
 | "metadata" | ref "#/$defs/MetadataValue" | no | — | — |
 
@@ -8136,8 +8345,9 @@ Required order: ["target_id", "type"]
     },
     "type": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 255
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "reverse": {
       "type": "boolean",

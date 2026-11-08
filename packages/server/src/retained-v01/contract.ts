@@ -92,6 +92,8 @@ export function deletedBead(resource: RetainedBead): DeletedBead {
     },
   };
 }
+/** Core's fixed navigation (core.md#fixed-navigation), plus the one advertised member
+ * that is still a URL: the `aliases` base. Everything else derives from the Scope. */
 export interface PrivateNavigation {
   readonly scope: string;
   readonly description: string;
@@ -99,8 +101,24 @@ export interface PrivateNavigation {
   readonly links: string;
   readonly aliases: string;
   readonly events: string;
-  readonly operations: string;
   readonly targets: Readonly<Record<(typeof ORDINARY_OPERATIONS)[number], string>>;
+}
+/** The fixed routes of a canonical Scope URL: `bdp/NAME` nouns, `bdp/operations/NAME`. */
+export function fixedNavigation(scope: string, aliases = scope + "aliases/"): PrivateNavigation {
+  const control = scope + "bdp";
+  return Object.freeze({
+    scope,
+    description: control,
+    beads: control + "/beads",
+    links: control + "/links",
+    aliases,
+    events: control + "/events",
+    targets: Object.freeze(
+      Object.fromEntries(
+        ORDINARY_OPERATIONS.map((operation) => [operation, control + "/operations/" + operation]),
+      ) as Record<(typeof ORDINARY_OPERATIONS)[number], string>,
+    ),
+  });
 }
 export function navigationAddresses(navigation: PrivateNavigation): readonly string[] {
   const addresses = [
@@ -110,7 +128,7 @@ export function navigationAddresses(navigation: PrivateNavigation): readonly str
     navigation.links,
     navigation.aliases,
     navigation.events,
-    navigation.operations,
+    navigation.scope + "bdp/operations",
     ...Object.values(navigation.targets),
   ];
   // A query-based navigation route must not also become an alias/Resource path.
@@ -291,16 +309,35 @@ export function canonicalCreatedId(scope: string, supplied: string): string {
     throw new RetainedRequestError("malformed-request", 400);
   }
 }
+/** What a listener serves: Core fixes every protocol route (core.md#fixed-navigation), so
+ * only the alias base is the Scope's to choose. Store-level units may still exercise
+ * internal bounds with other addresses; the wire never does. */
+export function assertFixedNavigation(input: PrivateNavigation): void {
+  const fixed = fixedNavigation(parseCanonicalScope(input.scope), input.aliases);
+  if (
+    input.description !== fixed.description ||
+    input.beads !== fixed.beads ||
+    input.links !== fixed.links ||
+    input.events !== fixed.events ||
+    ORDINARY_OPERATIONS.some((name) => input.targets[name] !== fixed.targets[name])
+  )
+    throw new TypeError("protocol navigation is fixed under the Scope's bdp/ routes");
+}
 export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
   const scope = parseCanonicalScope(input.scope);
-  if (Object.keys(input.targets).length !== ORDINARY_OPERATIONS.length)
-    throw new TypeError("closed eight-target fixture directory required");
+  if (
+    Object.keys(input).some(
+      (name) =>
+        !["scope", "description", "beads", "links", "aliases", "events", "targets"].includes(name),
+    ) ||
+    Object.keys(input.targets).length !== ORDINARY_OPERATIONS.length
+  )
+    throw new TypeError("closed fixture navigation required");
   const navigationUrls = [
     input.description,
     input.beads,
     input.links,
     input.events,
-    input.operations,
     ...ORDINARY_OPERATIONS.map((name) => input.targets[name]),
   ];
   for (const url of [...navigationUrls, input.aliases]) {
@@ -326,7 +363,6 @@ export function captureNavigation(input: PrivateNavigation): PrivateNavigation {
     links: input.links,
     aliases: input.aliases,
     events: input.events,
-    operations: input.operations,
     targets: Object.freeze(
       Object.fromEntries(ORDINARY_OPERATIONS.map((name) => [name, input.targets[name]])),
     ) as PrivateNavigation["targets"],

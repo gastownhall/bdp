@@ -124,6 +124,44 @@ export async function saveDefaultScope(path: string, scope: string): Promise<voi
   }
 }
 
+/** Forget the stored Scope (`bdp connect --clear`), keeping the rest of the configuration.
+ * True when there was one to forget. */
+export async function clearDefaultScope(path: string): Promise<boolean> {
+  let config: Record<string, unknown>;
+  try {
+    const existing = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(await readBoundedFile(path, 1_048_576)),
+    );
+    if (existing === null || typeof existing !== "object" || Array.isArray(existing))
+      throw new Error("invalid config");
+    config = existing as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw new Error("invalid config");
+  }
+  const scope = config.scope;
+  if (scope === null || typeof scope !== "object" || Array.isArray(scope)) return false;
+  const { url, ...rest } = scope as Record<string, unknown>;
+  if (url === undefined) return false;
+  if (Object.keys(rest).length === 0) delete config.scope;
+  else config.scope = rest;
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  const file = await open(temporary, "wx", 0o600);
+  try {
+    await file.writeFile(`${JSON.stringify(config, null, 2)}\n`, "utf8");
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+  try {
+    await rename(temporary, path);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
+  return true;
+}
+
 export class CanonicalOutputError extends Error {
   constructor() {
     super("BDP output failed");

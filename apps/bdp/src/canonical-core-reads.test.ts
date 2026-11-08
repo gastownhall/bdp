@@ -192,7 +192,15 @@ describe("list --type", () => {
     await withCore(
       async (scope) => {
         await expect(
-          runBdp(["--scope", scope, "list", "--type", "https://example.test/types/none"]),
+          runBdp([
+            "--scope",
+            scope,
+            "--output-mode",
+            "json",
+            "list",
+            "--type",
+            "https://example.test/types/none",
+          ]),
         ).resolves.toBe(1);
         expect(JSON.parse(stderr).error).toEqual({ origin: "bdp", problem: refusal });
       },
@@ -227,13 +235,13 @@ describe("show --include-links", () => {
       expect(stdout).toContain("dep-1");
     });
   });
-  it("requests no direction or limit unless asked, and keeps links in the JSON envelope", async () => {
+  it("requests no direction or limit unless asked, and keeps links in the JSON data", async () => {
     await withCore(async (scope, seen) => {
       await expect(
         runBdp(["--scope", scope, "--output-mode", "json", "show", "sw-1", "--include-links"]),
       ).resolves.toBe(0);
       expect(param(seen, "/sw-1", "direction")).toBeNull();
-      expect(JSON.parse(stdout).data.links.items).toHaveLength(1);
+      expect(JSON.parse(stdout).links.items).toHaveLength(1);
     });
   });
   it("refuses a historical read before any request", async () => {
@@ -249,7 +257,9 @@ describe("show --include-links", () => {
 describe("the legacy read path against a Core Scope", () => {
   it("versions says the Scope advertises no History", async () => {
     await withCore(async (scope) => {
-      await expect(runBdp(["--scope", scope, "versions", "sw-1"])).resolves.toBe(5);
+      await expect(
+        runBdp(["--scope", scope, "--output-mode", "json", "versions", "sw-1"]),
+      ).resolves.toBe(5);
       expect(JSON.parse(stderr).error.problem).toMatchObject({
         code: "unsupported_capability",
         message: expect.stringContaining("does not advertise History"),
@@ -278,7 +288,9 @@ describe("a generic read failure says what happened", () => {
   ] as const)("%s", async (_label, answer, path, expected) => {
     await withCore(
       async (scope) => {
-        await expect(runBdp(["--scope", scope, "show", "sw-1"])).resolves.toBe(1);
+        await expect(
+          runBdp(["--scope", scope, "--output-mode", "json", "show", "sw-1"]),
+        ).resolves.toBe(1);
         const { message } = JSON.parse(stderr).error.problem;
         expect(message).toContain(expected);
         expect(message).not.toContain("private");
@@ -290,14 +302,27 @@ describe("a generic read failure says what happened", () => {
   it("a bodyless 404 at the landing of a list", async () => {
     await withCore(
       async (scope) => {
-        await expect(runBdp(["--scope", scope, "list"])).resolves.toBe(1);
+        await expect(runBdp(["--scope", scope, "--output-mode", "json", "list"])).resolves.toBe(1);
         expect(JSON.parse(stderr).error.problem.message).toContain("HTTP 404");
       },
       (url) => (url.pathname === "/" ? { status: 404 } : undefined),
     );
   });
   it("no service listening at all", async () => {
-    await expect(runBdp(["--scope", "http://127.0.0.1:9/", "list"])).resolves.toBe(1);
-    expect(JSON.parse(stderr).error.problem.message).toContain("could not connect");
+    await expect(
+      runBdp(["--scope", "http://127.0.0.1:9/", "--output-mode", "json", "list"]),
+    ).resolves.toBe(1);
+    expect(JSON.parse(stderr)).toMatchObject({
+      error: { problem: { message: expect.stringContaining("could not connect") } },
+      scope: { url: "http://127.0.0.1:9/", source: "--scope" },
+    });
+    // In human mode the failure reads as text, naming the Scope and its source (row 3).
+    stderr = "";
+    vi.stubEnv("BDP_SCOPE_URL", "http://127.0.0.1:9/");
+    await expect(runBdp(["list"])).resolves.toBe(1);
+    expect(stderr).toMatch(
+      /^error: invalid_value: The request against http:\/\/127\.0\.0\.1:9\/ failed: could not connect/,
+    );
+    expect(stderr).toContain("  Scope: http://127.0.0.1:9/ (from BDP_SCOPE_URL)\n");
   });
 });

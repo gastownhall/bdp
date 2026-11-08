@@ -3,29 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { prepareCreate, prepareUpdate, prepareDelete, type PrivateNavigation } from "./contract.js";
+import { prepareCreate, prepareUpdate, prepareDelete, fixedNavigation } from "./contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 const scope = "https://scope.invalid/acme/";
-const navigation: PrivateNavigation = {
-  scope,
-  description: "https://navigation.invalid/description?tenant=a",
-  beads: `${scope}inventory-b`,
-  links: `${scope}inventory-l`,
-  aliases: `${scope}aliases`,
-  events: "https://events.invalid/feed?tenant=a",
-  operations: "https://navigation.invalid/commands?tenant=a",
-  targets: {
-    createBead: "https://commands.invalid/new?tenant=a",
-    updateBead: `${scope}u-b`,
-    deleteBead: `${scope}d-b`,
-    createLink: `${scope}c-l`,
-    updateLink: `${scope}u-l`,
-    deleteLink: `${scope}d-l`,
-    putAlias: `${scope}p-a`,
-    deleteAlias: `${scope}d-a`,
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}aliases`);
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   vi.restoreAllMocks();

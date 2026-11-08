@@ -2,7 +2,7 @@ import type { CallableDeclaration, CallableParameter, CallableValueSchema } from
 import { CALLABLE_QUERY_TYPE } from "@bdp/client";
 import { type AdmittedJsonValue, admitJsonNumbers, decodeJsonDocument } from "@bdp/protocol";
 import { unsupportedArgumentName } from "@bdp/config";
-import { CanonicalInputError } from "./canonical-input.js";
+import { CanonicalInputError, parseCanonicalTypeReference } from "./canonical-input.js";
 
 /** §10: attribution, on either form and in any position. No parameter derives or aliases it. */
 const ACTOR_FLAG = "--actor";
@@ -18,6 +18,7 @@ const CLIENT_FLAGS = new Set([
   "--idempotency-key",
   "--output-format",
   "--output-mode",
+  "--response-context",
   "--revision-provenance",
   "--scope",
 ]);
@@ -91,6 +92,59 @@ function schemaForm(schema: unknown, root: CallableValueSchema): ValueForm {
   return { kind: "single", item: onlyStrings(schema, root) ? "text" : "json" };
 }
 const valueForm = ({ schema }: CallableParameter): ValueForm => schemaForm(schema, schema);
+
+/** `x-bdp-type-reference` marks a Callable argument the Types rule reaches (Issue §2). On it the
+ * reference client resolves a short Type name (`issue/task`) against BDP's Types, then the bound
+ * Scope's `types/`, before sending — as canonical `create`/`update` already do — while an absolute
+ * URL stays literal. This is the interim marker; the sprint-1 target is a dedicated `format`
+ * token. The server ignores the keyword and enforces the full Core-spelled URL by its own rule. */
+const TYPE_REFERENCE_KEYWORD = "x-bdp-type-reference";
+
+const isTypeReference = (schema: unknown, root: CallableValueSchema): boolean =>
+  dereference(schema, root)?.[TYPE_REFERENCE_KEYWORD] === true;
+
+const resolveTypeValue = (value: AdmittedJsonValue, scope: string): AdmittedJsonValue =>
+  typeof value === "string"
+    ? (parseCanonicalTypeReference(value, scope) as AdmittedJsonValue)
+    : value;
+
+/** Resolve short Type names in one Callable's arguments. A parameter — or an object parameter's
+ * member — whose schema carries {@link TYPE_REFERENCE_KEYWORD} is resolved like canonical `--type`:
+ * a short name becomes a full Type URL, an absolute URL stays literal, and an array maps
+ * elementwise. Offline: nothing is fetched, and no other argument is touched. */
+export function resolveCallableTypeReferences(
+  declaration: CallableDeclaration,
+  args: Readonly<Record<string, AdmittedJsonValue>>,
+  scope: string,
+): Readonly<Record<string, AdmittedJsonValue>> {
+  const resolve = (
+    value: AdmittedJsonValue,
+    schema: unknown,
+    root: CallableValueSchema,
+  ): AdmittedJsonValue => {
+    const node = dereference(schema, root);
+    if (node === undefined) return value;
+    if (node[TYPE_REFERENCE_KEYWORD] === true) return resolveTypeValue(value, scope);
+    if (node.type === "array" && isTypeReference(node.items, root))
+      return Array.isArray(value) ? value.map((item) => resolveTypeValue(item, scope)) : value;
+    const properties = asObject(node.properties);
+    const object = asObject(value);
+    if (properties === undefined || object === undefined) return value;
+    const out: Record<string, AdmittedJsonValue> = { ...object };
+    for (const member of Object.keys(properties)) {
+      const current = out[member];
+      if (current !== undefined) out[member] = resolve(current, properties[member], root);
+    }
+    return out;
+  };
+  const out: Record<string, AdmittedJsonValue> = { ...args };
+  for (const parameter of declaration.parameters) {
+    const current = out[parameter.name];
+    if (current !== undefined)
+      out[parameter.name] = resolve(current, parameter.schema, parameter.schema);
+  }
+  return out;
+}
 
 /** The declared schema of one member of an object parameter. */
 function memberSchema({ schema }: CallableParameter, member: string): unknown {

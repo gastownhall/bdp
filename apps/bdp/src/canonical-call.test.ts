@@ -18,6 +18,7 @@ import {
   parameterFlag,
   parseCallableArguments,
   renderCallableHelp,
+  resolveCallableTypeReferences,
 } from "./canonical-call.js";
 import { createCanonicalCommand } from "./canonical-command.js";
 import { runBdp } from "./main.js";
@@ -129,7 +130,6 @@ async function withScope(
             profile: "write",
             scope,
             specRevision: "0123456789abcdef0123456789abcdef01234567",
-            operations: `${scope}bdp/write`,
             capabilities: {
               ...(options.callables === false ? {} : { [CALLABLES]: { "1": {} } }),
               ...(options.idempotency ? { [IDEMPOTENCY]: { "1": {} } } : {}),
@@ -455,6 +455,7 @@ describe("bdp call against a stub server", () => {
           scope,
           "--output-mode",
           "json",
+          "--response-context",
           "--actor",
           "sam",
           "call",
@@ -651,6 +652,7 @@ describe("bdp call against a stub server", () => {
           scope,
           "--output-mode",
           "json",
+          "--response-context",
           "call",
           "issue/claim",
           "--arguments",
@@ -674,7 +676,7 @@ describe("bdp call against a stub server", () => {
       retry: "after-delay",
     };
     await withScope({ answer: { status: 503, body: problem } }, async (scope) => {
-      const json = ["--scope", scope, "--output-mode", "json", "call"];
+      const json = ["--scope", scope, "--output-mode", "json", "--response-context", "call"];
       await expect(bdp([...json, "issue/ready"])).resolves.toBe(1);
       const query = JSON.parse(stdout);
       expect(query).toMatchObject({ outcome: "failure", error: { origin: "bdp", problem } });
@@ -699,7 +701,7 @@ describe("bdp call against a stub server", () => {
     await withScope(
       { answer: { status: 502, body: "<html>private</html>", contentType: "text/html" } },
       async (scope) => {
-        const json = ["--scope", scope, "--output-mode", "json", "call"];
+        const json = ["--scope", scope, "--output-mode", "json", "--response-context", "call"];
         await expect(bdp([...json, "issue/ready"])).resolves.toBe(1);
         expect(stdout).not.toContain("private");
         expect(JSON.parse(stdout)).toMatchObject({ outcome: "failure", error: { origin: "cli" } });
@@ -798,7 +800,9 @@ describe("bdp call against a stub server", () => {
     await expect(bdp(["call"], testCatalog)).resolves.toBe(0);
     expect(stdout.trim().split("\n")).toEqual(["reserve-room  batch", "shapes        query"]);
     stdout = "";
-    await expect(bdp(["--output-mode", "json", "call"], testCatalog)).resolves.toBe(0);
+    await expect(
+      bdp(["--output-mode", "json", "--response-context", "call"], testCatalog),
+    ).resolves.toBe(0);
     expect(JSON.parse(stdout)).toMatchObject({
       result_kind: "callable_catalog",
       outcome: "success",
@@ -811,5 +815,62 @@ describe("bdp call against a stub server", () => {
 
   it("does not exist under the compat profile", async () => {
     await expect(bdp(["--cli-profile", "compat", "call", "issue/stats"])).resolves.toBe(2);
+  });
+});
+
+describe("resolveCallableTypeReferences", () => {
+  const scope = "https://example.test/s/";
+  const TASK = "https://github.com/gastownhall/bdp/types/issue/task";
+  const typed: CallableDeclaration = {
+    name: "typed",
+    type: CALLABLE_BATCH_TYPE,
+    description: "Type-reference arguments the Types rule reaches.",
+    parameters: [
+      {
+        name: "type",
+        schema: {
+          type: "string",
+          format: "uri",
+          pattern: "^https?://.+",
+          "x-bdp-type-reference": true,
+        },
+      },
+      {
+        name: "types",
+        schema: {
+          type: "array",
+          items: {
+            type: "string",
+            format: "uri",
+            pattern: "^https?://.+",
+            "x-bdp-type-reference": true,
+          },
+        },
+      },
+      // A URI that is NOT a Type reference (no marker): left exactly as given.
+      { name: "endpoint", schema: { type: "string", format: "uri", pattern: "^https?://.+" } },
+      { name: "title", schema: { type: "string" } },
+    ],
+  };
+
+  it("resolves a short Type name on a marked parameter, by BDP's Types then the Scope's types/", () => {
+    expect(resolveCallableTypeReferences(typed, { type: "issue/task" }, scope)).toEqual({
+      type: TASK,
+    });
+    expect(resolveCallableTypeReferences(typed, { type: "issue/research" }, scope)).toEqual({
+      type: `${scope}types/issue/research`,
+    });
+  });
+
+  it("leaves an absolute Type URL literal, and maps an array elementwise", () => {
+    expect(resolveCallableTypeReferences(typed, { type: TASK }, scope)).toEqual({ type: TASK });
+    expect(resolveCallableTypeReferences(typed, { types: ["issue/task", TASK] }, scope)).toEqual({
+      types: [TASK, TASK],
+    });
+  });
+
+  it("does not touch a URI argument that is not a marked Type reference, or other arguments", () => {
+    const args = { endpoint: "issue/task", title: "issue/task" };
+    expect(resolveCallableTypeReferences(typed, args, scope)).toEqual(args);
   });
 });

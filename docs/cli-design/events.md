@@ -16,7 +16,7 @@ bdp events [RESOURCE] [--from retained|now | --after TOKEN]
 bdp link events RESOURCE [same options]
 ```
 
-No Resource means the default/explicit Scope's discovered `events` URL. A Resource
+No Resource means the default/explicit Scope's fixed `bdp/events` source. A Resource
 means its canonical URL with `view=events`; root is generic, `link` asserts Link.
 Scope defaults and whole Scope-defined names follow the existing Reference rules.
 The Resource operand must be unpinned: revision suffixes are not Event resume

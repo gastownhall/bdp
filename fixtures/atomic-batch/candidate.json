@@ -5,7 +5,6 @@
   "advertisement": {
     "https://github.com/gastownhall/bdp/capabilities/atomic-batch": {
       "1": {
-        "operation": "https://work.example/acme/commands/atomic",
         "operations": [
           "createBead",
           "updateBead",

@@ -24,6 +24,7 @@ interface ReadinessTraversalBudget {
   remainingRequests: number;
 }
 
+export { BDP_PUBLISHED_TYPE_NAMES, BDP_PUBLISHED_TYPES } from "./bdp-types.js";
 export { issueCallableCatalog } from "./issue-callables.js";
 export {
   ReadyOutputCompatibilityError,

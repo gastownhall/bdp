@@ -136,7 +136,6 @@ test("every schema reference resolves without rewriting or staging imports", () 
     });
   for (const name of [
     "retainedDiscovery",
-    "writeOperationDirectory",
     "batchRequest",
     "atomicBatchResult",
     "retainedEventPage",
@@ -146,21 +145,34 @@ test("every schema reference resolves without rewriting or staging imports", () 
     assert(selected.has(name));
 });
 
-test("closed Write directory with optional aliases, singleton requests, media and operation guards", () => {
-  const names = Object.keys(canonical.$defs.writeOperationDirectory.properties).sort();
-  assert.equal(canonical.$defs.writeOperationDirectory.additionalProperties, false);
-  assert.deepEqual(
-    [...canonical.$defs.writeOperationDirectory.required].sort(),
-    names.filter((name) => !["putAlias", "deleteAlias"].includes(name)),
-  );
-  assert.deepEqual(canonical.$defs.writeOperationDirectory.dependentRequired, {
-    putAlias: ["deleteAlias"],
-    deleteAlias: ["putAlias"],
-  });
-  assert.equal(names.length, 8);
+test("Write operations at fixed routes, with singleton requests, media and operation guards", () => {
+  assert.equal(canonical.$defs.writeOperationDirectory, undefined);
+  assert.equal(canonical.$defs.writeDiscovery.properties.operations, undefined);
+  assert.equal(canonical.$defs.writeDiscovery.properties.events, undefined);
+  const names = [
+    "createBead",
+    "createLink",
+    "deleteAlias",
+    "deleteBead",
+    "deleteLink",
+    "putAlias",
+    "updateBead",
+    "updateLink",
+  ];
   const actual = rows
-    .filter((row) => row.navigation.role === "write-directory-member")
-    .map((row) => row.id)
+    .filter(
+      (row) =>
+        row.navigation.role === "fixed-scope-path" &&
+        row.navigation.path.startsWith("bdp/operations/"),
+    )
+    .filter((row) => !row.navigation.capability && !row.navigation.feature)
+    .map((row) => {
+      assert.deepEqual(row.navigation, {
+        role: "fixed-scope-path",
+        path: `bdp/operations/${row.id}`,
+      });
+      return row.id;
+    })
     .sort();
   assert.deepEqual(actual, names);
   for (const name of names) {
@@ -359,14 +371,6 @@ function fixtureErrors(exchange) {
       errors.push("Problem status");
   } else if (!bodyless && response.status === 200 && row.response) {
     if (headers["content-type"] !== media) errors.push("response media");
-    if (request.binding === "writeDirectory") {
-      const expected = Object.keys(canonical.$defs.writeOperationDirectory.properties).sort();
-      if (JSON.stringify(Object.keys(response.body || {}).sort()) !== JSON.stringify(expected))
-        errors.push("closed directory");
-      const urls = Object.values(response.body || {});
-      if (new Set(urls).size !== urls.length || urls.some((u) => !/^https?:\/\//.test(u)))
-        errors.push("distinct absolute URLs");
-    }
   }
   // Successful read context survives HEAD/304 independently of any body.
   if (method !== "post" && [200, 304].includes(response.status)) {
@@ -638,7 +642,7 @@ test("command-first map assigns every wire case once without adding public verbs
     ...deferredSignatures,
   ];
   assert.deepEqual([...signatures].sort(), rows.map((row) => row.id).sort());
-  assert.equal(new Set(signatures).size, 38);
+  assert.equal(new Set(signatures).size, 37);
   assert.deepEqual(deferredSignatures, [
     "exactDefinition",
     "historicalUpdateCurrent",
@@ -740,10 +744,10 @@ test("rooted creation uses three existing routes and disjoint feature schema arm
       `../profiles/core/bdp-v0.1.schema.json#/$defs/${row.response}`,
     );
   }
-  assert.equal(rows.length, 38);
+  assert.equal(rows.length, 37);
   assert.equal(
     rows.reduce((count, row) => count + row.methods.length, 0),
-    66,
+    64,
   );
 });
 
@@ -814,7 +818,6 @@ test("Types1 uses an explicit rejectable subtype only on its selected ordinary o
     "scopeEvents",
     "beadEvents",
     "exactDefinition",
-    "writeDirectory",
     "aliasResolve",
     "beadVersions",
   ])
@@ -910,7 +913,7 @@ test("historical feature catalogs five explicitly selected methods without widen
       assert(!op.responses["200"].headers["BDP-History-Lineage"]);
       assert(!op.responses["200"].headers["BDP-Collection-Kind"]);
       if (method === "post") {
-        assert.equal(op["x-bdp-navigation"].member, "updateBead");
+        assert.equal(op["x-bdp-navigation"].path, "bdp/operations/updateBead");
         assert.equal(op["x-bdp-request-media"].contentType, historicalMedia);
         assert.deepEqual(Object.keys(op.requestBody.content), [historicalMedia]);
         assert(

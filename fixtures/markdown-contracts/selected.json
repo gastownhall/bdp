@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_PROJECTION_ONLY",
   "source": "specs/profiles/core/bdp-v0.1.schema.json",
-  "sourceSHA256": "7becdf3ab826b90a92726b4044c05924971daeeba11c31db469a9e2750aef9a2",
+  "sourceSHA256": "8996acb96dbe2c417ed31dcfeaa1e0384555cd476ccae31c96995a43ededd000",
   "selections": {
     "read": {
       "entryPoints": [
@@ -33,8 +33,7 @@
         "typeDefinitionReadProblem",
         "typeDefinitionReadQueryV1",
         "typeDefinitionReadResult",
-        "typeDefinitionReadSelection",
-        "writeOperationDirectory"
+        "typeDefinitionReadSelection"
       ],
       "definitions": [
         "absoluteHttpUrl",
@@ -124,8 +123,7 @@
         "wireToken",
         "writeAdvertisedLimits",
         "writeDiscovery",
-        "writeExceptionsCapabilityV1",
-        "writeOperationDirectory"
+        "writeExceptionsCapabilityV1"
       ],
       "externalReferences": []
     },
@@ -261,7 +259,6 @@
       "beadAggregate",
       "aliasResolve",
       "exactDefinition",
-      "writeDirectory",
       "beadEvents",
       "linkEvents",
       "scopeEvents"

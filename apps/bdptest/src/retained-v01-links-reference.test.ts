@@ -1,3 +1,4 @@
+import { fixedNavigation } from "../../../packages/server/src/retained-v01/contract.js";
 /** Independent raw HTTP assertions for the incomplete Core-only Link fixture. */
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
@@ -10,25 +11,8 @@ import { startPrivateRetainedFixture } from "../../../packages/server/src/retain
 const media = "application/vnd.bdp.v0.1+json";
 const token = "L".repeat(32);
 const scope = "https://records.invalid/t/";
-const navigation = {
-  scope,
-  description: "https://discover.invalid/about?tenant=t",
-  beads: "https://inventory.invalid/things?tenant=t",
-  links: "https://inventory.invalid/relations?tenant=t",
-  aliases: `${scope}names`,
-  events: "https://observe.invalid/log?tenant=t",
-  operations: "https://discover.invalid/invoke?tenant=t",
-  targets: {
-    createBead: "https://write.invalid/insert?kind=node",
-    updateBead: "https://write.invalid/edit?kind=node",
-    deleteBead: "https://write.invalid/drop?kind=node",
-    createLink: "https://write.invalid/insert?kind=edge",
-    updateLink: "https://write.invalid/edit?kind=edge",
-    deleteLink: "https://write.invalid/drop?kind=edge",
-    putAlias: "https://write.invalid/bind?tenant=t",
-    deleteAlias: "https://write.invalid/unbind?tenant=t",
-  },
-};
+// Core fixes every protocol route; only the alias base is configurable.
+const navigation = fixedNavigation(scope, `${scope}names`);
 const validator = createJsonSchemaValidator(
   JSON.parse(
     readFileSync(
@@ -121,7 +105,10 @@ async function fixture() {
   });
   cleanups.push(() => server.close());
   const discovery = JSON.parse((await wire(server.listenUrl, navigation.description)).text);
-  const targets = JSON.parse((await wire(server.listenUrl, discovery.operations)).text);
+  // Core fixes every operation at bdp/operations/NAME; discovery names none of them.
+  expect(discovery).not.toHaveProperty("operations");
+  expect(discovery).not.toHaveProperty("events");
+  const targets = navigation.targets;
   const beads: Record<string, unknown>[] = [];
   for (const id of ["left", "right", "next"]) {
     const result = await wire(
@@ -194,7 +181,7 @@ describe("Core-only Link wire correspondence", () => {
     expect(result.resource.id).toBe(first.resource.id);
     expect(result.resource.revision).not.toBe(first.resource.revision);
     expect(result.resource.target).toEqual({ uri: external, revision: "foreign/+opaque" });
-    const scoped = JSON.parse((await wire(server.listenUrl, server.discovery.events)).text);
+    const scoped = JSON.parse((await wire(server.listenUrl, navigation.events)).text);
     expect(validator.validate("#/$defs/retainedEventPage", scoped)).toEqual([]);
     const event = scoped.events.at(-1);
     expect(event).toMatchObject({
@@ -354,9 +341,9 @@ describe("Core-only Link wire correspondence", () => {
         )
       ).status,
     ).toBe(422);
-    expect(
-      JSON.parse((await wire(server.listenUrl, server.discovery.events)).text).events,
-    ).toHaveLength(4);
+    expect(JSON.parse((await wire(server.listenUrl, navigation.events)).text).events).toHaveLength(
+      4,
+    );
   });
   it("classifies a scheme-shaped endpoint lexically and freezes its successful invocation", async () => {
     const server = await fixture();

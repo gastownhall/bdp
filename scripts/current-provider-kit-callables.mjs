@@ -226,13 +226,16 @@ function issueInvocations(ids, unique) {
     ["issue/reclaim", {}],
     [
       "issue/create-many",
-      { items: [{ title: `kit ${unique()}`, priority: 2, issue_type: "task" }] },
+      { items: [{ title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` }] },
     ],
     [
       "issue/batch",
       {
         items: [
-          { kind: "create", create: { title: `kit ${unique()}`, priority: 2, issue_type: "task" } },
+          {
+            kind: "create",
+            create: { title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` },
+          },
         ],
       },
     ],
@@ -756,10 +759,10 @@ export async function runOptionalRows({
     const linkType = links.json.items[0]?.type;
     if (linkType === undefined)
       notRun("§12 names no Link Type and the root has no Link to read one from");
-    const directory = await http(new URL(discovered.operations, scope).href);
+    // Core fixes every Write operation at bdp/operations/NAME.
     const name = `kit-unexposed-${unique()}`;
     const created = await http(
-      directory.json.createBead,
+      url("bdp/operations/createBead"),
       "POST",
       {
         id: name,
@@ -774,7 +777,7 @@ export async function runOptionalRows({
     const before = await http(mount, "POST", { arguments: {} });
     problemShape(before, 404, "callable-not-found", "not-found", "after-state-change");
     const linked = await http(
-      directory.json.createLink,
+      url("bdp/operations/createLink"),
       "POST",
       {
         type: linkType,
@@ -873,8 +876,8 @@ export async function runOptionalRows({
       callable = await named("issue/create-many");
       args = {
         items: [
-          { title: `kit ${unique()}`, priority: 2, issue_type: "task" },
-          { title: "", priority: 2, issue_type: "task" },
+          { title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` },
+          { title: "", priority: 2, type: `${ISSUE}task` },
         ],
       };
       provenance = ACTOR;
@@ -1078,14 +1081,9 @@ export async function runOptionalRows({
       notApplicable("Not applicable by discovery: the Scope advertises profile core, not write");
     requireMutation();
   };
-  let directoryPromise;
-  const directory = () =>
-    (directoryPromise ??= http(new URL(discovered.operations, scope).href).then((reply) => {
-      check(reply.status === 200, `The operation directory answered ${said(reply)}`);
-      return reply.json;
-    }));
+  // Core fixes every Write operation at bdp/operations/NAME; there is no directory to read.
   const write = async (operation, body) =>
-    http((await directory())[operation], "POST", body, `kit-${unique()}`);
+    http(new URL(`bdp/operations/${operation}`, scope).href, "POST", body, `kit-${unique()}`);
   const issueBody = (extra = {}) => ({
     type: `${ISSUE}task`,
     properties: { title: `kit ${unique()}`, status: "open", priority: 2, ...extra },
