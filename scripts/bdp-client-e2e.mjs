@@ -131,7 +131,9 @@ class Stack {
       "--non-interactive",
     );
     await this.bd("config", "set", "events-journal", "true");
-    this.port = await this.serve();
+    // `bd serve` defaults to v0; serve `both` so the BDP routes under `/bdp/` are available to
+    // the reference client and the direct `curl` comparisons.
+    this.port = await this.serve(["--protocol", "both"]);
   }
   spawn(command, args, spawnOptions) {
     const child = spawn(command, args.map(String), {
@@ -330,7 +332,7 @@ function differences(left, right, path = "", found = []) {
 const issue = (id, title = id, fields = {}) => ({
   id,
   title,
-  issue_type: "task",
+  type: "https://github.com/gastownhall/bdp/types/issue/task",
   priority: 2,
   ...fields,
 });
@@ -355,14 +357,26 @@ const READ_SEED = [
   }),
   issue(R(2), "alpha two", {
     labels: ["blue"],
-    dependencies: [{ target_id: R(1), type: "blocks" }],
+    dependencies: [
+      { target_id: R(1), type: "https://github.com/gastownhall/bdp/types/dependency/blocks" },
+    ],
   }),
   issue(R(3), "beta closed", { priority: 3 }),
-  issue(R(4), "the epic", { issue_type: "epic", labels: ["red", "blue"] }),
+  issue(R(4), "the epic", {
+    type: "https://github.com/gastownhall/bdp/types/issue/epic",
+    labels: ["red", "blue"],
+  }),
   issue(R(5), "child of epic", { parent_id: R(4) }),
-  issue(R(6), "claimed by bob", { issue_type: "bug", priority: 0 }),
+  issue(R(6), "claimed by bob", {
+    type: "https://github.com/gastownhall/bdp/types/issue/bug",
+    priority: 0,
+  }),
   issue(R(7), "commented"),
-  issue(R("a"), "related out", { dependencies: [{ target_id: R(7), type: "related" }] }),
+  issue(R("a"), "related out", {
+    dependencies: [
+      { target_id: R(7), type: "https://github.com/gastownhall/bdp/types/dependency/related" },
+    ],
+  }),
 ];
 const READ_BEFORE = [
   closed(R(3)),
@@ -480,7 +494,9 @@ const BATCHES = [
     name: "issue/advance",
     make: (c) => ({
       seed: [
-        issue(F("m0", c), "mol", { issue_type: "molecule" }),
+        issue(F("m0", c), "mol", {
+          type: "https://github.com/gastownhall/bdp/types/issue/molecule",
+        }),
         issue(F("m1", c), "one", { parent_id: F("m0", c) }),
         issue(F("m2", c), "two", { parent_id: F("m0", c) }),
       ],
@@ -562,8 +578,13 @@ const BATCHES = [
     name: "issue/create-many",
     make: () => {
       const items = [
-        { title: "many one", issue_type: "task", priority: 2, labels: ["m"] },
-        { title: "many two", issue_type: "task" },
+        {
+          title: "many one",
+          type: "https://github.com/gastownhall/bdp/types/issue/task",
+          priority: 2,
+          labels: ["m"],
+        },
+        { title: "many two", type: "https://github.com/gastownhall/bdp/types/issue/task" },
       ];
       return {
         actor: A,
@@ -576,7 +597,14 @@ const BATCHES = [
     name: "issue/batch",
     make: (c) => {
       const items = [
-        { kind: "create", create: { title: "b", issue_type: "task", id: F("ba", c) } },
+        {
+          kind: "create",
+          create: {
+            title: "b",
+            type: "https://github.com/gastownhall/bdp/types/issue/task",
+            id: F("ba", c),
+          },
+        },
       ];
       return {
         actor: A,
@@ -611,7 +639,11 @@ const BATCHES = [
     make: (c) => ({
       seed: [issue(F("da", c)), issue(F("db", c))],
       actor: A,
-      wire: { source: F("da", c), target: F("db", c), type: "related" },
+      wire: {
+        source: F("da", c),
+        target: F("db", c),
+        type: "https://github.com/gastownhall/bdp/types/dependency/related",
+      },
       cli: [F("da", c), F("db", c), "--actor", A, "-t", "related"],
     }),
   },
@@ -620,7 +652,14 @@ const BATCHES = [
     make: (c) => ({
       seed: [
         issue(F("dd", c)),
-        issue(F("dc", c), "dep", { dependencies: [{ target_id: F("dd", c), type: "blocks" }] }),
+        issue(F("dc", c), "dep", {
+          dependencies: [
+            {
+              target_id: F("dd", c),
+              type: "https://github.com/gastownhall/bdp/types/dependency/blocks",
+            },
+          ],
+        }),
       ],
       actor: A,
       wire: { issue_id: F("dc", c), depends_on_id: F("dd", c) },
@@ -722,7 +761,11 @@ const EXTRAS = [
     make: (c) => ({
       seed: [issue(F("it", c))],
       actor: A,
-      wire: { id: F("it", c), title: "again", issue_type: "task" },
+      wire: {
+        id: F("it", c),
+        title: "again",
+        type: "https://github.com/gastownhall/bdp/types/issue/task",
+      },
       cli: ["again", "--actor", A, "--id", F("it", c), "-t", "task"],
     }),
     exit: 1,
@@ -1739,7 +1782,12 @@ async function sizes(context) {
     while (created < target) {
       const items = [];
       for (let index = 0; index < 20 && created + items.length < target; index++)
-        items.push({ title: "large", issue_type: "task", description: filler, labels: ["large"] });
+        items.push({
+          title: "large",
+          type: "https://github.com/gastownhall/bdp/types/issue/task",
+          description: filler,
+          labels: ["large"],
+        });
       await seedCall(scope, "issue/create-many", { items }, A);
       created += items.length;
     }
