@@ -29,14 +29,13 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
       "coreDiscovery",
       "writeDiscovery",
       "retainedDiscovery",
-      "writeOperationDirectory",
       "coreAdvertisedLimits",
       "writeAdvertisedLimits",
     ])
       expect(ajv.getSchema(`${schema.$id}#/$defs/${name}`)).toBeDefined();
   });
 
-  it("admits minimal Core without a Type inventory and checks optional Event navigation", () => {
+  it("admits minimal Core without a Type inventory and refuses retired navigation members", () => {
     expect(valid("coreDiscovery", paper.core)).toBe(true);
     expect(paper.core).not.toHaveProperty("types");
     expect(paper.core).not.toHaveProperty("beads");
@@ -55,12 +54,14 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
         types: "https://work.example/acme/types/",
       }),
     ).toBe(true);
-    const absent = { ...paper.core };
-    delete absent.events;
-    expect(valid("coreDiscovery", absent)).toBe(true);
-    const writeWithoutEvents = { ...paper.write };
-    delete writeWithoutEvents.events;
-    expect(valid("writeDiscovery", writeWithoutEvents)).toBe(true);
+    // Core fixes bdp/events and bdp/operations/NAME; neither is a discovery member.
+    for (const [name, value] of [
+      ["events", "https://work.example/acme/bdp/events"],
+      ["operations", "https://work.example/acme/bdp/operations"],
+    ] as const) {
+      expect(valid("coreDiscovery", { ...paper.core, [name]: value }), name).toBe(false);
+      expect(valid("writeDiscovery", { ...paper.write, [name]: value }), name).toBe(false);
+    }
     expect(paper.write).not.toHaveProperty("beads");
     expect(paper.write).not.toHaveProperty("links");
     expect(
@@ -70,7 +71,6 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
         links: "https://work.example/acme/bdp/links",
       }),
     ).toBe(false);
-    expect(valid("coreDiscovery", { ...paper.core, events: "relative" })).toBe(false);
     // A navigation member is not evidence that D1/D2 or provider obligations are satisfied.
   });
 
@@ -129,40 +129,23 @@ describe("retained profile/CLI paper artifacts, without provider or command exec
     }
   });
 
-  it("requires six absolute singleton targets, aliases both or neither, without sequence, batch or sets", () => {
-    expect(valid("writeOperationDirectory", paper.directory)).toBe(true);
-    expect(Object.keys(paper.directory)).toEqual(
-      paper.cliPairs.map((p: { operation: string }) => p.operation),
-    );
-    for (const name of Object.keys(paper.directory)) {
-      const value = { ...paper.directory };
-      delete value[name];
-      expect(valid("writeOperationDirectory", value), name).toBe(false);
-    }
-    const withoutAliases = { ...paper.directory };
-    delete withoutAliases.putAlias;
-    delete withoutAliases.deleteAlias;
-    expect(valid("writeOperationDirectory", withoutAliases)).toBe(true);
-    for (const name of ["sequence", "batch", "updateWhere", "deleteWhere"])
-      expect(
-        valid("writeOperationDirectory", {
-          ...paper.directory,
-          [name]: "https://example.test/command",
-        }),
-      ).toBe(false);
-    expect(valid("writeOperationDirectory", { ...paper.directory, createBead: "new-item" })).toBe(
-      false,
-    );
-  });
-
-  it("keeps Write's operations mandatory while aliases remain optional in Core and Write", () => {
+  it("retires the operation directory: no schema, and no required navigation in Write", () => {
+    expect(schema.$defs.writeOperationDirectory).toBeUndefined();
+    expect(valid("writeDiscovery", paper.write)).toBe(true);
     expect(valid("coreDiscovery", { ...paper.core, aliases: paper.core.scope })).toBe(true);
-    const withoutOperations = { ...paper.write };
-    delete withoutOperations.operations;
-    expect(valid("writeDiscovery", withoutOperations)).toBe(false);
     const withoutAliases = { ...paper.write };
     delete withoutAliases.aliases;
     expect(valid("writeDiscovery", withoutAliases)).toBe(true);
+    expect(paper.cliPairs.map((p: { operation: string }) => p.operation)).toEqual([
+      "createBead",
+      "updateBead",
+      "deleteBead",
+      "createLink",
+      "updateLink",
+      "deleteLink",
+      "putAlias",
+      "deleteAlias",
+    ]);
   });
 
   it("separates small read/write limit groups from sequence and replica machinery", () => {

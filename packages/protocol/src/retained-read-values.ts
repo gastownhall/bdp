@@ -15,7 +15,6 @@ export type RetainedDiscovery = RetainedJsonObject & {
   readonly profile: "core" | "write";
   readonly scope: AbsoluteHttpUrl;
   readonly specRevision: string;
-  readonly events?: AbsoluteHttpUrl;
 };
 
 /** Both selected profiles supply Core reads. Unknown advertisements are opaque;
@@ -27,8 +26,7 @@ export function parseRetainedDiscovery(text: string): RetainedDiscovery {
   if (value.types !== undefined && value.types !== new URL("types/", value.scope as string).href)
     throw new ProtocolArtifactValidationError("Types inventory must use the fixed Scope route");
   parseCanonicalScope(value.scope);
-  for (const name of ["events", "operations", "aliases"] as const)
-    if (value[name] !== undefined) parseCanonicalHttpUrl(value[name], `discovery.${name}`);
+  if (value.aliases !== undefined) parseCanonicalHttpUrl(value.aliases, "discovery.aliases");
   return value as RetainedDiscovery;
 }
 

@@ -95,7 +95,7 @@ These commands cannot silently succeed on a Bead simply because a body is absent
 
 `scope inspect` returns the advertised description. `list` and `link list` use their respective advertised inventory URLs. The future `type list` location selects neither a Type inventory nor its navigation/payload; those requirements belong to the developing Types and packaging contracts. Clients do not append known suffixes or assume that records sit beneath an inventory path. A Scope may advertise `/inventory/items` while assigning a Bead `/task-42`.
 
-CRUD uses the discovered operation directory and selected operation kind. An implementation's existing fixed-root constructors are accepted-target deltas; they are not universal parsing rules. No domain default, native Issue classification, public template engine or domain convenience is added.
+CRUD uses the selected operation's fixed `<scope>/bdp/operations/NAME` route ([Core fixed navigation](../../specs/profiles/core/core.md#fixed-navigation)). No domain default, native Issue classification, public template engine or domain convenience is added.
 
 ## Alias names and collisions
 

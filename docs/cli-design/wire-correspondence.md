@@ -53,7 +53,7 @@ Core-only Type carriers do not imply Types interpretation.
 
 | CLI behavior | Actual mapping | Boundary |
 | --- | --- | --- |
-| Establish a Scope | Discover its description and, for writes, operation directory | Shared connection setup; no path guessing or cross-authority credentials |
+| Establish a Scope | Discover its description; operations sit at Core's fixed routes | Shared connection setup; no path guessing or cross-authority credentials |
 | Read a collection or Versions | Follow issued pages as requested | One selected population; paging does not create new operations |
 | `events --follow` | Read pages, then poll the same native event source | Preserve complete delivered progress; no invented wire stream |
 | Recover an uncertain write | Repeat the original frozen request/key | One logical decision; no new key, default resolution or allocation |

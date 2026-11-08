@@ -70,9 +70,10 @@ promise. Packages, the experimental grouping of definitions in
 
 A Scope advertises the capability under Core's `capabilities` map. Like the
 inventories at `<scope>/bdp/beads` and `<scope>/bdp/links`, invocation lives in a
-fixed namespace, `<scope>/bdp/call` (§3), so discovery names no URL. There is no
+fixed namespace, `<scope>/bdp/call` (§3), under Core's
+[fixed navigation](../core/core.md#fixed-navigation), so discovery names no URL. There is no
 `callables` profile literal, no new required discovery member and no change to
-Write's closed operation directory. A Scope at either profile MAY advertise Callables1 and
+Write's operations. A Scope at either profile MAY advertise Callables1 and
 offer both kinds of operation. Write's allocation, non-reuse and attribution rules
 govern a CallableBatch's effects whether or not the Scope advertises the Write
 profile, so a service can expose named mutations without Write's generic verbs; under

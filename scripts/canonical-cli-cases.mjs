@@ -574,20 +574,21 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
     }
   });
 
-  test("a Write provider without aliases binds, refuses alias commands, and a disagreeing directory is refused", async () => {
+  test("a Write provider without aliases binds, refuses alias commands, and retired navigation is refused", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "bdp-cli-no-aliases-"));
     const media = "application/vnd.bdp.v0.1+json";
     const requests = [];
     let reference,
       shape = "none";
+    // Core fixes every route: the client reads no directory, and a discovery that still
+    // names one (or an Event source) is refused before anything is sent.
     const reshape = (value) => {
       const next = { ...value };
-      const dropDiscovery = shape === "none" || shape === "members-unadvertised";
-      const dropMembers =
-        shape === "none" || shape === "advertised-no-members" ? ["putAlias", "deleteAlias"] : [];
-      if (shape === "half") dropMembers.push("deleteAlias");
-      if (value.profile === "write" && dropDiscovery) delete next.aliases;
-      if (value.createBead !== undefined) for (const name of dropMembers) delete next[name];
+      if (value.profile !== "write") return next;
+      if (shape === "none") delete next.aliases;
+      if (shape === "retired-operations")
+        next.operations = new URL("bdp/operations", next.scope).href;
+      if (shape === "retired-events") next.events = new URL("bdp/events", next.scope).href;
       return next;
     };
     const proxy = createServer((incoming, outgoing) => {
@@ -665,9 +666,8 @@ export function registerCanonicalCliCases({ binary, startReferenceService }) {
       assert.equal(posts(), before, "an alias refusal sends no mutation");
       assert(!requests.some((r) => r.path.includes("aliases/current")), "nor asks for the alias");
       for (const [next, message] of [
-        ["members-unadvertised", /carries alias operations, but discovery does not advertise/],
-        ["advertised-no-members", /advertises aliases, but the Write operation directory omits/],
-        ["half", /invalid retained v0\.1 writeOperationDirectory/],
+        ["retired-operations", /invalid retained v0\.1 retainedDiscovery/],
+        ["retired-events", /invalid retained v0\.1 retainedDiscovery/],
       ]) {
         shape = next;
         refused(

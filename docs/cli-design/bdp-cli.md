@@ -448,7 +448,7 @@ D through the authorized terminal SDK/HTTP read, then pass it literally to
 `bd update --from-revision =SOURCE --if-revision D`. Source and guard remain
 independent; terminal visibility does not grant source permission.
 
-The historical Update POST uses the discovered `updateBead` URL with both feature
+The historical Update POST uses the fixed `bdp/operations/updateBead` route with both feature
 Content-Type and Accept, and required `fromRevision`. Base media does not acquire
 this input/output grammar. See the [HTTP signatures](../../specs/profiles/write/write.md#selected-historical-update-http-signatures).
 
@@ -775,7 +775,7 @@ bd create --retry-file FILE
 
 ##### Behavior
 
-Use the established destination Scope and its discovered `createBead` operation.
+Use the established destination Scope and its fixed `bdp/operations/createBead` route.
 A Type URL does not choose that destination. Preserve the complete Scope-defined
 local ID; do not insert a kind prefix. Omitted properties and metadata initialize
 as empty objects. New IDs cannot contain `@` and no previously committed Resource
@@ -810,7 +810,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| Destination Scope | POST to discovered `createBead` URL with the selected media and one Idempotency-Key. |
+| Destination Scope | POST to the fixed `bdp/operations/createBead` route with the selected media and one Idempotency-Key. |
 | --type TYPE | Set `type` to the absolute URI string or exact `{uri,revision}` Reference. |
 | --id ID / --id-root ROOT | Send `id` or selected `idRoot`, never both; omission leaves ordinary authority allocation. |
 | --properties / --metadata | Set the existing initial object members. |
@@ -1075,7 +1075,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| REF | Set `bead` in a POST to discovered `updateBead`. |
+| REF | Set `bead` in a POST to the fixed `bdp/operations/updateBead`. |
 | --type TYPE | Set the whole `type` Reference; omission remains omission. |
 | --replace-properties / --replace-metadata | Set distinct `properties` / `metadata` replacement members, not root patches. |
 | Merge, patch and keyed object edits | Lower to `propertiesChange` / `metadataChange` without changing edit intent or policy. |
@@ -1183,7 +1183,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | CLI input | Protocol request or client behavior |
 | --- | --- |
 | No --force | GET the current Resource; add only the CLI preview marker. |
-| REF with --force | POST `bead` to discovered `deleteBead` with an Idempotency-Key. |
+| REF with --force | POST `bead` to the fixed `bdp/operations/deleteBead` with an Idempotency-Key. |
 | --if-revision TOKEN | Set `expectedRevision` to the exact flag value unchanged. |
 | --force | Client apply intent only; no native field. |
 | --dry-run-mode batch | Emit `operation:"deleteBead"`; do not execute it. |
@@ -1494,7 +1494,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| Endpoint bindings | Set existing `source` and `target` References in POST to discovered `createLink`. |
+| Endpoint bindings | Set existing `source` and `target` References in POST to the fixed `bdp/operations/createLink`. |
 | Endpoint revision suffix | Use the exact `{uri,revision}` Reference; bare input stays a URI string. |
 | --type TYPE | Set whole `type` Reference. |
 | --id / --id-root | Send `id` or selected `idRoot`, never both; the service allocates beneath the requested root. |
@@ -1744,7 +1744,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| REF | Set `link` in a POST to discovered `updateLink`. |
+| REF | Set `link` in a POST to the fixed `bdp/operations/updateLink`. |
 | --type TYPE | Set the whole `type` Reference; omission remains omission. |
 | --from REF / --to REF | Set whole `source` / `target` replacements; omission preserves the preceding Reference and pin. |
 | --replace-properties / --replace-metadata | Set distinct `properties` / `metadata` replacement members, not root patches. |
@@ -1852,7 +1852,7 @@ same-key recovery information; it is not permission to submit a fresh write.
 | CLI input | Protocol request or client behavior |
 | --- | --- |
 | No --force | GET the current Resource; add only the CLI preview marker. |
-| REF with --force | POST `link` to discovered `deleteLink` with an Idempotency-Key. |
+| REF with --force | POST `link` to the fixed `bdp/operations/deleteLink` with an Idempotency-Key. |
 | --if-revision TOKEN | Set `expectedRevision` to the exact flag value unchanged. |
 | --revision-provenance JSON | Set attribution for an induced source revision where applicable. |
 | --force | Client apply intent only; no native field. |
@@ -2173,7 +2173,7 @@ Ctrl-C ends follow with `130`, preserving the last completely delivered progress
 
 | CLI input | Protocol request or client behavior |
 | --- | --- |
-| No Resource | Use discovered Scope `events` URL. |
+| No Resource | Use the Scope's fixed `bdp/events` source. |
 | Resource operand | GET the canonical Resource with `view=events`; verify asserted kind where applicable. |
 | --from / --after | Set native `from=retained\|now` or opaque `after=TOKEN`. |
 | --representation | Set native `representation=postimage\|delta` under selected v0.1 media. |
