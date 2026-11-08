@@ -102,12 +102,13 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
 - **Results.** A Callable's `resultSchema` is its v0 operation's 200 response schema,
   verbatim but for the Types rule, and `result` is the product's JSON under that rule.
 - **Identifiers.** Identifiers are v0's native forms: `bd-1`.
-- **Types.** Wherever a Callable carries a Bead's Type or a dependency's kind, in its
-  arguments, a patch, a filter, a result or an error, the member is `type` and its value is
+- **Types.** A Type reference a Callable carries as a filter, a parameter, or a dependency's
+  kind is a `type` member, and its value is
   a Type reference, as Core spells it ([Issue §2](issue.md#2-bead-and-link-types)): a Bead
   Type such as `https://github.com/gastownhall/bdp/types/issue/task`, a Link Type such as
   `https://github.com/gastownhall/bdp/types/dependency/blocks`, or the Scope-local identity of a configured
-  name. v0's `issue_type` is renamed `type`. `exclude_type` keeps its name, as
+  name. The Issue Bead's own Type keeps v0's `issue_type` — the member the `Issue` record carries — in the
+  create arguments, the patch, and the result bodies below. `exclude_type` keeps its name, as
   `exclude_label` and `exclude_status` keep theirs beside `label` and `status`, and takes
   Bead Type references. An abstract Type, a Type of the
   other kind, and a reference with no identity in the Scope's table are refused as
@@ -119,7 +120,7 @@ operation. `issue/purge` and `issue/prune` are the one exception: both route to
   | --- | --- | --- |
   | Parameters of `issue/ready`, `issue/ready-count`, `issue/list`, `issue/count`, `issue/claim-next` | `type`, `exclude_type` | Bead |
   | Parameters of `issue/dep/list`, `issue/dep/edges`, `issue/dep/count` | `type` | Link |
-  | Members of `Issue`, `BatchGetIssue`, `IssueWithCounts`, `IssueDetails`, `IssueWithDependencyMetadata`, `TreeNode`, `BlockedIssue`, `CreateIssueRequest`, `IssuePatchBody`, `BatchCreateItem`, `ApplyCreateItem`, `ApplyPatchBody` | `issue_type`, renamed `type` | Bead |
+  | Members of `Issue`, `BatchGetIssue`, `IssueWithCounts`, `IssueDetails`, `IssueWithDependencyMetadata`, `TreeNode`, `BlockedIssue`, `CreateIssueRequest`, `IssuePatchBody`, `BatchCreateItem`, `ApplyCreateItem`, `ApplyPatchBody` | `issue_type` (v0's own member, kept) | Bead |
   | Members of `Dependency`, `DependencyEdge`, `CreateIssueDependency`, `BatchCreateDependency`, `ApplyDepAddItem`, `Blocker` | `type` | Link |
   | Parameter of `issue/dep/add` (§3) | `type` | Link |
   | `EventRecord.issue` | It is an `Issue`, and §2's rule for `Issue` applies to it | Bead |
@@ -164,7 +165,7 @@ route keeps its behavior.
 | Callable | Omitted parameters |
 | --- | --- |
 | `issue/list` | `{"sort": "priority"}` |
-| `issue/create` | `{"type": "task"}` |
+| `issue/create` | `{"issue_type": "task"}` |
 | `issue/dep/list` | `{"direction": "out"}` |
 | `issue/close` | `{"reason": "Closed"}` |
 | `issue/purge` | `{"dry_run": true, "tier": "ephemeral", "protect_referenced": false, "protect_live_dependents": true}` |
@@ -992,7 +993,7 @@ Its `errorSchema` is `issueCreateError`.
 | `design` | text | no | body | — |
 | `acceptance_criteria` | text | no | body | — |
 | `notes` | text | no | body | — |
-| `type` | Bead Type reference | no | body | Omitted, this Callable uses `"task"`, which the call path resolves to `https://github.com/gastownhall/bdp/types/issue/task`. |
+| `issue_type` | Bead Type reference | no | body | Omitted, this Callable uses `"task"`. |
 | `status` | text | no | body | The status the issue is created in, from this workspace's own configured vocabulary. |
 | `priority` | integer | no | body | 0 is P0/critical. |
 | `assignee` | text | no | body | — |
@@ -1027,7 +1028,7 @@ Declared reasons: `dependency_cycle`.
 CLI mapping:
 
 ```json
-{"flags": [{"names": ["-t"], "parameter": "type"}, {"names": ["-p"], "parameter": "priority"}, {"names": ["-s"], "parameter": "status"}, {"names": ["-a"], "parameter": "assignee"}, {"names": ["-d"], "parameter": "description"}, {"names": ["-l"], "parameter": "labels"}, {"names": ["--parent"], "parameter": "parent_id"}, {"names": ["--acceptance"], "parameter": "acceptance_criteria"}], "fromFile": [{"names": ["--body-file"], "parameter": "description"}, {"names": ["--design-file"], "parameter": "design"}], "memberFlags": [{"member": "spawner_id", "parameter": "waits_for"}, {"member": "gate", "names": ["--waits-for-gate"], "parameter": "waits_for"}], "positionals": [{"position": 0, "parameter": "title"}]}
+{"flags": [{"names": ["-t", "--type"], "parameter": "issue_type"}, {"names": ["-p"], "parameter": "priority"}, {"names": ["-s"], "parameter": "status"}, {"names": ["-a"], "parameter": "assignee"}, {"names": ["-d"], "parameter": "description"}, {"names": ["-l"], "parameter": "labels"}, {"names": ["--parent"], "parameter": "parent_id"}, {"names": ["--acceptance"], "parameter": "acceptance_criteria"}], "fromFile": [{"names": ["--body-file"], "parameter": "description"}, {"names": ["--design-file"], "parameter": "design"}], "memberFlags": [{"member": "spawner_id", "parameter": "waits_for"}, {"member": "gate", "names": ["--waits-for-gate"], "parameter": "waits_for"}], "positionals": [{"position": 0, "parameter": "title"}]}
 ```
 
 ### issue/update (CallableBatch)
@@ -1108,7 +1109,7 @@ Declared reasons: `already_claimed`, `dependency_cycle`, `dependency_exists`, `n
 CLI mapping:
 
 ```json
-{"memberFlags": [{"member": "title", "parameter": "patch"}, {"member": "description", "names": ["-d"], "parameter": "patch"}, {"member": "design", "parameter": "patch"}, {"member": "acceptance_criteria", "names": ["--acceptance"], "parameter": "patch"}, {"member": "notes", "parameter": "patch"}, {"member": "append_notes", "parameter": "patch"}, {"member": "priority", "names": ["-p"], "parameter": "patch"}, {"member": "type", "names": ["-t"], "parameter": "patch"}, {"member": "status", "names": ["-s"], "parameter": "patch"}, {"member": "assignee", "names": ["-a"], "parameter": "patch"}, {"member": "parent_id", "names": ["--parent"], "parameter": "patch"}, {"member": "labels", "names": ["--set-labels"], "parameter": "patch"}, {"member": "add_labels", "names": ["-l", "--add-label"], "parameter": "patch"}, {"member": "remove_labels", "names": ["--remove-label"], "parameter": "patch"}, {"member": "estimated_minutes", "names": ["-e", "--estimate"], "parameter": "patch"}, {"member": "external_ref", "parameter": "patch"}, {"member": "due_at", "names": ["--due"], "parameter": "patch"}, {"member": "defer_until", "names": ["--defer"], "parameter": "patch"}, {"member": "await_id", "parameter": "patch"}], "positionals": [{"position": 0, "parameter": "id"}]}
+{"memberFlags": [{"member": "title", "parameter": "patch"}, {"member": "description", "names": ["-d"], "parameter": "patch"}, {"member": "design", "parameter": "patch"}, {"member": "acceptance_criteria", "names": ["--acceptance"], "parameter": "patch"}, {"member": "notes", "parameter": "patch"}, {"member": "append_notes", "parameter": "patch"}, {"member": "priority", "names": ["-p"], "parameter": "patch"}, {"member": "issue_type", "names": ["-t", "--type"], "parameter": "patch"}, {"member": "status", "names": ["-s"], "parameter": "patch"}, {"member": "assignee", "names": ["-a"], "parameter": "patch"}, {"member": "parent_id", "names": ["--parent"], "parameter": "patch"}, {"member": "labels", "names": ["--set-labels"], "parameter": "patch"}, {"member": "add_labels", "names": ["-l", "--add-label"], "parameter": "patch"}, {"member": "remove_labels", "names": ["--remove-label"], "parameter": "patch"}, {"member": "estimated_minutes", "names": ["-e", "--estimate"], "parameter": "patch"}, {"member": "external_ref", "parameter": "patch"}, {"member": "due_at", "names": ["--due"], "parameter": "patch"}, {"member": "defer_until", "names": ["--defer"], "parameter": "patch"}, {"member": "await_id", "parameter": "patch"}], "positionals": [{"position": 0, "parameter": "id"}]}
 ```
 
 ### issue/comment (CallableBatch)
@@ -3306,7 +3307,7 @@ Required order: ["title"]
 | "design" | text | no | — | — |
 | "acceptance_criteria" | text | no | — | — |
 | "notes" | text | no | — | — |
-| "type" | schema | no | — | "Omitted, this Callable uses `\\"https://github.com/gastownhall/bdp/types/issue/task\\"`. A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
+| "issue_type" | schema | no | — | "Omitted, this Callable uses `\\"https://github.com/gastownhall/bdp/types/issue/task\\"`. A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
 | "status" | schema | no | — | "The status the issue is created in, from this workspace's own configured vocabulary. Absent means the workspace's own default, which is `open` today — unlike `issue_type`, the role fills this one in before it validates." |
 | "priority" | schema | no | — | "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly." |
 | "assignee" | schema | no | — | — |
@@ -3345,7 +3346,7 @@ Required order: ["title"]
       "minLength": 1,
       "maxLength": 255
     },
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -4834,7 +4835,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at"]
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | "`open`, `in_progress`, `blocked`, `closed`, or any custom status configured for the workspace. NOT a closed vocabulary: clients must treat an unrecognized value as \\"some status I do not know\\"." |
 | "priority" | integer | yes | — | "0 (most urgent) through 4. Always present; 0 is a real value." |
-| "type" | schema | no | — | "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
 | "is_blocked" | boolean | no | — | "The persisted readiness projection — true when an open blocking dependency keeps this issue out of the ready set. Derived from the dependency graph; never set by a client.\\n\\nNOT POPULATED by the /v0 read endpoints today: they hydrate issues without it, so the field is absent from their responses and its absence says nothing about whether an issue is blocked. Use `/v0/beads/ready` or the dependency endpoints to answer that. The field is carried by events-journal snapshots, which is where it is read back, and it is documented here because those snapshots serialize the same type this schema is pinned to." |
 | "assignee" | text | no | — | "The actor currently holding the issue, if any." |
 | "owner" | text | no | — | — |
@@ -4888,7 +4889,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at"]
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -4975,7 +4976,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | "`open`, `in_progress`, `blocked`, `closed`, or any custom status configured for the workspace. NOT a closed vocabulary: clients must treat an unrecognized value as \\"some status I do not know\\"." |
 | "priority" | integer | yes | — | "0 (most urgent) through 4. Always present; 0 is a real value." |
-| "type" | schema | no | — | "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). `bug`, `feature`, `task`, `epic`, `chore`, `gate`, and workspace configured types. Not a closed vocabulary." |
 | "is_blocked" | boolean | no | — | "The persisted readiness projection — true when an open blocking dependency keeps this issue out of the ready set. Derived from the dependency graph; never set by a client.\\n\\nNOT POPULATED by the /v0 read endpoints today: they hydrate issues without it, so the field is absent from their responses and its absence says nothing about whether an issue is blocked. Use `/v0/beads/ready` or the dependency endpoints to answer that. The field is carried by events-journal snapshots, which is where it is read back, and it is documented here because those snapshots serialize the same type this schema is pinned to." |
 | "assignee" | text | no | — | "The actor currently holding the issue, if any." |
 | "owner" | text | no | — | — |
@@ -5030,7 +5031,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -5117,7 +5118,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2)." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5176,7 +5177,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -5263,7 +5264,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2)." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5330,7 +5331,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -5457,7 +5458,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2)." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5512,7 +5513,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -5599,7 +5600,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depth",
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2)." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -5658,7 +5659,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depth",
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -6283,7 +6284,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "blocked
 | "spec_id" | text | no | — | — |
 | "status" | text | no | — | — |
 | "priority" | integer | yes | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2)." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2)." |
 | "is_blocked" | boolean | no | — | — |
 | "assignee" | text | no | — | — |
 | "owner" | text | no | — | — |
@@ -6339,7 +6340,7 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "blocked
 ```json-schema
 {
   "properties": {
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -6907,7 +6908,7 @@ Required order: ["title"]
 | "design" | text | no | — | — |
 | "acceptance_criteria" | text | no | — | — |
 | "priority" | schema | no | — | "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly." |
-| "type" | schema | no | — | "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types — an unknown one is a `400`." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types — an unknown one is a `400`." |
 | "assignee" | schema | no | — | — |
 | "labels" | schema | no | — | — |
 | "dependencies" | schema | no | — | "The edges this issue is created carrying. They are written in the same transaction as the issue, so this operation never publishes an issue whose declared relationships are not there yet." |
@@ -6927,7 +6928,7 @@ Required order: ["title"]
       "minimum": 0,
       "maximum": 4
     },
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -7137,7 +7138,7 @@ Required order: ["title"]
 | "design" | text | no | — | — |
 | "acceptance_criteria" | text | no | — | — |
 | "notes" | text | no | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). Issue type. Spelled `issue_type` rather than `type`, matching the member `Issue` carries, and validated against the built-ins plus the workspace's configured custom types by the ROLE — this server cannot read that vocabulary without a transaction, so it checks only what this schema declares and an unknown one arrives as a `400`." |
 | "status" | schema | no | — | "The status the issue is created in, from this workspace's own configured vocabulary. Absent means the workspace default." |
 | "priority" | schema | no | — | "0 is P0/critical. Absent means the create default, P2 (`2`), on a server advertising `issues.create.defaultPriority`; such a server never reads an absent member as `0`. An older server stores P0 for an absent member, so a client that does not see the token sends `2` explicitly." |
 | "assignee" | schema | no | — | — |
@@ -7177,7 +7178,7 @@ Required order: ["title"]
       "minLength": 1,
       "maxLength": 255
     },
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -7341,7 +7342,7 @@ Other fields: not allowed
 | "notes" | text | no | — | "Replaces the notes. Mutually exclusive with `append_notes`; sending both is a `400`. Replacing EXISTING non-empty notes with different non-empty content is refused with `409 notes_overwrite_refused` unless `force_notes_overwrite` is set; an explicit clear (empty string) is not fenced." |
 | "append_notes" | text | no | — | "Appends to the notes rather than replacing them. Mutually exclusive with `notes`." |
 | "priority" | schema | no | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400`." |
 | "status" | schema | no | — | "The issue's status, from this workspace's own configured vocabulary.\\n\\nA STATUS THAT CROSSES INTO THE DONE CATEGORY ANSWERS TO CLOSE POLICY: the item is refused with `409 not_closable` for open children or a live blocker unless `force_close_policy` is set. A done-to-done change and a move OUT of the done category are unaffected — which is how a plan reopens a row, since there is no reopen item." |
 | "assignee" | schema | no | — | "The assignee. A transfer away from a live foreign in-progress owner is refused with `409 already_claimed` unless `force_assignee_transfer` is set or `expected_assignee` matched." |
 | "owner" | schema | no | — | — |
@@ -7369,7 +7370,7 @@ Other fields: not allowed
       "minimum": 0,
       "maximum": 4
     },
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
@@ -8173,7 +8174,7 @@ Other fields: not allowed
 | "notes" | text | no | — | "Replaces the notes. Mutually exclusive with `append_notes`; sending both is a `400`. Replacing EXISTING non-empty notes with different non-empty content is refused with `409 notes_overwrite_refused` unless `force_notes_overwrite` is set; an explicit clear (empty string) is not fenced." |
 | "append_notes" | text | no | — | "Appends to the notes rather than replacing them. Mutually exclusive with `notes`." |
 | "priority" | schema | no | — | — |
-| "type" | schema | no | — | "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400` — this server cannot read the vocabulary without a transaction, so it checks only what this schema declares." |
+| "issue_type" | schema | no | — | "A Bead Type reference (§2). The issue type, from this workspace's own configured vocabulary. A type outside it is refused by the ROLE and reaches the client as a `400` — this server cannot read the vocabulary without a transaction, so it checks only what this schema declares." |
 | "status" | schema | no | — | "The issue's status, from this workspace's own configured vocabulary.\\n\\nA STATUS THAT CROSSES INTO THE DONE CATEGORY ANSWERS TO CLOSE POLICY: the update is refused with `409 not_closable` for open children or a live blocker unless `force_close_policy` is set. A done-to-done change and a move OUT of the done category are unaffected.\\n\\nIT IS NOT A SECOND SPELLING OF `{id}:close` AND `{id}:reopen`. Those two carry semantics a status write has nowhere to put — the reason and session under first-close-wins, the done-status normalization, the `already_closed`/`already_open` idempotence flags — and they remain the operations to reach for when what you mean is \\"close this\\". This member is for the edit that moves a status ALONGSIDE other fields in one transaction, which is the thing two calls cannot do. `ApplyPatchBody.status` has meant exactly this since `issues:batchApply` landed." |
 | "assignee" | schema | no | — | "The assignee. A transfer away from a live foreign in-progress owner is refused with `409 already_claimed` unless `force_assignee_transfer` is set or `expected_assignee` matched. Setting it to the empty string unassigns.\\n\\n`{id}:claim` remains the operation that ACQUIRES work: it carries its own eligibility rules and sets the status with the assignee in one act. This member is the raw write, fenced." |
 | "parent_id" | schema | no | — | "Replaces the issue's parents atomically: a nonempty value makes THAT issue the only parent, and an EMPTY STRING removes every parent-child edge the issue has. Labels are not inherited — that is a create-time choice (`CreateIssueRequest.inherit_labels_from_parent`) and a reparent does not re-run it.\\n\\nIT IS A GRAPH EDIT, and it earns the graph's refusals: a new parent this workspace holds no row for is a `400`, a pair that already carries an edge of another type is `409 dependency_exists`, and a move under the issue's own descendant is `409 dependency_cycle` — the PLAIN one, carrying no `issue_id`/`blocker_id`/ `blocker_is_ancestor`, because the hierarchy refusal answers only to blocking edges and this member writes a `parent-child` edge. Naming the issue itself is a `400`. One call rather than a remove-then-add pair, which is the whole reason it is here: the two-call spelling leaves the issue parentless if the second call fails." |
@@ -8204,7 +8205,7 @@ Other fields: not allowed
       "minimum": 0,
       "maximum": 4
     },
-    "type": {
+    "issue_type": {
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
