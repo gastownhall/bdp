@@ -350,7 +350,9 @@ export function loadCliProfile(options: LoadOptions): CliProfile {
 }
 
 export interface CanonicalCliConfig {
-  readonly scope?: { readonly url: string };
+  /** `source` says where the Scope came from, as a person reads it: `BDP_SCOPE_URL`, or
+   * `config file PATH`. */
+  readonly scope?: { readonly url: string; readonly source?: string };
   readonly auth: { readonly token?: string };
 }
 /** Canonical commands have no implicit destination. In particular an absolute
@@ -382,8 +384,10 @@ export function loadCanonicalCliConfig(options: LoadOptions): CanonicalCliConfig
     }
   }
   if (issues.length) throw new ConfigError(issues);
+  const source =
+    options.env.BDP_SCOPE_URL !== undefined ? "BDP_SCOPE_URL" : `config file ${path ?? ""}`;
   return {
-    ...(scope === undefined ? {} : { scope: { url: scope } }),
+    ...(scope === undefined ? {} : { scope: { url: scope, source } }),
     auth: token === undefined ? {} : { token },
   };
 }

@@ -234,7 +234,9 @@ async function operation(service: Awaited<ReturnType<typeof startReferenceServic
     "deleteLink",
   ]);
   expect(document).not.toHaveProperty("events");
-  return document.capabilities[capability]["1"].operation as string;
+  // Core fixes the target at bdp/operations/atomicBatch; the detail names no URL.
+  expect(document.capabilities[capability]["1"]).not.toHaveProperty("operation");
+  return scope + "bdp/operations/atomicBatch";
 }
 function schemaResult(text: string) {
   const value = JSON.parse(text);
@@ -251,15 +253,14 @@ describe("selected atomic batch1 public reference wire", () => {
     expect(discovery.capabilities?.[capability]).toBeUndefined();
     const refused = await wire(
       service.listenUrl,
-      scope + "bdp/batch",
+      scope + "bdp/operations/atomicBatch",
       body([{ operation: "createBead", id: "must-not-exist", type }]),
       "unclaimed",
     );
-    expect(refused.status).toBe(422);
-    expect(JSON.parse(refused.text)).toMatchObject({
-      code: "capability-not-supported",
-      capabilityVersion: "1",
-    });
+    // Unadvertised, the fixed route is not served: a POST to it answers as one to any
+    // absent path does, Core's bodyless 405, and claims no key.
+    expect(refused.status).toBe(405);
+    expect(refused.text).toBe("");
     expect((await wire(service.listenUrl, scope + "must-not-exist")).status).toBe(404);
     expect(
       (
@@ -434,8 +435,9 @@ describe("private-process atomic batch1 crash timing witness over the reference 
       const discovery = await wire(first.listenUrl, referenceNavigation(scope).description);
       expect(discovery.status).toBe(200);
       expect(discovery.headers["x-bdp-private-fixture"]).toBeUndefined();
-      const target = JSON.parse(discovery.text).capabilities[capability]["1"].operation;
-      expect(target).toBe(scope + "bdp/batch");
+      const detail = JSON.parse(discovery.text).capabilities[capability]["1"];
+      expect(detail).not.toHaveProperty("operation");
+      const target = scope + "bdp/operations/atomicBatch";
       const database = path.join(directory, "retained-reference.sqlite");
       const imageBeforeRequest = readFileSync(database);
       const pending = wire(first.listenUrl, target, input, "lost-whole-batch").then(

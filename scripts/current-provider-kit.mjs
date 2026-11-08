@@ -21,7 +21,7 @@ const core = "specs/profiles/core/core.md";
 const write = "specs/profiles/write/write.md";
 const definitions = [
   ["core.scope-discovery", `${core}#discovery-and-capabilities`],
-  ["write.discovery-directory", `${write}#discover-and-select-write`],
+  ["write.discovery-fixed-routes", `${write}#discover-and-select-write`],
   ["write.media-before-admission", `${write}#contract-and-media`],
   ["write.create", `${write}#ordinary-results`],
   ["core.point-read", `${core}#read-a-bead-or-link`],
@@ -93,7 +93,7 @@ export const UNCOVERED_REQUIRED = Object.freeze([
 // Fixed qualification boundary, independent of whichever rows survive execution.
 const requiredObligationIds = Object.freeze([
   "core.scope-discovery",
-  "write.discovery-directory",
+  "write.discovery-fixed-routes",
   "write.media-before-admission",
   "write.create",
   "core.point-read",
@@ -141,7 +141,7 @@ const isReplayRowId = (id) => id.startsWith("write.durable-original-");
 const IDEMPOTENCY = "https://github.com/gastownhall/bdp/capabilities/idempotency";
 // A later row reads what these leave behind, so a failure here stops its journey, excepted or not.
 const PRODUCER_ROWS = new Set([
-  "write.discovery-directory",
+  "write.discovery-fixed-routes",
   "write.create",
   "write.effectful-update",
   "write.delete",
@@ -847,31 +847,48 @@ export async function runCurrentProvider(
         );
       });
     }
+    // Core "Fixed navigation": every route is built from the Scope, never read from discovery.
+    async function absentPath(target, method = "GET") {
+      const reply = await exchange(routes, target, method);
+      assert.equal(reply.status, 404, `${method} ${target} must answer as an absent path`);
+      if (method === "GET")
+        assert.equal(
+          json(reply, 404, "readProblem", "application/problem+json").code,
+          "resource-not-found",
+        );
+    }
     async function readNavigation(description) {
       const discovery = json(await exchange(routes, description), 200, "writeDiscovery");
       assert.equal(discovery.bdpVersion, "0.1");
       assert.equal(discovery.profile, "write");
       assert.equal(discovery.scope, scope.href);
-      assert.equal(Object.hasOwn(discovery, "beads"), false);
-      assert.equal(Object.hasOwn(discovery, "links"), false);
+      // Closed discovery names no route: inventories, operations and Events are fixed.
+      for (const member of ["beads", "links", "operations", "events"])
+        assert.equal(Object.hasOwn(discovery, member), false, `discovery carries ${member}`);
       const nextAliases = discovery.aliases;
-      const nextDirectory = json(
-        await exchange(routes, discovery.operations),
-        200,
-        "writeOperationDirectory",
-      );
       // Write "Ordinary targets": the six always, the alias pair exactly with advertised `aliases`.
-      const expected = [
+      const resource = [
         "createBead",
         "updateBead",
         "deleteBead",
         "createLink",
         "updateLink",
         "deleteLink",
-        ...(nextAliases === undefined ? [] : ["putAlias", "deleteAlias"]),
       ];
-      assert.deepEqual(Object.keys(nextDirectory).sort(), [...expected].sort());
-      assert.equal(new Set(Object.values(nextDirectory)).size, expected.length);
+      const alias = ["putAlias", "deleteAlias"];
+      const operation = (name) => new URL(`bdp/operations/${name}`, scope).href;
+      const expected = [...resource, ...(nextAliases === undefined ? [] : alias)];
+      const nextDirectory = Object.fromEntries(expected.map((name) => [name, operation(name)]));
+      // Each served target is POST-only: a GET is Write's bodyless 405 with Allow: POST.
+      for (const name of expected) {
+        const reply = await exchange(routes, nextDirectory[name]);
+        assert.equal(reply.status, 405, `GET ${name} must be Write's bodyless 405`);
+        assert.equal(reply.headers.allow, "POST");
+        assert.equal(reply.bytes.length, 0);
+      }
+      // The retired directory, and the alias pair without `aliases`, are absent paths.
+      await absentPath(new URL("bdp/operations", scope).href);
+      if (nextAliases === undefined) for (const name of alias) await absentPath(operation(name));
       return {
         directory: nextDirectory,
         aliases: nextAliases,
@@ -910,10 +927,10 @@ export async function runCurrentProvider(
         await coreJourney();
         return;
       }
-      await step("write.discovery-directory", async () => {
+      await step("write.discovery-fixed-routes", async () => {
         ({ directory, aliases, idempotent } = await readNavigation(discoveryUrl));
       });
-      // Only after that case has held the directory to discovery: a disagreement fails above.
+      // Only after that case has held the fixed routes to discovery: a disagreement fails above.
       if (aliases === undefined)
         notApplicable(
           isAliasRowId,

@@ -187,7 +187,9 @@ test("a callable-error shows its error value on stderr and exits 1", async () =>
     '{"id":"bd-1"}',
   ]);
   assert.equal(structured.status, 1);
-  assert.deepEqual(JSON.parse(structured.stdout).error.problem.error, {
+  // JSON is the data alone: the failure goes to stderr, stdout stays empty.
+  assert.equal(structured.stdout, "");
+  assert.deepEqual(JSON.parse(structured.stderr).error.problem.error, {
     reason: "already-claimed",
     assignee: "kim",
   });
@@ -197,7 +199,7 @@ test("a 5xx carries no error member and is a different diagnosis at the same sta
   assert.equal(status, 1);
   assert.match(stderr, /^error: temporarily-unavailable/);
   const structured = await bdp(["--scope", scope, "--output-mode", "json", "call", "issue/stats"]);
-  const { problem } = JSON.parse(structured.stdout).error;
+  const { problem } = JSON.parse(structured.stderr).error;
   assert.equal(problem.code, "temporarily-unavailable");
   assert.equal(Object.hasOwn(problem, "error"), false);
 });
@@ -238,7 +240,7 @@ test("a tree command is the same invocation as call, and reads stdin for a fromF
   );
   assert.equal(stderr, "");
   assert.equal(status, 0);
-  assert.equal(stdout, "changed: true\nid: bd-1\n");
+  assert.equal(stdout, "changed: true\nID: bd-1\n");
   assert.deepEqual(posts.at(-1).body, {
     arguments: { title: "Fix login", priority: 1, description: "from stdin\n" },
     revisionProvenance: { actor: { id: "s", basis: "writer-supplied" } },
