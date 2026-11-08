@@ -2119,14 +2119,16 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "exclude_type": {
       "type": "array",
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     },
     "include_ephemeral": {
@@ -2203,14 +2205,16 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "exclude_type": {
       "type": "array",
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     },
     "include_ephemeral": {
@@ -2435,7 +2439,8 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "all": {
       "type": "boolean",
@@ -2525,7 +2530,8 @@ Other fields: not allowed
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     },
     "pinned": {
@@ -2709,7 +2715,8 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_after": {
       "type": "string",
@@ -2764,7 +2771,8 @@ Other fields: not allowed
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     },
     "group_by": {
@@ -2873,7 +2881,8 @@ Required order: ["id"]
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     }
   }
@@ -2963,7 +2972,8 @@ Required order: ["issue_id"]
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     }
   }
@@ -3022,7 +3032,8 @@ Required order: ["issue_id", "direction"]
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     }
   }
@@ -3338,7 +3349,8 @@ Required order: ["title"]
       "type": "string",
       "format": "uri",
       "pattern": "^https?://.+",
-      "default": "https://github.com/gastownhall/bdp/types/issue/task"
+      "default": "https://github.com/gastownhall/bdp/types/issue/task",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -4486,14 +4498,16 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "exclude_type": {
       "type": "array",
       "items": {
         "type": "string",
         "format": "uri",
-        "pattern": "^https?://.+"
+        "pattern": "^https?://.+",
+        "x-bdp-type-reference": true
       }
     },
     "include_ephemeral": {
@@ -4568,7 +4582,8 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -4876,7 +4891,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -5017,7 +5033,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -5162,7 +5179,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -5315,7 +5333,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "revisio
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -5496,7 +5515,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depende
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -5641,7 +5661,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "depth",
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -5732,7 +5753,8 @@ Required order: ["issue_id", "depends_on_id", "type", "created_at"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -6320,7 +6342,8 @@ Required order: ["id", "title", "priority", "created_at", "updated_at", "blocked
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "created_at": {
       "type": "string",
@@ -6907,7 +6930,8 @@ Required order: ["title"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "assignee": {
       "type": "string",
@@ -6968,7 +6992,8 @@ Required order: ["target_id", "type"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -7155,7 +7180,8 @@ Required order: ["title"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -7346,7 +7372,8 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -7582,7 +7609,8 @@ Required order: ["source", "target", "type"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "thread_id": {
       "type": "string",
@@ -7718,7 +7746,8 @@ Required order: ["issue_id", "depends_on_id", "type"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -8001,7 +8030,8 @@ Required order: ["id", "kind"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     }
   }
 }
@@ -8177,7 +8207,8 @@ Other fields: not allowed
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "status": {
       "type": "string",
@@ -8314,7 +8345,8 @@ Required order: ["target_id", "type"]
     "type": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://.+"
+      "pattern": "^https?://.+",
+      "x-bdp-type-reference": true
     },
     "reverse": {
       "type": "boolean",

@@ -232,7 +232,10 @@ function issueInvocations(ids, unique) {
       "issue/batch",
       {
         items: [
-          { kind: "create", create: { title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` } },
+          {
+            kind: "create",
+            create: { title: `kit ${unique()}`, priority: 2, type: `${ISSUE}task` },
+          },
         ],
       },
     ],

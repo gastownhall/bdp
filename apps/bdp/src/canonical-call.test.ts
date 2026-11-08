@@ -828,13 +828,23 @@ describe("resolveCallableTypeReferences", () => {
     parameters: [
       {
         name: "type",
-        schema: { type: "string", format: "uri", pattern: "^https?://.+", "x-bdp-type-reference": true },
+        schema: {
+          type: "string",
+          format: "uri",
+          pattern: "^https?://.+",
+          "x-bdp-type-reference": true,
+        },
       },
       {
         name: "types",
         schema: {
           type: "array",
-          items: { type: "string", format: "uri", pattern: "^https?://.+", "x-bdp-type-reference": true },
+          items: {
+            type: "string",
+            format: "uri",
+            pattern: "^https?://.+",
+            "x-bdp-type-reference": true,
+          },
         },
       },
       // A URI that is NOT a Type reference (no marker): left exactly as given.
@@ -844,7 +854,9 @@ describe("resolveCallableTypeReferences", () => {
   };
 
   it("resolves a short Type name on a marked parameter, by BDP's Types then the Scope's types/", () => {
-    expect(resolveCallableTypeReferences(typed, { type: "issue/task" }, scope)).toEqual({ type: TASK });
+    expect(resolveCallableTypeReferences(typed, { type: "issue/task" }, scope)).toEqual({
+      type: TASK,
+    });
     expect(resolveCallableTypeReferences(typed, { type: "issue/research" }, scope)).toEqual({
       type: `${scope}types/issue/research`,
     });
