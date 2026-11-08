@@ -3,13 +3,13 @@ import {
   type AbsoluteHttpUrl,
   isUnicodeScalarString,
   parseCanonicalScope,
-  parseRetainedWriteDirectory,
   parseRetainedWriteDiscovery,
   parseRetainedWriteInput,
   parseHistoricalUpdateRequest,
   readHistoricalUpdateCapability,
   RETAINED_V01_MEDIA_TYPE,
   RETAINED_V01_SPECIFICATION,
+  retainedWriteTargets,
   type RetainedWriteDirectory,
   type RetainedWriteOperation,
   type RetainedWriteDiscovery,
@@ -23,8 +23,6 @@ export interface RetainedWriteBindingOptions {
   /** Owning Scope established by the caller's verified navigation. */
   readonly scope: string;
   readonly discovery: RetainedWriteDocument;
-  /** Document fetched from discovery.operations in that same navigation flow. */
-  readonly directory: RetainedWriteDocument;
   /** Explicit local bounds, not invented server-advertised limits. */
   readonly maximumDocumentBytes: number;
   readonly maximumRequestBodyBytes: number;
@@ -59,22 +57,20 @@ export class RetainedWriteBinding {
     const {
       scope,
       discovery: { contentType: discoveryType, bodyText: discoveryText },
-      directory: { contentType: directoryType, bodyText: directoryText },
       maximumDocumentBytes,
       maximumRequestBodyBytes,
     } = options;
     positiveLimit(maximumDocumentBytes);
     positiveLimit(maximumRequestBodyBytes);
     selectedMedia(discoveryType);
-    selectedMedia(directoryType);
     boundedText(discoveryText, maximumDocumentBytes);
-    boundedText(directoryText, maximumDocumentBytes);
     this.#scope = parseCanonicalScope(scope);
     const discovery = parseRetainedWriteDiscovery(discoveryText);
     this.#discovery = discovery;
     if (discovery.scope !== this.#scope)
       throw new TypeError("retained Write discovery does not match the verified owning Scope");
-    this.#directory = parseRetainedWriteDirectory(directoryText, discovery);
+    // Core fixes each operation at <scope>/bdp/operations/NAME; there is no directory.
+    this.#directory = retainedWriteTargets(this.#scope, discovery);
     this.#maximumRequestBodyBytes = maximumRequestBodyBytes;
     Object.freeze(this);
   }
@@ -83,7 +79,7 @@ export class RetainedWriteBinding {
     return readHistoricalUpdateCapability(this.#discovery) !== undefined;
   }
 
-  /** Whether discovery advertises `aliases`; the directory has been held to the same answer. */
+  /** Whether discovery advertises `aliases`, and so whether the alias operations exist. */
   get aliasesSupported(): boolean {
     return this.#discovery.aliases !== undefined;
   }

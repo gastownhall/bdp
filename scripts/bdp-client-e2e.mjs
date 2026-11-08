@@ -903,7 +903,7 @@ async function runCase(context, kase, label, seedChannels) {
   }
   const part = (channel) => parts[channel] ?? parts[seedChannels[0]];
   const words = kase.name.split("/");
-  const json = ["--scope", proxyScope, "--output-mode", "json"];
+  const json = ["--scope", proxyScope, "--output-mode", "json", "--response-context"];
   const attempt = async (channel, args) => {
     const seen = posts.length;
     const result = await bdp([...json, ...args]);
@@ -984,7 +984,7 @@ async function fileAnnotations(context, stack) {
   const path = join(stack.root, "body.md");
   await writeFile(path, "# from a file\n");
   await seedIssue(scope, issue("sw-fix-ff"));
-  const scoped = ["--scope", scope, "--output-mode", "json"];
+  const scoped = ["--scope", scope, "--output-mode", "json", "--response-context"];
   const show = async (id) =>
     (await curlCall(scope, "issue/show", { id, include_comments: true })).json?.result;
   const fromFile = await bdp([
@@ -1224,7 +1224,14 @@ async function coreReads(context) {
   const link = linksPage.json?.items?.[0];
   const linkFamily = "https://github.com/gastownhall/bdp/types/dependency/dependency";
   const compare = async (label, args, url, expectation = {}) => {
-    const json = await bdp(["--scope", scope, "--output-mode", "json", ...args]);
+    const json = await bdp([
+      "--scope",
+      scope,
+      "--output-mode",
+      "json",
+      "--response-context",
+      ...args,
+    ]);
     const text = await bdp(["--scope", scope, ...args]);
     let envelope;
     try {

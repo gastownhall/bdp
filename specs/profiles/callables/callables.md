@@ -70,9 +70,10 @@ promise. Packages, the experimental grouping of definitions in
 
 A Scope advertises the capability under Core's `capabilities` map. Like the
 inventories at `<scope>/bdp/beads` and `<scope>/bdp/links`, invocation lives in a
-fixed namespace, `<scope>/bdp/call` (§3), so discovery names no URL. There is no
+fixed namespace, `<scope>/bdp/call` (§3), under Core's
+[fixed navigation](../core/core.md#fixed-navigation), so discovery names no URL. There is no
 `callables` profile literal, no new required discovery member and no change to
-Write's closed operation directory. A Scope at either profile MAY advertise Callables1 and
+Write's operations. A Scope at either profile MAY advertise Callables1 and
 offer both kinds of operation. Write's allocation, non-reuse and attribution rules
 govern a CallableBatch's effects whether or not the Scope advertises the Write
 profile, so a service can expose named mutations without Write's generic verbs; under
@@ -175,6 +176,17 @@ declaration needs nothing else to read it: in a declaration Bead, each valueSche
 is its own root and shared parts sit in its own `$defs`, and a `$ref` naming
 another document is invalid. Authoring tools may keep shared schemas and copy
 them in when they generate a declaration. (**preview**)
+
+**Type-reference arguments.** A valueSchema marked `x-bdp-type-reference: true`,
+or an array whose items are so marked, declares a Bead or Link Type reference
+(Types §2). On the command form the client resolves a short Type name the way
+canonical `create`/`update` resolve `--type` — against BDP's published Types,
+then the bound Scope's `types/` — while an absolute URL is sent unchanged, and
+the Scope judges the result. The server does not depend on the keyword: it
+requires a full, Core-spelled Type reference by its own rule, so a resolved short
+name and a literal URL reach it identically. *(preview; the sprint-1 target is a
+dedicated `format` token, `bdp-type-reference`, in place of this interim extension
+keyword.)*
 
 **cliMapping** — additions to the CLI form derived from parameters (§10). It
 chooses no command route and grants nothing.

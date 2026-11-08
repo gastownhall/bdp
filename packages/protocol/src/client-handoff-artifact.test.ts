@@ -36,9 +36,9 @@ describe("client handoff authored artifact correspondence; no consumer execution
   for (const c of table.cases) {
     it(`${c.id}: checks authored carrier/result and boundary`, () => {
       const frozen = JSON.stringify(c);
-      const directory = ajv.getSchema(`${schema.$id}#/$defs/writeOperationDirectory`);
-      if (!directory) throw new Error("Missing writeOperationDirectory");
-      expect(directory(c.discovery.operationDirectory)).toBe(c.discoveryExpectation !== "invalid");
+      // Write retired its operation directory: these historical carriers have no current
+      // grammar to check against, and Core fixes every operation at bdp/operations/NAME.
+      expect(schema.$defs.writeOperationDirectory).toBeUndefined();
       if (c.argv.includes("--file")) {
         const name = c.argv[c.argv.indexOf("--file") + 1];
         const bytes = c.scopeContext.files[name];
