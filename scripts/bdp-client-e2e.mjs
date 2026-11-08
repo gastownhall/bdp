@@ -48,17 +48,58 @@ const DROPPED = [
 ];
 
 function options(argv) {
-  const parsed = { keep: false };
+  const parsed = { keep: false, lint: false };
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index];
     if (flag === "--keep") parsed.keep = true;
+    else if (flag === "--lint") parsed.lint = true;
     else if (["--bd", "--dolt", "--out", "--only"].includes(flag))
       parsed[flag.slice(2)] = argv[++index];
     else throw new Error(`unknown argument ${flag}`);
   }
-  for (const name of ["bd", "dolt", "out"])
-    if (parsed[name] === undefined) throw new Error(`--${name} is required`);
+  // --lint is offline: it validates the fixtures against the catalog and starts no bd.
+  if (!parsed.lint)
+    for (const name of ["bd", "dolt", "out"])
+      if (parsed[name] === undefined) throw new Error(`--${name} is required`);
   return parsed;
+}
+
+/** Offline canary: every positive-fixture argument is a declared parameter of its Callable, and a
+ * Type-reference argument is a full Type URL (fixtures are sent on the raw `curl` channel, which
+ * does not resolve short names). Catches the fixture drift — a renamed parameter (`issue_type` →
+ * `type`) or a bare Type name — that silently broke this harness against Sprint 1. No bd is run. */
+function lintFixtures(declarations) {
+  const declared = new Map(
+    declarations.map((declaration) => [
+      declaration.name,
+      {
+        names: new Set((declaration.parameters ?? []).map((parameter) => parameter.name)),
+        typeRefs: new Set(
+          (declaration.parameters ?? [])
+            .filter((parameter) => parameter.schema?.["x-bdp-type-reference"])
+            .map((parameter) => parameter.name),
+        ),
+      },
+    ]),
+  );
+  const violations = [];
+  const check = (name, wire, where) => {
+    const spec = declared.get(name);
+    if (spec === undefined) {
+      violations.push(`${where}: unknown Callable ${name}`);
+      return;
+    }
+    if (wire === null || typeof wire !== "object" || Array.isArray(wire)) return;
+    for (const [key, value] of Object.entries(wire)) {
+      if (!spec.names.has(key)) violations.push(`${where}: ${name} has no parameter "${key}"`);
+      if (spec.typeRefs.has(key) && typeof value === "string" && !/^https?:\/\//.test(value))
+        violations.push(`${where}: ${name}.${key} must be a full Type URL, not "${value}"`);
+    }
+  };
+  for (const seed of READ_SEED) check("issue/create", seed, "READ_SEED");
+  for (const [name, wire] of READ_BEFORE) check(name, wire, "READ_BEFORE");
+  for (const kase of READS) check(kase.name, kase.wire, `READS ${kase.name}`);
+  return violations;
 }
 
 const freePort = () =>
@@ -131,7 +172,9 @@ class Stack {
       "--non-interactive",
     );
     await this.bd("config", "set", "events-journal", "true");
-    this.port = await this.serve();
+    // `bd serve` defaults to v0; serve `both` so the BDP routes under `/bdp/` are available to
+    // the reference client and the direct `curl` comparisons.
+    this.port = await this.serve(["--protocol", "both"]);
   }
   spawn(command, args, spawnOptions) {
     const child = spawn(command, args.map(String), {
@@ -330,7 +373,7 @@ function differences(left, right, path = "", found = []) {
 const issue = (id, title = id, fields = {}) => ({
   id,
   title,
-  issue_type: "task",
+  type: "https://github.com/gastownhall/bdp/types/issue/task",
   priority: 2,
   ...fields,
 });
@@ -355,14 +398,26 @@ const READ_SEED = [
   }),
   issue(R(2), "alpha two", {
     labels: ["blue"],
-    dependencies: [{ target_id: R(1), type: "blocks" }],
+    dependencies: [
+      { target_id: R(1), type: "https://github.com/gastownhall/bdp/types/dependency/blocks" },
+    ],
   }),
   issue(R(3), "beta closed", { priority: 3 }),
-  issue(R(4), "the epic", { issue_type: "epic", labels: ["red", "blue"] }),
+  issue(R(4), "the epic", {
+    type: "https://github.com/gastownhall/bdp/types/issue/epic",
+    labels: ["red", "blue"],
+  }),
   issue(R(5), "child of epic", { parent_id: R(4) }),
-  issue(R(6), "claimed by bob", { issue_type: "bug", priority: 0 }),
+  issue(R(6), "claimed by bob", {
+    type: "https://github.com/gastownhall/bdp/types/issue/bug",
+    priority: 0,
+  }),
   issue(R(7), "commented"),
-  issue(R("a"), "related out", { dependencies: [{ target_id: R(7), type: "related" }] }),
+  issue(R("a"), "related out", {
+    dependencies: [
+      { target_id: R(7), type: "https://github.com/gastownhall/bdp/types/dependency/related" },
+    ],
+  }),
 ];
 const READ_BEFORE = [
   closed(R(3)),
@@ -480,7 +535,9 @@ const BATCHES = [
     name: "issue/advance",
     make: (c) => ({
       seed: [
-        issue(F("m0", c), "mol", { issue_type: "molecule" }),
+        issue(F("m0", c), "mol", {
+          type: "https://github.com/gastownhall/bdp/types/issue/molecule",
+        }),
         issue(F("m1", c), "one", { parent_id: F("m0", c) }),
         issue(F("m2", c), "two", { parent_id: F("m0", c) }),
       ],
@@ -562,8 +619,13 @@ const BATCHES = [
     name: "issue/create-many",
     make: () => {
       const items = [
-        { title: "many one", issue_type: "task", priority: 2, labels: ["m"] },
-        { title: "many two", issue_type: "task" },
+        {
+          title: "many one",
+          type: "https://github.com/gastownhall/bdp/types/issue/task",
+          priority: 2,
+          labels: ["m"],
+        },
+        { title: "many two", type: "https://github.com/gastownhall/bdp/types/issue/task" },
       ];
       return {
         actor: A,
@@ -576,7 +638,14 @@ const BATCHES = [
     name: "issue/batch",
     make: (c) => {
       const items = [
-        { kind: "create", create: { title: "b", issue_type: "task", id: F("ba", c) } },
+        {
+          kind: "create",
+          create: {
+            title: "b",
+            type: "https://github.com/gastownhall/bdp/types/issue/task",
+            id: F("ba", c),
+          },
+        },
       ];
       return {
         actor: A,
@@ -611,7 +680,11 @@ const BATCHES = [
     make: (c) => ({
       seed: [issue(F("da", c)), issue(F("db", c))],
       actor: A,
-      wire: { source: F("da", c), target: F("db", c), type: "related" },
+      wire: {
+        source: F("da", c),
+        target: F("db", c),
+        type: "https://github.com/gastownhall/bdp/types/dependency/related",
+      },
       cli: [F("da", c), F("db", c), "--actor", A, "-t", "related"],
     }),
   },
@@ -620,7 +693,14 @@ const BATCHES = [
     make: (c) => ({
       seed: [
         issue(F("dd", c)),
-        issue(F("dc", c), "dep", { dependencies: [{ target_id: F("dd", c), type: "blocks" }] }),
+        issue(F("dc", c), "dep", {
+          dependencies: [
+            {
+              target_id: F("dd", c),
+              type: "https://github.com/gastownhall/bdp/types/dependency/blocks",
+            },
+          ],
+        }),
       ],
       actor: A,
       wire: { issue_id: F("dc", c), depends_on_id: F("dd", c) },
@@ -722,7 +802,11 @@ const EXTRAS = [
     make: (c) => ({
       seed: [issue(F("it", c))],
       actor: A,
-      wire: { id: F("it", c), title: "again", issue_type: "task" },
+      wire: {
+        id: F("it", c),
+        title: "again",
+        type: "https://github.com/gastownhall/bdp/types/issue/task",
+      },
       cli: ["again", "--actor", A, "--id", F("it", c), "-t", "task"],
     }),
     exit: 1,
@@ -1739,7 +1823,12 @@ async function sizes(context) {
     while (created < target) {
       const items = [];
       for (let index = 0; index < 20 && created + items.length < target; index++)
-        items.push({ title: "large", issue_type: "task", description: filler, labels: ["large"] });
+        items.push({
+          title: "large",
+          type: "https://github.com/gastownhall/bdp/types/issue/task",
+          description: filler,
+          labels: ["large"],
+        });
       await seedCall(scope, "issue/create-many", { items }, A);
       created += items.length;
     }
@@ -1788,10 +1877,18 @@ function wireAudit(posts) {
 
 async function main() {
   const settings = options(process.argv.slice(2));
-  mkdirSync(settings.out, { recursive: true });
   const declarations = JSON.parse(
     await import("node:fs/promises").then(({ readFile }) => readFile(catalogFile, "utf8")),
   ).declarations;
+  if (settings.lint) {
+    const violations = lintFixtures(declarations);
+    for (const violation of violations) process.stderr.write(`${violation}\n`);
+    process.stderr.write(
+      `${violations.length === 0 ? "ok" : "FAIL"}: fixture conformance (${violations.length} violation${violations.length === 1 ? "" : "s"})\n`,
+    );
+    process.exit(violations.length === 0 ? 0 : 1);
+  }
+  mkdirSync(settings.out, { recursive: true });
   const stack = new Stack(settings);
   const results = { started_at: new Date().toISOString(), bd: settings.bd };
   let proxy;

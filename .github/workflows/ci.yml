@@ -100,6 +100,7 @@ jobs:
       - run: pnpm test:markdown
       - run: pnpm callables:check
       - run: pnpm test:callables
+      - run: pnpm e2e:fixtures:check
       - name: Retain specification-only checks from authoritative CI
         run: |
           python3 -B scripts/check-spec-editorial-test.py
