@@ -407,16 +407,15 @@ describe("row 25: the batch refusal says what is missing", () => {
         expect(stderr).not.toContain("not yet received");
       },
       {
-        capabilities: (scope) =>
+        capabilities: () =>
           advertised
             ? {
                 [ATOMIC_BATCH]: {
-                  "1": { operation: `${scope}bdp/batch`, operations: ["createBead"] },
+                  "1": { operations: ["createBead"], maximumOperations: 100 },
                 },
               }
             : {},
-        discovery: (scope) =>
-          advertised ? { profile: "write", operations: `${scope}bdp/operations` } : {},
+        discovery: () => (advertised ? { profile: "write" } : {}),
       },
     );
   });
