@@ -5,7 +5,9 @@ import {
   assertPreparedDelete,
   canonicalCreatedId,
   canonicalLocalReference,
+  assertFixedNavigation,
   captureNavigation,
+  fixedNavigation,
   materializeBead,
   prepareCreate,
   prepareUpdate,
@@ -53,33 +55,33 @@ describe("private local Reference normalization with strict creation spelling", 
     expect(() => canonicalLocalReference(scope, value)).toThrow(RetainedRequestError);
   });
   it("allows Scope as the alias base while preserving other navigation ambiguities", () => {
-    const navigation = {
-      scope,
-      aliases: scope,
-      description: `${scope}about`,
-      beads: `${scope}nodes`,
-      links: `${scope}edges`,
-      events: `${scope}facts`,
-      operations: `${scope}commands`,
-      targets: {
-        createBead: `${scope}c1`,
-        updateBead: `${scope}u1`,
-        deleteBead: `${scope}d1`,
-        createLink: `${scope}c2`,
-        updateLink: `${scope}u2`,
-        deleteLink: `${scope}d2`,
-        putAlias: `${scope}p`,
-        deleteAlias: `${scope}x`,
-      },
-    };
+    const navigation = fixedNavigation(scope, scope);
     expect(captureNavigation(navigation).aliases).toBe(scope);
-    expect(() => captureNavigation({ ...navigation, description: scope })).toThrow("ambiguous");
     expect(() => captureNavigation({ ...navigation, aliases: navigation.events })).toThrow(
       "ambiguous",
     );
     expect(() =>
       captureNavigation({ ...navigation, aliases: scope.replace("https:", "http:") }),
     ).toThrow("ambiguous");
+  });
+  it("holds every protocol route to Core's fixed bdp/ path and admits no directory", () => {
+    const navigation = fixedNavigation(scope);
+    expect(navigation.description).toBe(`${scope}bdp`);
+    expect(navigation.events).toBe(`${scope}bdp/events`);
+    expect(navigation.targets.putAlias).toBe(`${scope}bdp/operations/putAlias`);
+    expect(captureNavigation(navigation)).toEqual(navigation);
+    expect(() => assertFixedNavigation(navigation)).not.toThrow();
+    for (const moved of [
+      { description: scope },
+      { beads: `${scope}nodes` },
+      { links: `${scope}bdp/edges` },
+      { events: `${scope}facts` },
+      { targets: { ...navigation.targets, createBead: `${scope}bdp/operations/insert` } },
+    ])
+      expect(() => assertFixedNavigation({ ...navigation, ...moved })).toThrow("fixed");
+    expect(() =>
+      captureNavigation({ ...navigation, operations: `${scope}bdp/operations` } as never),
+    ).toThrow("closed");
   });
 });
 describe("private retained failure envelope", () => {
@@ -227,27 +229,12 @@ describe("private retained creation admission", () => {
       message: { state: "present", value: "" },
     });
   });
-  it("refuses ambiguous directory targets without assigning a new wire profile", () => {
-    const target = "https://commands.invalid/create?scope=acme";
+  it("refuses two operations at one target without assigning a new wire profile", () => {
+    const navigation = fixedNavigation(scope);
     expect(() =>
       captureNavigation({
-        scope,
-        description: `${scope}d`,
-        beads: `${scope}b`,
-        links: `${scope}l`,
-        aliases: `${scope}a`,
-        events: `${scope}e`,
-        operations: `${scope}o`,
-        targets: {
-          createBead: target,
-          updateBead: target,
-          deleteBead: `${scope}d1`,
-          createLink: `${scope}c1`,
-          updateLink: `${scope}u1`,
-          deleteLink: `${scope}x1`,
-          putAlias: `${scope}p1`,
-          deleteAlias: `${scope}z1`,
-        },
+        ...navigation,
+        targets: { ...navigation.targets, updateBead: navigation.targets.createBead },
       }),
     ).toThrow("ambiguous");
   });

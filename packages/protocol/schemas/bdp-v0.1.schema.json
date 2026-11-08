@@ -5909,6 +5909,22 @@
           ],
           "description": "Supported projection versions and their point/exact/inventory support flags."
         },
+        "https://github.com/gastownhall/bdp/capabilities/events": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/capabilityVersionAdvertisements"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "1": {
+                  "$ref": "#/$defs/eventsCapabilityV1"
+                }
+              }
+            }
+          ],
+          "description": "Supported Events versions; detail states offers, families and representations."
+        },
         "https://github.com/gastownhall/bdp/capabilities/type-definition-read": {
           "allOf": [
             {
@@ -5923,7 +5939,7 @@
               }
             }
           ],
-          "description": "Supported exact-definition lookup versions and their independently advertised operation navigation."
+          "description": "Supported exact-definition lookup versions; the operation sits at its fixed route."
         }
       }
     },
@@ -5981,9 +5997,6 @@
           "type": "integer",
           "minimum": 1
         },
-        "operation": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "operations": {
           "type": "array",
           "minItems": 1,
@@ -5993,7 +6006,7 @@
           }
         }
       },
-      "required": ["operation", "operations"]
+      "required": ["operations"]
     },
     "atomicBatchSelection": {
       "description": "Prefix selection only, not admission as a complete request. Unknown well-formed versions refuse without interpreting their body.",
@@ -6249,16 +6262,9 @@
       "required": ["capabilityVersion", "uri", "revision"]
     },
     "typeDefinitionReadCapabilityV1": {
-      "description": "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds.",
+      "description": "Exact-definition version-1 advertisement. The service accepts complete exact-record servability obligations within its actual response and retained-dependency bounds. The operation sits at the fixed `<scope>/bdp/operations/exactDefinition`; advertising it grants no permission and does not change the definition’s owner.",
       "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "operation": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Advertised absolute exact-definition lookup operation URL. It grants no permission and does not change the definition’s owner."
-        }
-      },
-      "required": ["operation"]
+      "additionalProperties": false
     },
     "exactTypeDefinitionRecord": {
       "description": "Whole exact Type-definition Bead with recorded owned closure and pinned Type affiliations. Serving a global definition never transfers ownership to the responder.",
@@ -6601,10 +6607,6 @@
           ],
           "description": "Independently versioned feature advertisements. Support does not select an invocation or grant permission."
         },
-        "events": {
-          "$ref": "#/$defs/absoluteHttpUrl",
-          "description": "Optional absolute finite Event-source URL. Presence promises the complete Event contract; absence supplies no Event support."
-        },
         "historicalResolution": {
           "$ref": "#/$defs/historyCapability",
           "description": "Explicit History support advertisement; omission carries no History obligation."
@@ -6671,9 +6673,6 @@
         "capabilities": {
           "$ref": "#/$defs/capabilityAdvertisements"
         },
-        "events": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
         "historicalResolution": {
           "$ref": "#/$defs/historyCapability"
         },
@@ -6685,9 +6684,6 @@
           "items": {
             "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
           }
-        },
-        "operations": {
-          "$ref": "#/$defs/absoluteHttpUrl"
         },
         "order": {
           "enum": ["canonical-uri"]
@@ -6703,7 +6699,7 @@
           "description": "Exact canonical protocol source commit represented by this discovery document."
         }
       },
-      "required": ["bdpVersion", "profile", "scope", "specRevision", "operations"]
+      "required": ["bdpVersion", "profile", "scope", "specRevision"]
     },
     "retainedDiscovery": {
       "title": "Selected retained Core or Write discovery",
@@ -6714,48 +6710,6 @@
         {
           "$ref": "#/$defs/writeDiscovery"
         }
-      ]
-    },
-    "writeOperationDirectory": {
-      "dependentRequired": {
-        "putAlias": ["deleteAlias"],
-        "deleteAlias": ["putAlias"]
-      },
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "createBead": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "createLink": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "deleteAlias": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "deleteBead": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "deleteLink": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "putAlias": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "updateBead": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "updateLink": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        }
-      },
-      "required": [
-        "createBead",
-        "updateBead",
-        "deleteBead",
-        "createLink",
-        "updateLink",
-        "deleteLink"
       ]
     },
     "retainedEventQuery": {
@@ -8596,6 +8550,54 @@
         }
       },
       "required": ["family", "profile", "address", "value", "change"]
+    },
+    "eventsCapabilityV1": {
+      "description": "Events capability detail. It helps a reader choose a source; each page's policy still states its own level and completeness.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Non-Resource families this source publishes. Absence means it publishes none."
+        },
+        "offers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "complete"],
+            "properties": {
+              "level": {
+                "enum": ["current", "history"]
+              },
+              "complete": {
+                "type": "boolean"
+              }
+            }
+          },
+          "description": "What this source offers: a level paired with whether it is complete."
+        },
+        "representations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": {
+            "const": "postimage"
+          },
+          "items": {
+            "enum": ["postimage", "delta"]
+          },
+          "description": "Supported Event representations, necessarily including postimage."
+        }
+      },
+      "required": ["offers", "representations"]
     }
   },
   "x-bdp-schema-definitions": [
@@ -8648,6 +8650,7 @@
     "durableInputPinnedReference",
     "durableInputReference",
     "durableResourceReference",
+    "eventsCapabilityV1",
     "exactTypeDefinitionRecord",
     "expectedRevision",
     "historicalBeadRecord",
@@ -8744,8 +8747,7 @@
     "wireToken",
     "writeAdvertisedLimits",
     "writeDiscovery",
-    "writeExceptionsCapabilityV1",
-    "writeOperationDirectory"
+    "writeExceptionsCapabilityV1"
   ],
   "x-bdp-schema-sources": {
     "specs/profiles/core/core.md": [
@@ -8818,6 +8820,7 @@
       "wireToken"
     ],
     "specs/profiles/events/events.md": [
+      "eventsCapabilityV1",
       "retainedDeltaEffect",
       "retainedDeltaEvent",
       "retainedEvent",
@@ -8898,8 +8901,7 @@
       "validationDiagnostics",
       "writeAdvertisedLimits",
       "writeDiscovery",
-      "writeExceptionsCapabilityV1",
-      "writeOperationDirectory"
+      "writeExceptionsCapabilityV1"
     ]
   }
 }

@@ -135,34 +135,6 @@
       }
     },
     {
-      "name": "eight distinct directory URLs",
-      "valid": true,
-      "request": {
-        "binding": "writeDirectory",
-        "method": "GET",
-        "url": "https://bdp-tooling.invalid/fixture/writeDirectory",
-        "headers": {
-          "Accept": "application/vnd.bdp.v0.1+json"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "Content-Type": "application/vnd.bdp.v0.1+json"
-        },
-        "body": {
-          "createBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
-          "updateBead": "https://bdp-tooling.invalid/fixture/updateBead",
-          "deleteBead": "https://bdp-tooling.invalid/fixture/deleteBead",
-          "createLink": "https://bdp-tooling.invalid/fixture/createLink",
-          "updateLink": "https://bdp-tooling.invalid/fixture/updateLink",
-          "deleteLink": "https://bdp-tooling.invalid/fixture/deleteLink",
-          "putAlias": "https://bdp-tooling.invalid/fixture/putAlias",
-          "deleteAlias": "https://bdp-tooling.invalid/fixture/deleteAlias"
-        }
-      }
-    },
-    {
       "name": "POST retains operation URL query bytes",
       "valid": true,
       "request": {
@@ -616,63 +588,6 @@
             },
             "metadata": {}
           }
-        }
-      }
-    },
-    {
-      "name": "directory has no sequence",
-      "valid": false,
-      "request": {
-        "binding": "writeDirectory",
-        "method": "GET",
-        "url": "https://bdp-tooling.invalid/fixture/writeDirectory",
-        "headers": {
-          "Accept": "application/vnd.bdp.v0.1+json"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "Content-Type": "application/vnd.bdp.v0.1+json"
-        },
-        "body": {
-          "createBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
-          "updateBead": "https://bdp-tooling.invalid/fixture/updateBead",
-          "deleteBead": "https://bdp-tooling.invalid/fixture/deleteBead",
-          "createLink": "https://bdp-tooling.invalid/fixture/createLink",
-          "updateLink": "https://bdp-tooling.invalid/fixture/updateLink",
-          "deleteLink": "https://bdp-tooling.invalid/fixture/deleteLink",
-          "putAlias": "https://bdp-tooling.invalid/fixture/putAlias",
-          "deleteAlias": "https://bdp-tooling.invalid/fixture/deleteAlias",
-          "sequence": "https://bdp-tooling.invalid/sequence"
-        }
-      }
-    },
-    {
-      "name": "directory URLs must be distinct",
-      "valid": false,
-      "request": {
-        "binding": "writeDirectory",
-        "method": "GET",
-        "url": "https://bdp-tooling.invalid/fixture/writeDirectory",
-        "headers": {
-          "Accept": "application/vnd.bdp.v0.1+json"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "Content-Type": "application/vnd.bdp.v0.1+json"
-        },
-        "body": {
-          "createBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
-          "updateBead": "https://bdp-tooling.invalid/fixture/updateBead",
-          "deleteBead": "https://bdp-tooling.invalid/fixture/createBead?route=opaque%2Bvalue&stamp=%2f",
-          "createLink": "https://bdp-tooling.invalid/fixture/createLink",
-          "updateLink": "https://bdp-tooling.invalid/fixture/updateLink",
-          "deleteLink": "https://bdp-tooling.invalid/fixture/deleteLink",
-          "putAlias": "https://bdp-tooling.invalid/fixture/putAlias",
-          "deleteAlias": "https://bdp-tooling.invalid/fixture/deleteAlias"
         }
       }
     },

@@ -12,8 +12,6 @@ describe("canonical delivery framing and human References", () => {
         scope: "https://work.example/team/",
         bdpVersion: "0.1",
         profile: "write",
-        beads: "https://work.example/team/bdp/beads",
-        links: "https://work.example/team/bdp/links",
         order: "canonical-uri",
         limits: { page: { defaultItems: 25, maximumItems: 100 } },
       },
@@ -22,11 +20,16 @@ describe("canonical delivery framing and human References", () => {
     const human = renderCanonicalOutput(result, {});
     expect(human).toContain("Scope: https://work.example/team/");
     expect(human).toContain("Profile: write");
-    expect(human).toContain("Beads inventory: https://work.example/team/bdp/beads");
+    // Nothing the server did not send (row 5).
+    expect(human).not.toContain("inventory");
     expect(human).toContain('"maximumItems": 100');
     expect(human).toContain('"order": "canonical-uri"');
 
-    expect(JSON.parse(renderCanonicalOutput(result, { outputMode: "json" }))).toEqual(result);
+    // JSON is the server's document alone, and the envelope is opt-in (row 4).
+    expect(JSON.parse(renderCanonicalOutput(result, { outputMode: "json" }))).toEqual(result.data);
+    expect(
+      JSON.parse(renderCanonicalOutput(result, { outputMode: "json", responseContext: true })),
+    ).toEqual(result);
   });
 
   it("a delete preview says nothing was deleted and how to apply it", () => {
@@ -57,9 +60,11 @@ describe("canonical delivery framing and human References", () => {
     const { context, ...read } = preview("bead");
     expect(context?.preview).toBe("delete");
     expect(renderCanonicalOutput(read, {}, scope)).not.toContain("Preview");
-    expect(JSON.parse(renderCanonicalOutput(preview("bead"), { outputMode: "json" }))).toEqual(
-      preview("bead"),
-    );
+    expect(
+      JSON.parse(
+        renderCanonicalOutput(preview("bead"), { outputMode: "json", responseContext: true }),
+      ),
+    ).toEqual(preview("bead"));
   });
 
   it("uses bracketed absolute pin syntax and never shortens foreign identities", () => {
@@ -91,16 +96,20 @@ describe("canonical delivery framing and human References", () => {
       mappings: [{ operationIndex: 0, resource: "https://work.test/a" }],
       resources: [],
     };
-    const output = renderCanonicalOutput(
-      {
-        schema_version: 2,
-        bdp_spec: "selected",
-        result_kind: "mutation",
-        outcome: "success",
-        data,
-      },
-      { outputFormat: "jsonl" },
+    const mutation: CanonicalOutput = {
+      schema_version: 2,
+      bdp_spec: "selected",
+      result_kind: "mutation",
+      outcome: "success",
+      data,
+    };
+    expect(renderCanonicalOutput(mutation, { outputFormat: "jsonl" })).toBe(
+      `${JSON.stringify(data)}\n`,
     );
+    const output = renderCanonicalOutput(mutation, {
+      outputFormat: "jsonl",
+      responseContext: true,
+    });
     const records = output
       .trim()
       .split("\n")
@@ -166,7 +175,7 @@ describe("canonical delivery framing and human References", () => {
         },
       }),
     ).toBe(
-      "id: bd-1\ndescription: line one\n  line two\nlabels: a, b\ndependency_count: 0\nclosed_at: null\nnested:\n  deep: true\n",
+      "ID: bd-1\ndescription: line one\n  line two\nlabels: a, b\ndependency_count: 0\nclosed_at: null\nnested:\n  deep: true\n",
     );
     expect(human({ result: 3 })).toBe("3\n");
     expect(human({ result: "plain" })).toBe("plain\n");
@@ -178,11 +187,11 @@ describe("canonical delivery framing and human References", () => {
 
   it("says changed once when the result agrees, and both, labeled, when it does not", () => {
     expect(human({ changed: true, result: { changed: true, id: "bd-1" } })).toBe(
-      "changed: true\nid: bd-1\n",
+      "changed: true\nID: bd-1\n",
     );
     expect(human({ changed: false, result: { changed: false } })).toBe("changed: false\n");
     expect(human({ changed: true, result: { changed: false, id: "bd-1" } })).toBe(
-      "changed (invocation): true\nchanged (result): false\nid: bd-1\n",
+      "changed (invocation): true\nchanged (result): false\nID: bd-1\n",
     );
     expect(human({ result: { changed: true } })).toBe("changed: true\n");
     const data = { changed: true, result: { changed: false } };
@@ -198,12 +207,12 @@ describe("canonical delivery framing and human References", () => {
           },
           { outputMode: "json" },
         ),
-      ).data,
+      ),
     ).toEqual(data);
   });
 
   it("says whether a batch changed anything", () => {
-    expect(human({ changed: true, result: { id: "bd-1" } })).toBe("changed: true\nid: bd-1\n");
+    expect(human({ changed: true, result: { id: "bd-1" } })).toBe("changed: true\nID: bd-1\n");
     expect(human({ changed: false, result: null })).toBe("changed: false\nnull\n");
   });
 
@@ -227,13 +236,87 @@ describe("canonical delivery framing and human References", () => {
     expect(text).toContain(" b c");
   });
 
-  it("keeps detail as the whole value and JSON as the envelope", () => {
+  it("keeps detail as the whole value, JSON as the data and the envelope on request", () => {
     const data = { result: { a: [1] }, changed: true };
     expect(renderCanonicalOutput(callable(data), { outputFormat: "detail" })).toBe(
       `${JSON.stringify(data, null, 2)}\n`,
     );
-    expect(JSON.parse(renderCanonicalOutput(callable(data), { outputMode: "json" }))).toEqual(
-      callable(data),
+    expect(JSON.parse(renderCanonicalOutput(callable(data), { outputMode: "json" }))).toEqual(data);
+    expect(
+      JSON.parse(
+        renderCanonicalOutput(callable(data), { outputMode: "json", responseContext: true }),
+      ),
+    ).toEqual(callable(data));
+  });
+
+  it("opens a show and a Callable record with ID, Type, Title and Revision, then key: value (rows 14 to 16)", () => {
+    const scope = "https://work.example/team/";
+    const bead: CanonicalOutput = {
+      schema_version: 2,
+      bdp_spec: "selected",
+      result_kind: "resource",
+      outcome: "success",
+      data: {
+        id: `${scope}man-c0o`,
+        type: "https://github.com/gastownhall/bdp/types/issue/task",
+        revision: "r1",
+        properties: { title: "Parent task", status: "open", priority: 2, labels: ["a", "b"] },
+        metadata: {},
+      },
+    };
+    expect(renderCanonicalOutput(bead, {}, scope)).toBe(
+      [
+        "ID: man-c0o",
+        "Type: issue/task",
+        "Title: Parent task",
+        "Revision: r1",
+        "status: open",
+        "priority: 2",
+        "labels: a, b",
+        "",
+      ].join("\n"),
+    );
+    const long = renderCanonicalOutput(bead, { long: true }, scope);
+    expect(long).toContain("Type: https://github.com/gastownhall/bdp/types/issue/task\n");
+    expect(long).toContain(`ID: ${scope}man-c0o\n`);
+    // A Scope-local Type prints short against the Scope's types/; one under neither base, and a
+    // local Type a BDP name shadows, print in full, so what is printed reads back as --type.
+    const typed = (type: string, options: Record<string, unknown> = {}) =>
+      renderCanonicalOutput(
+        { ...bead, data: { ...(bead.data as object), type } },
+        options,
+        scope,
+      ).split("\n")[1];
+    expect(typed(`${scope}types/issue/research`)).toBe("Type: issue/research");
+    expect(typed(`${scope}types/issue/research`, { long: true })).toBe(
+      `Type: ${scope}types/issue/research`,
+    );
+    expect(typed("https://types.example/Note")).toBe("Type: https://types.example/Note");
+    expect(typed(`${scope}types/issue/spike`)).toBe(`Type: ${scope}types/issue/spike`);
+    expect(typed("https://github.com/gastownhall/bdp/types/issue/spike")).toBe("Type: issue/spike");
+    expect(typed("https://github.com/gastownhall/bdp/types/issue/unknown")).toBe(
+      "Type: https://github.com/gastownhall/bdp/types/issue/unknown",
+    );
+    expect(
+      renderCanonicalOutput(
+        { ...bead, result_kind: "resource_collection", data: { items: [bead.data], next: null } },
+        {},
+        scope,
+      ),
+    ).toMatch(/^man-c0o +issue\/task +Parent task/m);
+    // The same head on a Callable's record, its other members as key: value.
+    expect(
+      human({
+        result: {
+          id: "man-c0o",
+          title: "Parent task",
+          type: "https://github.com/gastownhall/bdp/types/issue/task",
+          status: "open",
+          revision: "211596854138815508",
+        },
+      }),
+    ).toBe(
+      "ID: man-c0o\nType: issue/task\nTitle: Parent task\nRevision: 211596854138815508\nstatus: open\n",
     );
   });
 });

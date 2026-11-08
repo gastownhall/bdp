@@ -16,7 +16,7 @@ describe("bdp ready CLI", () => {
   it.each([
     {
       configured: false,
-      expectedScope: "not configured; set one with bdp scope set <scope>",
+      expectedScope: "not configured; set one with bdp connect <url>",
     },
     { configured: true, expectedScope: "https://default.example/work/" },
   ])(
@@ -38,8 +38,11 @@ describe("bdp ready CLI", () => {
         await expect(runBdp([])).resolves.toBe(0);
         const output = stdout.mock.calls.map(([chunk]) => String(chunk)).join("");
         expect(output).toContain("Usage:");
-        expect(output).toContain("Discover the selected Scope.");
-        expect(output).toContain(`Default Scope: ${expectedScope}`);
+        expect(output).toContain("Discover the selected Scope");
+        // The default Scope names where it came from (row 3).
+        expect(output).toContain(
+          `Default Scope: ${expectedScope}${configured ? ` (from config file ${configPath})` : ""}`,
+        );
         expect(stderr).not.toHaveBeenCalled();
       } finally {
         await rm(root, { recursive: true, force: true });

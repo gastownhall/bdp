@@ -40,7 +40,6 @@ function discovery(
     profile,
     scope,
     specRevision: "0123456789abcdef0123456789abcdef01234567",
-    ...(profile === "write" ? { operations: `${scope}bdp/write` } : {}),
     capabilities: {
       ...(callables ? { [CALLABLES]: { "1": {} } } : {}),
       ...(idempotency ? { [IDEMPOTENCY]: { "1": {} } } : {}),

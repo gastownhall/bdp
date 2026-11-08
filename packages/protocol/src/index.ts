@@ -6,7 +6,7 @@ export type {
   PropertyValidator,
 } from "./property-validation.js";
 export {
-  parseRetainedWriteDirectory,
+  retainedWriteTargets,
   parseRetainedWriteDiscovery,
   parseRetainedWriteInput,
   RETAINED_V01_MEDIA_TYPE,
@@ -675,6 +675,8 @@ export {
   type RetainedDiscovery,
   type RetainedJsonObject,
   type RetainedResourceKind,
+  discoveredEventSource,
+  EVENTS_CAPABILITY,
 } from "./retained-read-values.js";
 export { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 export {

@@ -121,12 +121,14 @@ Write is optional. The kit reads the Scope's discovery document and goes by its
   `core.scope-discovery`: only a valid `core` makes Write not applicable.
 - `write`: the Write cases run as below.
 
-Aliases are optional within Write: the directory carries the six Resource members always,
-and `putAlias` and `deleteAlias` exactly when discovery advertises `aliases`. A Write Scope
-that omits `aliases` reports `write.alias-put` and `write.alias-delete` `not-applicable`, with
-the reason, by discovery, with `required: false`; the other Write rows run as usual. A
-directory that disagrees with discovery in either direction, or carries half of the pair,
-fails `write.discovery-directory`, and no alias row is then `not-applicable`. A later
+Aliases are optional within Write: the six Resource operations are served at Core's fixed
+`<scope>/bdp/operations/NAME` always, and `putAlias` and `deleteAlias` exactly when discovery
+advertises `aliases`. A Write Scope that omits `aliases` reports `write.alias-put` and
+`write.alias-delete` `not-applicable`, with the reason, by discovery, with `required: false`;
+the other Write rows run as usual. Fixed routes that disagree with discovery in either
+direction (an alias operation served without `aliases`, or missing with it), a discovery that
+still carries a retired `operations` or `events` member, or a retired operation directory that
+still answers, fail `write.discovery-fixed-routes`, and no alias row is then `not-applicable`. A later
 navigation that changes the advertisement mid-run is a harness error, not a change of rows.
 
 Idempotency is optional within Write too ([Repetition without idempotency](../specs/profiles/write/write.md#repetition-without-idempotency)).
@@ -277,8 +279,8 @@ expected values, verify a result or replace HTTP responses. The adapter can set
 up the requested fixture; it is not an oracle. Extra oracle fields are refused.
 The module is trusted operator code, not an untrusted plugin sandbox.
 
-All distinct operation URLs (six, or eight with advertised `aliases`) are read from public
-discovery/directory, without fixed path guesses. Discovery is followed through the Scope's registered
+All operation URLs (six, or eight with advertised `aliases`) are built from the Scope at Core's
+fixed `bdp/operations/NAME`; discovery names none of them. Discovery is followed through the Scope's registered
 `service-desc` Link. The initial kit can select one typed matching Link or one
 unambiguous candidate; ambiguous candidates are a harness limitation, not a new
 protocol rule forbidding multiple Links. Add explicit connections for every
@@ -332,7 +334,7 @@ cache-directive ordering is imposed.
 | Case | Public evidence | Owning rule |
 | --- | --- | --- |
 | `core.scope-discovery` | Successful canonical Scope GET and followed service-desc navigation | [Core discovery](../specs/profiles/core/core.md#discovery-and-capabilities) |
-| `write.discovery-directory` | Closed Write discovery, matching Scope, exact distinct ordinary targets: six, plus the alias pair exactly when discovery advertises `aliases` | [Write selection/directory](../specs/profiles/write/write.md#discover-and-select-write) |
+| `write.discovery-fixed-routes` | Closed Write discovery naming no route, matching Scope; each fixed `bdp/operations/NAME` target (six, plus the alias pair exactly when discovery advertises `aliases`) answers GET with Write's bodyless 405 `Allow: POST`; `bdp/operations` and an unadvertised alias operation answer GET 404 `resource-not-found` | [Write selection](../specs/profiles/write/write.md#discover-and-select-write), [Core fixed navigation](../specs/profiles/core/core.md#fixed-navigation) |
 | `write.media-before-admission` | Generic-JSON create returns schema-valid 415 unsupported-media-type; public GET confirms the explicitly unused identity remains absent before a valid same-bytes/same-key create | [Contract and media](../specs/profiles/write/write.md#contract-and-media) |
 | `write.create` | Same key after the rejected media permits a complete created Bead and, under `idempotency`, exact immediate replay; requested identity/affiliation, exact authored properties/metadata (authored members under a recipe), opaque revision and mutation HTTP metadata | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 | `core.point-read` | Actual GET agrees with created original envelope and Bead kind | [Resource reads](../specs/profiles/core/core.md#read-a-bead-or-link) |
@@ -404,7 +406,7 @@ base evidence. Input hashes and all eight uncovered families remain.
 The five graph rows then use a **fresh third source Bead**, two target Beads and
 one Link. They never refer to the original Bead, which has already been deleted.
 Fresh graph work re-reads the canonical Scope, follows current service-desc and
-validates the current discovery/directory and alias base. Original base-key retries
+validates the current discovery and alias base. Original base-key retries
 finish first using their original targets; later navigation changes never rebind
 those retries. The source and targets are created through ordinary public writes after unused
 identity GET 404 preconditions; no private state supplies expected records. The

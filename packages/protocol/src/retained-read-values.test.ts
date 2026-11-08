@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  discoveredEventSource,
   parseRetainedDiscovery,
   parseRetainedProblem,
   parseRetainedProperties,
@@ -13,7 +14,6 @@ const core = {
   profile: "core",
   scope: "https://records.test/work/",
   specRevision: "0123456789abcdef0123456789abcdef01234567",
-  events: "https://facts.test/observations",
 };
 const bead = {
   id: "https://records.test/work/note",
@@ -32,7 +32,6 @@ describe("retained Core carrier values", () => {
           : {
               ...core,
               profile,
-              operations: "https://verbs.test/execute",
               aliases: "https://names.test/",
             };
       const parsed = parseRetainedDiscovery(JSON.stringify(value));
@@ -40,15 +39,14 @@ describe("retained Core carrier values", () => {
       expect(Object.isFrozen(parsed)).toBe(true);
     },
   );
-  it.each(["core", "write"])("accepts absent optional Events on %s", (profile) => {
-    const { events: _events, ...base } = core;
+  it.each(["core", "write"])("accepts discovery with no navigation member on %s", (profile) => {
+    const base = core;
     const value =
       profile === "core"
         ? base
         : {
             ...base,
             profile: "write",
-            operations: "https://verbs.test/execute",
             aliases: "https://records.test/work/names/",
           };
     expect(parseRetainedDiscovery(JSON.stringify(value))).toEqual(value);
@@ -65,7 +63,12 @@ describe("retained Core carrier values", () => {
   it.each([
     ["old-version", { ...core, bdpVersion: "0" }],
     ["old-profile", { ...core, profile: "read" }],
-    ["malformed-events", { ...core, events: "relative-events" }],
+    // The retired members: Core fixes bdp/events and bdp/operations/NAME.
+    ["retired-events", { ...core, events: "https://records.test/work/bdp/events" }],
+    [
+      "retired-operations",
+      { ...core, profile: "write", operations: "https://records.test/work/bdp/operations" },
+    ],
     [
       "advertised-inventory",
       { ...core, beads: "https://lists.test/nodes", links: "https://lists.test/edges" },
@@ -142,5 +145,44 @@ describe("retained Core carrier values", () => {
         JSON.stringify({ ...created, resource: { ...bead, metadata: undefined } }),
       ),
     ).toThrow();
+  });
+});
+
+describe("Events capability", () => {
+  const events = "https://github.com/gastownhall/bdp/capabilities/events";
+  const base = {
+    bdpVersion: "0.1",
+    profile: "core",
+    scope: "https://work.example/acme/",
+    specRevision: "0123456789abcdef0123456789abcdef01234567",
+  };
+  const detail = {
+    offers: [{ level: "current", complete: true }],
+    representations: ["postimage"],
+  };
+  it("finds the Event source at its fixed path when the capability is advertised", () => {
+    const parsed = parseRetainedDiscovery(
+      JSON.stringify({ ...base, capabilities: { [events]: { "1": detail } } }),
+    );
+    expect(discoveredEventSource(parsed)).toBe("https://work.example/acme/bdp/events");
+    expect(discoveredEventSource(parseRetainedDiscovery(JSON.stringify(base)))).toBeUndefined();
+  });
+  it.each([
+    [
+      "a source member",
+      {
+        ...base,
+        capabilities: {
+          [events]: { "1": { ...detail, source: "https://facts.test/observations" } },
+        },
+      },
+    ],
+    ["no offers", { ...base, capabilities: { [events]: { "1": { ...detail, offers: [] } } } }],
+    [
+      "no postimage",
+      { ...base, capabilities: { [events]: { "1": { ...detail, representations: ["delta"] } } } },
+    ],
+  ])("refuses %s", (_name, value) => {
+    expect(() => parseRetainedDiscovery(JSON.stringify(value))).toThrow();
   });
 });

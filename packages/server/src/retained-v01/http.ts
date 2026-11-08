@@ -15,6 +15,7 @@ import { CALLABLES_CAPABILITY, OPENAPI_MEDIA, RetainedRequestErrorWithBody } fro
 import { type CallablesComposition, createCallablesService } from "./callables-service.js";
 import { createRetainedCollections, inventoryRoute, REFERENCE_READ_LIMITS } from "./collections.js";
 import {
+  assertFixedNavigation,
   captureNavigation,
   ORDINARY_OPERATIONS,
   prepareCreate,
@@ -32,6 +33,9 @@ import { prepareLink } from "./link-contract.js";
 import { openPrivateRetainedStore, type PrivateStoreOptions } from "./store.js";
 
 const IDEMPOTENCY_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/idempotency";
+/** Events' advertisement (events.md#contract-and-advertisement). The reference offers the
+ * complete current level in postimage; the source is Core's fixed bdp/events. */
+const EVENTS_CAPABILITY = "https://github.com/gastownhall/bdp/capabilities/events";
 
 export interface PrivateFixtureOptions extends PrivateStoreOptions {
   readonly credentials: readonly { readonly token: string; readonly principal: string }[];
@@ -166,6 +170,7 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
   if (typeof specRevision !== "string" || !/^[0-9a-f]{40}$/.test(specRevision))
     throw new TypeError("a full lowercase BDP_SPEC_REVISION commit SHA is required");
   const navigation = captureNavigation(options.navigation);
+  assertFixedNavigation(navigation);
   const credentials = options.credentials.map((credential) => {
     if (!/^[A-Za-z0-9_-]{32,256}$/.test(credential.token) || !credential.principal)
       throw new TypeError("explicit private credential/principal mapping required");
@@ -211,10 +216,11 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
   const known = new Map([
     [signature(navigation.scope), "scope"],
     [signature(navigation.description), "description"],
-    [signature(navigation.operations), "directory"],
     [signature(navigation.events), "events"],
-    ...(options.referenceCore === true
-      ? [[signature(navigation.scope + "bdp/batch"), "batch"] as const]
+    // Core's fixed route; a Scope that does not advertise atomic batch does not serve it,
+    // so there it is an absent path like any other under bdp/.
+    ...(options.referenceCore === true && store.atomicBatchEnabled
+      ? [[signature(navigation.scope + "bdp/operations/atomicBatch"), "batch"] as const]
       : []),
     ...ORDINARY_OPERATIONS.map(
       (operation) => [signature(navigation.targets[operation]), operation] as const,
@@ -442,6 +448,16 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
             capabilities: {
               [IDEMPOTENCY_CAPABILITY]: { "1": {} },
               ...(callables === undefined ? {} : { [CALLABLES_CAPABILITY]: { "1": {} } }),
+              ...(options.referenceCore === true
+                ? {}
+                : {
+                    [EVENTS_CAPABILITY]: {
+                      "1": {
+                        offers: [{ level: "current", complete: true }],
+                        representations: ["postimage"],
+                      },
+                    },
+                  }),
               ...(options.referenceCore === true && store.historicalUpdateEnabled
                 ? { [HISTORICAL_UPDATE_CAPABILITY]: { "1": { atomicBatch: false } } }
                 : {}),
@@ -449,7 +465,6 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
                 ? {
                     [BATCH_CAPABILITY]: {
                       "1": {
-                        operation: navigation.scope + "bdp/batch",
                         operations: BATCH_OPERATIONS,
                         ...BATCH_LIMITS,
                       },
@@ -461,15 +476,9 @@ export async function startRetainedListener(options: PrivateFixtureOptions) {
               ? {
                   limits: REFERENCE_READ_LIMITS,
                 }
-              : { events: navigation.events }),
-            operations: navigation.operations,
+              : {}),
           }),
         );
-        return;
-      }
-      if (route === "directory") {
-        if (conditionalRead(request, response, {})) return;
-        json(response, 200, serialized(navigation.targets));
         return;
       }
       const incident =
