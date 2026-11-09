@@ -15,6 +15,6 @@ plan: all {
   /// title: Batch — grouped operations over the call mechanism; the Batch adapter
   batch: after(graph/dsls/callable, graph/capability/callables, graph/core/correlation)
   /// title: Versions — list retained graph Resource versions, compare two versions
-  versions: after(graph/dsls/callable, graph/capability/callables, graph/core/views)
+  versions: after(graph/dsls/callable, graph/capability/callables, graph/core/views, graph/core/storage-class)
 }
 ```
