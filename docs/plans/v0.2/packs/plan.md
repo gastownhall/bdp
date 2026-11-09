@@ -6,6 +6,7 @@ Area `packs/` — blocked on Types Infra.
 
 ```
 plan: all {
-  # nodes migrate here
+  /// title: Pending — pack nodes land here once Types Infra is stable
+  pending: after(types/plan)
 }
 ```

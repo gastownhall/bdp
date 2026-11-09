@@ -6,6 +6,7 @@ Area `memory/` — owner TBD. Memories-as-beads + reference links.
 
 ```
 plan: all {
-  # nodes migrate here
+  /// title: Pending — memory-beads UDT nodes land here once Types is stable
+  pending
 }
 ```
