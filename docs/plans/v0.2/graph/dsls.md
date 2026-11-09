@@ -14,7 +14,5 @@ all {
   callable: after(json-schema, type-def)
   /// title: EventSource declaration format
   eventsource: after(json-schema, type-def)
-  /// title: Binding generator — Go interfaces from callables and event streams (later Rust, TS)
-  bindings: after(callable, eventsource)
 }
 ```

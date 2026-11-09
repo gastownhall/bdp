@@ -22,8 +22,10 @@ plan: all {
   identity: after(core)
   /// title: Provenance and attribution
   provenance: after(core)
+  /// title: Binding generator — Go interfaces from the callable and EventSource formats (later Rust, TS)
+  bindings: after(dsls/callable, dsls/eventsource)
   /// title: Go APIs
-  go-apis: after(core, capability, identity, provenance)
+  go-apis: after(core, capability, identity, provenance, bindings)
   /// title: BDP head
   head: after(go-apis)
   /// title: Storage

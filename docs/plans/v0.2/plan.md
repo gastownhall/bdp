@@ -13,6 +13,10 @@ plan: all {
   corelib/plan
   memory/plan
   packs/plan
-  done: after(graph/plan, types/plan, corelib/plan, memory/plan, packs/plan)
+  /// title: Core and Events profile conformance — the R/S cases for Core and Events, admitted against a landed graph
+  core-events-conformance: after(graph/head)
+  /// title: Requirements traceability — R1–R31 and S1–S16 mapped to plan nodes and conformance
+  traceability: after(core-events-conformance, types/conformance)
+  done: after(graph/plan, types/plan, corelib/plan, memory/plan, packs/plan, core-events-conformance, traceability)
 }
 ```

@@ -4,6 +4,24 @@ Review-council pass on the v0.2 plans, triaged by Eva overnight. **Nothing desig
 silently edited** — the calls below are yours. Mechanical guards already folded are listed at
 the bottom.
 
+## Rulings — Donna, 2026-11-09 10:10 PST (all applied unless noted)
+1. **Resolution rule: layered + hard no-shadow** ("B for sure") — applied to `AUTHORING.md`.
+2. **Primitives retitle to the six** (get, create, update, delete, call, pull) — applied to
+   `graph/core.md`.
+3. **Landing gate: precise edges, not whole-area gates** — Trish/Melinda are blocked on the core
+   plan only; subnodes depend on subnodes. No whole-area gate added. Graph already exposes the
+   fine-grained targets; the cross-area precise edges are Trish's and Melinda's (they hold the
+   ruling).
+4. **Proposal-wide acceptance** — added `core-events-conformance: after(graph/head)` and a
+   `traceability` node at the root; `done` now depends on both. (Root/roll-up — Britt to confirm
+   placement in his review.)
+5. **Provenance / export-import** — Donna takes this up live in the graph-plan review; left
+   as-is pending that.
+
+Bindings (the held item) now applied with the resolution rule: `bindings` moved out of `dsls`
+(it is a generator, not a declaration format) to a graph node `after(dsls/callable,
+dsls/eventsource)` that feeds `go-apis`, so `core: after(dsls)` no longer drags it in.
+
 ## Council coverage (read accordingly)
 Ran **2 of 3**: Codex ✅, Claude ✅, **Gemini ❌** (API 500, then a 5-min timeout, no output).
 Coverage is reduced, not full. Clean structural news both reviewers confirmed: **no dependency

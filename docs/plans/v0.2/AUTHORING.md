@@ -20,17 +20,22 @@ seq { a; b; c }      sugar → all { a; b: after(a); c: after(b) }
 ```
 
 ## IDs and references
-- IDs are hierarchical paths; the base is the directory. `foo` under `types/` is `types/foo`.
-- A reference is relative to your area; a reference whose first segment is an area name
-  (`graph`, `types`, `corelib`, `memory`, `packs`) is absolute. So you depend on the graph
-  area with `graph/core/primitives`, and on a local node with `validator/foo`.
-- A sibling in your own area is UNPREFIXED — `after(foo)`, never `after(<your-area>/foo)`.
-  Self-qualifying with your own area name is redundant (it resolves only via the area-name
-  escape) and breaks the day the area is renamed.
-- Across plans: a first segment that is another plan's name (`bdp`, `lumen`) reaches into
-  that plan — from the Lumen plan, `bdp/graph/dsls/callable` is the BDP node. Plans reference
-  ids; they never import another plan's files.
-- Area names are reserved — don't name a local node after one.
+IDs are hierarchical paths; the base is the directory (`foo` under `types/` is `types/foo`).
+A bare reference resolves its first segment by **layered lookup**, in order:
+
+1. **Children of the node this file elaborates** (file-local). In `graph/core.md`,
+   `after(data-model)` → `graph/core/data-model`.
+2. **The area's own nodes.** In `graph/core.md`, `after(dsls/json-schema)` →
+   `graph/dsls/json-schema` (`dsls` is a sibling of `core`, not a child of it).
+3. **Absolute from the plan root** when the first segment is an area name (`graph`, `types`,
+   `corelib`, `memory`, `packs`): `graph/core/primitives` resolves the same from anywhere.
+4. **Another plan** when the first segment is a plan name (`bdp`, `lumen`): from the Lumen
+   plan, `bdp/graph/dsls/callable` is the BDP node. Plans reference ids, never import files.
+
+**No shadowing (hard invariant).** A bare name that resolves at more than one layer is an
+ERROR — the generator refuses it rather than silently pick. Area names and plan names are
+reserved; don't name a local node after one. Write siblings unprefixed; never self-qualify
+with your own area name.
 
 ## The one rule: single source
 Author only the graph source — the structure and the `///` metadata. The diagram, the
