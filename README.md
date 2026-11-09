@@ -2,6 +2,8 @@
 
 BDP is an HTTP and JSON protocol for reading and changing Beads and Links across independently implemented stores.
 
+This repository — [gastownhall/bdp](https://github.com/gastownhall/bdp) — is the canonical source of truth for BDP. Wherever you are reading a vendored copy, the original lives here.
+
 ## Canonical specification review
 
 Donna's review corpus has six directly editable documents:
