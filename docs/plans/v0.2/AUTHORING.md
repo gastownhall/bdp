@@ -14,7 +14,7 @@ Worked example: `graph/` — read `graph/plan.md` plus `graph/dsls.md`, `core.md
 ## BLL
 ```
 id: all { … }        composite — its state is all(children)
-id: after(a, b)      depends-on edges
+id: after(a, b)      depends-on edges — after = a,b COMPLETE (subtree done), not a stream drain
 /// field: value     metadata above a node (title, repos, …), one field per line
 seq { a; b; c }      sugar → all { a; b: after(a); c: after(b) }
 ```
@@ -24,6 +24,12 @@ seq { a; b; c }      sugar → all { a; b: after(a); c: after(b) }
 - A reference is relative to your area; a reference whose first segment is an area name
   (`graph`, `types`, `corelib`, `memory`, `packs`) is absolute. So you depend on the graph
   area with `graph/core/primitives`, and on a local node with `validator/foo`.
+- A sibling in your own area is UNPREFIXED — `after(foo)`, never `after(<your-area>/foo)`.
+  Self-qualifying with your own area name is redundant (it resolves only via the area-name
+  escape) and breaks the day the area is renamed.
+- Across plans: a first segment that is another plan's name (`bdp`, `lumen`) reaches into
+  that plan — from the Lumen plan, `bdp/graph/dsls/callable` is the BDP node. Plans reference
+  ids; they never import another plan's files.
 - Area names are reserved — don't name a local node after one.
 
 ## The one rule: single source
