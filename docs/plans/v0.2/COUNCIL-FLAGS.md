@@ -86,7 +86,6 @@ the single `graph/core/views` leaf. Named proposal goals with no structure or de
   its ref syntax depends on the resolution-rule call above.
 
 ## Routed to Melinda (corelib area)
-- `batch` ← `graph/core/correlation` (transaction/cause; currently consumed by nothing).
 - `versions` ← a retention / storage-class edge (pending the storage-class naming below).
 - corelib landing edges (pending your landing-gate call, #3 above).
 
@@ -94,6 +93,10 @@ the single `graph/core/views` leaf. Named proposal goals with no structure or de
 - **Stub placeholders** so `done` can't go *vacuously* green: `memory/plan` and `packs/plan` were
   empty `all{}` (vacuously satisfied); each now carries a `pending` node.
 - **packs → types is now a real edge** (was prose only): `packs/plan` → `pending: after(types/plan)`.
+- **batch ← graph/core/correlation** (M4): grouped operations are transaction-correlated, and
+  `correlation` was consumed by nothing. Melinda (corelib owner) confirmed it as a clear
+  correction; Eva committed it as the plan-file owner. All refs area-absolute, resolution-rule-
+  independent.
 
 ## Minor, noted for later
 - L1: `eventsource` doesn't name `core/primitives` though `pull` is a primitive (covered
