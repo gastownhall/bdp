@@ -103,7 +103,7 @@ plan: all {
       /// title: Conformant — complete only when BDP conformance passes
       conformant: after(build, conformance/bdp)
     }
-    /// title: Revision history in storage — large and unowned; rests on upstream's versioned beads
+    /// title: Revision history in storage — built once for beads and links, in Phase 3; unowned
     history: after(spec/bdp/history, reference/build)
     /// title: Go implementation — the Go APIs; bindings generated from the OpenAPI projection
     go: after(spec/go, spec/bdp/openapi, conformance/go)
@@ -148,10 +148,13 @@ are on the list for the planning days (2026-11-10 and 11).
 
 - **Revision history.** Donna, 2026-11-10: history "wasn't fully implemented. It seems that's
   a large work item that we need to account for happening." It is accounted for here as two
-  nodes, `spec/bdp/history` and `impl/history`. The placement is mine. Not ruled: who builds
-  the storage half (upstream's versioned-beads work, gastownhall/beads#6379, is switched off
-  and unfinished), and whether the first landing ships without history. `impl/history` sits
-  beside the reference implementation so that it does not hold it up.
+  nodes, `spec/bdp/history` and `impl/history`. The placement is mine. Donna on when: leave
+  upstream's history support as it is until it can be done "once against both beads and links
+  at the same time", and "It should probably be part of stage 3." So the first two phases ship
+  without history, and `impl/history` is Phase 3 work. This plan has no phase nodes, so the
+  edge does not show that; `impl/history` sits beside the reference implementation so that it
+  does not hold it up. Not ruled: who builds it (upstream's versioned-beads work,
+  gastownhall/beads#6379, is switched off and unfinished), and its size.
 - **The two halves of storage.** `events` now waits only on the early half. The late half
   (change log, retention and cursor, export boundary) is finished together with `events`; no
   edge is drawn either way between them.
