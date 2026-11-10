@@ -5,9 +5,9 @@ The base path is the directory; the canonical plan filename is plan.md, so a
 directory's plan is `<dir>/plan`.
 
 Every area has the same shape (Donna, 2026-11-09): **spec, conformance, implementation**, each
-split by facet into **bdp**, **go** and **cli**. `core/` (called `graph/` until 2026-11-09)
-and `types/` are in that shape; `memory/` and `packs/` carry it as a skeleton; `corelib/` is
-its owner's to reshape. Cross-area edges are found once each area is settled.
+split by facet into **bdp**, **go** and **cli**. `core/` (called `graph/` until 2026-11-09),
+`types/` and `corelib/` are in that shape; `memory/` and `packs/` carry it as a skeleton.
+Cross-area edges are found once each area is settled.
 
 ## Plan
 
