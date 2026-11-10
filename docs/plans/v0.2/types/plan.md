@@ -14,14 +14,16 @@ the basic shape and will grow.
 **Cross-area anchors — re-pointed 2026-11-09 (Eva, mechanical; edges still Trish's to confirm).**
 The `graph` area is now **core**, in this same mould. The DSL nodes are gone, so
 `graph/dsls/type-def` no longer exists and `typedef-format` stands on its own here;
-`data-model` is now `core/spec/bdp/data-model`. Only the paths changed. Whether
-`typedef-format` should also wait on `core/spec/bdp/json-schema` is Trish's call, settled in
-Donna's cross-dependency pass.
+`data-model` is now `core/spec/bdp/data-model`. Only the paths changed. **Trish's calls
+(2026-11-09):** (1) `typedef-format` also waits on `core/spec/bdp/json-schema` — the descriptor's
+`propertiesSchema` *is* JSON Schema, so the format cannot finalize before that projection is
+pinned; (2) the top node is renamed `plan:` for parity with the other areas. Edges remain open
+to Donna's cross-dependency pass.
 
 ## Plan
 
 ```
-types: all {
+plan: all {
 
   // Specs — the concert, co-designed (concurrent)
   spec: all {
@@ -29,7 +31,7 @@ types: all {
     /// title: BDP Types spec
     bdp: all {
       /// title: TypeDef format — how a type descriptor is written
-      typedef-format: after(core/spec/bdp/data-model)
+      typedef-format: after(core/spec/bdp/data-model, core/spec/bdp/json-schema)
       /// title: Link constraints — type constraints on links
       link-constraints: after(typedef-format, core/spec/bdp/data-model)
       /// title: UDTs and intrinsics for beads — user-defined types, types as beads
