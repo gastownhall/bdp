@@ -4,6 +4,10 @@ Review-council pass on the v0.2 plans, triaged by Eva overnight. **Nothing desig
 silently edited** — the calls below are yours. Mechanical guards already folded are listed at
 the bottom.
 
+**Paths in this record predate the 2026-11-09 restructure.** The `graph/` area is now `core/`,
+and its nodes moved; the table in `core/plan.md` ("Where the old `graph/` nodes went") maps each
+old path to its new one. This file is kept as the record of the review, not re-pathed.
+
 ## Rulings — Donna, 2026-11-09 10:10 PST (all applied unless noted)
 1. **Resolution rule: layered + hard no-shadow** ("B for sure") — applied to `AUTHORING.md`.
 2. **Primitives retitle to the six** (get, create, update, delete, call, pull) — applied to
