@@ -82,10 +82,12 @@ Eva's mechanical remap (graph→core, agent-memory `b87d64e`) is verified faithf
 
 Draft placements, mirroring `core/`; to settle with Donna in review:
 - **impl is `go` + `cli`, no `reference`.** corelib is intrinsics *over* core, not the protocol
-  reference — so it has no reference-implementation node; it builds on `core/impl/reference`.
-  (Should corelib/impl/go carry an explicit edge to `core/impl/reference`?)
+  reference, so it has no reference-implementation node. Open: should `impl/go` carry an edge to
+  core's Go implementation? Eva's lean, which I share — `core/impl/go` (the Go intrinsics build on
+  core's Go impl), *not* `core/impl/reference` (whose job is to prove the protocol spec). Donna to
+  confirm in review.
 - **The evaluation providers live in `impl/go`.** The provider interface + the Lumen Rust glue
-  (cgo) + the dolt lowering (see [[melinda memory: expressions]]) are corelib's impl substance;
+  (cgo) + the dolt lowering (the evaluation-model design is in Melinda's memory) are corelib's impl substance;
   kept as one `impl/go` node for now rather than drilled — a candidate to expand in review.
 - **The deeper Expressions dependency is not yet edged.** query/list hang off the expression
   evaluation model (Lumen) + the AST and type rules (Trish's Types area). Those cross-area edges
