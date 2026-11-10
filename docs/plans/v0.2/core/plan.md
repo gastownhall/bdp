@@ -34,8 +34,25 @@ plan: all {
       execution: after(data-model)
       /// title: Primitives — get, create, update, delete, call, pull
       primitives: after(data-model, execution)
-      /// title: Storage — storage class, the cursor, retention
-      storage: after(data-model)
+      /// title: Storage — what a store must keep; split so events need only the early half
+      storage: all {
+        /// title: Record shape — what is stored for a bead and for a link
+        record-shape: after(spec/bdp/data-model)
+        /// title: Storage class — durable, ephemeral, intrinsic
+        storage-class: after(spec/bdp/data-model)
+        /// title: Identity ledger — ids used and retired, never reused
+        identity-ledger: after(spec/bdp/identity)
+        /// title: Revision token — what marks one revision of a record
+        revision-token: after(record-shape)
+        /// title: Transaction and cause — what a store records for each
+        transaction-and-cause: after(spec/bdp/execution)
+        /// title: Change log — the ordered record of changes that events are read from
+        change-log: after(transaction-and-cause, revision-token)
+        /// title: Retention and cursor — how long changes are kept, and where a reader resumes
+        retention-and-cursor: after(change-log)
+        /// title: Export boundary — what an export contains and where it cuts
+        export-boundary: after(change-log)
+      }
       /// title: Identity — the alias model, resolution, link identity, annotations
       identity: after(data-model)
       /// title: Provenance — attribution and lineage
@@ -43,7 +60,9 @@ plan: all {
       /// title: Callables — declaration, sync and async call, AsyncResult
       callables: after(primitives)
       /// title: Events — event sources, pull, replay
-      events: after(primitives, storage)
+      events: after(primitives, storage/storage-class, storage/revision-token, storage/transaction-and-cause)
+      /// title: Revision history — read at a revision, list revisions, the previous revision on events
+      history: after(storage/revision-token, storage/change-log, events)
       /// title: Optionality — per-endpoint capability declaration
       capability-decl: after(primitives)
       /// title: JSON Schema projection — the data shapes (the only syntax for representations)
@@ -84,6 +103,8 @@ plan: all {
       /// title: Conformant — complete only when BDP conformance passes
       conformant: after(build, conformance/bdp)
     }
+    /// title: Revision history in storage — large and unowned; rests on upstream's versioned beads
+    history: after(spec/bdp/history, reference/build)
     /// title: Go implementation — the Go APIs; bindings generated from the OpenAPI projection
     go: after(spec/go, spec/bdp/openapi, conformance/go)
     /// title: CLI implementation
@@ -102,7 +123,7 @@ plan: all {
 | `graph/core/data-model` | `core/spec/bdp/data-model` | |
 | `graph/core/primitives` | `core/spec/bdp/primitives` | |
 | `graph/core/correlation` | `core/spec/bdp/execution` | Transaction and cause, widened to the call context every intrinsic carries. |
-| `graph/core/storage-class` | `core/spec/bdp/storage` | |
+| `graph/core/storage-class` | `core/spec/bdp/storage/storage-class` | Storage is split into eight subnodes (Donna, 2026-11-10). |
 | `graph/core/views` | dropped | Not a spec concept. Snapshot and stream are ways of reading the data model and the cursor. |
 | `graph/core/capability-decl` | `core/spec/bdp/capability-decl` | |
 | `graph/capability/callables` | `core/spec/bdp/callables` | |
@@ -113,14 +134,27 @@ plan: all {
 | `graph/go-apis` | `core/spec/go` and `core/impl/go` | |
 | `graph/head`, `graph/storage` | `core/impl/reference` | The landed head and its persistence are the reference implementation. |
 
+## Ruled since the first review
+
+- **Storage is split (Donna, 2026-11-10).** Donna had named storage as "circularly dependent
+  on bdp spec and potentially go spec". Asked whether to keep one node, split it, or make it
+  a fourth facet, she chose the split. `events` depended on all of storage while half of
+  storage could only be settled once events were; the split removes that circle.
+
 ## Open — placed by Eva, not ruled by Donna
 
 Donna reviewed the shape down to the BDP spec's first level. These placements are mine and
 are on the list for the planning days (2026-11-10 and 11).
 
-- **Storage.** Donna named a storage spec that is "circularly dependent on bdp spec and
-  potentially go spec". It sits inside the BDP spec here, as one node. The other choice is a
-  fourth facet beside bdp, go and cli.
+- **Revision history.** Donna, 2026-11-10: history "wasn't fully implemented. It seems that's
+  a large work item that we need to account for happening." It is accounted for here as two
+  nodes, `spec/bdp/history` and `impl/history`. The placement is mine. Not ruled: who builds
+  the storage half (upstream's versioned-beads work, gastownhall/beads#6379, is switched off
+  and unfinished), and whether the first landing ships without history. `impl/history` sits
+  beside the reference implementation so that it does not hold it up.
+- **The two halves of storage.** `events` now waits only on the early half. The late half
+  (change log, retention and cursor, export boundary) is finished together with `events`; no
+  edge is drawn either way between them.
 - **Execution before primitives.** Donna ruled that call context rides in the request and
   response of all six intrinsics, so `primitives` now depends on `execution`. The content of
   `execution` and of async in `callables` is parked until Thursday 2026-11-12.
