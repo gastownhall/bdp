@@ -20,7 +20,7 @@ those of Core. Core, Write, Types and optional [Events](../events/events.md) own
 are mechanical companions: structural validity does not establish admission,
 authorization, atomicity, retention or conformance.
 
-> Ownership reexamination and deferred import/Transfer composition are indexed in
+> Deferred import/Transfer composition is indexed in
 > the [informative appendix](#appendix-open-design-questions); existing Write requirements remain binding.
 
 ## Contents
@@ -30,7 +30,7 @@ authorization, atomicity, retention or conformance.
 3. [Creation and identity allocation](#creation-and-identity-allocation)
 4. [Admission, authorization and limits](#admission-authorization-and-limits)
 5. [Object edits and endpoint corrections](#object-edits-and-endpoint-corrections)
-6. [Revisions, owners and attribution](#revisions-owners-and-attribution)
+6. [Revisions and attribution](#revisions-and-attribution)
 7. [Ordinary results](#ordinary-results)
 8. [Aliases](#aliases)
 9. [Idempotency and recovery](#idempotency-and-recovery)
@@ -241,7 +241,7 @@ an ordinary singleton body, including inside a pinned endpoint Reference.
 The edit members for a Bead are the five Type/object members in its row; a Link
 also admits either endpoint. Guard or provenance alone is not an update. An empty
 ordinary patch is still an edit member, and an endpoint-only or Type-only update
-needs no dummy property patch. Neither `ownedLinks`, identity, Resource kind nor
+needs no dummy property patch. Neither identity, Resource kind nor
 a stored provenance envelope is caller-mutable input.
 
 `bead` and `link` identify a durable Resource of the required kind using a
@@ -305,7 +305,7 @@ condition. A committed creation/deletion in one atomic batch still consumes its
 identity, so a creation naming one, or naming a Bead the same batch deleted, is
 `identity-taken`. Rollback commits no allocation or non-reuse claim.
 
-Allocation, all Resource/owner effects, facts required by advertised Events and, under
+Allocation, all Resource effects, facts required by advertised Events and, under
 `idempotency`, durable terminal key state commit together or none. Concurrent distinct invocations cannot commit the
 same canonical identity. The provider may reject unsupported allocation under
 native policies/bounds, but MUST NOT silently allocate elsewhere in place of an
@@ -316,8 +316,8 @@ erasure. A Bead deletion fails with `incident-links-exist` while any live Link i
 incident upon it through an unpinned endpoint. The caller must explicitly remove those
 Links first, stage legal removals in the same atomic batch, or select
 [deletion modes](#optional-deletion-modes-version-1). Hidden Links are not disclosed
-by this failure. Link deletion creates no new Link revision and may atomically update its
-owners. A Bead deletion otherwise changes a surviving Bead only through a
+by this failure. Link deletion creates no new Link revision and does not change its
+endpoint Beads. A Bead deletion changes a surviving Bead only through a
 [declared deletion effect](#type-declared-deletion-effects). Deletion is not
 controlled-content erasure.
 
@@ -433,7 +433,7 @@ An update may combine whole `type`, properties replacement or patch, metadata
 replacement or patch and, for Links, whole endpoint replacements. Within one
 object plane replacement and patch are mutually exclusive, even when empty.
 Different planes may combine in one atomic operation. Failure leaves no partial
-object, affiliation, endpoint or induced-owner effect.
+object, affiliation or endpoint effect.
 
 Omitting both members for an object preserves it, subject to applicable service
 completion on an admitted write. `{}` supplies an empty replacement set; it is
@@ -510,18 +510,13 @@ not replacement forms. An endpoint can change identity, pin or both while the
 Link's `id`, Resource kind and owning Scope remain fixed.
 
 Complete resolved Reference equality includes URI, pin presence and pin token.
-A pin is provenance/exact-reference state under Core, not a Resource guard or
-proof that an owning Link belonged to an older captured version. No implicit
-repin, new owner guard, shared owner/Link revision token or foreign fetch follows.
+A pin is provenance/exact-reference state under Core, not a Resource guard. No implicit
+repin, endpoint guard, shared endpoint/Link revision token or foreign fetch follows.
 The Link's optional `expectedRevision` guards the Link itself.
 
-For `L: A → T` corrected to `L: B → T`, determine initial ownership under A's
-accepted authority and final ownership under B's. An initial owner loses the Link
-from its new capture and a final owner gains its complete final record. Deduplicate
-when source identity is unchanged. A target correction can change its source's
-capture but ordinary incoming citation does not version either endpoint target.
-An unowned source acquires no invented owner effect. Link and all changed owners
-publish atomically. Historical Link editions and owner captures retain their
+For `L: A → T` corrected to `L: B → T`, the correction versions the Link only.
+Incident citation, outgoing or incoming, does not version an endpoint Bead.
+Historical Link editions retain their
 recorded endpoints, pins and affiliations.
 
 ## Historical-base Bead Update and recovery
@@ -644,7 +639,7 @@ The terminal version uses the closed `historicalUpdateTerminalVersion` shape:
 `{id,revision,state:"deleted",previousRevision,revisionProvenance?}`.
 Its canonical Bead id binds both revisions to this identity. `previousRevision`
 is the actual direct live predecessor R7, not an inference from an enumeration.
-It contains no Type, properties, metadata, endpoints, owned-Link payload or native
+It contains no Type, properties, metadata, endpoints or native
 ordinal. Any recorded revision provenance describes the actual deletion operation
 under existing truthful-absence and actor rules; it is not copied from R7 or R1.
 No broader provenance field or native terminal wrapper is introduced.
@@ -687,7 +682,7 @@ be refused explicitly rather than relabelled as implemented.
 
 Where Events is independently advertised, deletion and recovery must represent
 actual live-to-deleted and deleted-to-live presence transitions with final-state
-postimages and complete owner effects, not a fake live predecessor or a patch
+postimages, not a fake live predecessor or a patch
 against R1. Base deletion results/facts retain their selected final-live meaning;
 D is the terminal-version evidence, not a renaming of that field. A concrete
 feature/Events binding must account for D and predecessor correlation before an
@@ -695,9 +690,8 @@ advertised implementation claims that composition. The initial reference's priva
 fact encoding is not a public Events advertisement. An unadvertised private log
 may retain D/previousR7 under an explicitly feature-aware recovery verifier.
 
-Deletion and recovery preserve existing ownership/incident admission and atomic
-publication. This feature requires no new owned-Link representation, terminal
-owned snapshot, duplicated graph capture or broader ownership redesign. Required
+Deletion and recovery preserve existing incident admission and atomic
+publication. This feature requires no duplicated graph capture. Required
 last-current facts may reuse an existing authoritative retained record or native
 state; no second full snapshot is mandated merely to store body-free D.
 
@@ -740,7 +734,7 @@ a refusal MUST NOT reveal inaccessible historical content or its existence.
 
 The provider MUST faithfully acquire every historical editable value that the
 selected writer consumes, including authoritative absence where that affects
-composition. It need not acquire unused historical owned-Link captures or old
+composition. It need not acquire old
 protected structure. It MUST NOT guess missing editable values, substitute a
 different revision, use current values as an unannounced source fallback, or
 truncate the consumed source to obtain success. This operation-local source
@@ -762,7 +756,7 @@ fields are not implicitly editable.
 | Service-managed fields | Remain with the current writer; regenerate only where its existing rules permit. |
 | Identity, kind, Scope and allocation | Preserve the existing subject and allocation; no reallocation or unknown-ID upsert. |
 | Type affiliation and selected definition | Preserve current accepted meaning unless explicitly edited under ordinary Type rules; never take them implicitly from R1. |
-| Owned Links, incidence, endpoints and pins | Preserve actual current graph state and apply current constraints; no historical snapshot replay or Link resurrection. |
+| Incidence, endpoints and pins | Preserve actual current graph state and apply current constraints; no historical snapshot replay or Link resurrection. |
 | Revision and operation actor/time/provenance | Describe the actual new operation and actual predecessor, with historical source distinguished separately; never copy old operation facts as new ones. |
 
 A native adapter MUST publish its explicit editable-field crosswalk and preserve
@@ -782,7 +776,7 @@ allocation/native/terminal-associated facts or an authorized exact predecessor
 under the existing authority policy; do not substitute a convenient source or
 latest retained body. Missing, erased, pruned, malformed, unauthorized or
 unavailable required facts cause atomic refusal under the applicable truthful
-diagnosis. Current Type, protected-field, ownership and graph validation apply to
+diagnosis. Current Type, protected-field and graph validation apply to
 the complete composed candidate through commit.
 
 ### One atomic transition and truthful recovery
@@ -792,7 +786,7 @@ guard, compose editable content, validate the current final graph and commit as
 one authoritative operation. Source retention and erasure fences apply during
 acquisition and through commit. Respect actual cumulative source/current/baseline
 bounds; truncation is not a valid historical source. Failure leaves no partial
-content, allocation, history, revision, owner or applicable Event effect.
+content, allocation, history, revision or applicable Event effect.
 
 For a live Bead, a final state equal to the complete current covered state is the
 ordinary no-op. Admission, source authorization/availability, guard and final
@@ -821,7 +815,7 @@ client read/replace simulation or automatic fallback. Optional batch composition
 requires its own explicit supported binding and preserves one atomic decision;
 no singleton loop or partial execution is inferred.
 
-## Revisions, owners and attribution
+## Revisions and attribution
 
 <a id="mutation-revisions-and-guards"></a>
 
@@ -829,8 +823,8 @@ no singleton loop or partial execution is inferred.
 
 Every successful creation publishes a fresh opaque Resource revision. An
 individually effectful update publishes one new revision. Revision-covered state
-is the complete affiliation, completed properties and metadata, applicable
-captured owned-Link state and, for a Link, complete source and target References.
+is the complete affiliation, completed properties and metadata
+and, for a Link, complete source and target References.
 A nominal Type change or definition-pin change is an effect even with unchanged
 objects or empty patches. Compare object values under Core's RFC 6902 Section 4.6
 JSON equality, not serialized member order.
@@ -846,7 +840,7 @@ An update or deletion MAY carry `expectedRevision`. It applies only if the targe
 still has that committed current Resource revision; omission uses current state.
 A mismatch is `revision-mismatch` with no effect. A surviving historical address
 does not make its revision a current guard. No mandatory guard is introduced by
-retyping, ownership or endpoint correction. Compare revision meaning as
+retyping or endpoint correction. Compare revision meaning as
 `(Resource URI, revision)`, not bare tokens across Resources; equal strings across
 Resources prove no transaction, common state or global revision.
 
@@ -859,36 +853,12 @@ admitted permanent failure is retained under the ordinary rules. Do not reset
 retry deadlines, fabricate pruning, reexecute retained work or disable otherwise
 available reads to evade the condition.
 
-### Owned-state effects
-
-Applicable ownership semantics come from accepted Types authority or native
-rules, not a guessed path/category. Only Beads own outgoing Links. A new capture
-contains complete final Link records grouped by each Link's actual nominal Type
-URI, extracting `.uri` from a pinned affiliation. Different definition pins of
-one nominal Link Type share a bucket; a specialization appears once in its own
-nominal bucket, not again under every matching selector/ancestor. Inherited
-selectors contribute a union with Links deduplicated across selectors and paths.
-
-Each new bucket is nonempty and lists each Link exactly once in ascending
-code-unit order of canonical id. An owner with no selected Links has
-`ownedLinks:{}`; a nonowner omits it. An unchanged retained edition preserves its
-recorded capture/envelope, including legacy empty buckets. Normalizing an old
-shape is not a mutation or a reason to mint a revision.
-
-Retyping a Link can enter or leave ownership. Compare both boundaries using the
-applicable exact authority. A pin change can change membership even with the same
-nominal Type; a changed captured full Link record is an owner effect even when
-membership remains. Retyping a Bead recomputes its owned set from existing outgoing
-Links under destination rules without inventing revisions for unedited Links.
-Owner and Link revision tokens remain independent. A Link pinned to S@r1 may
-remain literal while S@r2 captures that Link; S@r1 does not retroactively gain it.
-
 <a id="attribution-on-mutations"></a>
 <a id="history-context-on-mutation-results"></a>
 
 ### Per-version attribution
 
-Create/update Bead and Link, deleteBead and an owned-capable deleteLink may supply the
+Create/update Bead and Link, deleteBead and deleteLink may supply the
 closed `revisionProvenance` input. Alias operations have no such input.
 Its optional members are `actor`, `agent`, `message` and an open `metadata` object; callers supply no time.
 Actor is the closed `{id,basis}` object from Core: nonempty `id`, with basis
@@ -903,11 +873,10 @@ in `provenanceMembersNotRecorded` under the
 [`write-exceptions` capability](#operations-a-scope-does-not-serve).
 
 Attribution belongs immutably to the version minted by that decision. One
-operation minting several versions records its one input on each, including all
-induced owner versions. A Link deletion mints no Link version and can record
-context only on newly versioned owners. On deleteBead the input applies to every
-revision the request mints: the terminal version where one is recorded, each surviving
-Bead changed by an owner or declared effect, and each owner of a removed Link. Under
+operation minting several versions records its one input on each. A Link deletion mints no Link version and records
+no version context. On deleteBead the input applies to every
+revision the request mints: the terminal version where one is recorded and each surviving
+Bead changed by a declared effect. Under
 Events it appears on the request's facts. A provider recording none of these still
 accepts it. A dry run records nothing. No-op keeps the whole existing envelope.
 Provenance input remains part of retry identity although it is excluded from
@@ -934,11 +903,10 @@ A Resource success is the closed object below. Created/updated results carry
 | `changed` | Required boolean; true for creation/deletion, actual complete-state effect flag for update |
 | `resource` | Complete original resulting Bead or Link record, for create/update |
 | `deleted` | `{resourceKind,resource:{id,type,revision}}`, for delete |
-| `ownerRevisions` | Required exactly for a Link owned initially or finally; otherwise absent |
 | `removedAliases` | Required exactly on a Bead deletion when discovery advertises `aliases`; the [aliases it removed](#aliases), ascending by code unit |
 
 The Resource postimage contains the actual id, affiliation, revision, properties,
-metadata, recorded provenance when present, applicable owned state and Link
+metadata, recorded provenance when present and Link
 endpoints. It is the complete original transition, not a later GET or projected
 success. The deleted identity records the final live edition's exact affiliation
 and revision. Unextended deletion mints no deleted edition or new revision.
@@ -946,25 +914,6 @@ Historical-update1 commits its separately represented terminal version as specif
 above without changing this base result. Result identity,
 kind, revision and operation MUST agree. A replay returns the same original state,
 subject to current disclosure and lawful erasure, even after later edits/deletion.
-
-### Complete owner revision context
-
-`ownerRevisions` is result context, not a Resource field. It is a nonempty array
-of closed `{id,revision}` entries for exactly the distinct Beads owning the Link
-in the initial OR final committed graph, at most two sources for one Link. Order
-entries by ascending code-unit canonical URI; duplicate owner IDs are invalid
-even with different revision strings. Each revision is the actual final published
-owner revision. Ownership exit reports its former owner's resulting revision; an
-owned no-op reports unchanged context. With no owners omit the member; an empty
-array is not the no-owner form. Bead results omit it.
-
-A source move between two owners therefore reports both owners. Within a batch,
-a deleted owner is reported at its final live published revision, not a staged
-one, and its unique Resource row is also required. Singleton results promise no
-inline owner postimages or cross-request snapshot; exact reads still depend on
-actual retained access. Old result-level `source`/`sourceRevision` are not
-alternative current spellings. Source and target inside a Link record remain
-its actual endpoints.
 
 ## Aliases
 
@@ -977,7 +926,7 @@ alias operations, answers alias URLs as Core says for an authority that does not
 advertise `aliases`, and keeps every other Write rule unchanged.
 
 An alias is a reusable locator to one canonical in-Scope Bead, not a Resource,
-revision, owned state or member of the target's properties. Put creates or repoints
+revision or member of the target's properties. Put creates or repoints
 it; delete removes it. A put at an existing alias repoints it rather than treating
 that alias as a collision. Both operations use their [ordinary targets](#ordinary-targets).
 
@@ -1233,7 +1182,7 @@ target that is an invisible/unknown Bead also uses `resource-not-found`.
 
 A Link endpoint resolving to a Link rather than a Bead, an alias/Link/external put
 target, forbidden external-endpoint policy, a nonobject edit result, missing
-replace/remove target, Type/properties mismatch or owned-set overflow is
+replace/remove target or Type/properties mismatch is
 `validation-failed`. Type validation is conditional on actual Types semantics;
 native invalidity still refuses. No complete required closure is
 `type-not-installed`. A supplied identity the [creation rule](#creation-and-identity-allocation)
@@ -1247,7 +1196,7 @@ Links block Bead deletion. A Scope aggregate maximum violation is
 `aggregate-constraint-violation`. Excess patch/resource/result bounds use the
 ordinary applicable limit Problem. Persistent revision allocation unsafety uses
 its write-only code and supplies no History read diagnosis, Resource/identity,
-revision/provenance, properties/ownedLinks, missing/window or pointer disclosure.
+revision/provenance, properties, missing/window or pointer disclosure.
 Transient inspection remains unavailable. Identifier collision is an inherent
 signal about the complete caller-selected URL, including hidden/deleted identity;
 permission for alias put grants its corresponding cheaper collision probe.
@@ -1266,8 +1215,7 @@ a nonempty bounded array of closed diagnostic entries:
 | `document` | Optional `properties` or `metadata`; omission means properties |
 
 For a Type-contract failure every entry identifies the failing effective Type and
-keyword location (`$id` plus JSON Pointer fragment). Owned overflow identifies
-the owning Bead Type and its `ownsOutgoing` entry. For other causes `type` and
+keyword location (`$id` plus JSON Pointer fragment). For other causes `type` and
 `schemaLocation` are absent and message names the cause. Those two members occur
 together or not at all. A metadata failure MUST say `document:"metadata"` and
 name metadata in its message. Empty instance pointer denotes that document's
@@ -1365,7 +1313,7 @@ singleton fallback.
 ### Working graph and guards
 
 Every member stages in authored order in one Scope/principal/contract/capability
-context. All Resource, owner, allocation, fact and terminal-result effects are
+context. All Resource, allocation, fact and terminal-result effects are
 one atomic decision. There is no supported prefix, skipping, non-atomic mode,
 public intermediate version or staged readable address. Syntax, authorization,
 guards, path policy, exact References and native constraints still apply.
@@ -1394,24 +1342,19 @@ operation; a provider MUST NOT advertise a capability it cannot implement.
 ### Publish the final state once
 
 Compare the final working graph with the committed baseline. Each final changed
-live Resource/owner gets at most one new revision; each new surviving Resource
+live Resource gets at most one new revision; each new surviving Resource
 gets one creation revision. In the unextended batch contract, existing deleted
 Resources get no new revision:
 their final live published version is the pre-batch version even if staged edits
 preceded deletion. Nothing publishes an intermediate version, Event or provenance.
 
 A→B→A retains the original revision and complete envelope if final covered state
-is equal and no other capture effect requires change. Input/path/guard policy
+is equal. Input/path/guard policy
 still checked the submitted attempts. Two separately committed decisions publish
 two transitions; this rule never collapses history across decisions.
 
-Surviving owners capture the complete final records of selected Links, with their
-actual final revisions/affiliations. Compare initial and final membership and
-capture once. Multiple Link changes plus explicit owner edits share one final
-owner version. A deleted owner gets no intermediate version. An unchanged Link
-alone does not force a new owner revision; owner retyping invents no versions for
-unedited Links. Equal captured state preserves the recorded envelope, including
-legacy bucket shape. Literal endpoint pins remain literal with no repin.
+A Link change gives no endpoint Bead a new revision, and retyping a Bead invents
+no versions for unedited Links. Literal endpoint pins remain literal with no repin.
 
 ### Net no-op, allocation and attribution
 
@@ -1424,10 +1367,8 @@ Resource/version/affiliation or lifecycle Event. Two staged creates cannot reuse
 the identity after staged deletion. Rollback consumes no allocation.
 
 For each final new version, collect explicit provenance inputs from every member
-directly targeting that Resource. For an owner also collect inputs from Link
-members whose Link is owned by it initially or finally, and for a survivor a declared
-deletion effect changes, from the deleteBead member causing it. Membership is evaluated
-at decision boundaries, not invented intermediate owners. Supplied input requests
+directly targeting that Resource and, for a survivor a declared
+deletion effect changes, from the deleteBead member causing it. Supplied input requests
 attribution of that final version even when the member's local edit is equal;
 omission does not override supplied input. Equal explicit objects under ordinary
 JSON equality select one; conflicting explicit objects refuse the entire batch
@@ -1442,7 +1383,7 @@ Input validation and retry identity still preserve every authored input/presence
 
 ### Committed facts when Events is advertised
 
-A Write Scope without Events still owes every atomic Resource, owner, allocation,
+A Write Scope without Events still owes every atomic Resource, allocation,
 revision and durable key/outcome obligation in this document. It does not owe an
 Event fact log solely by implementing Write; optional History is a separate promise.
 
@@ -1455,20 +1396,18 @@ coverage, projection, replay, authorization and gap rules.
 
 For initially absent/finally live Resources produce one create fact; for live
 changed Resources one update; for initially live/finally absent Resources one
-delete. Include each induced owner once. Order the Scope's facts by canonical
+delete. Order the Scope's facts by canonical
 Resource URI within the decision, keeping the source's fixed append order between
 decisions. Required postimages are complete final published records, never a later
 GET or temporary staged state. Deletion uses the actual final-live context, with
 no new version. Any optional delta transforms initial recorded state into the
 final state, rather than concatenating commands; unchanged fields are omitted.
 Type-only effects need no fake property patch. Changed whole endpoint References
-are represented as such; owner changes use Core's complete `derived.ownedLinks`
-replacement. Facts are not executable requests: guards, keys, local names and
+are represented as such. Facts are not executable requests: guards, keys, local names and
 credentials are not fact input.
 
 Each effectful decision has actual Scope-local transaction correlation for its
-published Write facts. A Link correction emits one updateLink fact and each
-changed owner one updateBead, sharing that correlation. Incident projection uses
+published Write facts. A Link correction emits one updateLink fact. Incident projection uses
 preceding OR resulting published endpoints, deduplicating self-incidence, so a
 departing endpoint can observe the same correction. No linked/unlinked operation
 or endpoint revision is invented merely for citation. Exact required postimage
@@ -1492,7 +1431,7 @@ Each closed mapping has zero-based `operationIndex`, `operation`, absolute `id`,
 and `operationName` exactly when the corresponding creation supplied a name. It
 carries no intermediate body, revision, changed flag or execution outcome. Every
 mapping resolves to a final row of the right kind. Results distinguish ordered
-input identities from unique final outcomes, including induced owning sources.
+input identities from unique final outcomes.
 
 Each row has `id`, `resourceKind`, `outcome`, `changed` and exactly its applicable
 body/context:
@@ -1503,14 +1442,10 @@ body/context:
 | `updated` | Initially/finally live and net covered state differs; changed true; complete final `resource` with one new revision |
 | `unchanged` | Initially/finally live and covered state equal; changed false; complete original `resource`/envelope |
 | `deleted` | Initially live/finally absent; changed true; `deleted` identity with final-live published revision; no resource body |
-| `allocated` | Initially/finally absent but committed creation consumes identity; changed true; id/kind only, no resource/deleted body, revision, type or owner context |
+| `allocated` | Initially/finally absent but committed creation consumes identity; changed true; id/kind only, no resource/deleted body, revision or type |
 
 Live rows omit optional incident-Link aggregates; id/kind, record and revision
-must agree. Deleted identity/kind also agree. Nonallocated Link rows use complete
-`ownerRevisions` for distinct initial OR final owners and include each owner's
-unique row, even if that owner is deleted. Evaluate A→B→C at boundaries, not a
-fictional published B owner effect. Unowned and allocated rows omit owner context.
-Equal revision strings across Resources are allowed but never required;
+must agree. Deleted identity/kind also agree. Equal revision strings across Resources are allowed but never required;
 transaction is the correlation, not a global revision, position or receipt.
 
 ### One key and retained whole outcomes
@@ -1585,11 +1520,11 @@ The complete root+suffix remains subject to identity, live-alias, navigation,
 Scope-containment and configured bounds. A provider unable to support a root
 safely refuses rather than silently allocating elsewhere.
 
-Reserve the chosen identity, Resource/owner effects, facts and key outcome
+Reserve the chosen identity, Resource effects, facts and key outcome
 atomically or none, preserving lifetime non-reuse and concurrency guarantees.
 There is no client collision scan, entropy/counter promise, kind prefix,
 pre-created directory or permission bypass. Root selection changes no Type,
-endpoint, policy, guard, provenance, ownership or final-publication rule. Types
+endpoint, policy, guard, provenance or final-publication rule. Types
 resolution is service-side once; the client does not fetch a definition to
 manufacture an allocation result. Return the ordinary complete mutation result
 with actual id and accepted Type/postimage; no root/suffix result fields are added.
@@ -1728,8 +1663,8 @@ the deleted set, including a self-Link, never blocks and is removed.
 | `inbound` | Refuses | Removed |
 | `none` | Removed | Removed |
 
-A refusal is the ordinary `incident-links-exist`. A removed Link is deleted as an
-owned-capable `deleteLink` deletes it: it gets no new revision, and its identity stays
+A refusal is the ordinary `incident-links-exist`. A removed Link is deleted as
+`deleteLink` deletes it: it gets no new revision, and its identity stays
 reserved. The authority then validates the complete final graph under Types and Scope
 aggregate rules, including the arity and endpoint eligibility of surviving Beads. A
 violation refuses the whole request; a deletion mode performs no repair.
@@ -1738,7 +1673,7 @@ Steps 1 through 9 of the [fresh order](#admission-authorization-and-limits) appl
 to each named Bead, so a guard outranks blocking. Step 10 resolves the deleted
 set, applies [visibility](#visibility-and-authorization-of-deletion-modes), then
 blocking, then [declared effects](#type-declared-deletion-effects), then
-authorization of every other deletion, removal, owner effect and declared effect,
+authorization of every other deletion, removal and declared effect,
 then final-graph validation. A deleted set over `maximumClosure` or a configured
 work bound refuses with `limit-exceeded`. A bound never truncates the walk or
 treats an unexpanded Bead as exhausted. The complete inline result is bounded
@@ -1769,7 +1704,7 @@ and changes no Link, affiliation or identity, so it neither extends the deleted 
 nor answers a blocking refusal. Effects apply once, after Link removal and after the
 last batch member, to the final state. Several effects on one survivor apply in
 ascending code-unit order of the deleted Bead's canonical URI. A survivor gets at
-most one new revision, shared with any owner effect or explicit edit. An unchanged
+most one new revision, shared with any explicit edit. An unchanged
 complete covered state is the ordinary no-op, with no revision and no row of its
 own. Caller-input and `propertyAccess` restrictions do not bind an effect. Final-graph
 validation does, and a failure refuses the whole request. Effects commit in the same
@@ -1811,7 +1746,7 @@ unique final rows:
 | Resource | Row |
 | --- | --- |
 | Bead in the deleted set | `deleted`, with its final live identity |
-| Removed Link | `deleted`, with `ownerRevisions` for its initial owners |
+| Removed Link | `deleted`, with its final live identity |
 | Surviving Bead whose covered state changes | `updated`, with its complete final record and one new revision |
 
 `removedLinks` has one closed `{id,source,target}` entry per `deleted` Link row,
@@ -1834,7 +1769,7 @@ the deleted set does not depend on what the principal can see. The request refus
 with `incident-links-exist`, under every `blockedBy` value and under `dryRun`, when
 a hidden Link, other than one [surviving under its pin](#pinned-endpoints-on-deletion), is
 incident upon the deleted set, when a Link passing the test admits
-a hidden Bead, when a surviving owner that would gain a revision is hidden, or when
+a hidden Bead, or when
 a hidden Bead is joined to a deleted Bead whose Type is listed in `typeEffects`.
 This Problem names no Resource and carries no count, Type, path or position. The
 authority evaluates neither `through`, `except` nor a declared effect on the hidden
@@ -1849,12 +1784,8 @@ post-state and MAY authorize a declared effect on the strength of the deletion.
 ### Revisions, retry, Events and recovery
 
 Deletion of each Bead and removal of each Link follow
-[identity non-reuse](#creation-and-identity-allocation),
-[final atomic publication](#final-atomic-publication) and the batch rules of
-[complete owner revision context](#complete-owner-revision-context), so a selected
-singleton carries inline owner records in its rows. A deleted owner is reported at
-its final live published revision. A surviving owner captures its complete final
-Links once and gets one new revision. `revisionProvenance` applies under the
+[identity non-reuse](#creation-and-identity-allocation) and
+[final atomic publication](#final-atomic-publication). `revisionProvenance` applies under the
 [attribution rule](#per-version-attribution).
 
 Under `idempotency`, the choice of `bead` or `beads`, the order of `beads`, `blockedBy`,
@@ -2226,7 +2157,6 @@ Required order: ["id","resourceKind","outcome","changed"]
 | "deleted" | ref "#/$defs/deletedIdentity" | no | — | — |
 | "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
 | "outcome" | schema | yes | — | — |
-| "ownerRevisions" | ref "#/$defs/ownerRevisions" | no | — | — |
 | "resource" | schema | no | — | — |
 | "resourceKind" | ref "#/$defs/resourceKind" | yes | — | — |
 
@@ -2295,8 +2225,7 @@ Required order: ["id","resourceKind","outcome","changed"]
           "const": true
         },
         "resource": false,
-        "deleted": false,
-        "ownerRevisions": false
+        "deleted": false
       }
     }
   ],
@@ -2325,8 +2254,7 @@ Required order: ["id","resourceKind","outcome","changed"]
                 "const": "bead"
               }
             }
-          },
-          "ownerRevisions": false
+          }
         }
       }
     },
@@ -3351,7 +3279,6 @@ Required order: ["outcome","changed"]
 | "changed" | boolean | yes | — | — |
 | "deleted" | ref "#/$defs/deletedIdentity" | no | — | — |
 | "outcome" | ref "#/$defs/mutationOutcome" | yes | — | — |
-| "ownerRevisions" | ref "#/$defs/ownerRevisions" | no | — | — |
 | "removedAliases" | ref "#/$defs/removedAliases" | no | — | — |
 | "resource" | schema | no | — | — |
 
@@ -3404,23 +3331,6 @@ Required order: ["outcome","changed"]
     {
       "if": {
         "required": [
-          "resource"
-        ],
-        "properties": {
-          "resource": {
-            "$ref": "#/$defs/beadRecord"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "ownerRevisions": false
-        }
-      }
-    },
-    {
-      "if": {
-        "required": [
           "deleted"
         ],
         "properties": {
@@ -3435,11 +3345,6 @@ Required order: ["outcome","changed"]
               }
             }
           }
-        }
-      },
-      "then": {
-        "properties": {
-          "ownerRevisions": false
         }
       },
       "else": {
@@ -3509,54 +3414,6 @@ Value: object
 }
 ```
 <!-- bdp-schema:end ordinaryUpdateChange -->
-
-<!-- bdp-schema:start ownerRevision -->
-### Schema: "ownerRevision"
-
-Value: object
-
-Other fields: not allowed
-
-Required order: ["id","revision"]
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| type | "object" |
-
-#### Properties
-
-| Name | Type | Required | Defined by | Meaning |
-| --- | --- | --- | --- | --- |
-| "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | — |
-| "revision" | ref "#/$defs/revision" | yes | — | — |
-<!-- bdp-schema:end ownerRevision -->
-
-<!-- bdp-schema:start ownerRevisions -->
-### Schema: "ownerRevisions"
-
-Value: object
-
-#### Keywords
-
-| Keyword | JSON value |
-| --- | --- |
-| maxItems | 2 |
-| minItems | 1 |
-| type | "array" |
-| uniqueItems | true |
-
-#### Advanced
-
-```json-schema
-{
-  "items": {
-    "$ref": "#/$defs/ownerRevision"
-  }
-}
-```
-<!-- bdp-schema:end ownerRevisions -->
 
 <!-- bdp-schema:start propertyChange -->
 ### Schema: "propertyChange"
@@ -4172,7 +4029,6 @@ Required order: ["type","code","retry"]
           "window": false,
           "resource": false,
           "properties": false,
-          "ownedLinks": false,
           "pointer": false,
           "identity": false,
           "revision": false,
@@ -7133,7 +6989,7 @@ These informative signatures catalog the already selected [historical-update bin
 
 ## Appendix: open design questions
 
-This informative appendix does not relax mutation, retry, ownership, erasure or final-publication duties. [OWN-REVIEW](../../deferred.md#own-review--owned-links-reexamination) records the requested reexamination of owned Links. Historical correction/recovery should preserve current invariants minimally; a broader redesign, duplicate graph capture or changed cascade rule requires separate review. Exact representation and lifecycle alternatives belong to that design, not a historical-stack cleanup.
+This informative appendix does not relax mutation, retry, erasure or final-publication duties. Historical correction/recovery should preserve current invariants minimally; a broader redesign, duplicate graph capture or changed cascade rule requires separate review.
 
 [IMPORT-CONTEXT](../../deferred.md#import-context--historical-import-lifecycle-and-source-correlation) preserves unadopted import/source-correlation questions. [XFER-OBS](../../deferred.md#xfer-obs--replication-streaming-and-cross-feature-order) and [XFER-RETAIN](../../deferred.md#xfer-retain--snapshot-minima-continuity-and-erasurepublication-races) require Transfer-time review of ordering, retained continuity and publication races while preserving current atomicity and cleanup fences. These entries grant no new operation or permission to claim unsupported feature composition.
 

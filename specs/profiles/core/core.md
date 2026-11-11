@@ -18,7 +18,7 @@ Storage layout and implementation technology are not prescribed.
 durable retry outcomes under its optional `idempotency` capability. [Types](../types/types.md) is optional: it interprets definitions,
 conformance, installation and property/graph constraints. Carrying a `type` field
 in Core does not require that interpretation, a Type inventory or a descriptor
-engine. Native endpoint, ownership, authorization and retained-address invariants
+engine. Native endpoint, authorization and retained-address invariants
 remain binding whether or not Types is supported.
 
 ## Contents
@@ -26,22 +26,21 @@ remain binding whether or not Types is supported.
 1. [Contract and conformance](#contract-and-conformance)
 2. [Scopes and identity](#scopes-and-identity)
 3. [Resources and References](#resources-and-references)
-4. [Owned Links](#owned-links)
-5. [Values and revisions](#values-and-revisions)
-6. [Carried attribution](#carried-attribution)
-7. [Discovery and capabilities](#discovery-and-capabilities)
-8. [Resource reads and views](#resource-reads-and-views)
-9. [Authorization and selection](#authorization-and-selection)
-10. [Collections and pagination](#collections-and-pagination)
-11. [Historical resolution](#historical-resolution)
-12. [Optional Events](#optional-events)
-13. [Final publication](#final-publication)
-14. [Optional Resource projection](#optional-resource-projection)
-15. [Optional exact Type-definition lookup](#optional-exact-type-definition-lookup)
-16. [Problems and HTTP behavior](#problems-and-http-behavior)
-17. [Logical Resource selection and graph queries](#logical-resource-selection-and-graph-queries)
-18. [Schemas](#schemas)
-19. [OpenAPI](#openapi)
+4. [Values and revisions](#values-and-revisions)
+5. [Carried attribution](#carried-attribution)
+6. [Discovery and capabilities](#discovery-and-capabilities)
+7. [Resource reads and views](#resource-reads-and-views)
+8. [Authorization and selection](#authorization-and-selection)
+9. [Collections and pagination](#collections-and-pagination)
+10. [Historical resolution](#historical-resolution)
+11. [Optional Events](#optional-events)
+12. [Final publication](#final-publication)
+13. [Optional Resource projection](#optional-resource-projection)
+14. [Optional exact Type-definition lookup](#optional-exact-type-definition-lookup)
+15. [Problems and HTTP behavior](#problems-and-http-behavior)
+16. [Logical Resource selection and graph queries](#logical-resource-selection-and-graph-queries)
+17. [Schemas](#schemas)
+18. [OpenAPI](#openapi)
 
 ## Contract and conformance
 
@@ -176,7 +175,7 @@ read, mutate, or traverse it.
 ## Resources and References
 
 A Bead is an identified node with one `type` affiliation, object `properties`,
-common object `metadata`, and any applicable captured owned-Link state. A Link
+common object `metadata`. A Link
 is an independently identified directed edge with the same common members plus
 whole `source` and `target` References. There are exactly two Resource kinds,
 Bead and Link. A Link is the only graph edge; a URI-valued property creates none.
@@ -184,7 +183,7 @@ Bead and Link. A Link is the only graph edge; a URI-valued property creates none
 Complete records have these protocol members (question marks mean optional):
 
 ```text
-Bead { id, type, revision, properties, metadata, revisionProvenance?, ownedLinks? }
+Bead { id, type, revision, properties, metadata, revisionProvenance? }
 Link { id, type, revision, source, target, properties, metadata, revisionProvenance? }
 ```
 
@@ -194,8 +193,7 @@ are required JSON objects; `{}` is a truthful empty object, never omitted from a
 full record. Metadata is common and independent of Type-specific properties.
 A retained pre-metadata version projects `metadata:{}` without rewriting stored
 bytes or minting a revision; subsequent metadata editing starts from that object.
-Provenance is per-version context, not mutable content or a property. Owned state
-is derived and revision-covered, never directly writable.
+Provenance is per-version context, not mutable content or a property.
 
 Every Resource has one required `type`: either an absolute HTTP(S) identity URI,
 or exactly `{uri: ABSOLUTE_HTTP_URL, revision: NONEMPTY_OPAQUE_STRING}`. Relative
@@ -204,15 +202,15 @@ carriers. Type identity is its URI. Two pins of that URI are different versioned
 affiliations but the same nominal Type identity. Core carries the Reference
 opaquely; it neither fetches/registers a definition nor selects a Type default.
 An affiliation is neither a Link nor an access grant. `properties.type` remains
-ordinary authored JSON. Type-ID arrays and ownership map keys are URI strings.
+ordinary authored JSON. Type-ID arrays are URI strings.
 
 Write can replace the complete affiliation and whole Link endpoints without
 changing identity or kind. Omission preserves a preceding affiliation or endpoint
 including its pin; replacement does not merge Reference members. Retyping is not
 implicit property conversion, property dropping, endpoint repinning or hidden repair.
 Mutation validation and exact resolution, where applicable, belong to Write and
-optional Types. Retained versions/facts preserve their recorded affiliations,
-endpoints and captures, never today's default or Type interpretation.
+optional Types. Retained versions/facts preserve their recorded affiliations
+and endpoints, never today's default or Type interpretation.
 
 A Link's tuple of type/source/target describes but does not identify it. Parallel
 Links with that same tuple are legal unless an applicable explicit constraint
@@ -266,9 +264,7 @@ identified Beads rather than trusting a supplied assertion.
 
 Only fields declared as References have these semantics. A URI or `{uri,revision}`
 inside properties is authored data, not something the authority resolves,
-canonicalizes or traverses. To give it graph semantics—versioning with its source,
-validation at admission and view closure—represent it as an owned Link under the
-applicable native or supported Types ownership rule.
+canonicalizes or traverses. To give it graph semantics, represent it as a Link.
 
 ### Resource records
 
@@ -311,11 +307,7 @@ A Link record is:
 ```
 
 `id` is an absolute canonical Resource URL. `type` is the common
-Type Reference; optional Types defines its exact output requirements. A Bead with an applicable ownership rule
-carries its recorded `ownedLinks` member on every record read. Newly captured
-members use nonempty nominal-Type buckets with complete Link affiliations;
-older retained captures keep their recorded shape. See [Owned Links](#owned-links).
-The member is absent for Beads with no applicable ownership rule. Link `source` and `target` are
+Type Reference; optional Types defines its exact output requirements. Link `source` and `target` are
 References as defined under [Resources and References](#resources-and-references): an in-Scope
 endpoint's `uri` is the Bead's absolute canonical URL, an out-of-Scope
 endpoint's `uri` is its opaque absolute URI, and either may be a Pinned
@@ -359,51 +351,6 @@ and pinning an in-Scope Bead:
 Collection and selection responses contain these same records directly,
 rather than wrapping them in a second `href`/`value` envelope.
 
-
-## Owned Links
-
-> Requested ownership reexamination is recorded in the
-> [informative appendix](#appendix-open-design-questions); current capture and authorization duties remain binding.
-
-Ownership is an applicable native or supported Types rule of a source Bead.
-Only Beads own Links, only outgoing Links can be owned, and nothing is owned by
-default. A Link remains an ordinary first-class Resource with independent identity,
-revision, reads and collection/incident membership. `ownedLinks` captures those same
-Links; it is not a second graph or separately writable edge set. Optional Types
-defines its own ownership declarations and effective interpretation.
-
-For a new capture, union effective ownership matches and deduplicate Links.
-Group full Link records by each Link's actual nominal Type URI (`type` for a URI
-carrier, `type.uri` for an exact affiliation). Different definition pins share a
-bucket; a refinement appears once in its own nominal bucket, never duplicated in
-ancestor buckets. Sort each bucket by canonical Link `id` in ascending Unicode
-code-unit order. Each bucket MUST be nonempty; no wildcard or empty selector bucket
-is emitted. An owner with no selected Links carries `ownedLinks:{}`; a non-owner
-omits the member. Every inline Link preserves its whole affiliation, revision,
-properties, metadata, provenance when present, and endpoint References.
-
-Captures are bounded, inline, derived versioned state. The source URI identifies
-the containing Bead. Literal pins do not synchronize revision tokens: a Link whose
-source is S@r1 may occur unchanged in S@r2's capture. No automatic repinning or
-invented Link revision follows from owner retyping/recapture. Link and owner
-revisions stay independent. A change entering/leaving ownership or changing an
-owned full Link record affects the initial/final source owner state atomically;
-incoming incidence alone never versions the target. A source correction can affect
-two owners. Final publication below determines the one final capture/version.
-
-A full read serves recorded capture, never today's adjacency. Retained snapshots
-keep their recorded shape, affiliations and old empty buckets. Returning unchanged
-state never rewrites or normalizes it to allocate a revision. The properties view
-contains only authored properties, not this plane.
-
-Owned state MUST NOT be authorization-filtered. A visible owner implies visibility
-of its complete owned Links and their in-Scope target Beads. Hiding a target requires
-hiding every owner that would disclose it, recursively. Latitude to hide incident
-Links from a visible Bead applies to incoming and unowned Links, never its captured
-owned Links. Explicit projection can omit the whole represented plane but changes
-neither stored state nor authorization closure. Incident views are independently
-paged and do not version anything merely by being read.
-
 ### Native Scope policy
 
 A live Link MUST retain at least one live in-Scope Bead endpoint. Deletion is not
@@ -411,7 +358,7 @@ erasure and cannot silently leave dangling unpinned native in-Scope endpoints; W
 explicit Link removal and the atomic deletion admission/rollback contract.
 
 Native Scope policies remain valid independently of optional Types. Their admission
-must be consistent with the common identity, endpoint, ownership and authorization
+must be consistent with the common identity, endpoint and authorization
 rules. This is not a blanket prohibition on graph constraints in optional Types.
 
 Discovery MAY advertise `maximumEndpointMultiplicity`, an unordered array of closed
@@ -430,8 +377,8 @@ this contract. Other graph constraints require their own supported semantics.
 A Resource revision is an opaque token for one version of that Resource.
 Clients compare revisions only for equality and must not derive meaning from
 their spelling. A live Resource edition's revision covers its complete Type
-affiliation, properties and metadata and, for an owning Bead, its captured owned-Link
-state, and for a Link its complete source and target References, including pins.
+affiliation, properties and metadata and, for a Link, its complete source and
+target References, including pins.
 The optional [historical-update terminal version](../write/write.md#body-free-terminal-versions-and-narrow-authorized-read)
 records a committed deletion state and its actual predecessor without a live
 Resource payload. It is a real version in that Bead identity's committed-state
@@ -907,8 +854,7 @@ page of the same result exposed by `view=links`:
 }
 ```
 
-The default Bead `GET` includes its required recorded owned state when applicable,
-but does not include an incident-Link aggregate. The
+The default Bead `GET` does not include an incident-Link aggregate. The
 aggregate request always embeds at most one page. A client follows `next`
 into the Link view rather than requesting another aggregate page. `direction`
 defaults to `both`, and `limit` bounds the embedded page. `include=links`
@@ -970,8 +916,8 @@ or tombstone and need not serve it as a Resource representation.
 
 ### Incident Link reads
 
-A Bead record does not embed its incident population as an aggregate by default;
-its required recorded owned state is separate. A client selects the Link
+A Bead record does not embed its incident population as an aggregate by default.
+A client selects the Link
 view directly on the Bead URL and supplies a direction:
 
 ```http
@@ -1034,12 +980,8 @@ Selector, incident Link view and
 representation for the request observes that same projection. A Link is
 visible only when the Link and every in-Scope endpoint Bead are visible. An
 out-of-Scope endpoint is opaque and does not independently gate Link
-visibility. A visible Bead need not expose hidden incident Links — a latitude
-confined to incoming and unowned Links: a visible source's owned Links,
-covered by its revision, are never withheld, and the view includes their
-in-Scope targets, under [Owned Links](#owned-links). Explicit
-[Resource projection](#optional-resource-projection) may omit that whole recorded plane
-from a representation; this does not change the authorization view's closure or
+visibility. A visible Bead need not expose hidden incident Links. Explicit
+[Resource projection](#optional-resource-projection) does not change the authorization view's closure or
 represent omitted content as absent in storage. The authority still evaluates referential integrity, applicable Scope
 constraints, deletion safety, and other Scope invariants against its
 complete authoritative state. A non-disclosing constraint failure may
@@ -1281,7 +1223,7 @@ union.
 
 ### Historical authorization
 
-Historical success requires the current whole-record/owned-state permission
+Historical success requires the current whole-record permission
 defined below. Missing-state refusals use subject-history authorization
 independently of reconstruction. Historical identity/relationship permission
 grants no target body access and does not relax the current-plane closure
@@ -1311,24 +1253,23 @@ and non-disclosure precedence applies before condition-specific disclosure.
 
 A successful exact read returns the ordinary complete Resource record with
 exactly the requested `id` and `revision`, carried attribution and change
-context when recorded, and the complete historical owned-Link state. Use
+context when recorded. Use
 `historicalBeadRecord` or `historicalLinkRecord`; the Bead shape excludes the
-`links` aggregate. Never substitute current/nearest state, load inline Links
+`links` aggregate. Never substitute current/nearest state, load Links
 from today's graph, fill missing values from another revision, or rewrite
-bound values under an old token. A historical owned Link and its source
-retain their separate revision addresses. No witness envelope, new digest
+bound values under an old token. No witness envelope, new digest
 scheme or extra current-scheme mapping is part of this capability.
 
 Success requires current permission to disclose the whole requested historical
-record, including its complete owned state. Historical target closure requires
+record. Historical target closure requires
 current target visibility OR explicit current permission to disclose that
 historical target identity and relationship. Source access alone supplies
 neither permission, and disclosure of an identity/relationship grants no target
 body access. Failed success authorization returns uniform `resource-not-found`,
 not a partial record or invented retention diagnosis. A deleted subject may
 have authorized retained history; historical permission does not restore its
-current visibility. Current-plane owned-source/hidden-target closure and the
-incident-Link deletion refusal remain unchanged. The alternative Memory
+current visibility. The
+incident-Link deletion refusal remains unchanged. The alternative Memory
 surviving-citation lifecycle is deferred.
 
 ### Historical Update source and deletion evidence
@@ -1344,7 +1285,7 @@ empty Resource or an automatic successful terminal read.
 
 A recovery guard must use a genuine authoritative deletion-state revision D,
 not the last-live revision R7. Terminal evidence identifies deletion without
-copying a live body, Type, properties, metadata, endpoints or owned Links into a
+copying a live body, Type, properties, metadata or endpoints into a
 successful deleted Resource. Required protected/initialization facts for recovery
 must be established separately under the current authority; a source R1 and D
 alone do not establish them. Retention or erasure of necessary evidence cannot
@@ -1380,11 +1321,10 @@ The five `revision-*` Read diagnoses in [Problem details](#problem-details)
 apply to History requests and require current subject-history authorization.
 The sole exception permits only `revision-unretained` on
 [exact Type-definition lookup](#narrow-missing-state-permission),
-under that operation's current whole-definition/owned-state disclosure permission.
+under that operation's current whole-definition disclosure permission.
 It does not import the other diagnoses or general History obligations.
 Unauthorized callers receive uniform `resource-not-found`, without evidence,
-window or participation disclosure. In particular, the Bead-history gate for
-`revision-unretained` MUST NOT depend on reconstructing the absent owned state.
+window or participation disclosure.
 Permission denial is never evidence of incompleteness. These gates also apply
 to independent Link history under the selected complete Resource capability.
 
@@ -1408,12 +1348,9 @@ to independent Link history under the selected complete Resource capability.
   values under the same address.
 
 A missing item is exactly one of `{ "kind": "record" }` for an unavailable
-whole record, `{ "kind": "property", "pointer": "/properties/name" }`
-for a missing property location (JSON Pointer in the complete Resource record),
-or `{ "kind": "owned-links", "type": "https://example.test/types/cites" }`
-for a missing owned-Type set. Omitting `type` in the last form identifies the
-whole unavailable owned plane. A property pointer may instead locate properties
-inside a historical inline Link. Do not invent nested locations when the whole
+whole record, or `{ "kind": "property", "pointer": "/properties/name" }`
+for a missing property location (JSON Pointer in the complete Resource record).
+Do not invent nested locations when the whole
 component is unavailable. No item contains missing content values. Missing
 items are unique and limited to 64 per response. `complete: false` explicitly
 means a bounded or not fully established inventory; an omitted location is not
@@ -1463,7 +1400,7 @@ to `all-retained`, `participation` (`tracked`, `not-tracked`, or
 or null). Each row contains opaque `revision`, `lineage` (`current` or
 `replaced`), stored `body` state (`complete` or `incomplete`), and the actual
 retained `revisionProvenance` when recorded. Rows contain no properties,
-owned payload, timestamp- order claim or protocol position. Metadata absence
+timestamp- order claim or protocol position. Metadata absence
 is truthful legacy absence, not redaction of known metadata into unknown.
 Authorize the subject-history surface and every whole row's revision,
 attribution and context before including it; otherwise omit that row. Row
@@ -1540,9 +1477,9 @@ capability is advertised, in addition to the fields required under
 
 Every History implementation enforces applicable erasure
 decisions on every controlled retained copy before further serving and preserves
-required erasure evidence across local recovery. This includes context, inline
-owned content, indexes, caches and any other controlled retained copies. Retaining an old address never permits
-serving erased content. A non-owning reference is not embedded target content;
+required erasure evidence across local recovery. This includes context,
+indexes, caches and any other controlled retained copies. Retaining an old address never permits
+serving erased content. A Reference is not embedded target content;
 no new retention propagation, target rewrite or wire hold follows.
 
 Before importing a retained copy into visibility, positively establish its
@@ -1589,22 +1526,19 @@ body-free terminal version without changing the base final-live deletion identit
 A recovery publishes one new live version from the actual terminal predecessor.
 Core does not require mutations, historical Update or atomic-batch support.
 
-Revision-covered state comprises complete affiliation, properties, metadata,
-applicable captured owned state and, for a Link, complete source/target References.
+Revision-covered state comprises complete affiliation, properties, metadata
+and, for a Link, complete source/target References.
 Equal final state preserves the original revision and recorded envelope, including
-provenance and unchanged retained capture shape. A→B→A within one decision therefore
+provenance. A→B→A within one decision therefore
 publishes no intermediate version or Event when all covered state is equal. Two
 separately committed writes retain their separate published transitions. A no-op
 cannot mint provenance or a lifecycle fact merely because valid attribution was
 supplied.
 
-A changed surviving owner captures complete final Link records once, with their
-actual final revisions/affiliations and whole References. Multiple owned-Link effects
-and owner edits do not create intermediate owner editions. An unchanged Link gains
-no invented revision through owner retyping, and unchanged membership/capture cannot
-be normalized into a new owner revision. Literal endpoint pins stay literal: L's
-stored S@r1 can remain in a capture at S@r2 without repinning or changing either
-retained address. Incoming incidence alone does not version a target.
+A Link change does not version either endpoint Bead, and a Bead change does not
+version its incident Links. Literal endpoint pins stay literal: L's
+stored S@r1 remains while S advances to r2, without repinning or changing either
+retained address.
 
 Committed allocation and published Resource state are distinct. A successful
 create-then-delete can consume canonical identity under nonreuse without publishing
@@ -1614,7 +1548,7 @@ No readable intermediate state or new reservation Resource follows.
 
 When Events is advertised, for each final published create/update/delete its required facts describe the actual
 initial-to-final transition; postimage is final state and optional delta transforms
-its actual predecessor to that state. Include changed owners once and order the
+its actual predecessor to that state. Order the
 Scope's facts by canonical Resource URI within their known transaction, preserving
 append order between decisions. Allocation-only effects have no Resource lifecycle
 fact. Realized attribution is immutable per published version, not attestation or
@@ -1664,8 +1598,8 @@ permission to read otherwise unavailable history.
   is Resource-kind-aware: an absent `/source` on a Bead is an ordinary no-op,
   whereas a Link's `/source` Reference is protected whole.
 - `title` is an ordinary optional property, not protected context.
-- Properties/metadata admit nested paths. Revision provenance, recorded owned
-  Links (`ownedLinks`) are whole-plane only initially. Each may be omitted by a mask; omission must be declared
+- Properties/metadata admit nested paths. Revision provenance
+  is whole-plane only initially. It may be omitted by a mask; omission must be declared
   as projection, not misrepresented as a full record with no recorded state.
   Nested plane slicing is deferred. References stay whole.
 - A valid absent optional include adds nothing, and an absent omission changes
@@ -1747,8 +1681,8 @@ Projected responses use `projectedBeadRecord` or `projectedLinkRecord`, and inve
 wrappers use `projectedBeadCollection` or `projectedLinkCollection`. These arms are
 selected only by an explicitly masked invocation; no-mask responses use ordinary
 full/current/historical arms. The projected arms retain identity, actual Type,
-revision and whole Link endpoints, while allowing masked properties, metadata,
-provenance and owned state to be absent. Stored/full-record requirements are not
+revision and whole Link endpoints, while allowing masked properties, metadata
+and provenance to be absent. Stored/full-record requirements are not
 loosened. Schema acceptance does not replace semantic protection of mask paths.
 
 Authorization of the complete selected edition precedes masking. Exact saved data
@@ -1812,11 +1746,10 @@ HTTP 200 uses `application/vnd.bdp.v0.1+json` and the closed result object:
 ```
 
 The definition's `id`/`revision` MUST equal the requested pair. Preserve its exact
-metatype affiliation, all original properties/schema resources, metadata/provenance
-presence and captured owned Links with their exact affiliations, identities,
-revisions and endpoints. No incident aggregate, present-day recapture, synthetic
+metatype affiliation, all original properties/schema resources and metadata/provenance
+presence. No incident aggregate, synthetic
 History provenance, current/nearest substitution or partial success. The definition
-record helper requires the owned plane and pinned definition/Link affiliations;
+record helper requires the pinned definition affiliation;
 shape validation alone cannot establish actual definition category/completeness.
 Separate exact lookups follow recorded dependencies, not current adjacency. A child
 read does not assert parent availability or complete closure interpretation.
@@ -1851,7 +1784,7 @@ private/no-store and CORS/ordinary HTTP rules remain binding.
 
 ### Narrow missing-state permission
 
-Current whole-definition/owned-state disclosure authorization precedes existence or
+Current whole-definition disclosure authorization precedes existence or
 reason-specific disclosure. Unknown exact pairs and nondisclosure use uniform
 `resource-not-found`. This operation does not make an unfamiliar token evidence of
 loss, pruning, reorganization or tampering. A temporary backend failure is ordinary
@@ -1861,7 +1794,7 @@ selected here.
 
 For this selected lookup **only**, positive local knowledge of the exact retained
 revision with missing reconstruction pieces MAY use existing `revision-unretained`
-under current whole-definition/owned-state disclosure permission. This permission
+under current whole-definition disclosure permission. This permission
 MUST be decidable without reconstructing missing bytes; denial is never evidence
 of loss. The required `missing` object retains [its precise bounded shape](#historical-diagnoses-and-missing-state):
 unique locations, at most 64, explicit `complete`, no content values or partial
@@ -1882,7 +1815,7 @@ fall back here solely because application History is absent.
 including the three query members. Exceeding the request bound uses existing
 `request-too-large`; no successful partial/decoded/truncated query is allowed.
 `limits.resource.representationBytes` applies to the inner complete definition
-record including captured owned state, and `propertiesBytes` to its properties,
+record, and `propertiesBytes` to its properties,
 in UTF-8 JSON bytes under the existing definitions. They are not page limits,
 family maxima or a claim that wrapper overhead fits in the inner record bound.
 
@@ -1896,8 +1829,8 @@ bounds, or refuse that admission using the applicable existing bound diagnosis
 work/result capacity). This states no new Type registration or public CRUD API.
 
 Tightening configuration MUST preserve promised complete retained reads or refuse
-the configuration change. A newly smaller budget cannot justify truncation, paging
-owned captures, an alternate current definition or false Unretained evidence.
+the configuration change. A newly smaller budget cannot justify truncation,
+an alternate current definition or false Unretained evidence.
 Authorization changes remain authoritative. Existing promises do not turn temporary
 I/O into permanent loss or demand invented data. Schema-valid wrappers do not waive these admission, authorization or service obligations.
 
@@ -2647,7 +2580,7 @@ Required order: ["id","type","revision","properties","metadata"]
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance or captured owned-Link state. Included incident links are a separately selected current aggregate." |
+| description | "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance. Included incident links are a separately selected current aggregate." |
 | type | "object" |
 
 #### Properties
@@ -2655,9 +2588,8 @@ Required order: ["id","type","revision","properties","metadata"]
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
 | "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
-| "links" | ref "#/$defs/linkCollection" | no | — | "Separately selected current incident-Link aggregate. It is not captured owned state or an exact historical graph." |
+| "links" | ref "#/$defs/linkCollection" | no | — | "Separately selected current incident-Link aggregate. It is not an exact historical graph." |
 | "metadata" | ref "#/$defs/metadata" | yes | — | "Common mutable object content, independent of Type-specific properties." |
-| "ownedLinks" | schema | no | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
 | "properties" | ref "#/$defs/properties" | yes | — | "Application-authored object content selected by the containing representation." |
 | "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
 | "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
@@ -2668,18 +2600,6 @@ Required order: ["id","type","revision","properties","metadata"]
 ```json-schema
 {
   "properties": {
-    "ownedLinks": {
-      "type": "object",
-      "propertyNames": {
-        "$ref": "#/$defs/absoluteHttpUrl"
-      },
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/linkRecord"
-        }
-      }
-    },
     "revision": {
       "type": "string",
       "minLength": 1
@@ -2741,7 +2661,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Current Bead read carrier. Common metadata is present and any included incident or owned Links use complete current Link carriers; this helper adds no read operation." |
+| description | "Current Bead read carrier. Common metadata is present and any included incident Links use complete current Link carriers; this helper adds no read operation." |
 
 #### Advanced
 
@@ -2762,15 +2682,6 @@ Value: object
         },
         "links": {
           "$ref": "#/$defs/currentLinkCollection"
-        },
-        "ownedLinks": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/currentLinkRecord"
-            }
-          }
         }
       }
     }
@@ -3761,7 +3672,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "One unavailable component needed for an exact response: the subject record, a selected property path, or captured owned-Link state. The bounded diagnosis preserves known location without substituting current content." |
+| description | "One unavailable component needed for an exact response: the subject record or a selected property path. The bounded diagnosis preserves known location without substituting current content." |
 
 #### Advanced
 
@@ -3793,7 +3704,7 @@ Value: object
             },
             {
               "type": "string",
-              "pattern": "^/(properties(?:/|$)|ownedLinks/([^/~]|~[01])+/(0|[1-9][0-9]*)/properties(?:/|$))"
+              "pattern": "^/properties(?:/|$)"
             }
           ]
         }
@@ -3801,21 +3712,6 @@ Value: object
       "required": [
         "kind",
         "pointer"
-      ],
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "const": "owned-links"
-        },
-        "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        }
-      },
-      "required": [
-        "kind"
       ],
       "additionalProperties": false
     }
@@ -3907,7 +3803,7 @@ Required order: ["revision","lineage","body"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "body" | schema | yes | — | "Whether the row’s retained version can currently produce its complete recorded representation, including required owned state." |
+| "body" | schema | yes | — | "Whether the row’s retained version can currently produce its complete recorded representation." |
 | "lineage" | schema | yes | — | "Whether the row belongs to the current or a replaced retained lineage; this is not a revision-order comparison." |
 | "revision" | ref "#/$defs/revision" | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
 | "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
@@ -4089,7 +3985,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Complete exact Bead representation. Current incident-Link aggregates are excluded; captured owned-Link state comes from that recorded version." |
+| description | "Complete exact Bead representation. Current incident-Link aggregates are excluded." |
 
 #### Advanced
 
@@ -4407,7 +4303,6 @@ Required order: ["id","type","revision"]
 | --- | --- | --- | --- | --- |
 | "id" | ref "#/$defs/absoluteHttpUrl" | yes | — | "Absolute canonical immutable Resource identity URL." |
 | "metadata" | ref "#/$defs/metadata" | no | — | "Common mutable object content, independent of Type-specific properties." |
-| "ownedLinks" | schema | no | — | "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input." |
 | "properties" | ref "#/$defs/properties" | no | — | "Application-authored object content selected by the containing representation." |
 | "revision" | schema | yes | — | "Concrete nonempty opaque revision of the recorded Resource or exact target. It is not ordered or replaced by a current selector." |
 | "revisionProvenance" | ref "#/$defs/revisionProvenance" | no | — | "Immutable carried attribution for this concrete version; it authenticates no principal." |
@@ -4418,18 +4313,6 @@ Required order: ["id","type","revision"]
 ```json-schema
 {
   "properties": {
-    "ownedLinks": {
-      "type": "object",
-      "propertyNames": {
-        "$ref": "#/$defs/absoluteHttpUrl"
-      },
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/linkRecord"
-        }
-      }
-    },
     "revision": {
       "type": "string",
       "minLength": 1
@@ -4755,7 +4638,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Whole exact Type-definition Bead with recorded owned closure and pinned Type affiliations. Serving a global definition never transfers ownership to the responder." |
+| description | "Whole exact Type-definition Bead with a pinned Type affiliation. Serving a global definition never transfers ownership to the responder." |
 
 #### Advanced
 
@@ -4767,28 +4650,11 @@ Value: object
     },
     {
       "type": "object",
-      "required": [
-        "ownedLinks"
-      ],
       "properties": {
         "type": {
           "$ref": "#/$defs/pinnedTypeReference"
         },
-        "links": false,
-        "ownedLinks": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "$ref": "#/$defs/pinnedTypeReference"
-                }
-              }
-            }
-          }
-        }
+        "links": false
       }
     }
   ]
@@ -4816,7 +4682,7 @@ Required order: ["definition"]
 
 | Name | Type | Required | Defined by | Meaning |
 | --- | --- | --- | --- | --- |
-| "definition" | ref "#/$defs/exactTypeDefinitionRecord" | yes | — | "One complete exact Type-definition Bead including its required recorded owned closure." |
+| "definition" | ref "#/$defs/exactTypeDefinitionRecord" | yes | — | "One complete exact Type-definition Bead." |
 | "originScope" | ref "#/$defs/absoluteHttpUrl" | no | — | "Recorded owning-Scope context when known. The responding lookup service does not thereby become owner." |
 <!-- bdp-schema:end typeDefinitionReadResult -->
 
@@ -4892,7 +4758,7 @@ Value: object
 
 | Keyword | JSON value |
 | --- | --- |
-| description | "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content or silently truncates the owned capture." |
+| description | "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content." |
 
 #### Advanced
 
@@ -5548,7 +5414,6 @@ Required order: ["type","code","retry"]
           "mayChangeAfterSync": false,
           "resource": false,
           "properties": false,
-          "ownedLinks": false,
           "archivedAt": false,
           "pointer": false,
           "revisionProvenance": false
@@ -6078,6 +5943,5 @@ their distinct schema resources. Generation does not qualify an implementation.
 This informative appendix preserves unresolved work without changing the current contract. Deliberate deferrals and revisit ownership are indexed in the [registry](../../deferred.md).
 
 - **Identity and foreign references:** how should logical Scope identity, custody and serving location relate during relocation or replication? A separate logical identity and a URL-preserving relocation mechanism are alternatives requiring explicit design. Foreign expected-Type assertions and reader witnesses need honest assertion/validation and disclosure boundaries. Broader aliases remain outside the selected scope. See [CORE-ID](../../deferred.md#core-id--scope-relocation-and-generic-identity) and [CORE-REF](../../deferred.md#core-ref--foreign-expectations-witnesses-and-broader-aliases).
-- **Ownership:** reexamination has been requested; complete captures and current authorization/publication rules remain binding meanwhile. Lower-cost representations or different ownership semantics require a reviewed amendment rather than a partial implementation. See [OWN-REVIEW](../../deferred.md#own-review--owned-links-reexamination).
 - **History assurance:** generic witnesses, retention minima, sync/administrative reports and surviving-citation lifecycle remain deferred. Current complete-or-refuse and erasure duties remain mandatory. Reference History delivery is independently scheduled; Transfer must revisit retained continuity and publication races. See [HIST-DELIVERY](../../deferred.md#hist-delivery--optional-reference-history-adoption) and [XFER-RETAIN](../../deferred.md#xfer-retain--snapshot-minima-continuity-and-erasurepublication-races).
 - **Provenance next:** [PR183](https://github.com/gastownhall/bdp/pull/183) is direction for review immediately after stabilization and Donna's edit pass, not an addition to today's closed carrier. Actor/authority, submitter claims and source-completeness effects need explicit reconciliation with current carried data. See [PROV-NEXT](../../deferred.md#prov-next--broader-provenance-direction).
