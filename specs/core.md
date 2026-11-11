@@ -66,7 +66,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 10 | What a store must keep | proposed, built on ruled decisions |
 | 11 | Export boundary | two rules ruled; the rest open |
 | 12 | Problems | carried; new codes proposed |
-| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled, with the Problem as the body of a failing one; a failing status for a `call` that does not succeed ruled, `409` for a declared `failure`; `get`, `create`, `update` and `delete` as close to plain HTTP as they can be, ruled as a direction; context headers proposed; the method for `update` and the rest of addressing open |
+| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled, with the Problem as the body of a failing one; a failing status for a `call` that does not succeed ruled, `409` for a declared `failure`; `get`, `create`, `update` and `delete` as close to plain HTTP as they can be, ruled as a direction; `update` as a PATCH on the Resource's own URL ruled, with the stated wish that not every implementation must implement it; context headers proposed; the rest of addressing proposed |
 | 14 | What moved out of Core | to Types: ruled; to the core library: delete with controls ruled, the rest direction given and not yet confirmed |
 | 15 | Open items | open |
 
@@ -897,6 +897,10 @@ value = the Resource's representation after the update
 
 An update changes one Resource. It does not change the Resource's identifier or kind.
 
+Ruled (2026-11-11): over HTTP, `update` is a PATCH on the Resource's own URL. The design
+authority's stated wish is that not every implementation is required to implement it
+(section 13.2).
+
 Open: whether `update` can change a Resource's Type, and whether it can change a Link's
 endpoints. v0.1 allows both. Neither is decided for v0.2 (section 15).
 
@@ -1496,6 +1500,7 @@ revision, limits, and the list of optional capabilities.
 Proposed additions for v0.2. Discovery states:
 
 - whether history is offered (section 3.4);
+- whether `update` by PATCH is offered (section 13.2);
 - which storage classes the Scope accepts on `create`;
 - whether push delivery is offered (section 7.4);
 - which invocation modes the Scope refuses outright (section 6.4);
@@ -1655,8 +1660,10 @@ Scope. Ruled: the form of `call` below, and that a synchronous `call` which does
 succeed answers with a failing status and the Reply as its body, `409` when the outcome
 is a `failure`; the other status codes and the `Location` header are proposed. Ruled
 (2026-11-11): `get`, `create`, `update` and `delete` are to be as close to plain HTTP as
-they can be; which methods that means is proposed for `delete` and open for `update`.
-Ruled (2026-11-11): the five data primitives
+they can be. Ruled (2026-11-11): `update` is a PATCH on the Resource's own URL; its
+body is proposed, and what follows from the wish that not every implementation must
+implement it is open. The plain DELETE is proposed. Ruled (2026-11-11): the five data
+primitives
 answer plainly, with the value as the body of a 2xx response and a failing status
 otherwise, and the body of a failing response is the Problem; the place of the reply
 context and the 2xx status codes are proposed. The form of `pull`
@@ -1691,31 +1698,40 @@ deletes, is refused while Links are attached, and leaves every richer control to
 callable. The plain HTTP DELETE on the Resource's URL is the form that follows from
 that. It is proposed here, not ruled. A DELETE has no body, so the guard
 `expectedRevision` needs another place. The standard `If-Match` request header is the
-natural one. That too is proposed. The second and third questions stand.
+natural one. That too is proposed. The second question was answered later the same day:
+PATCH (below). The third is answered for `update` and for `call`, and proposed for the
+rest.
 
 Ruled (2026-11-11), as a direction for those two questions: `get`, `create`, `update`
 and `delete` are not tied to the richer semantics of `call`, and should be as close to
 plain HTTP as they can be. The design authority is not sure that `pull` can go all the
 way, and expects it to come close.
 
-The ruling does not name methods or URLs. Read plainly, it favours the standard method
-on the Resource's own URL over a table of command URLs. Where that leaves the four:
+That ruling does not name methods or URLs. Read plainly, it favours the standard method
+on the Resource's own URL over a table of command URLs. Where the four stand:
 
 ```text
 get     GET     <Resource URL>    proposed, as in v0.1; revision as a query parameter
 create  POST    <Scope URL>       ruled for now; body: the new Resource
-update  ?       <Resource URL>    open
+update  PATCH   <Resource URL>    ruled; body and guard proposed
 delete  DELETE  <Resource URL>    proposed; the guard in If-Match
 ```
 
-- Proposed: all four address the Resource's own URL, except `create`, which has no
-  Resource yet and is sent to the Scope. No command URL is carried from v0.1.
-- Open: the method for `update`. HTTP has PUT for replacing a Resource and PATCH for
-  changing part of one. One `update` may replace `properties` and patch `metadata` in
-  the same request (section 5.5), which neither method says by itself. One candidate is
-  a PATCH whose body is an RFC 6902 patch against the record, limited to `properties`
-  and `metadata`. A full replacement is then a `replace` of the whole member, and the
-  guard goes in `If-Match` as it does for `delete`. It is not yet proposed.
+- Ruled (2026-11-11): `update` is a PATCH on the Resource's own URL. The design
+  authority called it the logical form of `update` over HTTP.
+- Proposed: the body of that PATCH is an RFC 6902 patch against the record, limited to
+  `properties` and `metadata`. A full replacement is a `replace` of the whole member.
+  The guard goes in `If-Match`, as it does for `delete`. A PUT does not fit: one
+  `update` may replace `properties` and patch `metadata` in the same request
+  (section 5.5), and a PUT cannot say that.
+- The design authority's stated wish (2026-11-11): not every implementation is required
+  to implement the PATCH. It is recorded here and not yet worked through. Proposed: a
+  Scope states in discovery whether it offers it (section 8), and a Scope that does not
+  answers `405`, as HTTP defines for a method a resource does not support. Open: how a
+  caller updates a Resource on such a Scope, and how this sits with the rule that every
+  service has all six primitives (section 5.1). See section 15.
+- Proposed: `get` and `delete` address the Resource's own URL as `update` does. `create`
+  has no Resource yet and is sent to the Scope. No command URL is carried from v0.1.
 - The core library's callables carry what does not fit a plain request (section 5.9).
 
 The design authority's stated view (2026-11-11), not final: the plain DELETE is there
@@ -1980,7 +1996,8 @@ Primitives:
     (section 13.2). `create` on the Scope is ruled for now. Ruled (2026-11-11), as a
     direction: `get`, `create`, `update` and `delete` are as close to plain HTTP as they
     can be. `delete` as the plain HTTP DELETE, with its guard in `If-Match`, is proposed.
-    Open: the method for `update`, and how far `pull` can follow.
+    Ruled (2026-11-11): `update` is a PATCH on the Resource's own URL; its body is
+    proposed. Open: how far `pull` can follow.
 
 Execution:
 
@@ -2074,6 +2091,10 @@ Outcome:
     `failure`. Open: which status an arm added by a pack gets. Proposed: a `fault` uses
     the status of its Problem; a client that has the Reply decides on its arm, not on
     the status; a failing response with no Reply reports no outcome (section 13.2).
+42. What a service that does not implement the PATCH for `update` offers instead. The
+    design authority's stated wish is that not every implementation is required to
+    implement it. Open: how a caller updates a Resource on such a service, and how that
+    sits with every service having all six primitives (sections 5.1, 13.2).
 
 ## Appendix A. Decisions folded into this text
 
@@ -2199,6 +2220,7 @@ Rulings by the design authority, by date, with the section that carries each.
   be. `call` is where the richness is. (5.2, 13.2)
 - A `failure` that a callable declares answers a synchronous `call` with `409`. (12,
   13.2)
+- Over HTTP, `update` is a PATCH on the Resource's own URL. (5.5, 13.2)
 
 Stated as an assumption, then made firm for `get`, `create`, `update` and `delete` by
 the ruling above, and followed in this text for `pull` too: the choice between `success`
@@ -2210,7 +2232,8 @@ carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
 13.2); that `canceled` makes sense as an outcome arm in Core, with a callable that
 cancels an asynchronous call (6.8); that `pull` can be kept nearly as plain as the four
 data primitives (5.2, 13.2); that the core library has separate entry points for
-creating and for deleting Beads and Links (5.9).
+creating and for deleting Beads and Links (5.9); that not every implementation is
+required to implement the PATCH for `update` (13.2).
 
 Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
 stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
@@ -2221,5 +2244,6 @@ context; that a request cannot join a transaction; that the service itself carri
 the delete callables, each invocation in one transaction; that an asynchronous call
 which is refused leaves no result bead; the `canceled` arm and what it carries; that the
 reply context of the five data primitives travels in response headers; their 2xx status
-codes; which failing status an arm added by a pack gets; the HTTP method for `update`.
-Each is marked proposed or open where it appears and listed in section 15.
+codes; which failing status an arm added by a pack gets; the body of the PATCH for
+`update`, and the guard in `If-Match`; that `get` and `delete` address the Resource's
+own URL. Each is marked proposed or open where it appears and listed in section 15.
