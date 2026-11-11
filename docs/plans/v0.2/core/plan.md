@@ -151,9 +151,18 @@ plan: all {
 - **Where v0.2 text lives (Donna, 2026-11-10).** "Main should always carry the current
   version directly under specs. I am fine to keep previous versions as history but I would
   like then NOT under the specs directory." Every `spec/` node in this plan is therefore an
-  edit to the existing files under `specs/` on main. There is no separate v0.2 tree. Not
-  ruled: where the v0.1 history goes, and who moves the checks that tie the reference
-  implementation to the spec files.
+  edit to the existing files under `specs/` on main. There is no separate v0.2 tree. For
+  the earlier version Donna proposed release branches ("Maybe we just keep release
+  branches?"); `release/sprint1` already exists. That is a proposal, not yet firm.
+- **The spec may lead the reference implementation; conformance may not lag (Donna,
+  2026-11-10).** Asked whether spec text may merge on main ahead of the reference
+  implementation: "A is fine for this week. I think the reference implementation thing may
+  give way to a different approach. Conformance suites HAVE to match." So for this week a
+  `spec/bdp` node can merge before `impl/reference` catches up, and a spec change brings its
+  conformance cases with it. The edges above already say this for the first half
+  (`impl/reference/build` begins after the spec). They do not yet say the second: today
+  `conformance/bdp` waits for all of `spec/bdp`. Whether that edge should be drawn per
+  subnode, and what replaces `impl/reference` if it gives way, are not ruled.
 
 ## Open — placed by Eva, not ruled by Donna
 
