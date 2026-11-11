@@ -774,8 +774,7 @@ never defines a built-in data operation as a callable.
 
 ### 6.4 Synchronous and asynchronous invocation
 
-**Status: ruled, except the spelling of the request member, which is proposed and
-accepted in discussion.**
+**Status: ruled, including the spelling `mode` (confirmed 2026-11-11).**
 
 - Asynchronous invocation is not a new primitive. It is a mode of `call`.
 - The caller chooses the mode. The request member is `mode`, with values `sync` and
@@ -804,7 +803,7 @@ shape is defined in Types. The design authority's stated lean, with either form 
 the result bead names its callable by a Link, not by a member. Proposed: the wording of
 Core's own shape rule, the details of that Link, and the mechanics.**
 
-An asynchronous `call` is admitted, not completed. The response names a result bead, and
+An asynchronous `call` is admitted, not completed. The response is the result bead, and
 the work continues after the response.
 
 ```text
@@ -863,8 +862,10 @@ Proposed mechanics:
   mints the cause. Two Resources are created, so the commit produces two change events
   with the same `transaction` and `cause` (section 7.2).
 - Settlement is an update to the result bead that writes `outcome`.
-- The response to an asynchronous call carries the same Reply frame with `outcome`
-  absent, and identifies the result bead.
+- The response to an asynchronous call is the result bead itself, as `get` on it would
+  return it at that moment: `context` present, `outcome` absent. That the response is the
+  result bead was stated by the design authority on 2026-11-11 (section 13.2); an earlier
+  state of this draft returned a Reply frame that named the bead.
 
 Open: the storage class of the result bead, and with it that of the ResultOf Link, whose
 target is an intrinsic Resource (sections 2.6 and 15).
@@ -1219,9 +1220,10 @@ Schemas for those are the business of Types.
 
 ### 13.2 The HTTP binding
 
-**Status: open, with one point ruled for now: `create` is a request on the Scope. The
-form of `pull` below is proposed. The v0.1 binding is described for reference. It is not
-carried.**
+**Status: open, with two points settled. Ruled for now: `create` is a request on the
+Scope. Ruled: the form of `call` below, except the status codes and the `Location`
+header, which are proposed. The form of `pull` is proposed. The v0.1 binding is described
+for reference. It is not carried.**
 
 Ruled for now: `create` is sent to the Scope, with the Type named in the body
 (section 5.4). Sending it to the type bead's URL was considered and set aside.
@@ -1248,8 +1250,30 @@ can be written:
    the EventSource they act on?
 
 Also open here: how the common frame (section 5.2) maps onto HTTP, in particular where
-the context travels, how the `err` arm is carried, and how an admitted asynchronous call
-is answered.
+the request context travels and how the `err` arm is carried.
+
+Form of `call`. The design authority stated it on 2026-11-11 as two requests: a POST on
+the Callable's URL that returns the result, and the same POST marked asynchronous that
+returns the AsyncResult bead. That answers the third question for `call`. Filled in:
+
+```text
+POST <Callable URL>                 body: the arguments
+200  the Reply: { context, outcome }
+
+POST <Callable URL>?mode=async      body: the arguments
+202  Location: <result bead URL>
+     body: the result bead, with no outcome yet
+```
+
+- The request body is the arguments and nothing else. The Callable is named by the URL
+  and the mode by a query parameter.
+- The synchronous response body is the Reply, not the bare result (ruled). It is exactly
+  what the result bead's `properties` hold once the same call, made asynchronously, has
+  settled (section 6.5).
+- The mode is the query parameter `mode` (ruled). `mode=async` asks for an asynchronous
+  call. A request with no `mode`, or with `mode=sync`, is synchronous (section 6.4).
+- Proposed: the status codes `200` and `202`, and the `Location` header on the
+  asynchronous response.
 
 Proposed form of `pull`. It answers the third question for `pull` only, and only as a
 proposal:
@@ -1404,6 +1428,8 @@ Core and Types:
     refusal (sections 2.4, 12).
 31. Whether the quantities of a retention policy are named by Core, as section 7.5 does,
     or only by Types.
+32. The HTTP form of `call` beyond what is ruled: the status codes, the `Location` header
+    on the asynchronous response, and where the request context travels (section 13.2).
 
 ## Appendix A. Decisions folded into this text
 
@@ -1477,6 +1503,9 @@ Rulings by the design authority, by date, with the section that carries each.
   ruling. (6.5)
 - Types defines the type system, the declaration formats, and the transformation that
   gives an asynchronous result its shape. (6.5, 14)
+- `call` is a POST on the Callable's own URL. Made synchronously it returns the Reply,
+  not the bare result; made asynchronously it returns the AsyncResult bead. The mode is
+  spelled `mode=async` on the URL. (6.4, 6.5, 13.2)
 
 Stated preferences, not final: the arm names `ok` and `err`; a closed Result inside an
 open Outcome; `fault` as the system arm carrying a Problem; no reason code in Core. (4.4,
