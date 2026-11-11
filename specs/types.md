@@ -116,8 +116,9 @@ this revision means. Absence supplies no external resources.
 `service-managed` — the client may not write it; the service owns the value and may change it
 (so it is read-only *to the client*, not immutable). The mode governs the writer, not whether
 a change mints a revision: any actual value change — by client or service, including a
-service-managed one — mints a new revision, as always (revision is the ETag). A service
-value that should **not** churn the revision belongs in `metadata`, not in `properties`.
+service-managed one — mints a new revision (the revision is the ETag, over the whole
+representation). A metadata change revisions it too; there is no field, in `properties` or
+`metadata`, that changes without minting a revision.
 
 ## 4. Conformance: Refines and owned Links
 
@@ -210,11 +211,10 @@ call to every revision it mints; whether a callable may add principals of its ow
 The return is Core's `Outcome<T, E>`; a declaration supplies `T` and `E` and nothing more.
 Core's `fault` arm (a Problem, for a call that could not run to completion) is a **system arm** —
 a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names:
-`success` / `failure` / `fault` — Lydia's proposal; Donna's earlier preference was the Rust
-`ok` / `err`, so the pick is hers. `success` and `failure` are *declared* outcomes that ran to
-completion; `fault` is the *undeclared* case — a call that did not run to completion, including
-one that never started or timed out — carrying a Problem. Core §4.5 still shows `ok`/`err`
-until she chooses, so the drafts differ until then.)
+`success` / `failure` / `fault` — ruled, Donna 2026-11-11. `success` and `failure` are
+*declared* outcomes that ran to completion; `fault` is the *undeclared* case — a call that did
+not run to completion, including one that never started or timed out — carrying a Problem. Core
+aligns its `ok`/`err` to these.)
 
 **Kinds.** A callable is **read-only** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
@@ -223,7 +223,9 @@ same move as bead / link refining resource), declared by refining the matching w
 - **read-only** — the call takes **no write capability**: it may read, but mutates nothing, so
   it is repeatable and usable where a read is. That contract — no write capability — is
   precisely what makes Lumen's `function` pure, so `read-only` and `function` correspond totally
-  in both directions. A call that mutates any state is a `command`, never read-only.
+  in both directions. A call that mutates any state is a `command`, never read-only. A read-only
+  carries neither `idempotent` nor `atomic`: being pure, it is inherently repeatable and
+  transaction-free.
 - **command** — effectful. A command may declare `idempotent` (retrying is safe) and `atomic`
   (the invocation's changes commit in one transaction — Core §5.9, open item 37).
 
@@ -321,7 +323,9 @@ behaviour; it adds the refusals of section 8 and the readings of section 7.
 The JSON-Schema-expressible sub-suite is flagged so `propertiesSchema` validates on the same
 oracle that proves cross-implementation parity.
 
-**Open items.** Ruled 2026-11-11: `{min, max}` multiplicity; `reflexive`; delete-stays-bare.
+**Open items.** Ruled 2026-11-11: `{min, max}` multiplicity; `reflexive`; delete-stays-bare;
+Outcome arms `success`/`failure`/`fault`; `Refines` kept (layer split with Lumen `is`);
+`read-only` = no write capability.
 
 1. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
@@ -331,11 +335,5 @@ oracle that proves cross-implementation parity.
    triple (the URI, with ETag / `?revision=`, is the web-edge encoding), to simplify scope-local
    references. A Core identity-model convention (with Eva); no wire change — the `type`-is-a-URI
    rule holds at the edge.
-4. **Outcome arm names** — Lydia proposes `success` / `failure` / `fault`; Donna's earlier
-   preference was the Rust `ok` / `err`. Her pick; Core §4.5 keeps `ok`/`err` until she chooses,
-   so the drafts differ until then. (Eva owns the Outcome semantics the names sit on — unchanged.)
-5. **Conformance link name** — resolved (Lydia, pending Donna): Lumen keyword `is` stays, the BDP
-   link stays `Refines`; the layer split is intentional (`is` is a conformance clause, `Refines`
-   is the edge name). M6 maps `type X is T` → one Refines link X→T.
-6. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
+4. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
    pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
