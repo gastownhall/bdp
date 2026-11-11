@@ -271,9 +271,12 @@ Status: **proposed**. The transformation from a callable's declaration to the sh
 result bead is Types' (design authority: "the transformation on the async result").
 
 AsyncResult is a well-known, refinable Type; a result bead's `properties` are
-`{ context, outcome? }`. The transformation is one line: the result bead holds Core's
-**`Reply<T, E>`** for the same `T` and `E` the callable declared — the Reply the same call
-would have returned synchronously. A result bead names its callable through a **`ResultOf`** owned Link
+`{ context, outcome? }` — `context` is Core's reply context `{ cause, transaction?, metadata? }`
+(§4.4), not provenance (provenance rides the bead's revisions). The transformation is one line:
+the result bead holds Core's **`Reply<T, E>`** for the same `T` and `E` the callable declared —
+the Reply the same call would have returned synchronously. The bead **settles at most once**:
+once a revision holds `outcome` it is terminal, and no later revision changes or removes it
+(Core §6.5, proposed). A result bead names its callable through a **`ResultOf`** owned Link
 (source the result bead, target the Callable pinned to its revision at admission); following
 it reaches the declaration edition. A declaration names a refinement of AsyncResult as the
 Type of its result beads.
