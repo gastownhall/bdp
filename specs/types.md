@@ -89,7 +89,7 @@ The descriptor is an open JSON object except for the reserved names below. Its
 | `version` | SemVer text | Informational author label; not a revision, default or compatibility proof. |
 | `abstract` | boolean, default false | True forbids direct affiliation with this exact definition, not its refinements. |
 | `final` | boolean, default false | True forbids any Type from refining this definition. Pairs with `abstract` (Lumen's `final` / `abstract`). |
-| `propertyAccess` | map of JSON Pointer → `writable` \| `init-only` \| `service-managed` | Member write policy, independent of value schema (§3.2). |
+| `propertyAccess` | map of JSON Pointer → `writable` \| `init-only` \| `read-only` | Member write policy, independent of value schema (§3.2). |
 
 **Category-specific:** BeadType adds `incoming`, `outgoing` (participation constraints —
 `{ linkTypes, min?, max? }` bounding incident Link families) and `ownsOutgoing` (the outgoing
@@ -113,10 +113,10 @@ this revision means. Absence supplies no external resources.
 
 `propertyAccess` governs **who** may write a property, independent of its value schema.
 `writable` — the client may set and change it. `init-only` — set at creation, immutable after.
-`service-managed` — the client may not write it; the service owns the value and may change it
-(so it is read-only *to the client*, not immutable). The mode governs the writer, not whether
+`read-only` — the client may not write it; the service owns the value and may change it (so it
+is read-only *to the client*, not immutable — unlike `init-only`, which freezes after creation). The mode governs the writer, not whether
 a change mints a revision: any actual value change — by client or service, including a
-service-managed one — mints a new revision (the revision is the ETag, over the whole
+read-only one — mints a new revision (the revision is the ETag, over the whole
 representation). A metadata change revisions it too; there is no field, in `properties` or
 `metadata`, that changes without minting a revision.
 
@@ -241,16 +241,16 @@ a callable never declares, narrows or omits it, and new arms come only from Core
 not run to completion, including one that never started or timed out — carrying a Problem. Core
 uses the same names (`Result<T, E>` = `success`{value} | `failure`{error}, Core §4.4).)
 
-**Kinds.** A callable is **read-only** or a **command** — nominal refinements of Callable (the
+**Kinds.** A callable is a **function** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
-(section 9):
+(section 9). (The pure kind is named `function` provisionally — its final name is open, item 5;
+`read-only` now names a property mode, §3.2, and is not reused here.)
 
-- **read-only** — the call takes **no write capability**: it may read, but mutates nothing, so
-  it is repeatable and usable where a read is. That contract — no write capability — is
-  precisely what makes Lumen's `function` pure, so `read-only` and `function` correspond totally
-  in both directions. A call that mutates any state is a `command`, never read-only. A read-only
-  carries neither `idempotent` nor `atomic`: being pure, it is inherently repeatable and
-  transaction-free.
+- **function** — the call takes **no write capability**: it may read, but mutates nothing, so it
+  is repeatable and usable where a read is. That contract — no write capability — is exactly what
+  makes Lumen's `function` pure, so BDP `function` and Lumen `function` coincide in both
+  directions. A call that mutates any state is a `command`, never a function. A function carries
+  neither `idempotent` nor `atomic`: being pure, it is inherently repeatable and transaction-free.
 - **command** — effectful. A command may declare `idempotent` (retrying is safe) and `atomic`
   (the invocation's changes commit in one transaction — Core §5.9, open item 37).
 
@@ -327,7 +327,7 @@ Refines under `…/type-system/`), extended:
 | --- | --- | --- |
 | `Type`, `BeadType`, `LinkType`, `Refines` | the type system | carried |
 | `Callable` | §6.1 | proposed |
-| `ReadOnly`, `Command` (refine `Callable`) | §6.1 kinds | proposed |
+| `Function`, `Command` (refine `Callable`) | §6.1 kinds (pure name provisional) | proposed |
 | `EventSource` | §6.2 | proposed |
 | `AsyncResult` | §6.3 | proposed |
 | `ResultOf` (Link Type) | result bead → callable | proposed |
@@ -349,8 +349,9 @@ The JSON-Schema-expressible sub-suite is flagged so `propertiesSchema` validates
 oracle that proves cross-implementation parity.
 
 **Open items.** Ruled 2026-11-11: `{min, max}` multiplicity; `reflexive`; delete-stays-bare;
-Outcome arms `success`/`failure`/`fault`; `Refines` kept (layer split with Lumen `is`);
-`read-only` = no write capability.
+Outcome arms `success`/`failure`/`fault`; `Refines` kept (layer split with Lumen `is`); the pure
+callable kind = no write capability (its name is open, item 5); `service-managed` property mode
+renamed `read-only`.
 
 1. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
@@ -362,3 +363,6 @@ Outcome arms `success`/`failure`/`fault`; `Refines` kept (layer split with Lumen
    rule holds at the edge.
 4. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
    pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
+5. **Callable-kind name** — the pure, no-write-capability kind is provisionally `function`
+   (Lumen-aligned); Donna wants a better name. `query` is the CQRS option but collides with BDP's
+   graph query.
