@@ -234,14 +234,15 @@ codes `validation-failed` and `type-not-installed` and Core's Problem carrier. C
 checks nothing. Whether Core alone requires anything of a `type` it cannot resolve is open
 (Core item 30).
 
-**Type-declared delete effects.** Status: **open**, resting on Core item 10. v0.1 ran
-Type-declared effects (`typeEffects`) on every deletion. The design authority has ruled that a
-`delete` mints a final revision and that recovery is an `update` from an earlier revision; it
-has **not** ruled whether `delete` stays the bare minimal primitive. *If* it stays bare, the
-v0.1 effects re-home: cascade and endpoint policy become core-library callables, and
-"may-not-delete-while-X" becomes a Types refusal rule here. *If* controls stay on the
-primitive, that re-homing does not apply. v0.1 `typeEffects` are **carried** as the fallback
-until item 10 is ruled.
+**Type-declared delete effects.** Status: **ruled** (design authority, 2026-11-11). The
+`delete` primitive only deletes; it consults no Type. It refuses with `incident-links-exist`
+while a live Link is attached — a Core structural rule, not Type-driven. The fuller delete
+(several Beads, attached Links, cascade, dry run) is a **core-library callable**. So v0.1's
+`typeEffects` re-home: cascade and endpoint policy move to that callable; a "may not delete
+while X" Type constraint becomes a **Types refusal rule**, checked above Core. A definition
+Bead that carries owned Refines Links is subject to the same `incident-links-exist` refusal;
+its owned declarations are removed first, or through the delete callable. v0.1 `typeEffects`
+are retired, not carried.
 
 ## 9. Well-known Types
 
@@ -284,5 +285,4 @@ oracle that proves cross-implementation parity.
 3. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
    stake (it decides her callable surface). Design authority to rule.
-4. Type-declared delete effects — rests on Core item 10 (§8).
-5. Whether a callable may add principals of its own (Core item 12).
+4. Whether a callable may add principals of its own (Core item 12).
