@@ -637,6 +637,11 @@ does not look inside (section 6.1).
 An error does not carry a reason code in Core. If an operation needs to distinguish kinds
 of error, its error `E` is itself a choice of shapes.
 
+Proposed: an arm is an open record. A reader MUST ignore a member of an arm that it does
+not know. A pack can then carry something more in an arm without breaking a reader that
+knows only this specification. The design authority raised the question and has not
+answered it (section 15).
+
 Open: the spelling of the tag that names the arm (section 15).
 
 ### 4.5 Faults and Problems
@@ -1214,8 +1219,8 @@ The arm:
 - It is not a `failure`: the callable gave no verdict. It is not a `fault`: nothing went
   wrong and nothing was refused. Someone asked for the call to stop.
 - Like every arm but `success`, it means the call did not go as intended.
-- `reason` is optional text supplied by whoever asked. Whether the arm carries anything
-  more is open.
+- `reason` is optional text supplied by whoever asked. The arm carries nothing else. A
+  pack that keeps a fuller account of a cancellation keeps it in its own records.
 
 Canceling:
 
@@ -1226,17 +1231,22 @@ Canceling:
 - If the call is still pending, the service settles its result bead as `canceled`.
 - If the call has already settled, canceling changes nothing. The result bead keeps the
   outcome it has.
+- Settling the result bead is all this specification requires. A service SHOULD stop the
+  work if it can. Whatever the work produces after the result bead has settled is
+  discarded, and the outcome does not change.
+- This specification neither requires nor forbids that canceling a call also cancels the
+  calls it made. Whoever owns those calls decides. A pack that defines ownership between
+  calls MAY cancel the owned calls along with their owner. A call that owns nothing is
+  not affected.
 
 A timeout is still a `fault` (section 4.5). No primitive other than `call` can be
 canceled, since the other five are synchronous and have no result bead.
 
 Open:
 
-1. What the service must do about work that is already running: stop it, or only settle
-   the result bead and discard whatever the work produces later.
-2. Whether canceling a call cancels the calls it made in turn.
-3. Who may cancel a call.
-4. What canceling returns when the call had already settled.
+1. Who may cancel a call.
+2. What canceling returns when the call had already settled. That is for the core
+   library to state.
 
 ## 7. Events
 
@@ -1829,9 +1839,9 @@ Execution:
     whether a callable may add principals to the provenance of the request it is handling
     (section 4.3).
 13. The spelling of the tag that names an Outcome arm, and whether arms are open
-    records.
+    records. Proposed: they are (section 4.4).
 14. Cancellation: a `canceled` arm and a core library callable that cancels an
-    asynchronous call are proposed, with four open points (section 6.8). Suspend and
+    asynchronous call are proposed, with two open points (section 6.8). Suspend and
     resume are not designed. Deadlines are deferred to a later version (ruled,
     section 6.7).
 15. Retry and idempotency.
@@ -2029,5 +2039,6 @@ delete holds; `delete` as the plain HTTP DELETE; the headers that carry the requ
 context; that a request cannot join a transaction; that the service itself carries out
 the delete callables, each invocation in one transaction; that no primitive other than
 `call` has a `failure` arm; that an asynchronous call which is refused leaves no result
-bead; the `canceled` arm and what it carries. Each is marked proposed where it appears
-and listed in section 15.
+bead; the `canceled` arm and what it carries; that an arm is an open record; that
+canceling the calls a canceled call made is left to whoever owns them. Each is marked
+proposed where it appears and listed in section 15.
