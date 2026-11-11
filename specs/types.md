@@ -223,8 +223,8 @@ declaration, in its `properties` (beside common `title` / `description`, §3):
 | Field | Shape | Meaning |
 | --- | --- | --- |
 | `parameters` | `[ { name, schema, required?, default?, description? } ]` | Argument contract (`P`). Core treats a call's `arguments` as opaque JSON; Types checks them against this. |
-| `resultSchema` | schema | The `T` — the value of Core's `success` arm. |
-| `errorSchema` | schema | The `E` — the declared `failure` arm (ran to completion, bad result in contract). |
+| `resultSchema` | schema | The `T` — Core's `success` value (§4.4). |
+| `errorSchema` | schema | The `E` — Core's `failure` value (§4.4). |
 | `modes` | `[ "sync" \| "async" ]` | Advertised invocation modes; omitted means `sync`. The caller chooses with Core's `mode`; the two refusals (`mode-not-supported`, `mode-refused`) are Core's. |
 
 Checking a call's `arguments` against `parameters`, and its result against the declared
@@ -233,13 +233,10 @@ field:** a call's principals arrive in Core's request-context provenance and flo
 call to every revision it mints; whether a callable may add principals of its own is open
 (Core item 12).
 
-The return is Core's `Outcome<T, E>`; a declaration supplies `T` and `E` and nothing more.
-Core's `fault` arm (a Problem, for a call that could not run to completion) is a **system arm** —
-a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names:
-`success` / `failure` / `fault` — ruled, Donna 2026-11-11. `success` and `failure` are
-*declared* outcomes that ran to completion; `fault` is the *undeclared* case — a call that did
-not run to completion, including one that never started or timed out — carrying a Problem. Core
-uses the same names (`Result<T, E>` = `success`{value} | `failure`{error}, Core §4.4).)
+The return is Core's `Outcome<T, E>`, whose envelope **Core defines** (§4.4): the arms
+(`success` / `failure` / `fault`), that `fault` is a system arm carrying a Problem, that the arm
+set is open, and `Reply`. A declaration supplies only `T` and `E`; it never declares, narrows or
+omits `fault`, and Types does not restate the envelope.
 
 **Kinds.** A callable is a **function** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
