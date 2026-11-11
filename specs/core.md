@@ -66,7 +66,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 10 | What a store must keep | proposed, built on ruled decisions |
 | 11 | Export boundary | two rules ruled; the rest open |
 | 12 | Problems | carried; new codes proposed |
-| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled; a failing status for a `call` that does not succeed ruled; context headers proposed; the rest of addressing open |
+| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled, with the Problem as the body of a failing one; a failing status for a `call` that does not succeed ruled; context headers proposed; the rest of addressing open |
 | 14 | What moved out of Core | to Types: ruled; to the core library: delete with controls ruled, the rest direction given and not yet confirmed |
 | 15 | Open items | open |
 
@@ -774,8 +774,8 @@ section 4.5. Ruled (2026-11-11): that holds for every refusal by `get`, `create`
 
 Ruled (2026-11-11): over HTTP those five rely on the status code. A 2xx status means
 success, and the response body is the value. A failing status means the request did not
-succeed. What the body of a failing response holds is left to this specification
-(section 13.2). The design authority stated the assumption behind this, which this draft
+succeed. What the body of a failing response holds was left to this specification, and
+was then ruled the same day: it is the Problem (section 13.2). The design authority stated the assumption behind this, which this draft
 follows: the choice between `success` and `fault` is not used for those five.
 
 Changed in this draft: earlier states of it gave all six primitives the Reply as their
@@ -1562,7 +1562,8 @@ The v0.1 Transfer proposal is not carried forward as a separate document (sectio
 **Status: carried. Codes marked (proposed) are new in this draft.**
 
 A Problem is an RFC 9457 document with `type`, `code` and `retry`. It is what a `fault`
-carries (section 4.5).
+carries (section 4.5). Ruled (2026-11-11): it is also the body of a failing response
+from `get`, `create`, `update`, `delete` or `pull` (section 13.2).
 
 Codes carried from v0.1 Core: `malformed-request`, `invalid-parameter`,
 `unauthenticated`, `forbidden`, `resource-not-found`, `resource-pruned`,
@@ -1633,9 +1634,9 @@ Schemas for those are the business of Types.
 Scope. Ruled: the form of `call` below, and that a synchronous `call` which does not
 succeed answers with a failing status and the Reply as its body; the exact status codes
 and the `Location` header are proposed. Ruled (2026-11-11): the five data primitives
-answer plainly,
-with the value as the body of a 2xx response and a failing status otherwise; the body of
-a failing response and the place of the reply context are proposed. The form of `pull`
+answer plainly, with the value as the body of a 2xx response and a failing status
+otherwise, and the body of a failing response is the Problem; the place of the reply
+context and the 2xx status codes are proposed. The form of `pull`
 is proposed. The v0.1 binding is described for reference. It is not carried.**
 
 Ruled for now: `create` is sent to the Scope, with the Type named in the body
@@ -1679,17 +1680,18 @@ status code.
 
 ```text
 2xx       body: the value (section 5)
-4xx, 5xx  body: the Problem (proposed)
+4xx, 5xx  body: the Problem (section 12)
 ```
 
 - Ruled: a 2xx status means success. The body is the primitive's value and nothing
   wrapped around it: the record for a `get`, the page of events for a `pull`.
 - Ruled: a failing status means the request did not succeed. In this specification's
   terms it faulted (section 4.5).
-- The ruling leaves the body of a failing response to this specification. Proposed: it
-  is the Problem (section 12), sent as `application/problem+json`. A client then reads
-  a fault from any of the five in one way, and it is the same document that the `fault`
-  arm of a `call` carries. Which status goes with each code is carried from v0.1.
+- Ruled (2026-11-11): the body of a failing response is the Problem (section 12). It is
+  sent as `application/problem+json`, the media type RFC 9457 defines for it. A client
+  then reads a fault from any of the five in one way, and it is the same document that
+  the `fault` arm of a `call` carries. Which status goes with each code is carried from
+  v0.1.
 - Proposed: the reply context (section 4.3) travels in response headers, on a successful
   response and on a failing one alike: `BDP-Cause`, `BDP-Transaction` and `BDP-Metadata`,
   encoded as the request headers below are. That the context rides in the response of
@@ -2011,8 +2013,8 @@ Outcome:
 39. Whether an asynchronous call that is refused leaves a result bead. Proposed: no
     (section 6.5).
 40. The body of a failing response from one of the five data primitives, and their 2xx
-    status codes. Proposed: the Problem; `201` for `create` and `200` for the rest
-    (section 13.2).
+    status codes. Ruled (2026-11-11): the body is the Problem. Proposed: `201` for
+    `create` and `200` for the rest (section 13.2).
 41. The HTTP status of a synchronous `call` whose outcome is not `success`. Ruled
     (2026-11-11): a failing status, with the Reply as the body. Open: which status a
     `failure` gets, and which an arm added by a pack gets. Proposed: a `fault` uses the
@@ -2136,6 +2138,8 @@ Rulings by the design authority, by date, with the section that carries each.
   and what its body holds is left to this specification. (5.2, 13.2)
 - A synchronous `call` that does not succeed answers with a failing HTTP status, and the
   body is still the Reply. (13.2)
+- The body of a failing response from `get`, `create`, `update`, `delete` or `pull` is
+  the Problem. (12, 13.2)
 
 Stated as an assumption with that ruling, and followed in this text: the choice between
 `success` and `fault` is not used for those five. (4.5, 5.2)
@@ -2154,6 +2158,6 @@ delete holds; `delete` as the plain HTTP DELETE; the headers that carry the requ
 context; that a request cannot join a transaction; that the service itself carries out
 the delete callables, each invocation in one transaction; that an asynchronous call
 which is refused leaves no result bead; the `canceled` arm and what it carries; that the
-body of a failing response from a data primitive is the Problem; that the reply context
-of those five travels in response headers; which failing status a `failure` gets. Each is
-marked proposed or open where it appears and listed in section 15.
+reply context of the five data primitives travels in response headers; their 2xx status
+codes; which failing status a `failure` gets. Each is marked proposed or open where it
+appears and listed in section 15.
