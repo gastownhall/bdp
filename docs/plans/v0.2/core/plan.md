@@ -140,6 +140,13 @@ plan: all {
   on bdp spec and potentially go spec". Asked whether to keep one node, split it, or make it
   a fourth facet, she chose the split. `events` depended on all of storage while half of
   storage could only be settled once events were; the split removes that circle.
+- **Owned Links are removed (Donna, 2026-11-10).** "Go ahead and remove it now. There is no
+  reason to keep it around. We will come up with a replacement if we actually need one." A
+  Link is an ordinary Resource with its own revision; a Bead's revision captures no Links.
+  The removal is part of `spec/bdp/data-model` (the Core and Write text) and reaches Types,
+  the conformance cases and the reference implementation. No node is added for it. The one
+  place a replacement may be needed is Types: a Type definition's conformance declarations
+  are owned Links in the v0.1 text. That question is with Trish.
 
 ## Open — placed by Eva, not ruled by Donna
 
