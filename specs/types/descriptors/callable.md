@@ -21,4 +21,4 @@ Mode: authoring
 
 ## Properties schema
 
-Source: JSON: callable.properties.schema.json
+Source: Markdown: callable-properties.md
