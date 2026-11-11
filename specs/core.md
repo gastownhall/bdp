@@ -13,6 +13,11 @@ six need in order to work: revisions, the execution model, callables, events, di
 the rules a store must keep. It defines nothing else. Richer operations are callables, and
 the standard ones are specified in the core library, not here.
 
+Core is raw data access. It has the concept of a Type and carries no type system: it does
+not say what a Type contains, how one is interpreted, or what a caller's data must look
+like. Those rules, and the declarations of callables and event sources, are specified in
+Types.
+
 ## 1. About this draft
 
 ### 1.1 What this document is
@@ -50,19 +55,19 @@ describe what the proposal would require; they bind nobody until the section is 
 
 | Section | Subject | Status |
 |---|---|---|
-| 2 | Data model | mixed: carried core, ruled storage class, proposed additions |
+| 2 | Data model | mixed: carried core; storage class and the Core and Types split ruled; proposed additions |
 | 3 | Revisions, provenance, history | mixed: carried, with history ruled optional |
 | 4 | Execution model | ruled in outline; field detail proposed |
 | 5 | The six primitives | the set is ruled; request and response shapes proposed |
-| 6 | Callables | async rules ruled; declaration detail proposed |
-| 7 | Events | record default and cardinality ruled; delivery detail proposed |
+| 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail proposed |
+| 7 | Events | record default and cardinality ruled; declarations ruled out of Core; delivery detail proposed |
 | 8 | Discovery and capabilities | carried; additions proposed |
 | 9 | Authorization | carried |
 | 10 | What a store must keep | proposed, built on ruled decisions |
 | 11 | Export boundary | two rules ruled; the rest open |
 | 12 | Problems | carried; new codes proposed |
-| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; addressing open |
-| 14 | What moved out of Core | direction given; not yet confirmed |
+| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; the rest of addressing open |
+| 14 | What moved out of Core | to Types: ruled; to the core library: direction given, not yet confirmed |
 | 15 | Open items | open |
 
 ### 1.4 Conformance
@@ -87,8 +92,11 @@ A | B                                 a choice between shapes
 ```
 
 The notation is for reading only. It is not a schema language. The normative syntax of
-every representation is its JSON Schema projection, and the normative syntax of every
-primitive is its OpenAPI projection (section 13).
+each of Core's own envelopes is its JSON Schema projection, and the normative syntax of
+every primitive is its OpenAPI projection (section 13).
+
+Where a shape has parameters, as in `Reply<T, E>`, the parameters stand for content Core
+does not look inside.
 
 ## 2. Data model
 
@@ -126,7 +134,8 @@ Link = { id, kind: "link", type, revision, storageClass,
 - `revision` is the opaque token for the Resource's current state (section 3.1).
 - `storageClass` says how the Resource is kept (section 2.6).
 - `properties` holds the content the Type governs. `metadata` holds content the Type does
-  not govern. Both are JSON objects, and both are present on Beads and on Links.
+  not govern. Both are JSON objects, and both are present on Beads and on Links. Core
+  stores and returns both and interprets neither (section 2.4).
 - `source` and `target` are References (section 2.5).
 
 Rules carried from v0.1:
@@ -149,13 +158,35 @@ Open: whether a Link's `source` and `target` can change after creation (section 
 
 Who allocates an identifier on `create` is covered in section 5.4.
 
-### 2.4 Type affiliation
+### 2.4 Types and type beads
 
-**Status: carried. The Type system itself is specified in the Types document.**
+**Status: ruled that Core has the concept of a Type and of a type bead and is silent on
+how to interpret either; the type system is specified in Types. The form of `type` is
+carried. The reading of "silent" set out below is proposed.**
 
-`type` is an absolute HTTP(S) URI, or a pinned form `{ uri, revision }` naming one revision
-of the Type definition. Core requires only that every Resource names a Type. What a Type
-means, how it is defined, refined and checked, belongs to Types.
+Every Resource names a Type. A Type is itself a Bead: a **type bead**.
+
+`type` is a Reference (section 2.5) to a type bead. It is an absolute HTTP(S) URI, or the
+pinned form `{ uri, revision }` naming one revision of that bead. The type bead need not
+be in the same Scope as the Resource, nor on the same host.
+
+That is all Core says about Types. Core does not say:
+
+- what a type bead contains;
+- what a Type means, or how one is defined, refined or checked;
+- what may be assumed about a Resource because of the Type it names.
+
+All of that belongs to Types.
+
+Proposed reading. Core still fixes the record a Resource is carried in (section 2.2): its
+identifier, kind, Type, revision, storage class, and the two objects `properties` and
+`metadata`. Core does not look inside those two objects. One well-known Type is the
+exception, because its content is one of Core's own envelopes; section 2.7 names it, and
+a possible second.
+
+Core does not check a Resource against its Type. A layer above Core MAY refuse a write that
+Core would accept. Core provides the place such a refusal is carried (section 12) and does
+not define the rules that produce it.
 
 ### 2.5 References
 
@@ -208,24 +239,48 @@ How long anything is retained is not a storage class. Retention belongs to event
 Open: how a caller chooses a class on `create`, and whether a Resource's class can change
 (section 15).
 
-### 2.7 Data beads and capability beads
+### 2.7 Data beads, capability beads and well-known Types
 
-**Status: proposed (reviewed with the design authority on 2026-11-08; not separately
-ruled).**
+**Status: proposed (the two families were reviewed with the design authority on
+2026-11-08 and not separately ruled). That Core says nothing about what a capability
+bead's declaration contains is ruled (section 2.4). The exact list of well-known Types is
+proposed.**
 
 Beads fall into two families.
 
 - A **data bead** is an ordinary Resource. It is created, updated and deleted through the
   primitives.
-- A **capability bead** describes something the service can do. There are two kinds: a
+- A **capability bead** stands for something the service can do. There are two kinds: a
   **Callable** (section 6), which answers `call`, and an **EventSource** (section 7),
-  which answers `pull`. Both answer `get`, which returns their description.
+  which answers `pull`. Both answer `get`.
 
-A capability bead is typed, self-describing and referenced by URL like any Bead. Its
-storage class is `Intrinsic`. In v0.2 a capability bead is declared by the service. A
-client cannot bring one into being with `create`: a description with nothing wired behind
-it would be a promise the service cannot keep. Creating capabilities at run time is
-deferred (section 15).
+A capability bead is typed and referenced by URL like any Bead. Its storage class is
+`Intrinsic`. In v0.2 a capability bead is declared by the service. A client cannot bring
+one into being with `create`: a declaration with nothing wired behind it would be a
+promise the service cannot keep. Creating capabilities at run time is deferred
+(section 15).
+
+Core names a small set of **well-known Types**. Each is identified by a fixed type bead
+URL, so that a client can recognise what a Bead is from its `type` alone.
+
+| Well-known Type | Core uses it to | Core says about the content of its Resources |
+|---|---|---|
+| Type | mark a type bead | nothing; Types defines it |
+| Callable | mark a Bead that answers `call` | nothing; Types defines the declaration |
+| EventSource | mark a Bead that answers `pull` | nothing; Types defines the declaration |
+| AsyncResult | mark the result bead of an asynchronous call | that it holds a Reply (section 6.5) |
+| ResultOf (placeholder name) | mark the Link from a result bead to the Callable that was called | nothing beyond its endpoints (section 6.5) |
+
+A Resource whose Type refines one of these is treated as one of these. What "refines"
+means is defined by Types; Core relies only on the service knowing which of its Beads
+answer `call` and `pull`.
+
+AsyncResult is the exception to Core's silence about content: a result bead holds a Reply,
+and Reply is one of Core's own envelopes. If the alias proposal of section 2.9 stands, the
+alias Type is a second exception and a sixth well-known Type. Both exceptions are listed
+in section 15.
+
+The fixed URLs of the well-known type beads are not yet assigned (section 15).
 
 ### 2.8 Owned Links
 
@@ -255,6 +310,12 @@ An alias points at a canonical Resource, never at another alias. Resolution is o
 
 Core's only part in aliasing is what `get` does when the identifier names an alias
 (section 5.3). Creating, repointing and removing aliases are core library callables.
+
+This proposal makes Core read one member, `target`, inside a Bead's `properties`. That
+sits badly with section 2.4, under which Core does not look inside `properties`. Whether
+alias resolution stays in `get`, with the alias Type as a well-known Type whose content
+Core defines, or moves to the core library with the rest of aliasing, is open
+(section 15).
 
 ### 2.10 Comments and annotations
 
@@ -392,7 +453,7 @@ Reply<T, E>   = { context, outcome?: Outcome<T, E> }
 ```
 
 - **Result** is closed. It is the operation's own verdict: it succeeded with a value, or
-  it failed with an error of the type it declared.
+  it failed with an error of its own.
 - **Outcome** is open (ruled). It is what happened to the operation. It is the Result, or
   a `fault`, or an arm added by a pack. A reader MUST tolerate an arm it does not know.
 - **Reply** (ruled name) pairs the context with the outcome. It is what every caller gets
@@ -404,8 +465,11 @@ value whose arms include `ok`, `err` and `fault` side by side.
 Proposed reader rule. An `outcome` that is present means the operation is settled. Only
 `ok` means success. An unknown arm is settled and not successful.
 
+`T` and `E` are parameters. For a data primitive, section 5 says what they are. For a
+callable they are JSON that Core carries and does not look inside (section 6.1).
+
 An error does not carry a reason code in Core. If an operation needs to distinguish kinds
-of error, its error type `E` is itself a choice of shapes.
+of error, its error `E` is itself a choice of shapes.
 
 Open: the spelling of the tag that names the arm (section 15).
 
@@ -423,9 +487,10 @@ codes.
 
 The line between the two kinds of failure:
 
-- `err` is declared. The operation's description says what `E` is, and a caller can be
-  written against it.
-- `fault` is not declared by the operation. Any operation can meet any fault.
+- `err` belongs to the operation. For a primitive, Core says what `E` is. For a callable,
+  its declaration does, and declarations are specified in Types. Either way a caller can
+  be written against it.
+- `fault` does not belong to the operation. Any operation can meet any fault.
 
 A timeout is a fault. Cancellation is not a Core arm (section 6.7).
 
@@ -467,7 +532,7 @@ Response = Reply<T, E>
 ```
 
 `input` is specific to the primitive. `T` is the primitive's value on success and `E` its
-declared error. How the frame is carried over HTTP, and which parts ride in the URL, the
+error. How the frame is carried over HTTP, and which parts ride in the URL, the
 headers or the body, is the binding's business (section 13) and is open.
 
 `get`, `create`, `update`, `delete` and `pull` are synchronous: the response is the
@@ -475,15 +540,24 @@ settled outcome. Only `call` may be asynchronous (section 6.4).
 
 ### 5.3 get
 
-**Status: reading a Resource is carried. Alias resolution is proposed.**
+**Status: reading a Resource is carried. Ruled: Core does not define what `get` returns
+for a type bead, a Callable or an EventSource beyond the record every Resource has, nor
+what may be assumed about the Bead that comes back; Types defines those representations
+and the rules. That the record itself stays Core's is the proposed reading of that ruling
+(section 2.4). Alias resolution is proposed.**
 
 ```text
 input = { id, revision? }
-value = the Resource's representation
+value = the Resource's record (section 2.2)
 ```
 
-- `get` works on every Bead and Link, including capability beads, for which it returns
-  the description.
+- `get` works on every Bead and Link, including type beads and capability beads.
+- The value is the record of section 2.2: identifier, kind, Type, revision, storage
+  class, `properties`, `metadata`, and for a Link its endpoints. Core defines that record
+  and nothing inside `properties` or `metadata`, for any Type.
+- For a type bead, a Callable and an EventSource, what `properties` holds is the
+  representation Types defines. Core adds no rule of its own.
+- `get` on a Callable never invokes it. `get` on an EventSource never reads its stream.
 - `revision` asks for an earlier state. It is available only where history is offered
   (section 3.4).
 - A Resource the caller is not authorized to see is reported exactly as a missing one
@@ -498,23 +572,37 @@ instead of answered. Resolution is one hop.
 
 ### 5.4 create
 
-**Status: proposed. The member list and the identifier rules follow v0.1's create
+**Status: ruled, for now, that `create` is a request on the Scope with the Type named in
+the input. The member list and the identifier rules are proposed and follow v0.1's create
 operations.**
 
 ```text
 input (Bead) = { type, id?, properties?, metadata?, revisionProvenance? }
 input (Link) = { type, id?, source, target, properties?, metadata?, revisionProvenance? }
-value        = the created Resource's representation
+value        = the created Resource's record (section 2.2)
 ```
 
-- `type` is required.
+- `create` is addressed to the Scope the new Resource will live in. The Type is a member
+  of the input, not the thing addressed.
+- `type` is required. It is a Reference to a type bead (section 2.4).
 - `id` MAY be supplied by the caller. When it is omitted the service allocates one.
 - Omitted `properties` and `metadata` are empty objects.
 - An identifier already in use is refused. So is an identifier that was used and retired.
-- The input is closed: a member Core does not define is refused, not ignored.
+- The input is closed: a member Core does not define is refused, not ignored. This is
+  about the members of the input itself, not about what is inside `properties` or
+  `metadata`.
+- Core does not check `properties` against the Type. A layer above Core MAY refuse the
+  request (section 12).
 
 `create` makes data Beads and Links only. It does not create capability beads
 (section 2.7).
+
+Considered and set aside: creating a Resource by addressing its type bead, so that a
+request sent to a Type yields a Resource of that Type. A Type has one identity wherever it
+is used, so its type bead's URL may be on another host than the Scope the new Resource
+belongs in, and a request sent there would not reach the service that must store the
+result. Naming one revision of the Type would also need a query parameter on that URL.
+The question may be reopened (section 15).
 
 Open: whether a deleted Bead's identifier can be created again (v0.1 allows it for Beads
 and not for Links), and how a caller selects a storage class (section 15).
@@ -582,12 +670,15 @@ invocation is layered on it, not a seventh primitive. The input shape is propose
 
 ```text
 input = { callable, arguments, mode?: "sync" | "async" }
-value = the callable's declared result type
-error = the callable's declared error type
+value = T, the callable's result
+error = E, the callable's error
 ```
 
-`callable` names a Callable bead. `arguments` is checked against the callable's declared
-parameters. `mode` is covered in section 6.4.
+`callable` names a Callable bead. `arguments`, `T` and `E` are JSON that Core carries and
+does not look inside. What arguments a callable takes and what it returns are stated by
+its declaration, which Types specifies (section 6.1). Core does not check `arguments`
+against anything; a layer above Core MAY refuse the call (section 12). `mode` is covered
+in section 6.4.
 
 ### 5.8 pull
 
@@ -600,6 +691,11 @@ value = { events, cursor, head? }
 ```
 
 `source` names an EventSource bead. The rest is covered in section 7.4.
+
+Proposed for the HTTP binding: `pull` is a GET on the EventSource bead's own URL, with a
+query parameter that selects the events instead of the bead's record, and `after` and
+`limit` as further query parameters. The same URL MAY also serve the events as a held-open
+stream. Section 13.2 has the detail; the binding as a whole is open.
 
 ### 5.9 What is not a primitive
 
@@ -624,26 +720,31 @@ define what a transaction is.
 
 ### 6.1 Declaration
 
-**Status: proposed. The member list follows the v0.1 callables preview.**
+**Status: ruled that the shape of a callable's declaration, and the rules about it, are
+not in Core; Types specifies them. The behaviour Core keeps, listed below, is proposed.**
 
-A Callable is a capability bead (section 2.7). Its representation is its declaration:
+A Callable is a capability bead (section 2.7): a Bead whose Type is the well-known
+Callable Type or refines it.
 
-```text
-Callable = Bead of a callable Type, properties: {
-  description,
-  parameters: [ { name, schema, required?, default?, description? } ],
-  resultSchema?, errorSchema?,
-  modes?: [ "sync" | "async" ],
-  title?
-}
-```
+A callable has a declaration: what arguments it takes, what it returns on success, what
+errors are its own, and which invocation modes it supports. Core does not define the
+declaration's members, where they sit in the Bead, or what `get` on a Callable returns
+beyond the record of section 2.2. Types defines all of that.
 
-- `parameters` describe the arguments, each with a JSON Schema.
-- `resultSchema` is the type `T` of a successful result. `errorSchema` is the type `E` of
-  a declared error.
-- `modes` lists the invocation modes the callable supports (section 6.4).
+What Core keeps is behaviour:
 
-`get` on a Callable returns this declaration and never invokes it.
+- A Callable answers `call` (section 5.7) and `get` (section 5.3). `get` never invokes
+  it.
+- The arguments passed to `call`, and the value or error that comes back, are JSON that
+  Core carries and does not look inside.
+- Core does not check arguments or results against a declaration. A layer above Core MAY
+  refuse a call on those grounds (section 12).
+- A callable supports the synchronous mode, the asynchronous mode, or both
+  (section 6.4).
+
+An earlier state of this draft listed the declaration's members here, following the v0.1
+callables preview: `description`, `parameters`, `resultSchema`, `errorSchema`, `modes`
+and `title`. They are no longer part of Core (section 14).
 
 ### 6.2 What a callable can produce
 
@@ -683,41 +784,90 @@ accepted in discussion.**
 
 Refusal has two levels, and a caller can tell them apart:
 
-1. A callable advertises the modes it supports. A request for a mode the callable does
-   not support is refused as unsupported by the callable.
+1. A callable supports one mode, the other, or both. A request for a mode the callable
+   does not support is refused as unsupported by the callable.
 2. A Scope MAY refuse a mode that the callable supports. That refusal is explicit and is
    distinguishable from the first.
 
 A service never silently substitutes one mode for the other.
 
+Where a callable advertises the modes it supports is part of its declaration, and so is
+specified in Types (section 6.1). The behaviour above does not depend on where that is.
+
 ### 6.5 AsyncResult
 
-**Status: ruled.**
+**Status: mixed. Ruled: AsyncResult is an intrinsic Type that a pack may refine; a result
+bead holds a Reply; `outcome` is absent while the call is pending; the result bead shows
+its `cause`; the projection from a call to its result bead is deterministic in shape
+only; a result bead names its callable; the transformation that gives a result bead its
+shape is defined in Types. The design authority's stated lean, with either form accepted:
+the result bead names its callable by a Link, not by a member. Proposed: the wording of
+Core's own shape rule, the details of that Link, and the mechanics.**
 
 An asynchronous `call` is admitted, not completed. The response names a result bead, and
 the work continues after the response.
 
 ```text
-AsyncResult<T, E> = Bead of the AsyncResult Type,
+AsyncResult<T, E> = Bead of the AsyncResult Type or a refinement of it,
                     properties: { context, outcome?: Outcome<T, E> }
+
+ResultOf          = Link of the ResultOf Type,
+                    source: the result bead,
+                    target: the Callable, pinned to its revision at admission
 ```
 
-- AsyncResult is an intrinsic Type defined by Core. A pack MAY refine it to add its own
-  members; a workflow run is the expected example.
-- The result bead holds a Reply. `outcome` is absent while the call is pending and
-  present once it has settled.
-- `T` and `E` are inferred from the callable's declared result and error types. The shape
-  of the result bead is therefore determined by the declaration. That is the only sense
-  in which the projection from a call to its result bead is deterministic: it fixes the
-  shape, not the content.
-- The result bead shows its `cause` when read.
+Ruled:
+
+- AsyncResult is an intrinsic Type. Core names it as a well-known Type (section 2.7). A
+  pack MAY refine it to add its own members; a workflow run is the expected example.
+- The result bead holds a Reply (section 4.4). `outcome` is absent while the call is
+  pending and present once it has settled.
+- The result bead shows its `cause` when read. It is in `context`.
+- The projection from a call to its result bead is deterministic in shape, not in
+  content.
+- A result bead names the Callable that was called.
+- The transformation from a callable's declaration to the shape of its result bead is
+  defined in Types, with the type system and the declaration formats.
+
+How the result bead names its callable. The design authority accepts either a member on
+the result bead or a Link, and leans to the Link: with Links, the pending calls on a
+callable can be seen from the callable. This draft therefore uses a Link. Its details
+are proposed:
+
+- The Link's source is the result bead. Its target is the Callable, as a pinned
+  Reference (section 2.5) naming the Callable's revision at admission.
+- The Link's Type is a well-known Type that Core names by identity only (section 2.7).
+  The name ResultOf is a placeholder.
+- The Link is owned by the result bead (section 2.8).
+- The Link remains after settlement. The calls pending on a callable are therefore the
+  ResultOf Links that target it whose source has no `outcome`, not all of them.
+
+Proposed wording of Core's own shape rule. `T` and `E` are parameters Core does not look
+inside. Core states the rule without naming a schema:
+
+> Once settled, a result bead holds the Reply the same call would have returned had it
+> been made synchronously: the same arms, the same `T` in `ok`, the same `E` in `err`.
+
+Core says nothing more about shape. Because a result bead names its callable, Types can
+say both of these without Core mentioning a schema:
+
+- the shape of `value` and of `error` in a result bead is the one declared by the
+  callable the result bead names;
+- a declaration may name a refinement of AsyncResult as the Type of its result beads.
+
+Neither sentence is a Core rule. Both are part of the transformation that Types defines.
 
 Proposed mechanics:
 
-- Admission is one transaction. It creates the result bead and mints the cause.
+- Admission is one transaction. It creates the result bead and the ResultOf Link, and
+  mints the cause. Two Resources are created, so the commit produces two change events
+  with the same `transaction` and `cause` (section 7.2).
 - Settlement is an update to the result bead that writes `outcome`.
 - The response to an asynchronous call carries the same Reply frame with `outcome`
   absent, and identifies the result bead.
+
+Open: the storage class of the result bead, and with it that of the ResultOf Link, whose
+target is an intrinsic Resource (sections 2.6 and 15).
 
 ### 6.6 Observing an asynchronous call
 
@@ -744,26 +894,35 @@ to listen reads the result bead with `get` until `outcome` is present.
 
 ### 7.1 EventSource
 
-**Status: proposed (reviewed with the design authority on 2026-11-08). Cardinality and the
-absence of a close operation are ruled, in section 7.6.**
+**Status: proposed (reviewed with the design authority on 2026-11-08). Ruled: the shape
+of an event source's declaration, and the rules about it, are not in Core; Types
+specifies them. Cardinality and the absence of a close operation are ruled, in
+section 7.6.**
 
-An EventSource is a capability bead (section 2.7) that describes one ordered stream of
-events of one declared type.
+An EventSource is a capability bead (section 2.7): a Bead whose Type is the well-known
+EventSource Type or refines it. It stands for one ordered stream of events.
 
-```text
-EventSource = Bead of an event source Type, properties: {
-  eventSchema,          JSON Schema of one event in the stream
-  eventRetention,       how long events are kept (section 7.5)
-  cardinality           "single" | "broadcast" (section 7.6)
-}
-```
+An event source has a declaration: what one of its events looks like, how long its events
+are kept, and whether it has one reader or many. Core does not define the declaration's
+members, where they sit in the Bead, or what `get` on an EventSource returns beyond the
+record of section 2.2. Types defines all of that.
 
-- An EventSource answers two primitives: `get`, which returns this description, and
-  `pull`, which reads the stream.
-- The description is not the stream. Events arriving on the stream do not change the
+What Core keeps is behaviour:
+
+- An EventSource answers two primitives: `get`, which returns its record, and `pull`,
+  which reads the stream.
+- The bead is not the stream. Events arriving on the stream do not change the
   EventSource bead's revision.
 - An EventSource is identified by its bead's URL.
 - Every EventSource is readable. Core has no write-only or two-way stream type.
+- Retention behaves as section 7.5 states, and cardinality as section 7.6 states,
+  wherever the declaration says which applies.
+- What an event carries as its content is JSON that Core does not look inside. The one
+  event whose envelope Core defines is the change event (section 7.2), because it is
+  Core's own report of what the data primitives did.
+
+An earlier state of this draft listed the declaration's members here: `eventSchema`,
+`eventRetention` and `cardinality`. They are no longer part of Core (section 14).
 
 Each Scope has one built-in EventSource, the **changefeed**, whose events report changes
 to the Scope's Resources (section 7.3).
@@ -787,6 +946,9 @@ Event = { id, ordinal, type, source, subject, subjectType,
   commit carries the same `transaction`.
 - `time` is when the change was committed.
 - `data` is the change itself.
+
+This envelope is Core's own wire shape. Whatever Resource content `data` carries is as
+opaque to Core there as it is in the record.
 
 Proposed adjustments:
 
@@ -859,19 +1021,25 @@ Delivery has a required floor and an optional accelerator:
 
 A reader stops by not asking again, or by disconnecting. There is nothing to cancel.
 
+How both are carried over HTTP is proposed in section 13.2.
+
 ### 7.5 Retention and held cursors
 
 **Status: ruled that a held cursor is protected for a stated minimum lifetime. The hard
-failure for a read below the retention floor is carried from v0.1 Events. The policy shape
-is proposed.**
+failure for a read below the retention floor is carried from v0.1 Events. The quantities
+named below are proposed. Where an EventSource states them, and in what written shape, is
+part of its declaration and so belongs to Types.**
+
+The behaviour depends on two quantities:
 
 ```text
-RetentionPolicy = { window, minCursorLifetime? }
-window          = Floor { maxAge?, maxCount? }     keep the most recent events
-                | Until { expiresAt }              keep until a fixed time
+window             Floor { maxAge?, maxCount? }     keep the most recent events
+                 | Until { expiresAt }              keep until a fixed time
+minCursorLifetime  how long a held cursor stays usable
 ```
 
-- A service states each EventSource's retention in its description.
+- A service states each EventSource's retention in that EventSource's declaration
+  (section 7.1).
 - A reader whose cursor has fallen below the retained range receives a failure that says
   so. The service never silently skips ahead and never silently restarts from the
   beginning.
@@ -888,7 +1056,8 @@ events describe.
   receives every event in order. `broadcast` means any number of readers, each with its
   own cursor, each seeing everything. Core has no mode in which several readers compete
   for events; routing work among readers needs a policy, and that belongs to an
-  application.
+  application. Which of the two an EventSource has is stated in its declaration
+  (section 7.1).
 - **Close** (ruled) is not a Core concept. If a stream has an end, the end is an event
   the reader interprets. A final state that must outlive the stream is a member of a
   Bead, not an event.
@@ -913,9 +1082,11 @@ Proposed additions for v0.2. Discovery states:
 - whether cancellation and deadlines are offered (section 6.7);
 - where the changefeed is.
 
-Callables and EventSources are discovered as what they are: Beads. How a client finds the
-set of them is a listing, and listing is a core library callable. How a client finds that
-first callable without a listing is open (section 15).
+Callables and EventSources are discovered as what they are: Beads. A client recognises
+one by its Type (section 2.7) and reads its declaration as Types defines it; discovery
+does not repeat any part of a declaration. How a client finds the set of them is a
+listing, and listing is a core library callable. How a client finds that first callable
+without a listing is open (section 15).
 
 A request that needs a capability the Scope does not offer is refused with
 `capability-not-supported`. An optional feature is never half-present.
@@ -939,7 +1110,9 @@ above.**
 This section states what any store behind a Scope must be able to do. It says nothing
 about how. A store that keeps these promises is acceptable whatever its design.
 
-1. A `type`, `properties` and `metadata` for every Bead and every Link.
+1. A `type`, `properties` and `metadata` for every Bead and every Link. The store keeps
+   `properties` and `metadata` as given. It is not required to understand either, or to
+   resolve the Type.
 2. For every Link, its own identifier, revision and history, with parallel Links allowed.
 3. One identifier space for Beads and Links, in which an identifier is never given to a
    second Resource.
@@ -996,6 +1169,13 @@ Codes carried from the v0.1 write operations, now needed by the primitives:
 `validation-failed`, `type-not-installed`, `identity-taken`, `revision-mismatch`,
 `incident-links-exist`.
 
+`validation-failed` and `type-not-installed` are the place a refusal by a layer above
+Core is reported. Core does not check a Resource against its Type, or a call's arguments
+against a declaration, and defines no rule that produces either code. Core keeps the
+codes and the carrier so that such a layer can refuse a write or a call that Core alone
+would accept. The rules are in Types. Whether Core itself requires anything of a `type`
+it cannot resolve is open (section 15).
+
 Codes carried from the v0.1 callables preview: `callable-not-found`,
 `callable-unavailable`.
 
@@ -1008,13 +1188,13 @@ A problem response to a synchronous request carries the reply `context` as an ex
 member (proposed), so that a failed request can still be traced by its cause.
 
 How the `err` arm of a Result is carried over HTTP is a binding question (section 13).
-v0.1 carried a callable's declared error as a Problem with code `callable-error`.
+v0.1 carried a callable's own error as a Problem with code `callable-error`.
 
 ## 13. Bindings: HTTP, JSON Schema, OpenAPI
 
 ### 13.1 Syntax and semantics
 
-**Status: ruled.**
+**Status: ruled. The list of Core's own envelopes is proposed.**
 
 This document is semantics: what a representation means and what each primitive does.
 Syntax is two projections onto languages that already exist:
@@ -1024,9 +1204,27 @@ Syntax is two projections onto languages that already exist:
 
 Core defines no description language of its own.
 
+The representations Core itself defines are envelopes, and they are still written in JSON
+Schema:
+
+- the Bead and Link record (section 2.2);
+- Result, Outcome and Reply (section 4.4);
+- the change event (section 7.2);
+- the Problem (section 12).
+
+That is wire shape, not a type system. Each of these schemas fixes the envelope and
+leaves what it carries unconstrained: `properties`, `metadata`, a callable's arguments,
+value and error, and the content of an event on any stream other than the changefeed.
+Schemas for those are the business of Types.
+
 ### 13.2 The HTTP binding
 
-**Status: open. The v0.1 binding is described for reference. It is not carried.**
+**Status: open, with one point ruled for now: `create` is a request on the Scope. The
+form of `pull` below is proposed. The v0.1 binding is described for reference. It is not
+carried.**
+
+Ruled for now: `create` is sent to the Scope, with the Type named in the body
+(section 5.4). Sending it to the type bead's URL was considered and set aside.
 
 In v0.1:
 
@@ -1053,6 +1251,21 @@ Also open here: how the common frame (section 5.2) maps onto HTTP, in particular
 the context travels, how the `err` arm is carried, and how an admitted asynchronous call
 is answered.
 
+Proposed form of `pull`. It answers the third question for `pull` only, and only as a
+proposal:
+
+- A finite read is a GET on the EventSource bead's own URL. A query parameter selects the
+  events instead of the bead's record; v0.1 used `view=events` on a Resource's URL for
+  the same purpose.
+- `after` and `limit` are query parameters, and so are `from` and `representation`.
+- The response body is the value of section 7.4: one page of events, a cursor, and
+  `head`.
+- Push, where offered, is the same URL and the same query, requested with
+  `Accept: text/event-stream`. Each event in the stream carries an identifier that is the
+  cursor for resuming after that event, so a reader that reconnects with the standard
+  `Last-Event-ID` header resumes exactly as it would with `after`.
+- A service that does not offer push answers the same request with the finite read.
+
 ### 13.3 The projections
 
 **Status: open.**
@@ -1062,8 +1275,11 @@ sections above as each is ruled.
 
 ## 14. What moved out of Core
 
-**Status: direction given by the design authority; not yet confirmed. Nothing is removed
-by this draft.**
+**Status: two moves with different standing. To the core library: direction given by the
+design authority; not yet confirmed. To Types: ruled. Nothing is removed from v0.1 by this
+draft.**
+
+#### To the core library
 
 The direction given is that Core defines the six primitives and what they need, that the
 separate Write, Events and Transfer documents go away, and that all further surface is
@@ -1085,9 +1301,33 @@ are.
 | Event records, cursors, retention (Events) | Core, section 7 |
 | Facts that are not Resources: alias, identity, association state (Events, Transfer) | not carried; an alias is a Bead (section 2.9) |
 | Export packages and admission (Transfer) | boundary in Core section 11; operations in core library |
-| Callable declaration and invocation (Callables preview) | Core, section 6 |
+| Callable invocation (Callables preview) | Core, section 6 |
+| Callable declaration (Callables preview) | Types (see below) |
 | Callable registration and command-line mapping (Callables preview) | core library and the CLI specification |
 | Type definitions and checking (Types) | stays in Types, which also moves to v0.2 |
+
+#### To Types
+
+Ruled: Core carries no type system and no declarations. Types defines the type system,
+the declaration formats, the representation `get` returns for a type bead, a Callable and
+an EventSource, and the transformation that gives an asynchronous result bead its shape.
+
+Each row below was in an earlier state of this draft or in the v0.1 callables preview.
+The last column is what stays in Core beside it.
+
+| Item | Was in | Moves to | Core keeps |
+|---|---|---|---|
+| What a type bead contains; how a Type is defined, refined and checked | Types already | Types | the concept of a Type and a type bead; `type` as a Reference (section 2.4) |
+| What `get` returns for a type bead, a Callable and an EventSource, inside `properties` | draft sections 5.3, 6.1, 7.1 | Types | the record every Resource has (sections 2.2, 5.3) |
+| Callable declaration members: `description`, `parameters`, `resultSchema`, `errorSchema`, `modes`, `title` | draft section 6.1 | Types | `call`; arguments, value and error as opaque JSON (sections 5.7, 6.1) |
+| Where a callable advertises its modes | draft sections 6.1, 6.4 | Types | the caller's choice of mode and the two distinguishable refusals (section 6.4) |
+| Checking arguments against declared parameters | draft section 5.7 | Types | the place a refusal is carried (section 12) |
+| The shape of `value` and `error` in a result bead, derived from the callable's declaration | draft section 6.5 | Types | the shape rule in Core's own words, and the Link from a result bead to its callable (section 6.5) |
+| Naming a refinement of AsyncResult as the Type of a callable's result beads | draft section 6.5 | Types | AsyncResult as a well-known, refinable Type (sections 2.7, 6.5) |
+| EventSource declaration members: `eventSchema`, `eventRetention`, `cardinality` | draft section 7.1 | Types | `pull`; the retention and cardinality behaviour (sections 7.4 to 7.6) |
+| Where retention is stated and its written shape | draft section 7.5 | Types | the hard failure below the floor and the held-cursor minimum (section 7.5) |
+| The rules that produce `validation-failed` and `type-not-installed` | draft sections 5.4, 12 | Types | the codes and the carrier (section 12) |
+| What it means for one Type to refine another, including a well-known Type | draft sections 2.7, 6.5 | Types | the identities of the well-known Types (section 2.7) |
 
 ## 15. Open items
 
@@ -1113,7 +1353,7 @@ Primitives:
 9. What a delete does about Links pinned to a revision of the deleted Bead.
 10. Whether `delete` and `update` stay bare, with controls in callables.
 11. The HTTP binding, and whether primitives address the Resource directly
-    (section 13.2).
+    (section 13.2). `create` on the Scope is ruled for now; the rest is open.
 
 Execution:
 
@@ -1139,6 +1379,31 @@ Discovery and export:
 History:
 
 22. Where history is offered, the full reading surface for Links.
+
+Core and Types:
+
+23. The exact list of well-known Types Core names, and their fixed URLs (section 2.7).
+24. Whether the record of section 2.2 stays Core's. The ruling is that Core does not
+    define what comes back from a `get`; this draft reads that as silence about what is
+    inside `properties` and `metadata`, with the record itself kept (sections 2.4, 5.3).
+    The reading awaits the design authority.
+25. Alias resolution in `get` reads a member inside `properties` (section 2.9). Either
+    the alias Type becomes a well-known Type whose content Core defines, or resolution
+    moves to the core library.
+26. AsyncResult: the wording of Core's own shape rule, and the details of the Link from
+    a result bead to its callable: its well-known Type and that Type's name, ownership by
+    the result bead, and that it remains after settlement (section 6.5). These await the
+    design authority.
+27. The storage class of the Link from a result bead to its callable, whose target is an
+    intrinsic Resource, and what an export does with it (sections 2.6, 6.5, 11). This
+    goes with item 16.
+28. Creating a Resource by addressing its type bead. Considered and set aside for now
+    (section 5.4).
+29. The HTTP form of `pull` (section 13.2).
+30. What Core requires of a `type` Reference the service cannot resolve: nothing, or a
+    refusal (sections 2.4, 12).
+31. Whether the quantities of a retention policy are named by Core, as section 7.5 does,
+    or only by Types.
 
 ## Appendix A. Decisions folded into this text
 
@@ -1173,7 +1438,7 @@ Rulings by the design authority, by date, with the section that carries each.
 - Outcome is an open choice; packs may add arms. (4.4)
 - An AsyncResult carries one tagged `outcome`, absent while pending. (6.5)
 - An AsyncResult's value and error types are inferred from the callable's declaration.
-  (6.5)
+  (6.5; since 2026-11-11 the inference itself is stated by Types)
 - An AsyncResult shows its `cause` when read. (6.5)
 - AsyncResult is an intrinsic Type that packs may refine. (6.5)
 - An asynchronous call has a single event channel that fires on the outcome. (6.6)
@@ -1190,7 +1455,34 @@ Rulings by the design authority, by date, with the section that carries each.
   for the replacement. (2.8)
 - Core defines the six primitives and what they need; further surface, such as creating
   and removing aliases, is specified in the core library. (5.9, 14)
+- Core carries no type system. First stated on this date and confirmed on 2026-11-11: "So
+  Core is absent ANY schematization or type system whatsoever. It's raw data access."
+  and "Then types can define the declaration shapes and UDTs." (2.4, 6.1, 7.1, 14)
+
+2026-11-11
+
+- Core has the concept of a Type and of a type bead and does not say how to interpret
+  either: "core includes the CONCEPT of a type and type bead, but is silent on how to
+  interpret it. Core does NOT define what comes back from a get, nor what one can assume
+  about the resultant bead. Same for callables." This was offered as a thought and
+  confirmed the same day, when the rework of this document on that basis was approved.
+  (2.4, 2.7, 5.3, 6.1)
+- Types defines the `get` representation "for callables, streams, and types. And the
+  rules." (5.3, 6.1, 7.1, 14)
+- `create` stays a request on the Scope, for now: "We can live to fight another day on
+  create. For now it's fine and yes it's on the scope itself." (5.4, 13.2)
+- An asynchronous result names its callable: "Yes on the link". On whether that is a
+  member or a Link: "Either will work. Links allow you to easily see how many pending
+  calls there are on a given callable." The Link form is therefore a stated lean, not a
+  ruling. (6.5)
+- Types defines the type system, the declaration formats, and the transformation that
+  gives an asynchronous result its shape. (6.5, 14)
 
 Stated preferences, not final: the arm names `ok` and `err`; a closed Result inside an
 open Outcome; `fault` as the system arm carrying a Problem; no reason code in Core. (4.4,
 4.5)
+
+Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
+stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
+result bead; the details of the Link from a result bead to its callable; the HTTP form of
+`pull`. Each is marked proposed where it appears and listed in section 15.
