@@ -120,6 +120,31 @@ service-managed one — mints a new revision (the revision is the ETag, over the
 representation). A metadata change revisions it too; there is no field, in `properties` or
 `metadata`, that changes without minting a revision.
 
+### 3.3 Local contribution and the effective schema
+
+Status: **proposed** (pinned with Lydia for M6).
+
+`propertiesSchema` holds only the definition's **local** structural contribution — its own
+record body, plus any **inline** shape written directly in a conformance list (`is T, { … }`,
+whose anonymous fields have no definition to point a Link at, so they live here). A **named**
+parent's fields are never copied in; the parent rides in the definition's owned Refines Links
+(section 4), which carry the nominal identity. Parents must share the definition's category
+(§4); inline shapes are structural and exempt.
+
+A definition's **effective** (validation) schema is `allOf(` its local `propertiesSchema`, the
+effective schema of each Refines target `)`, computed by **walking the owned Refines Links on
+read** — never materialized into the stored descriptor. A change to a parent's fields then flows
+to every refiner for free, and the stored shape stays a single source of truth, matching the
+conformance law (`type X is T` holds iff every X-value satisfies `v is T` — the Link is that
+law's carrier, the structural obligation its consequence). Each field carries `x-definedBy`
+naming the definition it came from (an inline shape's fields are the definition's own,
+`x-definedBy` = the definition). Two parents whose fields disagree make the effective `allOf`
+unsatisfiable, so the type is uninhabited — a checker concern, separate from this shape.
+
+A store **may** expose a derived *resolved* schema (the materialized `allOf`, `x-definedBy`
+preserved per field) for readers that do not walk the graph — explicitly marked derived,
+regenerated on read, never the stored source of truth.
+
 ## 4. Conformance: Refines and owned Links
 
 Status: carried. Owned Links **ruled to stay** (design authority, 2026-11-11).
