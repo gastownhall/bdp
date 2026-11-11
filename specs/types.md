@@ -21,9 +21,8 @@ streams reads this document.
 
 ### 1.1 Status markers
 
-Each section carries a status line. **ruled** — the design authority has decided it.
-**proposed** — a first design, not yet ruled. **carried** — carried from v0.1 Types, still
-in force. **open** — named but undecided. No line means carried.
+A section is **ruled** unless a line marks it **open** (named but undecided). The open items
+are collected in section 10.
 
 ### 1.2 Two layers
 
@@ -41,11 +40,9 @@ a Type that specializes another — is the single opt-in into the full type syst
 
 ### 1.3 Conformance
 
-Status: proposed.
-
-Conformance cases are required for **ruled** and **carried** sections and land as each
-**proposed** section is ruled: the specification may run ahead of an implementation, and it
-may not run ahead of its conformance suite. The suite meant is the **live conformance kit**,
+Conformance cases are required for every ruled section (the whole spec bar the open items in
+section 10): the specification may run ahead of an implementation, but not ahead of its
+conformance suite. The suite meant is the **live conformance kit**,
 which grows as sections are ruled; the frozen historical catalogs stay pinned as they are
 and are not governed by this rule. (Mirrors Core §1.4.)
 
@@ -89,7 +86,7 @@ The descriptor is an open JSON object except for the reserved names below. Its
 | `version` | SemVer text | Informational author label; not a revision, default or compatibility proof. |
 | `abstract` | boolean, default false | True forbids direct affiliation with this exact definition, not its refinements. |
 | `final` | boolean, default false | True forbids any Type from refining this definition. Pairs with `abstract` (Lumen's `final` / `abstract`). |
-| `propertyAccess` | map of JSON Pointer → `writable` \| `init-only` \| `read-only` | Member write policy, independent of value schema (§3.2). |
+| `propertyAccess` | map of JSON Pointer → `init-only` \| `read-only` | Write-policy **exceptions**; a member not listed is `writable` (§3.2). |
 
 **Category-specific:** BeadType adds `incoming`, `outgoing` (participation constraints —
 `{ linkTypes, min?, max? }` bounding incident Link families) and `ownsOutgoing` (the outgoing
@@ -111,10 +108,11 @@ this revision means. Absence supplies no external resources.
 
 ### 3.2 propertyAccess
 
-`propertyAccess` governs **who** may write a property, independent of its value schema.
-`writable` — the client may set and change it. `init-only` — set at creation, immutable after.
-`read-only` — the client may not write it; the service owns the value and may change it (so it
-is read-only *to the client*, not immutable — unlike `init-only`, which freezes after creation). The mode governs the writer, not whether
+`propertyAccess` governs **who** may write a property, independent of its value schema. A member
+is `writable` by default; `propertyAccess` lists only the **exceptions**. `init-only` — set at
+creation, immutable after. `read-only` — the client may not write it; the service owns the value
+and may change it (read-only *to the client*, not immutable — unlike `init-only`, which freezes
+after creation). The mode governs the writer, not whether
 a change mints a revision: any actual value change — by client or service, including a
 read-only one — mints a new revision (the revision is the ETag, over the whole
 representation). A metadata change revisions it too; there is no field, in `properties` or
@@ -122,9 +120,7 @@ representation). A metadata change revisions it too; there is no field, in `prop
 
 ### 3.3 Local contribution and the effective schema
 
-Status: **proposed** (pinned with Lydia for M6).
-
-`propertiesSchema` holds only the definition's **local** structural contribution — its own
+Pinned with Lydia for M6. `propertiesSchema` holds only the definition's **local** structural contribution — its own
 record body, plus any **inline** shape written directly in a conformance list (`is T, { … }`,
 whose anonymous fields have no definition to point a Link at, so they live here). A **named**
 parent's fields are never copied in; the parent rides in the definition's owned Refines Links
@@ -147,7 +143,7 @@ regenerated on read, never the stored source of truth.
 
 ## 4. Conformance: Refines and owned Links
 
-Status: carried. Owned Links **ruled to stay** (design authority, 2026-11-11).
+Owned Links **ruled to stay** (design authority, 2026-11-11).
 
 Direct conformance is declared by an **owned Refines Link** from one definition Bead to
 another, pinning the exact target definition revision. The authoritative declarations for a
@@ -166,9 +162,8 @@ kinds must agree (no BeadType-to-LinkType conformance).
 
 ## 5. Links and link constraints
 
-Status: **ruled** (shape — multiplicity in the edge, `{min, max}`, `reflexive`; design
-authority 2026-11-11); details proposed. `linkConstraints` is the LinkType descriptor's
-required closed object. Multiplicity lives on the endpoints, inside each edge.
+`linkConstraints` is the LinkType descriptor's required closed object. Multiplicity lives on the
+endpoints, inside each edge.
 
 ```json
 "linkConstraints": {
@@ -210,8 +205,8 @@ carries no structural type constructor of its own.
 
 ## 6. Built-in declaration shapes
 
-Status: **proposed** (new; the surface moved from Core per the design authority, 2026-11-11).
-These are the declarations Core stores but does not interpret. A `get` on any of them returns
+The declaration surface moved from Core (design authority, 2026-11-11). These are the
+declarations Core stores but does not interpret. A `get` on any of them returns
 the representation and never invokes or subscribes.
 
 ### 6.1 Callable
@@ -273,8 +268,8 @@ The bead is not the stream; its events do not change its revision.
 
 ### 6.3 AsyncResult
 
-Status: **proposed**. The transformation from a callable's declaration to the shape of its
-result bead is Types' (design authority: "the transformation on the async result").
+The transformation from a callable's declaration to the shape of its result bead is Types'
+(design authority: "the transformation on the async result").
 
 AsyncResult is a well-known, refinable Type; a result bead's `properties` are
 `{ context, outcome? }` — `context` is Core's reply context `{ cause, transaction?, metadata? }`
@@ -310,7 +305,7 @@ codes `validation-failed` and `type-not-installed` and Core's Problem carrier. C
 checks nothing. Whether Core alone requires anything of a `type` it cannot resolve is open
 (Core item 30).
 
-**Type-declared delete effects.** Status: **ruled** (design authority, 2026-11-11). The
+**Type-declared delete effects** (ruled, 2026-11-11). The
 `delete` primitive only deletes; it consults no Type. It refuses with `incident-links-exist`
 while a live Link is attached — a Core structural rule, not Type-driven. The fuller delete
 (several Beads, attached Links, cascade, dry run) is a **core-library callable**. So v0.1's
@@ -321,8 +316,6 @@ its owned declarations are removed first, or through the delete callable. v0.1 `
 are retired, not carried.
 
 ## 9. Well-known Types
-
-Status: carried (pattern) / **proposed** (new identities).
 
 Well-known Types are named by **fixed HTTPS URLs used as identity, not location**, under
 `https://github.com/gastownhall/bdp/types/…`, with opaque publication revisions; any service
