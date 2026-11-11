@@ -151,7 +151,7 @@ export function provisionReference(extra = {}, witnessExtra = {}) {
       conditions: {
         retainedDetailWindowMs: fixture.minimumDetailWindowMs,
         graphRetainedDetailWindowMs: fixture.minimumGraphDetailWindowMs,
-        unownedLinkFixture: true,
+        linkFixture: true,
         hierarchicalAliasFixture: true,
       },
       witnesses: {

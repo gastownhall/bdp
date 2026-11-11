@@ -69,7 +69,7 @@ export const UNCOVERED_REQUIRED = Object.freeze([
     id: "write.remaining-five-operations",
     source: `${write}#eight-distinct-ordinary-targets`,
     reason:
-      "Unowned local Link CRUD and alias lifecycle/replay have narrow witnesses; remaining malformed, authorization, identity, owned-state and recovery variants are not implemented.",
+      "Local Link CRUD and alias lifecycle/replay have narrow witnesses; remaining malformed, authorization, identity and recovery variants are not implemented.",
   },
   {
     id: "write.identity-and-admission",
@@ -78,10 +78,10 @@ export const UNCOVERED_REQUIRED = Object.freeze([
       "Allocation collisions, remaining request/media/key admission variants, bounds and numeric cases are not implemented. The single generic-JSON 415 witness below is partial coverage only.",
   },
   {
-    id: "write.authorization-and-owned-state",
-    source: `${write}#owned-state-effects`,
+    id: "write.authorization-and-protected-state",
+    source: `${write}#admission-authorization-and-limits`,
     reason:
-      "Retained disclosure, authorization changes, protected Type/native constraints and owner effects are not implemented.",
+      "Retained disclosure, authorization changes and protected Type/native constraints are not implemented.",
   },
   {
     id: "write.concurrent-and-crash-recovery",
@@ -118,7 +118,7 @@ const requiredObligationIds = Object.freeze([
   "core.http-and-selection",
   "write.remaining-five-operations",
   "write.identity-and-admission",
-  "write.authorization-and-owned-state",
+  "write.authorization-and-protected-state",
   "write.concurrent-and-crash-recovery",
 ]);
 
@@ -648,7 +648,7 @@ export async function runCurrentProvider(
             [
               "retainedDetailWindowMs",
               "graphRetainedDetailWindowMs",
-              "unownedLinkFixture",
+              "linkFixture",
               "hierarchicalAliasFixture",
             ],
             ["retainedDetailWindowMs"],
@@ -1163,20 +1163,19 @@ export async function runCurrentProvider(
           conditions.graphRetainedDetailWindowMs <= 0)
       )
         throw new HarnessError("Graph retained-detail condition must be a positive safe integer");
-      for (const name of ["unownedLinkFixture", "hierarchicalAliasFixture"])
+      for (const name of ["linkFixture", "hierarchicalAliasFixture"])
         if (conditions?.[name] !== undefined && typeof conditions[name] !== "boolean")
           throw new HarnessError("Adapter fixture condition must be boolean");
     } catch {
       graphConditionsValid = false;
       report.harnessFailure = "Graph fixture conditions are invalid";
     }
-    // A recipe's Link is the provider saying what its unowned Link fixture is.
-    const unownedLinkFixture =
-      conditions?.unownedLinkFixture === true || recipe?.link !== undefined;
+    // A recipe's Link is the provider saying what its Link fixture is.
+    const linkFixture = conditions?.linkFixture === true || recipe?.link !== undefined;
     const graphRequested =
       allowMutation &&
       discovered?.profile === "write" &&
-      (unownedLinkFixture ||
+      (linkFixture ||
         (aliases !== undefined &&
           conditions?.hierarchicalAliasFixture === true &&
           (!idempotent ||
@@ -1226,7 +1225,7 @@ export async function runCurrentProvider(
             "No current requested graph retained-detail window; remaining alias subjourney is not run",
           );
       };
-      // Only this fixture setup is shared; aliases do not depend on Link ownership.
+      // Only this fixture setup is shared; aliases do not depend on the Link fixture.
       const linkType = recipe?.link?.type ?? fixture.linkType;
       const linkLocal = recipe?.link ? spell(recipe.link.id) : fixture.linkId;
       // Undefined until the service allocates it, when the recipe says it does.
@@ -1330,10 +1329,10 @@ export async function runCurrentProvider(
           return false;
         }
       };
-      if (!unownedLinkFixture) {
+      if (!linkFixture) {
         graphNotRun(
           ["write.link-create", "write.link-update", "write.link-delete"],
-          "No explicit unowned Link fixture condition; Link subjourney is not run",
+          "No explicit Link fixture condition; Link subjourney is not run",
         );
       } else {
         await graphStep("write.link-create", async () => {
@@ -1366,7 +1365,6 @@ export async function runCurrentProvider(
             assert.deepEqual(linkCreated.resource[field], body[field]);
           for (const field of ["properties", "metadata"])
             wroteBack(linkCreated.resource[field], body[field], field);
-          assert.equal(linkCreated.ownerRevisions, undefined);
           assert.deepEqual(await pointLink(), linkCreated.resource);
           await unchangedBeads();
         });
@@ -1385,7 +1383,6 @@ export async function runCurrentProvider(
             for (const field of ["type", "properties", "metadata", "source"])
               assert.deepEqual(linkUpdated.resource[field], linkCreated.resource[field]);
             assert.equal(linkUpdated.resource.target, beads[2].id);
-            assert.equal(linkUpdated.ownerRevisions, undefined);
             assert.deepEqual(await pointLink(), linkUpdated.resource);
             const noop = success(
               await post(
@@ -1397,7 +1394,6 @@ export async function runCurrentProvider(
             assert.equal(noop.outcome, "updated");
             assert.equal(noop.changed, false);
             assert.deepEqual(noop.resource, linkUpdated.resource);
-            assert.equal(noop.ownerRevisions, undefined);
             assert.deepEqual(await pointLink(), linkUpdated.resource);
             await unchangedBeads();
           });
@@ -1548,7 +1544,6 @@ export async function runCurrentProvider(
               revision: live.revision,
             },
           });
-          assert.equal(result.ownerRevisions, undefined);
           const absent = await exchange(routes, linkId);
           assert([404, 410].includes(absent.status));
           const problem = json(absent, absent.status, "readProblem", "application/problem+json");

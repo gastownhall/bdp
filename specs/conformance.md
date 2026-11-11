@@ -90,20 +90,13 @@ selection and runtime qualification remain required before adoption.
 
 #### Owned-Link wildcard conformance rows
 
-These rows name the Owned-Link wildcard obligations.
-`packages/conformance/catalog/owned-wildcard-v1.json` carries their metadata and
-source citations. Metadata alone is not executable evidence; claims require
-the applicable runs under `packages/conformance/matrices/README.md`.
-
-| Row | Obligation |
-| --- | --- |
-| `read.owned-wildcard.declaration` | A Bead Type Descriptor's `ownsOutgoing` MAY carry the wildcard entry `"*"`, alone or beside explicit entries, and is served schema-valid; a Link Type Descriptor carries no `ownsOutgoing` |
-| `read.owned-wildcard.max-required` | The wildcard entry is exactly `{ max }`: a wildcard without `max`, or with a `label`, is not a valid descriptor |
-| `read-update.owned-wildcard.explicit-precedence` | An explicitly declared Link Type is governed by its own entry's `max`; the wildcard's `max` bounds the Bead's whole owned set, the explicitly declared types' Links included |
-| `read.owned-wildcard.explicit-max-bounded` | An explicitly declared entry's `max` does not exceed the wildcard's `max` in the same descriptor: a descriptor whose explicit `max` exceeds the wildcard's is not a valid descriptor and is not installed, although the schema bundle accepts it |
-| `read.owned-wildcard.present-entries` | A wildcard owner's `ownedLinks` carries one entry per owned Link Type present plus an empty entry per explicitly declared type, keyed by Link Type URL and never by `"*"`, and is present, possibly empty, whenever the Type owns |
-| `read-update.owned-wildcard.undeclared-type-versions-source` | Creating, updating, or deleting a Link whose type is owned only through the wildcard versions the source Bead and never the target |
-| `read.owned-wildcard.closure` | A view is closed over wildcard-owned Links: a Bead that owns a Link to a hidden Bead is hidden from that view |
+Owned Links are removed from [Core](profiles/core/core.md) and
+[Write](profiles/write/write.md). This index therefore lists no Owned-Link
+wildcard row, and no row whose obligation is an owned Link's effect on its
+source. The frozen catalogs under `packages/conformance/catalog/` keep those
+rows against the historical text they cite; they are not obligations of the
+current text. This heading remains as the navigation target of the former
+anchor.
 
 #### Numeric-model conformance rows
 
@@ -133,7 +126,7 @@ coverage and current-input requirements.
 | Scenario | Required behavior |
 | --- | --- |
 | `history.discovery` | Complete optional History on all three profiles |
-| `history.exact` | Exact Bead and Link records preserve the requested revision and complete owned state |
+| `history.exact` | Exact Bead and Link records preserve the requested revision and the complete record |
 | `history.query` | Opaque once-decoded revisions and rejected mixtures |
 | `history.authorization` | Whole-record authorization and independent subject-history refusal gate |
 | `history.diagnoses` | Five evidence-gated read diagnoses and bounded missing-state details |
@@ -195,11 +188,9 @@ Read+Update discovery row does not restore the Read-only shape.
 | `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a Link incident through an unpinned endpoint, or pinned with no other live in-Scope endpoint, fails it with `incident-links-exist` |
 | `read-update.singleton.incident-links-nondisclosure` | A Bead deletion blocked by hidden incident Links fails with `incident-links-exist` and withholds the hidden Links that caused it |
 | `read-update.singleton.create-link` | `create-link` resolves endpoint spellings to canonical URLs and echoes a pin byte-identically |
-| `read-update.singleton.update-link` | `update-link` returns the Link postimage; an unowned Link's update moves only the Link's own revision and versions no endpoint |
+| `read-update.singleton.update-link` | `update-link` returns the Link postimage; a Link's update moves only the Link's own revision and versions no endpoint |
 | `read-update.singleton.delete-link` | `delete-link` returns the deleted identity and the Link then reads as `404` |
-| `read-update.singleton.owned-link-source-revision` | An effectful owned-Link creation, update, or deletion carries `source` and `sourceRevision` and versions the source; an unowned one carries neither and versions no endpoint |
-| `read-update.singleton.owned-link-no-op` | A semantic no-op update of an owned Link retains the Link's revision and the entire `revisionProvenance` envelope and reports the source's unchanged revision in `sourceRevision` |
-| `read-update.singleton.attribution` | The `revisionProvenance` input is recorded on every version an effectful mutation mints, the owned source's included; a semantic no-op keeps the prior version's revision and the entire `revisionProvenance` envelope |
+| `read-update.singleton.attribution` | The `revisionProvenance` input is recorded on every version an effectful mutation mints; a semantic no-op keeps the prior version's revision and the entire `revisionProvenance` envelope |
 | `read-update.singleton.expected-revision` | A matching `expectedRevision` applies; a stale one fails with `revision-mismatch` and changes nothing |
 | `read-update.singleton.expected-revision-race` | Of two concurrent guarded updates of one Resource, exactly one applies and the other fails with `revision-mismatch` |
 | `read-update.singleton.hidden-subject` | A subject or in-Scope endpoint hidden from the request's Authorization View fails with the uniform `resource-not-found`, never `revision-mismatch` or `forbidden` |
@@ -235,7 +226,7 @@ Read+Update discovery row does not restore the Read-only shape.
 | `read-update.sequence.member-problem-shape` | A member problem carries its would-be `status`, `operationIndex`, and `operationName` when declared, inside a `200 OK` envelope |
 | `read-update.sequence.retry-after-hint` | A member problem with `retry: after-delay` MAY carry `retryAfter` delay-seconds; no other member problem carries it |
 | `read-update.sequence.carrier-rejection` | An oversized member count, a repeated or invalid key or name, a forward, unknown, or wrong-kind `@name` reference, a malformed later member, a non-JSON-Pointer patch path, or a stray `Idempotency-Key` field is rejected before execution with a direct problem, and nothing executes |
-| `read-update.sequence.contextual-validation` | Schema validity is not admission: Scope containment, Resource kind, `@name` kind, ownership, result correspondence, and key and name uniqueness are enforced by the authority, and a wrong-kind durable reference fails with `resource-not-found` |
+| `read-update.sequence.contextual-validation` | Schema validity is not admission: Scope containment, Resource kind, `@name` kind, result correspondence, and key and name uniqueness are enforced by the authority, and a wrong-kind durable reference fails with `resource-not-found` |
 | `read-update.sequence.idempotent-retry` | A retried sequence returns every retained disposition at the present member's position without re-execution |
 | `read-update.sequence.disconnect` | An admitted sequence runs every remaining member to its terminal disposition after the client disconnects, and a retry recovers the lost response member by member |
 | `read-update.sequence.internal-fault` | An unexpected internal fault mid-sequence is the body-less `500`; members with durable dispositions stay retained and the faulting member's claim is cleared |
@@ -321,7 +312,6 @@ profile-specific response vehicle.
 | `transactional.batch.transaction-limits` | Advertised transaction limits fail the whole transaction without partial effect |
 | `transactional.batch.duration-limit` | Exceeding transaction.duration is a permanent limit-exceeded failure naming the limit, not a transient abort |
 | `transactional.batch.deletion-safety` | Deleting a Bead with live incident Links fails the transaction |
-| `transactional.batch.owned-link-transitions` | Several owned-Link transitions of one source in one batch mint one source version and one updated Event each, in operation order, each carrying its attribution |
 | `transactional.batch.no-op-entries` | A no-op update reports updated at the retained revision, and an all-no-op transaction completes without a group or effectPosition |
 | `transactional.batch.revision-guard-race` | Racing guarded updates serialize into one success and one revision-mismatch |
 | `transactional.batch.aggregate-constraint-race` | Racing Link creations cannot jointly cross a maximum multiplicity |
@@ -329,7 +319,7 @@ profile-specific response vehicle.
 | `transactional.set.zero-match` | A zero-match set operation reports matched 0 and induces no Events |
 | `transactional.set.cardinality` | A matched count outside the supplied cardinality fails the transaction with cardinality-violated |
 | `transactional.set.singleton-targets` | The update-where and delete-where singleton targets accept the set-operation body without the discriminator and return receipts |
-| `transactional.set.attribution-fanout` | A set mutation's attribution is recorded on every version it mints, owned sources included |
+| `transactional.set.attribution-fanout` | A set mutation's attribution is recorded on every version it mints |
 | `transactional.singleton.receipt` | Singleton targets execute one-operation transactions and return receipts under the batch statuses |
 | `transactional.singleton.semantics` | A singleton and the equivalent one-operation batch have identical allocation, validation, idempotency, and Event semantics |
 | `transactional.receipt.readable` | Receipts are independently readable with GET and HEAD |
@@ -338,13 +328,12 @@ profile-specific response vehicle.
 | `transactional.receipt.nondisclosure` | Unknown, foreign-principal, retracted, forgotten, and prior-epoch receipt URLs share one 404 |
 | `transactional.receipt.root` | The receipts root is a namespace with no listing or key lookup |
 | `transactional.receipt.headers` | Receipt responses carry the serving request's observation in the response fields and the execution's facts in the body |
-| `transactional.receipt.reauthorization` | A view change withholds record-bearing entries under owned closure without changing the disposition |
+| `transactional.receipt.reauthorization` | A view change withholds record-bearing entries without changing the disposition |
 | `transactional.receipt.reauthorization-paths` | The synchronous response, a duplicate's response, later reads, pages, and sequence projections share one authorization projection |
 | `transactional.receipt.non-record-entries` | Matched counts, deleted and erased identities, withheld entries, and failed problems are served as retained |
 | `transactional.receipt.whole-withheld` | A completed receipt whose every entry is withheld reports detail withheld; a failed receipt is never withheld |
 | `transactional.receipt.pending-202` | The original submission receives 202 only past the wait bound; a duplicate may receive it any time before terminal |
 | `transactional.receipt.deleted-identity` | A deleted entry carries the identity record with the final live revision |
-| `transactional.receipt.owned-link-source` | Owned-Link entries carry source and sourceRevision together on creation, update, and deletion |
 | `transactional.receipt.problem-shape` | A receipt problem carries the would-be status, the failing operationIndex, and a request-body pointer |
 | `transactional.receipt.transaction-level-failure` | A transaction-wide failure omits operationIndex rather than fabricating one |
 | `transactional.receipt.validation-diagnostics` | A validation-failed receipt problem carries the Read+Update diagnostics and truncation marker |
@@ -370,11 +359,6 @@ profile-specific response vehicle.
 | `transactional.sequence.pending-creator` | A dependent whose creator is pending or transient fails transiently and holds no key |
 | `transactional.sequence.failed-creator` | A dependent whose creator's receipt is failed fails with binding-unavailable in its own failed receipt |
 | `transactional.sequence.member-reauthorization` | A withheld entry projects as a forbidden member problem and an erased one as resource-erased to an authorized caller |
-| `transactional.event.owned-link-delta` | Owned-Link mutations emit source updated Events carrying exactly one ownedLink delta |
-| `transactional.event.owned-link-update-delta` | An updated owned-Link transition carries the Link's delta, not its record |
-| `transactional.event.owned-link-deleted-identity` | A deleted owned-Link transition carries the Link's identity with its final live revision |
-| `transactional.event.fact-order` | One owned-Link operation's facts are ordered lifecycle, graph facts source before target, then the source's updated fact |
-| `transactional.event.no-op-owned-update` | A no-op owned-Link update versions neither the Link nor the source and emits no Event |
 | `transactional.event.graph-facts` | Link lifecycle produces linked and unlinked facts at every in-Scope endpoint |
 | `transactional.event.self-link` | A self-Link's one endpoint receives a source fact and a target fact in the same group |
 | `transactional.event.set-expansion-order` | A set operation's induced facts and receipt entries follow canonical-uri order |
@@ -384,23 +368,19 @@ profile-specific response vehicle.
 | `transactional.changefeed.wire-form` | Every group carries changes, erasures, and events; a visible group carries transaction and at least one non-empty array |
 | `transactional.changefeed.sse` | SSE delivery frames one complete group per message |
 | `transactional.changefeed.start-intent` | A changefeed read without an explicit starting intent is an error |
-| `transactional.changefeed.owned-link-agreement` | A group carries the owned Link's and the source's postimages, and their inline and first-class records agree |
 | `transactional.changefeed.consistency-fields` | Scope-bounded responses carry epoch, view, and position, and honor minimum positions |
 | `transactional.changefeed.catch-up-timeout` | A minimum-position read that cannot be served within the wait bound fails with catch-up-timeout |
 | `transactional.changefeed.replay-window` | Late, foreign-epoch, and foreign-view cursors fail explicitly |
 | `transactional.changefeed.sse-reconnect` | SSE reconnection uses the durable applied checkpoint with header precedence |
 | `transactional.changefeed.projection-advance` | A hidden transaction projects an identifier-free advance |
-| `transactional.changefeed.owned-closure` | Feeds and Event Sources project owned Links with their visible source |
 | `transactional.snapshot.rendezvous` | A snapshot checkpoint continues losslessly into the changefeed |
-| `transactional.snapshot.closed-projection` | A snapshot is a closed projection whose inline and first-class owned-Link records agree; a disagreeing snapshot is rejected |
 | `transactional.snapshot.expiry` | A snapshot stays continuable through expiresAt, and a page it cannot serve before then is a service failure |
 | `transactional.snapshot.erasure-ledger` | Every snapshot manifest carries the erasure ledger projected for its view |
 | `transactional.erasure.record-digest` | Erasure records propagate with a verifiable sha-256-jcs digest |
 | `transactional.erasure.digest-domain` | BDP JSON follows the number model, so every record has one canonical serialization, and digest computation never gates erasure |
 | `transactional.erasure.historical-version` | Erasing a historical version commits no state change and induces no Event |
-| `transactional.erasure.live-successor` | A live-version erasure commits its successor in the same group; a property correction carries the content-free root-replace delta, an owned-Link-induced source successor carries only `ownedLink`, and the successor differs in the durable state that determines its revision |
+| `transactional.erasure.live-successor` | A live-version erasure commits its successor in the same group; a property correction carries the content-free root-replace delta, and the successor differs in the durable state that determines its revision |
 | `transactional.erasure.live-tombstone` | A live-version erasure with a tombstone is an administrative deletion under deletion safety, inducing the ordinary facts |
-| `transactional.erasure.owned-link-cascade` | Erasing an owned Link's version erases every source version that inlined it, one record each |
 | `transactional.erasure.event-withholding` | Event Sources withhold every Event whose data carries erased content, leaving ordinal gaps |
 | `transactional.erasure.graph-facts` | Graph facts are withheld exactly when every version of the Link that carried their endpoints is erased; deleted facts never are |
 | `transactional.erasure.receipts` | Receipts and pages stop serving an erased postimage at once, serving erased to authorized callers and withheld otherwise |

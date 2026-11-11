@@ -46,9 +46,9 @@ export async function provision({ fixture }) {
     conditions: {
       retainedDetailWindowMs: fixture.minimumDetailWindowMs,
       graphRetainedDetailWindowMs: fixture.minimumGraphDetailWindowMs,
-      // The fresh composition has no native ownership rule; its canonical alias
+      // The fresh composition admits the runner's Link Type; its canonical alias
       // namespace admits the runner's unique safe leaf. These are fixture facts.
-      unownedLinkFixture: true,
+      linkFixture: true,
       hierarchicalAliasFixture: true,
     },
     async restart() {

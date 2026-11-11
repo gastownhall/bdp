@@ -678,7 +678,7 @@ test("correct-looking original alias response cannot conceal real replay reexecu
 });
 
 test("undeclared graph and alias fixture conditions stay not-run while the original Bead journey completes", async () => {
-  for (const missing of ["unownedLinkFixture", "hierarchicalAliasFixture"]) {
+  for (const missing of ["linkFixture", "hierarchicalAliasFixture"]) {
     const report = await runCurrentProvider(async (context) => {
       const provider = await provision(context);
       return { ...provider, conditions: { ...provider.conditions, [missing]: false } };
@@ -695,7 +695,7 @@ test("undeclared graph and alias fixture conditions stay not-run while the origi
     for (const id of ["write.link-create", "write.link-update", "write.link-delete"])
       assert.equal(
         report.obligations.find((row) => row.id === id).state,
-        missing === "unownedLinkFixture" ? "not-run" : "pass",
+        missing === "linkFixture" ? "not-run" : "pass",
       );
     assert.equal(report.obligations.find((row) => row.id === "write.delete").state, "pass");
     assert.equal(report.lifecycle.cleanup, "pass");
@@ -821,7 +821,7 @@ test("unavailable graph declarations do not add a post-base discovery dependency
       ...provider,
       conditions: {
         ...provider.conditions,
-        unownedLinkFixture: false,
+        linkFixture: false,
         hierarchicalAliasFixture: false,
       },
     };

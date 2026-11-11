@@ -100,8 +100,8 @@ What changes under a recipe, and nothing else does:
   refused create of `write.media-before-admission`, so the row compares the Bead inventory
   before and after instead. A concurrent writer to that Scope fails the row.
 - The Link uses plain References, not pinned endpoints: pinned endpoints stay the strict
-  fixture's to witness. The presence of `link` is the provider's declaration of an unowned
-  Link fixture, which `--scope` has no adapter to make.
+  fixture's to witness. The presence of `link` is the provider's declaration of a Link
+  fixture, which `--scope` has no adapter to make.
 
 Every other assertion is as strict as ever, including that a point read equals the whole
 mutation result and that creating a Link leaves its endpoint Beads' whole envelopes unchanged.
@@ -255,7 +255,7 @@ export async function provision({ fixture }) {
     conditions: {
       retainedDetailWindowMs: fixture.minimumDetailWindowMs,
       graphRetainedDetailWindowMs: fixture.minimumGraphDetailWindowMs,
-      unownedLinkFixture: true,
+      linkFixture: true,
       hierarchicalAliasFixture: true
     },
     // Optional, and identities only: see "A provider without Write".
@@ -347,17 +347,17 @@ cache-directive ordering is imposed.
 | `write.durable-original-failure` | Same failed guard key returns whole original Problem after later state/deletion/restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
 | `write.durable-original-delete` | Same delete key returns original deleted identity after restart | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
 | `core.deleted-absence` | Current GET remains absent after retained create replay: uniform 404 or Core-permitted authorized 410; no implicit resurrection | [Reads after deletion](../specs/profiles/core/core.md#reads-after-deletion) |
-| `write.link-create` | Unowned local Link has exact authored planes and pinned endpoints; canonical GET agrees, kind is link and service-desc resolves to owning Scope | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
+| `write.link-create` | Local Link has exact authored planes and pinned endpoints; canonical GET agrees, kind is link and service-desc resolves to owning Scope | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 | `write.link-update` | Guarded endpoint-only correction removes the replaced target pin, preserves omitted source pin/planes; equal target is a full-envelope no-op | [Endpoint correction](../specs/profiles/write/write.md#whole-link-endpoint-correction) |
 | `write.alias-put` | Closed created/updated results, same-target put, repoint and original put replay; public 307 still targets the current Bead | [Aliases](../specs/profiles/write/write.md#aliases) |
 | `write.alias-delete` | Closed delete result and 404 absence; alias reuse followed by old delete replay preserves the new live binding | [Terminal outcomes](../specs/profiles/write/write.md#claims-and-terminal-outcomes) |
-| `write.link-delete` | Exact final-live deleted Link identity, permitted current absence and unchanged unowned endpoints | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
+| `write.link-delete` | Exact final-live deleted Link identity, permitted current absence and unchanged endpoints | [Ordinary results](../specs/profiles/write/write.md#ordinary-results) |
 
 These are narrow witnesses, not complete coverage of each linked section. The
 report separately names required uncovered families: complete clause census;
 inventory/native pagination; Link/alias reads; remaining HTTP/selection cases;
 remaining Link CRUD/alias variants; remaining identity/allocation/admission/limits/numeric cases;
-authorization/protected Type/owner effects; concurrency/abrupt loss/failover and
+authorization/protected Type constraints; concurrency/abrupt loss/failover and
 retention/erasure diagnoses. `UNCOVERED_REQUIRED` keeps them as required `not-run`
 rows, preventing this vertical slice from silently becoming full qualification. The
 completion calculation checks the exact independent fixed set of required IDs,
@@ -395,7 +395,7 @@ outside this report's redacted output. Initialization failure before an adapter
 is entered leaves provisioning `not-run` and the aggregate `harness-error`.
 
 
-## Unowned Link and alias fixture slice
+## Link and alias fixture slice
 
 The original fourteen Bead cases execute first, including their one controlled
 restart and durable replays. A missing restart or base detail window retains its
@@ -413,10 +413,10 @@ identity GET 404 preconditions; no private state supplies expected records. The
 shared Bead setup is only fixture provisioning. Unsupported preconditions are
 `not-run`, and setup that cannot be verified is a harness limitation. An unused
 Link GET 404 is independently required before its creation. All three new Bead
-envelopes must remain unchanged through the unowned Link and alias observations.
+envelopes must remain unchanged through the Link and alias observations.
 After a no-op result, a fresh Link GET verifies the entire stored envelope.
 
-`unownedLinkFixture` declares no owner for this source/Link-Type fixture. Its
+`linkFixture` declares that the Scope admits this source/Link-Type fixture. Its
 absence skips only Link rows; it does not block aliases. The independent
 `hierarchicalAliasFixture` declares an unused leaf beneath the advertised
 in-Scope hierarchical alias base. An unsuitable base, non-unused alias GET or
@@ -464,7 +464,7 @@ Reports continue to use fixed redacted diagnostics.
 Still unqualified: incident Link membership/directions and native pagination;
 HEAD/304 and all read/negotiation failures; every malformed/admission/identity and
 per-operation guard case; alias collision/authorization/nondisclosure and invalid
-targets; Link retyping/attribution/owned state and atomic owner context; concurrent
+targets; Link retyping and attribution; concurrent
 claims, changed retry meaning, expiry, erasure, abrupt loss and failover. Alias
 non-versioning is observed through unchanged Bead envelopes, not an unadvertised
 private Events feed. These additions select no Types, History, Events or batch
