@@ -115,8 +115,9 @@ this revision means. Absence supplies no external resources.
 `writable` — the client may set and change it. `init-only` — set at creation, immutable after.
 `service-managed` — the client may not write it; the service owns the value and may change it
 (so it is read-only *to the client*, not immutable). The mode governs the writer, not whether
-a change mints a revision: any actual value change — by client or service — mints a new
-revision, as always.
+a change mints a revision: any actual value change — by client or service, including a
+service-managed one — mints a new revision, as always (revision is the ETag). A service
+value that should **not** churn the revision belongs in `metadata`, not in `properties`.
 
 ## 4. Conformance: Refines and owned Links
 
@@ -211,13 +212,14 @@ Core's `fault` arm (a Problem, for a call that could not run to completion) is a
 a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names —
 ok / err / fault — follow Core; the terms may change with Lydia.)
 
-**Kinds.** `function` and `command` are nominal refinements of Callable (the same move as
-bead / link refining resource), declared by refining the matching well-known Type (section 9):
+**Kinds.** A callable is **read-only** or a **command** — nominal refinements of Callable (the
+same move as bead / link refining resource), declared by refining the matching well-known Type
+(section 9):
 
-- **Function** — **pure / read-only**: the call takes no capability, produces no effect, is
-  repeatable, and may be used where a read is. "Read-only" is this kind, not a flag.
-- **Command** — **effectful**. A command may declare `idempotent` (retrying is safe) and
-  `atomic` (the invocation's changes commit in one transaction — Core §5.9, open item 37).
+- **read-only** — the call takes no capability, produces no effect, is repeatable, and may be
+  used where a read is. (Lumen's `function`.)
+- **command** — effectful. A command may declare `idempotent` (retrying is safe) and `atomic`
+  (the invocation's changes commit in one transaction — Core §5.9, open item 37).
 
 (Lumen's `formula` — a reactive, recomputing callable — is a language kind only; it is not
 modeled as a BDP callable kind.)
@@ -292,7 +294,7 @@ Refines under `…/type-system/`), extended:
 | --- | --- | --- |
 | `Type`, `BeadType`, `LinkType`, `Refines` | the type system | carried |
 | `Callable` | §6.1 | proposed |
-| `Function`, `Command` (refine `Callable`) | §6.1 kinds | proposed |
+| `ReadOnly`, `Command` (refine `Callable`) | §6.1 kinds | proposed |
 | `EventSource` | §6.2 | proposed |
 | `AsyncResult` | §6.3 | proposed |
 | `ResultOf` (Link Type) | result bead → callable | proposed |
@@ -319,12 +321,13 @@ oracle that proves cross-implementation parity.
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
    stake (it decides her callable surface). Design authority to rule.
 2. Whether a callable may add principals of its own (Core item 12).
-3. **ID form** — absolute HTTP(S) URI vs a `(scope, id, version)` triple, which would simplify
-   scope-local references. A Core identity-model question (with Eva); it touches the carried
-   "`type` is an HTTP(S) URI" rule and the well-known-Type identities.
+3. **Reference modeling** — representing a reference internally as a `(scope, id, version)`
+   triple (the URI, with ETag / `?revision=`, is the web-edge encoding), to simplify scope-local
+   references. A Core identity-model convention (with Eva); no wire change — the `type`-is-a-URI
+   rule holds at the edge.
 4. **Outcome arm names** — the return is Core's `Outcome<T, E>` (resolved, §6.1); the arm
    names (ok / err / fault, or succeeded / failed) follow Core and may change with Lydia's terms.
-5. **`Refines` name** — "is" is Lumen's nominal keyword; the BDP conformance link is `Refines`.
-   Whether to rename either, once Lydia settles the keyword.
+5. **Conformance link name** — Lumen's keyword stays `is`; the BDP link is `Refines`, which
+   Lydia rejected on language-theory grounds. A better name is hers to suggest.
 6. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
    pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
