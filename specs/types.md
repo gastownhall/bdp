@@ -239,7 +239,7 @@ a callable never declares, narrows or omits it, and new arms come only from Core
 `success` / `failure` / `fault` — ruled, Donna 2026-11-11. `success` and `failure` are
 *declared* outcomes that ran to completion; `fault` is the *undeclared* case — a call that did
 not run to completion, including one that never started or timed out — carrying a Problem. Core
-aligns its `ok`/`err` to these.)
+uses the same names (`Result<T, E>` = `success`{value} | `failure`{error}, Core §4.4).)
 
 **Kinds.** A callable is **read-only** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
