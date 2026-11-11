@@ -197,8 +197,8 @@ declaration, in its `properties` (beside common `title` / `description`, §3):
 | Field | Shape | Meaning |
 | --- | --- | --- |
 | `parameters` | `[ { name, schema, required?, default?, description? } ]` | Argument contract (`P`). Core treats a call's `arguments` as opaque JSON; Types checks them against this. |
-| `resultSchema` | schema | The `T` — the success value of `Outcome<T, E>` (Core's `ok` arm). |
-| `errorSchema` | schema | The `E` — the declared failure (Core's `err` arm). |
+| `resultSchema` | schema | The `T` — the value of Core's `success` arm. |
+| `errorSchema` | schema | The `E` — the declared `failure` arm (ran to completion, bad result in contract). |
 | `modes` | `[ "sync" \| "async" ]` | Advertised invocation modes; omitted means `sync`. The caller chooses with Core's `mode`; the two refusals (`mode-not-supported`, `mode-refused`) are Core's. |
 
 Checking a call's `arguments` against `parameters`, and its result against the declared
@@ -209,8 +209,9 @@ call to every revision it mints; whether a callable may add principals of its ow
 
 The return is Core's `Outcome<T, E>`; a declaration supplies `T` and `E` and nothing more.
 Core's `fault` arm (a Problem, for a call that could not run to completion) is a **system arm** —
-a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names —
-ok / err / fault — follow Core; the terms may change with Lydia.)
+a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names:
+`success` / `failure` / `fault` — Lydia, pending Donna's nod. `success` and `failure` are
+*declared* and ran to completion; `fault` is the *undeclared* machinery break.)
 
 **Kinds.** A callable is **read-only** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
@@ -325,9 +326,11 @@ oracle that proves cross-implementation parity.
    triple (the URI, with ETag / `?revision=`, is the web-edge encoding), to simplify scope-local
    references. A Core identity-model convention (with Eva); no wire change — the `type`-is-a-URI
    rule holds at the edge.
-4. **Outcome arm names** — the return is Core's `Outcome<T, E>` (resolved, §6.1); the arm
-   names (ok / err / fault, or succeeded / failed) follow Core and may change with Lydia's terms.
-5. **Conformance link name** — Lumen's keyword stays `is`; the BDP link is `Refines`, which
-   Lydia rejected on language-theory grounds. A better name is hers to suggest.
+4. **Outcome arm names** — `success` / `failure` / `fault` (Lydia, pending Donna's nod; Eva owns
+   the Outcome semantics these names sit on). `success`/`failure` are declared and completed;
+   `fault` is Core's undeclared, didn't-complete arm.
+5. **Conformance link name** — resolved (Lydia, pending Donna): Lumen keyword `is` stays, the BDP
+   link stays `Refines`; the layer split is intentional (`is` is a conformance clause, `Refines`
+   is the edge name). M6 maps `type X is T` → one Refines link X→T.
 6. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
    pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
