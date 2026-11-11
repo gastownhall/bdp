@@ -228,7 +228,9 @@ declaration, in its `properties` (beside common `title` / `description`, §3):
 | `modes` | `[ "sync" \| "async" ]` | Advertised invocation modes; omitted means `sync`. The caller chooses with Core's `mode`; the two refusals (`mode-not-supported`, `mode-refused`) are Core's. |
 
 Checking a call's `arguments` against `parameters`, and its result against the declared
-schemas, is a Types-layer rule above Core (section 8). **Attribution is not a declaration
+schemas, is a Types-layer rule above Core (section 8); a call supplies `arguments` as a JSON object with
+one member per parameter, named by the declaration (`{}` when none; Core §5.7), and a mismatch
+refuses with `validation-failed`. **Attribution is not a declaration
 field:** a call's principals arrive in Core's request-context provenance and flow through the
 call to every revision it mints; whether a callable may add principals of its own is open
 (Core item 12).
