@@ -294,10 +294,13 @@ to read that representation:
 
 A Types-aware layer above Core MAY refuse a `create`, `update` or `call` whose instance,
 arguments or result violate the governing descriptor or declaration, with Core's problem
-codes `validation-failed` and `type-not-installed` and Core's Problem carrier. Such a refusal
-is a **`fault`** (Core §4.5) — the call did not run to completion — never the callable's
-`failure` arm, which is a declared result of a call that *did* run. Core itself checks nothing. Whether Core alone requires anything of a `type` it cannot resolve is open
-(Core item 30).
+codes `validation-failed` and `type-not-installed`. Such a refusal is always a **`fault`**
+(Core §4.5), carried as Core defines each path: a `call` refusal is the Outcome's system
+`fault` arm — never the callable's `failure` arm, which is a declared result of a call that
+*did* run; a `create` or `update` refusal is a failing HTTP status (Core §13.2), since the
+data primitives carry no Outcome. The Problem travels in Core's carrier for each path. Core
+itself checks nothing. Whether Core alone requires anything of a `type` it cannot resolve is
+open (Core item 30).
 
 **Type-declared delete effects** (ruled, 2026-11-11). The
 `delete` primitive only deletes; it consults no Type. It refuses with `incident-links-exist`
