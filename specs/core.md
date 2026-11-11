@@ -58,8 +58,8 @@ describe what the proposal would require; they bind nobody until the section is 
 | 2 | Data model | mixed: carried core; storage class and the Core and Types split ruled; proposed additions |
 | 3 | Revisions, provenance, history | mixed: revision carried; provenance ruled to name several principals and to record inception, its shape proposed; history ruled optional |
 | 4 | Execution model | ruled in outline; context members ruled; field rules proposed |
-| 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; request and response shapes proposed |
-| 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail proposed |
+| 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; that a refusal is a `fault` is ruled; request and response shapes proposed |
+| 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail and cancellation proposed |
 | 7 | Events | record default and cardinality ruled; declarations ruled out of Core; delivery detail proposed |
 | 8 | Discovery and capabilities | carried; additions proposed |
 | 9 | Authorization | carried |
@@ -578,7 +578,8 @@ Proposed field rules for `metadata`:
 
 **Status: ruled in structure (items marked). Ruled (2026-11-11): Core owns the definition
 of the outcome; the arms are named `success`, `failure` and `fault`; `success` is the only
-arm that means the operation went as intended. The tag spelling is open.**
+arm that means the operation went as intended; an outcome that is present means the
+operation is settled. The tag spelling is open.**
 
 ```text
 Result<T, E>  = success { value: T } | failure { error: E }
@@ -600,9 +601,12 @@ value whose arms include `success`, `failure` and `fault` side by side.
 Ruled (2026-11-11): `success` is the only arm that means the operation went as intended.
 Every other arm means it did not, and that includes an arm a reader does not know.
 
-Proposed: an `outcome` that is present means the operation is settled, whichever arm it
-holds. An arm is therefore a way for an operation to end. A state an operation passes
-through on the way, such as running or waiting, is not an arm.
+Ruled (2026-11-11): an `outcome` that is present means the operation is settled,
+whichever arm it holds. An arm is therefore a way for an operation to end. A state an
+operation passes through on the way, such as running or waiting, is not an arm.
+
+Proposed: a fourth arm, `canceled`, for a call that was stopped on request
+(section 6.8).
 
 Changed in this draft: earlier states of it named the two arms `ok` and `err`.
 
@@ -617,16 +621,18 @@ above; it does not change these. The reasons Core needs the definition:
 - Core defines the asynchronous call. A result bead is settled when it holds an outcome
   (section 6.5), so Core has to say what is written at settlement.
 - The binding has to map each arm onto an HTTP response (section 13).
-- Proposed, not ruled: the data primitives answer in the same frame, with errors that
-  Core itself defines (section 5.2).
+- A data primitive that is refused reports a `fault` (ruled for the cases named in
+  section 4.5). That the data primitives answer in the same frame as `call` is proposed
+  (section 5.2).
 
 What Core defines is an envelope, not a type: the names of the arms, what `fault`
 carries, that the set of arms is open, and the Reply that holds them. `value` and `error`
 are JSON that Core does not look inside. How a callable's declaration states what its
 `value` and `error` are, and how they are checked, is specified in Types (section 14).
 
-`T` and `E` are parameters. For a data primitive, section 5 says what they are. For a
-callable they are JSON that Core carries and does not look inside (section 6.1).
+`T` and `E` are parameters. For a data primitive, section 5 says what `T` is, and there
+is no `E` (proposed, section 5.2). For a callable they are JSON that Core carries and
+does not look inside (section 6.1).
 
 An error does not carry a reason code in Core. If an operation needs to distinguish kinds
 of error, its error `E` is itself a choice of shapes.
@@ -637,13 +643,33 @@ Open: the spelling of the tag that names the arm (section 15).
 
 **Status: ruled (2026-11-11): there is a third arm, named `fault`, for an operation that
 did not run to completion, and what it carries is defined by the protocol, not by the
-callable. That it carries a Problem follows the design authority's stated preference. The
-Problem format is carried.**
+callable. Ruled (2026-11-11): a request that is refused is a `fault`; the cases named are
+a call refused on its arguments, an update refused on validation and a delete refused
+while Links are attached. That a fault carries a Problem follows the design authority's
+stated preference. The Problem format is carried. That no data primitive has a `failure`
+arm is proposed.**
 
-A `fault` means the operation did not run to completion. It is a failure of the system,
-not a verdict of the operation: the infrastructure failed, the callable's implementation
-crashed, the service was unavailable or ran out of time, the request was malformed. A
-fault carries a Problem.
+A `fault` means the operation did not run to completion. That happens in two ways:
+
+- **The request was refused.** The operation never ran. The request was malformed, it
+  did not pass a check, a guard did not hold, or the caller was not allowed.
+- **The operation broke off.** It started and did not finish. The infrastructure failed,
+  the callable's implementation crashed, the service was unavailable or ran out of time.
+
+Either way a fault is not a verdict of the operation. A fault carries a Problem.
+
+Ruled (2026-11-11): a refusal is a `fault`, not a `failure` and not something outside the
+outcome. Three cases were named:
+
+- a `call` whose arguments are refused, with `validation-failed`. The callable did not
+  run, so the refusal is not its `failure`;
+- an `update` refused on validation;
+- a `delete` refused while Links are attached, with `incident-links-exist`
+  (section 5.6).
+
+Core itself checks nothing against a Type or a declaration (section 2.4). Where a
+refusal comes from a check made by a layer above Core, what is ruled here is the arm it
+travels in. The rules of the check are in Types (section 12).
 
 What a fault carries is defined by this specification. A callable's declaration does not
 define it, change it or leave it out.
@@ -652,15 +678,22 @@ A Problem is an RFC 9457 problem document with the required members v0.1 defines
 `code` and `retry` (`never`, `after-state-change` or `after-delay`). Section 12 lists the
 codes.
 
-The line between the two kinds of failure:
+The line between the two kinds of failure is who defines what is carried:
 
-- `failure` belongs to the operation. For a primitive, Core says what `E` is. For a
-  callable,
-  its declaration does, and declarations are specified in Types. Either way a caller can
-  be written against it.
-- `fault` does not belong to the operation. Any operation can meet any fault.
+- `failure` is the verdict of a callable that ran. It carries the error the callable's
+  declaration states, and declarations are specified in Types. A caller can be written
+  against it.
+- `fault` is everything the protocol itself reports. It carries a Problem, which this
+  specification defines. Any operation can meet a fault.
 
-A timeout is a fault. Cancellation is not a Core arm (section 6.7).
+Proposed, following the ruling above: the five primitives other than `call` have no
+`failure` arm. Everything that stops a `get`, `create`, `update`, `delete` or `pull` is a
+refusal or a breakdown, so the outcome of each is `success` or `fault`. That covers the
+refusals not named in the ruling, such as `revision-mismatch`, `identity-taken` and a
+Resource that is not found. Only `call` can produce a `failure` (section 5.2).
+
+A timeout is a fault. A call that was stopped on request is neither a `failure` nor a
+`fault`; an arm for it is proposed (section 6.8).
 
 ## 5. The six primitives
 
@@ -699,9 +732,14 @@ Request  = { context: RequestContext, input }
 Response = Reply<T, E>
 ```
 
-`input` is specific to the primitive. `T` is the primitive's value on success and `E` its
-error. How the frame is carried over HTTP, and which parts ride in the URL, the
-headers or the body, is the binding's business (section 13) and is open.
+`input` is specific to the primitive. `T` is the primitive's value on success. `E` is the
+error of a callable, and only `call` has one. How the frame is carried over HTTP, and
+which parts ride in the URL, the headers or the body, is the binding's business
+(section 13) and is open.
+
+Ruled (2026-11-11): a primitive that refuses a request reports a `fault`. The cases named
+are in section 4.5. Proposed: that holds for every refusal, so the outcome of `get`,
+`create`, `update`, `delete` and `pull` is `success` or `fault`, never `failure`.
 
 Provenance is not a member of any primitive's input. It is supplied in the request
 context (ruled, section 4.3).
@@ -795,6 +833,10 @@ value = the Resource's representation after the update
   `metadataChange` (section 3.3).
 - `expectedRevision` is optional. When present and not equal to the Resource's current
   revision, the update is refused with `revision-mismatch` and has no effect.
+- Ruled (2026-11-11): an update refused on validation is a `fault` (section 4.5). Core
+  itself does not check the change against the Type; the refusal comes from a layer
+  above Core and carries `validation-failed` (section 12). Proposed: every other refusal
+  of an update, `revision-mismatch` included, is a `fault` as well.
 - An update that would leave the Resource as it is succeeds, keeps the revision, records
   no provenance, and produces no event. The reply carries no `transaction`.
 - An update of a deleted Resource is refused as not found, unless it starts from an
@@ -854,6 +896,7 @@ Rules of the primitive:
   along with a Bead, follows no Link to anything further, and has no dry run.
 - Ruled: deleting a Bead is refused with `incident-links-exist` while a live Link is
   attached to it. A Link the caller cannot see still blocks, and is not disclosed.
+- Ruled (2026-11-11): that refusal is a `fault` (section 4.5).
 - `expectedRevision` behaves as in `update`.
 - Deleting a Link never requires anything of its endpoints.
 - Deleting something already deleted is refused as not found.
@@ -902,6 +945,10 @@ its declaration, which Types specifies (section 6.1). Core does not check `argum
 against anything; a layer above Core MAY refuse the call (section 12). `mode` is covered
 in section 6.4.
 
+Ruled (2026-11-11): a call refused on its arguments is a `fault` carrying
+`validation-failed` (section 4.5). It is not a `failure`: the callable did not run, and
+`failure` is the verdict of a callable that did.
+
 Proposed, carried from the v0.1 callables preview: `arguments` is a JSON object with one
 member for each argument, named as the callable's declaration names it. A call with no
 arguments sends `{}`. Core requires the object and does not look at its members.
@@ -935,6 +982,7 @@ These are callables, reached through `call`:
 - creating and removing aliases;
 - conditional bulk changes (update or delete every Resource matching a condition);
 - delete with controls (section 5.6);
+- canceling an asynchronous call (proposed, section 6.8);
 - sending a message into an event stream (section 7.6);
 - export and import.
 
@@ -1032,6 +1080,9 @@ Refusal has two levels, and a caller can tell them apart:
 
 A service never silently substitutes one mode for the other.
 
+Proposed: each of the two refusals is a `fault` (section 4.5), with the codes of
+section 12.
+
 Where a callable advertises the modes it supports is part of its declaration, and so is
 specified in Types (section 6.1). The behaviour above does not depend on where that is.
 
@@ -1108,6 +1159,9 @@ Proposed mechanics:
 - A result bead settles at most once. Once a revision of it holds `outcome`, no later
   revision changes `outcome` or removes it. A call that never settles leaves `outcome`
   absent.
+- An asynchronous call that is refused is not admitted. No result bead is created, and
+  the response is the `fault`, as it would be for a synchronous call. A fault that
+  happens after admission is written to the result bead at settlement.
 - Both revisions of the result bead, the one at admission and the one at settlement,
   record the provenance of the call request (section 4.3).
 - The response to an asynchronous call is the result bead itself, as `get` on it would
@@ -1138,10 +1192,51 @@ to listen reads the result bead with `get` until `outcome` is present.
   request context; it is removed. One may be added in a later version, once the timeout
   models of the systems built on this protocol, and of HTTP, have been reconciled. A
   service that gives up on its own account still reports a `fault` (section 4.5).
-- **Cancellation** is not designed.
+- **Cancellation** was listed here as not designed. It is now proposed in section 6.8.
 - **Suspending and resuming** a call is not designed.
-- Arms such as `canceled` and `skipped` are not Core arms. A pack that needs them adds
-  them to Outcome.
+- An arm such as `skipped` is not a Core arm. A pack that needs one adds it to Outcome.
+
+### 6.8 Cancellation
+
+**Status: proposed. The design authority's stated view (2026-11-11), not final: `canceled`
+makes sense as an outcome arm in Core, and once there is an AsyncResult there can be a
+callable that cancels it. Nothing in this section is ruled.**
+
+```text
+Outcome<T, E> = Result<T, E> | fault { problem } | canceled { reason? } | ...
+```
+
+The arm:
+
+- `canceled` means the call was stopped on request before it completed.
+- It is a way for a call to end, like every other arm (section 4.4). A result bead that
+  holds `canceled` is settled, and it does not settle again (section 6.5).
+- It is not a `failure`: the callable gave no verdict. It is not a `fault`: nothing went
+  wrong and nothing was refused. Someone asked for the call to stop.
+- Like every arm but `success`, it means the call did not go as intended.
+- `reason` is optional text supplied by whoever asked. Whether the arm carries anything
+  more is open.
+
+Canceling:
+
+- Canceling is a callable, not a seventh primitive. The core library specifies it
+  (section 5.9).
+- It names a result bead. An asynchronous call is the only kind that can be canceled this
+  way, because a synchronous call has no result bead to name.
+- If the call is still pending, the service settles its result bead as `canceled`.
+- If the call has already settled, canceling changes nothing. The result bead keeps the
+  outcome it has.
+
+A timeout is still a `fault` (section 4.5). No primitive other than `call` can be
+canceled, since the other five are synchronous and have no result bead.
+
+Open:
+
+1. What the service must do about work that is already running: stop it, or only settle
+   the result bead and discard whatever the work produces later.
+2. Whether canceling a call cancels the calls it made in turn.
+3. Who may cancel a call.
+4. What canceling returns when the call had already settled.
 
 ## 7. Events
 
@@ -1419,7 +1514,8 @@ The v0.1 Transfer proposal is not carried forward as a separate document (sectio
 
 **Status: carried. Codes marked (proposed) are new in this draft.**
 
-A Problem is an RFC 9457 document with `type`, `code` and `retry`.
+A Problem is an RFC 9457 document with `type`, `code` and `retry`. It is what a `fault`
+carries (section 4.5).
 
 Codes carried from v0.1 Core: `malformed-request`, `invalid-parameter`,
 `unauthenticated`, `forbidden`, `resource-not-found`, `resource-pruned`,
@@ -1435,8 +1531,9 @@ Codes carried from the v0.1 write operations, now needed by the primitives:
 Core is reported. Core does not check a Resource against its Type, or a call's arguments
 against a declaration, and defines no rule that produces either code. Core keeps the
 codes and the carrier so that such a layer can refuse a write or a call that Core alone
-would accept. The rules are in Types. Whether Core itself requires anything of a `type`
-it cannot resolve is open (section 15).
+would accept. The rules are in Types. Ruled (2026-11-11): such a refusal is a `fault`
+(section 4.5). Whether Core itself requires anything of a `type` it cannot resolve is
+open (section 15).
 
 Codes carried from the v0.1 callables preview: `callable-not-found`,
 `callable-unavailable`.
@@ -1733,7 +1830,9 @@ Execution:
     (section 4.3).
 13. The spelling of the tag that names an Outcome arm, and whether arms are open
     records.
-14. Cancellation, suspend and resume. Deadlines are deferred to a later version (ruled,
+14. Cancellation: a `canceled` arm and a core library callable that cancels an
+    asynchronous call are proposed, with four open points (section 6.8). Suspend and
+    resume are not designed. Deadlines are deferred to a later version (ruled,
     section 6.7).
 15. Retry and idempotency.
 16. The storage class and lifetime of a result bead.
@@ -1799,6 +1898,15 @@ Provenance and context:
 37. How a callable gets a transaction. Proposed: a callable the service carries out may
     commit one invocation's changes together, and its specification says whether it does.
     Open: the same for a callable that a pack supplies (section 5.9).
+
+Outcome:
+
+38. Whether any primitive other than `call` has a `failure` arm. Ruled: an update refused
+    on validation and a delete refused while Links are attached are faults. Proposed:
+    every refusal by a data primitive is a fault, so none of them has a `failure` arm
+    (sections 4.5, 5.2).
+39. Whether an asynchronous call that is refused leaves a result bead. Proposed: no
+    (section 6.5).
 
 ## Appendix A. Decisions folded into this text
 
@@ -1901,11 +2009,17 @@ Rulings by the design authority, by date, with the section that carries each.
 - `success` is the only arm that means the operation went as intended. (4.4)
 - There is a third arm, `fault`, for an operation that did not run to completion. What it
   carries is defined by the protocol, not by the callable. (4.5)
+- An outcome that is present means the operation is settled, whichever arm it holds.
+  (4.4)
+- A request that is refused is a `fault`. The cases named: a call refused on its
+  arguments, an update refused on validation, a delete refused while Links are attached.
+  (4.5, 5.5, 5.6, 5.7)
 
 Stated preferences, not final: a closed Result inside an open Outcome; that a `fault`
 carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
-`delete` primitive is there mainly so that the HTTP binding has a plain DELETE. (5.6,
-13.2)
+`delete` primitive is there mainly so that the HTTP binding has a plain DELETE (5.6,
+13.2); that `canceled` makes sense as an outcome arm in Core, with a callable that
+cancels an asynchronous call (6.8).
 
 Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
 stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
@@ -1913,5 +2027,7 @@ result bead; the details of the Link from a result bead to its callable; the HTT
 `pull`; the shape of a principal; the values of `inception`; what the final revision of a
 delete holds; `delete` as the plain HTTP DELETE; the headers that carry the request
 context; that a request cannot join a transaction; that the service itself carries out
-the delete callables, each invocation in one transaction. Each is marked proposed where it
-appears and listed in section 15.
+the delete callables, each invocation in one transaction; that no primitive other than
+`call` has a `failure` arm; that an asynchronous call which is refused leaves no result
+bead; the `canceled` arm and what it carries. Each is marked proposed where it appears
+and listed in section 15.
