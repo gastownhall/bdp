@@ -1089,6 +1089,9 @@ Proposed mechanics:
   mints the cause. Two Resources are created, so the commit produces two change events
   with the same `transaction` and `cause` (section 7.2).
 - Settlement is an update to the result bead that writes `outcome`.
+- A result bead settles at most once. Once a revision of it holds `outcome`, no later
+  revision changes `outcome` or removes it. A call that never settles leaves `outcome`
+  absent.
 - Both revisions of the result bead, the one at admission and the one at settlement,
   record the provenance of the call request (section 4.3).
 - The response to an asynchronous call is the result bead itself, as `get` on it would
