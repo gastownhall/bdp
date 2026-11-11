@@ -276,7 +276,8 @@ once a revision holds `outcome` it is terminal, and no later revision changes or
 (Core §6.5, proposed). A result bead names its callable through a **`ResultOf`** owned Link
 (source the result bead, target the Callable pinned to its revision at admission); following
 it reaches the declaration edition. A declaration names a refinement of AsyncResult as the
-Type of its result beads.
+Type of its result beads. A result bead exists only for an admitted async call; a call refused
+on admission is not admitted and mints no result bead (following Core §6.5, item 39, proposed).
 
 ## 7. GET representations and the rules
 
