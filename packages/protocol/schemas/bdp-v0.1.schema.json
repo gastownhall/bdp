@@ -562,7 +562,6 @@
               "mayChangeAfterSync": false,
               "resource": false,
               "properties": false,
-              "ownedLinks": false,
               "archivedAt": false,
               "pointer": false,
               "revisionProvenance": false
@@ -787,7 +786,7 @@
       "additionalProperties": true
     },
     "beadRecord": {
-      "description": "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance or captured owned-Link state. Included incident links are a separately selected current aggregate.",
+      "description": "Complete Bead representation, including identity, affiliation, revision, application properties, common metadata and optional recorded provenance. Included incident links are a separately selected current aggregate.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -797,24 +796,11 @@
         },
         "links": {
           "$ref": "#/$defs/linkCollection",
-          "description": "Separately selected current incident-Link aggregate. It is not captured owned state or an exact historical graph."
+          "description": "Separately selected current incident-Link aggregate. It is not an exact historical graph."
         },
         "metadata": {
           "$ref": "#/$defs/metadata",
           "description": "Common mutable object content, independent of Type-specific properties."
-        },
-        "ownedLinks": {
-          "type": "object",
-          "propertyNames": {
-            "$ref": "#/$defs/absoluteHttpUrl"
-          },
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/linkRecord"
-            }
-          },
-          "description": "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input."
         },
         "properties": {
           "$ref": "#/$defs/properties",
@@ -914,7 +900,7 @@
       ]
     },
     "currentBeadRecord": {
-      "description": "Current Bead read carrier. Common metadata is present and any included incident or owned Links use complete current Link carriers; this helper adds no read operation.",
+      "description": "Current Bead read carrier. Common metadata is present and any included incident Links use complete current Link carriers; this helper adds no read operation.",
       "allOf": [
         {
           "$ref": "#/$defs/beadRecord"
@@ -928,15 +914,6 @@
             },
             "links": {
               "$ref": "#/$defs/currentLinkCollection"
-            },
-            "ownedLinks": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/currentLinkRecord"
-                }
-              }
             }
           }
         }
@@ -2050,21 +2027,6 @@
         },
         {
           "if": {
-            "required": ["resource"],
-            "properties": {
-              "resource": {
-                "$ref": "#/$defs/beadRecord"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "ownerRevisions": false
-            }
-          }
-        },
-        {
-          "if": {
             "required": ["deleted"],
             "properties": {
               "deleted": {
@@ -2076,11 +2038,6 @@
                   }
                 }
               }
-            }
-          },
-          "then": {
-            "properties": {
-              "ownerRevisions": false
             }
           },
           "else": {
@@ -2116,9 +2073,6 @@
         },
         "outcome": {
           "$ref": "#/$defs/mutationOutcome"
-        },
-        "ownerRevisions": {
-          "$ref": "#/$defs/ownerRevisions"
         },
         "removedAliases": {
           "$ref": "#/$defs/removedAliases"
@@ -2723,7 +2677,6 @@
               "window": false,
               "resource": false,
               "properties": false,
-              "ownedLinks": false,
               "pointer": false,
               "identity": false,
               "revision": false,
@@ -5482,7 +5435,7 @@
       ]
     },
     "historyMissingItem": {
-      "description": "One unavailable component needed for an exact response: the subject record, a selected property path, or captured owned-Link state. The bounded diagnosis preserves known location without substituting current content.",
+      "description": "One unavailable component needed for an exact response: the subject record or a selected property path. The bounded diagnosis preserves known location without substituting current content.",
       "oneOf": [
         {
           "type": "object",
@@ -5507,25 +5460,12 @@
                 },
                 {
                   "type": "string",
-                  "pattern": "^/(properties(?:/|$)|ownedLinks/([^/~]|~[01])+/(0|[1-9][0-9]*)/properties(?:/|$))"
+                  "pattern": "^/properties(?:/|$)"
                 }
               ]
             }
           },
           "required": ["kind", "pointer"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "owned-links"
-            },
-            "type": {
-              "$ref": "#/$defs/absoluteHttpUrl"
-            }
-          },
-          "required": ["kind"],
           "additionalProperties": false
         }
       ]
@@ -5578,7 +5518,7 @@
       "properties": {
         "body": {
           "enum": ["complete", "incomplete"],
-          "description": "Whether the row’s retained version can currently produce its complete recorded representation, including required owned state."
+          "description": "Whether the row’s retained version can currently produce its complete recorded representation."
         },
         "lineage": {
           "enum": ["current", "replaced"],
@@ -5732,7 +5672,7 @@
       "required": ["subject", "population", "participation", "window", "items", "next"]
     },
     "historicalBeadRecord": {
-      "description": "Complete exact Bead representation. Current incident-Link aggregates are excluded; captured owned-Link state comes from that recorded version.",
+      "description": "Complete exact Bead representation. Current incident-Link aggregates are excluded.",
       "allOf": [
         {
           "$ref": "#/$defs/beadRecord"
@@ -5793,10 +5733,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "metadata": {
-          "$ref": "#/$defs/metadata",
-          "description": "Open caller-written data about this change; immutable and uninterpreted."
-        },
         "actor": {
           "$ref": "#/$defs/revisionActor",
           "description": "Carried principal attribution and explicit basis, independent of the optional History context tuple."
@@ -5812,6 +5748,10 @@
         "message": {
           "$ref": "#/$defs/contextMessage",
           "description": "Immutable carried change message, present with committedAt and agent."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Open caller-written data about this change; immutable and uninterpreted."
         }
       }
     },
@@ -5819,9 +5759,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        },
         "actor": {
           "$ref": "#/$defs/revisionActor"
         },
@@ -5838,6 +5775,9 @@
         },
         "message": {
           "type": ["string", "null"]
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
         }
       },
       "required": []
@@ -6258,33 +6198,18 @@
       "additionalProperties": false
     },
     "exactTypeDefinitionRecord": {
-      "description": "Whole exact Type-definition Bead with recorded owned closure and pinned Type affiliations. Serving a global definition never transfers ownership to the responder.",
+      "description": "Whole exact Type-definition Bead with a pinned Type affiliation. Serving a global definition never transfers ownership to the responder.",
       "allOf": [
         {
           "$ref": "#/$defs/beadRecord"
         },
         {
           "type": "object",
-          "required": ["ownedLinks"],
           "properties": {
             "type": {
               "$ref": "#/$defs/pinnedTypeReference"
             },
-            "links": false,
-            "ownedLinks": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "$ref": "#/$defs/pinnedTypeReference"
-                    }
-                  }
-                }
-              }
-            }
+            "links": false
           }
         }
       ]
@@ -6296,7 +6221,7 @@
       "properties": {
         "definition": {
           "$ref": "#/$defs/exactTypeDefinitionRecord",
-          "description": "One complete exact Type-definition Bead including its required recorded owned closure."
+          "description": "One complete exact Type-definition Bead."
         },
         "originScope": {
           "$ref": "#/$defs/absoluteHttpUrl",
@@ -6363,7 +6288,7 @@
       ]
     },
     "typeDefinitionReadProblem": {
-      "description": "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content or silently truncates the owned capture.",
+      "description": "Problem carrier for exact-definition reads. Narrow missing-state diagnosis never substitutes current content.",
       "oneOf": [
         {
           "allOf": [
@@ -6637,6 +6562,7 @@
       "required": ["bdpVersion", "profile", "scope", "specRevision"]
     },
     "writeExceptionsCapabilityV1": {
+      "minProperties": 1,
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -6657,8 +6583,7 @@
           }
         }
       },
-      "required": [],
-      "minProperties": 1
+      "required": []
     },
     "writeDiscovery": {
       "type": "object",
@@ -7924,8 +7849,7 @@
               "const": true
             },
             "resource": false,
-            "deleted": false,
-            "ownerRevisions": false
+            "deleted": false
           }
         }
       ],
@@ -7952,8 +7876,7 @@
                     "const": "bead"
                   }
                 }
-              },
-              "ownerRevisions": false
+              }
             }
           }
         },
@@ -7997,9 +7920,6 @@
         "outcome": {
           "enum": ["created", "updated", "unchanged", "deleted", "allocated"]
         },
-        "ownerRevisions": {
-          "$ref": "#/$defs/ownerRevisions"
-        },
         "resource": {
           "oneOf": [
             {
@@ -8025,28 +7945,6 @@
         }
       },
       "required": ["id", "resourceKind", "outcome", "changed"]
-    },
-    "ownerRevision": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "revision": {
-          "$ref": "#/$defs/revision"
-        }
-      },
-      "required": ["id", "revision"]
-    },
-    "ownerRevisions": {
-      "maxItems": 2,
-      "minItems": 1,
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "$ref": "#/$defs/ownerRevision"
-      }
     },
     "resourceProjectionCapabilityV1": {
       "description": "Version-1 projection support flags for current, exact and inventory reads. At least one form is supported; each true flag commits to its complete representation semantics.",
@@ -8228,19 +8126,6 @@
         "metadata": {
           "$ref": "#/$defs/metadata",
           "description": "Common mutable object content, independent of Type-specific properties."
-        },
-        "ownedLinks": {
-          "type": "object",
-          "propertyNames": {
-            "$ref": "#/$defs/absoluteHttpUrl"
-          },
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/linkRecord"
-            }
-          },
-          "description": "Recorded revision-covered owned-Link capture, grouped by nominal Link-Type identity. It is derived state, not directly writable input."
         },
         "properties": {
           "$ref": "#/$defs/properties",
@@ -8627,8 +8512,6 @@
     "mutationResult",
     "mutationResultMembers",
     "ordinaryUpdateChange",
-    "ownerRevision",
-    "ownerRevisions",
     "pinnedReference",
     "pinnedTypeReference",
     "positiveInteger",
@@ -8830,8 +8713,6 @@
       "mutationResult",
       "mutationResultMembers",
       "ordinaryUpdateChange",
-      "ownerRevision",
-      "ownerRevisions",
       "propertyChange",
       "putAliasMembers",
       "putAliasRequest",
