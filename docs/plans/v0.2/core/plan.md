@@ -140,20 +140,26 @@ plan: all {
   on bdp spec and potentially go spec". Asked whether to keep one node, split it, or make it
   a fourth facet, she chose the split. `events` depended on all of storage while half of
   storage could only be settled once events were; the split removes that circle.
-- **Owned Links are removed (Donna, 2026-11-10).** "Go ahead and remove it now. There is no
-  reason to keep it around. We will come up with a replacement if we actually need one." A
-  Link is an ordinary Resource with its own revision; a Bead's revision captures no Links.
-  The removal is part of `spec/bdp/data-model` (the Core and Write text) and reaches Types,
-  the conformance cases and the reference implementation. No node is added for it. In the
-  v0.1 text a Type definition's conformance declarations are owned Links. Asked what should
-  replace them, Donna: "the link can exist and it is structurally sound." So a declaration
-  stays a Link, an ordinary one, and nothing replaces it. The Types text is Trish's to rewrite.
+- **Owned Links stay until something better is found (Donna, 2026-11-10).** Donna first
+  ruled them out ("Go ahead and remove it now."), then, the same day, after Trish and I had
+  measured what the removal reaches, reversed it: "I'm fine leaving it for a bit longer. How
+  about this. We remove it when we find something that works better. And we don't exit 0.2
+  without at least a plan for what we want." So the v0.2 text keeps owned Links as v0.1 has
+  them, and a plan for what replaces them is a condition of leaving v0.2. That plan belongs
+  to `spec/bdp/data-model`; no node is added for it yet, and where it sits is on the review
+  list below. The removal itself was written and checked for Core, Write, the conformance
+  index and the live kit, and is kept unmerged, to be picked up when a replacement exists.
+  In the v0.1 text a Type definition's conformance declarations are owned Links. Asked what
+  should replace them if owned Links went, Donna: "the link can exist and it is structurally
+  sound." That answer waits with the removal.
 - **Where v0.2 text lives (Donna, 2026-11-10).** "Main should always carry the current
   version directly under specs. I am fine to keep previous versions as history but I would
   like then NOT under the specs directory." Every `spec/` node in this plan is therefore an
   edit to the existing files under `specs/` on main. There is no separate v0.2 tree. For
   the earlier version Donna proposed release branches ("Maybe we just keep release
-  branches?"); `release/sprint1` already exists. That is a proposal, not yet firm.
+  branches?") and then asked for "the labeled v0.1 branch and commit". Both exist: branch
+  `release/v0.1` and tag `spec/v0.1`, on the last commit of main before any v0.2 content
+  (`6237f293`). Moving `specs/history/` out of `specs/` is not done yet.
 - **The spec may lead the reference implementation; conformance may not lag (Donna,
   2026-11-10).** Asked whether spec text may merge on main ahead of the reference
   implementation: "A is fine for this week. I think the reference implementation thing may
@@ -178,6 +184,10 @@ are on the list for the planning days (2026-11-10 and 11).
   edge does not show that; `impl/history` sits beside the reference implementation so that it
   does not hold it up. Not ruled: who builds it (upstream's versioned-beads work,
   gastownhall/beads#6379, is switched off and unfinished), and its size.
+- **What replaces owned Links.** Donna made a plan for this a condition of leaving v0.2.
+  There is no node for it yet. It could be a child of `spec/bdp/data-model`, or a gate child
+  of the whole BDP spec in the way `impl/reference` is gated on conformance. Not ruled:
+  which, and who writes the plan.
 - **The two halves of storage.** `events` now waits only on the early half. The late half
   (change log, retention and cursor, export boundary) is finished together with `events`; no
   edge is drawn either way between them.
