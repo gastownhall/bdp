@@ -74,6 +74,9 @@ carries no conformance case until it is ruled. When a section is ruled, its case
 it: the specification may run ahead of an implementation, and it may not run ahead of its
 conformance suite.
 
+The suite meant here is the live conformance kit, which grows as sections are ruled. The
+frozen historical catalogs stay pinned as they are and are not governed by this rule.
+
 ### 1.5 Notation
 
 Shapes are shown in a small informal notation:
