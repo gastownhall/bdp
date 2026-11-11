@@ -56,9 +56,9 @@ describe what the proposal would require; they bind nobody until the section is 
 | Section | Subject | Status |
 |---|---|---|
 | 2 | Data model | mixed: carried core; storage class and the Core and Types split ruled; proposed additions |
-| 3 | Revisions, provenance, history | mixed: carried, with history ruled optional |
-| 4 | Execution model | ruled in outline; field detail proposed |
-| 5 | The six primitives | the set is ruled; request and response shapes proposed |
+| 3 | Revisions, provenance, history | mixed: revision carried; provenance ruled to name several principals, its shape proposed; history ruled optional |
+| 4 | Execution model | ruled in outline; context members ruled; field rules proposed |
+| 5 | The six primitives | the set is ruled; a delete minting a final revision is ruled; request and response shapes proposed |
 | 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail proposed |
 | 7 | Events | record default and cardinality ruled; declarations ruled out of Core; delivery detail proposed |
 | 8 | Discovery and capabilities | carried; additions proposed |
@@ -338,6 +338,7 @@ Resource.
 - A client compares revisions for equality only. It never orders or parses them.
 - The revision changes exactly when the Resource's state changes. A request that would
   leave the state as it is does not mint a new revision.
+- A delete is a change of state. It mints a final revision (ruled, section 5.6).
 - A Bead's revision covers its captured owned Links (section 2.8).
 
 Proposed terms. One token appears in two roles:
@@ -352,17 +353,84 @@ not a revision of any Resource.
 
 ### 3.2 Revision provenance
 
-**Status: carried.**
+**Status: mixed. Ruled (2026-11-11): provenance names several principals, each in one or
+more roles, and a caller supplies it in the request context (section 4.3). The shape
+below is proposed. It follows the decisions recorded in the published provenance proposal
+(gastownhall/beads#7510), which have not yet been written into any adopted text. The
+commit time, the message and the open `metadata` member are carried.**
+
+Provenance records who took part in the change that made a revision, in what role, and
+when the revision was committed. It is stored with the revision and returned in the
+record as `revisionProvenance` (section 2.2).
 
 ```text
-RevisionProvenance = { actor?: { id, basis: "writer-supplied" | "unknown" },
-                       committedAt?, agent?, message?, metadata? }
+RevisionProvenance = { principals?: [ Principal ],
+                       committedAt?, message?, metadata? }
+
+Principal = { id, displayName?, roles?: [ role ],
+              basis: "writer-supplied" | "channel-authenticated" | "unknown",
+              authority? }
 ```
 
-Provenance records who a revision is attributed to and when it was committed. It is
-supplied by the writer and stored with the revision. It is data, not evidence: Core does
-not claim it is true, and a service MUST NOT invent it. A caller never supplies the commit
-time.
+This replaces v0.1's single `actor` and its optional `agent`.
+
+Principals and roles:
+
+- A **principal** is an identity: a person, an agent or a service account. `id` is an
+  absolute URI or URN. Nothing requires that it can be looked up.
+- `displayName` is a saved label. It is never identity and never a matching key.
+- One principal may hold several roles, and several principals may hold the same role.
+- Three roles are named to begin with: `initiator` asked for the work, `contributor`
+  helped produce the change, `submitter` is the identity the change was submitted under.
+- The set of roles is open. A reader keeps a role it does not know and does not guess
+  its meaning.
+- Every role is optional. A role that is absent was not recorded; that is not a statement
+  that nobody held it. A service MUST NOT invent a principal to fill one.
+- A role grants no permission. Authorization is a separate decision (section 9).
+- The position of a principal in the list carries no meaning.
+
+Basis:
+
+- `basis` says how a principal's identity was established. It says nothing about whether
+  the roles attached to that principal are true.
+- `writer-supplied`: the caller reported it. Every principal a caller sends has this
+  basis.
+- `channel-authenticated`: the accepting service established this identity itself, by
+  authentication on the connection the request arrived on. Only the service can assign
+  it, and `authority` then names that service. A caller cannot supply a basis at all;
+  the input shape below has no such member.
+- `unknown`: not known, as for a revision that predates this record.
+- Where the caller reports one identity and the connection authenticates another, both
+  are kept, each with its own basis. One does not replace or upgrade the other.
+
+What a caller supplies, and what the service adds:
+
+```text
+ProvenanceInput = { principals?: [ { id, displayName?, roles? } ],
+                    message?, metadata? }
+```
+
+- The service sets `committedAt`, the instant it committed the revision. A caller never
+  supplies the commit time.
+- The service marks each supplied principal `writer-supplied`, and MAY add principals it
+  authenticated itself.
+- `message` is the caller's explanation of this change. `metadata` is an open JSON object
+  about this change that nothing in the protocol interprets.
+- A service that cannot record a member the caller supplied refuses the request. It does
+  not drop the member.
+
+Rules, carried from v0.1:
+
+- Provenance is data, not evidence. Core does not claim it is true.
+- Provenance is saved with the revision it describes, in the same commit, and is
+  immutable from then on.
+- Provenance describes one change. It is not copied forward from the previous revision.
+- Provenance never causes a revision. A request that changes nothing saves none.
+- One request that mints several revisions records its provenance on each.
+
+Open: the closed schema of a principal; that `channel-authenticated` reverses a v0.1
+sentence, which said Core has no basis that asserts authentication; and whether how a
+Resource's present period began ("inception" in the proposal) belongs here (section 15).
 
 ### 3.3 Full and patch change encodings
 
@@ -421,17 +489,18 @@ asynchronous call has one cause and several transactions.
 ### 4.3 Call context
 
 **Status: ruled that call context rides in the request and in the response of all six
-primitives. The fields are proposed.**
+primitives. Ruled (2026-11-11): the members shown below, and that the request context
+carries no deadline in v0.2 (section 6.7). The field rules are proposed.**
 
 Every primitive request and every primitive response carries a `context`. This holds even
 for primitives that are never asynchronous.
 
 ```text
-RequestContext = { cause?, deadline? }
-ReplyContext   = { cause, transaction? }
+RequestContext = { cause?, provenance?: ProvenanceInput, metadata? }
+ReplyContext   = { cause, transaction?, metadata? }
 ```
 
-Proposed field rules:
+Proposed field rules for `cause` and `transaction`:
 
 - `cause` in a request is absent for a fresh request. It is present only when the caller
   is itself acting inside an existing causal tree and passes that tree's token on. A
@@ -439,7 +508,35 @@ Proposed field rules:
 - `cause` in a reply is always present.
 - `transaction` in a reply is present when the request resulted in exactly one atomic
   commit. A read, a refused request and a request that changed nothing have none.
-- `deadline` is a request to stop waiting. It is an optional capability (section 6.7).
+- `transaction` is a receipt, not a handle. It is the marker of the commit the request
+  made, the same marker the events of that commit carry. A request cannot name a
+  transaction to join, and several requests cannot be made to commit as one. Changes that
+  must commit together are one request: a callable that makes them all (section 14).
+
+Proposed field rules for `provenance`:
+
+- `provenance` is what the caller reports about who is behind the request and why
+  (section 3.2). It is in the context, not in any primitive's input, so that it travels
+  the same way on all six.
+- It applies to every revision the request mints. Like `cause`, it follows the request
+  through a `call`: a revision minted by a callable on the request's behalf, at once or
+  later, records the provenance of the request that set it in motion.
+- A request that mints no revision records none. That includes every `get` and `pull`.
+- Open: whether a callable may add principals of its own to the provenance of the
+  request it is handling (section 15).
+
+Proposed field rules for `metadata`:
+
+- `metadata` is an open JSON object, in the request context and in the reply context. The
+  system does not interpret it.
+- Request `metadata` is delivered to whatever handles the request. For a `call`, that is
+  the callable's implementation. Core does not store it. It MUST NOT change what a
+  primitive means: a request that needs different behaviour is a different request.
+- Reply `metadata` is from the service, or from a callable's implementation, to the
+  caller. It is kept only where the Reply is kept: in the result bead of an asynchronous
+  call (section 6.5).
+- Something that should be kept with a revision belongs in the provenance's own
+  `metadata` (section 3.2), which is stored and immutable. Context `metadata` is not.
 
 ### 4.4 Result, Outcome and Reply
 
@@ -479,7 +576,8 @@ Open: the spelling of the tag that names the arm (section 15).
 final. The Problem format is carried.**
 
 A `fault` is a failure of the system, not a verdict of the operation: the service was
-unavailable, the request was malformed, a deadline passed. A fault carries a Problem.
+unavailable, the request was malformed, the service ran out of time. A fault carries a
+Problem.
 
 A Problem is an RFC 9457 problem document with the required members v0.1 defines: `type`,
 `code` and `retry` (`never`, `after-state-change` or `after-delay`). Section 12 lists the
@@ -535,6 +633,9 @@ Response = Reply<T, E>
 error. How the frame is carried over HTTP, and which parts ride in the URL, the
 headers or the body, is the binding's business (section 13) and is open.
 
+Provenance is not a member of any primitive's input. It is supplied in the request
+context (ruled, section 4.3).
+
 `get`, `create`, `update`, `delete` and `pull` are synchronous: the response is the
 settled outcome. Only `call` may be asynchronous (section 6.4).
 
@@ -577,8 +678,8 @@ the input. The member list and the identifier rules are proposed and follow v0.1
 operations.**
 
 ```text
-input (Bead) = { type, id?, properties?, metadata?, revisionProvenance? }
-input (Link) = { type, id?, source, target, properties?, metadata?, revisionProvenance? }
+input (Bead) = { type, id?, properties?, metadata? }
+input (Link) = { type, id?, source, target, properties?, metadata? }
 value        = the created Resource's record (section 2.2)
 ```
 
@@ -614,18 +715,20 @@ and not for Links), and how a caller selects a storage class (section 15).
 ```text
 input = { id, expectedRevision?,
           properties | propertiesChange,
-          metadata | metadataChange,
-          revisionProvenance? }
+          metadata | metadataChange }
 value = the Resource's representation after the update
 ```
 
-- At least one change member is required. A guard or provenance alone is not an update.
+- At least one change member is required. A guard alone is not an update, and neither is
+  provenance alone (section 3.2).
 - `properties` and `propertiesChange` are mutually exclusive, and so are `metadata` and
   `metadataChange` (section 3.3).
 - `expectedRevision` is optional. When present and not equal to the Resource's current
   revision, the update is refused with `revision-mismatch` and has no effect.
 - An update that would leave the Resource as it is succeeds, keeps the revision, records
   no provenance, and produces no event. The reply carries no `transaction`.
+- An update of a deleted Resource is refused as not found, unless it starts from an
+  earlier revision (section 5.6).
 
 An update changes one Resource. It does not change the Resource's identifier or kind.
 
@@ -634,13 +737,43 @@ endpoints. v0.1 allows both. Neither is decided for v0.2 (section 15).
 
 ### 5.6 delete
 
-**Status: proposed. The default refusal is carried from v0.1. Three points are open and
-are named below.**
+**Status: mixed. Ruled (2026-11-11): a delete mints a final revision, and a deleted
+Resource is brought back by an update that starts from an earlier revision. The default
+refusal is carried from v0.1. The shapes and the details of the final revision are
+proposed. Open points are named below.**
 
 ```text
-input = { id, expectedRevision?, revisionProvenance? }
-value = the identity of what was deleted: { id, kind, type, revision }
+input = { id, expectedRevision? }
+value = the final revision: { id, kind, type, revision, previousRevision }
 ```
+
+The final revision (ruled):
+
+- A delete mints one more revision of the Resource, its **final revision**. The
+  Resource's chain of revisions does not simply stop; it ends with a revision that says
+  the Resource was deleted.
+- The final revision carries the provenance of the delete, from the request context
+  (section 4.3): who deleted the Resource, and why.
+- It is final until someone brings the Resource back. That is an update that starts from
+  an earlier revision. It mints a new live revision after the final one, under the same
+  identifier.
+
+Proposed details, following what v0.1 offered as an optional capability:
+
+- The final revision has a revision token of its own, distinct from the last live
+  revision, which it names as `previousRevision`. It holds no `properties`, no `metadata`
+  and no endpoints.
+- This holds for Beads and Links alike. v0.1 recorded one for Beads only.
+- A service keeps the final revision whether or not it offers history (section 10).
+- `get` on a deleted Resource still fails as not found (section 5.3). How an authorized
+  caller reads the final revision is open.
+- Bringing a Resource back needs the content of an earlier revision, so it is available
+  only where history is offered (section 3.4). It uses the provenance of the request
+  that does it, not that of the earlier revision. It does not bring back any Link that
+  was removed.
+- A second delete of a Resource that was brought back mints a new final revision.
+
+Rules of the primitive:
 
 - `expectedRevision` behaves as in `update`.
 - Deleting a Bead is refused with `incident-links-exist` while a live Link is attached to
@@ -656,8 +789,8 @@ run) are not part of the primitive. They are core library callables (section 14)
 
 Open:
 
-1. Whether a delete mints a final revision. v0.1 says it does not. An event reader that
-   follows revision chains is simpler if it does.
+1. Where the member that names the earlier revision lives: on `update` itself, as v0.1's
+   `fromRevision` was, or in a core library callable. This draft has not placed it.
 2. What happens to a Link whose endpoint on the deleted Bead is pinned to a revision. v0.1
    lets such a Link survive and not block. The design authority leans the same way.
 3. Whether the primitive stays this bare, with all controls in a callable. The design
@@ -862,6 +995,8 @@ Proposed mechanics:
   mints the cause. Two Resources are created, so the commit produces two change events
   with the same `transaction` and `cause` (section 7.2).
 - Settlement is an update to the result bead that writes `outcome`.
+- Both revisions of the result bead, the one at admission and the one at settlement,
+  record the provenance of the call request (section 4.3).
 - The response to an asynchronous call is the result bead itself, as `get` on it would
   return it at that moment: `context` present, `outcome` absent. That the response is the
   result bead was stated by the design authority on 2026-11-11 (section 13.2); an earlier
@@ -882,11 +1017,15 @@ to listen reads the result bead with `get` until `outcome` is present.
 
 ### 6.7 Not in Core
 
-**Status: ruled for retry. The rest is proposed.**
+**Status: ruled for retry and for deadlines. The rest is proposed.**
 
 - **Retry** is tabled. Core reserves no retry key and defines no retry behaviour.
-- **Cancellation and deadlines** are proposed as one optional capability. Where it is not
-  offered, a `deadline` in a request is refused, not ignored.
+- **Deadlines** are not part of v0.2 (ruled, 2026-11-11). A request carries no deadline
+  and no timeout. An earlier state of this draft proposed a `deadline` member in the
+  request context; it is removed. One may be added in a later version, once the timeout
+  models of the systems built on this protocol, and of HTTP, have been reconciled. A
+  service that gives up on its own account still reports a `fault` (section 4.5).
+- **Cancellation** is not designed.
 - **Suspending and resuming** a call is not designed.
 - Arms such as `canceled` and `skipped` are not Core arms. A pack that needs them adds
   them to Outcome.
@@ -963,9 +1102,15 @@ Proposed adjustments:
    new state or a patch (section 3.3). The complete form is required of every service.
    The patch form is optional. A reader that meets a patch it cannot apply reads the
    Resource again.
-4. **A deletion carries identity only.** A `deleted` event names what was deleted and
-   carries no content.
+4. **A deletion carries no content.** A `deleted` event names what was deleted. Its
+   `revision` is the final revision the delete minted and its `previousRevision` is the
+   last live revision (section 5.6). A Resource that is brought back is reported by an
+   `updated` event whose `previousRevision` is that final revision.
 5. **`cause` is added**, per section 4.2.
+6. **Provenance rides on the event.** A change event carries the `revisionProvenance` of
+   the revision it reports, beside `data`. v0.1's event record carried it for creates and
+   updates; here a `deleted` event carries it too, so a reader of the stream learns who
+   deleted a Resource without a further read.
 
 Rules:
 
@@ -1080,7 +1225,7 @@ Proposed additions for v0.2. Discovery states:
 - which storage classes the Scope accepts on `create`;
 - whether push delivery is offered (section 7.4);
 - which invocation modes the Scope refuses outright (section 6.4);
-- whether cancellation and deadlines are offered (section 6.7);
+- the largest request context the Scope accepts (section 13.2);
 - where the changefeed is.
 
 Callables and EventSources are discovered as what they are: Beads. A client recognises
@@ -1119,8 +1264,8 @@ about how. A store that keeps these promises is acceptable whatever its design.
    second Resource.
 4. A storage class for every Resource (ruled).
 5. A revision per Resource that changes exactly when the Resource's state changes.
-6. Where history is offered, earlier revisions of Beads and of Links alike, including the
-   fact that a Resource was deleted (ruled: history is optional and discoverable).
+6. Where history is offered, earlier revisions of Beads and of Links alike (ruled:
+   history is optional and discoverable).
 7. A transaction marker shared by everything committed together (ruled).
 8. A cause token, minted once per incoming request and recorded on everything that
    request changes (ruled).
@@ -1130,8 +1275,11 @@ about how. A store that keeps these promises is acceptable whatever its design.
 11. A hard failure for a read below the retention floor, and a minimum lifetime for a
     held cursor (the minimum lifetime is ruled).
 12. An export that is consistent with itself, together with the cursor that matches it.
-13. Provenance for each revision as supplied, never invented.
-14. Deletion that does not erase: a deleted Resource's identifier stays accounted for.
+13. Provenance for each revision: the principals as supplied, each with its roles and
+    basis, never invented.
+14. Deletion that does not erase: a deleted Resource's identifier stays accounted for,
+    and its final revision is kept with the provenance of the delete (ruled that a delete
+    mints one, section 5.6). This holds whether or not history is offered.
 
 A Link's storage class is at most that of its most ephemeral endpoint (ruled,
 section 2.6).
@@ -1249,8 +1397,35 @@ can be written:
    a table of command URLs, and should `call` and `pull` do the same for the Callable and
    the EventSource they act on?
 
-Also open here: how the common frame (section 5.2) maps onto HTTP, in particular where
-the request context travels and how the `err` arm is carried.
+Also open here: how the common frame (section 5.2) maps onto HTTP, in particular how the
+`err` arm is carried and where the reply context travels for the primitives other than
+`call`.
+
+Proposed: carrying the request context. The request context (section 4.3) travels in one
+HTTP request header, the same header on all six primitives. It does not travel in the
+URL.
+
+```text
+DELETE <Resource URL>
+BDP-Context: {"provenance":{"principals":[{"id":"urn:example:ada","roles":["submitter"]}]}}
+```
+
+- Not in the URL. Provenance names people and carries a free-text message. URLs are
+  written to logs, kept by caches and passed on by intermediaries, and their usable
+  length is small.
+- Not in the body, because three of the six primitives have none to put it in. A GET has
+  no request body, which covers `get` and `pull`, and a body on an HTTP DELETE has no
+  defined meaning. A header is the one place that is the same for all six. It also leaves
+  each body as the input alone: the arguments of a `call`, a patch for an `update`.
+- The header's value is the context as JSON, written in ASCII with every other character
+  escaped. The header's name and this encoding are open.
+- Headers are limited in size by servers and intermediaries, commonly to a few kilobytes
+  in all. A Scope states the largest request context it accepts in discovery (section 8).
+  A larger one is refused. It is never truncated.
+- Considered and not taken: a body that wraps the input together with the context. That
+  has no size limit worth the name, but it serves only `create`, `update` and `call`, it
+  rules out the plain HTTP DELETE of the first question above, and it means a `call`
+  body is no longer the arguments alone.
 
 Form of `call`. The design authority stated it on 2026-11-11 as two requests: a POST on
 the Callable's URL that returns the result, and the same POST marked asynchronous that
@@ -1266,7 +1441,7 @@ POST <Callable URL>?mode=async      body: the arguments
 ```
 
 - The request body is the arguments and nothing else. The Callable is named by the URL
-  and the mode by a query parameter.
+  and the mode by a query parameter. The request context is in the header proposed above.
 - The synchronous response body is the Reply, not the bare result (ruled). It is exactly
   what the result bead's `properties` hold once the same call, made asynchronously, has
   settled (section 6.5).
@@ -1317,7 +1492,7 @@ are.
 | Atomic batch and request-local names (Write) | core library |
 | Delete of several Beads, with attached Links, by cascade, as a dry run (Write) | core library |
 | Rooted identifier allocation (Write) | core library |
-| Update from an earlier revision, and recovery of a deleted Bead (Write) | core library, with history |
+| Update from an earlier revision, and recovery of a deleted Bead (Write) | open: recovery by such an update is ruled (section 5.6); whether the member is on `update` or in the core library is not. Either way it needs history |
 | Idempotency keys (Write) | open; tabled with retry (section 6.7) |
 | Retyping and Link endpoint correction (Write) | open (section 15) |
 | Collections, selectors and query (Core) | core library |
@@ -1373,7 +1548,9 @@ Primitives:
 
 7. The request and response formats of the six primitives (section 5.2 is a first
    proposal).
-8. Whether delete mints a final revision.
+8. The final revision of a delete (ruled that there is one): what it holds, how it is
+   read, what `delete` returns, and whether the update that brings a Resource back is a
+   member of `update` or a core library callable (section 5.6).
 9. What a delete does about Links pinned to a revision of the deleted Bead.
 10. Whether `delete` and `update` stay bare, with controls in callables.
 11. The HTTP binding, and whether primitives address the Resource directly
@@ -1381,10 +1558,13 @@ Primitives:
 
 Execution:
 
-12. The call context fields (section 4.3).
+12. The rules of the call context's members (the members themselves are ruled), and
+    whether a callable may add principals to the provenance of the request it is handling
+    (section 4.3).
 13. The spelling of the tag that names an Outcome arm, and whether arms are open
     records.
-14. Cancellation, deadlines, suspend and resume.
+14. Cancellation, suspend and resume. Deadlines are deferred to a later version (ruled,
+    section 6.7).
 15. Retry and idempotency.
 16. The storage class and lifetime of a result bead.
 
@@ -1428,8 +1608,22 @@ Core and Types:
     refusal (sections 2.4, 12).
 31. Whether the quantities of a retention policy are named by Core, as section 7.5 does,
     or only by Types.
-32. The HTTP form of `call` beyond what is ruled: the status codes, the `Location` header
-    on the asynchronous response, and where the request context travels (section 13.2).
+32. The HTTP form of `call` beyond what is ruled: the status codes and the `Location`
+    header on the asynchronous response (section 13.2).
+
+Provenance and context:
+
+33. The shape of provenance (section 3.2). That it names several principals in roles is
+    ruled. Open: the closed schema of a principal; the `channel-authenticated` basis and
+    `authority`, which reverse a v0.1 sentence; and whether how a Resource's present
+    period began is recorded here.
+34. How the request context is carried over HTTP. A single request header is proposed;
+    its name, its encoding and its size limit are open, and so is where the reply
+    context travels for the primitives other than `call` (section 13.2).
+35. Whether a request can name a transaction to join, so that several requests commit as
+    one. Proposed: no (section 4.3).
+36. Whether every change event carries the provenance of the revision it reports
+    (section 7.2).
 
 ## Appendix A. Decisions folded into this text
 
@@ -1506,6 +1700,16 @@ Rulings by the design authority, by date, with the section that carries each.
 - `call` is a POST on the Callable's own URL. Made synchronously it returns the Reply,
   not the bare result; made asynchronously it returns the AsyncResult bead. The mode is
   spelled `mode=async` on the URL. (6.4, 6.5, 13.2)
+- The request context carries `cause`. The reply context carries `cause`, and
+  `transaction` where the request made one commit. (4.3)
+- Provenance is supplied in the request context, not in each primitive's input. (3.2,
+  4.3, 5.2)
+- The request context and the reply context each carry a `metadata` member that the
+  system does not interpret. (4.3)
+- Provenance names several principals, each in one or more roles. (3.2)
+- A delete mints a final revision. A deleted Resource is brought back by an update that
+  starts from an earlier revision. (3.1, 5.6)
+- Deadlines are not part of v0.2. They may be added in a later version. (4.3, 6.7)
 
 Stated preferences, not final: the arm names `ok` and `err`; a closed Result inside an
 open Outcome; `fault` as the system arm carrying a Problem; no reason code in Core. (4.4,
@@ -1514,4 +1718,6 @@ open Outcome; `fault` as the system arm carrying a Problem; no reason code in Co
 Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
 stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
 result bead; the details of the Link from a result bead to its callable; the HTTP form of
-`pull`. Each is marked proposed where it appears and listed in section 15.
+`pull`; the shape of a principal; what the final revision of a delete holds; the header
+that carries the request context; that a request cannot join a transaction. Each is
+marked proposed where it appears and listed in section 15.
