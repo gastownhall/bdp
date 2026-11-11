@@ -66,7 +66,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 10 | What a store must keep | proposed, built on ruled decisions |
 | 11 | Export boundary | two rules ruled; the rest open |
 | 12 | Problems | carried; new codes proposed |
-| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled; context headers proposed; the rest of addressing open |
+| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled; a failing status for a `call` that does not succeed ruled; context headers proposed; the rest of addressing open |
 | 14 | What moved out of Core | to Types: ruled; to the core library: delete with controls ruled, the rest direction given and not yet confirmed |
 | 15 | Open items | open |
 
@@ -1596,9 +1596,9 @@ successful one does (section 13.2). An earlier state of this draft proposed an e
 member of the Problem instead. A synchronous `call` that faults carries its context in
 the Reply.
 
-How the `failure` arm of a Result is carried over HTTP is a binding question
-(section 13.2). v0.1 carried a callable's own error as a Problem with code
-`callable-error`.
+Ruled (2026-11-11): over HTTP the `failure` arm of a synchronous `call` is carried in the
+Reply, with a failing status (section 13.2). Which status is open. v0.1 carried a
+callable's own error as a Problem with code `callable-error`.
 
 ## 13. Bindings: HTTP, JSON Schema, OpenAPI
 
@@ -1630,8 +1630,10 @@ Schemas for those are the business of Types.
 ### 13.2 The HTTP binding
 
 **Status: open, with three points settled. Ruled for now: `create` is a request on the
-Scope. Ruled: the form of `call` below, except the status codes and the `Location`
-header, which are proposed. Ruled (2026-11-11): the five data primitives answer plainly,
+Scope. Ruled: the form of `call` below, and that a synchronous `call` which does not
+succeed answers with a failing status and the Reply as its body; the exact status codes
+and the `Location` header are proposed. Ruled (2026-11-11): the five data primitives
+answer plainly,
 with the value as the body of a 2xx response and a failing status otherwise; the body of
 a failing response and the place of the reply context are proposed. The form of `pull`
 is proposed. The v0.1 binding is described for reference. It is not carried.**
@@ -1703,8 +1705,8 @@ Considered and not taken: answering all six primitives with the Reply, which an 
 state of this draft proposed. A `get` would then return its record inside a wrapper, and
 a client would have to read the body to learn what the status already says.
 
-Still open here: how the `failure` arm of a `call` is carried (see the form of `call`
-below).
+Still open here: which failing status the `failure` arm of a `call` gets (see the form
+of `call` below).
 
 Proposed: carrying the request context. The request context (section 4.3) travels in
 HTTP request headers, one header for each member, the same headers on all six
@@ -1779,7 +1781,8 @@ returns the AsyncResult bead. That answers the third question for `call`. Filled
 
 ```text
 POST <Callable URL>                 body: the arguments
-200  the Reply: { context, outcome }
+200       the Reply, when the outcome is `success`
+4xx, 5xx  the Reply, when the outcome is anything else
 
 POST <Callable URL>?mode=async      body: the arguments
 202  Location: <result bead URL>
@@ -1796,12 +1799,18 @@ POST <Callable URL>?mode=async      body: the arguments
   call. A request with no `mode`, or with `mode=sync`, is synchronous (section 6.4).
 - Proposed: the status codes `200` and `202`, and the `Location` header on the
   asynchronous response.
-- Proposed: a synchronous response has a 2xx status only when the outcome is `success`,
-  the one arm that means the call went as intended (section 4.4). A `fault` is sent with
-  the status of its Problem, and a `failure` with a failing status that is still to be
-  chosen. The body is the Reply in every case. This keeps one rule for all six
-  primitives: a 2xx status means success. Open: whether that is right, or whether every
-  synchronous `call` that was carried through answers `200` (section 15).
+- Ruled (2026-11-11): a synchronous `call` that does not succeed answers with a failing
+  HTTP status, and the body is still the Reply. A 2xx status is sent only when the
+  outcome is `success`, the one arm that means the call went as intended (section 4.4).
+  All six primitives then share one rule: a 2xx status means success.
+- It follows that every arm other than `success` is sent with a failing status. That
+  includes an arm a pack adds (section 4.4).
+- Proposed: a `fault` is sent with the status of its Problem.
+- Open: which failing status a `failure` gets, and which an arm added by a pack gets
+  (section 15).
+- Considered and not taken: answering `200` for every synchronous `call` that was
+  carried through. A `failure` or a `fault` would then look like a success to anything
+  that reads only the status.
 
 Proposed form of `pull`. It answers the third question for `pull` only, and only as a
 proposal:
@@ -1998,8 +2007,10 @@ Outcome:
 40. The body of a failing response from one of the five data primitives, and their 2xx
     status codes. Proposed: the Problem; `201` for `create` and `200` for the rest
     (section 13.2).
-41. The HTTP status of a synchronous `call` whose outcome is not `success`. Proposed: a
-    failing status, with the Reply as the body (section 13.2).
+41. The HTTP status of a synchronous `call` whose outcome is not `success`. Ruled
+    (2026-11-11): a failing status, with the Reply as the body. Open: which status a
+    `failure` gets, and which an arm added by a pack gets. Proposed: a `fault` uses the
+    status of its Problem (section 13.2).
 
 ## Appendix A. Decisions folded into this text
 
@@ -2116,6 +2127,8 @@ Rulings by the design authority, by date, with the section that carries each.
 - Over HTTP, `get`, `create`, `update`, `delete` and `pull` rely on the status code. A
   2xx status means success and the body is the value. A failing status means failure,
   and what its body holds is left to this specification. (5.2, 13.2)
+- A synchronous `call` that does not succeed answers with a failing HTTP status, and the
+  body is still the Reply. (13.2)
 
 Stated as an assumption with that ruling, and followed in this text: the choice between
 `success` and `fault` is not used for those five. (4.5, 5.2)
@@ -2135,5 +2148,5 @@ context; that a request cannot join a transaction; that the service itself carri
 the delete callables, each invocation in one transaction; that an asynchronous call
 which is refused leaves no result bead; the `canceled` arm and what it carries; that the
 body of a failing response from a data primitive is the Problem; that the reply context
-of those five travels in response headers; the HTTP status of a synchronous `call` that
-did not succeed. Each is marked proposed where it appears and listed in section 15.
+of those five travels in response headers; which failing status a `failure` gets. Each is
+marked proposed or open where it appears and listed in section 15.
