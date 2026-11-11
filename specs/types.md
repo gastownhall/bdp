@@ -220,8 +220,10 @@ until she chooses, so the drafts differ until then.)
 same move as bead / link refining resource), declared by refining the matching well-known Type
 (section 9):
 
-- **read-only** — the call takes no capability, produces no effect, is repeatable, and may be
-  used where a read is. (Lumen's `function`.)
+- **read-only** — the call takes **no write capability**: it may read, but mutates nothing, so
+  it is repeatable and usable where a read is. That contract — no write capability — is
+  precisely what makes Lumen's `function` pure, so `read-only` and `function` correspond totally
+  in both directions. A call that mutates any state is a `command`, never read-only.
 - **command** — effectful. A command may declare `idempotent` (retrying is safe) and `atomic`
   (the invocation's changes commit in one transaction — Core §5.9, open item 37).
 
