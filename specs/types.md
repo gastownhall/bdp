@@ -240,16 +240,18 @@ omits `fault`, and Types does not restate the envelope.
 
 **Kinds.** A callable is a **function** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
-(section 9). (The pure kind is named `function` provisionally — its final name is open, item 5;
-`read-only` now names a property mode, §3.2, and is not reused here.)
+(section 9). (`function` == pure, ruled; `read-only` now names a property mode, §3.2, not reused
+here.)
 
 - **function** — the call takes **no write capability**: it may read, but mutates nothing, so it
   is repeatable and usable where a read is. That contract — no write capability — is exactly what
   makes Lumen's `function` pure, so BDP `function` and Lumen `function` coincide in both
   directions. A call that mutates any state is a `command`, never a function. A function carries
   neither `idempotent` nor `atomic`: being pure, it is inherently repeatable and transaction-free.
-- **command** — effectful. A command may declare `idempotent` (retrying is safe) and `atomic`
-  (the invocation's changes commit in one transaction — Core §5.9, open item 37).
+- **command** — effectful. A command may declare `idempotent` (repeating has the same effect),
+  `atomic` (its changes commit in one transaction — Core §5.9, open item 37), and `safe` (it has
+  an effect but does not mutate stored state, the HTTP sense — proposed name for "non-mutating",
+  item 5).
 
 (Lumen's `formula` — a reactive, recomputing callable — is a language kind only; it is not
 modeled as a BDP callable kind.)
@@ -327,7 +329,7 @@ Refines under `…/type-system/`), extended:
 | --- | --- | --- |
 | `Type`, `BeadType`, `LinkType`, `Refines` | the type system | carried |
 | `Callable` | §6.1 | proposed |
-| `Function`, `Command` (refine `Callable`) | §6.1 kinds (pure name provisional) | proposed |
+| `Function`, `Command` (refine `Callable`) | §6.1 kinds | proposed |
 | `EventSource` | §6.2 | proposed |
 | `AsyncResult` | §6.3 | proposed |
 | `ResultOf` (Link Type) | result bead → callable | proposed |
@@ -350,8 +352,8 @@ oracle that proves cross-implementation parity.
 
 **Open items.** Ruled 2026-11-11: `{min, max}` multiplicity; `reflexive`; delete-stays-bare;
 Outcome arms `success`/`failure`/`fault`; `Refines` kept (layer split with Lumen `is`); the pure
-callable kind = no write capability (its name is open, item 5); `service-managed` property mode
-renamed `read-only`.
+callable kind `function` (== pure) = no write capability; `service-managed` property mode renamed
+`read-only`.
 
 1. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
@@ -363,6 +365,7 @@ renamed `read-only`.
    rule holds at the edge.
 4. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
    pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
-5. **Callable-kind name** — the pure, no-write-capability kind is provisionally `function`
-   (Lumen-aligned); Donna wants a better name. `query` is the CQRS option but collides with BDP's
-   graph query.
+5. **Non-mutating command property** — a command with an effect but no stored-state change;
+   named `safe` provisionally (the HTTP sense), pending Donna's term.
+6. **Tier name** — `callable` vs `operation` for the invocable tier; open, a cross-spec call with
+   Core (which owns "Callables", Core §6).
