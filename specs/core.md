@@ -576,8 +576,9 @@ Proposed field rules for `metadata`:
 
 ### 4.4 Result, Outcome and Reply
 
-**Status: ruled in structure (items marked). Ruled (2026-11-11): the arms of a Result are
-named `success` and `failure`. The tag spelling is open.**
+**Status: ruled in structure (items marked). Ruled (2026-11-11): Core owns the definition
+of the outcome; the arms are named `success`, `failure` and `fault`; `success` is the only
+arm that means the operation went as intended. The tag spelling is open.**
 
 ```text
 Result<T, E>  = success { value: T } | failure { error: E }
@@ -588,21 +589,26 @@ Reply<T, E>   = { context, outcome?: Outcome<T, E> }
 - **Result** is closed. It is the operation's own verdict: it succeeded with a value, or
   it failed with an error of its own.
 - **Outcome** is open (ruled). It is what happened to the operation. It is the Result, or
-  a `fault`, or an arm added by a pack. A reader MUST tolerate an arm it does not know.
+  a `fault`, or an arm added by a pack or by another specification. A reader MUST
+  tolerate an arm it does not know.
 - **Reply** (ruled name) pairs the context with the outcome. It is what every caller gets
   back.
 
 There are two levels in the types and one level on the wire: `outcome` is a single tagged
 value whose arms include `success`, `failure` and `fault` side by side.
 
-Proposed reader rule. An `outcome` that is present means the operation is settled. Only
-`success` means the operation succeeded. An unknown arm is settled and not successful.
+Ruled (2026-11-11): `success` is the only arm that means the operation went as intended.
+Every other arm means it did not, and that includes an arm a reader does not know.
+
+Proposed: an `outcome` that is present means the operation is settled, whichever arm it
+holds. An arm is therefore a way for an operation to end. A state an operation passes
+through on the way, such as running or waiting, is not an arm.
 
 Changed in this draft: earlier states of it named the two arms `ok` and `err`.
 
-Ruled (2026-11-11): if Core has a reason to define the outcome, it is defined here, and
-every other specification refers to this definition and does not restate it. Core has
-these reasons:
+Ruled (2026-11-11): Core owns the definition of the outcome. Every other specification
+refers to this definition and does not restate it. Another specification may add arms, as
+above; it does not change these. The reasons Core needs the definition:
 
 - The service itself produces `fault`. No callable declares it or returns it, so no
   declaration can define it (section 4.5).
@@ -629,12 +635,18 @@ Open: the spelling of the tag that names the arm (section 15).
 
 ### 4.5 Faults and Problems
 
-**Status: the `fault` arm follows the design authority's stated preference and is not
-final. The Problem format is carried.**
+**Status: ruled (2026-11-11): there is a third arm, named `fault`, for an operation that
+did not run to completion, and what it carries is defined by the protocol, not by the
+callable. That it carries a Problem follows the design authority's stated preference. The
+Problem format is carried.**
 
-A `fault` is a failure of the system, not a verdict of the operation: the service was
-unavailable, the request was malformed, the service ran out of time. A fault carries a
-Problem.
+A `fault` means the operation did not run to completion. It is a failure of the system,
+not a verdict of the operation: the infrastructure failed, the callable's implementation
+crashed, the service was unavailable or ran out of time, the request was malformed. A
+fault carries a Problem.
+
+What a fault carries is defined by this specification. A callable's declaration does not
+define it, change it or leave it out.
 
 A Problem is an RFC 9457 problem document with the required members v0.1 defines: `type`,
 `code` and `retry` (`never`, `after-state-change` or `after-delay`). Section 12 lists the
@@ -889,6 +901,10 @@ does not look inside. What arguments a callable takes and what it returns are st
 its declaration, which Types specifies (section 6.1). Core does not check `arguments`
 against anything; a layer above Core MAY refuse the call (section 12). `mode` is covered
 in section 6.4.
+
+Proposed, carried from the v0.1 callables preview: `arguments` is a JSON object with one
+member for each argument, named as the callable's declaration names it. A call with no
+arguments sends `{}`. Core requires the object and does not look at its members.
 
 ### 5.8 pull
 
@@ -1880,11 +1896,14 @@ Rulings by the design authority, by date, with the section that carries each.
   expected to use them instead of it. (5.6, 5.9)
 - The arms of a Result are named `success` and `failure`, here and in every other
   specification. (4.4)
-- Where Core has a reason to define the outcome, Core's definition is the protocol's, and
-  other specifications refer to it. The reasons are listed in section 4.4. (4.4)
+- Core owns the definition of the outcome. Other specifications refer to it and may add
+  arms. (4.4)
+- `success` is the only arm that means the operation went as intended. (4.4)
+- There is a third arm, `fault`, for an operation that did not run to completion. What it
+  carries is defined by the protocol, not by the callable. (4.5)
 
-Stated preferences, not final: a closed Result inside an open Outcome; `fault` as the
-system arm carrying a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
+Stated preferences, not final: a closed Result inside an open Outcome; that a `fault`
+carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
 `delete` primitive is there mainly so that the HTTP binding has a plain DELETE. (5.6,
 13.2)
 
