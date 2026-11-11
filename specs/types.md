@@ -221,7 +221,7 @@ declaration, in its `properties` (beside common `title` / `description`, §3):
 Checking a call's `arguments` against `parameters`, and its result against the declared
 schemas, is a Types-layer rule above Core (section 8); a call supplies `arguments` as a JSON object with
 one member per parameter, named by the declaration (`{}` when none; Core §5.7), and a mismatch
-refuses with `validation-failed`. **Attribution is not a declaration
+is a `fault` carrying `validation-failed` (Core §4.5), not the callable's `failure`. **Attribution is not a declaration
 field:** a call's principals arrive in Core's request-context provenance and flow through the
 call to every revision it mints; whether a callable may add principals of its own is open
 (Core item 12).
@@ -293,8 +293,9 @@ to read that representation:
 
 A Types-aware layer above Core MAY refuse a `create`, `update` or `call` whose instance,
 arguments or result violate the governing descriptor or declaration, with Core's problem
-codes `validation-failed` and `type-not-installed` and Core's Problem carrier. Core itself
-checks nothing. Whether Core alone requires anything of a `type` it cannot resolve is open
+codes `validation-failed` and `type-not-installed` and Core's Problem carrier. Such a refusal
+is a **`fault`** (Core §4.5) — the call did not run to completion — never the callable's
+`failure` arm, which is a declared result of a call that *did* run. Core itself checks nothing. Whether Core alone requires anything of a `type` it cannot resolve is open
 (Core item 30).
 
 **Type-declared delete effects** (ruled, 2026-11-11). The
