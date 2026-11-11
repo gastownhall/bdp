@@ -48,8 +48,6 @@ and are not governed by this rule. (Mirrors Core §1.4.)
 
 ## 2. Type beads and affiliation
 
-Status: carried.
-
 Every Resource names a Type through its distinguished `type` field (Core's data model): an
 absolute HTTP(S) identity URI, or a closed object `{ "uri": URI, "revision": TOKEN }` that
 pins an exact definition revision. Affiliation is this field, never a Link; following a
@@ -69,8 +67,6 @@ The common **Type** is abstract (direct instances refused); usable definitions a
 BeadType, LinkType, or a refinement of exactly one.
 
 ## 3. The descriptor
-
-Status: carried.
 
 The descriptor is an open JSON object except for the reserved names below. Its
 `propertiesSchema` validates an instance's `properties`, never the Resource envelope.
@@ -284,8 +280,6 @@ Type of its result beads.
 
 ## 7. GET representations and the rules
 
-Status: **proposed**.
-
 Core returns a Resource's representation — `id`, `kind`, `type`, `revision`, storage class,
 `properties`, `metadata` — and interprets none of it. Types defines, per well-known kind, how
 to read that representation:
@@ -296,8 +290,6 @@ to read that representation:
 - **AsyncResult bead** → a Reply in the declared result / error shapes (§6.3).
 
 ## 8. Type-check rules
-
-Status: **proposed**.
 
 A Types-aware layer above Core MAY refuse a `create`, `update` or `call` whose instance,
 arguments or result violate the governing descriptor or declaration, with Core's problem
@@ -335,8 +327,6 @@ Core names these identities; Types defines their shapes. The exact well-known ba
 placeholder pending the registry agreement with Core (Core item 23).
 
 ## 10. Conformance kit, projection and open items
-
-Status: **proposed**.
 
 **Projection to Core.** Types sits entirely above Core's raw data access. Core stores and
 returns representations; Types interprets them. Nothing in Types changes a primitive's
