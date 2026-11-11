@@ -600,6 +600,25 @@ Proposed reader rule. An `outcome` that is present means the operation is settle
 
 Changed in this draft: earlier states of it named the two arms `ok` and `err`.
 
+Ruled (2026-11-11): if Core has a reason to define the outcome, it is defined here, and
+every other specification refers to this definition and does not restate it. Core has
+these reasons:
+
+- The service itself produces `fault`. No callable declares it or returns it, so no
+  declaration can define it (section 4.5).
+- Core defines `call`, and a synchronous `call` returns a Reply (ruled, section 13.2).
+  Core therefore has to say what a Reply holds.
+- Core defines the asynchronous call. A result bead is settled when it holds an outcome
+  (section 6.5), so Core has to say what is written at settlement.
+- The binding has to map each arm onto an HTTP response (section 13).
+- Proposed, not ruled: the data primitives answer in the same frame, with errors that
+  Core itself defines (section 5.2).
+
+What Core defines is an envelope, not a type: the names of the arms, what `fault`
+carries, that the set of arms is open, and the Reply that holds them. `value` and `error`
+are JSON that Core does not look inside. How a callable's declaration states what its
+`value` and `error` are, and how they are checked, is specified in Types (section 14).
+
 `T` and `E` are parameters. For a data primitive, section 5 says what they are. For a
 callable they are JSON that Core carries and does not look inside (section 6.1).
 
@@ -1858,6 +1877,8 @@ Rulings by the design authority, by date, with the section that carries each.
   expected to use them instead of it. (5.6, 5.9)
 - The arms of a Result are named `success` and `failure`, here and in every other
   specification. (4.4)
+- Where Core has a reason to define the outcome, Core's definition is the protocol's, and
+  other specifications refer to it. The reasons are listed in section 4.4. (4.4)
 
 Stated preferences, not final: a closed Result inside an open Outcome; `fault` as the
 system arm carrying a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
