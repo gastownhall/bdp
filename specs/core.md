@@ -776,8 +776,9 @@ endpoints. v0.1 allows both. Neither is decided for v0.2 (section 15).
 **Status: mixed. Ruled (2026-11-11): a delete mints a final revision, and a deleted
 Resource is brought back by an update that starts from an earlier revision. Ruled
 (2026-11-11): the primitive only deletes. It is refused while Links are attached, and
-the fuller delete with its controls is a core library callable. The shapes and the
-details of the final revision are proposed. Open points are named below.**
+the fuller delete with its controls is a core library callable, at the same level as the
+callables that create and remove aliases. The shapes and the details of the final
+revision are proposed. Open points are named below.**
 
 ```text
 input = { id, expectedRevision? }
@@ -827,8 +828,20 @@ Rules of the primitive:
 Ruled: the richer forms v0.1 offered as an optional capability (deleting several Beads at
 once, removing attached Links along with the Bead, cascading through Links of named Types,
 a dry run) are not part of the primitive. They are a core library callable, specified
-there (section 14). That callable is built on the primitives. A caller who wants a Bead
-gone together with its Links either deletes the Links first or uses the callable.
+there (section 14). A caller who wants a Bead gone together with its Links either deletes
+the Links first or uses the callable.
+
+Ruled (2026-11-11): that callable sits at the same level as the callables that create and
+remove aliases (section 5.9). It covers everything the primitive does, and it is expected
+to be the delete that callers use.
+
+Proposed, as this draft's reading of "the same level": the service declares the callable
+and carries it out itself, in one transaction (section 5.9). It is not a sequence of
+primitive requests made by a client. Its effect is still stated in the primitive's terms:
+each Resource it removes gets its own final revision, as if the primitive had deleted it.
+
+The design authority's stated view, not final: the primitive is kept mainly so that the
+HTTP binding has a plain DELETE (section 13.2).
 
 Open:
 
@@ -886,9 +899,25 @@ These are callables, reached through `call`:
 - sending a message into an event stream (section 7.6);
 - export and import.
 
+Ruled (2026-11-11): delete with controls sits at the same level as creating and removing
+aliases.
+
 A callable can do anything the primitives can do together, with one exception: a callable
 is not itself the atomic commit. A batch callable asks for a transaction; it does not
 define what a transaction is.
+
+Proposed, on how a callable gets its transaction:
+
+- A callable in this list is declared by the service and carried out by the service. The
+  service MAY commit everything one invocation changes in a single transaction (section
+  4.1). Whether a given callable does so is part of that callable's specification.
+- When it does, the reply carries that transaction's marker (section 4.3), and every
+  Resource changed and every event produced carries the same marker.
+- A client has no way to make several requests commit as one (section 4.3). Changes that
+  must commit together are one invocation of a callable that makes them all.
+
+Open: how a callable that a pack supplies, and that the service does not carry out itself,
+gets a transaction for its effects (section 15).
 
 ## 6. Callables
 
@@ -1445,6 +1474,10 @@ that. It is proposed here, not ruled. A DELETE has no body, so the guard
 `expectedRevision` needs another place. The standard `If-Match` request header is the
 natural one. That too is proposed. The second and third questions stand.
 
+The design authority's stated view (2026-11-11), not final: the plain DELETE is there
+mainly so that the binding treats a Resource the way HTTP expects. The core library's
+delete callable covers everything it does and is expected to be what callers use.
+
 Also open here: how the common frame (section 5.2) maps onto HTTP, in particular how the
 `err` arm is carried and where the reply context travels for the primitives other than
 `call`.
@@ -1720,6 +1753,9 @@ Provenance and context:
     one. Proposed: no (section 4.3).
 36. Whether every change event carries the provenance of the revision it reports
     (section 7.2).
+37. How a callable gets a transaction. Proposed: a callable the service carries out may
+    commit one invocation's changes together, and its specification says whether it does.
+    Open: the same for a callable that a pack supplies (section 5.9).
 
 ## Appendix A. Decisions folded into this text
 
@@ -1812,15 +1848,19 @@ Rulings by the design authority, by date, with the section that carries each.
   as supplied by the writer. (3.2)
 - `delete` only deletes. It is refused while Links are attached. The fuller delete, with
   its controls, is a core library callable. (5.6, 14)
+- The fuller delete sits at the same level as the callables that create and remove
+  aliases. It covers everything the primitive does. (5.6, 5.9)
 
 Stated preferences, not final: the arm names `ok` and `err`; a closed Result inside an
 open Outcome; `fault` as the system arm carrying a Problem; no reason code in Core. (4.4,
-4.5)
+4.5) Also not final: that the `delete` primitive is kept mainly so that the HTTP binding
+has a plain DELETE. (5.6, 13.2)
 
 Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
 stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
 result bead; the details of the Link from a result bead to its callable; the HTTP form of
 `pull`; the shape of a principal; the values of `inception`; what the final revision of a
 delete holds; `delete` as the plain HTTP DELETE; the headers that carry the request
-context; that a request cannot join a transaction. Each is marked proposed where it
+context; that a request cannot join a transaction; what "the same level" as the alias
+callables requires of the fuller delete. Each is marked proposed where it
 appears and listed in section 15.
