@@ -66,7 +66,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 10 | What a store must keep | proposed, built on ruled decisions |
 | 11 | Export boundary | two rules ruled; the rest open |
 | 12 | Problems | carried; new codes proposed |
-| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled, with the Problem as the body of a failing one; a failing status for a `call` that does not succeed ruled; context headers proposed; the rest of addressing open |
+| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled, with the Problem as the body of a failing one; a failing status for a `call` that does not succeed ruled, `409` for a declared `failure`; `get`, `create`, `update` and `delete` as close to plain HTTP as they can be, ruled as a direction; context headers proposed; the method for `update` and the rest of addressing open |
 | 14 | What moved out of Core | to Types: ruled; to the core library: delete with controls ruled, the rest direction given and not yet confirmed |
 | 15 | Open items | open |
 
@@ -707,9 +707,10 @@ found. Only `call` can produce a `failure`.
 
 Ruled later the same day: over HTTP those five rely on the status code. A 2xx status
 means success and the body is the value. A failing status means the request faulted
-(section 13.2). The design authority stated the assumption behind this, which this draft
-follows: the choice between `success` and `fault` is not used for those five at all
-(section 5.2).
+(section 13.2). The design authority first stated as an assumption that the choice
+between `success` and `fault` is not used for those five at all. It was then ruled for
+`get`, `create`, `update` and `delete`: they take no part in the richer semantics of
+`call`. This draft follows the same reading for `pull` (section 5.2).
 
 A timeout is a fault. A call that was stopped on request is neither a `failure` nor a
 `fault`; an arm for it is proposed (section 6.8).
@@ -775,8 +776,18 @@ section 4.5. Ruled (2026-11-11): that holds for every refusal by `get`, `create`
 Ruled (2026-11-11): over HTTP those five rely on the status code. A 2xx status means
 success, and the response body is the value. A failing status means the request did not
 succeed. What the body of a failing response holds was left to this specification, and
-was then ruled the same day: it is the Problem (section 13.2). The design authority stated the assumption behind this, which this draft
-follows: the choice between `success` and `fault` is not used for those five.
+was then ruled the same day: it is the Problem (section 13.2).
+
+Ruled (2026-11-11): `get`, `create`, `update` and `delete` take no part in the richer
+semantics of `call`. They have no asynchronous mode and no Outcome. Over HTTP they are to
+be as close to plain HTTP as they can be (section 13.2). `call` is where the richness
+is. This makes firm, for those four, what was first stated as an assumption: the choice
+between `success` and `fault` is not used for them.
+
+Not settled for `pull`. The design authority is not sure that `pull` can be kept
+entirely as plain as those four, and expects it to come close. This draft treats `pull`
+as it treats them: no asynchronous mode, no Outcome, and the plain responses already
+ruled for all five.
 
 Changed in this draft: earlier states of it gave all six primitives the Reply as their
 response.
@@ -785,7 +796,8 @@ Provenance is not a member of any primitive's input. It is supplied in the reque
 context (ruled, section 4.3).
 
 `get`, `create`, `update`, `delete` and `pull` are synchronous: the response is the final
-answer. Only `call` may be asynchronous (section 6.4).
+answer. Only `call` may be asynchronous (section 6.4). For the first four this is ruled
+(above).
 
 ### 5.3 get
 
@@ -1022,13 +1034,20 @@ These are callables, reached through `call`:
 - atomic batches of several changes;
 - creating and removing aliases;
 - conditional bulk changes (update or delete every Resource matching a condition);
-- delete with controls (section 5.6);
+- delete with controls, for a Bead and for a Link (section 5.6);
+- create for a Bead and for a Link (expected; see below);
 - canceling an asynchronous call (proposed, section 6.8);
 - sending a message into an event stream (section 7.6);
 - export and import.
 
 Ruled (2026-11-11): the delete callables are among the most basic callables in the
 system. Callers are expected to use them instead of the `delete` primitive (section 5.6).
+
+The design authority's stated expectation (2026-11-11): the core library has callables
+that do the right thing for creating and for deleting, with at least separate entry
+points for Beads and for Links. The primitives stay plain (section 5.2); what a caller
+needs beyond that is in those callables. Their names and shapes belong to the core
+library. This is an expectation, not yet a ruling on what that library contains.
 
 A callable can do anything the primitives can do together, with one exception: a callable
 is not itself the atomic commit. A batch callable asks for a transaction; it does not
@@ -1598,8 +1617,9 @@ member of the Problem instead. A synchronous `call` that faults carries its cont
 the Reply.
 
 Ruled (2026-11-11): over HTTP the `failure` arm of a synchronous `call` is carried in the
-Reply, with a failing status (section 13.2). Which status is open. v0.1 carried a
-callable's own error as a Problem with code `callable-error`.
+Reply, with a failing status (section 13.2). Ruled the same day: that status is `409`.
+v0.1 carried a callable's own error as a Problem with code `callable-error`, also with
+`409`.
 
 ## 13. Bindings: HTTP, JSON Schema, OpenAPI
 
@@ -1632,8 +1652,11 @@ Schemas for those are the business of Types.
 
 **Status: open, with three points settled. Ruled for now: `create` is a request on the
 Scope. Ruled: the form of `call` below, and that a synchronous `call` which does not
-succeed answers with a failing status and the Reply as its body; the exact status codes
-and the `Location` header are proposed. Ruled (2026-11-11): the five data primitives
+succeed answers with a failing status and the Reply as its body, `409` when the outcome
+is a `failure`; the other status codes and the `Location` header are proposed. Ruled
+(2026-11-11): `get`, `create`, `update` and `delete` are to be as close to plain HTTP as
+they can be; which methods that means is proposed for `delete` and open for `update`.
+Ruled (2026-11-11): the five data primitives
 answer plainly, with the value as the body of a 2xx response and a failing status
 otherwise, and the body of a failing response is the Problem; the place of the reply
 context and the 2xx status codes are proposed. The form of `pull`
@@ -1669,6 +1692,31 @@ callable. The plain HTTP DELETE on the Resource's URL is the form that follows f
 that. It is proposed here, not ruled. A DELETE has no body, so the guard
 `expectedRevision` needs another place. The standard `If-Match` request header is the
 natural one. That too is proposed. The second and third questions stand.
+
+Ruled (2026-11-11), as a direction for those two questions: `get`, `create`, `update`
+and `delete` are not tied to the richer semantics of `call`, and should be as close to
+plain HTTP as they can be. The design authority is not sure that `pull` can go all the
+way, and expects it to come close.
+
+The ruling does not name methods or URLs. Read plainly, it favours the standard method
+on the Resource's own URL over a table of command URLs. Where that leaves the four:
+
+```text
+get     GET     <Resource URL>    proposed, as in v0.1; revision as a query parameter
+create  POST    <Scope URL>       ruled for now; body: the new Resource
+update  ?       <Resource URL>    open
+delete  DELETE  <Resource URL>    proposed; the guard in If-Match
+```
+
+- Proposed: all four address the Resource's own URL, except `create`, which has no
+  Resource yet and is sent to the Scope. No command URL is carried from v0.1.
+- Open: the method for `update`. HTTP has PUT for replacing a Resource and PATCH for
+  changing part of one. One `update` may replace `properties` and patch `metadata` in
+  the same request (section 5.5), which neither method says by itself. One candidate is
+  a PATCH whose body is an RFC 6902 patch against the record, limited to `properties`
+  and `metadata`. A full replacement is then a `replace` of the whole member, and the
+  guard goes in `If-Match` as it does for `delete`. It is not yet proposed.
+- The core library's callables carry what does not fit a plain request (section 5.9).
 
 The design authority's stated view (2026-11-11), not final: the plain DELETE is there
 mainly so that the binding treats a Resource the way HTTP expects. The core library's
@@ -1707,8 +1755,8 @@ Considered and not taken: answering all six primitives with the Reply, which an 
 state of this draft proposed. A `get` would then return its record inside a wrapper, and
 a client would have to read the body to learn what the status already says.
 
-Still open here: which failing status the `failure` arm of a `call` gets (see the form
-of `call` below).
+Ruled since: the `failure` arm of a `call` answers `409` (see the form of `call`
+below).
 
 Proposed: carrying the request context. The request context (section 4.3) travels in
 HTTP request headers, one header for each member, the same headers on all six
@@ -1784,6 +1832,7 @@ returns the AsyncResult bead. That answers the third question for `call`. Filled
 ```text
 POST <Callable URL>                 body: the arguments
 200       the Reply, when the outcome is `success`
+409       the Reply, when the outcome is `failure`
 4xx, 5xx  the Reply, when the outcome is anything else
 
 POST <Callable URL>?mode=async      body: the arguments
@@ -1807,9 +1856,12 @@ POST <Callable URL>?mode=async      body: the arguments
   All six primitives then share one rule: a 2xx status means success.
 - It follows that every arm other than `success` is sent with a failing status. That
   includes an arm a pack adds (section 4.4).
-- Proposed: a `fault` is sent with the status of its Problem.
-- Open: which failing status a `failure` gets, and which an arm added by a pack gets
-  (section 15).
+- Ruled (2026-11-11): a `failure`, the error a callable declares, is sent with `409`.
+  v0.1 used the same status for a callable's own error.
+- Proposed: a `fault` is sent with the status of its Problem. Some Problems use `409`
+  as well, `revision-mismatch` among them. So `409` alone does not say that the outcome
+  is a `failure`. The arm in the Reply does (below).
+- Open: which failing status an arm added by a pack gets (section 15).
 - Proposed: the arm in the Reply is what says how the call ended. A client that has the
   Reply decides on its arm, not on the status. The status is a coarse signal for anything
   that reads only the status.
@@ -1857,7 +1909,7 @@ are.
 
 | v0.1 item | Proposed home |
 |---|---|
-| Create, update and delete of Beads and Links (Write) | Core, sections 5.4 to 5.6 |
+| Create, update and delete of Beads and Links (Write) | Core, sections 5.4 to 5.6, kept plain; fuller create and delete callables, separate for Beads and for Links, expected in the core library (section 5.9) |
 | Alias creation, repointing and removal (Write) | core library |
 | Atomic batch and request-local names (Write) | core library |
 | Delete of several Beads, with attached Links, by cascade, as a dry run (Write) | core library (ruled, section 5.6) |
@@ -1925,8 +1977,10 @@ Primitives:
 10. Whether `update` stays bare, with controls in callables. For `delete` this is ruled:
     it does (section 5.6).
 11. The HTTP binding, and whether primitives address the Resource directly
-    (section 13.2). `create` on the Scope is ruled for now. `delete` as the plain HTTP
-    DELETE, with its guard in `If-Match`, is proposed. The rest is open.
+    (section 13.2). `create` on the Scope is ruled for now. Ruled (2026-11-11), as a
+    direction: `get`, `create`, `update` and `delete` are as close to plain HTTP as they
+    can be. `delete` as the plain HTTP DELETE, with its guard in `If-Match`, is proposed.
+    Open: the method for `update`, and how far `pull` can follow.
 
 Execution:
 
@@ -2016,10 +2070,10 @@ Outcome:
     status codes. Ruled (2026-11-11): the body is the Problem. Proposed: `201` for
     `create` and `200` for the rest (section 13.2).
 41. The HTTP status of a synchronous `call` whose outcome is not `success`. Ruled
-    (2026-11-11): a failing status, with the Reply as the body. Open: which status a
-    `failure` gets, and which an arm added by a pack gets. Proposed: a `fault` uses the
-    status of its Problem; a client that has the Reply decides on its arm, not on the
-    status; a failing response with no Reply reports no outcome (section 13.2).
+    (2026-11-11): a failing status, with the Reply as the body, and `409` for a
+    `failure`. Open: which status an arm added by a pack gets. Proposed: a `fault` uses
+    the status of its Problem; a client that has the Reply decides on its arm, not on
+    the status; a failing response with no Reply reports no outcome (section 13.2).
 
 ## Appendix A. Decisions folded into this text
 
@@ -2140,15 +2194,23 @@ Rulings by the design authority, by date, with the section that carries each.
   body is still the Reply. (13.2)
 - The body of a failing response from `get`, `create`, `update`, `delete` or `pull` is
   the Problem. (12, 13.2)
+- `get`, `create`, `update` and `delete` take no part in the richer semantics of `call`:
+  no asynchronous mode, no Outcome. They are to be as close to plain HTTP as they can
+  be. `call` is where the richness is. (5.2, 13.2)
+- A `failure` that a callable declares answers a synchronous `call` with `409`. (12,
+  13.2)
 
-Stated as an assumption with that ruling, and followed in this text: the choice between
-`success` and `fault` is not used for those five. (4.5, 5.2)
+Stated as an assumption, then made firm for `get`, `create`, `update` and `delete` by
+the ruling above, and followed in this text for `pull` too: the choice between `success`
+and `fault` is not used for those five. (4.5, 5.2)
 
 Stated preferences, not final: a closed Result inside an open Outcome; that a `fault`
 carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
 `delete` primitive is there mainly so that the HTTP binding has a plain DELETE (5.6,
 13.2); that `canceled` makes sense as an outcome arm in Core, with a callable that
-cancels an asynchronous call (6.8).
+cancels an asynchronous call (6.8); that `pull` can be kept nearly as plain as the four
+data primitives (5.2, 13.2); that the core library has separate entry points for
+creating and for deleting Beads and Links (5.9).
 
 Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
 stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
@@ -2159,5 +2221,5 @@ context; that a request cannot join a transaction; that the service itself carri
 the delete callables, each invocation in one transaction; that an asynchronous call
 which is refused leaves no result bead; the `canceled` arm and what it carries; that the
 reply context of the five data primitives travels in response headers; their 2xx status
-codes; which failing status a `failure` gets. Each is marked proposed or open where it
-appears and listed in section 15.
+codes; which failing status an arm added by a pack gets; the HTTP method for `update`.
+Each is marked proposed or open where it appears and listed in section 15.
