@@ -576,11 +576,11 @@ Proposed field rules for `metadata`:
 
 ### 4.4 Result, Outcome and Reply
 
-**Status: ruled in structure (items marked). The arm names follow the design authority's
-stated preference and are not final. The tag spelling is open.**
+**Status: ruled in structure (items marked). Ruled (2026-11-11): the arms of a Result are
+named `success` and `failure`. The tag spelling is open.**
 
 ```text
-Result<T, E>  = ok { value: T } | err { error: E }
+Result<T, E>  = success { value: T } | failure { error: E }
 Outcome<T, E> = Result<T, E> | fault { problem } | ...
 Reply<T, E>   = { context, outcome?: Outcome<T, E> }
 ```
@@ -593,10 +593,12 @@ Reply<T, E>   = { context, outcome?: Outcome<T, E> }
   back.
 
 There are two levels in the types and one level on the wire: `outcome` is a single tagged
-value whose arms include `ok`, `err` and `fault` side by side.
+value whose arms include `success`, `failure` and `fault` side by side.
 
 Proposed reader rule. An `outcome` that is present means the operation is settled. Only
-`ok` means success. An unknown arm is settled and not successful.
+`success` means the operation succeeded. An unknown arm is settled and not successful.
+
+Changed in this draft: earlier states of it named the two arms `ok` and `err`.
 
 `T` and `E` are parameters. For a data primitive, section 5 says what they are. For a
 callable they are JSON that Core carries and does not look inside (section 6.1).
@@ -621,7 +623,8 @@ codes.
 
 The line between the two kinds of failure:
 
-- `err` belongs to the operation. For a primitive, Core says what `E` is. For a callable,
+- `failure` belongs to the operation. For a primitive, Core says what `E` is. For a
+  callable,
   its declaration does, and declarations are specified in Types. Either way a caller can
   be written against it.
 - `fault` does not belong to the operation. Any operation can meet any fault.
@@ -776,9 +779,10 @@ endpoints. v0.1 allows both. Neither is decided for v0.2 (section 15).
 **Status: mixed. Ruled (2026-11-11): a delete mints a final revision, and a deleted
 Resource is brought back by an update that starts from an earlier revision. Ruled
 (2026-11-11): the primitive only deletes. It is refused while Links are attached, and
-the fuller delete with its controls is a core library callable, at the same level as the
-callables that create and remove aliases. The shapes and the details of the final
-revision are proposed. Open points are named below.**
+the fuller delete with its controls belongs to the core library, whose delete callables
+are among the most basic callables in the system and are what callers are expected to use.
+The shapes and the details of the final revision are proposed. Open points are named
+below.**
 
 ```text
 input = { id, expectedRevision? }
@@ -827,20 +831,20 @@ Rules of the primitive:
 
 Ruled: the richer forms v0.1 offered as an optional capability (deleting several Beads at
 once, removing attached Links along with the Bead, cascading through Links of named Types,
-a dry run) are not part of the primitive. They are a core library callable, specified
-there (section 14). A caller who wants a Bead gone together with its Links either deletes
-the Links first or uses the callable.
+a dry run) are not part of the primitive. They belong to the core library's delete
+callables, specified there (section 14). A caller who wants a Bead gone together with its
+Links either deletes the Links first or uses the callable.
 
-Ruled (2026-11-11): that callable sits at the same level as the callables that create and
-remove aliases (section 5.9). It covers everything the primitive does, and it is expected
-to be the delete that callers use.
+Ruled (2026-11-11): the core library's delete callables, one for Beads and one for Links,
+are among the most basic callables in the system (section 5.9). They cover everything the
+primitive does. Callers are expected to use them instead of the primitive.
 
-Proposed, as this draft's reading of "the same level": the service declares the callable
-and carries it out itself, in one transaction (section 5.9). It is not a sequence of
-primitive requests made by a client. Its effect is still stated in the primitive's terms:
-each Resource it removes gets its own final revision, as if the primitive had deleted it.
+Proposed: the service declares these callables and carries out each invocation itself, in
+one transaction (section 5.9). An invocation is not a sequence of primitive requests made
+by a client. Its effect is still stated in the primitive's terms: each Resource it removes
+gets its own final revision, as if the primitive had deleted it.
 
-The design authority's stated view, not final: the primitive is kept mainly so that the
+The design authority's stated view, not final: the primitive is there mainly so that the
 HTTP binding has a plain DELETE (section 13.2).
 
 Open:
@@ -899,8 +903,8 @@ These are callables, reached through `call`:
 - sending a message into an event stream (section 7.6);
 - export and import.
 
-Ruled (2026-11-11): delete with controls sits at the same level as creating and removing
-aliases.
+Ruled (2026-11-11): the delete callables are among the most basic callables in the
+system. Callers are expected to use them instead of the `delete` primitive (section 5.6).
 
 A callable can do anything the primitives can do together, with one exception: a callable
 is not itself the atomic commit. A batch callable asks for a transaction; it does not
@@ -1048,7 +1052,8 @@ Proposed wording of Core's own shape rule. `T` and `E` are parameters Core does 
 inside. Core states the rule without naming a schema:
 
 > Once settled, a result bead holds the Reply the same call would have returned had it
-> been made synchronously: the same arms, the same `T` in `ok`, the same `E` in `err`.
+> been made synchronously: the same arms, the same `T` in `success`, the same `E` in
+> `failure`.
 
 Core says nothing more about shape. Because a result bead names its callable, Types can
 say both of these without Core mentioning a schema:
@@ -1406,7 +1411,7 @@ New (proposed):
 A problem response to a synchronous request carries the reply `context` as an extension
 member (proposed), so that a failed request can still be traced by its cause.
 
-How the `err` arm of a Result is carried over HTTP is a binding question (section 13).
+How the `failure` arm of a Result is carried over HTTP is a binding question (section 13).
 v0.1 carried a callable's own error as a Problem with code `callable-error`.
 
 ## 13. Bindings: HTTP, JSON Schema, OpenAPI
@@ -1476,10 +1481,10 @@ natural one. That too is proposed. The second and third questions stand.
 
 The design authority's stated view (2026-11-11), not final: the plain DELETE is there
 mainly so that the binding treats a Resource the way HTTP expects. The core library's
-delete callable covers everything it does and is expected to be what callers use.
+delete callables cover everything it does and are what callers are expected to use.
 
 Also open here: how the common frame (section 5.2) maps onto HTTP, in particular how the
-`err` arm is carried and where the reply context travels for the primitives other than
+`failure` arm is carried and where the reply context travels for the primitives other than
 `call`.
 
 Proposed: carrying the request context. The request context (section 4.3) travels in
@@ -1848,19 +1853,22 @@ Rulings by the design authority, by date, with the section that carries each.
   as supplied by the writer. (3.2)
 - `delete` only deletes. It is refused while Links are attached. The fuller delete, with
   its controls, is a core library callable. (5.6, 14)
-- The fuller delete sits at the same level as the callables that create and remove
-  aliases. It covers everything the primitive does. (5.6, 5.9)
+- The core library's delete callables, for Beads and for Links, are among the most basic
+  callables in the system. They cover everything the primitive does, and callers are
+  expected to use them instead of it. (5.6, 5.9)
+- The arms of a Result are named `success` and `failure`, here and in every other
+  specification. (4.4)
 
-Stated preferences, not final: the arm names `ok` and `err`; a closed Result inside an
-open Outcome; `fault` as the system arm carrying a Problem; no reason code in Core. (4.4,
-4.5) Also not final: that the `delete` primitive is kept mainly so that the HTTP binding
-has a plain DELETE. (5.6, 13.2)
+Stated preferences, not final: a closed Result inside an open Outcome; `fault` as the
+system arm carrying a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
+`delete` primitive is there mainly so that the HTTP binding has a plain DELETE. (5.6,
+13.2)
 
 Not ruled, though it follows the rulings of 2026-11-11: that the Bead and Link record
 stays Core's; the list of well-known Types; Core's own wording of the shape rule for a
 result bead; the details of the Link from a result bead to its callable; the HTTP form of
 `pull`; the shape of a principal; the values of `inception`; what the final revision of a
 delete holds; `delete` as the plain HTTP DELETE; the headers that carry the request
-context; that a request cannot join a transaction; what "the same level" as the alias
-callables requires of the fuller delete. Each is marked proposed where it
+context; that a request cannot join a transaction; that the service itself carries out
+the delete callables, each invocation in one transaction. Each is marked proposed where it
 appears and listed in section 15.
