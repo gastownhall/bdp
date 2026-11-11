@@ -58,7 +58,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 2 | Data model | mixed: carried core; storage class and the Core and Types split ruled; proposed additions |
 | 3 | Revisions, provenance, history | mixed: revision carried; provenance ruled to name several principals and to record inception, its shape proposed; history ruled optional |
 | 4 | Execution model | ruled in outline; context members ruled; field rules proposed |
-| 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; that a refusal is a `fault` is ruled; request and response shapes proposed |
+| 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; that a refusal is a `fault`, and that only `call` has a `failure` arm, is ruled; request and response shapes proposed |
 | 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail and cancellation proposed, except that cascade on cancel is left to the owner (ruled) |
 | 7 | Events | record default and cardinality ruled; declarations ruled out of Core; delivery detail proposed |
 | 8 | Discovery and capabilities | carried; additions proposed |
@@ -621,9 +621,8 @@ above; it does not change these. The reasons Core needs the definition:
 - Core defines the asynchronous call. A result bead is settled when it holds an outcome
   (section 6.5), so Core has to say what is written at settlement.
 - The binding has to map each arm onto an HTTP response (section 13).
-- A data primitive that is refused reports a `fault` (ruled for the cases named in
-  section 4.5). That the data primitives answer in the same frame as `call` is proposed
-  (section 5.2).
+- A data primitive that is refused reports a `fault` (ruled, section 4.5). That the data
+  primitives answer in the same frame as `call` is proposed (section 5.2).
 
 What Core defines is an envelope, not a type: the names of the arms, what `fault`
 carries, that the set of arms is open, and the Reply that holds them. `value` and `error`
@@ -631,7 +630,7 @@ are JSON that Core does not look inside. How a callable's declaration states wha
 `value` and `error` are, and how they are checked, is specified in Types (section 14).
 
 `T` and `E` are parameters. For a data primitive, section 5 says what `T` is, and there
-is no `E` (proposed, section 5.2). For a callable they are JSON that Core carries and
+is no `E` (ruled, section 4.5). For a callable they are JSON that Core carries and
 does not look inside (section 6.1).
 
 An error does not carry a reason code in Core. If an operation needs to distinguish kinds
@@ -649,7 +648,8 @@ Open: the spelling of the tag that names the arm (section 15).
 did not run to completion, and what it carries is defined by the protocol, not by the
 callable. Ruled (2026-11-11): a request that is refused is a `fault`; the cases named are
 a call refused on its arguments, an update refused on validation and a delete refused
-while Links are attached. That a fault carries a Problem follows the design authority's
+while Links are attached. Ruled (2026-11-11): no primitive other than `call` has a
+`failure` arm. That a fault carries a Problem follows the design authority's
 stated preference. The Problem format is carried. That no data primitive has a `failure`
 arm is proposed.**
 
@@ -690,8 +690,8 @@ The line between the two kinds of failure is who defines what is carried:
 - `fault` is everything the protocol itself reports. It carries a Problem, which this
   specification defines. Any operation can meet a fault.
 
-Proposed, following the ruling above: the five primitives other than `call` have no
-`failure` arm. Everything that stops a `get`, `create`, `update`, `delete` or `pull` is a
+Ruled (2026-11-11): the five primitives other than `call` have no `failure` arm.
+Everything that stops a `get`, `create`, `update`, `delete` or `pull` is a
 refusal or a breakdown, so the outcome of each is `success` or `fault`. That covers the
 refusals not named in the ruling, such as `revision-mismatch`, `identity-taken` and a
 Resource that is not found. Only `call` can produce a `failure` (section 5.2).
@@ -742,8 +742,9 @@ which parts ride in the URL, the headers or the body, is the binding's business
 (section 13) and is open.
 
 Ruled (2026-11-11): a primitive that refuses a request reports a `fault`. The cases named
-are in section 4.5. Proposed: that holds for every refusal, so the outcome of `get`,
-`create`, `update`, `delete` and `pull` is `success` or `fault`, never `failure`.
+are in section 4.5. Ruled (2026-11-11): that holds for every refusal, so the outcome of
+`get`, `create`, `update`, `delete` and `pull` is `success` or `fault`, never `failure`.
+How that outcome is carried, in this frame or otherwise, is still proposed.
 
 Provenance is not a member of any primitive's input. It is supplied in the request
 context (ruled, section 4.3).
@@ -839,8 +840,9 @@ value = the Resource's representation after the update
   revision, the update is refused with `revision-mismatch` and has no effect.
 - Ruled (2026-11-11): an update refused on validation is a `fault` (section 4.5). Core
   itself does not check the change against the Type; the refusal comes from a layer
-  above Core and carries `validation-failed` (section 12). Proposed: every other refusal
-  of an update, `revision-mismatch` included, is a `fault` as well.
+  above Core and carries `validation-failed` (section 12). Ruled (2026-11-11): every
+  other refusal of an update, `revision-mismatch` included, is a `fault` as well
+  (section 4.5).
 - An update that would leave the Resource as it is succeeds, keeps the revision, records
   no provenance, and produces no event. The reply carries no `transaction`.
 - An update of a deleted Resource is refused as not found, unless it starts from an
@@ -1911,10 +1913,9 @@ Provenance and context:
 
 Outcome:
 
-38. Whether any primitive other than `call` has a `failure` arm. Ruled: an update refused
-    on validation and a delete refused while Links are attached are faults. Proposed:
-    every refusal by a data primitive is a fault, so none of them has a `failure` arm
-    (sections 4.5, 5.2).
+38. Whether any primitive other than `call` has a `failure` arm. Ruled (2026-11-11):
+    none does. Every refusal by a data primitive is a fault (sections 4.5, 5.2). The
+    item is kept so that its number stays in use.
 39. Whether an asynchronous call that is refused leaves a result bead. Proposed: no
     (section 6.5).
 
@@ -2028,6 +2029,8 @@ Rulings by the design authority, by date, with the section that carries each.
   does not know. (4.4)
 - Core neither requires nor forbids that canceling a call also cancels the calls it made.
   Whoever owns those calls decides. (6.8)
+- No primitive other than `call` has a `failure` arm. The outcome of `get`, `create`,
+  `update`, `delete` and `pull` is `success` or `fault`. (4.5, 5.2, 5.5)
 
 Stated preferences, not final: a closed Result inside an open Outcome; that a `fault`
 carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
@@ -2041,7 +2044,6 @@ result bead; the details of the Link from a result bead to its callable; the HTT
 `pull`; the shape of a principal; the values of `inception`; what the final revision of a
 delete holds; `delete` as the plain HTTP DELETE; the headers that carry the request
 context; that a request cannot join a transaction; that the service itself carries out
-the delete callables, each invocation in one transaction; that no primitive other than
-`call` has a `failure` arm; that an asynchronous call which is refused leaves no result
-bead; the `canceled` arm and what it carries. Each is marked proposed where it appears
+the delete callables, each invocation in one transaction; that an asynchronous call
+which is refused leaves no result bead; the `canceled` arm and what it carries. Each is marked proposed where it appears
 and listed in section 15.
