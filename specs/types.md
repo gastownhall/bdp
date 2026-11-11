@@ -8,14 +8,14 @@ version: "0.2"
 
 Working draft v0.2.
 
-Types is the Beads Protocol's optional interpretation layer. [Core](core.md) is raw
-data access: it stores and returns Beads and Links, knows that every Resource names a
-Type and that some Beads are type beads, callables or event sources, but interprets none
-of it. Types defines what those beads mean — the type system, the descriptor that governs
-a Resource's `properties`, the declaration shapes for callables and event sources, the
-representation a `get` returns for each, and the rules a store applies above Core's raw
-access. A service that uses only Core's six primitives needs nothing here; a service that
-wants typed Beads, constraints, callables or streams reads this document.
+Types is the Beads Protocol's optional interpretation layer. [Core](core.md) is raw data
+access: it stores and returns Beads and Links, knows that every Resource names a Type and that
+some Beads are type beads, callables or event sources, but interprets none of it. Types defines
+what those beads mean — the type system, the descriptor that governs a Resource's `properties`,
+the declaration shapes for callables and event sources, the representation a `get` returns for
+each, and the rules a store applies above Core's raw access. A service that uses only Core's six
+primitives needs nothing here; a service that wants typed Beads, constraints, callables or
+streams reads this document.
 
 ## 1. About this draft
 
@@ -83,11 +83,13 @@ The descriptor is an open JSON object except for the reserved names below. Its
 | Field | Shape | Meaning |
 | --- | --- | --- |
 | `description` | text | Human explanation; identity comes from the definition Bead's id, not this. |
+| `title` | text | Short human label; uniform across type beads, callables and event sources. |
 | `propertiesSchema` | Draft 2020-12 schema or boolean | Local constraints on instance `properties`. Absence adds none; ancestors still apply. |
-| `schemaResources` | map of absolute URI → schema | Exact application dependencies, retained immutably with this edition. |
+| `schemaResources` | map of absolute URI → schema | External schemas this descriptor's `$ref`s depend on, retained by value with this edition for exact offline resolution (§3.1). |
 | `version` | SemVer text | Informational author label; not a revision, default or compatibility proof. |
 | `abstract` | boolean, default false | True forbids direct affiliation with this exact definition, not its refinements. |
-| `propertyAccess` | map of JSON Pointer → `writable` \| `init-only` \| `service-managed` | Member write policy, independent of value schema. |
+| `final` | boolean, default false | True forbids any Type from refining this definition. Pairs with `abstract` (Lumen's `final` / `abstract`). |
+| `propertyAccess` | map of JSON Pointer → `writable` \| `init-only` \| `service-managed` | Member write policy, independent of value schema (§3.2). |
 
 **Category-specific:** BeadType adds `incoming`, `outgoing` (participation constraints —
 `{ linkTypes, min?, max? }` bounding incident Link families) and `ownsOutgoing` (the outgoing
@@ -100,17 +102,33 @@ or `{ "any": true }` (no restriction). The descriptor reserves `id`, `revision`,
 `ownedLinks`, `refines`, `source`, `target` and similar envelope names; they cannot be
 smuggled into the open object.
 
+### 3.1 schemaResources
+
+A `propertiesSchema` may `$ref` other schemas by absolute URI. `schemaResources` maps each
+such URI to the schema's value, captured with this definition edition so interpretation is
+exact and offline: a later change to the external schema at its address does not change what
+this revision means. Absence supplies no external resources.
+
+### 3.2 propertyAccess
+
+`propertyAccess` governs **who** may write a property, independent of its value schema.
+`writable` — the client may set and change it. `init-only` — set at creation, immutable after.
+`service-managed` — the client may not write it; the service owns the value and may change it
+(so it is read-only *to the client*, not immutable). The mode governs the writer, not whether
+a change mints a revision: any actual value change — by client or service — mints a new
+revision, as always.
+
 ## 4. Conformance: Refines and owned Links
 
 Status: carried. Owned Links **ruled to stay** (design authority, 2026-11-11).
 
 Direct conformance is declared by an **owned Refines Link** from one definition Bead to
 another, pinning the exact target definition revision. The authoritative declarations for a
-definition revision are the Link records captured in that revision's owned-Link state; there
-is no separately writable `conformsTo` field. Conformance resolves by exact revision at every
-step — follow the recorded Link, its pinned Link Type, its pinned target, then that target's
-recorded owned declarations — so a definition's contract is historical, not read off live
-adjacency. Creating or editing a declaration has owner-revision effects on its source.
+definition revision are the Link representations captured in that revision's owned-Link state;
+there is no separately writable `conformsTo` field. Conformance resolves by exact revision at
+every step — follow the captured Link, its pinned Link Type, its pinned target, then that
+target's captured owned declarations — so a definition's contract is historical, not read off
+live adjacency. Creating or editing a declaration has owner-revision effects on its source.
 
 A conforming Type may only tighten: it may add properties and requirements, never relax an
 ancestor's. Both endpoints of a Refines Link are definition Beads whose described instance
@@ -121,8 +139,9 @@ kinds must agree (no BeadType-to-LinkType conformance).
 
 ## 5. Links and link constraints
 
-Status: **proposed** (revises v0.1). `linkConstraints` is the LinkType descriptor's required
-closed object. Multiplicity moves onto the endpoints, inside each edge.
+Status: **ruled** (shape — multiplicity in the edge, `{min, max}`, `reflexive`; design
+authority 2026-11-11); details proposed. `linkConstraints` is the LinkType descriptor's
+required closed object. Multiplicity lives on the endpoints, inside each edge.
 
 ```json
 "linkConstraints": {
@@ -151,7 +170,7 @@ closed object. Multiplicity moves onto the endpoints, inside each edge.
 - **`unique`** (boolean) — ordered endpoint-pair uniqueness across the family.
 - **`acyclic`** (boolean) — directed acyclicity of the family (a per-Link promise).
 - **`reflexive`** (boolean) — `true` permits self-links (equal source and target identities,
-  ignoring revision); `false` prohibits them. (v0.1 spelled this `allowSelf`.)
+  ignoring revision); `false` prohibits them.
 
 Markers and graph constraints apply to the **combined family**, not per edge alternative. A
 local `false` or omission never disables an inherited restriction. Constraints are validated
@@ -166,26 +185,32 @@ carries no structural type constructor of its own.
 
 Status: **proposed** (new; the surface moved from Core per the design authority, 2026-11-11).
 These are the declarations Core stores but does not interpret. A `get` on any of them returns
-the record and never invokes or subscribes.
+the representation and never invokes or subscribes.
 
 ### 6.1 Callable
 
 A Bead is a **Callable** when its Type is the well-known Callable Type or refines it. The
-declaration, in its `properties`:
+declaration, in its `properties` (beside common `title` / `description`, §3):
 
 | Field | Shape | Meaning |
 | --- | --- | --- |
-| `description`, `title` | text | Human labels. |
 | `parameters` | `[ { name, schema, required?, default?, description? } ]` | Argument contract. Core treats a call's `arguments` as opaque JSON; Types checks them against this. |
-| `resultSchema` | schema | The `T` of a successful `ok`. |
-| `errorSchema` | schema | The `E` of an `err`. |
+| `resultSchema` | schema | The `T` of a successful result (see open item 4 — single `outcome<T,E>` vs split). |
+| `errorSchema` | schema | The `E` of a failure. |
 | `modes` | `[ "sync" \| "async" ]` | Advertised invocation modes; omitted means `sync`. The caller chooses with Core's `mode`; the two refusals (`mode-not-supported`, `mode-refused`) are Core's. |
 
-Checking a call's `arguments` against `parameters`, and its result against `resultSchema` /
-`errorSchema`, is a Types-layer rule above Core (section 8). **Attribution is not a declaration
+Checking a call's `arguments` against `parameters`, and its result against the declared
+schemas, is a Types-layer rule above Core (section 8). **Attribution is not a declaration
 field:** a call's principals arrive in Core's request-context provenance and flow through the
 call to every revision it mints; whether a callable may add principals of its own is open
 (Core item 12).
+
+**Callable classification — being restored (open item 6).** A callable also carries its
+classification — **function** (read-only, no effects) vs **command** (effectful) — and the
+properties that ride on that refinement (idempotent, atomic, and others). This first draft
+dropped the refinement; it is being restored and reconciled with Core's `call` and the HTTP
+binding. The `function`/`command` split is where `readonly`, `idempotent` and `atomic` live,
+rather than as loose flags.
 
 ### 6.2 EventSource
 
@@ -205,24 +230,25 @@ result bead is Types' (design authority: "the transformation on the async result
 
 AsyncResult is a well-known, refinable Type; a result bead's `properties` are
 `{ context, outcome? }`. The transformation: a result bead holds the **Reply the same call
-would have returned synchronously** — `value` takes the declared `resultSchema` shape, `error`
-the declared `errorSchema` shape. A result bead names its callable through a **`ResultOf`**
-owned Link (source the result bead, target the Callable pinned to its revision at admission);
-following it reaches the declaration edition. A declaration names a refinement of AsyncResult
-as the Type of its result beads.
+would have returned synchronously** — its success value takes the declared result shape, its
+failure the declared error shape (open item 4 — a single `outcome<T, E>` with arms
+ok / err / fault). A result bead names its callable through a **`ResultOf`** owned Link
+(source the result bead, target the Callable pinned to its revision at admission); following
+it reaches the declaration edition. A declaration names a refinement of AsyncResult as the
+Type of its result beads.
 
 ## 7. GET representations and the rules
 
 Status: **proposed**.
 
-Core returns a Resource's record — `id`, `kind`, `type`, `revision`, storage class,
+Core returns a Resource's representation — `id`, `kind`, `type`, `revision`, storage class,
 `properties`, `metadata` — and interprets none of it. Types defines, per well-known kind, how
-to read that record:
+to read that representation:
 
 - **Type bead** → a definition: the descriptor is its `properties` (sections 2–5).
 - **Callable** → a declaration (§6.1); `get` never invokes.
 - **EventSource** → a declaration (§6.2); `get` never subscribes.
-- **AsyncResult bead** → a Reply in the declared result/error shapes (§6.3).
+- **AsyncResult bead** → a Reply in the declared result / error shapes (§6.3).
 
 ## 8. Type-check rules
 
@@ -269,20 +295,27 @@ placeholder pending the registry agreement with Core (Core item 23).
 Status: **proposed**.
 
 **Projection to Core.** Types sits entirely above Core's raw data access. Core stores and
-returns records; Types interprets them. Nothing in Types changes a primitive's behaviour; it
-adds the refusals of section 8 and the readings of section 7.
+returns representations; Types interprets them. Nothing in Types changes a primitive's
+behaviour; it adds the refusals of section 8 and the readings of section 7.
 
 **Kit divergences from v0.1** (marked, kit untouched): a final revision on every `delete`
 (Core §5.6), and provenance as principals-and-roles in place of a single `actor` (Core §3.2).
 The JSON-Schema-expressible sub-suite is flagged so `propertiesSchema` validates on the same
 oracle that proves cross-implementation parity.
 
-**Open items.**
+**Open items.** Ruled 2026-11-11: `{min, max}` multiplicity; `reflexive`; delete-stays-bare.
 
-1. `multiplicity` encoding — this draft uses `{ min, max }` (consistent with participation
-   constraints); the Kleene source form projects onto it.
-2. `reflexive` vs `allowSelf` naming (§5).
-3. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
+1. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
    stake (it decides her callable surface). Design authority to rule.
-4. Whether a callable may add principals of its own (Core item 12).
+2. Whether a callable may add principals of its own (Core item 12).
+3. **ID form** — absolute HTTP(S) URI vs a `(scope, id, version)` triple, which would simplify
+   scope-local references. A Core identity-model question (with Eva); it touches the carried
+   "`type` is an HTTP(S) URI" rule and the well-known-Type identities.
+4. **Callable return** — a single `outcome<T, E>` discriminated union (arms ok / err / fault,
+   the system free to add arms later, consistent with Lumen) vs the split `resultSchema` /
+   `errorSchema`, and the arm names. With Core (Eva) and Lydia.
+5. **`Refines` name** — "is" is Lumen's nominal keyword; the BDP conformance link is `Refines`.
+   Whether to rename either, once Lydia settles the keyword.
+6. **Callable classification** — the function/command refinement and its properties
+   (idempotent, readonly, atomic, …), dropped in this first draft, being restored (§6.1).
