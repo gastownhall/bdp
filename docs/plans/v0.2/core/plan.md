@@ -144,9 +144,16 @@ plan: all {
   reason to keep it around. We will come up with a replacement if we actually need one." A
   Link is an ordinary Resource with its own revision; a Bead's revision captures no Links.
   The removal is part of `spec/bdp/data-model` (the Core and Write text) and reaches Types,
-  the conformance cases and the reference implementation. No node is added for it. The one
-  place a replacement may be needed is Types: a Type definition's conformance declarations
-  are owned Links in the v0.1 text. That question is with Trish.
+  the conformance cases and the reference implementation. No node is added for it. In the
+  v0.1 text a Type definition's conformance declarations are owned Links. Asked what should
+  replace them, Donna: "the link can exist and it is structurally sound." So a declaration
+  stays a Link, an ordinary one, and nothing replaces it. The Types text is Trish's to rewrite.
+- **Where v0.2 text lives (Donna, 2026-11-10).** "Main should always carry the current
+  version directly under specs. I am fine to keep previous versions as history but I would
+  like then NOT under the specs directory." Every `spec/` node in this plan is therefore an
+  edit to the existing files under `specs/` on main. There is no separate v0.2 tree. Not
+  ruled: where the v0.1 history goes, and who moves the checks that tie the reference
+  implementation to the spec files.
 
 ## Open — placed by Eva, not ruled by Donna
 
