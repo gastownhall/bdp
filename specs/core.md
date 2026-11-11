@@ -1808,6 +1808,12 @@ POST <Callable URL>?mode=async      body: the arguments
 - Proposed: a `fault` is sent with the status of its Problem.
 - Open: which failing status a `failure` gets, and which an arm added by a pack gets
   (section 15).
+- Proposed: the arm in the Reply is what says how the call ended. A client that has the
+  Reply decides on its arm, not on the status. The status is a coarse signal for anything
+  that reads only the status.
+- Proposed: a failing response whose body is not a Reply does not report an outcome. An
+  intermediary may send one in place of the service. A client MUST treat it as a call
+  that did not succeed, and cannot tell from it whether the call ran.
 - Considered and not taken: answering `200` for every synchronous `call` that was
   carried through. A `failure` or a `fault` would then look like a success to anything
   that reads only the status.
@@ -2010,7 +2016,8 @@ Outcome:
 41. The HTTP status of a synchronous `call` whose outcome is not `success`. Ruled
     (2026-11-11): a failing status, with the Reply as the body. Open: which status a
     `failure` gets, and which an arm added by a pack gets. Proposed: a `fault` uses the
-    status of its Problem (section 13.2).
+    status of its Problem; a client that has the Reply decides on its arm, not on the
+    status; a failing response with no Reply reports no outcome (section 13.2).
 
 ## Appendix A. Decisions folded into this text
 
