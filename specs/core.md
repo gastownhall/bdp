@@ -58,7 +58,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 2 | Data model | mixed: carried core; storage class and the Core and Types split ruled; proposed additions |
 | 3 | Revisions, provenance, history | mixed: revision carried; provenance ruled to name several principals and to record inception, its shape proposed; history ruled optional |
 | 4 | Execution model | ruled in outline; context members ruled; field rules proposed |
-| 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; that a refusal is a `fault`, and that only `call` has a `failure` arm, is ruled; request and response shapes proposed |
+| 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; that a refusal is a `fault`, that only `call` has a `failure`, and that the other five answer plainly over HTTP without an Outcome, is ruled; request and response shapes proposed |
 | 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail and cancellation proposed, except that cascade on cancel is left to the owner (ruled) |
 | 7 | Events | record default and cardinality ruled; declarations ruled out of Core; delivery detail proposed |
 | 8 | Discovery and capabilities | carried; additions proposed |
@@ -66,7 +66,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 10 | What a store must keep | proposed, built on ruled decisions |
 | 11 | Export boundary | two rules ruled; the rest open |
 | 12 | Problems | carried; new codes proposed |
-| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; context headers proposed; the rest of addressing open |
+| 13 | Bindings: HTTP, JSON Schema, OpenAPI | principle ruled; create on the Scope ruled for now; plain responses for the five data primitives ruled; context headers proposed; the rest of addressing open |
 | 14 | What moved out of Core | to Types: ruled; to the core library: delete with controls ruled, the rest direction given and not yet confirmed |
 | 15 | Open items | open |
 
@@ -529,7 +529,9 @@ primitives. Ruled (2026-11-11): the members shown below, and that the request co
 carries no deadline in v0.2 (section 6.7). The field rules are proposed.**
 
 Every primitive request and every primitive response carries a `context`. This holds even
-for primitives that are never asynchronous.
+for primitives that are never asynchronous. Where the reply context travels differs: for
+`call` it is inside the Reply (section 4.4), and for the other five it travels beside the
+value (section 5.2).
 
 ```text
 RequestContext = { cause?, provenance?: ProvenanceInput, metadata? }
@@ -592,8 +594,9 @@ Reply<T, E>   = { context, outcome?: Outcome<T, E> }
 - **Outcome** is open (ruled). It is what happened to the operation. It is the Result, or
   a `fault`, or an arm added by a pack or by another specification. A reader MUST
   tolerate an arm it does not know.
-- **Reply** (ruled name) pairs the context with the outcome. It is what every caller gets
-  back.
+- **Reply** (ruled name) pairs the context with the outcome. It is what the caller of a
+  `call` gets back: the body of a synchronous response, and what a result bead holds
+  (section 6.5). The five data primitives do not answer with a Reply (section 5.2).
 
 There are two levels in the types and one level on the wire: `outcome` is a single tagged
 value whose arms include `success`, `failure` and `fault` side by side.
@@ -621,17 +624,18 @@ above; it does not change these. The reasons Core needs the definition:
 - Core defines the asynchronous call. A result bead is settled when it holds an outcome
   (section 6.5), so Core has to say what is written at settlement.
 - The binding has to map each arm onto an HTTP response (section 13).
-- A data primitive that is refused reports a `fault` (ruled, section 4.5). That the data
-  primitives answer in the same frame as `call` is proposed (section 5.2).
+
+The Outcome is for `call`. An earlier state of this draft proposed that the five data
+primitives answer in the same frame. They do not (section 5.2): each returns its value,
+or faults, and the binding reports which by the HTTP status (section 13.2).
 
 What Core defines is an envelope, not a type: the names of the arms, what `fault`
 carries, that the set of arms is open, and the Reply that holds them. `value` and `error`
 are JSON that Core does not look inside. How a callable's declaration states what its
 `value` and `error` are, and how they are checked, is specified in Types (section 14).
 
-`T` and `E` are parameters. For a data primitive, section 5 says what `T` is, and there
-is no `E` (ruled, section 4.5). For a callable they are JSON that Core carries and
-does not look inside (section 6.1).
+`T` and `E` are parameters. They are a callable's result and its error: JSON that Core
+carries and does not look inside (section 6.1).
 
 An error does not carry a reason code in Core. If an operation needs to distinguish kinds
 of error, its error `E` is itself a choice of shapes.
@@ -648,10 +652,10 @@ Open: the spelling of the tag that names the arm (section 15).
 did not run to completion, and what it carries is defined by the protocol, not by the
 callable. Ruled (2026-11-11): a request that is refused is a `fault`; the cases named are
 a call refused on its arguments, an update refused on validation and a delete refused
-while Links are attached. Ruled (2026-11-11): no primitive other than `call` has a
-`failure` arm. That a fault carries a Problem follows the design authority's
-stated preference. The Problem format is carried. That no data primitive has a `failure`
-arm is proposed.**
+while Links are attached. Ruled (2026-11-11): every refusal by a primitive other than
+`call` is a fault, and none of them has a `failure`. Ruled (2026-11-11): over HTTP those
+five report a fault by a failing status, not as an arm. That a fault carries a Problem
+follows the design authority's stated preference. The Problem format is carried.**
 
 A `fault` means the operation did not run to completion. That happens in two ways:
 
@@ -662,8 +666,13 @@ A `fault` means the operation did not run to completion. That happens in two way
 
 Either way a fault is not a verdict of the operation. A fault carries a Problem.
 
-Ruled (2026-11-11): a refusal is a `fault`, not a `failure` and not something outside the
-outcome. Three cases were named:
+How a fault is reported depends on the primitive:
+
+- For `call` it is the `fault` arm of the Outcome (section 4.4).
+- The other five have no Outcome. For them a fault is a response with a failing HTTP
+  status (sections 5.2 and 13.2).
+
+Ruled (2026-11-11): a refusal is a `fault`, not a `failure`. Three cases were named:
 
 - a `call` whose arguments are refused, with `validation-failed`. The callable did not
   run, so the refusal is not its `failure`;
@@ -672,8 +681,8 @@ outcome. Three cases were named:
   (section 5.6).
 
 Core itself checks nothing against a Type or a declaration (section 2.4). Where a
-refusal comes from a check made by a layer above Core, what is ruled here is the arm it
-travels in. The rules of the check are in Types (section 12).
+refusal comes from a check made by a layer above Core, what is ruled here is that it is
+a fault. The rules of the check are in Types (section 12).
 
 What a fault carries is defined by this specification. A callable's declaration does not
 define it, change it or leave it out.
@@ -690,11 +699,17 @@ The line between the two kinds of failure is who defines what is carried:
 - `fault` is everything the protocol itself reports. It carries a Problem, which this
   specification defines. Any operation can meet a fault.
 
-Ruled (2026-11-11): the five primitives other than `call` have no `failure` arm.
-Everything that stops a `get`, `create`, `update`, `delete` or `pull` is a
-refusal or a breakdown, so the outcome of each is `success` or `fault`. That covers the
-refusals not named in the ruling, such as `revision-mismatch`, `identity-taken` and a
-Resource that is not found. Only `call` can produce a `failure` (section 5.2).
+Ruled (2026-11-11): the five primitives other than `call` have no `failure`. Everything
+that stops a `get`, `create`, `update`, `delete` or `pull` is a refusal or a breakdown,
+so each of them either returns its value or faults. That covers the refusals not named in
+the ruling, such as `revision-mismatch`, `identity-taken` and a Resource that is not
+found. Only `call` can produce a `failure`.
+
+Ruled later the same day: over HTTP those five rely on the status code. A 2xx status
+means success and the body is the value. A failing status means the request faulted
+(section 13.2). The design authority stated the assumption behind this, which this draft
+follows: the choice between `success` and `fault` is not used for those five at all
+(section 5.2).
 
 A timeout is a fault. A call that was stopped on request is neither a `failure` nor a
 `fault`; an arm for it is proposed (section 6.8).
@@ -729,28 +744,48 @@ the first as a case of the second would make the effect layer opaque.
 **Status: proposed. The design authority has noted that the request and response formats
 of the six primitives are not yet specified; this section is the first proposal.**
 
-Every primitive has the same frame:
+Every primitive has the same request frame:
 
 ```text
-Request  = { context: RequestContext, input }
-Response = Reply<T, E>
+Request = { context: RequestContext, input }
 ```
 
-`input` is specific to the primitive. `T` is the primitive's value on success. `E` is the
-error of a callable, and only `call` has one. How the frame is carried over HTTP, and
-which parts ride in the URL, the headers or the body, is the binding's business
-(section 13) and is open.
+`input` is specific to the primitive. Which parts ride in the URL, the headers or the
+body is the binding's business (section 13).
 
-Ruled (2026-11-11): a primitive that refuses a request reports a `fault`. The cases named
-are in section 4.5. Ruled (2026-11-11): that holds for every refusal, so the outcome of
-`get`, `create`, `update`, `delete` and `pull` is `success` or `fault`, never `failure`.
-How that outcome is carried, in this frame or otherwise, is still proposed.
+The responses differ:
+
+```text
+call            Response = Reply<T, E>
+the other five  Response = the value, or a fault; the reply context beside either
+```
+
+- `call` answers with a Reply (section 4.4). `T` is the callable's result and `E` its
+  error.
+- `get`, `create`, `update`, `delete` and `pull` do not answer with an Outcome or a
+  Reply. A request that succeeds returns the primitive's value and nothing wrapped
+  around it. A request that does not succeed faults (section 4.5).
+- The reply context accompanies the response either way (ruled, section 4.3). It is not
+  part of the value.
+
+Ruled (2026-11-11): a primitive that refuses a request faults. The cases named are in
+section 4.5. Ruled (2026-11-11): that holds for every refusal by `get`, `create`,
+`update`, `delete` and `pull`. None of them has a `failure`.
+
+Ruled (2026-11-11): over HTTP those five rely on the status code. A 2xx status means
+success, and the response body is the value. A failing status means the request did not
+succeed. What the body of a failing response holds is left to this specification
+(section 13.2). The design authority stated the assumption behind this, which this draft
+follows: the choice between `success` and `fault` is not used for those five.
+
+Changed in this draft: earlier states of it gave all six primitives the Reply as their
+response.
 
 Provenance is not a member of any primitive's input. It is supplied in the request
 context (ruled, section 4.3).
 
-`get`, `create`, `update`, `delete` and `pull` are synchronous: the response is the
-settled outcome. Only `call` may be asynchronous (section 6.4).
+`get`, `create`, `update`, `delete` and `pull` are synchronous: the response is the final
+answer. Only `call` may be asynchronous (section 6.4).
 
 ### 5.3 get
 
@@ -844,7 +879,7 @@ value = the Resource's representation after the update
   other refusal of an update, `revision-mismatch` included, is a `fault` as well
   (section 4.5).
 - An update that would leave the Resource as it is succeeds, keeps the revision, records
-  no provenance, and produces no event. The reply carries no `transaction`.
+  no provenance, and produces no event. The reply context carries no `transaction`.
 - An update of a deleted Resource is refused as not found, unless it starts from an
   earlier revision (section 5.6).
 
@@ -1555,11 +1590,15 @@ New (proposed):
 - `mode-not-supported`: the callable does not support the requested mode.
 - `mode-refused`: the Scope refuses the requested mode for a callable that supports it.
 
-A problem response to a synchronous request carries the reply `context` as an extension
-member (proposed), so that a failed request can still be traced by its cause.
+A failed request can still be traced by its cause. Proposed: a failing response from one
+of the five data primitives carries the reply context in response headers, as a
+successful one does (section 13.2). An earlier state of this draft proposed an extension
+member of the Problem instead. A synchronous `call` that faults carries its context in
+the Reply.
 
-How the `failure` arm of a Result is carried over HTTP is a binding question (section 13).
-v0.1 carried a callable's own error as a Problem with code `callable-error`.
+How the `failure` arm of a Result is carried over HTTP is a binding question
+(section 13.2). v0.1 carried a callable's own error as a Problem with code
+`callable-error`.
 
 ## 13. Bindings: HTTP, JSON Schema, OpenAPI
 
@@ -1590,10 +1629,12 @@ Schemas for those are the business of Types.
 
 ### 13.2 The HTTP binding
 
-**Status: open, with two points settled. Ruled for now: `create` is a request on the
+**Status: open, with three points settled. Ruled for now: `create` is a request on the
 Scope. Ruled: the form of `call` below, except the status codes and the `Location`
-header, which are proposed. The form of `pull` is proposed. The v0.1 binding is described
-for reference. It is not carried.**
+header, which are proposed. Ruled (2026-11-11): the five data primitives answer plainly,
+with the value as the body of a 2xx response and a failing status otherwise; the body of
+a failing response and the place of the reply context are proposed. The form of `pull`
+is proposed. The v0.1 binding is described for reference. It is not carried.**
 
 Ruled for now: `create` is sent to the Scope, with the Type named in the body
 (section 5.4). Sending it to the type bead's URL was considered and set aside.
@@ -1630,9 +1671,40 @@ The design authority's stated view (2026-11-11), not final: the plain DELETE is 
 mainly so that the binding treats a Resource the way HTTP expects. The core library's
 delete callables cover everything it does and are what callers are expected to use.
 
-Also open here: how the common frame (section 5.2) maps onto HTTP, in particular how the
-`failure` arm is carried and where the reply context travels for the primitives other than
-`call`.
+Responses of the five data primitives. Ruled (2026-11-11): `get`, `create`, `update`,
+`delete` and `pull` do not answer with an Outcome or a Reply. They rely on the HTTP
+status code.
+
+```text
+2xx       body: the value (section 5)
+4xx, 5xx  body: the Problem (proposed)
+```
+
+- Ruled: a 2xx status means success. The body is the primitive's value and nothing
+  wrapped around it: the record for a `get`, the page of events for a `pull`.
+- Ruled: a failing status means the request did not succeed. In this specification's
+  terms it faulted (section 4.5).
+- The ruling leaves the body of a failing response to this specification. Proposed: it
+  is the Problem (section 12), sent as `application/problem+json`. A client then reads
+  a fault from any of the five in one way, and it is the same document that the `fault`
+  arm of a `call` carries. Which status goes with each code is carried from v0.1.
+- Proposed: the reply context (section 4.3) travels in response headers, on a successful
+  response and on a failing one alike: `BDP-Cause`, `BDP-Transaction` and `BDP-Metadata`,
+  encoded as the request headers below are. That the context rides in the response of
+  every primitive is ruled. The body is now the value alone, so the headers are the
+  place left for it. `BDP-Transaction` is present only where the request made a commit.
+- Proposed: `create` answers `201` with a `Location` header that names the new Resource.
+  The other four answer `200`.
+- An intermediary may answer in place of the service, with a failing status and no
+  Problem. A client MUST treat any failing status as a request that did not succeed,
+  with or without a Problem in the body.
+
+Considered and not taken: answering all six primitives with the Reply, which an earlier
+state of this draft proposed. A `get` would then return its record inside a wrapper, and
+a client would have to read the body to learn what the status already says.
+
+Still open here: how the `failure` arm of a `call` is carried (see the form of `call`
+below).
 
 Proposed: carrying the request context. The request context (section 4.3) travels in
 HTTP request headers, one header for each member, the same headers on all six
@@ -1699,9 +1771,7 @@ Considered and not taken:
 - A single header holding the whole context as one JSON value. It is one line where
   three would do, and it is the form an earlier state of this draft proposed.
 
-Open: whether provenance may be spread further, one principal to a line; and whether the
-reply context of the primitives other than `call` travels in response headers of the
-same names.
+Open: whether provenance may be spread further, one principal to a line.
 
 Form of `call`. The design authority stated it on 2026-11-11 as two requests: a POST on
 the Callable's URL that returns the result, and the same POST marked asynchronous that
@@ -1726,6 +1796,12 @@ POST <Callable URL>?mode=async      body: the arguments
   call. A request with no `mode`, or with `mode=sync`, is synchronous (section 6.4).
 - Proposed: the status codes `200` and `202`, and the `Location` header on the
   asynchronous response.
+- Proposed: a synchronous response has a 2xx status only when the outcome is `success`,
+  the one arm that means the call went as intended (section 4.4). A `fault` is sent with
+  the status of its Problem, and a `failure` with a failing status that is still to be
+  chosen. The body is the Reply in every case. This keeps one rule for all six
+  primitives: a 2xx status means success. Open: whether that is right, or whether every
+  synchronous `call` that was carried through answers `200` (section 15).
 
 Proposed form of `pull`. It answers the third question for `pull` only, and only as a
 proposal:
@@ -1901,8 +1977,8 @@ Provenance and context:
     authenticated; and the values of `inception` for a Resource that arrives by import.
 34. How the request context is carried over HTTP. One request header for each member is
     proposed. The names, the encoding, the floor every Scope accepts and whether
-    provenance may be spread over several lines are open, and so is where the reply
-    context travels for the primitives other than `call` (section 13.2).
+    provenance may be spread over several lines are open. For the reply context of the
+    five data primitives, response headers are proposed (section 13.2).
 35. Whether a request can name a transaction to join, so that several requests commit as
     one. Proposed: no (section 4.3).
 36. Whether every change event carries the provenance of the revision it reports
@@ -1913,11 +1989,17 @@ Provenance and context:
 
 Outcome:
 
-38. Whether any primitive other than `call` has a `failure` arm. Ruled (2026-11-11):
-    none does. Every refusal by a data primitive is a fault (sections 4.5, 5.2). The
-    item is kept so that its number stays in use.
+38. Whether any primitive other than `call` has a `failure`. Ruled (2026-11-11): none
+    does. Every refusal by a data primitive is a fault, and over HTTP those five do not
+    answer with an Outcome at all (sections 4.5, 5.2, 13.2). The item is kept so that
+    its number stays in use.
 39. Whether an asynchronous call that is refused leaves a result bead. Proposed: no
     (section 6.5).
+40. The body of a failing response from one of the five data primitives, and their 2xx
+    status codes. Proposed: the Problem; `201` for `create` and `200` for the rest
+    (section 13.2).
+41. The HTTP status of a synchronous `call` whose outcome is not `success`. Proposed: a
+    failing status, with the Reply as the body (section 13.2).
 
 ## Appendix A. Decisions folded into this text
 
@@ -2029,8 +2111,14 @@ Rulings by the design authority, by date, with the section that carries each.
   does not know. (4.4)
 - Core neither requires nor forbids that canceling a call also cancels the calls it made.
   Whoever owns those calls decides. (6.8)
-- No primitive other than `call` has a `failure` arm. The outcome of `get`, `create`,
-  `update`, `delete` and `pull` is `success` or `fault`. (4.5, 5.2, 5.5)
+- No primitive other than `call` has a `failure`. Every refusal by `get`, `create`,
+  `update`, `delete` or `pull` is a fault. (4.5, 5.2, 5.5)
+- Over HTTP, `get`, `create`, `update`, `delete` and `pull` rely on the status code. A
+  2xx status means success and the body is the value. A failing status means failure,
+  and what its body holds is left to this specification. (5.2, 13.2)
+
+Stated as an assumption with that ruling, and followed in this text: the choice between
+`success` and `fault` is not used for those five. (4.5, 5.2)
 
 Stated preferences, not final: a closed Result inside an open Outcome; that a `fault`
 carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
@@ -2045,5 +2133,7 @@ result bead; the details of the Link from a result bead to its callable; the HTT
 delete holds; `delete` as the plain HTTP DELETE; the headers that carry the request
 context; that a request cannot join a transaction; that the service itself carries out
 the delete callables, each invocation in one transaction; that an asynchronous call
-which is refused leaves no result bead; the `canceled` arm and what it carries. Each is marked proposed where it appears
-and listed in section 15.
+which is refused leaves no result bead; the `canceled` arm and what it carries; that the
+body of a failing response from a data primitive is the Problem; that the reply context
+of those five travels in response headers; the HTTP status of a synchronous `call` that
+did not succeed. Each is marked proposed where it appears and listed in section 15.
