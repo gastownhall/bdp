@@ -243,15 +243,17 @@ same move as bead / link refining resource), declared by refining the matching w
 (section 9). (`function` == pure, ruled; `read-only` now names a property mode, §3.2, not reused
 here.)
 
-- **function** — the call takes **no write capability**: it may read, but mutates nothing, so it
-  is repeatable and usable where a read is. That contract — no write capability — is exactly what
-  makes Lumen's `function` pure, so BDP `function` and Lumen `function` coincide in both
-  directions. A call that mutates any state is a `command`, never a function. A function carries
-  neither `idempotent` nor `atomic`: being pure, it is inherently repeatable and transaction-free.
-- **command** — effectful. A command may declare `idempotent` (repeating has the same effect),
-  `atomic` (its changes commit in one transaction — Core §5.9, open item 37), and `safe` (it has
-  an effect but does not mutate stored state, the HTTP sense — proposed name for "non-mutating",
-  item 5).
+- **function** — **pure**: takes no capability and reads no mutable state, so it is deterministic
+  and usable in `where`. This is exactly Lumen's `function`, so BDP `function` and Lumen
+  `function` coincide in both directions. A call that reads mutable state but mutates nothing is a
+  **`safe` command** (below), not a function; one that mutates is a plain `command`. A function
+  carries no `idempotent` / `atomic` / `safe`: being pure, it is inherently repeatable and
+  transaction-free.
+- **command** — effectful (takes a capability). A command may declare `idempotent` (repeating has
+  the same effect), `atomic` (its changes commit in one transaction — Core §5.9, open item 37),
+  and `safe` (it reads mutable state but mutates nothing — the HTTP sense). `safe` **implies**
+  `idempotent` (a non-mutating call is inherently retry-safe), and `atomic` is vacuous on a `safe`
+  command (no changes to commit).
 
 (Lumen's `formula` — a reactive, recomputing callable — is a language kind only; it is not
 modeled as a BDP callable kind.)
@@ -352,8 +354,8 @@ oracle that proves cross-implementation parity.
 
 **Open items.** Ruled 2026-11-11: `{min, max}` multiplicity; `reflexive`; delete-stays-bare;
 Outcome arms `success`/`failure`/`fault`; `Refines` kept (layer split with Lumen `is`); the pure
-callable kind `function` (== pure) = no write capability; `service-managed` property mode renamed
-`read-only`.
+callable kind `function` (== pure); `service-managed` property mode renamed `read-only`; the
+non-mutating command property named `safe` (safe ⇒ idempotent); the invocable tier kept `callable`.
 
 1. Alias resolution in `get` — whether it leaves `get` for a core-library callable or is an
    identity-layer concern; Core cannot read a bead's type-governed `properties`. Melinda has a
@@ -365,7 +367,3 @@ callable kind `function` (== pure) = no write capability; `service-managed` prop
    rule holds at the edge.
 4. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
    pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
-5. **Non-mutating command property** — a command with an effect but no stored-state change;
-   named `safe` provisionally (the HTTP sense), pending Donna's term.
-6. **Tier name** — `callable` vs `operation` for the invocable tier; open, a cross-spec call with
-   Core (which owns "Callables", Core §6).
