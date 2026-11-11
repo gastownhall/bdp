@@ -189,14 +189,15 @@ the representation and never invokes or subscribes.
 
 ### 6.1 Callable
 
-A Bead is a **Callable** when its Type is the well-known Callable Type or refines it. The
+A Bead is a **Callable** when its Type is the well-known Callable Type or refines it — a
+callable is a value `(P) -> R` whose return `R` is Core's `Outcome<T, E>` (Core §4.4). The
 declaration, in its `properties` (beside common `title` / `description`, §3):
 
 | Field | Shape | Meaning |
 | --- | --- | --- |
-| `parameters` | `[ { name, schema, required?, default?, description? } ]` | Argument contract. Core treats a call's `arguments` as opaque JSON; Types checks them against this. |
-| `resultSchema` | schema | The `T` of a successful result (see open item 4 — single `outcome<T,E>` vs split). |
-| `errorSchema` | schema | The `E` of a failure. |
+| `parameters` | `[ { name, schema, required?, default?, description? } ]` | Argument contract (`P`). Core treats a call's `arguments` as opaque JSON; Types checks them against this. |
+| `resultSchema` | schema | The `T` — the success value of `Outcome<T, E>` (Core's `ok` arm). |
+| `errorSchema` | schema | The `E` — the declared failure (Core's `err` arm). |
 | `modes` | `[ "sync" \| "async" ]` | Advertised invocation modes; omitted means `sync`. The caller chooses with Core's `mode`; the two refusals (`mode-not-supported`, `mode-refused`) are Core's. |
 
 Checking a call's `arguments` against `parameters`, and its result against the declared
@@ -205,12 +206,21 @@ field:** a call's principals arrive in Core's request-context provenance and flo
 call to every revision it mints; whether a callable may add principals of its own is open
 (Core item 12).
 
-**Callable classification — being restored (open item 6).** A callable also carries its
-classification — **function** (read-only, no effects) vs **command** (effectful) — and the
-properties that ride on that refinement (idempotent, atomic, and others). This first draft
-dropped the refinement; it is being restored and reconciled with Core's `call` and the HTTP
-binding. The `function`/`command` split is where `readonly`, `idempotent` and `atomic` live,
-rather than as loose flags.
+The return is Core's `Outcome<T, E>`; a declaration supplies `T` and `E` and nothing more.
+Core's `fault` arm (a Problem, for a call that could not run to completion) is a **system arm** —
+a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names —
+ok / err / fault — follow Core; the terms may change with Lydia.)
+
+**Kinds.** `function` and `command` are nominal refinements of Callable (the same move as
+bead / link refining resource), declared by refining the matching well-known Type (section 9):
+
+- **Function** — **pure / read-only**: the call takes no capability, produces no effect, is
+  repeatable, and may be used where a read is. "Read-only" is this kind, not a flag.
+- **Command** — **effectful**. A command may declare `idempotent` (retrying is safe) and
+  `atomic` (the invocation's changes commit in one transaction — Core §5.9, open item 37).
+
+(Lumen's `formula` — a reactive, recomputing callable — is a language kind only; it is not
+modeled as a BDP callable kind.)
 
 ### 6.2 EventSource
 
@@ -229,10 +239,9 @@ Status: **proposed**. The transformation from a callable's declaration to the sh
 result bead is Types' (design authority: "the transformation on the async result").
 
 AsyncResult is a well-known, refinable Type; a result bead's `properties` are
-`{ context, outcome? }`. The transformation: a result bead holds the **Reply the same call
-would have returned synchronously** — its success value takes the declared result shape, its
-failure the declared error shape (open item 4 — a single `outcome<T, E>` with arms
-ok / err / fault). A result bead names its callable through a **`ResultOf`** owned Link
+`{ context, outcome? }`. The transformation is one line: the result bead holds Core's
+**`Reply<T, E>`** for the same `T` and `E` the callable declared — the Reply the same call
+would have returned synchronously. A result bead names its callable through a **`ResultOf`** owned Link
 (source the result bead, target the Callable pinned to its revision at admission); following
 it reaches the declaration edition. A declaration names a refinement of AsyncResult as the
 Type of its result beads.
@@ -283,6 +292,7 @@ Refines under `…/type-system/`), extended:
 | --- | --- | --- |
 | `Type`, `BeadType`, `LinkType`, `Refines` | the type system | carried |
 | `Callable` | §6.1 | proposed |
+| `Function`, `Command` (refine `Callable`) | §6.1 kinds | proposed |
 | `EventSource` | §6.2 | proposed |
 | `AsyncResult` | §6.3 | proposed |
 | `ResultOf` (Link Type) | result bead → callable | proposed |
@@ -312,10 +322,9 @@ oracle that proves cross-implementation parity.
 3. **ID form** — absolute HTTP(S) URI vs a `(scope, id, version)` triple, which would simplify
    scope-local references. A Core identity-model question (with Eva); it touches the carried
    "`type` is an HTTP(S) URI" rule and the well-known-Type identities.
-4. **Callable return** — a single `outcome<T, E>` discriminated union (arms ok / err / fault,
-   the system free to add arms later, consistent with Lumen) vs the split `resultSchema` /
-   `errorSchema`, and the arm names. With Core (Eva) and Lydia.
+4. **Outcome arm names** — the return is Core's `Outcome<T, E>` (resolved, §6.1); the arm
+   names (ok / err / fault, or succeeded / failed) follow Core and may change with Lydia's terms.
 5. **`Refines` name** — "is" is Lumen's nominal keyword; the BDP conformance link is `Refines`.
    Whether to rename either, once Lydia settles the keyword.
-6. **Callable classification** — the function/command refinement and its properties
-   (idempotent, readonly, atomic, …), dropped in this first draft, being restored (§6.1).
+6. **`atomic` carriage** — how a service-carried callable gets its single transaction (and
+   pack-supplied callables) is Core §5.9 open item 37; the Command `atomic` property points there.
