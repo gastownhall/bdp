@@ -272,7 +272,7 @@ result bead is Types' (design authority: "the transformation on the async result
 
 AsyncResult is a well-known, refinable Type; a result bead's `properties` are
 `{ context, outcome? }` — `context` is Core's reply context `{ cause, transaction?, metadata? }`
-(§4.4), not provenance (provenance rides the bead's revisions). The transformation is one line:
+(§4.3), not provenance (provenance rides the bead's revisions). The transformation is one line:
 the result bead holds Core's **`Reply<T, E>`** for the same `T` and `E` the callable declared —
 the Reply the same call would have returned synchronously. The bead **settles at most once**:
 once a revision holds `outcome` it is terminal, and no later revision changes or removes it
