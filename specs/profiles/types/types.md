@@ -1,6 +1,12 @@
+---
+status: draft
+intended-status: normative
+version: "0.2"
+---
+
 # Beads Protocol — Types
 
-Editorial draft v0.1 · November 1, 2026
+Working draft v0.2.
 
 Types is the optional, Scope-wide interpretation of Bead and Link affiliations.
 A definition is an ordinary Bead: its properties describe a contract and its owned
