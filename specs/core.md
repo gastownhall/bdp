@@ -59,7 +59,7 @@ describe what the proposal would require; they bind nobody until the section is 
 | 3 | Revisions, provenance, history | mixed: revision carried; provenance ruled to name several principals and to record inception, its shape proposed; history ruled optional |
 | 4 | Execution model | ruled in outline; context members ruled; field rules proposed |
 | 5 | The six primitives | the set is ruled; a delete that only deletes, is refused while Links are attached and mints a final revision is ruled; that a refusal is a `fault` is ruled; request and response shapes proposed |
-| 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail and cancellation proposed |
+| 6 | Callables | async rules ruled; declarations ruled out of Core; result bead detail and cancellation proposed, except that cascade on cancel is left to the owner (ruled) |
 | 7 | Events | record default and cardinality ruled; declarations ruled out of Core; delivery detail proposed |
 | 8 | Discovery and capabilities | carried; additions proposed |
 | 9 | Authorization | carried |
@@ -579,7 +579,7 @@ Proposed field rules for `metadata`:
 **Status: ruled in structure (items marked). Ruled (2026-11-11): Core owns the definition
 of the outcome; the arms are named `success`, `failure` and `fault`; `success` is the only
 arm that means the operation went as intended; an outcome that is present means the
-operation is settled. The tag spelling is open.**
+operation is settled; an arm is an open record. The tag spelling is open.**
 
 ```text
 Result<T, E>  = success { value: T } | failure { error: E }
@@ -637,10 +637,9 @@ does not look inside (section 6.1).
 An error does not carry a reason code in Core. If an operation needs to distinguish kinds
 of error, its error `E` is itself a choice of shapes.
 
-Proposed: an arm is an open record. A reader MUST ignore a member of an arm that it does
-not know. A pack can then carry something more in an arm without breaking a reader that
-knows only this specification. The design authority raised the question and has not
-answered it (section 15).
+Ruled (2026-11-11): an arm is an open record. A reader MUST ignore a member of an arm
+that it does not know. A pack can then carry something more in an arm without breaking a
+reader that knows only this specification.
 
 Open: the spelling of the tag that names the arm (section 15).
 
@@ -1205,7 +1204,8 @@ to listen reads the result bead with `get` until `outcome` is present.
 
 **Status: proposed. The design authority's stated view (2026-11-11), not final: `canceled`
 makes sense as an outcome arm in Core, and once there is an AsyncResult there can be a
-callable that cancels it. Nothing in this section is ruled.**
+callable that cancels it. One point is ruled (2026-11-11): this specification leaves to
+the owner whether canceling a call cancels the calls it made. The rest is proposed.**
 
 ```text
 Outcome<T, E> = Result<T, E> | fault { problem } | canceled { reason? } | ...
@@ -1234,10 +1234,10 @@ Canceling:
 - Settling the result bead is all this specification requires. A service SHOULD stop the
   work if it can. Whatever the work produces after the result bead has settled is
   discarded, and the outcome does not change.
-- This specification neither requires nor forbids that canceling a call also cancels the
-  calls it made. Whoever owns those calls decides. A pack that defines ownership between
-  calls MAY cancel the owned calls along with their owner. A call that owns nothing is
-  not affected.
+- Ruled (2026-11-11): this specification neither requires nor forbids that canceling a
+  call also cancels the calls it made. Whoever owns those calls decides. A pack that
+  defines ownership between calls MAY cancel the owned calls along with their owner. A
+  call that owns nothing is not affected.
 
 A timeout is still a `fault` (section 4.5). No primitive other than `call` can be
 canceled, since the other five are synchronous and have no result bead.
@@ -1838,12 +1838,12 @@ Execution:
 12. The rules of the call context's members (the members themselves are ruled), and
     whether a callable may add principals to the provenance of the request it is handling
     (section 4.3).
-13. The spelling of the tag that names an Outcome arm, and whether arms are open
-    records. Proposed: they are (section 4.4).
+13. The spelling of the tag that names an Outcome arm. That arms are open records is
+    ruled (section 4.4).
 14. Cancellation: a `canceled` arm and a core library callable that cancels an
-    asynchronous call are proposed, with two open points (section 6.8). Suspend and
-    resume are not designed. Deadlines are deferred to a later version (ruled,
-    section 6.7).
+    asynchronous call are proposed, with two open points; that cascade is left to the
+    owner is ruled (section 6.8). Suspend and resume are not designed. Deadlines are
+    deferred to a later version (ruled, section 6.7).
 15. Retry and idempotency.
 16. The storage class and lifetime of a result bead.
 
@@ -2024,6 +2024,10 @@ Rulings by the design authority, by date, with the section that carries each.
 - A request that is refused is a `fault`. The cases named: a call refused on its
   arguments, an update refused on validation, a delete refused while Links are attached.
   (4.5, 5.5, 5.6, 5.7)
+- An arm of an Outcome is an open record. A reader ignores a member of an arm that it
+  does not know. (4.4)
+- Core neither requires nor forbids that canceling a call also cancels the calls it made.
+  Whoever owns those calls decides. (6.8)
 
 Stated preferences, not final: a closed Result inside an open Outcome; that a `fault`
 carries a Problem; no reason code in Core. (4.4, 4.5) Also not final: that the
@@ -2039,6 +2043,5 @@ delete holds; `delete` as the plain HTTP DELETE; the headers that carry the requ
 context; that a request cannot join a transaction; that the service itself carries out
 the delete callables, each invocation in one transaction; that no primitive other than
 `call` has a `failure` arm; that an asynchronous call which is refused leaves no result
-bead; the `canceled` arm and what it carries; that an arm is an open record; that
-canceling the calls a canceled call made is left to whoever owns them. Each is marked
-proposed where it appears and listed in section 15.
+bead; the `canceled` arm and what it carries. Each is marked proposed where it appears
+and listed in section 15.
