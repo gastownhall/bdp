@@ -210,8 +210,11 @@ call to every revision it mints; whether a callable may add principals of its ow
 The return is Core's `Outcome<T, E>`; a declaration supplies `T` and `E` and nothing more.
 Core's `fault` arm (a Problem, for a call that could not run to completion) is a **system arm** —
 a callable never declares, narrows or omits it, and new arms come only from Core. (Arm names:
-`success` / `failure` / `fault` — Lydia, pending Donna's nod. `success` and `failure` are
-*declared* and ran to completion; `fault` is the *undeclared* machinery break.)
+`success` / `failure` / `fault` — Lydia's proposal; Donna's earlier preference was the Rust
+`ok` / `err`, so the pick is hers. `success` and `failure` are *declared* outcomes that ran to
+completion; `fault` is the *undeclared* case — a call that did not run to completion, including
+one that never started or timed out — carrying a Problem. Core §4.5 still shows `ok`/`err`
+until she chooses, so the drafts differ until then.)
 
 **Kinds.** A callable is **read-only** or a **command** — nominal refinements of Callable (the
 same move as bead / link refining resource), declared by refining the matching well-known Type
@@ -326,9 +329,9 @@ oracle that proves cross-implementation parity.
    triple (the URI, with ETag / `?revision=`, is the web-edge encoding), to simplify scope-local
    references. A Core identity-model convention (with Eva); no wire change — the `type`-is-a-URI
    rule holds at the edge.
-4. **Outcome arm names** — `success` / `failure` / `fault` (Lydia, pending Donna's nod; Eva owns
-   the Outcome semantics these names sit on). `success`/`failure` are declared and completed;
-   `fault` is Core's undeclared, didn't-complete arm.
+4. **Outcome arm names** — Lydia proposes `success` / `failure` / `fault`; Donna's earlier
+   preference was the Rust `ok` / `err`. Her pick; Core §4.5 keeps `ok`/`err` until she chooses,
+   so the drafts differ until then. (Eva owns the Outcome semantics the names sit on — unchanged.)
 5. **Conformance link name** — resolved (Lydia, pending Donna): Lumen keyword `is` stays, the BDP
    link stays `Refines`; the layer split is intentional (`is` is a conformance clause, `Refines`
    is the edge name). M6 maps `type X is T` → one Refines link X→T.
