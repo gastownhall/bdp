@@ -359,6 +359,7 @@ profile-specific response vehicle.
 | `transactional.sequence.pending-creator` | A dependent whose creator is pending or transient fails transiently and holds no key |
 | `transactional.sequence.failed-creator` | A dependent whose creator's receipt is failed fails with binding-unavailable in its own failed receipt |
 | `transactional.sequence.member-reauthorization` | A withheld entry projects as a forbidden member problem and an erased one as resource-erased to an authorized caller |
+| `transactional.event.fact-order` | One Link operation's facts are ordered lifecycle first, then graph facts, source before target |
 | `transactional.event.graph-facts` | Link lifecycle produces linked and unlinked facts at every in-Scope endpoint |
 | `transactional.event.self-link` | A self-Link's one endpoint receives a source fact and a target fact in the same group |
 | `transactional.event.set-expansion-order` | A set operation's induced facts and receipt entries follow canonical-uri order |
@@ -374,6 +375,7 @@ profile-specific response vehicle.
 | `transactional.changefeed.sse-reconnect` | SSE reconnection uses the durable applied checkpoint with header precedence |
 | `transactional.changefeed.projection-advance` | A hidden transaction projects an identifier-free advance |
 | `transactional.snapshot.rendezvous` | A snapshot checkpoint continues losslessly into the changefeed |
+| `transactional.snapshot.closed-projection` | A snapshot is a closed projection: every Link's in-Scope endpoints are present; a snapshot that breaks this is rejected |
 | `transactional.snapshot.expiry` | A snapshot stays continuable through expiresAt, and a page it cannot serve before then is a service failure |
 | `transactional.snapshot.erasure-ledger` | Every snapshot manifest carries the erasure ledger projected for its view |
 | `transactional.erasure.record-digest` | Erasure records propagate with a verifiable sha-256-jcs digest |

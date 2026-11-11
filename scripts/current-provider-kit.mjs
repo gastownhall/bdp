@@ -1365,6 +1365,7 @@ export async function runCurrentProvider(
             assert.deepEqual(linkCreated.resource[field], body[field]);
           for (const field of ["properties", "metadata"])
             wroteBack(linkCreated.resource[field], body[field], field);
+          assert.equal(linkCreated.ownerRevisions, undefined);
           assert.deepEqual(await pointLink(), linkCreated.resource);
           await unchangedBeads();
         });
@@ -1383,6 +1384,7 @@ export async function runCurrentProvider(
             for (const field of ["type", "properties", "metadata", "source"])
               assert.deepEqual(linkUpdated.resource[field], linkCreated.resource[field]);
             assert.equal(linkUpdated.resource.target, beads[2].id);
+            assert.equal(linkUpdated.ownerRevisions, undefined);
             assert.deepEqual(await pointLink(), linkUpdated.resource);
             const noop = success(
               await post(
@@ -1394,6 +1396,7 @@ export async function runCurrentProvider(
             assert.equal(noop.outcome, "updated");
             assert.equal(noop.changed, false);
             assert.deepEqual(noop.resource, linkUpdated.resource);
+            assert.equal(noop.ownerRevisions, undefined);
             assert.deepEqual(await pointLink(), linkUpdated.resource);
             await unchangedBeads();
           });
@@ -1544,6 +1547,7 @@ export async function runCurrentProvider(
               revision: live.revision,
             },
           });
+          assert.equal(result.ownerRevisions, undefined);
           const absent = await exchange(routes, linkId);
           assert([404, 410].includes(absent.status));
           const problem = json(absent, absent.status, "readProblem", "application/problem+json");
