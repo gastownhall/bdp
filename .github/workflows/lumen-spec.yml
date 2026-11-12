@@ -1,0 +1,23 @@
+name: lumen-spec
+on:
+  pull_request:
+    paths: ['specs/core.lumen', 'tools/lumen/**']
+  push:
+    branches: ['spec/core-v0.2']
+    paths: ['specs/core.lumen', 'tools/lumen/**']
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Build spec artifacts (no Rust, no network)
+        run: ./tools/lumen/build-spec.sh
+      - name: Validate JSON artifacts
+        run: |
+          python3 -m json.tool build/openapi.json > /dev/null
+          python3 -m json.tool build/schema.bundle.json > /dev/null
+          echo "openapi.json and schema.bundle.json are well-formed"
+      - uses: actions/upload-artifact@v4.4.3
+        with:
+          name: core-spec-artifacts
+          path: build/

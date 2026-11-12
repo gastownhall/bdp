@@ -86,12 +86,14 @@ So the pipeline is bootstrapped with a **stand-in** `lumen` that honors the same
 contract and emits the same artifacts, then swapped for the real binary with zero
 change to `build-spec.sh` or CI:
 
-- today: markdown + HTML reference (the preview renderer already does this);
-- to build next, in the stand-in: **openapi** and **jsonschema** emitters driven by the
-  `/// openapi = {…}` and `/// jsonschema = {…}` metadata already in `core.lumen` — this
-  also proves the file carries enough metadata to drive a *complete* OpenAPI;
-- package the stand-in as a single self-contained executable (zipapp / shiv / PyInstaller)
-  so there is no Python dependency in CI, matching "no extra build machinery."
+- **done:** the stand-in emits `openapi` (complete OpenAPI 3.1), `jsonschema` (a 2020-12
+  bundle) and `markdown` (the reference), driven by the `/// openapi` and `/// jsonschema`
+  metadata in `core.lumen`. `build-spec.sh` runs all three; CI
+  (`.github/workflows/lumen-spec.yml`) runs it on ubuntu with only python3, no Rust.
+- **still Python:** a true frozen single-file binary (no python3 at all) needs PyInstaller,
+  which belongs to the release step that builds the *real* binary. The stand-in relies on
+  python3, which CI runners and dev machines already have — so it is "no extra build
+  machinery" in practice, just not yet a standalone executable.
 
 The stand-in is clearly marked temporary and reports `--version: standin-<date>` so it
 can never be mistaken for a real grammar-backed build.

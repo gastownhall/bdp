@@ -5,5 +5,6 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$root"
 mkdir -p build
 tools/lumen/lumen build specs/core.lumen \
   --emit openapi=build/openapi.json \
-  --emit jsonschema=build/schema.bundle.json
-echo "built: build/openapi.json  build/schema.bundle.json"
+  --emit jsonschema=build/schema.bundle.json \
+  --emit markdown=build/reference.md
+echo "built: build/openapi.json  build/schema.bundle.json  build/reference.md"

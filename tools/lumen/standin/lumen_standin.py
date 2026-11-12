@@ -312,7 +312,128 @@ def emit_openapi(items):
            "components": {"schemas": schemas, "pathItems": path_items}}
     return json.dumps(doc, indent=2, ensure_ascii=False)
 
-EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema}
+# ───────────────────────── markdown reference backend ─────────────────────────
+def _cell(t): return t.replace("|", "\\|")
+
+def _q_fields(src):
+    out = [f'  "{n}"{"?" if opt else ""}: {ty},' for n, ty, opt, _ in parse_fields(src)]
+    if out: out[-1] = out[-1].rstrip(",")
+    return "{\n" + "\n".join(out) + "\n}"
+
+def _du_arms(src):
+    arms = []
+    for a in split_top(rhs_of(src), "|"):
+        a = a.strip()
+        if a == "...": arms.append(("…", None)); continue
+        m = re.match(r"(\w+)\s*\{(.*)\}$", a)
+        if m:
+            fs = ", ".join(f'"{c.split(":")[0].strip()}": {c.split(":", 1)[1].strip()}'
+                           for c in split_top(m.group(2), ",") if ":" in c)
+            arms.append((m.group(1), fs))
+        else:
+            arms.append((a, None))
+    return arms
+
+def _q_du(src):
+    out = []
+    for i, (tag, fs) in enumerate(_du_arms(src)):
+        bar = "  " if i == 0 else "| "
+        if tag == "…": out.append(bar + "…"); continue
+        out.append(bar + (f'{{ "{tag}": {{ {fs} }} }}' if fs else f'"{tag}"'))
+    return "\n".join(out)
+
+def _schema_md(name, src, meta):
+    kind = classify(src); o = [f"### `{name}`", ""]
+    t = meta.get("title", "")
+    if t and t.lower() != name.lower(): o += [f"_{t}_", ""]
+    if meta.get("description"): o += [meta["description"], ""]
+    code = _q_fields(src) if kind == "record" else _q_du(src) if kind == "du" else rhs_of(src)
+    if code: o += ["```", code, "```", ""]
+    if kind == "record":
+        o += ["| field | type | optional | description |", "| --- | --- | --- | --- |"]
+        for n, ty, opt, desc in parse_fields(src):
+            o.append(f"| `{n}` | `{_cell(ty)}` | {'yes' if opt else 'no'} | {desc} |")
+        o.append("")
+    elif kind == "du":
+        o += ["| arm | carries |", "| --- | --- |"]
+        for tag, fs in _du_arms(src):
+            o.append(f"| `{tag}` | {('`'+fs+'`') if fs else '_open_' if tag == '…' else '_no payload_'} |")
+        o.append("")
+    bid = meta.get("bdp", {}).get("id")
+    if bid: o += [f"`$id`: `{bid}`", ""]
+    return "\n".join(o)
+
+def _atomic_md(atomics):
+    o = ["| type | base | refinements | description |", "| --- | --- | --- | --- |"]
+    for name, src, meta in atomics:
+        arms = " \\| ".join(f"`{a.strip()}`" for a in split_top(rhs_of(src), "|"))
+        ref = ", ".join(f"`{k}: {v}`" for k, v in meta.get("jsonschema", {}).items()) or "—"
+        desc = meta.get("description", meta.get("title", ""))
+        o.append(f"| `{name}` | {arms} | {ref} | {desc} |")
+    return "\n".join(o + [""])
+
+MD_REQ = [("BDP-Cause", "cause (`Reference`)"), ("BDP-Provenance", "provenance (`RevisionProvenance`)"), ("BDP-Metadata", "open metadata")]
+MD_REP = [("BDP-Cause", "cause (`Reference`)"), ("BDP-Transaction", "transaction (`Reference`)"), ("BDP-Metadata", "open metadata")]
+
+def _resp_tbl(rs):
+    if not rs: return ["_none_", ""]
+    out = ["| status | content-type | entity body |", "| --- | --- | --- |"]
+    for st, ct, bd, note in rs:
+        out.append(f"| {st} | {ct or '—'} | `{bd}`{(' — ' + note) if note else ''} |")
+    return out + [""]
+
+def _op_md(name, src, meta):
+    oa = meta.get("openapi", {}); rtype, fails = ret_type(src)
+    opid = oa.get("operationId", name); method = oa.get("method", "")
+    o = [f"### `{opid}`", ""]
+    if meta.get("description"): o += [meta["description"], ""]
+    o += ["**Method**", "", f"`{method}`" + (f" on a `{oa['pathItem']}` URL" if oa.get("pathItem") else ""), ""]
+    qp = {k: v for k, v in oa.get("params", {}).items() if v.get("in") == "query"}
+    if qp:
+        o += ["| query parameter | schema | required |", "| --- | --- | --- |"]
+        for k, v in qp.items(): o.append(f"| `{k}` | `{v.get('schema','')}` | {str(v.get('required', False)).lower()} |")
+        o.append("")
+    o += ["**Request Headers**", ""]
+    rrows = list(MD_REQ) if "requestContext" in oa.get("paramGroups", []) else []
+    for k, v in oa.get("params", {}).items():
+        if v.get("in") == "header": rrows.append(("If-Match" if k == "ifMatch" else k, f"`{v.get('schema','')}`"))
+    o += (["| header | meaning |", "| --- | --- |"] + [f"| `{h}` | {m} |" for h, m in rrows] + [""]) if rrows else ["_none_", ""]
+    o += ["**Request Entity Body**", ""]
+    ct = oa.get("request", {}).get("contentType")
+    o += [f"`{ct}` → `{body_schema(src) or ''}`" if ct else "_none_", ""]
+    o += ["**Response Headers**", ""]
+    prows = list(MD_REP) if "replyContext" in oa.get("paramGroups", []) else []
+    for hn, a in oa.get("responseHeaders", {}).items(): prows.append((hn, f"`{a.get('schema','')}`"))
+    o += (["| header | meaning |", "| --- | --- |"] + [f"| `{h}` | {m} |" for h, m in prows] + [""]) if prows else ["_none_", ""]
+    rows = []
+    su = oa.get("success")
+    if su: rows.append((su.get("status", ""), su.get("contentType", ""), rtype or "", ""))
+    for r in oa.get("responses", []): rows.append((r.get("status", ""), r.get("contentType", ""), r.get("schema", ""), r.get("description", "")))
+    ok = [r for r in rows if str(r[0])[:1] == "2"]; err = [r for r in rows if str(r[0])[:1] in ("4", "5")]
+    pr = oa.get("problem")
+    if pr:
+        st = pr.get("status"); st = ", ".join(map(str, st)) if isinstance(st, list) else st
+        err.append((st, pr.get("contentType", ""), fails or "Problem", ""))
+    o += ["**Response Entity Body**", ""] + _resp_tbl(ok)
+    o += ["**Errors**", ""] + _resp_tbl(err)
+    return "\n".join(o)
+
+def emit_markdown(items):
+    atomics = [(re.match(r"schema\s+(\w+)", a).group(1), a, b) for k, a, b in items
+               if k == "decl" and a.startswith("schema") and classify(a) == "atomic"]
+    out, emitted = [], False
+    for k, a, b in items:
+        if k == "prose": out.append(a.strip()); continue
+        m = re.match(r"(schema|command|fn)\s+(\w+)", a); name = m.group(2)
+        if m.group(1) != "schema": out.append(_op_md(name, a, b)); continue
+        c = classify(a)
+        if c == "atomic":
+            if not emitted: out.append(_atomic_md(atomics)); emitted = True
+            continue
+        out.append(_schema_md(name, a, b))
+    return "\n\n".join(out)
+
+EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown}
 
 def main():
     ap = argparse.ArgumentParser(prog="lumen")
