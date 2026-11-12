@@ -531,7 +531,90 @@ def emit_go(items):
     out.append(_go_iface(items))
     return "\n".join(out)
 
-EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown, "go": emit_go}
+# ───────────────────────── rust backend (seeded from Rachel's PROJECTIONS.md) ─────────────────────────
+RUST_SCALAR = {"string": "String", "number": "f64", "float": "f64", "int": "i64",
+               "integer": "i64", "boolean": "bool", "bool": "bool", "any": "serde_json::Value"}
+RUST_KW = {"type", "ref", "move", "box", "self", "match", "fn", "impl", "trait", "mod", "use",
+           "in", "let", "loop", "enum", "struct", "async", "await", "dyn", "as", "where", "while",
+           "for", "if", "else", "return", "crate", "super", "pub", "mut", "const", "static", "extern"}
+
+def _snake(s): return re.sub(r"(?<!^)(?=[A-Z])", "_", s).lower().replace("-", "_")
+
+def _rust_field(name):
+    snake = _snake(name)
+    return ("r#" + snake if snake in RUST_KW else snake), name
+
+def rust_type(expr):
+    e = expr.strip()
+    if e in RUST_SCALAR: return RUST_SCALAR[e]
+    if e[:1] == '"' and e[-1:] == '"': return "String"
+    if e.startswith("["): return f"Vec<{rust_type(e[1:-1].strip())}>"
+    if e.startswith("{"): return "serde_json::Value"
+    parts = split_top(e, "|")
+    if len(parts) > 1:
+        return "String" if all(p.strip()[:1] == '"' for p in parts) else "serde_json::Value"
+    if re.fullmatch(r"[A-Za-z_]\w*", e): return e
+    return "serde_json::Value"
+
+def _rust_struct(name, src):
+    o = ["#[derive(Debug, Clone, Serialize, Deserialize)]", f"pub struct {name} {{"]
+    for fn_, ty, opt, _ in parse_fields(src):
+        ident, orig = _rust_field(fn_); rt = rust_type(ty)
+        if opt:
+            o.append(f'    #[serde(rename = "{orig}", skip_serializing_if = "Option::is_none")]')
+            o.append(f"    pub {ident}: Option<{rt}>,")
+        else:
+            o.append(f'    #[serde(rename = "{orig}")]')
+            o.append(f"    pub {ident}: {rt},")
+    return "\n".join(o + ["}"])
+
+def _rust_enum(name, src):
+    o = ["#[derive(Debug, Clone, Serialize, Deserialize)]", f"pub enum {name} {{"]
+    for a in split_top(rhs_of(src), "|"):
+        a = a.strip()
+        if a == "...": o.append("    // … open: another specification may add variants"); continue
+        m = re.match(r"(\w+)\s*\{(.*)\}$", a)
+        if m:
+            fields = ", ".join(f"{_rust_field(k.strip())[0]}: {rust_type(t.strip())}"
+                               for k, t in (c.split(":", 1) for c in split_top(m.group(2), ",") if ":" in c))
+            o.append(f'    #[serde(rename = "{m.group(1)}")]')
+            o.append(f"    {_pascal(m.group(1))} {{ {fields} }},")
+        else:
+            o.append(f'    #[serde(rename = "{a}")]')
+            o.append(f"    {_pascal(a)},")
+    return "\n".join(o + ["}"])
+
+def rust_decl(name, src):
+    kind = classify(src)
+    if kind == "record": return _rust_struct(name, src)
+    if kind == "du": return _rust_enum(name, src)
+    return f"pub type {name} = {rust_type(rhs_of(src))};"   # atomic / alias — transparent
+
+def _rust_trait(items):
+    methods = []
+    for k, a, b in items:
+        if k != "decl" or a.startswith("schema"): continue
+        mm = re.match(r"(fn|command)\s+(\w+)", a)
+        if not mm: continue
+        rtype, _ = ret_type(a)
+        pm = re.search(r"\((.*?)\)", a); params = ["&self"]
+        if pm:
+            for p in split_top(pm.group(1), ","):
+                pp = re.match(r"\s*(\w+)\s*:\s*(.+)", p)
+                if pp: params.append(f"{_rust_field(pp.group(1))[0]}: {rust_type(pp.group(2).strip())}")
+        methods.append(f"    fn {_snake(mm.group(2))}({', '.join(params)}) -> Result<{rust_type(rtype or 'serde_json::Value')}, Problem>;")
+    return "/// The six BDP Core primitives.\npub trait CoreService {\n" + "\n".join(methods) + "\n}"
+
+def emit_rust(items):
+    out = ["// Code generated from core.lumen. DO NOT EDIT.", "use serde::{Deserialize, Serialize};", ""]
+    for k, a, b in items:
+        if k != "decl" or not a.startswith("schema"): continue
+        out.append(rust_decl(re.match(r"schema\s+(\w+)", a).group(1), a)); out.append("")
+    out.append(_rust_trait(items))
+    return "\n".join(out)
+
+EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown,
+            "go": emit_go, "rust": emit_rust}
 
 def main():
     global SOURCE_LABEL, LINK_PREFIX

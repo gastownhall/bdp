@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the projected artifacts from specs/core.lumen. No Rust, no network. python3 only.
+# Build the projected artifacts from specs/core.lumen. No Rust/Go required; python3 only.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$root"
 mkdir -p build specs/generated
@@ -10,7 +10,9 @@ tools/lumen/lumen build specs/core.lumen \
   --emit openapi=build/openapi.json \
   --emit jsonschema=build/schema.bundle.json \
   --emit go=build/bdpcore.go \
+  --emit rust=build/bdpcore.rs \
   --emit markdown=specs/generated/core.md
-# gofmt is a nicety, not a dependency: canonicalise the Go if a toolchain is present.
-command -v gofmt >/dev/null 2>&1 && gofmt -w build/bdpcore.go || true
-echo "built: build/openapi.json  build/schema.bundle.json  build/bdpcore.go  specs/generated/core.md"
+# gofmt/rustfmt are niceties, not dependencies: canonicalise when a toolchain is present.
+command -v gofmt   >/dev/null 2>&1 && gofmt -w build/bdpcore.go   || true
+command -v rustfmt >/dev/null 2>&1 && rustfmt --edition 2021 build/bdpcore.rs || true
+echo "built: openapi.json  schema.bundle.json  bdpcore.go  bdpcore.rs (build/)  +  specs/generated/core.md"
