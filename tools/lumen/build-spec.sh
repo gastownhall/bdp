@@ -11,8 +11,8 @@ tools/lumen/lumen build specs/core.lumen \
   --emit jsonschema=build/schema.bundle.json \
   --emit go=build/bdpcore.go \
   --emit rust=build/bdpcore.rs \
+  --emit cli=build/cli.md \
   --emit markdown=specs/generated/core.md
-# gofmt/rustfmt are niceties, not dependencies: canonicalise when a toolchain is present.
 command -v gofmt   >/dev/null 2>&1 && gofmt -w build/bdpcore.go   || true
 command -v rustfmt >/dev/null 2>&1 && rustfmt --edition 2021 build/bdpcore.rs || true
-echo "built: openapi.json  schema.bundle.json  bdpcore.go  bdpcore.rs (build/)  +  specs/generated/core.md"
+echo "built: openapi.json schema.bundle.json bdpcore.go bdpcore.rs cli.md (build/) + specs/generated/core.md"

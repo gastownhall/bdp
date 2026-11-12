@@ -205,10 +205,10 @@ def schema_to_jsonschema(name, src, meta, rb):
         if req: base["required"] = req
         base["additionalProperties"] = (js.get("closed") is False)  # closed=false ⇒ open
     elif kind == "du":
-        arms = []
+        arms = []; open_du = False
         for a in split_top(rhs_of(src), "|"):
             a = a.strip()
-            if a == "...": continue
+            if a == "...": open_du = True; continue
             m = re.match(r"(\w+)\s*\{(.*)\}$", a)
             if m:
                 inner, ireq = {}, []
@@ -219,7 +219,8 @@ def schema_to_jsonschema(name, src, meta, rb):
                              "properties": {m.group(1): {"type": "object", "properties": inner, "required": ireq}}})
             else:
                 arms.append({"const": a})
-        base = {"oneOf": arms, "unevaluatedProperties": False}
+        base = {"oneOf": arms}
+        if not open_du: base["unevaluatedProperties"] = False   # closed DU; open (…) tolerates unknown arms
     elif kind == "atomic":
         parts = [p.strip() for p in split_top(rhs_of(src), "|")]
         if len(parts) > 1 and all(p[:1] == '"' for p in parts):
@@ -613,8 +614,40 @@ def emit_rust(items):
     out.append(_rust_trait(items))
     return "\n".join(out)
 
+# ───────────────────────── cli backend (seeded from Rachel's PROJECTIONS.md) ─────────────────────────
+def _kebab(s): return re.sub(r"(?<!^)(?=[A-Z])", "-", s).lower().replace("_", "-")
+
+def emit_cli(items):
+    out = ["# BDP Core — CLI", "",
+           "Generated from core.lumen. One subcommand per primitive; the synthesized floor "
+           "(Callable hints — short flags, help, grouping — layer on top).", ""]
+    for k, a, b in items:
+        if k != "decl" or a.startswith("schema"): continue
+        mm = re.match(r"(fn|command)\s+(\w+)\s*\((.*?)\)", a)
+        if not mm: continue
+        opid = (b.get("openapi") or {}).get("operationId", mm.group(2))
+        members = []  # (name, type, optional)
+        for p in split_top(mm.group(3), ","):
+            pp = re.match(r"\s*(\w+)(\??)\s*:\s*(.+)", p)
+            if pp:
+                ty = pp.group(3).strip()
+                members.append((pp.group(1), ty.rstrip("?"), pp.group(2) == "?" or ty.endswith("?")))
+        usage = _kebab(opid)
+        for nm, ty, opt in members:
+            seg = f"--{_kebab(nm)} <{ty}>"
+            usage += f" [{seg}]" if opt else f" {seg}"
+        out.append(f"## `{opid}`"); out.append("")
+        if b.get("description"): out.append(b["description"]); out.append("")
+        out += ["```", usage, "```", ""]
+        if members:
+            out += ["| option | type | required |", "| --- | --- | --- |"]
+            for nm, ty, opt in members:
+                out.append(f"| `--{_kebab(nm)}` | `{ty}` | {'no' if opt else 'yes'} |")
+            out.append("")
+    return "\n".join(out)
+
 EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown,
-            "go": emit_go, "rust": emit_rust}
+            "go": emit_go, "rust": emit_rust, "cli": emit_cli}
 
 def main():
     global SOURCE_LABEL, LINK_PREFIX
