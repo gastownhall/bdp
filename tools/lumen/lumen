@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# lumen shim — exec the vendored binary for this target if present, else the stand-in.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+arch="$(uname -m)"; [ "$arch" = "x86_64" ] && arch="x64"; [ "$arch" = "aarch64" ] && arch="arm64"
+bin="$here/bin/lumen-$os-$arch"
+if [ -x "$bin" ]; then exec "$bin" "$@"; fi
+exec python3 "$here/standin/lumen_standin.py" "$@"
