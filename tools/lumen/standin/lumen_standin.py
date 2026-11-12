@@ -452,7 +452,7 @@ def emit_markdown(items):
             continue
         out.append(_schema_md(name, a, b))
     text = re.sub(r"\n{3,}", "\n\n", "\n\n".join(out))   # no doubled blank lines
-    banner = f"> _Generated from {SOURCE_LABEL or 'core.lumen'} by the lumen stand-in. Do not edit — edit `specs/core.lumen`._"
+    banner = f"> _Generated from {SOURCE_LABEL or 'core.lumen'}. Do not edit — edit `specs/core.lumen`._"
     lines = text.split("\n")
     for i, l in enumerate(lines):
         if l.startswith("# "): lines[i + 1:i + 1] = ["", banner]; break
