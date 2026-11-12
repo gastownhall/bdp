@@ -16,6 +16,7 @@ import re, sys, json, argparse
 
 VERSION = "standin-2026-11-11"
 SOURCE_LABEL = ""
+LINK_PREFIX = ""   # prepended to relative markdown links, e.g. "../" when output sits in specs/generated/
 
 # ───────────────────────── parser (self-contained) ─────────────────────────
 class P:
@@ -452,6 +453,8 @@ def emit_markdown(items):
             continue
         out.append(_schema_md(name, a, b))
     text = re.sub(r"\n{3,}", "\n\n", "\n\n".join(out))   # no doubled blank lines
+    if LINK_PREFIX:   # resolve relative links from the output's subdirectory (skip URLs, anchors, absolute paths)
+        text = re.sub(r'\]\((?!https?://|//|/|#|mailto:)([^)\s]+)\)', rf']({LINK_PREFIX}\1)', text)
     banner = f"> _Generated from {SOURCE_LABEL or 'core.lumen'}. Do not edit — edit `specs/core.lumen`._"
     lines = text.split("\n")
     for i, l in enumerate(lines):
@@ -463,17 +466,19 @@ def emit_markdown(items):
 EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown}
 
 def main():
-    global SOURCE_LABEL
+    global SOURCE_LABEL, LINK_PREFIX
     ap = argparse.ArgumentParser(prog="lumen")
     ap.add_argument("--version", action="store_true")
     ap.add_argument("cmd", nargs="?")
     ap.add_argument("file", nargs="?")
     ap.add_argument("--emit", action="append", default=[], metavar="backend=path")
     ap.add_argument("--source", default="", help="label for the generated-from banner, e.g. 'core.lumen @ <sha>'")
+    ap.add_argument("--link-prefix", default="", help="prepended to relative markdown links, e.g. '../' for specs/generated/")
     args = ap.parse_args()
     if args.version:
         print(f"lumen {VERSION} (stand-in; not grammar-backed)"); return 0
     SOURCE_LABEL = args.source
+    LINK_PREFIX = args.link_prefix
     if args.cmd != "build" or not args.file:
         ap.error("usage: lumen build <file.lumen> --emit backend=path ...")
     items = parse_file(args.file)

@@ -1,10 +1,10 @@
 name: lumen-spec
 on:
   pull_request:
-    paths: ['specs/core.lumen', 'tools/lumen/**']
+    paths: ['specs/core.lumen', 'specs/generated/core.md', 'tools/lumen/**']
   push:
     branches: ['spec/core-v0.2']
-    paths: ['specs/core.lumen', 'tools/lumen/**']
+    paths: ['specs/core.lumen', 'specs/generated/core.md', 'tools/lumen/**']
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,6 +12,10 @@ jobs:
       - uses: actions/checkout@v4.2.2
       - name: Build spec artifacts (no Rust, no network)
         run: ./tools/lumen/build-spec.sh
+      - name: Generated reference is in sync with core.lumen
+        run: |
+          git diff --exit-code -- specs/generated/core.md \
+            || { echo "::error::specs/generated/core.md is stale — run tools/lumen/build-spec.sh and commit the result."; exit 1; }
       - name: Validate JSON artifacts
         run: |
           python3 -m json.tool build/openapi.json > /dev/null
@@ -20,4 +24,6 @@ jobs:
       - uses: actions/upload-artifact@v4.4.3
         with:
           name: core-spec-artifacts
-          path: build/
+          path: |
+            build/
+            specs/generated/core.md
