@@ -1,0 +1,3 @@
+standin-2026-11-11
+# No grammar-backed lumen binary vendored yet.
+# When one is: record its lumen commit/tag here and pin bin/*.sha256.
