@@ -15,6 +15,7 @@ wired separately (the preview renderer).
 import re, sys, json, argparse
 
 VERSION = "standin-2026-11-11"
+SOURCE_LABEL = ""
 
 # ───────────────────────── parser (self-contained) ─────────────────────────
 class P:
@@ -348,7 +349,7 @@ def _schema_md(name, src, meta):
     if t and t.lower() != name.lower(): o += [f"_{t}_", ""]
     if meta.get("description"): o += [meta["description"], ""]
     code = _q_fields(src) if kind == "record" else _q_du(src) if kind == "du" else rhs_of(src)
-    if code: o += ["```", code, "```", ""]
+    if code: o += ["```text", code, "```", ""]
     if kind == "record":
         o += ["| field | type | optional | description |", "| --- | --- | --- | --- |"]
         for n, ty, opt, desc in parse_fields(src):
@@ -372,8 +373,23 @@ def _atomic_md(atomics):
         o.append(f"| `{name}` | {arms} | {ref} | {desc} |")
     return "\n".join(o + [""])
 
-MD_REQ = [("BDP-Cause", "cause (`Reference`)"), ("BDP-Provenance", "provenance (`RevisionProvenance`)"), ("BDP-Metadata", "open metadata")]
-MD_REP = [("BDP-Cause", "cause (`Reference`)"), ("BDP-Transaction", "transaction (`Reference`)"), ("BDP-Metadata", "open metadata")]
+HDR_FIELD = {"BDP-Cause": "cause", "BDP-Provenance": "provenance", "BDP-Metadata": "metadata", "BDP-Transaction": "transaction"}
+
+def _article(w): return "an" if w[:1].lower() in "aeiou" else "a"
+
+def _ctx_rows(items, schema_name, headers):
+    """Context-header meanings derived from the RequestContext/ReplyContext schema, not hard-coded."""
+    fields = {}
+    for k, a, b in items:
+        if k == "decl" and re.match(rf"schema\s+{schema_name}\b", a):
+            for n, ty, opt, desc in parse_fields(a): fields[n] = ty
+    out = []
+    for h in headers:
+        f = HDR_FIELD.get(h, h); ty = fields.get(f)
+        if not ty: out.append((h, f))
+        elif ty.strip().startswith("{"): out.append((h, f"{f} (open object)"))
+        else: out.append((h, f"{f} (`{ty}`)"))
+    return out
 
 def _resp_tbl(rs):
     if not rs: return ["_none_", ""]
@@ -382,19 +398,20 @@ def _resp_tbl(rs):
         out.append(f"| {st} | {ct or '—'} | `{bd}`{(' — ' + note) if note else ''} |")
     return out + [""]
 
-def _op_md(name, src, meta):
+def _op_md(name, src, meta, req_ctx, rep_ctx):
     oa = meta.get("openapi", {}); rtype, fails = ret_type(src)
     opid = oa.get("operationId", name); method = oa.get("method", "")
     o = [f"### `{opid}`", ""]
     if meta.get("description"): o += [meta["description"], ""]
-    o += ["**Method**", "", f"`{method}`" + (f" on a `{oa['pathItem']}` URL" if oa.get("pathItem") else ""), ""]
+    pi = oa.get("pathItem")
+    o += ["**Method**", "", f"`{method}`" + (f" on {_article(pi)} `{pi}` URL" if pi else ""), ""]
     qp = {k: v for k, v in oa.get("params", {}).items() if v.get("in") == "query"}
     if qp:
         o += ["| query parameter | schema | required |", "| --- | --- | --- |"]
         for k, v in qp.items(): o.append(f"| `{k}` | `{v.get('schema','')}` | {str(v.get('required', False)).lower()} |")
         o.append("")
     o += ["**Request Headers**", ""]
-    rrows = list(MD_REQ) if "requestContext" in oa.get("paramGroups", []) else []
+    rrows = list(req_ctx) if "requestContext" in oa.get("paramGroups", []) else []
     for k, v in oa.get("params", {}).items():
         if v.get("in") == "header": rrows.append(("If-Match" if k == "ifMatch" else k, f"`{v.get('schema','')}`"))
     o += (["| header | meaning |", "| --- | --- |"] + [f"| `{h}` | {m} |" for h, m in rrows] + [""]) if rrows else ["_none_", ""]
@@ -402,14 +419,15 @@ def _op_md(name, src, meta):
     ct = oa.get("request", {}).get("contentType")
     o += [f"`{ct}` → `{body_schema(src) or ''}`" if ct else "_none_", ""]
     o += ["**Response Headers**", ""]
-    prows = list(MD_REP) if "replyContext" in oa.get("paramGroups", []) else []
+    prows = list(rep_ctx) if "replyContext" in oa.get("paramGroups", []) else []
     for hn, a in oa.get("responseHeaders", {}).items(): prows.append((hn, f"`{a.get('schema','')}`"))
     o += (["| header | meaning |", "| --- | --- |"] + [f"| `{h}` | {m} |" for h, m in prows] + [""]) if prows else ["_none_", ""]
     rows = []
     su = oa.get("success")
     if su: rows.append((su.get("status", ""), su.get("contentType", ""), rtype or "", ""))
     for r in oa.get("responses", []): rows.append((r.get("status", ""), r.get("contentType", ""), r.get("schema", ""), r.get("description", "")))
-    ok = [r for r in rows if str(r[0])[:1] == "2"]; err = [r for r in rows if str(r[0])[:1] in ("4", "5")]
+    ok = [r for r in rows if str(r[0]).startswith("2")]
+    err = [r for r in rows if not str(r[0]).startswith("2")]   # includes "default" + 4xx/5xx; nothing dropped
     pr = oa.get("problem")
     if pr:
         st = pr.get("status"); st = ", ".join(map(str, st)) if isinstance(st, list) else st
@@ -421,29 +439,41 @@ def _op_md(name, src, meta):
 def emit_markdown(items):
     atomics = [(re.match(r"schema\s+(\w+)", a).group(1), a, b) for k, a, b in items
                if k == "decl" and a.startswith("schema") and classify(a) == "atomic"]
+    req_ctx = _ctx_rows(items, "RequestContext", ["BDP-Cause", "BDP-Provenance", "BDP-Metadata"])
+    rep_ctx = _ctx_rows(items, "ReplyContext", ["BDP-Cause", "BDP-Transaction", "BDP-Metadata"])
     out, emitted = [], False
     for k, a, b in items:
         if k == "prose": out.append(a.strip()); continue
         m = re.match(r"(schema|command|fn)\s+(\w+)", a); name = m.group(2)
-        if m.group(1) != "schema": out.append(_op_md(name, a, b)); continue
+        if m.group(1) != "schema": out.append(_op_md(name, a, b, req_ctx, rep_ctx)); continue
         c = classify(a)
         if c == "atomic":
             if not emitted: out.append(_atomic_md(atomics)); emitted = True
             continue
         out.append(_schema_md(name, a, b))
-    return "\n\n".join(out)
+    text = re.sub(r"\n{3,}", "\n\n", "\n\n".join(out))   # no doubled blank lines
+    banner = f"> _Generated from {SOURCE_LABEL or 'core.lumen'} by the lumen stand-in. Do not edit — edit `specs/core.lumen`._"
+    lines = text.split("\n")
+    for i, l in enumerate(lines):
+        if l.startswith("# "): lines[i + 1:i + 1] = ["", banner]; break
+    else:
+        lines[0:0] = [banner, ""]
+    return "\n".join(lines)
 
 EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown}
 
 def main():
+    global SOURCE_LABEL
     ap = argparse.ArgumentParser(prog="lumen")
     ap.add_argument("--version", action="store_true")
     ap.add_argument("cmd", nargs="?")
     ap.add_argument("file", nargs="?")
     ap.add_argument("--emit", action="append", default=[], metavar="backend=path")
+    ap.add_argument("--source", default="", help="label for the generated-from banner, e.g. 'core.lumen @ <sha>'")
     args = ap.parse_args()
     if args.version:
         print(f"lumen {VERSION} (stand-in; not grammar-backed)"); return 0
+    SOURCE_LABEL = args.source
     if args.cmd != "build" or not args.file:
         ap.error("usage: lumen build <file.lumen> --emit backend=path ...")
     items = parse_file(args.file)
