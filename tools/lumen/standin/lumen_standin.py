@@ -463,7 +463,75 @@ def emit_markdown(items):
         lines[0:0] = [banner, ""]
     return "\n".join(lines)
 
-EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown}
+# ───────────────────────── go backend (seeded from Rachel's PROJECTIONS.md) ─────────────────────────
+GO_SCALAR = {"string": "string", "number": "float64", "float": "float64", "int": "int",
+             "integer": "int", "boolean": "bool", "bool": "bool", "any": "any"}
+
+def _pascal(s): return "".join(p[:1].upper() + p[1:] for p in re.split(r"[-_]", s) if p)
+
+def go_type(expr):
+    e = expr.strip()
+    if e in GO_SCALAR: return GO_SCALAR[e]
+    if e[:1] == '"' and e[-1:] == '"': return "string"          # literal
+    if e.startswith("["): return "[]" + go_type(e[1:-1].strip())  # array
+    if e.startswith("{"): return "map[string]any"               # open object
+    parts = split_top(e, "|")
+    if len(parts) > 1:
+        return "string" if all(p.strip()[:1] == '"' for p in parts) else "any"  # literal-union | union-of-named
+    if re.fullmatch(r"[A-Za-z_]\w*", e): return e               # named
+    return "any"
+
+def _go_struct(name, src):
+    o = [f"type {name} struct {{"]
+    for fn_, ty, opt, _ in parse_fields(src):
+        tag = fn_ + (",omitempty" if opt else "")
+        o.append(f"\t{_pascal(fn_)} {go_type(ty)} `json:\"{tag}\"`")
+    return "\n".join(o + ["}"])
+
+def _go_du(name, src):
+    o = [f"// {name} is a tagged union: exactly one field is non-nil.", f"type {name} struct {{"]
+    for a in split_top(rhs_of(src), "|"):
+        a = a.strip()
+        if a == "...": o.append("\t// … open: another specification may add arms"); continue
+        m = re.match(r"(\w+)\s*\{(.*)\}$", a)
+        if m:
+            inner = [f"{_pascal(k.strip())} {go_type(t.strip())} `json:\"{k.strip()}\"`"
+                     for k, t in (c.split(":", 1) for c in split_top(m.group(2), ",") if ":" in c)]
+            o.append(f"\t{_pascal(m.group(1))} *struct{{ {'; '.join(inner)} }} `json:\"{m.group(1)},omitempty\"`")
+        else:
+            o.append(f"\t{_pascal(a)} *struct{{}} `json:\"{a},omitempty\"`")
+    return "\n".join(o + ["}"])
+
+def go_decl(name, src):
+    kind = classify(src)
+    if kind == "record": return _go_struct(name, src)
+    if kind == "du": return _go_du(name, src)
+    return f"type {name} = {go_type(rhs_of(src))}"   # atomic / alias — transparent
+
+def _go_iface(items):
+    methods = []
+    for k, a, b in items:
+        if k != "decl" or a.startswith("schema"): continue
+        mm = re.match(r"(fn|command)\s+(\w+)", a)
+        if not mm: continue
+        rtype, _ = ret_type(a)
+        pm = re.search(r"\((.*?)\)", a); params = []
+        if pm:
+            for p in split_top(pm.group(1), ","):
+                pp = re.match(r"\s*(\w+)\s*:\s*(.+)", p)
+                if pp: params.append(f"{pp.group(1)} {go_type(pp.group(2).strip())}")
+        methods.append(f"\t{_pascal(mm.group(2))}({', '.join(params)}) ({go_type(rtype or 'any')}, error)")
+    return "// CoreService is the six BDP Core primitives.\ntype CoreService interface {\n" + "\n".join(methods) + "\n}"
+
+def emit_go(items):
+    out = ["// Code generated from core.lumen. DO NOT EDIT.", "package bdpcore", ""]
+    for k, a, b in items:
+        if k != "decl" or not a.startswith("schema"): continue
+        out.append(go_decl(re.match(r"schema\s+(\w+)", a).group(1), a)); out.append("")
+    out.append(_go_iface(items))
+    return "\n".join(out)
+
+EMITTERS = {"openapi": emit_openapi, "jsonschema": emit_jsonschema, "markdown": emit_markdown, "go": emit_go}
 
 def main():
     global SOURCE_LABEL, LINK_PREFIX
