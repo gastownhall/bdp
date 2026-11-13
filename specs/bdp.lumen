@@ -339,6 +339,9 @@ schema Reply = {
 // full = + create/put/patch/delete + apply + call/cancel + export/import.
 // Advertised in discovery (per-scope, not the floor): eval + its expression language
 // (query / traversal / predicates), search, count, graph.
+// Precision principle: spec the MOST precise form, relax by capability. Write primitives
+// return `pinned<resource>`; a scope without revisions (StorageClass not versioned) relaxes
+// all its refs to `unpinned`, advertised in discovery.
 
 // --- Content resource: the Bead takes this set ---
 
@@ -358,7 +361,7 @@ command create(scope: Scope, draft: CreateRequest) returns pinned<resource> fail
 command put(resource: ref<resource>, body: CreateRequest) returns pinned<resource> fails Problem idempotent
 
 /// bdp = { kind = "primitive", primitive = "patch" }
-/// description: JSON Patch limited to /properties and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref` (rev = the new revision). (The richer patch format — the Lumen quasiquote — is a Lumen-branch design item; JSON Patch is the base lowering.)
+/// description: JSON Patch limited to /properties and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref` (rev = the new revision). (JSON Patch is the base format; a richer patch format is an advertised capability.)
 /// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
 command patch(resource: ref<resource>, patch: JsonPatch) returns pinned<resource> fails Problem
 
@@ -404,7 +407,7 @@ fn pull(channel: ref<Channel<any>>, request: PullRequest): PullPage
 command apply(scope: Scope, writes: [Write]) returns [ref<resource>] fails Problem atomic
 
 /// bdp = { kind = "primitive", primitive = "eval" }
-/// description: Evaluate a PURE expression against a scope — the query primitive. Read-only: a query cannot write (the pure/effectful split enforces it). Returns the expression's value. The expression language (set + traversal operators, predicates) is the query corelib capability, advertised in discovery; the base accepts an opaque Expression. (Lumen-side design in flight.)
+/// description: Evaluate a PURE expression against a scope — the query primitive. Read-only: a query cannot write. Returns the expression's value. The expression language (set + traversal operators, predicates) is the query corelib capability, advertised in discovery; the base accepts an opaque Expression.
 /// openapi = { operationId = "eval", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,422] } }
 fn eval(scope: Scope, expression: Expression): any
 
@@ -442,7 +445,7 @@ schema Write =
   | bPatch  { resource: ref<resource>, patch: JsonPatch, ifMatch?: Rev }
   | bDelete { resource: ref<resource>, ifMatch?: Rev }
 
-/// description: A PURE expression for `eval`. Opaque at the base — an AST the service's expression engine understands; the concrete expression language (set / traversal operators, predicates) is the query corelib capability, advertised in discovery. (Lumen-side design in flight.)
+/// description: A PURE expression for `eval`. Opaque at the base — an AST the service's expression engine understands; the concrete expression language (set / traversal operators, predicates) is the query corelib capability, advertised in discovery.
 schema Expression = { ...: any }
 
 /// description: A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `kind`/`id` are never dropped.
