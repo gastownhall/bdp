@@ -11,6 +11,8 @@ The editorial review corpus contains four selected protocol documents, the propo
 
 Editorial drafts for the preview pin, not selected until Donna marks them: [Callables](profiles/callables/callables.md), and the Issue package in two halves, [Issue and Dependency Types](types/issue/issue.md) and [Issue and Dependency Callables](types/issue/callables.md).
 
+A v0.2 rework is underway as fresh top-level documents: [Types — v0.2 draft](types.md) (status: draft). The v0.1 [Types](profiles/types/types.md) profile above remains the source of the Types schema, OpenAPI and kit until the v0.2 sections are ruled.
+
 Each document states its current rules directly. No retained-profile wrapper, amendment list, source map or historical document is required to reconstruct a rule. Core works without Write or Types. Write and Types add their stated responsibilities without changing Core identity or read meanings.
 
 ## Editorial review status
