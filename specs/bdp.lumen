@@ -27,7 +27,7 @@
 //  2. Identity is `ResourceId { scope, id, rev }` + phantom `id<T>`; the wire URL
 //     is the projection (scope URL + id). `Reference` (URL / pinned) is retained
 //     as how one resource names another.
-//  3. New `createdAt` on Bead/Link — resource birth time, denormalized onto every
+//  3. New `createdAt` on Bead — resource birth time, denormalized onto every
 //     revision for temporal analysis. NOT provenance (that is per-revision).
 //  4. Reshaped Request/Reply/Outcome — flat (no `context` wrapper), arguments as a
 //     name/value list mirroring `parameters`, `cause`+`frame` correlation, and a
@@ -35,7 +35,7 @@
 //     core); `timed_out` and graceful-cancel ride with the scheduler.
 //  5. Result arms are `ok`/`err` (were `success`/`failure`) — naming to reconcile. The
 //     Outcome DU is the BDP core designer's to own; this reshape is explicitly for review.
-//  6. Dispatch is IMPLICIT — the request routes to the target resource (bead/link for
+//  6. Dispatch is IMPLICIT — the request routes to the target resource (bead for
 //     CRUD, Operation for `call`, Channel for `pull`). No dispatch table.
 //  7. `schema` structures (`declarationsSchema`, `operationSchema`) are explicit;
 //     `schema` itself is a JSON-Schema-valued value, lowered specially on export.
@@ -53,12 +53,18 @@
 //     (~250 lines, mostly proposed) stays there for now, NOT dropped; §§10/12/14/15
 //     (the 14 storage promises, the Problem-code list, the v0.1→v0.2 ownership
 //     tables, the 42 open items cited by number) remain the record of who owns what.
+// 12. LINKS REMOVED (project lead, 2026-11-13; branch spec/nolinks). A relationship is an
+//     owned `id<T>` property on the SOURCE bead — part of its revision state — not a `Link`
+//     resource. The `link` kind and `LinkType` are gone; relationship typing is the
+//     property's declared type (Types' job). The edges projection, families, traversal and
+//     referential-integrity constraints are the GRAPH corelib capability (advertised), not
+//     base. Supersedes the `Link` type, the `link` kind, and ruling 3's "Bead/Link".
 //
 // OPEN / parked (not in this file): RunEvent & FormulaRun (Lumen Formula pack —
 // the model's test, not the spec); the scheduler (deadline, timeout, graceful
 // cancel + compensation); the `/sys/` well-known-id scheme beyond `/sys/changes`;
 // capability discovery; full filter / query / search / count / graph (corelib
-// capabilities, advertised, not base); aliases & the Transfer profile; owned Links;
+// capabilities, advertised, not base); aliases & the Transfer profile;
 // `canceled` HTTP status (unruled); the cause-naming reconcile; cancel cascade (left
 // to the owner); delete-and-bring-back; the discovery schema + how to fetch it.
 // =============================================================================
@@ -180,22 +186,16 @@ type Bead is resource {
   createdAt:   Timestamp              // resource birth; immutable, denormalized onto every revision
 }
 
-/// description: A directed Link — an edge from `source` to `target`. Link identity is its own Resource identity, independent of the endpoint tuple; two Links may share Type, source and target.
-type Link is resource {
-  type:        id<LinkType>,
-  source:      Reference,
-  target:      Reference,
-  storageClass: StorageClass,         // as ephemeral as its most ephemeral endpoint
-  properties:  { ...: any },
-  metadata:    { ...: any },
-  provenance:  Provenance,
-  createdAt:   Timestamp
-}
+// A relationship is NOT a resource (§0 ruling 12). An edge is an owned `id<T>`-valued
+// property on the SOURCE bead (in `properties`, governed by its Type) — part of the
+// source's revision state. The edges projection, families, traversal and referential
+// constraints are the graph corelib capability (advertised, not base). `Link`, `LinkType`
+// and the `link` kind are removed.
 
-/// description: A self-describing resource representation — Bead, Link, or a generic Web resource. `get`/`create`/`update` all answer with one of these; it rides on events and in exports unchanged.
-schema representation = Bead | Link | Web
+/// description: A self-describing resource representation — a Bead or a generic Web resource. `get`/`create`/`update` all answer with one of these; it rides on events and in exports unchanged.
+schema representation = Bead | Web
 
-/// description: A generic (web) resource — its entity body plus the response metadata. Its revision (ResourceId.rev) is the ETag / Last-Modified. For a Link into the open web.
+/// description: A generic (web) resource — its entity body plus the response metadata. Its revision (ResourceId.rev) is the ETag / Last-Modified. For a resource addressed in the open web (scope `web`).
 type Web is resource {
   contentType: ContentType,
   body:        any,
@@ -273,7 +273,7 @@ type Cause       is string
 type Frame       is string
 type Transaction is string
 
-/// description: OPAQUE data the protocol never interprets. Appears in exactly three scopes, each a different lifetime: Bead/Link.metadata (per-bead, across revisions), Provenance.metadata (per-revision), and Request/Reply.metadata (per-call). Anything whose semantics WE define is a real field, never metadata.
+/// description: OPAQUE data the protocol never interprets. Appears in exactly three scopes, each a different lifetime: Bead.metadata (per-bead, across revisions), Provenance.metadata (per-revision), and Request/Reply.metadata (per-call). Anything whose semantics WE define is a real field, never metadata.
 schema Metadata = { ...: any }
 
 /// description: A callable's own verdict — succeeded with a value, or failed with its DECLARED error. Closed; `value`/`error` are data the protocol does not look inside. (RECONCILE: v0.2 core spelled these `success`/`failure`.)
@@ -320,12 +320,12 @@ schema Reply = {
 // §7. The operations — the mandatory set (canonical CLI + HTTP)
 // -----------------------------------------------------------------------------
 // Dispatch is implicit: the request routes to the target resource. Content kinds
-// (bead/link) take client CRUD; the Operation takes `call`; the Channel takes `pull`.
+// (bead) takes client CRUD; the Operation takes `call`; the Channel takes `pull`.
 // Conformance tiers: minimal/read-only = get + list + changefeed pull + discovery;
 // full = + create/put/update/delete + batch + call/cancel + export/import.
 // NOT here (corelib capabilities, advertised in discovery): query, search, count, graph.
 
-// --- Content resources: Bead and Link share this set (link adds endpoints) ---
+// --- Content resource: the Bead takes this set ---
 
 /// bdp = { kind = "primitive", primitive = "get" }
 /// description: Safe point read — resolve a Reference to the current representation, or a pinned revision when `?revision=` is given. An optional `selector` projects the result (its own cacheable identity). Faults 404/410 when absent or erased.
@@ -333,7 +333,7 @@ schema Reply = {
 fn get(resource: Reference, selector?: selector): representation
 
 /// bdp = { kind = "primitive", primitive = "create" }
-/// description: Admit a new Bead or Link. Caller-proposed id optional; fail-if-exists. Returns the admitted representation; its URL in `Location`.
+/// description: Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the admitted representation; its URL in `Location`.
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
 command create(scope: Reference, draft: CreateRequest) returns representation fails Problem
 
@@ -348,7 +348,7 @@ command put(resource: Reference, body: CreateRequest) returns representation fai
 command update(resource: Reference, patch: JsonPatch) returns representation fails Problem
 
 /// bdp = { kind = "primitive", primitive = "delete" }
-/// description: Retire a Resource, minting a final revision. Idempotent. Faults `incident-links-exist` when Links still attach. Returns the final identity, not a representation.
+/// description: Retire a Resource, minting a final revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the final identity, not a representation.
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 command delete(resource: Reference) returns ResourceIdentity fails Problem idempotent
 
@@ -405,9 +405,7 @@ schema CreateRequest = {
   kind:        Kind,
   type:        Reference,
   id?:         Reference,                         // caller-proposed identity
-  source?:     Reference,                         // required when kind = link
-  target?:     Reference,                         // required when kind = link
-  properties?: { ...: any },
+  properties?: { ...: any },                      // relationships are owned id<T> props here
   metadata?:   { ...: any }
 }
 
@@ -456,7 +454,7 @@ schema Page = { after?: Cursor, from?: Ordinal, limit?: number }
 // Each Scope has one built-in changefeed Channel<ChangeEvent> at the well-known
 // id `/sys/changes`. Its events are what create/put/update/delete commit.
 
-/// description: Core's report of one committed change to one Resource (Links are their own subjects). Carries its own stream position (ordinal) and time (at). The new revision is `subject.rev` — there is no separate revision field. `provenance` rides in the post-image (so it is here for free); top-level `provenance` is populated only when there is no full post-image (delete, patch updates).
+/// description: Core's report of one committed change to one Resource (a relationship change is an `update` to its source bead). Carries its own stream position (ordinal) and time (at). The new revision is `subject.rev` — there is no separate revision field. `provenance` rides in the post-image (so it is here for free); top-level `provenance` is populated only when there is no full post-image (delete, patch updates).
 schema ChangeEvent = {
   ordinal:      Ordinal,                          // position in the changefeed, assigned on append
   at:           Timestamp,
@@ -542,7 +540,7 @@ schema ImportReport = { imported: number, skipped: number, conflicts: [ { id: Re
 //   /sys/changes   — the scope's changefeed Channel<ChangeEvent>
 //
 // Well-known Types a client can recognise from a Bead's `type` alone (fixed URLs
-// OPEN): BeadType, LinkType (the type of a type), Channel, Operation, AsyncResult.
+// OPEN): BeadType (the type of a type), Channel, Operation, AsyncResult.
 // What each MEANS is Types' job; Core speaks only where a Type's content is one of
 // its own envelopes (AsyncResult holds a Reply).
 
