@@ -42,7 +42,7 @@
 //  7. `schema` structures (`declarationsSchema`, `operationSchema`) are explicit;
 //     `schema` itself is a JSON-Schema-valued value, lowered specially on export.
 //  8. The primitives are a SUBSET a service may offer; discovery advertises which,
-//     and how each behaves. PATCH/update is not required of every service (one
+//     and how each behaves. `patch` is not required of every service (one
 //     without it offers update callables). Built-in data primitives are NOT
 //     callables/Operations (ruled 2026-11-08); Operation is for DECLARED callables;
 //     Channel is the former EventSource.
@@ -67,7 +67,8 @@
 //     (Problem type, Principal id). Also: `id<T>`→`ref<T>`; `ResourceId.scope`/`rev` optional;
 //     ref refinements pinned/unpinned/inscope/crossscope/webscope; `ResourceIdentity` dropped
 //     (ops return a `ref`); `batch`→`apply` (+ `eval` added, batch = sugar); `Web`→`Generic`;
-//     `resource` is a type; Result arms `success`/`failure` (ruling 5).
+//     `resource` is a type; Result arms `success`/`failure` (ruling 5); `update`→`patch`;
+//     write primitives (create/put/patch/delete/cancel) return a pinned `ref`, not a body.
 //
 // OPEN / parked (not in this file): RunEvent & FormulaRun (Lumen Formula pack —
 // the model's test, not the spec); the scheduler (deadline, timeout, graceful
@@ -208,7 +209,7 @@ type Bead is resource {
 // constraints are the graph corelib capability (advertised, not base). `Link`, `LinkType`
 // and the `link` kind are removed.
 
-/// description: A self-describing resource representation — a Bead or a Generic resource. `get`/`create`/`update` all answer with one of these; it rides on events and in exports unchanged.
+/// description: A self-describing resource representation — a Bead or a Generic resource. `get` answers with one of these (as do `list`/`revisions`/`export`); it rides on events and in exports unchanged. (The write primitives return a pinned `ref`, not a representation.)
 schema representation = Bead | Generic
 
 /// description: A generic resource — its entity body plus the response metadata. Its revision (ResourceId.rev) is the ETag / Last-Modified. For a resource addressed in the open web (scope `web`).
@@ -335,7 +336,7 @@ schema Reply = {
 // Dispatch is implicit: the request routes to the target resource. Content kinds
 // (bead) takes client CRUD; the Operation takes `call`; the Channel takes `pull`.
 // Conformance tiers: minimal/read-only = get + list + changefeed pull + discovery;
-// full = + create/put/update/delete + apply + call/cancel + export/import.
+// full = + create/put/patch/delete + apply + call/cancel + export/import.
 // Advertised in discovery (per-scope, not the floor): eval + its expression language
 // (query / traversal / predicates), search, count, graph.
 
@@ -347,19 +348,19 @@ schema Reply = {
 fn get(resource: ref<resource>, selector?: selector): representation
 
 /// bdp = { kind = "primitive", primitive = "create" }
-/// description: Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the admitted representation; its URL in `Location`.
+/// description: Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the created resource's pinned `ref` (rev = the minted revision); its URL in `Location`.
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
-command create(scope: Scope, draft: CreateRequest) returns representation fails Problem
+command create(scope: Scope, draft: CreateRequest) returns pinned<resource> fails Problem
 
 /// bdp = { kind = "primitive", primitive = "put" }
-/// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports.
+/// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
 /// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,412,422] } }
-command put(resource: ref<resource>, body: CreateRequest) returns representation fails Problem idempotent
+command put(resource: ref<resource>, body: CreateRequest) returns pinned<resource> fails Problem idempotent
 
-/// bdp = { kind = "primitive", primitive = "update" }
-/// description: JSON Patch limited to /properties and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`.
-/// openapi = { operationId = "update", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
-command update(resource: ref<resource>, patch: JsonPatch) returns representation fails Problem
+/// bdp = { kind = "primitive", primitive = "patch" }
+/// description: JSON Patch limited to /properties and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref` (rev = the new revision). (The richer patch format — the Lumen quasiquote — is a Lumen-branch design item; JSON Patch is the base lowering.)
+/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
+command patch(resource: ref<resource>, patch: JsonPatch) returns pinned<resource> fails Problem
 
 /// bdp = { kind = "primitive", primitive = "delete" }
 /// description: Retire a Resource, minting a final revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the final pinned `ref` (rev = the revision it minted), not a representation.
@@ -428,17 +429,17 @@ schema CreateRequest = {
   metadata?:   { ...: any }
 }
 
-/// description: One RFC 6902 operation. In `update`, paths are limited to /properties and /metadata.
+/// description: One RFC 6902 operation. In `patch`, paths are limited to /properties and /metadata.
 schema JsonPatchOp = { op: "add"|"remove"|"replace"|"move"|"copy"|"test", path: string, value?: any, from?: string }
 
-/// description: An ordered list of JSON Patch operations — the `update` body, and a change-event patch payload.
+/// description: An ordered list of JSON Patch operations — the `patch` body, and a change-event patch payload.
 schema JsonPatch = [ JsonPatchOp ]
 
-/// description: One write in an `apply` write-set — a create, put, update or delete against the scope. (`batch` is surface sugar over `apply`, same write-set.)
+/// description: One write in an `apply` write-set — a create, put, patch or delete against the scope. (`batch` is surface sugar over `apply`, same write-set.)
 schema Write =
     bCreate { draft: CreateRequest }
   | bPut    { resource: ref<resource>, body: CreateRequest }
-  | bUpdate { resource: ref<resource>, patch: JsonPatch, ifMatch?: Rev }
+  | bPatch  { resource: ref<resource>, patch: JsonPatch, ifMatch?: Rev }
   | bDelete { resource: ref<resource>, ifMatch?: Rev }
 
 /// description: A PURE expression for `eval`. Opaque at the base — an AST the service's expression engine understands; the concrete expression language (set / traversal operators, predicates) is the query corelib capability, advertised in discovery. (Lumen-side design in flight.)
@@ -474,7 +475,7 @@ schema Page = { after?: Cursor, from?: Ordinal, limit?: number }
 // §8. Change events & the changefeed
 // -----------------------------------------------------------------------------
 // Each Scope has one built-in changefeed Channel<ChangeEvent> at the well-known
-// id `/sys/changes`. Its events are what create/put/update/delete commit.
+// id `/sys/changes`. Its events are what create/put/patch/delete commit.
 
 /// description: Core's report of one committed change to one Resource (a relationship change is an `update` to its source bead). Carries its own stream position (ordinal) and time (at). The new revision is `subject.rev` — there is no separate revision field. `provenance` rides in the post-image (so it is here for free); top-level `provenance` is populated only when there is no full post-image (delete, patch updates).
 schema ChangeEvent = {
