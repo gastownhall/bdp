@@ -224,12 +224,18 @@ schema ContentType = { type: string, subtype: string }
 
 // --- Capability beads: pullable Channel, callable Operation, async-result handle ---
 
-/// description: A Bead whose events are read with `pull`. Operational config lives here as properties; the event type is the parameter E. Storage class is Intrinsic (service-declared). pull Channel<E> → source<E>.
+
+>DB unless I'm mistaken, this needs to contain the event schema as a property. just a jsonSchema will do
+>L applied — E is phantom (erases on the wire), so the event's jsonSchema must ride as DATA, exactly like Operation carries operationSchema. Added `eventSchema: schema`.
+/// description: A Bead whose events are read with `pull`. Operational config lives here as properties; the event type is the parameter E (its jsonSchema rides in `eventSchema`). Storage class is Intrinsic (service-declared). pull Channel<E> → source<E>.
 type Channel<E> is Bead {
+  eventSchema: schema,                 // jsonSchema for E — E is phantom, so the event shape rides here as DATA
   retention:   Retention,
   cardinality: "single" | "broadcast"
 }
 
+>DB the schema for this didn't render in the markdown
+>L — shape is correct; this is a GENERATOR gap, not a spec bug. The bare nullary variant `forever` and the self-recursive `compacted { window?: Retention }` are what the markdown renderer choked on. Flagged for the lock/codegen pass; no spec change.
 /// description: How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).
 schema Retention =
     forever                                                    // audit / primary log
@@ -355,20 +361,25 @@ fn get(resource: ref<resource>, selector?: selector): representation
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
 command create(scope: Scope, draft: CreateRequest) returns pinned<resource> fails Problem
 
+>DB - I don't see the if-revision guard on the mutating operations.  Why?
+>L applied — the guard lived only in the openapi (If-Match header) for patch/delete and was missing from put; hoisted to a first-class `ifRevision?: Rev` parameter on put/patch/delete. create is fail-if-exists (no prior revision → the `already-exists` guard, §72), so if-revision doesn't apply to it — which matches the openapi 412s (put/patch/delete carry 412, create does not).
+
+>DB I belive that put needs to take an unpinned reference yes? Probably worth a scrub of all of these operations
+>L applied — scrub done. Write/identity targets → `unpinned<resource>` (put/patch/delete/revisions/cancel/pull): you address them by identity, never by a pinned revision. `get` stays a general `ref` (it CAN read a pinned revision); `call` left general (a specific Operation revision may be callable). Signatures below updated.
 /// bdp = { kind = "primitive", primitive = "put" }
 /// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
-/// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,412,422] } }
-command put(resource: ref<resource>, body: CreateRequest) returns pinned<resource> fails Problem idempotent
+/// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
+command put(resource: unpinned<resource>, body: CreateRequest, ifRevision?: Rev) returns pinned<resource> fails Problem idempotent
 
 /// bdp = { kind = "primitive", primitive = "patch" }
 /// description: JSON Patch limited to /properties and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref` (rev = the new revision). (JSON Patch is the base format; a richer patch format is an advertised capability.)
 /// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
-command patch(resource: ref<resource>, patch: JsonPatch) returns pinned<resource> fails Problem
+command patch(resource: unpinned<resource>, patch: JsonPatch, ifRevision?: Rev) returns pinned<resource> fails Problem
 
 /// bdp = { kind = "primitive", primitive = "delete" }
 /// description: Retire a Resource, minting a final revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the final pinned `ref` (rev = the revision it minted), not a representation.
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
-command delete(resource: ref<resource>) returns pinned<resource> fails Problem idempotent
+command delete(resource: unpinned<resource>, ifRevision?: Rev) returns pinned<resource> fails Problem idempotent
 
 /// bdp = { kind = "primitive", primitive = "list" }
 /// description: A collection of CURRENT resources in a scope, as a source<representation>. `where` is a ListFilter (the flat low bar every service supports). Baseline read; the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
@@ -378,7 +389,7 @@ fn list(scope: Scope, where?: ListFilter, select?: selector, page?: Page): sourc
 /// bdp = { kind = "primitive", primitive = "revisions" }
 /// description: The history of ONE resource — id-targeted like `show`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
 /// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,404] } }
-fn revisions(resource: ref<resource>, select?: selector, page?: Page): source<representation>
+fn revisions(resource: unpinned<resource>, select?: selector, page?: Page): source<representation>
 
 // --- Invoke: call an Operation, cancel its run ---
 
@@ -390,14 +401,14 @@ fn call(operation: ref<Operation>, request: Request): Reply
 /// bdp = { kind = "primitive", primitive = "cancel" }
 /// description: kill -9 on a running AsyncResult — writes reply.outcome = canceled. Runs NO compensation (that is the scheduler's graceful path); its effects stay findable via `causedBy`.
 /// openapi = { operationId = "cancel", method = "POST", pathItem = "asyncResult", tags = ["Core"], success = { status = 200 }, problem = { status = [404,409] } }
-command cancel(asyncResult: ref<AsyncResult>) returns pinned<AsyncResult> fails Problem
+command cancel(asyncResult: unpinned<AsyncResult>) returns pinned<AsyncResult> fails Problem
 
 // --- Observe: pull a Channel ---
 
 /// bdp = { kind = "primitive", primitive = "pull" }
 /// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source<E>. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three. Faults `cursor-expired` below the retention floor.
 /// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Format", required = false } }, success = { status = 200 }, problem = { status = [400,410] } }
-fn pull(channel: ref<Channel<any>>, request: PullRequest): PullPage
+fn pull(channel: unpinned<Channel<any>>, request: PullRequest): PullPage
 
 // --- Scope-level: atomic apply (write-set), pure eval (query), bulk export/import ---
 
@@ -464,10 +475,13 @@ schema listCondition =
   | contains    { field: FieldPath, value: any }
   | containsAny { field: FieldPath, values: [any] }
   | excludes    { field: FieldPath, value: any }
-  | isType      { type: RelativeId, exact: bool = false }
+
+>>> I think there's a great question about isType vs isKind.  If we still want isType, exact goes away. I think there is some value in donig a good treatment of kind - kind of a variation of exact - prefix match vs. complete match.
+>L applied (your call) — isKind, `match: "exact" | "prefix"` (no "type" for kinds; minimal semantic weight). prefix = kind-path ⊑ (ltree `<@` / `LIKE 'bead/…%'`), exact = `=`. Default `prefix` (the common "is it an issue(-ish)" test). Broader "type→kind" rename (Bead.type / BeadType / subjectType) is the kinds thrust.
+  | isKind      { kind: RelativeId, match: "exact" | "prefix" = "prefix" }
 /// description: A field path as a segment array (disambiguates dotted keys); selector/patch keep JSON Pointer.
 schema FieldPath = [string]
-/// description: A type reference as a local id segment — scope = target, rev = unpinned.
+/// description: A kind-path as a local id segment, relative to the scope (the target for isKind's prefix/exact match).
 schema RelativeId = string
 
 /// description: Windowed paging request — resume an opaque cursor xor start at a known ordinal, with a limit.
@@ -480,27 +494,38 @@ schema Page = { after?: Cursor, from?: Ordinal, limit?: number }
 // Each Scope has one built-in changefeed Channel<ChangeEvent> at the well-known
 // id `/sys/changes`. Its events are what create/put/patch/delete commit.
 
-/// description: Core's report of one committed change to one Resource (a relationship change is an `update` to its source bead). Carries its own stream position (ordinal) and time (at). The new revision is `subject.rev` — there is no separate revision field. `provenance` rides in the post-image (so it is here for free); top-level `provenance` is populated only when there is no full post-image (delete, patch updates).
-schema ChangeEvent = {
+>>> uh, what about the revision and provenance of the delete?  Maybe the arm of this needs a little love
+>L PROPOSAL (per "name the tombstone; put provenance in the DU; maybe a top-level DU") — ChangeEvent is now a TOP-LEVEL DU on lifecycle (Created | Updated | Deleted); `op` disappears (the arm IS the lifecycle). Common fields factor into ChangeEnvelope, spread into each arm. Provenance is placed per-arm, ELIDED where the post-image already carries it (Created / Updated-full → the representation's Bead.provenance) and EXPLICIT where there is none (Updated-patch / Deleted). `subject.rev` is always the new revision — the TOMBSTONE revision on Deleted. Review this shape.
+/// description: Core's report of one committed change to one Resource, as a top-level DU on lifecycle (a relationship change is an Updated to its source bead). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.
+schema ChangeEvent = Created | Updated | Deleted
+
+/// description: Fields common to every change arm; spread into each. `subject.rev` IS the new (or tombstone) revision — there is no separate revision field.
+schema ChangeEnvelope = {
   ordinal:      Ordinal,                          // position in the changefeed, assigned on append
   at:           Timestamp,
-  subject:      ResourceId,                        // { scope, id, rev } — rev IS the new revision
+  subject:      ResourceId,                        // { scope, id, rev } — rev IS the new (or tombstone) revision
   subjectKind?: Kind,
   subjectType?: ref<BeadType>,
-  op:           "create" | "update" | "delete",    // lifecycle, not the HTTP verb
-  content?:     ChangeContent,                      // absent on delete
   transaction:  Transaction,                        // shared across one commit
   cause?:       Cause,
   causedBy?:    Cause,                               // parent cause — the cause-tree back-pointer
   frame?:       Frame,                              // diagnostic-tier
-  calledBy?:    Frame,                              // diagnostic-tier — the call-tree back-pointer
-  provenance?:  Provenance                           // top-level only when there is no full post-image
+  calledBy?:    Frame                               // diagnostic-tier — the call-tree back-pointer
 }
 
-/// description: The change payload — an open kind-tagged union of forms. `op` stays CUD (lifecycle); full-vs-patch is the orthogonal ENCODING axis and lives here.
+/// description: A resource admitted. Full post-image; its Bead.provenance IS the provenance.
+schema Created = { ...ChangeEnvelope, representation: representation }
+
+/// description: A resource changed. `content` is the orthogonal ENCODING axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.
+schema Updated = { ...ChangeEnvelope, content: ChangeContent }
+
+/// description: A resource retired — the TOMBSTONE. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.
+schema Deleted = { ...ChangeEnvelope, provenance: Provenance }
+
+/// description: The change payload for Updated — full-vs-patch, the ENCODING axis (orthogonal to lifecycle).
 schema ChangeContent =
-    full  { representation: representation }         // create's new state, or a put/replace
-  | patch { patch: JsonPatch }                       // a PATCH delta
+    full  { representation: representation }          // a post-image (put/replace or a full update); provenance rides in it
+  | patch { patch: JsonPatch, provenance: Provenance } // a PATCH delta; no post-image → provenance explicit
 
 
 // -----------------------------------------------------------------------------
@@ -518,7 +543,8 @@ schema ChangeContent =
 
 /// description: The input to `pull` — which stream, where to resume, how much, and the transport. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive.
 schema PullRequest = {
-  source:   ref<Channel<any>>,                      // the Channel; the changefeed by default
+  >>> uh, isn't the source the subject and first parameter?  I *think* we elevate teh target resource to a distinct first parameter
+  >L applied — correct, `source` was a duplicate: `pull(channel, request)` already takes the Channel as the distinct first parameter. Removed it; PullRequest now carries only resume/transport/filter/select, matching how every op takes its target as the first param and never re-states it in the body. (Changefeed-by-default is a property of the `channel` argument — the well-known /sys/changes.)
   after?:   Cursor,
   from?:    Ordinal,
   limit?:   number,
@@ -529,7 +555,9 @@ schema PullRequest = {
 
 /// description: One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
 schema PullPage = {
-  events: [ any ],                                  // the Channel's E (ChangeEvent for the changefeed)
+  /// since we use pullpages for things other than events, maybe call this field "items" or something like that?
+  >L applied — renamed `events` → `items` (a Channel's E is often not an "event", e.g. a declared stream).
+  items: [ any ],                                   // the Channel's E (ChangeEvent for the changefeed; items generally)
   cursor: Cursor,                                   // where to resume; opaque, bound to this stream + selection
   head?:  bool                                      // caught up to the live edge?
 }
@@ -552,7 +580,10 @@ schema ExportBegin = { kind: "export-begin", scope: AbsoluteHttpUrl, cursor: Cur
 schema ExportEnd = { kind: "export-end", count: number }
 
 /// description: How `import` merges — strategy and id remap (mirrors v0.1 bd import flags).
-schema ImportStrategy = { dedup?: bool, allowStale?: bool, dryRun?: bool, idRoot?: string, sourcePrefix?: string }
+
+>DB what is sourcePrefix?
+>L nuked (your call) — removed; it'll come back if we actually need it.
+schema ImportStrategy = { dedup?: bool, allowStale?: bool, dryRun?: bool, idRoot?: string }
 
 /// description: What `import` reports — counts and any skipped/conflicted records.
 schema ImportReport = { imported: number, skipped: number, conflicts: [ { id: ref<resource>, reason: string } ] }
