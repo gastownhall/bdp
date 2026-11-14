@@ -192,17 +192,23 @@ schema BdpTypeDef =
 /// description: A list of named, typed declarations with required-ness — the shape of a record (a parameter list, a Type's property definitions). NOT rich fields: no defaults/constraints here.
 schema declarationsSchema = [ { name: string, schema: schema, required: bool } ]
 
-/// description: An Operation's full descriptor — the signature plus the behavioural characteristics. This IS an Operation bead's content, and what `?schema` returns.
+/// description: An operation's full descriptor — the signature plus the behavioural characteristics. This IS an
+/// normative: operation bead's content, and what `?schema` returns. Every field is OPTIONAL — three-valued:
+/// normative: present+value = a KNOWN guarantee, absent = UNKNOWN (not determined). `pure` = neither reads nor
+/// normative: writes external state; `safe` = does not write (reads allowed); pure ⟹ safe, and `pure:true` +
+/// normative: `safe:false` is a rejectable contradiction. `atomic` is DEFERRED to the scheduler. `body` present
+/// normative: ⇒ the operation is STORED (its implementation AST ships in the pack); absent ⇒ INTRINSIC (native).
 schema operationSchema = {
-  parameters: declarationsSchema,     // the input record
-  success:    schema,                 // T — success type
-  error:      schema,                 // E — error type (inferred from the body)
-  pure:       bool,
-  safe:       bool,
-  idempotent: bool,
-  atomic:     bool,
-  async:      "no" | "optional" | "required",   // sync-only · caller-picks · async-only
-  creates:    bool                    // mints a resource → 201 + Location (else 200)
+  parameters?: declarationsSchema,    // the input record
+  success?:    schema,                // T — success type
+  failure?:    schema,                // E — failure type (inferred from the body)
+  pure?:       bool,                  // no reads AND no writes
+  safe?:       bool,                  // no writes (reads allowed); pure ⟹ safe
+  idempotent?: bool,
+  atomic?:     bool,                  // DEFERRED to the scheduler
+  async?:      "no" | "optional" | "required",   // sync-only · caller-picks · async-only
+  body?:       any,                   // the mounted implementation AST (BdpAst, parser owner's pin): present ⇒ STORED (ships in the pack) · absent ⇒ INTRINSIC (native)
+  creates?:    bool                   // mints a resource → 201 + Location (else 200)
 }
 
 
