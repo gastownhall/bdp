@@ -1,0 +1,136 @@
+// =============================================================================
+// package.lumen — the Package pack, authored as Lumen (the kind model)
+// =============================================================================
+// Defines the PACKAGES mechanism: how op/channel/type DECLARATIONS reflect to
+// beads, how those beads form a Package (a rooted bead graph), how the package
+// format IS the BDP export format (linearize from the root), and the pack-
+// management surface (install / uninstall / list / show / lock).
+//
+// There is no "core" layer: pack-management is ITSELF a pack, and even `core` is
+// a pack — declarations only, identity pinned to the BDP spec, version 0.2.0.
+//
+// Depends on core (bdp.lumen): bead, resource, ref, unpinned, pinned, Operation,
+// Channel, BeadType, ExportRecord/import, source, Problem, Outcome, selector,
+// ListFilter, LocalName. Example packs in the kind model: memory.lumen, issue.lumen.
+// =============================================================================
+
+/// description: A semantic version string, "MAJOR.MINOR.PATCH" (e.g. "0.2.0").
+schema Semver = string
+/// description: A version-constraint expression (e.g. "^0.2", ">=0.2 <0.3"). Matching semantics — see §7.
+schema SemverConstraint = string
+
+
+// -----------------------------------------------------------------------------
+// §1. Definition — a declaration, reflected as a bead
+// -----------------------------------------------------------------------------
+
+/// description: Definition — one type / operation / channel DECLARATION, reflected as a bead. SEALED
+/// normative: into the three declaration kinds: a TYPE declaration → TypeDecl (a BeadType bead); an
+/// normative: OPERATION → OpDecl (an Operation bead); a CHANNEL → ChannelDecl (a Channel bead). This is
+/// normative: the "declarations translate to beads" rule. Their TYPE SIGNATURES carry the type-descriptor
+/// normative: AST (TypeDef) on the Lumen SURFACE and lower to `schema`/JsonSchema on the wire — the same
+/// normative: descriptor applies to type, operation AND channel declarations uniformly.
+kind Definition is bead = TypeDecl | OpDecl | ChannelDecl
+
+
+// -----------------------------------------------------------------------------
+// §2. Package — a rooted bead graph
+// -----------------------------------------------------------------------------
+
+/// description: Package — a rooted graph of the Definition beads a pack contributes. The package FORMAT
+/// normative: is the BDP export format: `export` rooted here, linearized to ExportRecords (§5). `dependsOn`
+/// normative: names other packs by constraint; `pin` (on each Dependency) is written by `lock`, not here.
+kind Package is bead {
+  name:         string { minLength: 1 },
+  version:      Semver,
+  declarations: set<ref<Definition>>,      // the beads this pack contributes (the graph)
+  dependsOn?:   set<Dependency>,
+}
+
+/// description: Dependency — a reference to another pack. `constraint` stays LIVE and never mutates;
+/// normative: `pin` is a PARALLEL field written by `lock` (resolve-then-pin, the constraint retained).
+/// normative: `alias` is OPEN (#4) — import aliasing vs BDP scope-alias is unresolved.
+schema Dependency = {
+  package:    string,
+  constraint: SemverConstraint,            // STAYS live, never mutated
+  pin?:       ref<Package>,                // PARALLEL field, written by `lock`
+  alias?:     LocalName,                   // OPEN #4
+}
+
+
+// -----------------------------------------------------------------------------
+// §3. sys/packages — the installed registry
+// -----------------------------------------------------------------------------
+
+/// description: Packages — a GENERIC container of package refs (reusable: an install set, a transitive
+/// normative: closure, a lock resolution). "Installed" is POSITIONAL, not a field name: the service anoints
+/// normative: ONE intrinsic `Packages` bead at the well-known id `sys/packages` as authoritative, and ITS
+/// normative: `packages` are the installed set. Install/uninstall are visible on the change feed as ordinary
+/// normative: mutations to it — no bespoke install event. A `list` over `packages` enumerates what is installed.
+/// normative: Storage class is Intrinsic (service-declared).
+type Packages is bead {
+  packages: set<ref<Package>>,
+}
+
+
+// -----------------------------------------------------------------------------
+// §4. The package format — the BDP export format
+// -----------------------------------------------------------------------------
+
+/// normative: A Package has NO bespoke serialization. Its exported form is `export` rooted at the Package
+/// normative: bead, linearized to ExportRecords; `packInstall` is `import` of that stream plus anointing
+/// normative: the root into sys/packages. This is the lumendoc graph↔export isomorphism: the pack format
+/// normative: IS the export of the package graph, so linearize-the-root and install-is-import come for free.
+
+
+// -----------------------------------------------------------------------------
+// §5. The pack-management surface (callable operations; CLI projection noted)
+// -----------------------------------------------------------------------------
+// These are CALLABLE operations the pack contributes (Operation beads, invoked via
+// `call`) — NOT new core primitives. The CLI is their BDP projection (dogfood).
+
+/// description: Install a pack — import its exported graph, then register the root in sys/packages.
+/// bdp: callable; cli `pack install <exportedpack>`   // flags tbd
+command packInstall(pack: source<ExportRecord>, strategy?: ImportStrategy) returns ref<Package> fails Problem
+
+/// description: Uninstall a pack — drop its ref from sys/packages. OPEN (#2): the fate of Definition beads
+/// normative: another installed pack still references (refcount vs leave-and-sweep).
+/// bdp: callable; cli `pack uninstall <ref<Package>>`
+command packUninstall(package: unpinned<Package>) returns Outcome<Package, Problem> fails Problem
+
+/// description: List installed packs — `list` over sys/packages.packages, applying filter and projection.
+/// bdp: callable; cli `pack list --filter --select`
+command packList(where?: ListFilter, select?: selector) returns [Package] fails Problem
+
+/// description: Show one pack — `get` on the root.
+/// bdp: callable; cli `pack show <ref<Package>>`
+command packShow(package: ref<Package>) returns Package fails Problem
+
+/// description: Lock — resolve dependency constraints and write the parallel `pin` fields. Surface TBD;
+/// normative: harvest the lock/pin ergonomics from gas city `bd pack` (NOT its construct-a-pack-via-CLI surface).
+/// bdp: callable; cli `pack lock`   // relock flags tbd
+command packLock(package: unpinned<Package>) returns pinned<Package> fails Problem
+
+
+// -----------------------------------------------------------------------------
+// §6. `core` as a pack
+// -----------------------------------------------------------------------------
+
+/// normative: `core` is itself a Package — declarations only, no implementations. Its identity is pinned to
+/// normative: the BDP spec; its version is the spec semver (0.2.0). It is frozen.
+/// normative: core = Package { name: "core", version: "0.2.0", declarations: <the six primitives + core schemas>, dependsOn: none }
+
+
+// -----------------------------------------------------------------------------
+// §7. OPEN — the frontier (pending the lead's rulings)
+// -----------------------------------------------------------------------------
+// > Open #1 (identity + resolution) — do Definition beads get scope-global or pack-scoped identity? This
+// >   decides cross-pack refs, collisions, and whether two packs share a dependency bead. Underpins #2 and #4.
+// > Open #2 (GC on uninstall) — on drop, the fate of Definition beads a surviving pack still references.
+// > Open #4 (aliasing) — import alias (pack-level `as`) vs BDP scope-alias: one mechanism or two, and how they compose.
+// > Open (TypeDef placement) — TypeDef as a Lumen-surface/reflection form that lowers to JsonSchema, vs core
+// >   wire. Held pending ruling; decides whether op/channel signatures carry TypeDef or raw `schema`.
+// > Open (operation implementations in the pack) — a pack may carry operation IMPLEMENTATIONS, not just
+// >   declarations (the runtime owner is wiring this). To be jammed and specced: how an impl rides in the
+// >   pack (bead? formula?), how it binds to its OpDecl, and how it reaches the scheduler.
+// > Open (semver matching) — constraint-matching rules and the `lock` resolution algorithm.
