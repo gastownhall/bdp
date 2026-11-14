@@ -156,14 +156,38 @@ schema IdentityBasis = "writer-supplied" | "channel-authenticated" | "unknown"
 
 
 // -----------------------------------------------------------------------------
-// §3. Schemas as values  (types are written as Lumen; projected to JSON Schema on export)
+// §3. Schemas as values  (the type rep is BdpTypeDef; JsonSchema + OpenAPI are its lowerings on export)
 // -----------------------------------------------------------------------------
 
-/// description: A type written down as a value. A `schema` has NO identity, so it is a value; it is authored as an ordinary Lumen type and lowered to a JSON Schema document on export (special-cased lowering). Only genuinely open DATA uses `{ ...: any }`; a written-down TYPE uses `schema`.
-schema schema = JsonSchema
+/// description: A type written down as a value. A `schema` has NO identity, so it is a value. A `schema` IS a
+/// normative: BdpTypeDef — the ref-preserving type representation. On EXPORT it lowers to a JSON Schema document
+/// normative: (and an OpenAPI contract) for external consumers; the exported/wire form is byte-identical to the
+/// normative: pre-BdpTypeDef JSON Schema, so the v0.2.0 freeze is NOT reopened. Only genuinely open DATA uses
+/// normative: `{ ...: any }`; a written-down TYPE uses `schema`.
+schema schema = BdpTypeDef
 
-/// description: A JSON Schema document. The lowered/exported form of a `schema` value.
+/// description: A JSON Schema document. The lowered/exported form of a `schema` value, for external (non-BDP)
+/// normative: consumers. Cannot express `ref<T>` — which is exactly why the SOURCE is BdpTypeDef (TypeRef), shipped
+/// normative: in packs as data and consumed directly by validators; JsonSchema is the lossy external lowering only.
 schema JsonSchema = { ...: any }
+
+/// description: BdpTypeDef — the ref-preserving type representation, uniform across DATA types, operation
+/// normative: signatures (parameters/success/error) and channel event types. It is the SOURCE; JsonSchema and
+/// normative: OpenAPI are its external lowerings. `Literal` carries enum arms; `DU` is tagged (distinct from the
+/// normative: untagged `Union`); `Array` and `Set` are distinct (`Set` carries an `on` identity clause); `TypeRef`
+/// normative: is the ref-preserving arm (`ref<T>`), the whole reason BdpTypeDef exists over raw JSON Schema;
+/// normative: `Opaque` is the escape hatch carrying a raw JsonSchema.
+schema BdpTypeDef =
+    Scalar  { of: "string" | "number" | "bool" | "bytes" }
+  | Literal { value: any }                                         // enum arms are Literals
+  | Nominal { name: string, base: BdpTypeDef, refinement?: { ...: any } }
+  | Record  { fields: [ { name: string, type: BdpTypeDef, required: bool } ], open: bool }
+  | DU      { arms: [ { tag: string, payload?: BdpTypeDef } ] }    // tagged; distinct from Union
+  | Union   { options: [ BdpTypeDef ] }                            // untagged
+  | Array   { element: BdpTypeDef }
+  | Set     { element: BdpTypeDef, on?: [ LocalName ] }            // identity clause
+  | TypeRef { to: Kind }                                           // ref<T> — the ref-preserving arm
+  | Opaque  { jsonSchema: JsonSchema }                             // escape hatch: raw JsonSchema
 
 /// description: A list of named, typed declarations with required-ness — the shape of a record (a parameter list, a Type's property definitions). NOT rich fields: no defaults/constraints here.
 schema declarationsSchema = [ { name: string, schema: schema, required: bool } ]
