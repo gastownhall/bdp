@@ -1,0 +1,55 @@
+// =============================================================================
+// issue.lumen — the Issue pack, authored as Lumen (the kind model)
+// =============================================================================
+// An example BDP pack in the kind model: Issue (a unit of work) and Spike. Companion
+// to bdp.lumen (the base spec) and memory.lumen. The toolchain projects this file to
+// the trait + artifacts, so the pack's signatures are mechanically available.
+//
+// The old Dependency Link TYPES vanish: `A blocks B` is a target in a set — an owned
+// `ref<T>` property on the source Issue (no Link, no family — §30). `owner`/`assignee`
+// stay NATIVE strings (deliberately not BDP refs). Subtype = kind-path prefix.
+// =============================================================================
+
+/// description: Free text — a nominal string.
+type text is string
+
+
+// -----------------------------------------------------------------------------
+// §1. Issue — a unit of work
+// -----------------------------------------------------------------------------
+
+/// description: Issue — a unit of work.
+/// normative: `owner`/`assignee` are native human strings, NOT refs (deliberately outside BDP attribution).
+/// normative: The old Dependency Link types are owned `ref<T>` properties here (no Link resource, no family): `blocks`,
+/// normative: `conditionalBlocks`, `repliesTo` are three SEPARATE props. "All dependencies" = enumerate the three.
+/// normative: `blocks` is ACYCLIC (a cycle = deadlock), enforced by a reachability check on write; set-membership gives
+/// normative: edge-uniqueness for free (`A blocks B` at most once).
+kind Issue is bead {
+  // required
+  title:    string { minLength: 1 },
+  status:   string { minLength: 1 },             // built-in or provider-configured value
+  priority: number { 0..4 },                     // 0 = P0; never absent
+
+  // optional work fields
+  description?:        text,
+  acceptanceCriteria?: text,
+  design?:             text,
+  notes?:              text,
+  labels?:             set<string { minLength: 1 }>,
+  owner?:              string { maxLength: 255 }, // native human string — NOT a ref
+  assignee?:           string { maxLength: 255 }, // same
+  createdAt?: Timestamp, updatedAt?: Timestamp, closedAt?: Timestamp, startedAt?: Timestamp,
+  deferUntil?: Timestamp, dueAt?: Timestamp,
+  estimatedMinutes?:   number { min: 0 },
+  externalRef?:        string,
+  specId?:             text,
+  closeReason?:        text,
+
+  // relationships — owned ref<T> props (the old Dependency Link types; no family)
+  blocks?:            set<ref<Issue>> { acyclic },  // must be a DAG
+  conditionalBlocks?: set<ref<resource>>,           // any resource / external (often an Issue)
+  repliesTo?:         set<ref<resource>>,            // any resource / external (often an Issue)
+}
+
+/// description: Spike — the native spike classification; a subkind of Issue with no added properties.
+kind Spike is Issue {}
