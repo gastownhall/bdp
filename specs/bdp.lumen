@@ -183,44 +183,48 @@ schema operationSchema = {
 
 
 // -----------------------------------------------------------------------------
-// §4. The resource model (nominal)
+// §4. The resource model (kind-DU)   [kind-model reset — §0 ruling 14, 2026-11-13]
 // -----------------------------------------------------------------------------
+// Every Resource carries ONE type discriminator: `kind`, a PATH rooted at its governance
+// region — `bead/…` (BDP-governed, schema'd) or `generic/…` (external / MIME-governed,
+// opaque body). `resource = generic | bead` is just the first path segment; there is NO
+// separate `type` field (the kind-path IS the type). Subtyping is a kind-path PREFIX;
+// a union TYPE BEAD lists its `arms` (the whole DU) for exhaustive matching.
 
-/// description: How a Resource is kept. Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
-schema StorageClass = Durable { versioned: bool } | Ephemeral | Intrinsic
+/// description: How a Resource is versioned & kept. Identity is always present; `rev` (a current version token) and `history` (retained past revisions) are EACH optional (history ⊃ rev). Durable is replicated/exported; ephemeral is local; intrinsic is computed, not stored.
+schema StorageClass = Durable { versioned: bool, history: bool } | Ephemeral | Intrinsic
 
-/// description: The fields common to every representation — its category and its canonical identity. A `type` (not a schema): the nominal root that Bead and Generic refine via `is resource`.
+/// description: The resource's type discriminator — a PATH rooted at its governance region. `bead/<pack-path>` (e.g. `bead/issue/workitem`) or `generic/<type>/<subtype>` (e.g. `generic/text/html`). On the wire a bead OMITS the `bead/` default; `generic/…` is explicit. In the bead region it resolves to a TYPE BEAD (kind-def) that governs the representation.
+type Kind is string
+
+/// description: Common to every Resource: its kind-path and canonical identity. `resource = generic | bead`, discriminated by the kind-path's region root.
 type resource is { kind: Kind, id: ResourceId }
 
-
-/// description: A Bead — a node in the Scope. Carries its own Type, revision (via `id`), storage class, content, provenance and birth time, so a record read from a stream or export describes itself.
+/// description: A Bead — a graph NODE whose `bead/…` kind schematizes its representation. Properties are SCALARS and `ref<T>` EDGES only (no binary — binary lives in Generics, referenced). Carries provenance, application metadata and birth time, so a record read from a stream or export describes itself.
 type Bead is resource {
-  type:        ref<BeadType>,
   storageClass: StorageClass,
-  properties:  { ...: any },          // application state the Type governs (DATA, open)
-  metadata:    { ...: any },          // per-bead opaque data, carried ACROSS revisions (DATA, open)
+  properties:  { ...: any },          // scalars + ref<T> owned edges, governed by the kind's TYPE BEAD (§0 ruling 14: NO binary)
+  metadata:    { ...: any },          // per-bead opaque application data, across revisions
   provenance:  Provenance,            // who/when/how for the current revision
   createdAt:   Timestamp              // resource birth; immutable, denormalized onto every revision
 }
+// The bead's TYPE is its `kind` path — no separate `type` field. `ref<T>` properties are
+// owned edges projected to the edges table (kindpath = declaration site, proppath, ordinal).
 
-// A relationship is NOT a resource (§0 ruling 12). An edge is an owned `ref<T>`-valued
-// property on the SOURCE bead (in `properties`, governed by its Type) — part of the
-// source's revision state. The edges projection, families, traversal and referential
-// constraints are the graph corelib capability (advertised, not base). `Link`, `LinkType`
-// and the `link` kind are removed.
-
-/// description: A self-describing resource representation — a Bead or a Generic resource. `get` answers with one of these (as do `list`/`revisions`/`export`); it rides on events and in exports unchanged. (The write primitives return a pinned `ref`, not a representation.)
-schema representation = Bead | Generic
-
-/// description: A generic resource — its entity body plus the response metadata. Its revision (ResourceId.rev) is the ETag / Last-Modified. For a resource addressed in the open web (scope `web`).
+/// description: A Generic — a graph LEAF whose `generic/<type>/<subtype>` kind IS its MIME content-type and whose body is opaque, content-addressed and externally interpreted. The body's canonical form is a content hash (bytes materialized on demand); it refines per MIME (text→string, application/json→a value). Its rev is the ETag / content hash.
 type Generic is resource {
-  contentType: ContentType,
-  body:        any,
-  metadata:    { ...: any }           // the remaining HTTP response headers
+  body:     binary,                   // content-addressed; the content-type is the kind-path, not a field
+  metadata: { ...: any }              // response headers / content metadata
 }
 
-/// description: An HTTP media type (RFC 9110), split into its grammar components.
-schema ContentType = { type: string, subtype: string }
+/// description: A self-describing representation — a Bead or a Generic. `get`/`list`/`revisions`/`export` answer with one of these; the write primitives return a pinned `ref`.
+schema representation = Bead | Generic
+
+/// description: Opaque content, CONTENT-ADDRESSED. Canonical form is a content hash into the blob store; the bytes are materialized on demand. A `binary` is a Generic body — never a bead property (§0 ruling 14).
+type binary is Hash
+
+/// description: A content hash — opaque, compared for exact equality only; the content-address of a blob or a revision. Same family as `Rev`.
+type Hash is string
 
 // --- Capability beads: pullable Channel, callable Operation, async-result handle ---
 
