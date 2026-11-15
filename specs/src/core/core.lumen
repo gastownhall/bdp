@@ -256,17 +256,18 @@ schema ContentType = { type: string, subtype: string }
 
 /// description: A channel's full descriptor — its two event types, direction and delivery characteristics. This IS
 /// normative: a channel bead's content, and what `?schema` returns (cribbing operationSchema). An event type is a
-/// normative: `ref<BeadType>` — the ref-preserving type reference, never a JsonSchema — exactly as a resource's
-/// normative: `type` is. A channel carries TWO distinct event types, one per OPERATOR: `pullSchema` (what `pull`
+/// normative: `schema` — a BdpTypeDef type-AST VALUE carried inline in the bead (not a `ref`, never a JsonSchema),
+/// normative: exactly as an operation's `success`/`failure` and a BeadType's definition are. A channel carries TWO
+/// normative: distinct event types, one per OPERATOR: `pullSchema` (what `pull`
 /// normative: delivers) and `pushSchema` (what `push` accepts); on a `duplex` channel the two may differ. The
 /// normative: `direction` FACET and the two fields are mutually constraining: `source` ⟺ pullSchema set &
 /// normative: pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
 /// normative: Channels are STRUCTURAL types in BDP and Lumen, so the event types are spelled out here rather than
 /// normative: parameterized: a Lumen channel generic (`source<T>` / `sink<F>` / `duplex<F,T>`) lowers to these
-/// normative: concrete `ref<BeadType>` fields — BDP has no generics.
+/// normative: concrete inline `schema` fields — BDP has no generics.
 schema channelSchema = {
-  pushSchema?:  ref<BeadType>,                   // what `push` accepts — null for a pull-only (source) channel
-  pullSchema?:  ref<BeadType>,                   // what `pull` delivers — null for a push-only (sink) channel
+  pushSchema?:  schema,                          // what `push` accepts — null for a pull-only (source) channel
+  pullSchema?:  schema,                          // what `pull` delivers — null for a push-only (sink) channel
   direction:    "source" | "sink" | "duplex",    // the advertised facet — REQUIRED, no default
   retention:    Retention,
   cardinality:  "single" | "broadcast"
