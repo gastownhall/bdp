@@ -84,48 +84,63 @@
 // §1. Identity & references
 // -----------------------------------------------------------------------------
 
+## BdpVersion
 /// description: The protocol version this document binds; a constant.
 schema BdpVersion = "0.2"
 
+## Scope
 /// description: The scheme or authority an identity resolves in — a resource scope name, or the reserved "web".
 type Scope is string
 
+## Id
 /// description: A Resource's id relative to its scope. Opaque to clients.
 type Id is string
 
+## Rev
 /// description: An opaque Resource-version token. Compared for exact equality only; order, time and allocation are NOT inferable from its spelling. (= v0.2 `Revision`.)
 type Rev is string
 
+## Kind
 /// description: The self-describing resource-category discriminator on the wire.
 type Kind is string
 
+## ResourceId
 /// description: The structured identity of a Resource: scope, id, and the revision it pins. `id` is always present; `scope` absent = the operating scope, `rev` absent = the target's current revision. The wire URL is the projection (the scope's URL followed by `id`).
 schema ResourceId = { scope: Scope?, id: Id, rev: Rev? }
 
+## ref
 /// description: A typed reference to a Resource of type T — a ResourceId; T is checker-only (phantom) and erases on the wire, where the value is just { scope?, id, rev? }. The ONE reference form (the URI / pinned-URI `Reference` is gone).
 type ref<T> is ResourceId
 
+## AbsoluteUri
 /// description: Any absolute URI — a Problem type, a Principal identity; need not resolve. NOT a resource reference (those are `ref<T>`).
 /// jsonschema = { format = "uri" }
 schema AbsoluteUri = string
 
+## AbsoluteHttpUrl
 /// description: A Resource's absolute canonical identity URL; the local part is opaque to clients.
 /// jsonschema = { format = "uri" }
 schema AbsoluteHttpUrl = string
 
+## LocalName
 /// description: A short identifier token for a view or a well-known name; leading letter.
 /// jsonschema = { pattern = "^[A-Za-z][A-Za-z0-9_-]*$" }
 schema LocalName = string
 
 // --- Reference refinements: characterize a `ref<T>` by which coordinates it pins ---
+## pinned
 /// description: A pinned reference — `rev` present; names one exact revision.
 type pinned<T>     is ref<T> { rev: Rev }
+## unpinned
 /// description: An unpinned reference — `rev` absent; floats to the target's current revision.
 type unpinned<T>   is ref<T> { rev: none }
+## inscope
 /// description: An in-scope reference — `scope` absent; resolves in the operating scope.
 type inscope<T>    is ref<T> { scope: none }
+## crossscope
 /// description: A cross-scope reference — a concrete scope other than the reserved web.
 type crossscope<T> is ref<T> { scope: Scope where it != "web" }
+## webscope
 /// description: A web reference — the reserved scope "web" (the open web).
 type webscope<T>   is ref<T> { scope: "web" }
 
@@ -134,23 +149,29 @@ type webscope<T>   is ref<T> { scope: "web" }
 // §2. Primitive types
 // -----------------------------------------------------------------------------
 
+## Timestamp
 /// description: RFC 3339 date-time; uppercase T and Z.
 /// jsonschema = { format = "date-time" }
 schema Timestamp = string
 
+## IdempotencyKey
 /// description: Caller-chosen key that makes a retried write safe to collapse.
 /// jsonschema = { pattern = "^[A-Za-z0-9_-]{1,256}$" }
 schema IdempotencyKey = string
 
+## Ordinal
 /// description: An event's position in its stream; monotone within one Channel.
 schema Ordinal = number
 
+## Cursor
 /// description: Opaque, transport-independent resume token, bound to one stream and the selection it came from; refused elsewhere. Also the point an export is cut at.
 schema Cursor = string
 
+## Format
 /// description: Transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
 schema Format = "json" | "jsonl" | "sse"
 
+## IdentityBasis
 /// description: How a service established a principal's identity.
 schema IdentityBasis = "writer-supplied" | "channel-authenticated" | "unknown"
 
@@ -159,6 +180,7 @@ schema IdentityBasis = "writer-supplied" | "channel-authenticated" | "unknown"
 // §3. Schemas as values  (the type rep is BdpTypeDef; JsonSchema + OpenAPI are its lowerings on export)
 // -----------------------------------------------------------------------------
 
+## schema
 /// description: A type written down as a value. A `schema` has NO identity, so it is a value. A `schema` IS a
 /// normative: BdpTypeDef — the ref-preserving type representation. On EXPORT it lowers to a JSON Schema document
 /// normative: (and an OpenAPI contract) for external consumers; the exported/wire form is byte-identical to the
@@ -166,11 +188,13 @@ schema IdentityBasis = "writer-supplied" | "channel-authenticated" | "unknown"
 /// normative: `{ ...: any }`; a written-down TYPE uses `schema`.
 schema schema = BdpTypeDef
 
+## JsonSchema
 /// description: A JSON Schema document. The lowered/exported form of a `schema` value, for external (non-BDP)
 /// normative: consumers. Cannot express `ref<T>` — which is exactly why the SOURCE is BdpTypeDef (TypeRef), shipped
 /// normative: in packs as data and consumed directly by validators; JsonSchema is the lossy external lowering only.
 schema JsonSchema = { ...: any }
 
+## BdpTypeDef
 /// description: BdpTypeDef — the ref-preserving type representation, uniform across DATA types, operation
 /// normative: signatures (parameters/success/error) and channel event types. It is the SOURCE; JsonSchema and
 /// normative: OpenAPI are its external lowerings. `Literal` carries enum arms; `DU` is tagged (distinct from the
@@ -189,9 +213,11 @@ schema BdpTypeDef =
   | TypeRef { to: Kind }                                           // ref<T> — the ref-preserving arm
   | Opaque  { jsonSchema: JsonSchema }                             // escape hatch: raw JsonSchema
 
+## declarationsSchema
 /// description: A list of named, typed declarations with required-ness — the shape of a record (a parameter list, a Type's property definitions). NOT rich fields: no defaults/constraints here.
 schema declarationsSchema = [ { name: string, schema: schema, required: bool } ]
 
+## operationSchema
 /// description: An operation's full descriptor — the signature plus the behavioural characteristics. This IS an
 /// normative: operation bead's content, and what `?schema` returns. Every field is OPTIONAL — three-valued:
 /// normative: present+value = a KNOWN guarantee, absent = UNKNOWN (not determined). `pure` = neither reads nor
@@ -216,13 +242,16 @@ schema operationSchema = {
 // §4. The resource model (nominal)
 // -----------------------------------------------------------------------------
 
+## StorageClass
 /// description: How a Resource is kept. Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
 schema StorageClass = Durable { versioned: bool } | Ephemeral | Intrinsic
 
+## resource
 /// description: The fields common to every representation — its category and its canonical identity. A `type` (not a schema): the nominal root that Bead and Generic refine via `is resource`.
 type resource is { kind: Kind, id: ResourceId }
 
 
+## Bead
 /// description: A Bead — a node in the Scope. Carries its own Type, revision (via `id`), storage class, content, provenance and birth time, so a record read from a stream or export describes itself.
 type Bead is resource {
   type:        ref<BeadType>,
@@ -239,9 +268,11 @@ type Bead is resource {
 // constraints are the graph corelib capability (advertised, not base). `Link`, `LinkType`
 // and the `link` kind are removed.
 
+## representation
 /// description: A self-describing resource representation — a Bead or a Generic resource. `get` answers with one of these (as do `list`/`revisions`/`export`); it rides on events and in exports unchanged. (The write primitives return a pinned `ref`, not a representation.)
 schema representation = Bead | Generic
 
+## Generic
 /// description: A generic resource — its entity body plus the response metadata. Its revision (ResourceId.rev) is the ETag / Last-Modified. For a resource addressed in the open web (scope `web`).
 type Generic is resource {
   contentType: ContentType,
@@ -249,11 +280,13 @@ type Generic is resource {
   metadata:    { ...: any }           // the remaining HTTP response headers
 }
 
+## ContentType
 /// description: An HTTP media type (RFC 9110), split into its grammar components.
 schema ContentType = { type: string, subtype: string }
 
 // --- Capability beads: a Channel (pull/push), callable Operation, async-result handle ---
 
+## channelSchema
 /// description: A channel's full descriptor — its two event types, direction and delivery characteristics. This IS
 /// normative: a channel bead's content, and what `?schema` returns (cribbing operationSchema). An event type is a
 /// normative: `schema` — a BdpTypeDef type-AST VALUE carried inline in the bead (not a `ref`, never a JsonSchema),
@@ -273,21 +306,25 @@ schema channelSchema = {
   cardinality:  "single" | "broadcast"
 }
 
+## Channel
 /// description: A Bead read with `pull` (a `source`/`duplex` channel) and/or written with `push` (a `sink`/`duplex`
 /// normative: channel). Its content IS a channelSchema; `?schema` returns exactly that. Storage class is Intrinsic.
 type Channel is Bead { ...channelSchema }        // ...X = SPREAD, exactly as Operation spreads operationSchema
 
 >DB the schema for this didn't render in the markdown
 >L — shape is correct; this is a GENERATOR gap, not a spec bug. The bare nullary variant `forever` and the self-recursive `compacted { window?: Retention }` are what the markdown renderer choked on. Flagged for the lock/codegen pass; no spec change.
+## Retention
 /// description: How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).
 schema Retention =
     forever                                                    // audit / primary log
   | window    { by: "time" | "count" | "size", amount: number }
   | compacted { window?: Retention }                           // latest-per-key + optional delta tail
 
+## Operation
 /// description: A callable Bead, invoked with `call`. Its content IS an operationSchema (the signature + characteristics); `?schema` returns exactly that. Storage class is Intrinsic.
 type Operation is Bead { ...operationSchema }   // ...X = SPREAD: Operation's content includes all of operationSchema's fields inline
 
+## AsyncResult
 /// description: The async result of one `call` — a handle you `show` for the record and `cancel` to kill. References a one-and-done `source` Channel (its `pullSchema` is the Reply type) that fires the Reply on settlement. `cause`/`frame` are duped here (not only on the reply) so a PENDING run can be correlated.
 type AsyncResult is Bead {
   operation:    ref<Operation>,
@@ -303,6 +340,7 @@ type AsyncResult is Bead {
 // §5. Provenance & principals
 // -----------------------------------------------------------------------------
 
+## Provenance
 /// description: Who took part in the change that made a revision, how the Resource's present period began, and when. `previousRevision` is the before-image pointer — the basis for compensation — and rides in the post-image, so a ChangeEvent carries it for free.
 schema Provenance = {
   principals:        [Principal],              // may be empty for observed/baseline revisions
@@ -313,6 +351,7 @@ schema Provenance = {
   metadata?:         { ...: any }               // per-REVISION opaque data (DATA, open)
 }
 
+## Principal
 /// description: An identity that took part in a change — a person, agent or service account. A role grants no permission; authorization is a separate decision.
 schema Principal = {
   id:           AbsoluteUri,                    // need not be resolvable
@@ -332,22 +371,29 @@ schema Principal = {
 //   frame/calledBy (per call-frame)    — enter/exit correlation under parallelism (diagnostic-tier)
 // Nominal string ids for now; v0.3 revisits typing / reifying causes & frames.
 
+## Cause
 type Cause       is string
+## Frame
 type Frame       is string
+## Transaction
 type Transaction is string
 
+## Metadata
 /// description: OPAQUE data the protocol never interprets. Appears in exactly three scopes, each a different lifetime: Bead.metadata (per-bead, across revisions), Provenance.metadata (per-revision), and Request/Reply.metadata (per-call). Anything whose semantics WE define is a real field, never metadata.
 schema Metadata = { ...: any }
 
+## Result
 /// description: A callable's own verdict — succeeded with a value, or failed with its DECLARED error. Closed; `value`/`error` are data the protocol does not look inside.
 type Result<T, E> = success { value: T } | failure { error: E }
 
+## Outcome
 /// description: What happened to an invocation — the domain Result, or a non-domain fate. OPEN: a reader MUST tolerate an unknown arm, and every arm but `success` means it did not go as intended. `fault` is an undeclared failure (not an E); `canceled` is kill -9 (runs no compensation; `timed_out` is a cancel reason, with the scheduler).
 type Outcome<T, E> =
     Result<T, E>                         // success | failure
   | fault    { problem: Problem }
   | canceled { reason?: string }
 
+## Problem
 /// description: An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.
 schema Problem = {
   type:      AbsoluteUri,                        // problem type
@@ -359,6 +405,7 @@ schema Problem = {
   instance?: AbsoluteUri
 }
 
+## Request
 /// description: What a caller sends. `arguments` is a name/value list whose shape the Operation's `parameters` dictate (parameters declare, arguments supply). `async` is a real request directive (sync default). `causedBy`/`calledBy` are the caller's cause/frame — the parent edges in the two trees. `provenance` is caller-supplied provenance for the revision this request makes.
 schema Request = {
   arguments:   [ { name: string, value: any } ],
@@ -369,6 +416,7 @@ schema Request = {
   metadata?:   Metadata                          // per-call opaque
 }
 
+## Reply
 /// description: What a `call` returns — flat, no context wrapper. `outcome` keeps `Result` nested in `Outcome`; `cause`/`frame` are this invocation's own, carried for diagnostics and so the reply is the record you inject into the change log. `transaction` is present only when the whole call was exactly one atomic commit.
 schema Reply = {
   outcome:      Outcome<any, any>,               // value/error shapes dictated by the op's success/error
@@ -394,11 +442,13 @@ schema Reply = {
 
 // --- Content resource: the Bead takes this set ---
 
+## get
 /// bdp = { kind = "primitive", primitive = "get" }
 /// description: Safe point read — resolve a `ref` to the current representation, or a pinned revision when the ref pins `rev` (or `?revision=`). An optional `selector` projects the result (its own cacheable identity). Faults 404/410 when absent or erased.
 /// openapi = { operationId = "get", method = "GET", pathItem = "resource", tags = ["Core"], params = { revision = { in = "query", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,406,410] } }
 fn get(resource: ref<resource>, selector?: selector): representation
 
+## create
 /// bdp = { kind = "primitive", primitive = "create" }
 /// description: Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the created resource's pinned `ref` (rev = the minted revision); its URL in `Location`.
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
@@ -409,26 +459,31 @@ command create(scope: Scope, draft: CreateRequest) returns pinned<resource> fail
 
 >DB I belive that put needs to take an unpinned reference yes? Probably worth a scrub of all of these operations
 >L applied — scrub done. Write/identity targets → `unpinned<resource>` (put/patch/delete/revisions/cancel/pull): you address them by identity, never by a pinned revision. `get` stays a general `ref` (it CAN read a pinned revision); `call` left general (a specific Operation revision may be callable). Signatures below updated.
+## put
 /// bdp = { kind = "primitive", primitive = "put" }
 /// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
 /// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
 command put(resource: unpinned<resource>, body: CreateRequest, ifRevision?: Rev) returns pinned<resource> fails Problem idempotent
 
+## patch
 /// bdp = { kind = "primitive", primitive = "patch" }
 /// description: JSON Patch limited to /properties and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref` (rev = the new revision). (JSON Patch is the base format; a richer patch format is an advertised capability.)
 /// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
 command patch(resource: unpinned<resource>, patch: JsonPatch, ifRevision?: Rev) returns pinned<resource> fails Problem
 
+## delete
 /// bdp = { kind = "primitive", primitive = "delete" }
 /// description: Retire a Resource, minting a final revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the final pinned `ref` (rev = the revision it minted), not a representation.
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 command delete(resource: unpinned<resource>, ifRevision?: Rev) returns pinned<resource> fails Problem idempotent
 
+## list
 /// bdp = { kind = "primitive", primitive = "list" }
 /// description: A collection of CURRENT resources in a scope, as a source<representation>. `where` is a ListFilter (the flat low bar every service supports). Baseline read; the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
 /// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,406] } }
 fn list(scope: Scope, where?: ListFilter, select?: selector, page?: Page): source<representation>
 
+## revisions
 /// bdp = { kind = "primitive", primitive = "revisions" }
 /// description: The history of ONE resource — id-targeted like `show`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
 /// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,404] } }
@@ -436,11 +491,13 @@ fn revisions(resource: unpinned<resource>, select?: selector, page?: Page): sour
 
 // --- Invoke: call an Operation, cancel its run ---
 
+## call
 /// bdp = { kind = "primitive", primitive = "call" }
 /// description: Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Location when `creates` / 409 on `err` / Problem status on `fault`). `--async` returns 202 + the AsyncResult at Location; settle later. The ONLY primitive with the rich Outcome.
 /// openapi = { operationId = "call", method = "POST", pathItem = "operation", tags = ["Core"], params = { async = { in = "query", schema = "bool", required = false } }, responses = [ { status = 200, schema = "Reply", description = "sync ok" }, { status = 201, schema = "Reply", description = "sync ok, mints a resource" }, { status = 409, schema = "Reply", description = "declared err — branch on the arm" }, { status = 202, schema = "AsyncResult", description = "async — result at Location" } ], responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } } }
 fn call(operation: ref<Operation>, request: Request): Reply
 
+## cancel
 /// bdp = { kind = "primitive", primitive = "cancel" }
 /// description: kill -9 on a running AsyncResult — writes reply.outcome = canceled. Runs NO compensation (that is the scheduler's graceful path); its effects stay findable via `causedBy`.
 /// openapi = { operationId = "cancel", method = "POST", pathItem = "asyncResult", tags = ["Core"], success = { status = 200 }, problem = { status = [404,409] } }
@@ -448,6 +505,7 @@ command cancel(asyncResult: unpinned<AsyncResult>) returns pinned<AsyncResult> f
 
 // --- Observe: pull a Channel ---
 
+## pull
 /// bdp = { kind = "primitive", primitive = "pull" }
 /// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` events. Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three. Faults `cursor-expired` below the retention floor.
 /// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Format", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
@@ -455,34 +513,41 @@ fn pull(channel: unpinned<Channel>, request: PullRequest): PullPage
 
 // --- Emit: push to a Channel ---
 
+## push
 /// bdp = { kind = "primitive", primitive = "push" }
 /// description: Write a Channel — consume a source of events (the channel's `pushSchema` type) and append them in order. The dual of `pull`, and the channel analog of scope `import`: skip-and-report under a PushStrategy, idempotent re-push. `jsonl` body (bulk); `sse` is pull-only. Valid on a `sink`/`duplex` channel; a `source`-only channel faults `channel-not-pushable`. A terminal (closed/failed) channel faults; a `single` channel caps the batch at one.
 /// openapi = { operationId = "push", method = "POST", pathItem = "channel", tags = ["Core"], params = { strategy = { in = "query", schema = "PushStrategy", required = false } }, request = { contentType = "application/jsonl" }, success = { status = 200 }, problem = { status = [400,405,409,422] } }
 command push(channel: unpinned<Channel>, source: source<any>, strategy?: PushStrategy) returns PushReport fails Problem
 
+## PushStrategy
 /// description: How `push` handles a rejected event or a re-push — the event analog of ImportStrategy (distinct: events, not resources).
 schema PushStrategy = { dedup?: bool, dryRun?: bool }
 
+## PushReport
 /// description: What `push` reports — counts and any skipped/rejected events by ordinal. The event analog of ImportReport (distinct).
 schema PushReport = { pushed: number, skipped: number, conflicts: [ { ordinal: Ordinal, reason: string } ] }
 
 // --- Scope-level: atomic apply (write-set), pure eval (query), bulk export/import ---
 
+## apply
 /// bdp = { kind = "primitive", primitive = "apply" }
 /// description: Atomic multi-write within ONE scope — one transaction, all-or-nothing. A write-set only: no sub-calls, no parallelism (parallelism inside a transaction is disallowed). Shares the caller's cause; gets its own transaction. `batch` is surface sugar for `apply`.
 /// openapi = { operationId = "apply", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,422] } }
 command apply(scope: Scope, writes: [Write]) returns [ref<resource>] fails Problem atomic
 
+## eval
 /// bdp = { kind = "primitive", primitive = "eval" }
 /// description: Evaluate a PURE expression against a scope — the query primitive. Read-only: a query cannot write. Returns the expression's value. The expression language (set + traversal operators, predicates) is the query corelib capability, advertised in discovery; the base accepts an opaque Expression.
 /// openapi = { operationId = "eval", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,422] } }
 fn eval(scope: Scope, expression: Expression): any
 
+## export
 /// bdp = { kind = "primitive", primitive = "export" }
 /// description: Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ ListFilter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 /// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
 fn export(scope: Scope, where?: ListFilter, select?: selector, revisions?: bool): source<ExportRecord>
 
+## import
 /// bdp = { kind = "primitive", primitive = "import" }
 /// description: The bulk WRITE path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
 /// openapi = { operationId = "import", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,422] } }
@@ -490,6 +555,7 @@ command import(scope: Scope, source: source<ExportRecord>, strategy?: ImportStra
 
 // --- Operation request/patch bodies & read-shaping ---
 
+## CreateRequest
 /// description: The body of `create`/`put`, uniform over kind, discriminated by `kind`.
 schema CreateRequest = {
   kind:        Kind,
@@ -499,12 +565,15 @@ schema CreateRequest = {
   metadata?:   { ...: any }
 }
 
+## JsonPatchOp
 /// description: One RFC 6902 operation. In `patch`, paths are limited to /properties and /metadata.
 schema JsonPatchOp = { op: "add"|"remove"|"replace"|"move"|"copy"|"test", path: string, value?: any, from?: string }
 
+## JsonPatch
 /// description: An ordered list of JSON Patch operations — the `patch` body, and a change-event patch payload.
 schema JsonPatch = [ JsonPatchOp ]
 
+## Write
 /// description: One write in an `apply` write-set — a create, put, patch or delete against the scope. (`batch` is surface sugar over `apply`, same write-set.)
 schema Write =
     bCreate { draft: CreateRequest }
@@ -512,17 +581,22 @@ schema Write =
   | bPatch  { resource: ref<resource>, patch: JsonPatch, ifMatch?: Rev }
   | bDelete { resource: ref<resource>, ifMatch?: Rev }
 
+## Expression
 /// description: A PURE expression for `eval`. Opaque at the base — an AST the service's expression engine understands; the concrete expression language (set / traversal operators, predicates) is the query corelib capability, advertised in discovery.
 schema Expression = { ...: any }
 
+## selector
 /// description: A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `kind`/`id` are never dropped.
 schema selector = { include?: [JsonPointer], omit?: [JsonPointer], expand?: [LocalName] }
 
+## JsonPointer
 /// description: A JSON Pointer (RFC 6901) into a representation.
 type JsonPointer is string
 
+## ListFilter
 /// description: The low-bar list filter — a flat conjunction (AND) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports. The full boolean/traversal `filter` is a corelib capability (query), not base.
 schema ListFilter = [ listCondition ]
+## listCondition
 schema listCondition =
     compare     { field: FieldPath, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value: any }
   | matches     { field: FieldPath, pattern: string, using: "substring"|"glob"|"regex" }
@@ -535,11 +609,14 @@ schema listCondition =
 >>> I think there's a great question about isType vs isKind.  If we still want isType, exact goes away. I think there is some value in donig a good treatment of kind - kind of a variation of exact - prefix match vs. complete match.
 >L applied (your call) — isKind, `match: "exact" | "prefix"` (no "type" for kinds; minimal semantic weight). prefix = kind-path ⊑ (ltree `<@` / `LIKE 'bead/…%'`), exact = `=`. Default `prefix` (the common "is it an issue(-ish)" test). Broader "type→kind" rename (Bead.type / BeadType / subjectType) is the kinds thrust.
   | isKind      { kind: RelativeId, match: "exact" | "prefix" = "prefix" }
+## FieldPath
 /// description: A field path as a segment array (disambiguates dotted keys); selector/patch keep JSON Pointer.
 schema FieldPath = [string]
+## RelativeId
 /// description: A kind-path as a local id segment, relative to the scope (the target for isKind's prefix/exact match).
 schema RelativeId = string
 
+## Page
 /// description: Windowed paging request — resume an opaque cursor xor start at a known ordinal, with a limit.
 schema Page = { after?: Cursor, from?: Ordinal, limit?: number }
 
@@ -552,9 +629,11 @@ schema Page = { after?: Cursor, from?: Ordinal, limit?: number }
 
 >>> uh, what about the revision and provenance of the delete?  Maybe the arm of this needs a little love
 >L PROPOSAL (per "name the tombstone; put provenance in the DU; maybe a top-level DU") — ChangeEvent is now a TOP-LEVEL DU on lifecycle (Created | Updated | Deleted); `op` disappears (the arm IS the lifecycle). Common fields factor into ChangeEnvelope, spread into each arm. Provenance is placed per-arm, ELIDED where the post-image already carries it (Created / Updated-full → the representation's Bead.provenance) and EXPLICIT where there is none (Updated-patch / Deleted). `subject.rev` is always the new revision — the TOMBSTONE revision on Deleted. Review this shape.
+## ChangeEvent
 /// description: Core's report of one committed change to one Resource, as a top-level DU on lifecycle (a relationship change is an Updated to its source bead). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.
 schema ChangeEvent = Created | Updated | Deleted
 
+## ChangeEnvelope
 /// description: Fields common to every change arm; spread into each. `subject.rev` IS the new (or tombstone) revision — there is no separate revision field.
 schema ChangeEnvelope = {
   ordinal:      Ordinal,                          // position in the changefeed, assigned on append
@@ -569,15 +648,19 @@ schema ChangeEnvelope = {
   calledBy?:    Frame                               // diagnostic-tier — the call-tree back-pointer
 }
 
+## Created
 /// description: A resource admitted. Full post-image; its Bead.provenance IS the provenance.
 schema Created = { ...ChangeEnvelope, representation: representation }
 
+## Updated
 /// description: A resource changed. `content` is the orthogonal ENCODING axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.
 schema Updated = { ...ChangeEnvelope, content: ChangeContent }
 
+## Deleted
 /// description: A resource retired — the TOMBSTONE. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.
 schema Deleted = { ...ChangeEnvelope, provenance: Provenance }
 
+## ChangeContent
 /// description: The change payload for Updated — full-vs-patch, the ENCODING axis (orthogonal to lifecycle).
 schema ChangeContent =
     full  { representation: representation }          // a post-image (put/replace or a full update); provenance rides in it
@@ -597,6 +680,7 @@ schema ChangeContent =
 //   | jsonl    | application/jsonl       | pull, list, export  |  bulk
 //   | sse      | text/event-stream       | pull only (live)    |  live
 
+## PullRequest
 /// description: The input to `pull` — which stream, where to resume, how much, and the transport. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive.
 schema PullRequest = {
   >>> uh, isn't the source the subject and first parameter?  I *think* we elevate teh target resource to a distinct first parameter
@@ -609,6 +693,7 @@ schema PullRequest = {
   select?:  selector                                // project each event
 }
 
+## PullPage
 /// description: One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
 schema PullPage = {
   /// since we use pullpages for things other than events, maybe call this field "items" or something like that?
@@ -626,12 +711,15 @@ schema PullPage = {
 // of `get` — a full representation, or every revision under `--revisions`), then
 // an end record. A reader REFUSES a file that ends without the end record.
 
+## ExportRecord
 /// description: One line of an export.
 schema ExportRecord = ExportBegin | representation | ExportEnd
 
+## ExportBegin
 /// description: The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`. (Spelling proposed.)
 schema ExportBegin = { kind: "export-begin", scope: AbsoluteHttpUrl, cursor: Cursor }
 
+## ExportEnd
 /// description: The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole. (Spelling proposed.)
 schema ExportEnd = { kind: "export-end", count: number }
 
@@ -639,8 +727,10 @@ schema ExportEnd = { kind: "export-end", count: number }
 
 >DB what is sourcePrefix?
 >L nuked (your call) — removed; it'll come back if we actually need it.
+## ImportStrategy
 schema ImportStrategy = { dedup?: bool, allowStale?: bool, dryRun?: bool, idRoot?: string }
 
+## ImportReport
 /// description: What `import` reports — counts and any skipped/conflicted records.
 schema ImportReport = { imported: number, skipped: number, conflicts: [ { id: ref<resource>, reason: string } ] }
 
