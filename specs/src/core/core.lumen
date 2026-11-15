@@ -20,7 +20,7 @@
 // -----------------------------------------------------------------------------
 //  1. NOMINAL refinement types, on the LUMEN surface only. v0.2 core was "schema
 //     only, no nominal types / raw data access." This design uses nominal types with
-//     refinement — `Bead is resource`, `Channel<E> is Bead`, `Operation is Bead`,
+//     refinement — `Bead is resource`, `Channel is Bead`, `Operation is Bead`,
 //     `AsyncResult is Bead` — so every resource kind shares one versioning/provenance/
 //     graph model. ON THE WIRE a Resource still carries only `type` (a `ref<BeadType>`);
 //     `schema` stays value-only (types have identity, schemas do not).
@@ -33,7 +33,7 @@
 //     revision for temporal analysis. NOT provenance (that is per-revision).
 //  4. Reshaped Request/Reply/Outcome — flat (no `context` wrapper), arguments as a
 //     name/value list mirroring `parameters`, `cause`+`frame` correlation, and a
-//     one-and-done `Channel<Reply>` for async. `Outcome` gains `canceled` (kill -9,
+//     one-and-done source `Channel` for async. `Outcome` gains `canceled` (kill -9,
 //     core); `timed_out` and graceful-cancel ride with the scheduler.
 //  5. Result arms are `success`/`failure` (ruled 2026-11-13; the earlier `ok`/`err` reshape
 //     is reverted). The Outcome DU remains the BDP core designer's to own.
@@ -252,17 +252,29 @@ type Generic is resource {
 /// description: An HTTP media type (RFC 9110), split into its grammar components.
 schema ContentType = { type: string, subtype: string }
 
-// --- Capability beads: pullable Channel, callable Operation, async-result handle ---
+// --- Capability beads: a Channel (pull/push), callable Operation, async-result handle ---
 
-
->DB unless I'm mistaken, this needs to contain the event schema as a property. just a jsonSchema will do
->L applied — E is phantom (erases on the wire), so the event's jsonSchema must ride as DATA, exactly like Operation carries operationSchema. Added `eventSchema: schema`.
-/// description: A Bead whose events are read with `pull`. Operational config lives here as properties; the event type is the parameter E (its jsonSchema rides in `eventSchema`). Storage class is Intrinsic (service-declared). pull Channel<E> → source<E>.
-type Channel<E> is Bead {
-  eventSchema: schema,                 // jsonSchema for E — E is phantom, so the event shape rides here as DATA
-  retention:   Retention,
-  cardinality: "single" | "broadcast"
+/// description: A channel's full descriptor — its two event types, direction and delivery characteristics. This IS
+/// normative: a channel bead's content, and what `?schema` returns (cribbing operationSchema). An event type is a
+/// normative: `ref<BeadType>` — the ref-preserving type reference, never a JsonSchema — exactly as a resource's
+/// normative: `type` is. A channel carries TWO distinct event types, one per OPERATOR: `pullSchema` (what `pull`
+/// normative: delivers) and `pushSchema` (what `push` accepts); on a `duplex` channel the two may differ. The
+/// normative: `direction` FACET and the two fields are mutually constraining: `source` ⟺ pullSchema set &
+/// normative: pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
+/// normative: Channels are STRUCTURAL types in BDP and Lumen, so the event types are spelled out here rather than
+/// normative: parameterized: a Lumen channel generic (`source<T>` / `sink<F>` / `duplex<F,T>`) lowers to these
+/// normative: concrete `ref<BeadType>` fields — BDP has no generics.
+schema channelSchema = {
+  pushSchema?:  ref<BeadType>,                   // what `push` accepts — null for a pull-only (source) channel
+  pullSchema?:  ref<BeadType>,                   // what `pull` delivers — null for a push-only (sink) channel
+  direction:    "source" | "sink" | "duplex",    // the advertised facet — REQUIRED, no default
+  retention:    Retention,
+  cardinality:  "single" | "broadcast"
 }
+
+/// description: A Bead read with `pull` (a `source`/`duplex` channel) and/or written with `push` (a `sink`/`duplex`
+/// normative: channel). Its content IS a channelSchema; `?schema` returns exactly that. Storage class is Intrinsic.
+type Channel is Bead { ...channelSchema }        // ...X = SPREAD, exactly as Operation spreads operationSchema
 
 >DB the schema for this didn't render in the markdown
 >L — shape is correct; this is a GENERATOR gap, not a spec bug. The bare nullary variant `forever` and the self-recursive `compacted { window?: Retention }` are what the markdown renderer choked on. Flagged for the lock/codegen pass; no spec change.
@@ -275,14 +287,14 @@ schema Retention =
 /// description: A callable Bead, invoked with `call`. Its content IS an operationSchema (the signature + characteristics); `?schema` returns exactly that. Storage class is Intrinsic.
 type Operation is Bead { ...operationSchema }   // ...X = SPREAD: Operation's content includes all of operationSchema's fields inline
 
-/// description: The async result of one `call` — a handle you `show` for the record and `cancel` to kill. References a one-and-done Channel<Reply> that fires the Reply on settlement. `cause`/`frame` are duped here (not only on the reply) so a PENDING run can be correlated.
+/// description: The async result of one `call` — a handle you `show` for the record and `cancel` to kill. References a one-and-done `source` Channel (its `pullSchema` is the Reply type) that fires the Reply on settlement. `cause`/`frame` are duped here (not only on the reply) so a PENDING run can be correlated.
 type AsyncResult is Bead {
   operation:    ref<Operation>,
   cause:        Cause,                // this invocation's cause (readable while pending)
   frame:        Frame,               // this invocation's call-frame
   request:      Request,
   reply?:       Reply,               // absent ⇒ pending; written once at settlement
-  replyChannel: ref<Channel<Reply>>   // one-and-done: fires the Reply when settled
+  replyChannel: ref<Channel>          // one-and-done source channel; its pullSchema is the Reply type; fires on settlement
 }
 
 
@@ -436,9 +448,22 @@ command cancel(asyncResult: unpinned<AsyncResult>) returns pinned<AsyncResult> f
 // --- Observe: pull a Channel ---
 
 /// bdp = { kind = "primitive", primitive = "pull" }
-/// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source<E>. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three. Faults `cursor-expired` below the retention floor.
-/// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Format", required = false } }, success = { status = 200 }, problem = { status = [400,410] } }
-fn pull(channel: unpinned<Channel<any>>, request: PullRequest): PullPage
+/// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` events. Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three. Faults `cursor-expired` below the retention floor.
+/// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Format", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
+fn pull(channel: unpinned<Channel>, request: PullRequest): PullPage
+
+// --- Emit: push to a Channel ---
+
+/// bdp = { kind = "primitive", primitive = "push" }
+/// description: Write a Channel — consume a source of events (the channel's `pushSchema` type) and append them in order. The dual of `pull`, and the channel analog of scope `import`: skip-and-report under a PushStrategy, idempotent re-push. `jsonl` body (bulk); `sse` is pull-only. Valid on a `sink`/`duplex` channel; a `source`-only channel faults `channel-not-pushable`. A terminal (closed/failed) channel faults; a `single` channel caps the batch at one.
+/// openapi = { operationId = "push", method = "POST", pathItem = "channel", tags = ["Core"], params = { strategy = { in = "query", schema = "PushStrategy", required = false } }, request = { contentType = "application/jsonl" }, success = { status = 200 }, problem = { status = [400,405,409,422] } }
+command push(channel: unpinned<Channel>, source: source<any>, strategy?: PushStrategy) returns PushReport fails Problem
+
+/// description: How `push` handles a rejected event or a re-push — the event analog of ImportStrategy (distinct: events, not resources).
+schema PushStrategy = { dedup?: bool, dryRun?: bool }
+
+/// description: What `push` reports — counts and any skipped/rejected events by ordinal. The event analog of ImportReport (distinct).
+schema PushReport = { pushed: number, skipped: number, conflicts: [ { ordinal: Ordinal, reason: string } ] }
 
 // --- Scope-level: atomic apply (write-set), pure eval (query), bulk export/import ---
 
@@ -521,7 +546,7 @@ schema Page = { after?: Cursor, from?: Ordinal, limit?: number }
 // -----------------------------------------------------------------------------
 // §8. Change events & the changefeed
 // -----------------------------------------------------------------------------
-// Each Scope has one built-in changefeed Channel<ChangeEvent> at the well-known
+// Each Scope has one built-in changefeed Channel (source; pullSchema = ChangeEvent) at the well-known
 // id `/sys/changes`. Its events are what create/put/patch/delete commit.
 
 >>> uh, what about the revision and provenance of the delete?  Maybe the arm of this needs a little love
@@ -624,7 +649,7 @@ schema ImportReport = { imported: number, skipped: number, conflicts: [ { id: re
 // -----------------------------------------------------------------------------
 // The request routes to the target resource (implicit dispatch); well-known ids
 // let a client address system resources by convention.
-//   /sys/changes   — the scope's changefeed Channel<ChangeEvent>
+//   /sys/changes   — the scope's changefeed Channel (source; pullSchema = ChangeEvent)
 //
 // Well-known Types a client can recognise from a Bead's `type` alone (fixed URLs
 // OPEN): BeadType (the type of a type), Channel, Operation, AsyncResult.
