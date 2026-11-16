@@ -88,38 +88,27 @@
 
 
 // =============================================================================
-// resource-model.lumen — the BDP resource & bead model
+// §1–§6. The resource & bead model  (closed 2026-11-16)
 // =============================================================================
-//
-// The identity, resource, and bead model for BDP. Designed 2026-11-16.
-//
-// Captures: ResourceId / Scope, Resource + Bead<T>, the naming authority, the
-// single-`is` type system (path = kind), the body firewall, and the four bead
-// bodies (Type / Operation / Channel / Package).
-//
-// This SUPERSEDES the identity / resource / bead section of core.lumen. The rest
-// of core.lumen (the operations, change events, export format) is unchanged and
-// still references these shapes — merge this in when ready. Types referenced but
-// not (re)defined here — Provenance, Timestamp, StorageClass, Retention, SemVer,
-// BeadValueSchema, namedDeclarations, AbsoluteUri, Package — live in core.lumen.
+// Every declaration carries a `##` anchor (addressable from bdp.lumen) and a
+// `/// description:`. Normative design rules are `/// normative:` metadata on the
+// shape they govern; the §3/§4 rule blocks are prose (they span the model and the
+// Lumen Types layer rather than one wire shape).
 //
 // -----------------------------------------------------------------------------
 // §0. Charter — what this spec carries (and what it does not)
 // -----------------------------------------------------------------------------
-// Three concerns were being conflated. This file holds the first, touches the
-// second only where needed, and leaves the third to Lumen's Types layer:
 //   #1  The format & semantics of bead schemas and operations.  ← THE protocol.
 //   #2  A general resource model — ONLY so the export format and packages can
 //       carry NON-bead resources (files / assets). Minimal footprint.
 //   #3  How types & scopes are modeled in Lumen (the Types layer). NOT here.
 //
 // Rulings baked in (2026-11-16):
-//  - A reference to ANY resource is a ResourceRef; the pin lives in `rev`.
-//    One reference world — including the authority that names a type.
+//  - A reference to ANY resource is a ResourceRef; the pin lives in `rev`
+//    (one reference world — including the authority that names a type).
 //  - `kind` is NOT stored — it is `type.id`, the single-`is` refinement path.
 //  - `Bead` is a marker: refining it puts the subtype's fields into `body`
-//    (the firewall); refining `Resource` directly adds top-level envelope fields
-//    (a new resource CATEGORY).
+//    (the firewall); refining `Resource` directly adds a new resource CATEGORY.
 //  - `union` is for CLOSED value-level sum types only; kind hierarchies are
 //    OPEN single-inheritance refinement.
 
@@ -127,250 +116,286 @@
 // §1. Identity
 // -----------------------------------------------------------------------------
 
-// A resource-version token — opaque by definition; compared for exact equality only, never inspected.
+## Rev
+/// description: A resource-version token — opaque by definition; compared for exact equality only, never inspected.
 type Rev = string
 
-// A content-addressed rev (sha256 / commit) — a Rev that is a digest. Since `Digest is Rev`,
-// it fits anywhere a Rev does (e.g. a pinned external ref's `rev`), so there is no Rev-vs-Digest split.
+## Digest
+/// description: A content-addressed rev (sha256 / commit) — a Rev that is a digest.
+/// normative: `Digest is Rev`, so a digest satisfies any `rev: Rev`; there is no Rev-vs-Digest split on the wire.
 type Digest is Rev
 
-// The URL of a BDP scope (a store).
+## BdpScope
+/// description: The URL of a BDP scope (a store).
 type BdpScope = AbsoluteUri
 
-// The namespace an `id` resolves in — enumerated, so it's explicit what is supported.
-// Absent ⇒ the current (local) BDP scope.
+## Scope
+/// description: The namespace an `id` resolves in. Absent ⇒ the current (local) BDP scope.
+/// normative: A Scope is exactly one of — absent (the local BDP scope); a BdpScope URL (another BDP store, `id` relative to it); or the literal `"uri"` (NOT a BDP scope — `id` is an absolute URI whose scheme resolves it).
 type Scope =
-    BdpScope    // another BDP store — `id` is relative to it
-  | "uri"       // NOT a BDP scope — `id` is an absolute URI; its scheme resolves
+    BdpScope
+  | "uri"
 
+## ResourceId
+/// description: The identity of a resource — a scope, an id within it, and an optional revision.
 type ResourceId {
-  scope?: Scope   // absent ⇒ local
+  /// description: The namespace the `id` resolves in; absent ⇒ local.
+  scope?: Scope
+  /// description: The id, relative to `scope` (or the absolute URI when `scope` is `"uri"`).
   id:     string
+  /// description: The specific revision; absent ⇒ the current one.
   rev?:   Rev
 }
 
-// A reference to a resource is just its id.
+## ResourceRef
+/// description: A reference to a resource is just its id.
 type ResourceRef = ResourceId
 
-// Typed (phantom) references — T is checker-only and erases on the wire.
+## ref
+/// description: A typed (phantom) reference — T is checker-only and erases on the wire.
 type ref<T>      = ResourceRef
 
-// a pin is a local Rev or an external Digest — and `Digest is Rev`, so both satisfy `rev: Rev`.
-type pinned<T>   is ref<T> { rev: Rev }    // rev present — names one exact revision
-type unpinned<T> is ref<T> { rev: null }   // rev absent  — floats to the current revision
+## pinned
+/// description: A reference pinned to one exact revision (`rev` present).
+/// normative: A pin is a local Rev or an external Digest; since `Digest is Rev`, both satisfy `rev: Rev`.
+type pinned<T>   is ref<T> { rev: Rev }
+
+## unpinned
+/// description: An unpinned reference (`rev` absent) — floats to the current revision.
+type unpinned<T> is ref<T> { rev: null }
 
 // -----------------------------------------------------------------------------
 // §2. Resource & Bead
 // -----------------------------------------------------------------------------
 
-// A slash-delimited path: "issue/task" (bead) · "text/plain" (content).
+## PathString
+/// description: A slash-delimited path — `"issue/task"` (bead) or `"text/plain"` (content).
 type PathString = string
 
-// The resource that NAMES a `type` — a package, or a registry like IANA.
+## Authority
+/// description: The resource that NAMES a `type` — a package, or a registry like IANA. A ResourceRef, so the pin lives in its `rev`.
 type Authority = ResourceRef
 
-// A pinned reference to a Package resource (an Authority that is a package).
+## PackageRef
+/// description: A pinned reference to a Package resource — an Authority that is a package.
 type PackageRef = ref<PackageBead>
 
-// The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body`
-// are always present; the rest is optional (a minimal / ad-hoc resource may omit it).
+## Resource
+/// description: The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+/// normative: Refining `Resource` directly adds top-level envelope fields — a new resource CATEGORY (contrast `Bead<T>`, whose refinements go into `body`).
 type Resource {
+  /// description: The resource's identity.
   id:            ResourceId
-  // who names `type`: a package (bead) or a registry like IANA (content). Absent ⇒ ad-hoc / duck-typed.
+  /// description: Who names `type` — a package (bead) or a registry like IANA (content). Absent ⇒ ad-hoc / duck-typed.
   authority?:    Authority
-  // the type PATH, resolved within `authority`'s namespace.
+  /// description: The type PATH, resolved within `authority`'s namespace.
   type:          PathString
-  // the content. raw for a bare resource; narrowed to a schema by Bead<T>.
+  /// description: The content — raw for a bare resource; narrowed to a schema by `Bead<T>`.
   body:          any
+  /// description: Opaque per-resource sidecar the protocol does not interpret.
   metadata?:     { ...: any }
+  /// description: Who caused this revision, how its period began, and when.
   provenance?:   Provenance
+  /// description: The resource's birth time, denormalized onto every revision.
   createdAt?:    Timestamp
+  /// description: How the resource is kept — durable, ephemeral, or intrinsic.
   storageClass?: StorageClass
 }
 
-// A bead is a Resource whose body is typed, and whose authority (when present) is a
-// package. `Bead` is the MARKER: refining it puts the subtype's fields into `body`.
+## Bead
+/// description: A bead is a Resource whose body is typed, and whose authority (when present) is a package.
+/// normative: `Bead` is the MARKER. Refining it (directly or transitively) narrows `body` to the subtype's schema — the FIREWALL: a bead's domain fields live under `body`, never alongside the envelope. `Bead<T>` narrows exactly two fields: `authority` to a package ref, `body` to `T`.
+/// normative: The authority DISCRIMINATES bead vs content — a package ref (versioned, pinned) ⇒ bead; a registry ref (IANA, stable) ⇒ content. `authority` is still optional, so a bead MAY be duck-typed (authority absent).
 type Bead<T> is Resource {
-  // narrowed to a package ref — but still OPTIONAL, so a bead CAN be duck-typed (authority absent).
+  /// description: Narrowed to a package ref; still optional (a duck-typed bead omits it).
   authority?: PackageRef
-  body:       T             // narrowed any → T. THIS narrowing is the firewall.
+  /// description: The typed body — the firewall. Narrows `Resource.body` (`any` → `T`).
+  body:       T
 }
 
-// Content is a BARE Resource — no narrowing. Its `type` is a media type named by
-// a registry; its `body` is raw bytes/text. (This retires the old "WebResource".)
-// See §6 for a text/plain example.
+// Content is a BARE Resource — no narrowing: `type` is a media type named by a
+// registry, `body` is raw bytes/text. (Retires the old "WebResource"; see §6.)
 
 // -----------------------------------------------------------------------------
-// §3. Authority, type, and resolution
+// §3. Authority, type, and resolution  (normative prose)
 // -----------------------------------------------------------------------------
-// A resource's TYPE is fully qualified by (authority, type):
-//   bead:    authority = ref<Package> { scope: "uri", id: <package url>, rev: <pin> }
-//            type      = a package-relative path, e.g. "issue/task"
-//   content: authority = a registry ref { scope: "uri", id: <IANA url> }
-//            type      = a media type, e.g. "text/plain"
-//
-// The authority is PINNED (its `rev` = the resolved digest / semver), so the type
-// a resource was born against is frozen at inception and replays identically.
-//
-// The authority DISCRIMINATES bead vs content: a `ref<Package>` (versioned,
-// pinned) ⇒ bead; a registry ref (IANA, stable) ⇒ content. The `is Bead`
-// narrowing to `ref<Package>` captures it — no separate marker field on the wire.
+// A resource's TYPE is fully qualified by the pair (authority, type):
+//   bead:    authority = a package ref { scope:"uri", id:<package url>, rev:<pin> };
+//            type      = a package-relative path, e.g. "issue/task".
+//   content: authority = a registry ref { scope:"uri", id:<IANA url> };
+//            type      = a media type, e.g. "text/plain".
+// The authority is PINNED (its `rev` = the resolved digest/semver), so the type a
+// resource was born against is frozen at inception and replays identically.
 
 // -----------------------------------------------------------------------------
-// §4. The type system (Lumen Types layer — the contract)
+// §4. The type system (Lumen Types layer — normative prose)
 // -----------------------------------------------------------------------------
 // PATH = CHAIN. Bead subtypes use SINGLE inheritance; the `is` chain builds the
 // element path, which IS `type.id`, which IS `kind`:
-//   type Issue is Bead  { … }                      → "issue"
-//   type Task  is Issue { … }                      → "issue/task"
-//   type Policy is Constraint, Constraint is Memory → "memory/constraint/policy"
-// Only ONE `is` parent is allowed — that is exactly what makes the path (a tree)
-// unique. Allow multiple and `kind` becomes a DAG with no canonical path.
+//   type Issue is Bead  { … }   → "issue"
+//   type Task  is Issue { … }   → "issue/task"
+// Only ONE `is` parent is allowed — that is what makes the path (a tree) unique.
 //
-// INHERITANCE RULES (how a chain flattens to one effective schema):
+// INHERITANCE (how a chain flattens to one effective schema):
 //   - additive: a child has all parent fields plus its own
-//   - narrowing-only override: narrow a type, or optional→required; never widen
-//     or drop — preserves substitutability (ref<Issue> may hold a Task)
+//   - narrowing-only override: narrow a type, or optional→required; never widen or
+//     drop — preserves substitutability (ref<Issue> may hold a Task)
 //   - a same-named child field must be a narrowing, else a diagnostic
 //   - `abstract?` on a TypeDef ⇒ not directly instantiable (a bead must use a leaf)
 //
-// RESOLVER (Types layer — an advertised capability, NOT core):
-//   resolve = walk the pinned path base→leaf, merge per the rules. The path IS
-//   the plan (no search). A pinned authority ⇒ the effective schema is immutable
-//   and cacheable. A cross-package parent is a `refines` ref into another
-//   authority; the resolver follows it and keeps walking.
+// RESOLVER (Types-layer capability, NOT core): walk the pinned path base→leaf and
+// merge per the rules — the path IS the plan. A pinned authority ⇒ the effective
+// schema is immutable and cacheable. A cross-package parent is a `refines` ref the
+// resolver follows across authorities.
 //
-// CROSS-MODULE: a foreign name never enters the path. A cross-module `is` makes
-// the child a LOCAL root whose `refines` holds a resolved ref (identity carries a
-// ref, not a name); the import alias is author-time only. So within a module
-// kind == schema-ancestry; across modules kind stays local and "is-a" is a
-// `refines`-graph query (a capability), not a kind-prefix scan.
+// CROSS-MODULE: a foreign name never enters the path. A cross-module `is` makes the
+// child a LOCAL root whose `refines` holds a resolved ref (identity carries a ref,
+// not a name). Within a module kind == schema-ancestry; across modules kind stays
+// local and "is-a" is a `refines`-graph query (a capability), not a kind-prefix scan.
 //
-// REFINEMENT vs UNION:
-//   - refinement (`is`) = OPEN kind hierarchy, path-addressed   (issue/task)
-//   - union             = CLOSED value-level sum type           (Result, Outcome)
-//   The marker `is Bead` ⇒ refinements go into `body`; refining `Resource`
-//   directly ⇒ a new resource CATEGORY with top-level envelope fields.
+// REFINEMENT vs UNION: refinement (`is`) = OPEN kind hierarchy, path-addressed;
+// `union` = CLOSED value-level sum type (Result, Outcome).
 
 // -----------------------------------------------------------------------------
 // §5. The bead bodies — each XBead = Bead<its body type>
 // -----------------------------------------------------------------------------
+
+## TypeBead
+/// description: A bead whose body is a type definition.
 type TypeBead      = Bead<TypeDef>
+## OperationBead
+/// description: A bead whose body is an operation descriptor.
 type OperationBead = Bead<Operation>
+## ChannelBead
+/// description: A bead whose body is a channel descriptor.
 type ChannelBead   = Bead<Channel>
+## PackageBead
+/// description: A bead whose body is a package.
 type PackageBead   = Bead<PackageDef>
 
-// A bundled reference to a package element — a package authority plus the element's
-// relative path. The authority is OPTIONAL: a same-package (relative) reference omits it,
-// as `refines` does within a package. (A resource's OWN type is this pair unbundled into
-// its `authority` + `type` envelope fields; this is the standalone / cross-package form.)
+## ElementRef
+/// description: A bundled reference to a package element — a package authority plus the element's relative path.
+/// normative: `authority` is OPTIONAL — a same-package (relative) reference omits it, as `refines` does within a package. A resource's OWN type is this pair unbundled into its `authority` + `type` envelope fields; ElementRef is the standalone / cross-package form.
 type ElementRef {
-  authority?: PackageRef   // absent ⇒ relative to the current package
+  /// description: The package that names the element; absent ⇒ relative to the current package.
+  authority?: PackageRef
+  /// description: The element's package-relative path.
   path:       ElementPath
 }
+## TypeRef
+/// description: A reference to a type element.
 type TypeRef      = ElementRef
+## OperationRef
+/// description: A reference to an operation element.
 type OperationRef = ElementRef
+## ChannelRef
+/// description: A reference to a channel element.
 type ChannelRef   = ElementRef
+## ElementPath
+/// description: A package-relative element path (the single-`is` chain).
 type ElementPath  = PathString
 
-// --- a type definition (body of a TypeBead) ---
+## TypeDef
+/// description: The body of a TypeBead — one node in the single-`is` refinement tree.
+/// normative: A type's element path is parent-path ⊕ its own name. A same-package parent is the path prefix (implicit); `refines` is set only for a cross-package parent. The Types resolver flattens the chain base→leaf per the §4 inheritance rules.
 type TypeDef {
-  // cross-package parent only; a same-package parent is the path prefix. null + no prefix ⇒ root.
+  /// description: Cross-package parent only; a same-package parent is the path prefix. Null + no prefix ⇒ root.
   refines?:   TypeRef
-  // true ⇒ not instantiable; a bead must use a leaf.
+  /// description: True ⇒ not directly instantiable; a bead must use a leaf.
   abstract?:  bool
-  // the body's declared properties; inherited ones merge per the rules.
+  /// description: The body's declared properties; inherited ones merge per the rules.
   properties: namedDeclarations
 }
 
-// --- an operation (body of an OperationBead) ---
+## Operation
+/// description: The body of an OperationBead — the call contract, the implementation, and the behavioural guarantees.
+/// normative: The effect markers (`pure`/`safe`/`idempotent`/`atomic`) are three-valued — present = a KNOWN guarantee, absent = UNKNOWN. `pure` ⟹ `safe`; `pure:true` + `safe:false` is a rejectable contradiction. The Lumen surface callable keywords lower to these fields (`fn` ⇒ pure).
 type Operation {
-  // the call contract.
+  /// description: The call contract.
   signature:       Signature
-  // mounted AST. present ⇒ STORED (ships in the pack) · absent ⇒ INTRINSIC (native).
+  /// description: The mounted AST. Present ⇒ STORED (ships in the pack) · absent ⇒ INTRINSIC (native).
   implementation?: any
-  // effect markers, three-valued (absent = unknown). `fn` lowers to pure.
+  /// description: Known to neither read nor write external state.
   pure?:           bool
-  // no writes (reads ok); pure ⟹ safe.
+  /// description: Known not to write (reads allowed); pure ⟹ safe.
   safe?:           bool
+  /// description: Known to be idempotent.
   idempotent?:     bool
-  // DEFERRED to the scheduler.
+  /// description: Known to commit as a single transaction. DEFERRED to the scheduler.
   atomic?:         bool
 }
+
+## Signature
+/// description: An operation's call contract — its interface, kept separate from the implementation and the effect markers.
 type Signature {
+  /// description: The input record — named, typed, required-flagged parameter declarations.
   parameters?: namedDeclarations
-  // success type (T).
+  /// description: The success type (T).
   success?:    BeadValueSchema
-  // declared failure type (E).
+  /// description: The declared failure type (E).
   failure?:    BeadValueSchema
-  // sync-only · caller-picks · async-only.
+  /// description: Async disposition — sync-only · caller-picks · async-only.
   async?:      "no" | "optional" | "required"
-  // a successful call mints a resource → 201 + Location.
+  /// description: Whether a successful call mints a resource → 201 + Location.
   creates?:    bool
 }
 
-// --- a channel (body of a ChannelBead) ---
+## Channel
+/// description: The body of a ChannelBead — its two event schemas, direction, and delivery characteristics.
+/// normative: `direction` and the two schemas are mutually constraining — `source` ⟺ pullSchema set & pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
 type Channel {
-  // what `push` accepts; null on a source (pull-only).
+  /// description: What `push` accepts; null on a source (pull-only).
   pushSchema?: BeadValueSchema
-  // what `pull` delivers; null on a sink (push-only).
+  /// description: What `pull` delivers; null on a sink (push-only).
   pullSchema?: BeadValueSchema
-  // source ⟺ pull · sink ⟺ push · duplex ⟺ both.
+  /// description: The advertised facet — source · sink · duplex.
   direction:   "source" | "sink" | "duplex"
+  /// description: How far back a cursor can resume.
   retention:   Retention
+  /// description: Delivery cardinality — single or broadcast.
   cardinality: "single" | "broadcast"
 }
 
-// --- a package (body of a PackageBead) ---
-// A package IS a resource, so its canonical identity is its own `id` —
-// { scope: "uri", id: <url>, rev: <pin> } — which is exactly what beads stamp as their
-// `authority`. The body does NOT restate it: that both removes the redundancy and avoids
-// colliding with the envelope's `authority` (which points the other way — who names THIS
-// bead's type). A locally-installed copy advertising its canonical id is the aliases story,
-// deferred — not a bespoke URL field here.
+## PackageDef
+/// description: The body of a PackageBead — its declared version and its elements.
+/// normative: A package IS a resource; its canonical identity is its own `id` ({ scope:"uri", id:<url>, rev:<pin> }) — exactly what beads stamp as their `authority`. It is NOT restated in the body.
 type PackageDef {
-  // the version this package declares; refs pin to a resolved one via their `rev`.
+  /// description: The version this package declares; refs pin to a resolved one via their `rev`.
   semVer:   SemVer
-  // elements keyed by package-relative path; value = ANY resource — bead defs AND file assets.
+  /// description: Elements keyed by package-relative path; value = ANY resource — bead defs AND file assets.
   elements: { ...: Resource }
 }
 
 // -----------------------------------------------------------------------------
 // §6. Worked examples (wire representations)
 // -----------------------------------------------------------------------------
-//
 // --- authoring (Lumen) ---
 //   type Issue is Bead  { title: string, status: "open" | "closed" }   // → "issue"
 //   type Task  is Issue { estimate?: number }                          // → "issue/task"
 //   type Bug   is Issue { severity: "low" | "high" }                   // → "issue/bug"
-//
 //   type Memory     { statement: string }
 //   type Spec       is Memory     { status: "draft" | "accepted" }     // → "memory/spec"
 //   type Constraint is Memory     { applies: "always" | "conditional" }// → "memory/constraint"
 //   type Policy     is Constraint { enforcement: "advisory" | "block" }// → "memory/constraint/policy"
 //
 // --- a bead on the wire (a task) ---
-//   { id:        { id: "4821", rev: "r7" },   // scope absent ⇒ local
+//   { id:        { id: "4821", rev: "r7" },                              // scope absent ⇒ local
 //     authority: { scope: "uri", id: "https://pkg.gastownhall.dev/beads", rev: "sha256:9f…" },
 //     type:      "issue/task",
 //     body:      { title: "Wire the changefeed", status: "open", estimate: 3 },   // firewalled
-//     metadata:     { },
-//     provenance:   { … },
-//     createdAt:    "2026-11-16T18:04:12Z",
+//     metadata: {}, provenance: { … }, createdAt: "2026-11-16T18:04:12Z",
 //     storageClass: Durable { versioned: true } }
 //   // kind (derived) = type.id = "issue/task"
 //
 // --- a content resource on the wire (text/plain) — a bare Resource ---
-//   { id:        { id: "assets/readme.txt", rev: "r1" },   // scope absent ⇒ local
+//   { id:        { id: "assets/readme.txt", rev: "r1" },                 // scope absent ⇒ local
 //     authority: { scope: "uri", id: "https://www.iana.org/assignments/media-types" },
 //     type:      "text/plain",
-//     body:      "Hello, world.\n",   // raw, flat — no firewall
-//     metadata:     { },
-//     provenance:   { … },
-//     createdAt:    "2026-11-02T09:00:00Z",
+//     body:      "Hello, world.\n",                                      // raw, flat — no firewall
+//     metadata: {}, provenance: { … }, createdAt: "2026-11-02T09:00:00Z",
 //     storageClass: Durable { versioned: true } }
-//
 // =============================================================================
+
 
 
 // -----------------------------------------------------------------------------
@@ -382,10 +407,13 @@ type PackageDef {
 // aliases below keep the ops resolving until then.
 
 // temporary alias — the TYPE-VALUE schema's ref arm still says `to: Kind`; reconciled in the types pass.
+## Kind
 type Kind = string
 // what `get` returns / what an export line carries — now just a Resource.
+## representation
 type representation = Resource
 // per-call opaque bag used by Request/Reply.
+## Metadata
 type Metadata = { ...: any }
 
 ## StorageClass
@@ -594,6 +622,7 @@ schema AsyncResult = {
   reply?:       Reply,
   replyChannel: ref<ChannelBead>
 }
+## AsyncResultBead
 type AsyncResultBead = Bead<AsyncResult>
 
 // -----------------------------------------------------------------------------
@@ -620,7 +649,9 @@ fn get(
     selector?: selector)
     -> representation
 
+## IdRoot
 schema IdRoot { prefix: string}
+## Id
 schema Id { id: string}
 
 
@@ -711,9 +742,9 @@ command cancel(
     Result<pinned<AsyncResult>, Problem>
 
 
-    ## Page
+## Page
 /// description: Windowed paging request — resume an opaque cursor xor start at a known ordinal, with a limit.
-schema Page { 
+schema Page {
     after?: Cursor, 
     from?: Ordinal, 
     limit?: number 
