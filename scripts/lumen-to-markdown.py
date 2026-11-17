@@ -83,13 +83,17 @@ def parse_op(decl):
     joined = ' '.join(x.strip() for x in decl)
     rm = re.search(r'->\s*(.+?)\s*$', joined)
     ret = rm.group(1).strip() if rm else None
-    rows = []
+    rows, pend = [], None
     for l in decl:
+        dm = re.match(r'^\s*/// description: ?(.*)$', l)
+        if dm: pend = dm.group(1); continue
+        if l.lstrip().startswith('///'): continue
         if '->' in l: continue
         m = FIELD.match(l)
         if m:
             name, opt, typ, cmt = m.groups()
-            rows.append((name + (opt or ''), typ.rstrip(','), cmt or ''))
+            rows.append((name + (opt or ''), typ.rstrip(','), pend or cmt or ''))
+            pend = None
     return rows, ret
 
 def parse_union(decl):
@@ -111,12 +115,24 @@ def parse_union(decl):
             pend = None
     return rows
 
+def clean_frag(decl):
+    # the Lumen declaration itself: drop /// metadata/description lines and trailing
+    # // comments (their text lands in the table), leaving clean code for the frag
+    out = []
+    for l in decl:
+        if l.lstrip().startswith('///'): continue
+        l = re.sub(r'\s+//.*$', '', l).rstrip()
+        if l.strip(): out.append(l)
+    return out
+
 def emit_members(decl):
     # drop inline review-marker comments (TYPES-PASS:/>DB?/>L/>>>) from any member line
     decl = [re.sub(r'\s*//\s*(?:TYPES-PASS:|>DB\?|>L\b|>>>).*$', '', l) for l in decl]
     joined = '\n'.join(decl)
     head = decl[0].strip() if decl else ''
-    res = []
+    # Every form shows its Lumen fragment first; the member/param/arm table follows.
+    frag = clean_frag(decl)
+    res = ['```lumen', *frag, '```', ''] if frag else []
     # operations ---------------------------------------------------------------
     if re.match(r'^(idempotent command|safe command|command|fn)\b', head):
         rows, ret = parse_op(decl)
@@ -136,7 +152,7 @@ def emit_members(decl):
             res += [f'| `{tg}` | {("`"+cell(p)+"`") if p else "—"} | {cell(d)} |'
                     for tg, p, d in rows]
             res += ['']
-            return res
+        return res
     # records ------------------------------------------------------------------
     if '{' in joined and re.search(r'^\s*[A-Za-z_]\w*\??:\s*\S', joined, re.M):
         rows = parse_record(decl)
@@ -144,23 +160,18 @@ def emit_members(decl):
             res += ['| Member | Type | Description |', '|---|---|---|']
             res += [f'| `{nm}` | `{cell(t)}` | {cell(d)} |' for nm, t, d in rows]
             res += ['']
-            return res
-    # one-line aliases: scalar, string union, or sum-of-types ------------------
-    oneline = ' '.join(x.strip() for x in decl)
+        return res
+    # sum-of-types alias (e.g. ExportRecord) also gets an Alternative table -----
+    oneline = ' '.join(x.strip() for x in frag)
     am = re.match(r'^type\s+(\w+(?:<[^>]*>)?)\s*(is|=)\s*(.+)$', oneline)
     if am:
-        rhs = am.group(3).strip()
-        alts = split_top(rhs)
-        if len(alts) > 1 and all(re.match(r'^"[^"]*"$', a) for a in alts):
-            return ['One of ' + ', '.join(f'`{a}`' for a in alts) + '.', '']
-        if len(alts) > 1:
+        alts = split_top(am.group(3).strip())
+        if len(alts) > 1 and not all(re.match(r'^"[^"]*"$', a) for a in alts):
             res += ['| Alternative | Description |', '|---|---|']
             for a in alts:
                 res += [f'| `{cell(a)}` | {cell(DESC.get(inner_type(a), ""))} |']
             res += ['']
-            return res
-        return [f'`{cell(oneline)}`', '']
-    return ['```lumen', *decl, '```', '']
+    return res
 
 def render_list(sub, ordered):
     items = []

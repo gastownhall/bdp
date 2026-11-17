@@ -146,7 +146,9 @@ type rep<T> = Resource
 /// normative: A resource outside the caller's authorization view is reported exactly as a missing one — identical status, on every operation and every stream. A service never reveals that a hidden resource exists, including through an error only a hidden resource could cause.
 /// openapi = { operationId = "get", method = "GET", pathItem = "resource", tags = ["Core"], params = { revision = { in = "query", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,406,410] } }
 fn get(
+    /// description: The reference to resolve — current revision, or the pinned one when `rev` is set (or `?revision=`).
     resource:  ref<Resource>,
+    /// description: Optional projection; a projected read gets its own cacheable identity.
     selector?: selector
   ) -> rep<Resource>
 
@@ -797,11 +799,17 @@ type Id {
 /// normative: `create` input is closed — an envelope member Core does not define is refused, not ignored (this does not reach inside `body`/`metadata`, which Core does not interpret). An id already in use, or used and retired, is refused with `identity-taken`.
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
 command create(
+    /// description: The scope to create the resource in.
     scope:        Scope,
-    requestedId?: IdRoot | Id,     // caller-proposed identity (no rev yet)
-    type:         PathString,      // the bead's type path
-    authority?:   PackageRef,      // caller MAY supply; absent ⇒ server-resolves from `type`
-    body:         { ...: any },    // the bead's body — owned ref<T> props live here
+    /// description: Caller-proposed identity (no rev yet) — an exact `Id` or a prefix `IdRoot` the server mints the leaf under. Absent, the server assigns the id.
+    requestedId?: IdRoot | Id,
+    /// description: The bead's type path (e.g. `issue/task`).
+    type:         PathString,
+    /// description: The package that names `type`. Caller may supply; absent, the server resolves it from `type`.
+    authority?:   PackageRef,
+    /// description: The bead's body — the firewalled domain payload; owned `ref<T>` properties live here.
+    body:         { ...: any },
+    /// description: Optional open sidecar the protocol does not interpret.
     metadata?:    Metadata
   ) -> pinned<Resource>
 // >DB? can `create` admit a content resource (media-type `type` + registry authority), or only `put`?
@@ -813,11 +821,17 @@ command create(
 /// normative: The optimistic-concurrency precondition `ifRevision` (HTTP `If-Match`) is carried by `put`, `patch` and `delete` only. Absent, the write is unconditional; present, the write applies only if it matches the resource's current revision, and a stale value makes no change and faults `revision-mismatch` (412). There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
 /// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
 idempotent command put(
+    /// description: The resource to write (its id; `rev` ignored — `put` targets the current resource).
     resource:    unpinned<Resource>,
+    /// description: The bead's type path.
     type:        PathString,
-    authority?:  PackageRef,       // caller MAY supply; absent ⇒ server-resolves from `type`
+    /// description: The package that names `type`. Caller may supply; absent, the server resolves it from `type`.
+    authority?:  PackageRef,
+    /// description: The full new body — `put` replaces state wholesale.
     body:        { ...: any },
+    /// description: Optional open sidecar the protocol does not interpret.
     metadata?:   Metadata,
+    /// description: Optional If-Match precondition — apply only if this matches the current revision.
     ifRevision?: Rev
   ) -> pinned<Resource>
 // Note: a separate id proposal was folded into the `resource` ref. `ifRevision`
@@ -828,8 +842,11 @@ idempotent command put(
 /// description: JSON Patch limited to /body and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 /// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
 command patch(
+    /// description: The resource to patch (its current revision).
     resource:    unpinned<Resource>,
+    /// description: The JSON Patch to apply — paths limited to `/body` and `/metadata`.
     patch:       JsonPatch,
+    /// description: Optional If-Match precondition — apply only if this matches the current revision.
     ifRevision?: Rev
   ) -> pinned<Resource>
 
@@ -840,7 +857,9 @@ command patch(
 /// normative: Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 idempotent command delete(
+    /// description: The resource to retire (its current revision).
     resource:    unpinned<Resource>,
+    /// description: Optional If-Match precondition — delete only if this matches the current revision.
     ifRevision?: Rev
   ) -> Rev
 // >DB? delete → bare `Rev` (your instinct) breaks the "writes return a pinned ref"
@@ -851,9 +870,13 @@ idempotent command delete(
 /// description: A collection of current resources in a scope, as a source<rep<Resource>>. `where` is a ListFilter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
 /// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,406] } }
 fn list(
+    /// description: The scope to list.
     scope:   Scope,
+    /// description: The low-bar filter — a flat conjunction of field conditions (overlaps `request.filter`; see the open shape note).
     where?:  ListFilter,
+    /// description: Projection applied to each result (overlaps `request.select`).
     select?: selector,
+    /// description: Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`).
     request?: ReadRequest
   ) -> source<rep<Resource>>
 
@@ -862,8 +885,11 @@ fn list(
 /// description: The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
 /// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,404] } }
 fn revisions(
+    /// description: The resource whose history to read.
     resource: unpinned<Resource>,
+    /// description: Projection per revision — ids-only vs full representations.
     select?:  selector,
+    /// description: Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`).
     request?: ReadRequest
   ) -> source<rep<Resource>>
 

@@ -44,7 +44,9 @@ A resource-version token — opaque by definition; compared for exact equality o
 
 > **Normative.** The revision changes exactly when the resource's state changes; a write that would leave the state unchanged mints no new revision (and produces no event).
 
-`type Rev is string`
+```lumen
+type Rev is string
+```
 
 <a id="Digest"></a>
 
@@ -54,7 +56,9 @@ A content-addressed rev (sha256 / commit) — a Rev that is a digest.
 
 > **Normative.** `Digest is Rev`, so a digest satisfies any `rev: Rev`; there is no Rev-vs-Digest split on the wire.
 
-`type Digest is Rev`
+```lumen
+type Digest is Rev
+```
 
 <a id="BdpScope"></a>
 
@@ -62,7 +66,9 @@ A content-addressed rev (sha256 / commit) — a Rev that is a digest.
 
 The URL of a BDP scope (a store).
 
-`type BdpScope = AbsoluteUri`
+```lumen
+type BdpScope = AbsoluteUri
+```
 
 <a id="Scope"></a>
 
@@ -71,6 +77,12 @@ The URL of a BDP scope (a store).
 The namespace an `id` resolves in. Absent ⇒ the current (local) BDP scope.
 
 > **Normative.** A Scope is exactly one of — absent (the local BDP scope); a BdpScope URL (another BDP store, `id` relative to it); or the literal `"uri"` (NOT a BDP scope — `id` is an absolute URI whose scheme resolves it).
+
+```lumen
+type Scope =
+    BdpScope
+  | "uri"
+```
 
 | Alternative | Description |
 |---|---|
@@ -82,6 +94,14 @@ The namespace an `id` resolves in. Absent ⇒ the current (local) BDP scope.
 ### `ResourceId`
 
 The identity of a resource — a scope, an id within it, and an optional revision. The wire URL is the projection (scope URL ⊕ id).
+
+```lumen
+type ResourceId {
+  scope?: Scope
+  id:     string
+  rev?:   Rev
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -99,7 +119,9 @@ You name a resource with a reference and you read it into a representation. `get
 
 A reference to a resource is just its id.
 
-`type ResourceRef = ResourceId`
+```lumen
+type ResourceRef = ResourceId
+```
 
 <a id="ref"></a>
 
@@ -107,7 +129,9 @@ A reference to a resource is just its id.
 
 A typed (phantom) reference — the by-reference form. `T` is checker-only and erases on the wire (a `ref` is a `ResourceId`).
 
-`type ref<T> = ResourceRef`
+```lumen
+type ref<T> = ResourceRef
+```
 
 <a id="rep"></a>
 
@@ -115,7 +139,9 @@ A typed (phantom) reference — the by-reference form. `T` is checker-only and e
 
 A typed (phantom) representation — the by-value form: the resolved, point-in-time value of the resource a `ref<T>` points to; what a read returns. Possibly projected by a `selector`, always as-of one revision. `T` is checker-only.
 
-`type rep<T> = Resource`
+```lumen
+type rep<T> = Resource
+```
 
 <a id="get"></a>
 
@@ -127,10 +153,17 @@ Safe point read — resolve a `ref` to the current representation, or a pinned r
 
 > **Normative.** A resource outside the caller's authorization view is reported exactly as a missing one — identical status, on every operation and every stream. A service never reveals that a hidden resource exists, including through an error only a hidden resource could cause.
 
+```lumen
+fn get(
+    resource:  ref<Resource>,
+    selector?: selector
+  ) -> rep<Resource>
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `ref<Resource>` |  |
-| `selector?` | `selector` |  |
+| `resource` | `ref<Resource>` | The reference to resolve — current revision, or the pinned one when `rev` is set (or `?revision=`). |
+| `selector?` | `selector` | Optional projection; a projected read gets its own cacheable identity. |
 
 **Returns** `rep<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
@@ -146,7 +179,9 @@ A reference pinned to one exact revision (`rev` present).
 
 > **Normative.** A pin is a local Rev or an external Digest; since `Digest is Rev`, both satisfy `rev: Rev`.
 
-`type pinned<T> is ref<T> { rev: Rev }`
+```lumen
+type pinned<T>   is ref<T> { rev: Rev }
+```
 
 <a id="unpinned"></a>
 
@@ -154,7 +189,9 @@ A reference pinned to one exact revision (`rev` present).
 
 An unpinned reference (`rev` absent) — floats to the current revision.
 
-`type unpinned<T> is ref<T> { rev: null }`
+```lumen
+type unpinned<T> is ref<T> { rev: null }
+```
 
 ## 1.4  Types on a resource — the (authority, type) pair
 
@@ -168,7 +205,9 @@ A slash-delimited path — `"issue/task"` (a bead kind) or `"text/plain"` (a con
 
 > **Normative.** Two first path segments are reserved — `bdp` (the protocol's own fixed routes) and `sys` (in-band system resources, e.g. `/sys/changes`).
 
-`type PathString = string`
+```lumen
+type PathString = string
+```
 
 <a id="Authority"></a>
 
@@ -180,7 +219,9 @@ The resource that names a `type` — a package (for a bead) or a registry like I
 
 > **Normative.** `authority` MAY be caller-supplied (accepted as given); when absent on a write it is server-resolved from `type` — an installed default package (the standard types) is consulted before a registry like IANA, and a `type` that resolves to neither is ad-hoc (authority absent / duck-typed). A service SHOULD cache the well-known media types so content resolution need not reach IANA.
 
-`type Authority = ResourceRef`
+```lumen
+type Authority = ResourceRef
+```
 
 <a id="PackageRef"></a>
 
@@ -188,7 +229,9 @@ The resource that names a `type` — a package (for a bead) or a registry like I
 
 A pinned reference to a Package resource — an Authority that is a package (a bead's authority).
 
-`type PackageRef = ref<PackageBead>`
+```lumen
+type PackageRef = ref<PackageBead>
+```
 
 ## 1.5  The Resource shape
 
@@ -199,6 +242,19 @@ A pinned reference to a Package resource — an Authority that is a package (a b
 The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
 > **Normative.** Refining `Resource` directly adds top-level envelope fields — a new resource category (contrast `Bead<T>`, whose refinements go into `body`).
+
+```lumen
+type Resource {
+  id:            ResourceId
+  authority?:    Authority
+  type:          PathString
+  body:          any
+  metadata?:     Metadata
+  provenance?:   Provenance
+  createdAt?:    Timestamp
+  storageClass?: StorageClass
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -219,7 +275,9 @@ The universal shape of a versioned resource — bead or not. Only `id`, `type` a
 
 Opaque, open per-resource (or per-call) sidecar — data the protocol does not interpret.
 
-`type Metadata = { ...: any }`
+```lumen
+type Metadata = { ...: any }
+```
 
 <a id="Provenance"></a>
 
@@ -228,6 +286,17 @@ Opaque, open per-resource (or per-call) sidecar — data the protocol does not i
 Who took part in the change that made a revision, how the Resource's present period began, and when. `previousRevision` is the before-image pointer — the basis for compensation — and rides in the post-image, so a ChangeEvent carries it for free.
 
 > **Normative.** Provenance is data, not evidence — Core does not claim it is true. It describes one change and is not copied forward (the sole exception is `inception`). `committedAt` and `inception` are server-supplied, never caller input; a request that changes nothing records none, and one request that mints several revisions records provenance on each. A service MUST NOT invent a principal to fill an absent role; a caller cannot supply `basis` (`channel-authenticated` is service-assigned only, and `authority` then names that service).
+
+```lumen
+type Provenance = {
+  principals:        [ Principal ],
+  inception:         "create" | "import" | "revive" | "unknown",
+  committedAt:       Timestamp,
+  previousRevision?: Rev,
+  message?:          string,
+  metadata?:         Metadata
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -243,6 +312,16 @@ Who took part in the change that made a revision, how the Resource's present per
 ### `Principal`
 
 An identity that took part in a change — a person, agent or service account. A role grants no permission; authorization is a separate decision.
+
+```lumen
+type Principal = {
+  id:           AbsoluteUri,
+  displayName?: string,
+  roles?:       [ string ],
+  basis:        IdentityBasis,
+  authority?:   AbsoluteUri
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -260,6 +339,14 @@ How a service established a principal's identity.
 
 > **Normative.** Open union — a reader MUST tolerate an unrecognized basis. New authentication bases are added without a breaking change.
 
+```lumen
+type IdentityBasis = union {
+  "writer-supplied"
+  "channel-authenticated"
+  "unknown"
+}
+```
+
 | Variant | Payload | Description |
 |---|---|---|
 | `"writer-supplied"` | — | The writer asserted the identity; the service did not verify it. |
@@ -274,6 +361,14 @@ How a Resource is kept. Durable is replicated and exported; ephemeral is local a
 
 > **Normative.** A scope whose resources are not `Durable { versioned: true }` relaxes its write refs from `pinned` to `unpinned` (no revisions to pin), advertised in discovery.
 
+```lumen
+type StorageClass = union {
+  Durable { versioned: bool }
+  Ephemeral
+  Intrinsic
+}
+```
+
 | Variant | Payload | Description |
 |---|---|---|
 | `Durable` | `{ versioned: bool }` | Replicated and exported; `versioned` ⇒ prior revisions are retained and addressable. |
@@ -286,7 +381,9 @@ How a Resource is kept. Durable is replicated and exported; ephemeral is local a
 
 RFC 3339 date-time; uppercase `T` and `Z`.
 
-`type Timestamp is string`
+```lumen
+type Timestamp is string
+```
 
 <a id="AbsoluteUri"></a>
 
@@ -294,7 +391,9 @@ RFC 3339 date-time; uppercase `T` and `Z`.
 
 Any absolute URI — a Problem `type`, a Principal `id`; need not resolve. NOT a resource reference (those are `ref<T>`).
 
-`type AbsoluteUri is string`
+```lumen
+type AbsoluteUri is string
+```
 
 <a id="SemVer"></a>
 
@@ -302,7 +401,9 @@ Any absolute URI — a Problem `type`, a Principal `id`; need not resolve. NOT a
 
 A semantic-version string (a package's declared version).
 
-`type SemVer is string`
+```lumen
+type SemVer is string
+```
 
 # 2. Beads
 
@@ -317,6 +418,13 @@ A bead is a Resource whose body is typed, and whose authority (when present) is 
 > **Normative.** `Bead` is the marker. Refining it (directly or transitively) narrows `body` to the subtype's schema — the firewall: a bead's domain fields live under `body`, never alongside the envelope. `Bead<T>` narrows exactly two fields: `authority` to a package ref, `body` to `T`.
 
 > **Normative.** The authority discriminates bead vs content — a package ref (versioned, pinned) ⇒ bead; a registry ref (IANA, stable) ⇒ content. `authority` is still optional, so a bead MAY be duck-typed (authority absent).
+
+```lumen
+type Bead<T> is Resource {
+  authority?: PackageRef
+  body:       T
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -352,7 +460,9 @@ refinement vs union: refinement (`is`) = open kind hierarchy, path-addressed; `u
 
 A bead whose body is a type definition — the type of a type.
 
-`type TypeBead = Bead<TypeDef>`
+```lumen
+type TypeBead = Bead<TypeDef>
+```
 
 <a id="TypeDef"></a>
 
@@ -361,6 +471,14 @@ A bead whose body is a type definition — the type of a type.
 The body of a TypeBead — one node in the single-`is` refinement tree.
 
 > **Normative.** A type's element path is parent-path ⊕ its own name. A same-package parent is the path prefix (implicit); `refines` is set only for a cross-package parent. The Types resolver flattens the chain base→leaf per the §2.1 inheritance rules.
+
+```lumen
+type TypeDef {
+  refines?:   TypeRef
+  abstract?:  bool
+  properties: namedDeclarations
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -374,7 +492,9 @@ The body of a TypeBead — one node in the single-`is` refinement tree.
 
 A list of named, typed declarations with required-ness — the shape of a record (a parameter list, a Type's property definitions).
 
-`type namedDeclarations = [ { name: string, schema: BeadSchema, required: bool } ]`
+```lumen
+type namedDeclarations = [ { name: string, schema: BeadSchema, required: bool } ]
+```
 
 <a id="BeadSchema"></a>
 
@@ -383,6 +503,20 @@ A list of named, typed declarations with required-ness — the shape of a record
 A type written down as a value — the ref-preserving type representation. (A `schema` has no identity, so a type-as-value is a `schema`.)
 
 > **Normative.** On export a BeadSchema lowers to a JSON Schema document (and an OpenAPI contract) for external consumers; the exported/wire form is byte-identical to the pre-BeadSchema JSON Schema, so the v0.2.0 freeze is NOT reopened. Only genuinely open data uses `{ ...: any }`; a written-down type uses this.
+
+```lumen
+type BeadSchema =
+    Scalar  { of: "string" | "number" | "bool" | "bytes" }
+  | Literal { value: any }
+  | Nominal { name: string, base: BeadSchema, refinement?: { ...: any } }
+  | Record  { fields: [ { name: string, type: BeadSchema, required: bool } ], open: bool }
+  | DU      { arms: [ { tag: string, payload?: BeadSchema } ] }
+  | Union   { options: [ BeadSchema ] }
+  | Array   { element: BeadSchema }
+  | Set     { element: BeadSchema, on?: [ LocalName ] }
+  | TypeRef { to: TypeRef }
+  | Opaque  { jsonSchema: JsonSchema }
+```
 
 | Alternative | Description |
 |---|---|
@@ -403,13 +537,21 @@ A type written down as a value — the ref-preserving type representation. (A `s
 
 A short identifier token for a view or a well-known name; leading letter.
 
-`type LocalName is string`
+```lumen
+type LocalName is string
+```
 
 <a id="JsonSchema"></a>
 
 ### `JsonSchema`
 
 A JSON Schema document — the lowered/exported form of a type-as-value for external (non-BDP) consumers.
+
+```lumen
+type JsonSchema {
+  text: string
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -425,6 +567,13 @@ A bundled reference to a package element — a package authority plus the elemen
 
 > **Normative.** `authority` is OPTIONAL — a same-package (relative) reference omits it, as `refines` does within a package. A resource's own type is this pair unbundled into its `authority` + `type` envelope fields; ElementRef is the standalone / cross-package form.
 
+```lumen
+type ElementRef {
+  authority?: PackageRef
+  path:       ElementPath
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `authority?` | `PackageRef` | The package that names the element; absent ⇒ relative to the current package. |
@@ -436,7 +585,9 @@ A bundled reference to a package element — a package authority plus the elemen
 
 A package-relative element path (the single-`is` chain).
 
-`type ElementPath = PathString`
+```lumen
+type ElementPath = PathString
+```
 
 <a id="TypeRef"></a>
 
@@ -444,7 +595,9 @@ A package-relative element path (the single-`is` chain).
 
 A reference to a type element.
 
-`type TypeRef = ElementRef`
+```lumen
+type TypeRef      = ElementRef
+```
 
 <a id="OperationRef"></a>
 
@@ -452,7 +605,9 @@ A reference to a type element.
 
 A reference to an operation element.
 
-`type OperationRef = ElementRef`
+```lumen
+type OperationRef = ElementRef
+```
 
 <a id="ChannelRef"></a>
 
@@ -460,7 +615,9 @@ A reference to an operation element.
 
 A reference to a channel element.
 
-`type ChannelRef = ElementRef`
+```lumen
+type ChannelRef   = ElementRef
+```
 
 ## 2.2  Channels & the streaming model — pull, push
 
@@ -472,7 +629,9 @@ A channel carries a sequence of events; `pull` reads it and `push` writes it. A 
 
 A bead whose body is a channel descriptor.
 
-`type ChannelBead = Bead<Channel>`
+```lumen
+type ChannelBead = Bead<Channel>
+```
 
 <a id="Channel"></a>
 
@@ -483,6 +642,16 @@ The body of a ChannelBead — its two event schemas, direction, and delivery cha
 > **Normative.** `direction` and the two schemas are mutually constraining — `source` ⟺ pullSchema set & pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
 
 > **Normative.** A Channel bead's revision does NOT change when events arrive — the bead is not the stream. Appended events ride the channel's own stream, never the changefeed.
+
+```lumen
+type Channel {
+  pushSchema?: BeadSchema
+  pullSchema?: BeadSchema
+  direction:   "source" | "sink" | "duplex"
+  retention:   Retention
+  cardinality: "single" | "broadcast"
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -497,6 +666,14 @@ The body of a ChannelBead — its two event schemas, direction, and delivery cha
 ### `Retention`
 
 How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).
+
+```lumen
+type Retention = union {
+  Forever
+  Window    { by: "time" | "count" | "size", amount: number }
+  Compacted { window?: Retention }
+}
+```
 
 | Variant | Payload | Description |
 |---|---|---|
@@ -518,7 +695,9 @@ How far back a cursor can resume; below the floor a cursor faults `cursor-expire
 
 An event's position in its stream; monotone within one Channel.
 
-`type Ordinal is number`
+```lumen
+type Ordinal is number
+```
 
 <a id="Cursor"></a>
 
@@ -526,7 +705,9 @@ An event's position in its stream; monotone within one Channel.
 
 Opaque, transport-independent resume token, bound to one stream and the selection it came from; refused elsewhere. Also the point an export is cut at.
 
-`type Cursor is string`
+```lumen
+type Cursor is string
+```
 
 <a id="Transport"></a>
 
@@ -534,13 +715,26 @@ Opaque, transport-independent resume token, bound to one stream and the selectio
 
 The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
 
-One of `"json"`, `"jsonl"`, `"sse"`.
+```lumen
+type Transport = "json" | "jsonl" | "sse"
+```
 
 <a id="ReadRequest"></a>
 
 ### `ReadRequest`
 
 The input to a streaming read (`pull` / `list` / `revisions`) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+
+```lumen
+type ReadRequest = {
+  after?:  Cursor,
+  from?:   Ordinal,
+  limit?:  number,
+  format?: Transport,
+  filter?: ListFilter,
+  select?: selector
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -557,6 +751,14 @@ The input to a streaming read (`pull` / `list` / `revisions`) — where to resum
 
 One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
 
+```lumen
+type Page = {
+  items:  [ any ],
+  cursor: Cursor,
+  head?:  bool
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `items` | `[ any ]` | The items in this window (a Channel's E — ChangeEvent for the changefeed; items generally). |
@@ -570,6 +772,13 @@ One finite page of a stream — the windowed floor every service offers: one req
 Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` events. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three.
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
+
+```lumen
+fn pull(
+    channel: unpinned<ChannelBead>,
+    request: ReadRequest
+  ) -> Page
+```
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -586,6 +795,14 @@ Write a Channel — consume a source of events (the channel's `pushSchema` type)
 
 > **Normative.** Valid on a `sink`/`duplex` channel; a `source`-only channel faults `channel-not-pushable`. A terminal (closed/failed) channel faults; a `single` channel caps the batch at one.
 
+```lumen
+command push(
+    channel:   unpinned<ChannelBead>,
+    source:    source<any>,
+    strategy?: PushStrategy
+  ) -> PushReport
+```
+
 | Parameter | Type | Description |
 |---|---|---|
 | `channel` | `unpinned<ChannelBead>` |  |
@@ -600,6 +817,13 @@ Write a Channel — consume a source of events (the channel's `pushSchema` type)
 
 How `push` handles a rejected event or a re-push — the event analog of ImportStrategy (distinct: events, not resources).
 
+```lumen
+type PushStrategy {
+  dedup?:  bool,
+  dryRun?: bool
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `dedup?` | `bool` |  |
@@ -610,6 +834,14 @@ How `push` handles a rejected event or a re-push — the event analog of ImportS
 ### `PushReport`
 
 What `push` reports — counts and any skipped/rejected events by ordinal.
+
+```lumen
+type PushReport {
+  pushed:    number,
+  skipped:   number,
+  conflicts: [ { ordinal: Ordinal, reason: string } ]
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -627,7 +859,9 @@ An operation is a declared callable. `call` invokes it (sync or async); it is th
 
 A bead whose body is an operation descriptor.
 
-`type OperationBead = Bead<Operation>`
+```lumen
+type OperationBead = Bead<Operation>
+```
 
 <a id="Operation"></a>
 
@@ -636,6 +870,17 @@ A bead whose body is an operation descriptor.
 The body of an OperationBead — the call contract, the implementation, and the behavioural guarantees.
 
 > **Normative.** The effect markers (`pure`/`safe`/`idempotent`/`atomic`) are three-valued — present = a known guarantee, absent = unknown. `pure` ⟹ `safe`; `pure:true` + `safe:false` is a rejectable contradiction. The Lumen surface callable keywords lower to these fields (`fn` ⇒ pure).
+
+```lumen
+type Operation {
+  signature:       Signature
+  implementation?: any
+  pure?:           bool
+  safe?:           bool
+  idempotent?:     bool
+  atomic?:         bool
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -651,6 +896,16 @@ The body of an OperationBead — the call contract, the implementation, and the 
 ### `Signature`
 
 An operation's call contract — its interface, kept separate from the implementation and the effect markers.
+
+```lumen
+type Signature {
+  parameters?: namedDeclarations
+  success?:    BeadSchema
+  failure?:    BeadSchema
+  async?:      "no" | "optional" | "required"
+  creates?:    bool
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -668,7 +923,9 @@ An operation's call contract — its interface, kept separate from the implement
 
 A correlation token naming the cause of a call — the cause-tree back-pointer.
 
-`type Cause is string`
+```lumen
+type Cause       is string
+```
 
 <a id="Frame"></a>
 
@@ -676,7 +933,9 @@ A correlation token naming the cause of a call — the cause-tree back-pointer.
 
 A correlation token naming the calling frame — the call-tree back-pointer (diagnostic-tier).
 
-`type Frame is string`
+```lumen
+type Frame       is string
+```
 
 <a id="Transaction"></a>
 
@@ -684,7 +943,9 @@ A correlation token naming the calling frame — the call-tree back-pointer (dia
 
 A correlation token shared across one commit.
 
-`type Transaction is string`
+```lumen
+type Transaction is string
+```
 
 <a id="IdempotencyKey"></a>
 
@@ -692,13 +953,27 @@ A correlation token shared across one commit.
 
 Caller-chosen key that makes a retried write safe to collapse onto the first effect.
 
-`type IdempotencyKey is string`
+```lumen
+type IdempotencyKey is string
+```
 
 <a id="Request"></a>
 
 ### `Request`
 
 What a caller sends to `call`. `arguments` is a name/value list whose shape the Operation's `parameters` dictate.
+
+```lumen
+type Request = {
+  arguments:      [ { name: string, value: any } ],
+  async:          bool = false,
+  causedBy?:      Cause,
+  calledBy?:      Frame,
+  provenance?:    Provenance,
+  idempotencyKey: IdempotencyKey,
+  metadata?:      Metadata
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -718,6 +993,16 @@ What a `call` returns — flat, no context wrapper. `outcome` keeps the domain `
 
 > **Normative.** The `outcome`'s `T` and `E` are those declared by the target Operation's signature (`success` / `failure`); the envelope itself carries `Outcome<any, any>` and is narrowed only at the call site.
 
+```lumen
+type Reply = {
+  outcome:      Outcome<any, any>,
+  cause:        Cause,
+  frame:        Frame,
+  transaction?: Transaction,
+  metadata?:    Metadata
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `outcome` | `Outcome<any, any>` | What happened — the domain Result or a non-domain fate. |
@@ -731,6 +1016,13 @@ What a `call` returns — flat, no context wrapper. `outcome` keeps the domain `
 ### `Result`
 
 A callable's own verdict — succeeded with a value, or failed with its declared error.
+
+```lumen
+type Result<T, E> = union {
+  success { value: T }
+  failure { error: E }
+}
+```
 
 | Variant | Payload | Description |
 |---|---|---|
@@ -747,6 +1039,14 @@ What happened to an invocation — the domain Result, or a non-domain fate.
 
 > **Normative.** A present `outcome` means the invocation is settled, whichever arm it holds; a transient state (running/waiting) is NOT an arm. Each arm is an open record — a reader MUST ignore a member it does not know. Only `success` means the operation went as intended.
 
+```lumen
+type Outcome<T, E> = union {
+  Result<T, E>
+  fault { problem: Problem }
+  canceled { reason?: string }
+}
+```
+
 | Variant | Payload | Description |
 |---|---|---|
 | `Result<T, E>` | — | The domain Result — success \| failure. |
@@ -758,6 +1058,18 @@ What happened to an invocation — the domain Result, or a non-domain fate.
 ### `Problem`
 
 An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.
+
+```lumen
+type Problem = {
+  type:      AbsoluteUri,
+  title:     string,
+  status:    number,
+  code:      string,
+  retry:     "never" | "after-state-change" | "after-delay",
+  detail?:   string,
+  instance?: AbsoluteUri
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -775,6 +1087,17 @@ An RFC 9457 problem document — what a `fault` carries, and the body of a faili
 
 The async result of one `call` — a handle you show for the record and `cancel` to kill. References a one-and-done source Channel that fires the Reply on settlement.
 
+```lumen
+type AsyncResult = {
+  operation:    ref<OperationBead>,
+  cause:        Cause,
+  frame:        Frame,
+  request:      Request,
+  reply?:       Reply,
+  replyChannel: ref<ChannelBead>
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `operation` | `ref<OperationBead>` | The operation that was called. |
@@ -790,13 +1113,22 @@ The async result of one `call` — a handle you show for the record and `cancel`
 
 A bead whose body is an async-call handle.
 
-`type AsyncResultBead = Bead<AsyncResult>`
+```lumen
+type AsyncResultBead = Bead<AsyncResult>
+```
 
 <a id="call"></a>
 
 ### `call`
 
 Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Location when `creates` / 409 on a declared failure / Problem status on `fault`). `?mode=async` returns 202 + the AsyncResult at Location; settle later. The only primitive with the rich Outcome.
+
+```lumen
+fn call(
+    operation: ref<OperationBead>,
+    request:   Request
+  ) -> Reply
+```
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -810,6 +1142,12 @@ Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Loca
 ### `cancel`
 
 Kill -9 on a running AsyncResult — writes `reply.outcome = canceled`. Runs no compensation (that is the scheduler's graceful path); its effects stay findable via `causedBy`.
+
+```lumen
+command cancel(
+    asyncResult: unpinned<AsyncResultBead>
+  ) -> pinned<AsyncResultBead>
+```
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -827,7 +1165,9 @@ A package is the authority that names a bead's type — a versioned bundle of ov
 
 A bead whose body is a package.
 
-`type PackageBead = Bead<PackageDef>`
+```lumen
+type PackageBead = Bead<PackageDef>
+```
 
 <a id="PackageDef"></a>
 
@@ -836,6 +1176,13 @@ A bead whose body is a package.
 The body of a PackageBead — its declared version and its elements.
 
 > **Normative.** A package is a resource; its canonical identity is its own `id` ({ scope:"uri", id:<url>, rev:<pin> }) — exactly what beads stamp as their `authority`. It is NOT restated in the body.
+
+```lumen
+type PackageDef {
+  semVer:   SemVer
+  elements: { ...: Resource }
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -862,6 +1209,12 @@ Error model: a data primitive returns its success value and faults with a Proble
 
 A prefix-rooted auto-id proposal (the server mints the leaf).
 
+```lumen
+type IdRoot {
+  prefix: string
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `prefix` | `string` |  |
@@ -871,6 +1224,12 @@ A prefix-rooted auto-id proposal (the server mints the leaf).
 ### `Id`
 
 An exact caller-proposed id.
+
+```lumen
+type Id {
+  id: string
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -884,14 +1243,25 @@ Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the creat
 
 > **Normative.** `create` input is closed — an envelope member Core does not define is refused, not ignored (this does not reach inside `body`/`metadata`, which Core does not interpret). An id already in use, or used and retired, is refused with `identity-taken`.
 
+```lumen
+command create(
+    scope:        Scope,
+    requestedId?: IdRoot | Id,
+    type:         PathString,
+    authority?:   PackageRef,
+    body:         { ...: any },
+    metadata?:    Metadata
+  ) -> pinned<Resource>
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `scope` | `Scope` |  |
-| `requestedId?` | `IdRoot \| Id` | caller-proposed identity (no rev yet) |
-| `type` | `PathString` | the bead's type path |
-| `authority?` | `PackageRef` | caller MAY supply; absent ⇒ server-resolves from `type` |
-| `body` | `{ ...: any }` | the bead's body — owned ref<T> props live here |
-| `metadata?` | `Metadata` |  |
+| `scope` | `Scope` | The scope to create the resource in. |
+| `requestedId?` | `IdRoot \| Id` | Caller-proposed identity (no rev yet) — an exact `Id` or a prefix `IdRoot` the server mints the leaf under. Absent, the server assigns the id. |
+| `type` | `PathString` | The bead's type path (e.g. `issue/task`). |
+| `authority?` | `PackageRef` | The package that names `type`. Caller may supply; absent, the server resolves it from `type`. |
+| `body` | `{ ...: any }` | The bead's body — the firewalled domain payload; owned `ref<T>` properties live here. |
+| `metadata?` | `Metadata` | Optional open sidecar the protocol does not interpret. |
 
 **Returns** `pinned<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
@@ -905,14 +1275,25 @@ Upsert / remember — idempotent full-state write. Create-or-replace; the lifecy
 
 > **Normative.** The optimistic-concurrency precondition `ifRevision` (HTTP `If-Match`) is carried by `put`, `patch` and `delete` only. Absent, the write is unconditional; present, the write applies only if it matches the resource's current revision, and a stale value makes no change and faults `revision-mismatch` (412). There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
 
+```lumen
+idempotent command put(
+    resource:    unpinned<Resource>,
+    type:        PathString,
+    authority?:  PackageRef,
+    body:        { ...: any },
+    metadata?:   Metadata,
+    ifRevision?: Rev
+  ) -> pinned<Resource>
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` |  |
-| `type` | `PathString` |  |
-| `authority?` | `PackageRef` | caller MAY supply; absent ⇒ server-resolves from `type` |
-| `body` | `{ ...: any }` |  |
-| `metadata?` | `Metadata` |  |
-| `ifRevision?` | `Rev` |  |
+| `resource` | `unpinned<Resource>` | The resource to write (its id; `rev` ignored — `put` targets the current resource). |
+| `type` | `PathString` | The bead's type path. |
+| `authority?` | `PackageRef` | The package that names `type`. Caller may supply; absent, the server resolves it from `type`. |
+| `body` | `{ ...: any }` | The full new body — `put` replaces state wholesale. |
+| `metadata?` | `Metadata` | Optional open sidecar the protocol does not interpret. |
+| `ifRevision?` | `Rev` | Optional If-Match precondition — apply only if this matches the current revision. |
 
 **Returns** `pinned<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
@@ -924,11 +1305,19 @@ Note: a separate id proposal was folded into the `resource` ref. `ifRevision` (I
 
 JSON Patch limited to /body and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 
+```lumen
+command patch(
+    resource:    unpinned<Resource>,
+    patch:       JsonPatch,
+    ifRevision?: Rev
+  ) -> pinned<Resource>
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` |  |
-| `patch` | `JsonPatch` |  |
-| `ifRevision?` | `Rev` |  |
+| `resource` | `unpinned<Resource>` | The resource to patch (its current revision). |
+| `patch` | `JsonPatch` | The JSON Patch to apply — paths limited to `/body` and `/metadata`. |
+| `ifRevision?` | `Rev` | Optional If-Match precondition — apply only if this matches the current revision. |
 
 **Returns** `pinned<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
@@ -942,10 +1331,17 @@ Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound ref
 
 > **Normative.** Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 
+```lumen
+idempotent command delete(
+    resource:    unpinned<Resource>,
+    ifRevision?: Rev
+  ) -> Rev
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` |  |
-| `ifRevision?` | `Rev` |  |
+| `resource` | `unpinned<Resource>` | The resource to retire (its current revision). |
+| `ifRevision?` | `Rev` | Optional If-Match precondition — delete only if this matches the current revision. |
 
 **Returns** `Rev` — A resource-version token — opaque by definition; compared for exact equality only, never inspected.
 
@@ -955,12 +1351,21 @@ Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound ref
 
 A collection of current resources in a scope, as a source<rep<Resource>>. `where` is a ListFilter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
 
+```lumen
+fn list(
+    scope:   Scope,
+    where?:  ListFilter,
+    select?: selector,
+    request?: ReadRequest
+  ) -> source<rep<Resource>>
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `scope` | `Scope` |  |
-| `where?` | `ListFilter` |  |
-| `select?` | `selector` |  |
-| `request?` | `ReadRequest` |  |
+| `scope` | `Scope` | The scope to list. |
+| `where?` | `ListFilter` | The low-bar filter — a flat conjunction of field conditions (overlaps `request.filter`; see the open shape note). |
+| `select?` | `selector` | Projection applied to each result (overlaps `request.select`). |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`). |
 
 **Returns** `source<rep<Resource>>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
@@ -970,11 +1375,19 @@ A collection of current resources in a scope, as a source<rep<Resource>>. `where
 
 The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
 
+```lumen
+fn revisions(
+    resource: unpinned<Resource>,
+    select?:  selector,
+    request?: ReadRequest
+  ) -> source<rep<Resource>>
+```
+
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` |  |
-| `select?` | `selector` |  |
-| `request?` | `ReadRequest` |  |
+| `resource` | `unpinned<Resource>` | The resource whose history to read. |
+| `select?` | `selector` | Projection per revision — ids-only vs full representations. |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`). |
 
 **Returns** `source<rep<Resource>>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
@@ -985,6 +1398,14 @@ The history of one resource — id-targeted like `get`, list-shaped like `list`.
 ### `selector`
 
 A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `type`/`id` are never dropped.
+
+```lumen
+type selector {
+  include?: [ JsonPointer ],
+  omit?:    [ JsonPointer ],
+  expand?:  [ LocalName ]
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -998,13 +1419,24 @@ A read projection over a representation — include/omit subtrees (JSON Pointer)
 
 A JSON Pointer (RFC 6901) into a representation.
 
-`type JsonPointer is string`
+```lumen
+type JsonPointer is string
+```
 
 <a id="JsonPatchOp"></a>
 
 ### `JsonPatchOp`
 
 One RFC 6902 operation. In `patch`, paths are limited to /body and /metadata.
+
+```lumen
+type JsonPatchOp = {
+  op:     "add" | "remove" | "replace" | "move" | "copy" | "test",
+  path:   string,
+  value?: any,
+  from?:  string
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -1019,7 +1451,9 @@ One RFC 6902 operation. In `patch`, paths are limited to /body and /metadata.
 
 An ordered list of JSON Patch operations — the `patch` body, and a change-event patch payload.
 
-`type JsonPatch = [ JsonPatchOp ]`
+```lumen
+type JsonPatch = [ JsonPatchOp ]
+```
 
 <a id="ListFilter"></a>
 
@@ -1027,13 +1461,28 @@ An ordered list of JSON Patch operations — the `patch` body, and a change-even
 
 The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal `filter` is a corelib capability (query), not base.
 
-`type ListFilter = [ listCondition ]`
+```lumen
+type ListFilter = [ listCondition ]
+```
 
 <a id="listCondition"></a>
 
 ### `listCondition`
 
 One flat field condition. `isKind` matches against the kind-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
+
+```lumen
+type listCondition = union {
+  compare     { field: FieldPath, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value: any }
+  matches     { field: FieldPath, pattern: string, using: "substring"|"glob"|"regex" }
+  has         { field: FieldPath }
+  missing     { field: FieldPath }
+  contains    { field: FieldPath, value: any }
+  containsAny { field: FieldPath, values: [ any ] }
+  excludes    { field: FieldPath, value: any }
+  isKind      { kind: RelativeId, match: "exact" | "prefix" = "prefix" }
+}
+```
 
 | Variant | Payload | Description |
 |---|---|---|
@@ -1052,7 +1501,9 @@ One flat field condition. `isKind` matches against the kind-path (`type.id`): `p
 
 A field path as a segment array (disambiguates dotted keys); selector/patch keep JSON Pointer.
 
-`type FieldPath = [ string ]`
+```lumen
+type FieldPath = [ string ]
+```
 
 <a id="RelativeId"></a>
 
@@ -1060,7 +1511,9 @@ A field path as a segment array (disambiguates dotted keys); selector/patch keep
 
 A kind-path as a local id segment, relative to the scope (the target for isKind's prefix/exact match).
 
-`type RelativeId is string`
+```lumen
+type RelativeId is string
+```
 
 ## 3.2  Export & change notification — the changefeed, then export/import
 
@@ -1076,6 +1529,14 @@ Core's report of one committed change to one Resource, as a top-level DU on life
 
 > **Normative.** One commit produces exactly one event per resource changed, however many times the request touched it; a failed request and a no-change request produce no event. An event is durable with its change — never committed without its event, never published for a change that did not commit. A change that arrives by replication MUST still appear on the changefeed. The full (post-image) encoding is required of every service; the patch encoding is optional (a reader that meets a patch it cannot apply re-reads the resource).
 
+```lumen
+type ChangeEvent = union {
+  Created
+  Updated
+  Deleted
+}
+```
+
 | Variant | Payload | Description |
 |---|---|---|
 | `Created` | — | A resource admitted. Full post-image; its provenance is the representation's provenance. |
@@ -1087,6 +1548,21 @@ Core's report of one committed change to one Resource, as a top-level DU on life
 ### `ChangeEnvelope`
 
 Fields common to every change arm; spread into each. `subject.rev` is the new (or tombstone) revision — there is no separate revision field.
+
+```lumen
+type ChangeEnvelope = {
+  ordinal:      Ordinal,
+  at:           Timestamp,
+  subject:      ResourceId,
+  subjectKind?: PathString,
+  subjectType?: ref<TypeBead>,
+  transaction:  Transaction,
+  cause?:       Cause,
+  causedBy?:    Cause,
+  frame?:       Frame,
+  calledBy?:    Frame
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -1107,6 +1583,13 @@ Fields common to every change arm; spread into each. `subject.rev` is the new (o
 
 A resource admitted. Full post-image; its provenance is the representation's provenance.
 
+```lumen
+type Created = {
+  ...ChangeEnvelope,
+  representation: rep<Resource>
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `representation` | `rep<Resource>` |  |
@@ -1116,6 +1599,13 @@ A resource admitted. Full post-image; its provenance is the representation's pro
 ### `Updated`
 
 A resource changed. `content` is the orthogonal encoding axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.
+
+```lumen
+type Updated = {
+  ...ChangeEnvelope,
+  content: ChangeContent
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -1127,6 +1617,13 @@ A resource changed. `content` is the orthogonal encoding axis — `full` carries
 
 A resource retired — the tombstone. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.
 
+```lumen
+type Deleted = {
+  ...ChangeEnvelope,
+  provenance: Provenance
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `provenance` | `Provenance` |  |
@@ -1136,6 +1633,13 @@ A resource retired — the tombstone. No post-image, so provenance is explicit; 
 ### `ChangeContent`
 
 The change payload for Updated — full-vs-patch, the encoding axis (orthogonal to lifecycle).
+
+```lumen
+type ChangeContent = union {
+  full  { representation: rep<Resource> }
+  patch { patch: JsonPatch, provenance: Provenance }
+}
+```
 
 | Variant | Payload | Description |
 |---|---|---|
@@ -1150,6 +1654,10 @@ The change payload for Updated — full-vs-patch, the encoding axis (orthogonal 
 
 One line of an export.
 
+```lumen
+type ExportRecord = ExportBegin | rep<Resource> | ExportEnd
+```
+
 | Alternative | Description |
 |---|---|
 | `ExportBegin` | The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`. |
@@ -1161,6 +1669,14 @@ One line of an export.
 ### `ExportBegin`
 
 The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`.
+
+```lumen
+type ExportBegin = {
+  kind:   "export-begin",
+  scope:  AbsoluteHttpUrl,
+  cursor: Cursor
+}
+```
 
 | Member | Type | Description |
 |---|---|---|
@@ -1174,6 +1690,13 @@ The opening line — the Scope and the cursor the export was cut at (where a con
 
 The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
 
+```lumen
+type ExportEnd = {
+  kind:  "export-end",
+  count: number
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `kind` | `"export-end"` |  |
@@ -1184,6 +1707,15 @@ The closing line — a count of the Resource records, so a truncated file (one e
 ### `export`
 
 Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ ListFilter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
+
+```lumen
+fn export(
+    scope:      Scope,
+    where?:     ListFilter,
+    select?:    selector,
+    revisions?: bool
+  ) -> source<ExportRecord>
+```
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -1200,6 +1732,15 @@ Bulk read of a scope as JSONL — current state by default; `--revisions` emits 
 
 How `import` merges — strategy and id remap.
 
+```lumen
+type ImportStrategy = {
+  dedup?:      bool,
+  allowStale?: bool,
+  dryRun?:     bool,
+  idRoot?:     string
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `dedup?` | `bool` |  |
@@ -1213,6 +1754,14 @@ How `import` merges — strategy and id remap.
 
 What `import` reports — counts and any skipped/conflicted records.
 
+```lumen
+type ImportReport = {
+  imported:  number,
+  skipped:   number,
+  conflicts: [ { id: ref<Resource>, reason: string } ]
+}
+```
+
 | Member | Type | Description |
 |---|---|---|
 | `imported` | `number` |  |
@@ -1224,6 +1773,14 @@ What `import` reports — counts and any skipped/conflicted records.
 ### `import`
 
 The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
+
+```lumen
+command import(
+    scope:     Scope,
+    source:    source<ExportRecord>,
+    strategy?: ImportStrategy
+  ) -> ImportReport
+```
 
 | Parameter | Type | Description |
 |---|---|---|
