@@ -357,13 +357,13 @@ type IdentityBasis = union {
 
 ### `StorageClass`
 
-How a Resource is kept. Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
+How a Resource is kept — whether it is persisted, not whether it is versioned (that is the scope's revision model). Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
 
-> **Normative.** A scope whose resources are not `Durable { versioned: true }` relaxes its write refs from `pinned` to `unpinned` (no revisions to pin), advertised in discovery.
+> **Normative.** Whether revisions are kept is a SCOPE-WIDE property, not per-resource: a scope's `revisionModel` ([RevisionModel](#RevisionModel), advertised in discovery) is `versioned` (mints revisions; write refs `pinned`) or `unversioned` (mints none; write refs relax to `unpinned`). StorageClass is orthogonal — it says only whether a resource is persisted.
 
 ```lumen
 type StorageClass = union {
-  Durable { versioned: bool }
+  Durable
   Ephemeral
   Intrinsic
 }
@@ -371,15 +371,9 @@ type StorageClass = union {
 
 | Variant | Payload | Description |
 |---|---|---|
-| `Durable` | `{ versioned: bool }` | Replicated and exported; `versioned` ⇒ prior revisions are retained and addressable. |
+| `Durable` | — | Replicated and exported (persisted). Whether its revisions are kept is the scope's `revisionModel`, not a property of the resource. |
 | `Ephemeral` | — | Local and never exported. |
 | `Intrinsic` | — | Computed by the service, not stored. |
-
-```
-StorageClass (resolved): `Durable { versioned: bool }` stays a field — `versioned`
-is a property of Durable, not a separate storage class; the bare nullary arms
-(Ephemeral / Intrinsic) need no `{}` in a `union {}` block.
-```
 
 <a id="Timestamp"></a>
 
@@ -1826,27 +1820,322 @@ command import(
 
 **Returns** `ImportReport` — What `import` reports — counts and any skipped/conflicted records.
 
-## 3.3  The primitive set & conformance tiers (a map, not a re-definition)
+## 3.3  Discovery & capabilities — the primitive set, advertised à la carte
 
-Each primitive is defined once, at its anchor. This is the index.
+```
+  Each primitive is defined once, at its anchor; this is the index, plus the
+  discovery contract that lets a caller NEVER GUESS what a scope offers.
+```
 
-| primitive | target | defined in | tier |
-|---|---|---|---|
-| get | resource | §1.2 | minimal |
-| list | scope | §3.1 | minimal |
-| pull | channel | §2.2 | minimal (changefeed) |
-| create | scope | §3.1 | full |
-| put | resource | §3.1 | full |
-| patch | resource | §3.1 | full (advertised) |
-| delete | resource | §3.1 | full |
-| revisions | resource | §3.1 | full |
-| call | operation | §2.3 | full |
-| cancel | asyncResult | §2.3 | full |
-| push | channel | §2.2 | full |
-| export | scope | §3.2 | full |
-| import | scope | §3.2 | full |
+| primitive | target | defined in |
+|---|---|---|
+| get | resource | §1.2 |
+| list | scope | §3.1 |
+| pull | channel | §2.2 |
+| create | scope | §3.1 |
+| put | resource | §3.1 |
+| patch | resource | §3.1 |
+| delete | resource | §3.1 |
+| revisions | resource | §3.1 |
+| call | operation | §2.3 |
+| cancel | asyncResult | §2.3 |
+| push | channel | §2.2 |
+| export | scope | §3.2 |
+| import | scope | §3.2 |
 
-Well-known resources (addressed by convention): /sys/changes — the scope's changefeed Channel (source; pullSchema = ChangeEvent)
+```
+  NO TIERS. A scope advertises WHICH primitives it offers, à la carte, through a
+  well-known discovery resource. `get` and discovery are the mandatory floor;
+  every other primitive is present iff advertised. A request for an un-offered
+  primitive is refused `capability-not-supported`; an optional feature is never
+  half-present. Call / cancel (operations) and the stdlib packs (apply = batch,
+  eval = query) advertise under their own packages, not core.
+```
+
+```
+  Well-known resources (addressed by convention):
+    /sys/changes       — the scope's changefeed Channel (source; pullSchema = ChangeEvent)
+    /sys/capabilities  — the scope's discovery resource: `get` it for the scope's
+                         `Capabilities` (below). Together with `get`, it is the floor.
+```
+
+<a id="Capabilities"></a>
+
+### `Capabilities`
+
+What a scope advertises through discovery — read it by `get` on the well-known `/sys/capabilities` resource. Its primitive capabilities are partitioned by package (`core` is the base; other packages advertise their own), à la carte: a primitive is supported iff its capability is present. Scope-wide traits that are not per-primitive live in `scope`.
+
+> **Normative.** Every scope offers `get` and a readable `/sys/capabilities`. A caller reads it once and relies on it: a primitive is supported iff its capability is present; a request that needs an un-offered primitive is refused `capability-not-supported` (the enforce side of this advertisement), and an optional feature is never half-present.
+
+```lumen
+type Capabilities = {
+  core:   CoreCapabilities,
+  scope:  ScopeCapabilities,
+  packs?: { ...: any }
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `core` | `CoreCapabilities` | The base (`core`) package's advertised primitive capabilities — what every BDP caller can use by name. |
+| `scope` | `ScopeCapabilities` | Scope-wide traits that are neither per-primitive nor pack-specific — storage classes and the revision model. |
+| `packs?` | `{ ...: any }` | Other packages' advertised capabilities, keyed by package path (the query / batch / domain packs). The package system fills these in; `core` is the base. |
+
+<a id="CoreCapabilities"></a>
+
+### `CoreCapabilities`
+
+The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side.
+
+```lumen
+type CoreCapabilities = {
+  get:        GetCaps,
+  list?:      ListCaps,
+  pull?:      PullCaps,
+  create?:    CreateCaps,
+  put?:       PutCaps,
+  patch?:     PatchCaps,
+  delete?:    DeleteCaps,
+  revisions?: RevisionsCaps,
+  export?:    ExportCaps,
+  import?:    ImportCaps,
+  push?:      PushCaps
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `get` | `GetCaps` | Always present — point reads are the floor. See [GetCaps](#GetCaps). |
+| `list?` | `ListCaps` | Present iff `list` is offered. See [ListCaps](#ListCaps). |
+| `pull?` | `PullCaps` | Present iff `pull` is offered (the changefeed and declared streams). See [PullCaps](#PullCaps). |
+| `create?` | `CreateCaps` | Present iff `create` is offered. See [CreateCaps](#CreateCaps). |
+| `put?` | `PutCaps` | Present iff `put` is offered. See [PutCaps](#PutCaps). |
+| `patch?` | `PatchCaps` | Present iff `patch` is offered. See [PatchCaps](#PatchCaps). |
+| `delete?` | `DeleteCaps` | Present iff `delete` is offered. See [DeleteCaps](#DeleteCaps). |
+| `revisions?` | `RevisionsCaps` | Present iff prior revisions are addressable (`revisions`); offered only by a `versioned` scope. See [RevisionsCaps](#RevisionsCaps). |
+| `export?` | `ExportCaps` | Present iff `export` is offered. See [ExportCaps](#ExportCaps). |
+| `import?` | `ImportCaps` | Present iff `import` is offered. See [ImportCaps](#ImportCaps). |
+| `push?` | `PushCaps` | Present iff `push` is offered. See [PushCaps](#PushCaps). |
+
+<a id="ScopeCapabilities"></a>
+
+### `ScopeCapabilities`
+
+A scope's scope-wide traits — the capabilities that are neither per-primitive nor pack-specific. Storage classes and the revision model live here.
+
+```lumen
+type ScopeCapabilities = {
+  storageClasses: [StorageClass],
+  revisionModel:  RevisionModel
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `storageClasses` | `[StorageClass]` | Which persistence classes the scope can honor — a set over `Durable` / `Ephemeral`. A resource whose class is not honored cannot be hosted. `Intrinsic` is universal and never appears here. |
+| `revisionModel` | `RevisionModel` | Whether the scope mints revisions, scope-wide. See [RevisionModel](#RevisionModel). |
+
+<a id="RevisionModel"></a>
+
+### `RevisionModel`
+
+A scope's revision model — a scope-wide trait, stated outright (no implicit default).
+
+> **Normative.** `versioned` ⇒ the scope mints revisions; write refs are `pinned`, pinned-revision (time-travel) `get` resolves, and the changefeed carries revisions. `unversioned` ⇒ the scope mints no revisions; `rev` is absent everywhere, write refs relax to `unpinned`, and every revision-dependent behaviour relaxes scope-wide.
+
+```lumen
+type RevisionModel = "versioned" | "unversioned"
+```
+
+<a id="GetCaps"></a>
+
+### `GetCaps`
+
+Limits advertised for `get`.
+
+```lumen
+type GetCaps = {
+  selector: bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `selector` | `bool` | Whether a `select` projection is honored on a read. |
+
+<a id="ListCaps"></a>
+
+### `ListCaps`
+
+Limits advertised for `list`.
+
+```lumen
+type ListCaps = {
+  conditions: [ConditionKind],
+  selector:   bool,
+  sort:       bool,
+  maxLimit?:  number
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `conditions` | `[ConditionKind]` | The list-condition operators the low-bar filter supports. |
+| `selector` | `bool` | Whether a `select` projection is honored. |
+| `sort` | `bool` | Whether server-side sort is offered. |
+| `maxLimit?` | `number` | The maximum page size, when capped. |
+
+<a id="ConditionKind"></a>
+
+### `ConditionKind`
+
+One operator in the low-bar `list` filter. The richer filter / query language is a corelib (query-pack) capability, not core.
+
+```lumen
+type ConditionKind = "compare" | "matches" | "has" | "missing" | "contains" | "containsAny" | "excludes" | "isType"
+```
+
+<a id="PullCaps"></a>
+
+### `PullCaps`
+
+Limits advertised for `pull` (the changefeed and declared streams).
+
+```lumen
+type PullCaps = {
+  sse:      bool,
+  jsonl:    bool,
+  filter:   bool,
+  selector: bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `sse` | `bool` | Whether live `sse` transport is offered. |
+| `jsonl` | `bool` | Whether bulk `jsonl` transport is offered. |
+| `filter` | `bool` | Whether a `where` filter is honored on the stream. |
+| `selector` | `bool` | Whether a `select` projection is honored on each item. |
+
+<a id="CreateCaps"></a>
+
+### `CreateCaps`
+
+Limits advertised for `create`.
+
+```lumen
+type CreateCaps = {
+  serverAllocatesId: bool,
+  clientProposedId:  bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `serverAllocatesId` | `bool` | Whether the server will allocate the id (no `requestedId`). |
+| `clientProposedId` | `bool` | Whether a caller-proposed id (`requestedId`) is honored. |
+
+<a id="PutCaps"></a>
+
+### `PutCaps`
+
+Presence advertises that `put` (idempotent full-state write) is offered; it carries no further limits.
+
+```lumen
+type PutCaps = { }
+```
+
+<a id="PatchCaps"></a>
+
+### `PatchCaps`
+
+Limits advertised for `patch`.
+
+```lumen
+type PatchCaps = {
+  ifMatch: bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `ifMatch` | `bool` | Whether the `ifRevision` (If-Match) precondition is honored. |
+
+<a id="DeleteCaps"></a>
+
+### `DeleteCaps`
+
+Limits advertised for `delete`.
+
+```lumen
+type DeleteCaps = {
+  ifMatch: bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `ifMatch` | `bool` | Whether the `ifRevision` (If-Match) precondition is honored. |
+
+<a id="RevisionsCaps"></a>
+
+### `RevisionsCaps`
+
+Presence advertises that prior revisions are addressable (`revisions`); offered only by a `versioned` scope.
+
+```lumen
+type RevisionsCaps = { }
+```
+
+<a id="ExportCaps"></a>
+
+### `ExportCaps`
+
+Limits advertised for `export`.
+
+```lumen
+type ExportCaps = {
+  revisions: bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `revisions` | `bool` | Whether the export can include prior revisions (history), not only the current state. |
+
+<a id="ImportCaps"></a>
+
+### `ImportCaps`
+
+Limits advertised for `import`.
+
+```lumen
+type ImportCaps = {
+  historyRestore: bool
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `historyRestore` | `bool` | Whether importing prior revisions (history restore) is honored. |
+
+<a id="PushCaps"></a>
+
+### `PushCaps`
+
+Limits advertised for `push`.
+
+```lumen
+type PushCaps = {
+  maxBatch?: number,
+  window?:   number
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `maxBatch?` | `number` | The maximum number of events accepted in one batch, when capped. |
+| `window?` | `number` | The admission window — how many events the channel will take before backpressure, when bounded. |
 
 # Appendix A. Worked examples (wire representations)
 
@@ -1868,7 +2157,7 @@ Well-known resources (addressed by convention): /sys/changes — the scope's cha
     type:      "issue/task",
     body:      { title: "Wire the changefeed", status: "open", estimate: 3 },   // firewalled
     metadata: {}, provenance: { … }, createdAt: "2026-11-16T18:04:12Z",
-    storageClass: Durable { versioned: true } }
+    storageClass: Durable }
   // kind (derived) = type.id = "issue/task"
 ```
 
@@ -1879,7 +2168,7 @@ Well-known resources (addressed by convention): /sys/changes — the scope's cha
     type:      "text/plain",
     body:      "Hello, world.\n",                                      // raw, flat — no firewall
     metadata: {}, provenance: { … }, createdAt: "2026-11-02T09:00:00Z",
-    storageClass: Durable { versioned: true } }
+    storageClass: Durable }
 ```
 
 # Appendix B. The `///` backend metadata vocabulary
@@ -2028,7 +2317,7 @@ A conformance suite is built from this spec, not from any implementation. Each `
 1. A stable identity per resource — never reused, never changed; opaque local part.
 2. A type per resource — the (authority, type) pair, frozen at inception.
 3. A body and metadata it stores and does NOT interpret.
-4. A storage class per resource — Durable { versioned } | Ephemeral | Intrinsic.
+4. A storage class per resource — Durable | Ephemeral | Intrinsic; whether revisions are kept is the scope's revisionModel, not a per-resource field.
 5. A revision per resource that changes exactly when its state changes.
 6. History where offered — prior revisions addressable; offered or not, discoverable.
 7. A transaction marker shared by everything committed together.
