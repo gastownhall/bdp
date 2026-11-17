@@ -45,6 +45,25 @@ def is_rule(s):   return bool(re.match(r'^// -{5,}', s))
 def collapse(s):  return re.sub(r' {2,}', ' ', s).strip()
 def cell(s):      return collapse(s).replace('|', r'\|')
 
+def split_top(s, sep='|'):
+    # split on `sep` only at bracket depth 0 and outside quotes, so a `|` inside
+    # a `{ of: "string" | "number" }` payload does not split the arm
+    parts, buf, depth, q = [], '', 0, None
+    for ch in s:
+        if q:
+            buf += ch
+            if ch == q: q = None
+            continue
+        if ch in '"\'': q = ch; buf += ch; continue
+        if ch in '{[(': depth += 1
+        elif ch in '}])': depth = max(0, depth - 1)
+        if ch == sep and depth == 0:
+            parts.append(buf); buf = ''
+        else:
+            buf += ch
+    parts.append(buf)
+    return [p.strip() for p in parts]
+
 FIELD = re.compile(r'^\s*([A-Za-z_]\w*)(\??):\s*(.+?)\s*,?\s*(?://\s*(.*))?$')
 
 def parse_record(decl):
@@ -93,6 +112,8 @@ def parse_union(decl):
     return rows
 
 def emit_members(decl):
+    # drop inline review-marker comments (TYPES-PASS:/>DB?/>L/>>>) from any member line
+    decl = [re.sub(r'\s*//\s*(?:TYPES-PASS:|>DB\?|>L\b|>>>).*$', '', l) for l in decl]
     joined = '\n'.join(decl)
     head = decl[0].strip() if decl else ''
     res = []
@@ -129,7 +150,7 @@ def emit_members(decl):
     am = re.match(r'^type\s+(\w+(?:<[^>]*>)?)\s*(is|=)\s*(.+)$', oneline)
     if am:
         rhs = am.group(3).strip()
-        alts = [a.strip() for a in rhs.split('|')]
+        alts = split_top(rhs)
         if len(alts) > 1 and all(re.match(r'^"[^"]*"$', a) for a in alts):
             return ['One of ' + ', '.join(f'`{a}`' for a in alts) + '.', '']
         if len(alts) > 1:
