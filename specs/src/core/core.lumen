@@ -278,10 +278,9 @@ type StorageClass = union {
   /// description: Computed by the service, not stored.
   Intrinsic
 }
-// >DB? you asked: break `Durable { versioned }` into two bare arms instead of a
-// field? (and: do bare arms like Ephemeral/Intrinsic read clearly without `{}` —
-// a Lumen-surface question I own; my call: bare nullary arms are fine in a
-// `union {}` block, no `{}` required.) Flagged, not changed.
+// StorageClass (resolved): `Durable { versioned: bool }` stays a field — `versioned`
+// is a property of Durable, not a separate storage class; the bare nullary arms
+// (Ephemeral / Intrinsic) need no `{}` in a `union {}` block.
 
 ## Timestamp
 /// description: RFC 3339 date-time; uppercase `T` and `Z`.
@@ -729,7 +728,7 @@ type AsyncResult = {
   /// description: The one-and-done source Channel that fires the Reply on settlement.
   replyChannel: ref<ChannelBead>
 }
-// >DB? scoop: as a bead (below) this inherits provenance/createdAt/metadata from the
+// Note (resolved): as a bead (below) this inherits provenance/createdAt/metadata from the
 // envelope. `cause`/`frame` are kept at top-level (queryable while `reply` is absent),
 // per your "would you query it while pending?" note.
 
