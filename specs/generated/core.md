@@ -723,7 +723,7 @@ type Transport = "json" | "jsonl" | "sse"
 
 ### `ReadRequest`
 
-The input to a streaming read (`pull` / `list` / `revisions`) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+The input to a streaming read ([pull](#pull) / [list](#list) / [revisions](#revisions)) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
 
 ```lumen
 type ReadRequest = {

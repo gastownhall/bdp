@@ -273,8 +273,18 @@ while i < n:
         continue
     i += 1
 
-res = []
+def linkify(s):
+    # [[core.lumen#Form]] / [[Form]] -> [Form](#Form); the anchor is the form-id
+    # (the text after '#', else the whole target). Code fences are left untouched.
+    return re.sub(r'\[\[([^\]]+)\]\]',
+                  lambda m: (lambda i: f'[{i}](#{i})')(m.group(1).split('#')[-1]), s)
+
+res, in_fence = [], False
 for l in out:
+    if l.startswith('```'):
+        in_fence = not in_fence
+    elif not in_fence:
+        l = linkify(l)
     if l == '' and res and res[-1] == '': continue
     res.append(l)
 open(sys.argv[2], 'w').write('\n'.join(res).strip() + '\n')

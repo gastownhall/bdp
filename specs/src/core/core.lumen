@@ -497,7 +497,7 @@ type Cursor is string
 type Transport = "json" | "jsonl" | "sse"
 
 ## ReadRequest
-/// description: The input to a streaming read (`pull` / `list` / `revisions`) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+/// description: The input to a streaming read ([[core.lumen#pull]] / [[core.lumen#list]] / [[core.lumen#revisions]]) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
 type ReadRequest = {
   /// description: Resume at an opaque cursor (exact).
   after?:  Cursor,
