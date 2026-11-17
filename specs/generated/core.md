@@ -25,7 +25,7 @@ Recorded as decisions so the design does not read as drift. These reflect the mo
 6. `union` is for closed value-level sum types only; kind hierarchies are open single-`is` refinement.
 7. Dispatch is implicit — a request routes to its target resource (a bead takes CRUD, an Operation takes `call`, a Channel takes `pull`/`push`). No dispatch table.
 8. error model. A data primitive returns its success value directly and faults with a Problem (an HTTP status). `Result<T,E>` / `Outcome<T,E>` are `call`'s alone — the declared success/failure of a user Operation. Writes return a pinned ref; reads return a rep; `delete` returns the tombstone Rev.
-9. The primitives are a subset a service may offer; discovery advertises which, and how each behaves. Built-in data primitives are NOT Operations.
+9. The primitives are a subset a service may offer, with `get` and discovery the mandatory floor; discovery advertises which others, and how each behaves. Built-in data primitives are NOT Operations.
 10. `committedAt` and `inception` are server-supplied on write, never request input; a Request's `provenance` is the caller's part only.
 
 open / parked (not in this file): the scheduler (deadline, timeout, graceful cancel + compensation); the `/sys/` scheme beyond `/sys/changes`; capability discovery; full filter / query / search / count / graph (corelib capabilities, advertised, not base); aliases & Transfer; the `canceled` HTTP status; delete-and-bring-back; the deferred types pass (BeadSchema ⇄ ElementRef).
@@ -1223,11 +1223,7 @@ type PackageDef {
 
 Dispatch is implicit: a request routes to the target resource. Beads take client CRUD (create/put/patch/delete/list/revisions); the three model-specific primitives live with their models (§1.2 `get`, §2.2 `pull`/`push`, §2.3 `call`/`cancel`). This section is the uniform write/read surface over any resource, then the export & change-notification cluster.
 
-```
-Conformance tiers (advertised per-scope, not the floor):
-  minimal / read-only = get + list + changefeed pull + discovery
-  full                = + create/put/patch/delete + call/cancel + export/import
-```
+Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à la carte. `get` and discovery (a readable /sys/capabilities) are the mandatory floor; every other primitive is present iff advertised. A request for an un-offered primitive is refused `capability-not-supported`.
 
 Error model: a data primitive returns its success value and faults with a Problem. Writes return a pinned ref; reads a rep; `delete` a tombstone Rev. (Ruling §0.8.)
 

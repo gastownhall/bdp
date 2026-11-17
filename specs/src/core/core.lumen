@@ -59,8 +59,9 @@
 //     with a Problem (an HTTP status). `Result<T,E>` / `Outcome<T,E>` are `call`'s
 //     alone — the declared success/failure of a user Operation. Writes return a
 //     pinned ref; reads return a rep; `delete` returns the tombstone Rev.
-//  9. The primitives are a subset a service may offer; discovery advertises which,
-//     and how each behaves. Built-in data primitives are NOT Operations.
+//  9. The primitives are a subset a service may offer, with `get` and discovery the
+//     mandatory floor; discovery advertises which others, and how each behaves.
+//     Built-in data primitives are NOT Operations.
 // 10. `committedAt` and `inception` are server-supplied on write, never request
 //     input; a Request's `provenance` is the caller's part only.
 //
@@ -803,9 +804,10 @@ type PackageDef {
 // `call`/`cancel`). This section is the uniform write/read surface over any
 // resource, then the export & change-notification cluster.
 //
-// Conformance tiers (advertised per-scope, not the floor):
-//   minimal / read-only = get + list + changefeed pull + discovery
-//   full                = + create/put/patch/delete + call/cancel + export/import
+// Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à la
+// carte. `get` and discovery (a readable /sys/capabilities) are the mandatory floor;
+// every other primitive is present iff advertised. A request for an un-offered
+// primitive is refused `capability-not-supported`.
 //
 // Error model: a data primitive returns its success value and faults with a Problem.
 // Writes return a pinned ref; reads a rep; `delete` a tombstone Rev. (Ruling §0.8.)
