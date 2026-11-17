@@ -1,5 +1,7 @@
 # Beads Protocol specification
 
+**v0.2 draft.** [Core v0.2](core.md) is the working draft of the next version. It marks each section ruled, proposed, carried or open. The v0.1 documents listed below remain the source of the published schemas, the OpenAPI catalog and the conformance kit until that draft's sections are ruled.
+
 The editorial review corpus contains four selected protocol documents, the proposed Transfer profile and the shared client specification. Read them in this order:
 
 1. [Core](profiles/core/core.md) — common Resources, identity, reads, authorization, and HTTP.

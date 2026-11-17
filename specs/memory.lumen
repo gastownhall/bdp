@@ -1,0 +1,66 @@
+// =============================================================================
+// memory.lumen — the Memory pack, authored as Lumen (the kind model)
+// =============================================================================
+// An example BDP pack in the kind model: arbitrary knowledge (Memory), obligations
+// (Constraint), assessments (Evaluation), and reified conformance claims (Conformance).
+// Companion to bdp.lumen (the base spec) and issue.lumen. The toolchain projects this
+// file to the trait + artifacts, so a pack's signatures are mechanically available.
+//
+// Roots (global aliases this pack defines): `memory`, `conformance`.
+// Subtype = kind-path PREFIX. A relationship is an owned `ref<T>` property on the source
+// bead (no Link). Sealed kinds list their arms (= A | B | …); open kinds omit the arms.
+// =============================================================================
+
+/// description: Markdown text. A nominal string (lowers to Nominal over string).
+type markdown is string
+
+
+// -----------------------------------------------------------------------------
+// §1. Memory — arbitrary knowledge (root; OPEN)
+// -----------------------------------------------------------------------------
+
+/// description: Memory — a unit of arbitrary knowledge. OPEN: plain memories exist and packs add subkinds.
+/// normative: `supersededBy` is a ≤1 replacement pointer; its chains are acyclic. `references` are context
+/// normative: pointers to any resource; they carry no further semantics.
+kind Memory is bead {
+  body:          markdown,
+  references?:   set<ref<resource>>,          // context pointers (unique by ref)
+  supersededBy?: ref<Memory> { acyclic },     // ≤1 replacement; chains acyclic
+}
+
+
+// -----------------------------------------------------------------------------
+// §2. Constraint — an obligation (SEALED: four kinds)
+// -----------------------------------------------------------------------------
+
+/// description: Constraint — an obligation. SEALED into Policy | Requirement | Scenario | Specification
+/// normative: (exhaustive match). `requires` are prerequisite constraints; `definedBy` is a ≤1 defining parent;
+/// normative: `appliesTo` are the beads this constraint governs. These are three SEPARATE props (no family).
+kind Constraint is Memory {
+  requires?:  set<ref<Constraint>>,           // prerequisite constraints
+  definedBy?: ref<Constraint>,                // ≤1 defining parent
+  appliesTo?: set<ref<bead>>,                 // targets this constraint governs
+} = Policy | Requirement | Scenario | Specification
+
+
+// -----------------------------------------------------------------------------
+// §3. Evaluation — an assessment over a subject group
+// -----------------------------------------------------------------------------
+
+/// description: Evaluation — an assessment over a NONEMPTY group of subject beads.
+kind Evaluation is Memory {
+  subjects: set<ref<bead>> { minSize: 1 },
+}
+
+
+// -----------------------------------------------------------------------------
+// §4. Conformance — a reified claim (SEALED: three kinds)
+// -----------------------------------------------------------------------------
+
+/// description: Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a bare
+/// normative: edge). SEALED into Addresses | Satisfies | Violates. `constraint` is what it claims about; `evaluation`
+/// normative: is the owning assessment (which names the subjects).
+kind Conformance is bead {
+  constraint: ref<Constraint>,
+  evaluation: ref<Evaluation>,
+} = Addresses | Satisfies | Violates
