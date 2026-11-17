@@ -455,11 +455,10 @@ type Channel {
 
 ## Retention
 /// description: How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).
-// >DB? PascalCase the arms (Forever | Window | Compacted) for consistency with StorageClass?
 type Retention = union {
-  forever
-  window    { by: "time" | "count" | "size", amount: number }
-  compacted { window?: Retention }
+  Forever
+  Window    { by: "time" | "count" | "size", amount: number }
+  Compacted { window?: Retention }
 }
 
 // --- the streaming model: source<T>, the three forms, cursors, windows ---
@@ -476,13 +475,11 @@ type Retention = union {
 // ONE Cursor spans all three: page in json, catch up in jsonl, hand the SAME
 // cursor to sse to go live. `sse` is gated to a LIVE source (pull); a snapshot
 // (list / export / revisions) has nothing to follow and refuses it.
-// >DB? naming + shape cleanup you flagged, not yet applied:
-//   - rename `Format` → `Transport`
-//   - unify the request window: `Window = { after?, from?, limit? }`, with
-//     `PullRequest = Window + { format?, filter?, select? }`, and rename the
-//     RESPONSE `PullPage` → `Page`.
-//   - make `list` and `pull` read the SAME way — both flat params, or both bundled?
-//     (my lean: flat, which dissolves `PullRequest`.)
+// The transport enum is `Transport`, the response window is `Page`, and the request
+// bundle is `ReadRequest` (shared by pull / list / revisions).
+// >DB? shape (still open for your read): list/revisions take `where?`/`select?` AND a
+//   `ReadRequest` whose `filter`/`select` overlap them — collapse to one? And `pull`
+//   returns `Page` while list/export return `source<T>` — unify the return?
 
 ## Ordinal
 /// description: An event's position in its stream; monotone within one Channel.
@@ -492,13 +489,13 @@ type Ordinal is number
 /// description: Opaque, transport-independent resume token, bound to one stream and the selection it came from; refused elsewhere. Also the point an export is cut at.
 type Cursor is string
 
-## Format
+## Transport
 /// description: The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
-type Format = "json" | "jsonl" | "sse"
+type Transport = "json" | "jsonl" | "sse"
 
-## PullRequest
+## ReadRequest
 /// description: The input to `pull` — where to resume, how much, the transport, and per-event shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target Channel is the op's first parameter, not restated here.
-type PullRequest = {
+type ReadRequest = {
   /// description: Resume at an opaque cursor (exact).
   after?:  Cursor,
   /// description: Start at a known ordinal (xor `after`).
@@ -506,16 +503,16 @@ type PullRequest = {
   /// description: Cap the window size.
   limit?:  number,
   /// description: The transport form.
-  format?: Format,
+  format?: Transport,
   /// description: Filter the stream.
   filter?: ListFilter,
   /// description: Project each event.
   select?: selector
 }
 
-## PullPage
+## Page
 /// description: One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
-type PullPage = {
+type Page = {
   /// description: The items in this window (a Channel's E — ChangeEvent for the changefeed; items generally).
   items:  [ any ],
   /// description: Where to resume; opaque, bound to this stream + selection.
@@ -528,11 +525,11 @@ type PullPage = {
 /// bdp = { kind = "primitive", primitive = "pull" }
 /// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` events. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three.
 /// normative: Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
-/// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Format", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
+/// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
 fn pull(
     channel: unpinned<ChannelBead>,
-    request: PullRequest
-  ) -> PullPage
+    request: ReadRequest
+  ) -> Page
 
 ## push
 /// bdp = { kind = "primitive", primitive = "push" }
@@ -854,7 +851,7 @@ fn list(
     scope:   Scope,
     where?:  ListFilter,
     select?: selector,
-    page?:   PullRequest
+    request?: ReadRequest
   ) -> source<rep<Resource>>
 
 ## revisions
@@ -864,7 +861,7 @@ fn list(
 fn revisions(
     resource: unpinned<Resource>,
     select?:  selector,
-    page?:    PullRequest
+    request?: ReadRequest
   ) -> source<rep<Resource>>
 
 // --- read-shaping & patch bodies (shared by the reads above) ---
@@ -1241,4 +1238,34 @@ command import(
 //   request-too-large · limit-exceeded · rate-limited · temporarily-unavailable ·
 //   capability-not-supported · callable-not-found · callable-unavailable ·
 //   mode-not-supported · mode-refused
+
+
+// #############################################################################
+// Appendix E. Conformance — what a Core service MUST provide
+// #############################################################################
+// A conformance suite is built from this spec, not from any implementation. Each
+// `/// normative:` line above is a conformance point; the list below gathers the
+// store-wide guarantees (harvested from the prose Core §10).
+//
+// A conformant store keeps:
+//  1. A stable identity per resource — never reused, never changed; opaque local part.
+//  2. A type per resource — the (authority, type) pair, frozen at inception.
+//  3. A body and metadata it stores and does NOT interpret.
+//  4. A storage class per resource — Durable { versioned } | Ephemeral | Intrinsic.
+//  5. A revision per resource that changes EXACTLY when its state changes.
+//  6. History where offered — prior revisions addressable; offered or not, discoverable.
+//  7. A transaction marker shared by everything committed together.
+//  8. A cause minted ONCE per incoming request, stamped on every effect it sets off.
+//  9. A durable change record per resource per commit — none for a failed or no-change request.
+// 10. Provenance saved with the change, immutable, never invented.
+// 11. A changefeed at /sys/changes carrying every commit (replication included).
+// 12. An export consistent with itself, with the cursor that matches it.
+// 13. An authorization view — a hidden resource reads EXACTLY as a missing one.
+// 14. Deletion that does not erase — the id stays accounted for, the tombstone is kept.
+//
+// Discovery advertises, per scope: the primitives offered; whether history / PATCH /
+// push are offered; which storage classes `create` accepts; which invocation modes are
+// refused; the max request-context size; and where the changefeed is. A request that
+// needs an un-offered capability is refused `capability-not-supported`; an optional
+// feature is never half-present.
 // =============================================================================
