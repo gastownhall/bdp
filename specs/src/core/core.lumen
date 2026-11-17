@@ -439,6 +439,7 @@ type ChannelBead = Bead<Channel>
 ## Channel
 /// description: The body of a ChannelBead — its two event schemas, direction, and delivery characteristics.
 /// normative: `direction` and the two schemas are mutually constraining — `source` ⟺ pullSchema set & pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
+/// normative: A Channel bead's revision does NOT change when events arrive — the bead is not the stream. Appended events ride the channel's own stream, never the changefeed.
 type Channel {
   /// description: What `push` accepts; null on a source (pull-only).
   pushSchema?: BeadValueSchema
@@ -810,6 +811,7 @@ command create(
 ## put
 /// bdp = { kind = "primitive", primitive = "put" }
 /// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
+/// normative: A full-state write that changes nothing SUCCEEDS, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.
 /// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
 idempotent command put(
     resource:    unpinned<Resource>,
@@ -1190,4 +1192,53 @@ command import(
 //   BDP-* context           lowers to request/reply HEADERS (Appendix B), never to
 //                           the URL or body — the body carries the value, the headers
 //                           the context.
+
+
+// #############################################################################
+// Appendix D. HTTP binding (harvested from the prose Core, §12 / §13.2)
+// #############################################################################
+// Status caveat: in the prose only create-on-Scope, the `call` form, and
+// `failure ⇒ 409` are HARD-ruled; the other status codes are settled here.
+//
+// --- request context (headers — never the URL or body) ---------------------
+//   BDP-Cause        a bare cause token
+//   BDP-Provenance   the caller's provenance part, as JSON (ASCII, escaped)
+//   BDP-Metadata     per-request metadata, as JSON
+//   Rules: ONE header per member; each appears AT MOST ONCE; header names use
+//   hyphens, never underscores. The three together have a floor of 4096 bytes a
+//   Scope MUST accept (its max is advertised); oversize ⇒ `request-too-large`,
+//   never truncated. A browser EventStream reader sends no request context —
+//   allowed, since every member is optional.
+//
+// --- reply context (response headers) ---------------------------------------
+//   BDP-Cause        always present
+//   BDP-Transaction  present ONLY where the request made exactly one commit
+//   BDP-Metadata     per-reply metadata
+//   The body is the value alone; the context rides in the headers.
+//
+// --- content types ----------------------------------------------------------
+//   application/json              a value / one windowed page
+//   application/jsonl             bulk stream (pull / list / export; push / import body)
+//   text/event-stream            live pull (SSE); the SSE event id IS the cursor, so a
+//                                reconnect's `Last-Event-ID` resumes exactly as `after`
+//   application/json-patch+json  the `patch` body (RFC 6902; paths /body and /metadata)
+//   application/problem+json     every failing body (RFC 9457 Problem)
+//
+// --- status codes -----------------------------------------------------------
+//   200  get / put / patch / list / revisions / pull success; call → outcome success
+//   201  create success, and a call whose Operation `creates` — Location: the new URL
+//   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
+//   409  call → a DECLARED failure (ruled); also some Problems (e.g. revision-mismatch)
+//   412  stale If-Match on put / patch / delete (Precondition Failed)
+//   405  pull / push on the wrong channel direction; patch where a Scope offers no PATCH
+//   410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)
+//   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
+//
+// --- Problem codes (RFC 9457 `code`) ----------------------------------------
+//   malformed-request · invalid-parameter · unauthenticated · forbidden ·
+//   resource-not-found · resource-pruned · resource-erased · revision-mismatch ·
+//   identity-taken · validation-failed · type-not-installed · cursor-expired ·
+//   request-too-large · limit-exceeded · rate-limited · temporarily-unavailable ·
+//   capability-not-supported · callable-not-found · callable-unavailable ·
+//   mode-not-supported · mode-refused
 // =============================================================================
