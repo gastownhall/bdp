@@ -555,7 +555,7 @@ type JsonSchema {
 
 | Member | Type | Description |
 |---|---|---|
-| `text` | `string` |  |
+| `text` | `string` | The JSON Schema document, as text. |
 
 **element references (how one overlay element names another)**
 
@@ -677,9 +677,9 @@ type Retention = union {
 
 | Variant | Payload | Description |
 |---|---|---|
-| `Forever` | — |  |
-| `Window` | `{ by: "time" \| "count" \| "size", amount: number }` |  |
-| `Compacted` | `{ window?: Retention }` |  |
+| `Forever` | — | Every event is resumable; the stream is never trimmed. |
+| `Window` | `{ by: "time" \| "count" \| "size", amount: number }` | Resumable within a trailing window, bounded by time, count, or size. |
+| `Compacted` | `{ window?: Retention }` | Compacted to latest-per-key; an optional window bounds the compacted tail. |
 
 --- the streaming model: source<T>, the three forms, cursors, windows --- A `source<T>` is a finite, resumable, ordered sequence of `T`. Four reads produce one: `pull` (a Channel), `list` (a scope's current resources), `revisions` (one resource's history), `export` (a scope backup). A reader consumes it in one of three transport forms (the `--format` / Accept arm):
 
@@ -782,8 +782,8 @@ fn pull(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `channel` | `unpinned<ChannelBead>` |  |
-| `request` | `ReadRequest` |  |
+| `channel` | `unpinned<ChannelBead>` | The channel to read — the changefeed or a declared stream. |
+| `request` | `ReadRequest` | Where to resume, how much, and the transport (see [ReadRequest](#ReadRequest)). |
 
 **Returns** `Page` — One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
 
@@ -805,9 +805,9 @@ command push(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `channel` | `unpinned<ChannelBead>` |  |
-| `source` | `source<any>` |  |
-| `strategy?` | `PushStrategy` |  |
+| `channel` | `unpinned<ChannelBead>` | The channel to append to — must accept writes (`sink`/`duplex`). |
+| `source` | `source<any>` | The events to append, in order; the channel's `pushSchema` type. |
+| `strategy?` | `PushStrategy` | How to handle a rejected event or a re-push (see [PushStrategy](#PushStrategy)). |
 
 **Returns** `PushReport` — What `push` reports — counts and any skipped/rejected events by ordinal.
 
@@ -826,8 +826,8 @@ type PushStrategy {
 
 | Member | Type | Description |
 |---|---|---|
-| `dedup?` | `bool` |  |
-| `dryRun?` | `bool` |  |
+| `dedup?` | `bool` | Skip an event already appended (idempotent re-push) instead of faulting. |
+| `dryRun?` | `bool` | Validate and report, but append nothing. |
 
 <a id="PushReport"></a>
 
@@ -845,9 +845,9 @@ type PushReport {
 
 | Member | Type | Description |
 |---|---|---|
-| `pushed` | `number` |  |
-| `skipped` | `number` |  |
-| `conflicts` | `[ { ordinal: Ordinal, reason: string } ]` |  |
+| `pushed` | `number` | How many events were appended. |
+| `skipped` | `number` | How many were skipped (already present, under `dedup`). |
+| `conflicts` | `[ { ordinal: Ordinal, reason: string } ]` | Rejected events, each by its ordinal and the reason. |
 
 ## 2.3  Operations — call, cancel
 
@@ -1132,8 +1132,8 @@ fn call(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `operation` | `ref<OperationBead>` |  |
-| `request` | `Request` |  |
+| `operation` | `ref<OperationBead>` | The operation to invoke (see [Operation](#Operation)). |
+| `request` | `Request` | The call input — arguments, idempotency key, and cause (see [Request](#Request)). |
 
 **Returns** `Reply` — What a `call` returns — flat, no context wrapper. `outcome` keeps the domain `Result` nested in `Outcome`.
 
@@ -1151,7 +1151,7 @@ command cancel(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `asyncResult` | `unpinned<AsyncResultBead>` |  |
+| `asyncResult` | `unpinned<AsyncResultBead>` | The running async handle to stop (see [AsyncResult](#AsyncResult)). |
 
 **Returns** `pinned<AsyncResultBead>` — A bead whose body is an async-call handle.
 
@@ -1217,7 +1217,7 @@ type IdRoot {
 
 | Member | Type | Description |
 |---|---|---|
-| `prefix` | `string` |  |
+| `prefix` | `string` | The id prefix to mint under; the server appends the leaf segment. |
 
 <a id="Id"></a>
 
@@ -1233,7 +1233,7 @@ type Id {
 
 | Member | Type | Description |
 |---|---|---|
-| `id` | `string` |  |
+| `id` | `string` | The exact id the caller proposes. |
 
 <a id="create"></a>
 
@@ -1409,9 +1409,9 @@ type selector {
 
 | Member | Type | Description |
 |---|---|---|
-| `include?` | `[ JsonPointer ]` |  |
-| `omit?` | `[ JsonPointer ]` |  |
-| `expand?` | `[ LocalName ]` |  |
+| `include?` | `[ JsonPointer ]` | Keep only these subtrees (JSON Pointer); everything else is dropped. |
+| `omit?` | `[ JsonPointer ]` | Drop these subtrees; everything else is kept. |
+| `expand?` | `[ LocalName ]` | Expand these named references inline instead of leaving them as refs. |
 
 <a id="JsonPointer"></a>
 
@@ -1440,10 +1440,10 @@ type JsonPatchOp = {
 
 | Member | Type | Description |
 |---|---|---|
-| `op` | `"add" \| "remove" \| "replace" \| "move" \| "copy" \| "test"` |  |
-| `path` | `string` |  |
-| `value?` | `any` |  |
-| `from?` | `string` |  |
+| `op` | `"add" \| "remove" \| "replace" \| "move" \| "copy" \| "test"` | The RFC 6902 operation to perform. |
+| `path` | `string` | The target location, as a JSON Pointer. |
+| `value?` | `any` | The value, for `add` / `replace` / `test`. |
+| `from?` | `string` | The source location, for `move` / `copy`. |
 
 <a id="JsonPatch"></a>
 
@@ -1486,14 +1486,14 @@ type listCondition = union {
 
 | Variant | Payload | Description |
 |---|---|---|
-| `compare` | `{ field: FieldPath, op: "eq"\|"ne"\|"lt"\|"le"\|"gt"\|"ge"\|"in", value: any }` |  |
-| `matches` | `{ field: FieldPath, pattern: string, using: "substring"\|"glob"\|"regex" }` |  |
-| `has` | `{ field: FieldPath }` |  |
-| `missing` | `{ field: FieldPath }` |  |
-| `contains` | `{ field: FieldPath, value: any }` |  |
-| `containsAny` | `{ field: FieldPath, values: [ any ] }` |  |
-| `excludes` | `{ field: FieldPath, value: any }` |  |
-| `isKind` | `{ kind: RelativeId, match: "exact" \| "prefix" = "prefix" }` |  |
+| `compare` | `{ field: FieldPath, op: "eq"\|"ne"\|"lt"\|"le"\|"gt"\|"ge"\|"in", value: any }` | Compare a field to a value with a scalar operator (or set membership, `in`). |
+| `matches` | `{ field: FieldPath, pattern: string, using: "substring"\|"glob"\|"regex" }` | Match a field's text against a pattern (substring, glob, or regex). |
+| `has` | `{ field: FieldPath }` | The field is present. |
+| `missing` | `{ field: FieldPath }` | The field is absent. |
+| `contains` | `{ field: FieldPath, value: any }` | A list field contains the value. |
+| `containsAny` | `{ field: FieldPath, values: [ any ] }` | A list field contains any of the values. |
+| `excludes` | `{ field: FieldPath, value: any }` | A list field does not contain the value. |
+| `isKind` | `{ kind: RelativeId, match: "exact" \| "prefix" = "prefix" }` | Match the kind-path (`type.id`) by prefix (the "is it an issue?" test) or exact. |
 
 <a id="FieldPath"></a>
 
@@ -1592,7 +1592,7 @@ type Created = {
 
 | Member | Type | Description |
 |---|---|---|
-| `representation` | `rep<Resource>` |  |
+| `representation` | `rep<Resource>` | The full post-image of the new resource; its provenance is the change's provenance. |
 
 <a id="Updated"></a>
 
@@ -1609,7 +1609,7 @@ type Updated = {
 
 | Member | Type | Description |
 |---|---|---|
-| `content` | `ChangeContent` |  |
+| `content` | `ChangeContent` | The change payload — a full post-image or a patch delta (see [ChangeContent](#ChangeContent)). |
 
 <a id="Deleted"></a>
 
@@ -1626,7 +1626,7 @@ type Deleted = {
 
 | Member | Type | Description |
 |---|---|---|
-| `provenance` | `Provenance` |  |
+| `provenance` | `Provenance` | Explicit provenance for the retirement — there is no post-image to carry it. |
 
 <a id="ChangeContent"></a>
 
@@ -1680,9 +1680,9 @@ type ExportBegin = {
 
 | Member | Type | Description |
 |---|---|---|
-| `kind` | `"export-begin"` |  |
-| `scope` | `AbsoluteHttpUrl` |  |
-| `cursor` | `Cursor` |  |
+| `kind` | `"export-begin"` | The discriminator that tells a begin line from a resource line. |
+| `scope` | `AbsoluteHttpUrl` | The scope this export covers. |
+| `cursor` | `Cursor` | The cut the export was taken at — where a consumer resumes the changefeed. |
 
 <a id="ExportEnd"></a>
 
@@ -1699,8 +1699,8 @@ type ExportEnd = {
 
 | Member | Type | Description |
 |---|---|---|
-| `kind` | `"export-end"` |  |
-| `count` | `number` |  |
+| `kind` | `"export-end"` | The discriminator that marks the closing line. |
+| `count` | `number` | The number of resource records — lets a reader detect a truncated file. |
 
 <a id="export"></a>
 
@@ -1719,10 +1719,10 @@ fn export(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `scope` | `Scope` |  |
-| `where?` | `ListFilter` |  |
-| `select?` | `selector` |  |
-| `revisions?` | `bool` |  |
+| `scope` | `Scope` | The scope to back up. |
+| `where?` | `ListFilter` | Restrict the export to matching resources (see [ListFilter](#ListFilter)). |
+| `select?` | `selector` | Project each exported resource. |
+| `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
 
 **Returns** `source<ExportRecord>` — One line of an export.
 
@@ -1743,10 +1743,10 @@ type ImportStrategy = {
 
 | Member | Type | Description |
 |---|---|---|
-| `dedup?` | `bool` |  |
-| `allowStale?` | `bool` |  |
-| `dryRun?` | `bool` |  |
-| `idRoot?` | `string` |  |
+| `dedup?` | `bool` | Skip a record already present instead of faulting (idempotent re-import). |
+| `allowStale?` | `bool` | Admit a record whose revision is behind the store's current one. |
+| `dryRun?` | `bool` | Validate and report, but write nothing. |
+| `idRoot?` | `string` | Remap incoming ids under this id-root prefix. |
 
 <a id="ImportReport"></a>
 
@@ -1764,9 +1764,9 @@ type ImportReport = {
 
 | Member | Type | Description |
 |---|---|---|
-| `imported` | `number` |  |
-| `skipped` | `number` |  |
-| `conflicts` | `[ { id: ref<Resource>, reason: string } ]` |  |
+| `imported` | `number` | How many records were written. |
+| `skipped` | `number` | How many were skipped (already present, under `dedup`). |
+| `conflicts` | `[ { id: ref<Resource>, reason: string } ]` | Rejected records, each by its id and the reason. |
 
 <a id="import"></a>
 
@@ -1784,9 +1784,9 @@ command import(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `scope` | `Scope` |  |
-| `source` | `source<ExportRecord>` |  |
-| `strategy?` | `ImportStrategy` |  |
+| `scope` | `Scope` | The scope to import into. |
+| `source` | `source<ExportRecord>` | The export stream to replay — begin, resources, end (see [ExportRecord](#ExportRecord)). |
+| `strategy?` | `ImportStrategy` | How to merge, and whether to remap ids (see [ImportStrategy](#ImportStrategy)). |
 
 **Returns** `ImportReport` — What `import` reports — counts and any skipped/conflicted records.
 

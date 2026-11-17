@@ -399,6 +399,7 @@ type LocalName is string
 ## JsonSchema
 /// description: A JSON Schema document — the lowered/exported form of a type-as-value for external (non-BDP) consumers.
 type JsonSchema {
+  /// description: The JSON Schema document, as text.
   text: string
 }
 
@@ -459,8 +460,11 @@ type Channel {
 ## Retention
 /// description: How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).
 type Retention = union {
+  /// description: Every event is resumable; the stream is never trimmed.
   Forever
+  /// description: Resumable within a trailing window, bounded by time, count, or size.
   Window    { by: "time" | "count" | "size", amount: number }
+  /// description: Compacted to latest-per-key; an optional window bounds the compacted tail.
   Compacted { window?: Retention }
 }
 
@@ -530,7 +534,9 @@ type Page = {
 /// normative: Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 /// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
 fn pull(
+    /// description: The channel to read — the changefeed or a declared stream.
     channel: unpinned<ChannelBead>,
+    /// description: Where to resume, how much, and the transport (see [[core.lumen#ReadRequest]]).
     request: ReadRequest
   ) -> Page
 
@@ -540,23 +546,31 @@ fn pull(
 /// normative: Valid on a `sink`/`duplex` channel; a `source`-only channel faults `channel-not-pushable`. A terminal (closed/failed) channel faults; a `single` channel caps the batch at one.
 /// openapi = { operationId = "push", method = "POST", pathItem = "channel", tags = ["Core"], params = { strategy = { in = "query", schema = "PushStrategy", required = false } }, request = { contentType = "application/jsonl" }, success = { status = 200 }, problem = { status = [400,405,409,422] } }
 command push(
+    /// description: The channel to append to — must accept writes (`sink`/`duplex`).
     channel:   unpinned<ChannelBead>,
+    /// description: The events to append, in order; the channel's `pushSchema` type.
     source:    source<any>,
+    /// description: How to handle a rejected event or a re-push (see [[core.lumen#PushStrategy]]).
     strategy?: PushStrategy
   ) -> PushReport
 
 ## PushStrategy
 /// description: How `push` handles a rejected event or a re-push — the event analog of ImportStrategy (distinct: events, not resources).
 type PushStrategy {
+  /// description: Skip an event already appended (idempotent re-push) instead of faulting.
   dedup?:  bool,
+  /// description: Validate and report, but append nothing.
   dryRun?: bool
 }
 
 ## PushReport
 /// description: What `push` reports — counts and any skipped/rejected events by ordinal.
 type PushReport {
+  /// description: How many events were appended.
   pushed:    number,
+  /// description: How many were skipped (already present, under `dedup`).
   skipped:   number,
+  /// description: Rejected events, each by its ordinal and the reason.
   conflicts: [ { ordinal: Ordinal, reason: string } ]
 }
 
@@ -728,7 +742,9 @@ type AsyncResultBead = Bead<AsyncResult>
 /// description: Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Location when `creates` / 409 on a declared failure / Problem status on `fault`). `?mode=async` returns 202 + the AsyncResult at Location; settle later. The only primitive with the rich Outcome.
 /// openapi = { operationId = "call", method = "POST", pathItem = "operation", tags = ["Core"], params = { mode = { in = "query", schema = "\"sync\" | \"async\"", required = false } }, responses = [ { status = 200, schema = "Reply", description = "sync ok" }, { status = 201, schema = "Reply", description = "sync ok, mints a resource" }, { status = 409, schema = "Reply", description = "declared failure — branch on the arm" }, { status = 202, schema = "AsyncResultBead", description = "async — result at Location" } ], responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } } }
 fn call(
+    /// description: The operation to invoke (see [[core.lumen#Operation]]).
     operation: ref<OperationBead>,
+    /// description: The call input — arguments, idempotency key, and cause (see [[core.lumen#Request]]).
     request:   Request
   ) -> Reply
 
@@ -737,6 +753,7 @@ fn call(
 /// description: Kill -9 on a running AsyncResult — writes `reply.outcome = canceled`. Runs no compensation (that is the scheduler's graceful path); its effects stay findable via `causedBy`.
 /// openapi = { operationId = "cancel", method = "POST", pathItem = "asyncResult", tags = ["Core"], success = { status = 200 }, problem = { status = [404,409] } }
 command cancel(
+    /// description: The running async handle to stop (see [[core.lumen#AsyncResult]]).
     asyncResult: unpinned<AsyncResultBead>
   ) -> pinned<AsyncResultBead>
 
@@ -785,11 +802,13 @@ type PackageDef {
 ## IdRoot
 /// description: A prefix-rooted auto-id proposal (the server mints the leaf).
 type IdRoot {
+  /// description: The id prefix to mint under; the server appends the leaf segment.
   prefix: string
 }
 ## Id
 /// description: An exact caller-proposed id.
 type Id {
+  /// description: The exact id the caller proposes.
   id: string
 }
 
@@ -898,8 +917,11 @@ fn revisions(
 ## selector
 /// description: A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `type`/`id` are never dropped.
 type selector {
+  /// description: Keep only these subtrees (JSON Pointer); everything else is dropped.
   include?: [ JsonPointer ],
+  /// description: Drop these subtrees; everything else is kept.
   omit?:    [ JsonPointer ],
+  /// description: Expand these named references inline instead of leaving them as refs.
   expand?:  [ LocalName ]
 }
 
@@ -910,9 +932,13 @@ type JsonPointer is string
 ## JsonPatchOp
 /// description: One RFC 6902 operation. In `patch`, paths are limited to /body and /metadata.
 type JsonPatchOp = {
+  /// description: The RFC 6902 operation to perform.
   op:     "add" | "remove" | "replace" | "move" | "copy" | "test",
+  /// description: The target location, as a JSON Pointer.
   path:   string,
+  /// description: The value, for `add` / `replace` / `test`.
   value?: any,
+  /// description: The source location, for `move` / `copy`.
   from?:  string
 }
 
@@ -927,13 +953,21 @@ type ListFilter = [ listCondition ]
 ## listCondition
 /// description: One flat field condition. `isKind` matches against the kind-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
 type listCondition = union {
+  /// description: Compare a field to a value with a scalar operator (or set membership, `in`).
   compare     { field: FieldPath, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value: any }
+  /// description: Match a field's text against a pattern (substring, glob, or regex).
   matches     { field: FieldPath, pattern: string, using: "substring"|"glob"|"regex" }
+  /// description: The field is present.
   has         { field: FieldPath }
+  /// description: The field is absent.
   missing     { field: FieldPath }
+  /// description: A list field contains the value.
   contains    { field: FieldPath, value: any }
+  /// description: A list field contains any of the values.
   containsAny { field: FieldPath, values: [ any ] }
+  /// description: A list field does not contain the value.
   excludes    { field: FieldPath, value: any }
+  /// description: Match the kind-path (`type.id`) by prefix (the "is it an issue?" test) or exact.
   isKind      { kind: RelativeId, match: "exact" | "prefix" = "prefix" }
 }
 
@@ -997,6 +1031,7 @@ type ChangeEnvelope = {
 /// description: A resource admitted. Full post-image; its provenance is the representation's provenance.
 type Created = {
   ...ChangeEnvelope,
+  /// description: The full post-image of the new resource; its provenance is the change's provenance.
   representation: rep<Resource>
 }
 
@@ -1004,6 +1039,7 @@ type Created = {
 /// description: A resource changed. `content` is the orthogonal encoding axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.
 type Updated = {
   ...ChangeEnvelope,
+  /// description: The change payload — a full post-image or a patch delta (see [[core.lumen#ChangeContent]]).
   content: ChangeContent
 }
 
@@ -1011,6 +1047,7 @@ type Updated = {
 /// description: A resource retired — the tombstone. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.
 type Deleted = {
   ...ChangeEnvelope,
+  /// description: Explicit provenance for the retirement — there is no post-image to carry it.
   provenance: Provenance
 }
 
@@ -1033,15 +1070,20 @@ type ExportRecord = ExportBegin | rep<Resource> | ExportEnd
 ## ExportBegin
 /// description: The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`.
 type ExportBegin = {
+  /// description: The discriminator that tells a begin line from a resource line.
   kind:   "export-begin",
+  /// description: The scope this export covers.
   scope:  AbsoluteHttpUrl,
+  /// description: The cut the export was taken at — where a consumer resumes the changefeed.
   cursor: Cursor
 }
 
 ## ExportEnd
 /// description: The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
 type ExportEnd = {
+  /// description: The discriminator that marks the closing line.
   kind:  "export-end",
+  /// description: The number of resource records — lets a reader detect a truncated file.
   count: number
 }
 
@@ -1050,26 +1092,37 @@ type ExportEnd = {
 /// description: Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ ListFilter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 /// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
 fn export(
+    /// description: The scope to back up.
     scope:      Scope,
+    /// description: Restrict the export to matching resources (see [[core.lumen#ListFilter]]).
     where?:     ListFilter,
+    /// description: Project each exported resource.
     select?:    selector,
+    /// description: Emit every revision in order (a true backup) instead of current state.
     revisions?: bool
   ) -> source<ExportRecord>
 
 ## ImportStrategy
 /// description: How `import` merges — strategy and id remap.
 type ImportStrategy = {
+  /// description: Skip a record already present instead of faulting (idempotent re-import).
   dedup?:      bool,
+  /// description: Admit a record whose revision is behind the store's current one.
   allowStale?: bool,
+  /// description: Validate and report, but write nothing.
   dryRun?:     bool,
+  /// description: Remap incoming ids under this id-root prefix.
   idRoot?:     string
 }
 
 ## ImportReport
 /// description: What `import` reports — counts and any skipped/conflicted records.
 type ImportReport = {
+  /// description: How many records were written.
   imported:  number,
+  /// description: How many were skipped (already present, under `dedup`).
   skipped:   number,
+  /// description: Rejected records, each by its id and the reason.
   conflicts: [ { id: ref<Resource>, reason: string } ]
 }
 
@@ -1078,8 +1131,11 @@ type ImportReport = {
 /// description: The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
 /// openapi = { operationId = "import", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,422] } }
 command import(
+    /// description: The scope to import into.
     scope:     Scope,
+    /// description: The export stream to replay — begin, resources, end (see [[core.lumen#ExportRecord]]).
     source:    source<ExportRecord>,
+    /// description: How to merge, and whether to remap ids (see [[core.lumen#ImportStrategy]]).
     strategy?: ImportStrategy
   ) -> ImportReport
 
