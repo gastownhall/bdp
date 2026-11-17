@@ -1,3 +1,10 @@
+/// description: status: obsolete
+/// superseded-by: specs/src/core/core.lumen, specs/src/bdp.md
+//
+// OBSOLETE — superseded by core.lumen (the normative source of truth) and bdp.md
+// (the narrative companion). Retained as a salvage / cherry-pick source only; it
+// is no longer maintained.
+//
 //````
 # BDP Core
 
