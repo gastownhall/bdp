@@ -375,6 +375,12 @@ type StorageClass = union {
 | `Ephemeral` | — | Local and never exported. |
 | `Intrinsic` | — | Computed by the service, not stored. |
 
+```
+StorageClass (resolved): `Durable { versioned: bool }` stays a field — `versioned`
+is a property of Durable, not a separate storage class; the bare nullary arms
+(Ephemeral / Intrinsic) need no `{}` in a `union {}` block.
+```
+
 <a id="Timestamp"></a>
 
 ### `Timestamp`
@@ -791,63 +797,91 @@ fn pull(
 
 ### `push`
 
-Write a Channel — consume a source of events (the channel's `pushSchema` type) and append them in order. The dual of `pull`, and the channel analog of scope `import`: skip-and-report under a PushStrategy, idempotent re-push. `jsonl` body (bulk); `sse` is pull-only.
+Append one or more events to a Channel. The pusher offers a batch and the channel accepts what it can take now — `push` is non-blocking: it accepts a prefix, defers the rest under backpressure, and the pusher re-offers from `acceptedThrough + 1`. The pusher owns the pump. A keyed event (carrying a pusher-assigned `ordinal`) is idempotent — a re-push is a benign no-op. `jsonl` body (bulk).
 
-> **Normative.** Valid on a `sink`/`duplex` channel; a `source`-only channel faults `channel-not-pushable`. A terminal (closed/failed) channel faults; a `single` channel caps the batch at one.
+> **Normative.** Valid on a `sink`/`duplex` channel; a `source`-only channel faults `channel-not-pushable`. A terminal (closed/failed) channel faults; a `single`-cardinality channel caps the batch at one.
+
+> **Normative.** Append is idempotent on `(channel, ordinal)`. A keyed event — one carrying a pusher-assigned `ordinal` — is first-write-wins and immutable: a re-push of that ordinal is a benign no-op success, reported `Deduped`, never a fault. A single logical writer per channel makes pusher-assigned ordinals collision-free. An event with no `ordinal` is appended and the channel assigns one, reported `Accepted`.
+
+> **Normative.** Backpressure rides the acknowledgement, not a reverse stream. The channel accepts a prefix of the batch up to its current admission `credit` (advertised as `window` in discovery), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal) with `credit` (how many more it will take now) and an optional `retryAfter`. The pusher holds the deferred tail and re-offers from `acceptedThrough + 1` after `retryAfter`; because re-offer is idempotent, the pusher tracks no per-event acknowledgement. The channel initiates nothing — it only annotates each pusher-initiated call.
+
+> **Normative.** Backpressure — a `PushAck` carrying `credit: 0` and a deferred tail — is soft and temporal, not an error. It is distinct from `limit-exceeded` (422), the hard rejection of a request that exceeds a static capability bound (e.g. `maxBatch`), fixed by shrinking the request.
 
 ```lumen
 command push(
-    channel:   unpinned<ChannelBead>,
-    source:    source<any>,
-    strategy?: PushStrategy
-  ) -> PushReport
+    channel: unpinned<ChannelBead>,
+    events:  [PushEvent]
+  ) -> PushAck
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
 | `channel` | `unpinned<ChannelBead>` | The channel to append to — must accept writes (`sink`/`duplex`). |
-| `source` | `source<any>` | The events to append, in order; the channel's `pushSchema` type. |
-| `strategy?` | `PushStrategy` | How to handle a rejected event or a re-push (see [PushStrategy](#PushStrategy)). |
+| `events` | `[PushEvent]` | One or more events to append, in order; each the channel's `pushSchema` type. A keyed event carries a pusher-assigned `ordinal`. |
 
-**Returns** `PushReport` — What `push` reports — counts and any skipped/rejected events by ordinal.
+**Returns** `PushAck` — What [push](#push) returns — the high-water ordinal accepted, a per-event result, and the backpressure signal (`credit` + optional `retryAfter`). A short `results` with `credit: 0` and a deferred tail is normal flow, not an error.
 
-<a id="PushStrategy"></a>
+Single-writer assumption (v0.2): a channel has one logical writer, so pusher-assigned ordinals are collision-free and `(channel, ordinal)` idempotency needs no strategy. A multi-writer channel (ordinals not collision-free) would reintroduce a fault-vs-skip push strategy — an additive, non-breaking extension, out of scope for v0.2.
 
-### `PushStrategy`
+<a id="PushEvent"></a>
 
-How `push` handles a rejected event or a re-push — the event analog of ImportStrategy (distinct: events, not resources).
+### `PushEvent`
+
+One event offered to [push](#push). `body` is the payload (the channel's `pushSchema` type); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.
 
 ```lumen
-type PushStrategy {
-  dedup?:  bool,
-  dryRun?: bool
+type PushEvent = {
+  ordinal?: Ordinal,
+  body:     { ...: any }
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
-| `dedup?` | `bool` | Skip an event already appended (idempotent re-push) instead of faulting. |
-| `dryRun?` | `bool` | Validate and report, but append nothing. |
+| `ordinal?` | `Ordinal` | The pusher-assigned position, for a keyed (idempotent) append; absent, the channel assigns one. |
+| `body` | `{ ...: any }` | The event payload — the channel's `pushSchema` type. |
 
-<a id="PushReport"></a>
+<a id="PushAck"></a>
 
-### `PushReport`
+### `PushAck`
 
-What `push` reports — counts and any skipped/rejected events by ordinal.
+What [push](#push) returns — the high-water ordinal accepted, a per-event result, and the backpressure signal (`credit` + optional `retryAfter`). A short `results` with `credit: 0` and a deferred tail is normal flow, not an error.
 
 ```lumen
-type PushReport {
-  pushed:    number,
-  skipped:   number,
-  conflicts: [ { ordinal: Ordinal, reason: string } ]
+type PushAck = {
+  acceptedThrough: Ordinal,
+  results:         [PushResult],
+  credit:          number,
+  retryAfter?:     number
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
-| `pushed` | `number` | How many events were appended. |
-| `skipped` | `number` | How many were skipped (already present, under `dedup`). |
-| `conflicts` | `[ { ordinal: Ordinal, reason: string } ]` | Rejected events, each by its ordinal and the reason. |
+| `acceptedThrough` | `Ordinal` | The high-water ordinal durably appended by this call; the pusher re-offers from `acceptedThrough + 1`. |
+| `results` | `[PushResult]` | Per offered event, in order — appended, deduped (idempotent re-push), or deferred under backpressure. |
+| `credit` | `number` | How many more events the channel will accept right now (admission credit); `0` means hold and retry. |
+| `retryAfter?` | `number` | How long to wait before re-offering the deferred tail (seconds; maps to HTTP `Retry-After`). |
+
+<a id="PushResult"></a>
+
+### `PushResult`
+
+The fate of one offered event.
+
+```lumen
+type PushResult = union {
+  Accepted { ordinal: Ordinal }
+  Deduped  { ordinal: Ordinal }
+  Deferred
+}
+```
+
+| Variant | Payload | Description |
+|---|---|---|
+| `Accepted` | `{ ordinal: Ordinal }` | Appended at this ordinal. |
+| `Deduped` | `{ ordinal: Ordinal }` | Already present at this ordinal (idempotent re-push) — a benign no-op. |
+| `Deferred` | — | Not accepted on this call (backpressure); re-offer after `retryAfter`. |
 
 ## 2.3  Operations — call, cancel
 
@@ -1106,6 +1140,8 @@ type AsyncResult = {
 | `request` | `Request` | The original request. |
 | `reply?` | `Reply` | The settlement, once it arrives (absent while pending). |
 | `replyChannel` | `ref<ChannelBead>` | The one-and-done source Channel that fires the Reply on settlement. |
+
+Note (resolved): as a bead (below) this inherits provenance/createdAt/metadata from the envelope. `cause`/`frame` are kept at top-level (queryable while `reply` is absent), per your "would you query it while pending?" note.
 
 <a id="AsyncResultBead"></a>
 
