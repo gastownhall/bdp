@@ -77,7 +77,7 @@
 
 
 // #############################################################################
-// 1. RESOURCES
+// 1. Resources
 // #############################################################################
 // A BDP store holds versioned RESOURCES. A resource has an identity, a type, and
 // a body; you NAME one with `ref<T>` and FETCH it as `rep<T>`. This section builds
@@ -298,7 +298,7 @@ type SemVer is string
 
 
 // #############################################################################
-// 2. BEADS
+// 2. Beads
 // #############################################################################
 // A BEAD is a Resource whose body is TYPED and whose authority (when present) is a
 // package. `Bead<T>` is the marker that narrows two envelope fields; refining it
@@ -465,15 +465,15 @@ type Retention = union {
 // A `source<T>` is a finite, resumable, ordered sequence of `T`. Four reads
 // produce one: `pull` (a Channel), `list` (a scope's current resources),
 // `revisions` (one resource's history), `export` (a scope backup). A reader
-// consumes it in one of THREE transport forms (the `--format` / Accept arm):
+// consumes it in one of three transport forms (the `--format` / Accept arm):
 //
-//   | form     | wire                   | valid on            |
-//   | windowed | application/json        | pull · list · export | one request → one Page (default)
-//   | bulk     | application/jsonl       | pull · list · export | whole source, one T per line
-//   | live     | text/event-stream       | pull only (live)     | follow the source as it grows
+//   | form     | wire               | valid on             | notes                            |
+//   | windowed | application/json   | pull · list · export | one request → one Page (default) |
+//   | bulk     | application/jsonl  | pull · list · export | whole source, one T per line     |
+//   | live     | text/event-stream  | pull only (live)     | follow the source as it grows    |
 //
-// ONE Cursor spans all three: page in json, catch up in jsonl, hand the SAME
-// cursor to sse to go live. `sse` is gated to a LIVE source (pull); a snapshot
+// One Cursor spans all three: page in json, catch up in jsonl, hand the same
+// cursor to sse to go live. `sse` is gated to a live source (pull); a snapshot
 // (list / export / revisions) has nothing to follow and refuses it.
 // The transport enum is `Transport`, the response window is `Page`, and the request
 // bundle is `ReadRequest` (shared by pull / list / revisions).
@@ -760,7 +760,7 @@ type PackageDef {
 
 
 // #############################################################################
-// 3. PRIMITIVES — the uniform set
+// 3. Primitives — the uniform set
 // #############################################################################
 // Dispatch is implicit: a request routes to the target resource. Beads take client
 // CRUD (create/put/patch/delete/list/revisions); the three model-specific
