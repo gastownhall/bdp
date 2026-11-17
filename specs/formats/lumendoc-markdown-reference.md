@@ -40,6 +40,7 @@ members. The vocabulary:
 | `/// description:` | prose meaning of a form or a member | rendered as prose / a table cell |
 | `/// normative:` | one conformance rule (MUST / SHOULD / MAY) | a labelled callout |
 | `/// form-id:` | the stable citation id | the anchor id |
+| `/// return:` | an operation's return-value description | the **Returns** line |
 | `/// bdp =` | protocol machine-metadata | omitted |
 | `/// openapi =` | HTTP binding machine-metadata | omitted |
 | `/// jsonschema =` | JSON Schema machine-metadata | omitted |
@@ -90,8 +91,11 @@ The table shape depends on the form:
   row per arm. An arm with no payload shows `—`. A bare named arm with no
   description borrows the description of the form it names.
 - **Operation** → `| Parameter | Type | Description |`, one row per parameter,
-  followed by `**Returns** `T`` and, when `T` names a form, that form's
-  description.
+  followed by `**Returns** `T``. The return description is the operation's own
+  `/// return:` text when present (the return has no parameter line to carry a
+  leading `/// description:`, so it hangs off a `return` key in the op docblock and
+  lowers onto the operation node), else the description of the return type `T` when
+  `T` names a form.
 - **Sum-of-types alias** (`type X = A | B | C`, arms not all string literals) →
   `| Alternative | Description |`, one row per alternative, each description
   looked up from the alternative's form id.
