@@ -1,0 +1,271 @@
+// =============================================================================
+// issue.lumen — the Issue pack, authored as Lumen (the kind model)
+// =============================================================================
+// An example BDP pack in the kind model: Issue (a unit of work) and Spike. Companion
+// to bdp.lumen (the base spec) and memory.lumen. The toolchain projects this file to
+// the trait + artifacts, so the pack's signatures are mechanically available.
+//
+// The old Dependency Link TYPES vanish: `A blocks B` is a target in a set — an owned
+// `ref<T>` property on the source Issue (no Link, no family — §30). `owner`/`assignee`
+// stay NATIVE strings (deliberately not BDP refs). Subtype = kind-path prefix.
+//
+// §3 Operations folds the v0.1 issues/dependencies callable catalog (preview-1) into the
+// pack, grouped A (generic → core/corelib primitives) · B (issue-specific) · C (dependency
+// graph). Signatures are reconstructed from bdp-spec-mat/specs/types/issue/callables.md;
+// queries project to read-only callables (`fn`), batches to `command`. config/* and memory/*
+// callables are a DIFFERENT domain and are deliberately excluded.
+// =============================================================================
+
+/// description: Free text — a nominal string.
+type text is string
+
+
+// -----------------------------------------------------------------------------
+// §1. Issue — a unit of work
+// -----------------------------------------------------------------------------
+
+/// description: Issue — a unit of work.
+/// normative: `owner`/`assignee` are native human strings, NOT refs (deliberately outside BDP attribution).
+/// normative: The old Dependency Link types are owned `ref<T>` properties here (no Link resource, no family): `blocks`,
+/// normative: `conditionalBlocks`, `repliesTo` are three SEPARATE props. "All dependencies" = enumerate the three.
+/// normative: `blocks` is ACYCLIC (a cycle = deadlock), enforced by a reachability check on write; set-membership gives
+/// normative: edge-uniqueness for free (`A blocks B` at most once).
+kind Issue is bead {
+  // required
+  title:    string { minLength: 1 },
+  status:   string { minLength: 1 },             // built-in or provider-configured value
+  priority: number { 0..4 },                     // 0 = P0; never absent
+
+  // optional work fields
+  description?:        text,
+  acceptanceCriteria?: text,
+  design?:             text,
+  notes?:              text,
+  labels?:             set<string { minLength: 1 }>,
+  owner?:              string { maxLength: 255 }, // native human string — NOT a ref
+  assignee?:           string { maxLength: 255 }, // same
+  createdAt?: Timestamp, updatedAt?: Timestamp, closedAt?: Timestamp, startedAt?: Timestamp,
+  deferUntil?: Timestamp, dueAt?: Timestamp,
+  estimatedMinutes?:   number { min: 0 },
+  externalRef?:        string,
+  specId?:             text,
+  closeReason?:        text,
+
+  // relationships — owned ref<T> props (the old Dependency Link types; no family)
+  blocks?:            set<ref<Issue>> { acyclic },  // must be a DAG
+  conditionalBlocks?: set<ref<resource>>,           // any resource / external (often an Issue)
+  repliesTo?:         set<ref<resource>>,            // any resource / external (often an Issue)
+}
+
+/// description: Spike — the native spike classification; a subkind of Issue with no added properties.
+kind Spike is Issue {}
+
+
+// =============================================================================
+// §3. Operations — the v0.1 issues/dependencies callable catalog (preview-1)
+// =============================================================================
+// Folded from bdp-spec-mat/specs/types/issue/callables.md (45 callables; config/* and
+// memory/* excluded as a different domain → the 37 below). Grouping follows the curation
+// disposition (agent-memory melinda/state/v01-issues-disposition.md):
+//   A — generic, lowers to a core/corelib primitive (createBead/updateBead/deleteBead/
+//       get/list/query/count/batch); not issue-specific.
+//   B — issue-specific (lifecycle, leases, aggregate views); stays in this pack.
+//   C — dependency-graph; generic ONLY once dependency-style relTypes open to non-issue
+//       beads (the bead-and-link-type pass) — until then, carried here.
+// Queries project to read-only callables (`fn`); batches to `command`. Arg NAMES are the
+// verbatim wire names (snake_case); the Lumen op identifier is a camelCase rendering of the
+// canonical `issue/...` name, which is preserved on each `/// callable:` line. Arg/result
+// type words are the callables.md column text mapped to Lumen: text→text, boolean→bool,
+// integer→number, "array of X"→[X], "Bead/Link Type reference"→ref<Type>; schema-ref and
+// result types (IssuesPage, IssuePatchBody, …) are referenced by name (defined by BDP).
+
+
+// ---- A. Generic (→ core/corelib primitive) -------------------------------------------
+
+/// callable: issue/list · routes: v0 listIssues, GET /v0/beads/issues
+fn list(
+  status?: [text], type?: ref<Type>, assignee?: text, label?: [text], label_any?: [text],
+  exclude_label?: [text], parent?: text, all?: bool, include_templates?: bool, include_gates?: bool,
+  include_infra?: bool, include_ephemeral?: bool, created_before?: text, created_after?: text,
+  metadata_field?: [text], has_metadata_key?: text, q?: text, no_assignee?: bool, title?: text,
+  id?: [text], title_contains?: text, desc_contains?: text, notes_contains?: text,
+  external_contains?: text, external_ref?: text, spec?: text, label_pattern?: text, label_regex?: text,
+  updated_after?: text, updated_before?: text, closed_after?: text, closed_before?: text,
+  defer_after?: text, defer_before?: text, due_after?: text, due_before?: text, priority?: number,
+  priority_min?: number, priority_max?: number, empty_description?: bool, no_labels?: bool,
+  no_parent?: bool, exclude_type?: [ref<Type>], exclude_status?: [text], pinned?: bool, no_pinned?: bool,
+  deferred?: bool, overdue?: bool, mol_type?: text, wisp_type?: text, sort?: text, cursor?: text,
+  limit?: number, brief?: bool
+) -> IssuesPage
+
+/// callable: issue/query · routes: v0 queryIssues, GET /v0/beads/issues:query
+fn query(q: text, all?: bool, sort?: text, reverse?: bool, limit?: number) -> QueryPage
+
+/// callable: issue/count · routes: v0 countIssues, GET /v0/beads/issues:count
+fn count(
+  status?: text, type?: ref<Type>, assignee?: text, priority?: number, priority_min?: number,
+  priority_max?: number, label?: [text], label_any?: [text], title?: text, id?: text,
+  title_contains?: text, desc_contains?: text, notes_contains?: text, created_after?: text,
+  created_before?: text, updated_after?: text, updated_before?: text, closed_after?: text,
+  closed_before?: text, empty_description?: bool, no_assignee?: bool, no_labels?: bool,
+  metadata_field?: [text], include_ephemeral?: bool, has_metadata_key?: text, include_infra?: bool,
+  parent?: text, no_parent?: bool, exclude_type?: [ref<Type>], exclude_status?: [text], group_by?: text
+) -> IssueCount
+
+/// callable: issue/get-many · routes: v0 batchGetIssues, POST /v0/beads/issues:batchGet
+fn getMany(ids: [text]) -> BatchGetIssuesResult
+
+/// callable: issue/show · routes: v0 getIssue, GET /v0/beads/issues/{id}
+fn show(id: text, include_comments?: bool, include_dependents?: bool, brief_deps?: bool) -> IssueDetails
+
+/// callable: events/list · routes: v0 listEvents, GET /v0/beads/events
+fn eventsList(since: number, limit?: number) -> EventsPage
+
+/// callable: issue/create · routes: v0 createIssue, POST /v0/beads/issues
+command create(
+  id?: text, title: text, description?: text, design?: text, acceptance_criteria?: text, notes?: text,
+  issue_type?: ref<Type>, status?: text, priority?: number, assignee?: text, owner?: text,
+  labels?: [text], estimated_minutes?: number, external_ref?: text, due_at?: text, defer_until?: text,
+  sender?: text, metadata?: MetadataValue, ephemeral?: bool, no_history?: bool, parent_id?: text,
+  inherit_labels_from_parent?: bool, dependencies?: [CreateIssueDependency], await_type?: text,
+  await_id?: text, timeout?: number, waiters?: [text], waits_for?: CreateIssueWaitsFor,
+  force_id_prefix?: bool
+) -> Issue
+
+/// callable: issue/update · routes: v0 updateIssue, PATCH /v0/beads/issues/{id}
+command update(
+  id: text, patch: IssuePatchBody, claim?: bool, expected_version?: text, expected_status?: text,
+  expected_assignee?: text, force_close_policy?: bool, force_assignee_transfer?: bool,
+  force_notes_overwrite?: bool, allow_template?: bool
+) -> UpdateIssueResponse
+
+/// callable: issue/delete · routes: v0 deleteIssues, POST /v0/beads/issues:delete
+command delete(
+  ids: [text], cascade?: bool, force?: bool, dry_run?: bool, expected_version?: text
+) -> DeleteIssuesResult
+
+/// callable: issue/batch · routes: v0 applyBatch, POST /v0/beads/issues:batchApply
+command batch(
+  items: [ApplyItem], provenance?: text, force_id_prefix?: bool, skip_per_edge_cycle_check?: bool
+) -> ApplyBatchResponse
+
+/// callable: issue/create-many · routes: v0 batchCreateIssues, POST /v0/beads/issues:batchCreate
+command createMany(items: [BatchCreateItem]) -> BatchCreateResponse
+
+/// callable: issue/comment · routes: v0 addComment, POST /v0/beads/issues/{id}/comments
+command comment(id: text, text: text) -> Comment
+
+/// callable: issue/metadata/compare-and-set · routes: v0 compareAndSetMetadata, POST /v0/beads/issues/{id}:casMetadata
+command metadataCompareAndSet(
+  id: text, key: text, expected?: MetadataValue, value?: MetadataValue
+) -> CompareAndSetMetadataResponse
+
+
+// ---- B. Issue-specific (lifecycle · leases · aggregate views) ------------------------
+
+/// callable: issue/context · routes: v0 getContext, GET /v0/beads/context
+fn context() -> ContextResponse
+
+/// callable: issue/ready · routes: v0 listReadyWork, GET /v0/beads/ready
+fn ready(
+  assignee?: text, unassigned?: bool, type?: ref<Type>, exclude_type?: [ref<Type>], label?: [text],
+  label_any?: [text], exclude_label?: [text], label_pattern?: text, label_regex?: text, priority?: number,
+  parent?: text, metadata_field?: [text], has_metadata_key?: text, include_ephemeral?: bool,
+  include_deferred?: bool, sort?: text, limit?: number, brief?: bool
+) -> ReadyPage
+
+/// callable: issue/ready-count · routes: v0 countReadyWork, GET /v0/beads/ready:count
+fn readyCount(
+  assignee?: text, unassigned?: bool, type?: ref<Type>, exclude_type?: [ref<Type>], label?: [text],
+  label_any?: [text], exclude_label?: [text], label_pattern?: text, label_regex?: text, priority?: number,
+  parent?: text, metadata_field?: [text], has_metadata_key?: text, include_ephemeral?: bool,
+  include_deferred?: bool
+) -> ReadyCount
+
+/// callable: issue/stats · routes: v0 getStats, GET /v0/beads/stats
+fn stats(assignee?: text, skip_blocked?: bool) -> StatsResponse
+
+/// callable: issue/blocked · routes: v0 listBlockedIssues, GET /v0/beads/blocked
+fn blocked(parent?: text, label?: [text], label_any?: [text], exclude_label?: [text]) -> BlockedPage
+
+/// callable: issue/blocking-annotations · routes: v0 listBlockingAnnotations, GET /v0/beads/dependencies/blocking
+fn blockingAnnotations(issue_id: [text], is_blocked?: bool) -> BlockingAnnotations
+
+/// callable: issue/claim · routes: v0 claimIssue, POST /v0/beads/issues/{id}:claim
+command claim(id: text) -> ClaimResponse
+
+/// callable: issue/unclaim · routes: v0 releaseIssue, POST /v0/beads/issues/{id}:release
+command unclaim(id: text, expected_assignee?: text, force?: bool) -> ReleaseIssueResponse
+
+/// callable: issue/heartbeat · routes: v0 heartbeatIssue, POST /v0/beads/issues/{id}:heartbeat
+command heartbeat(id: text) -> HeartbeatIssueResponse
+
+/// callable: issue/reclaim · routes: v0 reclaimIssues, POST /v0/beads/issues:reclaim
+command reclaim(
+  older_than_seconds?: number, ids?: [text], assignees?: [text], labels?: [text], labels_any?: [text],
+  exclude_labels?: [text], any_replica?: bool
+) -> ReclaimIssuesResult
+
+/// callable: issue/claim-next · routes: v0 claimNextIssue, POST /v0/beads/issues:claimNext
+command claimNext(
+  assignee?: text, unassigned?: bool, type?: ref<Type>, exclude_type?: [ref<Type>], label?: [text],
+  label_any?: [text], exclude_label?: [text], label_pattern?: text, label_regex?: text, priority?: number,
+  parent?: text, metadata_field?: [text], has_metadata_key?: text, include_ephemeral?: bool,
+  include_deferred?: bool, sort?: text
+) -> ClaimNextResponse
+
+/// callable: issue/close · routes: v0 closeIssue, POST /v0/beads/issues/{id}:close
+command close(
+  id: text, reason?: text, session?: text, force?: bool, expected_version?: text,
+  auto_close_molecule?: bool
+) -> CloseIssueResponse
+
+/// callable: issue/close-many · routes: v0 batchCloseIssues, POST /v0/beads/issues:batchClose
+command closeMany(
+  items: [BatchCloseItem], session?: text, force?: bool, auto_close_molecule?: bool
+) -> BatchCloseResponse
+
+/// callable: issue/reopen · routes: v0 reopenIssue, POST /v0/beads/issues/{id}:reopen
+command reopen(id: text, reason?: text, expected_version?: text) -> ReopenIssueResponse
+
+/// callable: issue/advance · routes: v0 advanceMolecule, POST /v0/beads/issues/{id}:advanceMolecule
+command advance(id: text, auto_claim?: bool) -> AdvanceMoleculeResponse
+
+/// callable: issue/purge · routes: v0 sweepIssues, POST /v0/beads/issues:sweep (tier default `ephemeral`)
+command purge(
+  tier?: text, closed_before?: text, pattern?: text, protect_referenced?: bool, dry_run?: bool,
+  protect_live_dependents?: bool, limit?: number, retain_ids?: bool
+) -> SweepResult
+
+/// callable: issue/prune · routes: v0 sweepIssues, POST /v0/beads/issues:sweep (tier default `durable`)
+command prune(
+  tier?: text, closed_before?: text, pattern?: text, protect_referenced?: bool, dry_run?: bool,
+  protect_live_dependents?: bool, limit?: number, retain_ids?: bool
+) -> SweepResult
+
+
+// ---- C. Dependency-graph (relType ops; generic once dep relTypes open to any bead) ----
+
+/// callable: issue/dep/list · routes: v0 listRelatedIssues, GET /v0/beads/issues/{id}/related
+fn depList(id: text, direction?: text, type?: [ref<Type>]) -> RelatedIssues
+
+/// callable: issue/dep/edges · routes: v0 listDependencies, GET /v0/beads/dependencies
+fn depEdges(issue_id: [text], type?: [ref<Type>]) -> DependencyEdges
+
+/// callable: issue/dep/count · routes: v0 countDependencyEdges, GET /v0/beads/dependencies:count
+fn depCount(issue_id: [text], direction: text, type?: [ref<Type>], status?: text) -> EdgeCounts
+
+/// callable: issue/dep/tree · routes: v0 getDependencyTree, GET /v0/beads/dependencies/tree
+fn depTree(root_id: text, direction?: text, max_depth?: number, status?: text) -> DependencyTreePage
+
+/// callable: issue/dep/cycles · routes: v0 listDependencyCycles, GET /v0/beads/dependencies/cycles
+fn depCycles() -> CyclesPage
+
+/// callable: issue/dep/add · routes: v0 addDependencies, POST /v0/beads/dependencies:add
+/// normative: `edges` is the batch form; `source`/`target`/`type` are the single-edge CLI adapter shape.
+command depAdd(
+  edges?: [DependencyEdge], source?: text, target?: text, type?: ref<Type>
+) -> AddDependenciesResponse
+
+/// callable: issue/dep/remove · routes: v0 removeDependency, POST /v0/beads/dependencies:remove
+command depRemove(issue_id: text, depends_on_id: text) -> RemoveDependencyResponse
