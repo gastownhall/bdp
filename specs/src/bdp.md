@@ -53,8 +53,9 @@ it; and the literal `"uri"` means the id is itself an absolute URI, for a resour
 that lives outside any store. An id is a [[core.lumen#ResourceId]] — a scope, the
 id within it, and an optional revision.
 
-Whether resources are versioned is a scope-wide trait, the scope's revision model:
-a versioned scope mints a new revision on every change (and a reference may pin
+Whether resources are versioned is a scope-wide trait, the scope's revision model
+([[core.lumen#RevisionModel]]): a versioned scope mints a new revision on every
+change (and a reference may pin
 one), while an unversioned scope mints none. In a versioned scope a
 [[core.lumen#Rev]] names one revision, and a [[core.lumen#Digest]] is a content
 hash that also serves as a revision, so an external, verifiable pin and a local
@@ -274,7 +275,8 @@ conformance checklist.
 There are no fixed tiers. The floor is `get` and a readable `/sys/capabilities`;
 everything else — list, the writes, pull and push, the operation calls, and export
 and import — is offered à la carte. A service advertises exactly what it offers
-through discovery: a primitive is supported if and only if it is advertised, and a
+through discovery (its [[core.lumen#Capabilities]]): a primitive is supported if and
+only if it is advertised, and a
 request that needs an un-offered primitive is refused `capability-not-supported`. A
 client reads the advertisement once and never has to guess.
 
