@@ -45,17 +45,21 @@ through discovery. Nothing here assumes more than a service claims.
 
 ## 1. Identity and scopes
 
-A resource is named by an id: a [[core.lumen#ResourceId]] — an id, an optional
-scope, and an optional revision. The scope says where the resource lives. Absent,
-the id is local to the store you are talking to. A URL names another BDP store.
-The literal `"uri"` says the id is itself an absolute URI, for resources that
-live outside any store.
+A resource is named by an **id**, and the first thing to understand is how to read
+one. The decoder ring is the id's `scope` ([[core.lumen#Scope]]), which has three
+readings: absent (equivalently `null`) means the id is a local name in the store
+you are talking to; a store URL means another BDP store, with the id relative to
+it; and the literal `"uri"` means the id is itself an absolute URI, for a resource
+that lives outside any store. An id is a [[core.lumen#ResourceId]] — a scope, the
+id within it, and an optional revision.
 
-Every resource is versioned. A [[core.lumen#Rev]] names one revision. A
-[[core.lumen#Digest]] is a content hash that also serves as a revision, so an
-external, verifiable pin and a local revision satisfy the same field. A reference
-that carries a revision is pinned to that exact version; one that does not floats
-to the current version.
+Whether resources are versioned is a scope-wide trait, the scope's revision model:
+a versioned scope mints a new revision on every change (and a reference may pin
+one), while an unversioned scope mints none. In a versioned scope a
+[[core.lumen#Rev]] names one revision, and a [[core.lumen#Digest]] is a content
+hash that also serves as a revision, so an external, verifiable pin and a local
+revision satisfy the same field. A reference that carries a revision is pinned to
+that exact version; one that does not floats to the current version.
 
 There is one reference world. A resource names another only through a
 [[core.lumen#ref]], and the pin, when there is one, lives in its `rev`. This
@@ -267,10 +271,12 @@ guarantees — a change produces exactly one event, an id is never reused, a hid
 resource reads exactly as a missing one — are gathered in the reference's
 conformance checklist.
 
-The tiers are simple. A minimal service offers the reads and the changefeed. A
-full service adds the writes, the operation calls, and export and import. A
-service advertises its tier and its optional capabilities through discovery, so a
-client never has to guess.
+There are no fixed tiers. The floor is `get` and a readable `/sys/capabilities`;
+everything else — list, the writes, pull and push, the operation calls, and export
+and import — is offered à la carte. A service advertises exactly what it offers
+through discovery: a primitive is supported if and only if it is advertised, and a
+request that needs an un-offered primitive is refused `capability-not-supported`. A
+client reads the advertisement once and never has to guess.
 
 ---
 

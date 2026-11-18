@@ -1,14 +1,14 @@
 # Working on the Core specification
 
-This file is for anyone, person or agent, who changes the Core v0.2 specification. It covers three files: [core.lumen](core.lumen) and [core.md](core.md) in this directory, and the generated reference [generated/core.md](generated/core.md).
+This file is for anyone, person or agent, who changes the Core v0.2 specification. It covers three files: the normative source [`src/core/core.lumen`](src/core/core.lumen), the narrative [`src/bdp.md`](src/bdp.md), and the generated reference [`generated/core.md`](generated/core.md). (The old root `core.md` is retired as [`obsolete-core.md`](obsolete-core.md) — harvest only, do not cite.)
 
 ## Which file says what
 
-`core.lumen` is the source for the schemas and the six operations. It is authoritative. The Markdown reference, the JSON Schema and the OpenAPI document are generated from it.
+`core.lumen` is the source for the schemas and the primitive operations. It is authoritative. The Markdown reference, the JSON Schema and the OpenAPI document are generated from it.
 
-`core.md` holds the broad meaning of the protocol: the model, the rules that span operations, and the reasons. It does not repeat the shape of a record or the HTTP form of an operation.
+`bdp.md` holds the broad meaning of the protocol: the model, the rules that span operations, and the reasons. It does not repeat the shape of a record or the HTTP form of an operation.
 
-When the two disagree about a shape, an operation, a parameter or a status code, `core.lumen` is right and `core.md` is to be fixed.
+When the two disagree about a shape, an operation, a parameter or a status code, `core.lumen` is right and `bdp.md` is to be fixed.
 
 ## Generated files
 
@@ -20,8 +20,8 @@ The generator is not in this repository yet, and nothing here checks that `gener
 
 ## Rules for `core.lumen`
 
-1. **Only schemas, no nominal types.** Every shape is a `schema`. A schema is transparent and makes no new identity: `schema X = T` means `X` is `T`. Never write `type X is …`.
-2. **The six operations are primitives, not callables.** Each one is marked `bdp = { kind = "primitive" }`. Do not add a seventh. Anything more goes into a callable in another specification.
+1. **Nominal types are the surface.** BDP models its shapes as Lumen types. Write `type X is T` for a nominal newtype — a distinct identity over a base type, for a scalar that deserves its own name (e.g. `type Rev is string`, `type Ordinal is number`). Write `type X = T` for a transparent alias or a structural shape — a record, a union, or an enum (e.g. `type ResourceRef = ResourceId`, `type PushResult = union { … }`). On the wire the only type system is the media type; these names are the authoring surface.
+2. **The primitives are a fixed set, not callables.** Each is marked `bdp = { kind = "primitive" }`. A service offers a subset, advertised through discovery; do not invent a new one. Anything more goes into a callable in another specification.
 3. **This is an HTTP specification.** Describe each operation as HTTP: the method, the URL, the query parameters, the headers, the bodies and the status codes. The only type system on the wire is the media type.
 4. **Semantics go in metadata comments.** The meaning of a schema, a member, an operation or a parameter is written in the `///` lines above it. The appendix of `core.lumen` lists the metadata keys.
 

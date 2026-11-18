@@ -1,8 +1,16 @@
 ---
-status: draft
-intended-status: normative
+status: obsolete
 version: "0.2"
+superseded-by:
+  - src/core/core.lumen   # normative source (no-links)
+  - src/bdp.md            # narrative
+  - generated/core.md     # generated reference
 ---
+
+> **Obsolete.** This is the pre-no-links Core draft, kept only as harvest material.
+> It carries the old Bead-or-Link resource model, which v0.2 dropped. Do not cite it.
+> The live Core is `src/core/core.lumen` (normative), `src/bdp.md` (narrative) and
+> `generated/core.md` (reference).
 
 # Beads Protocol — Core
 

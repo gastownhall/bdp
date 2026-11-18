@@ -82,13 +82,31 @@
 // #############################################################################
 // A BDP store holds versioned resources. A resource has an identity, a type, and
 // a body; you name one with `ref<T>` and fetch it as `rep<T>`. This section builds
-// that vocabulary bottom-up: version tokens, scope, identity, the reference/
-// representation pair (and `get`), revision pinning, the authority/type pair, the
-// universal Resource shape, then metadata and provenance.
+// that vocabulary bottom-up: the id decoder ring (scope) and version tokens,
+// identity, the reference/representation pair (and `get`), revision pinning, the
+// universal Resource shape, the authority/type pair, then metadata and provenance.
 
 // -----------------------------------------------------------------------------
-// 1.1  Identity — revisions, scope, ResourceId
+// 1.1  Identity — the id decoder ring (scope), revision tokens, ResourceId
 // -----------------------------------------------------------------------------
+// Read this first. Every resource is named by an id, and `scope` is the decoder
+// ring that says how to read that id. The revision tokens and the assembled
+// ResourceId follow from it.
+
+## BdpScope
+/// description: The URL of a BDP scope (a store).
+type BdpScope = AbsoluteUri
+
+## Scope
+/// description: The decoder ring for every id — the namespace an `id` resolves in, and so how to read the `id`. The one place the three readings are defined; everything that carries an id is read through this.
+/// normative: A Scope is exactly one of —
+///   • `null` (equivalently, absent on the wire): the local BDP scope — `id` is a local name in the store you are talking to.
+///   • a BdpScope URL: another BDP store — `id` is relative to that URL (the wire URL is the scope URL ⊕ id).
+///   • the literal `"uri"`: NOT a BDP scope — `id` is itself an absolute URI, resolved by its scheme.
+type Scope =
+    null
+  | BdpScope
+  | "uri"
 
 ## Rev
 /// description: A resource-version token — opaque by definition; compared for exact equality only, never inspected.
@@ -100,21 +118,10 @@ type Rev is string
 /// normative: `Digest is Rev`, so a digest satisfies any `rev: Rev`; there is no Rev-vs-Digest split on the wire.
 type Digest is Rev
 
-## BdpScope
-/// description: The URL of a BDP scope (a store).
-type BdpScope = AbsoluteUri
-
-## Scope
-/// description: The namespace an `id` resolves in. Absent ⇒ the current (local) BDP scope.
-/// normative: A Scope is exactly one of — absent (the local BDP scope); a BdpScope URL (another BDP store, `id` relative to it); or the literal `"uri"` (NOT a BDP scope — `id` is an absolute URI whose scheme resolves it).
-type Scope =
-    BdpScope
-  | "uri"
-
 ## ResourceId
 /// description: The identity of a resource — a scope, an id within it, and an optional revision. The wire URL is the projection (scope URL ⊕ id).
 type ResourceId {
-  /// description: The namespace the `id` resolves in; absent ⇒ local.
+  /// description: How to read the `id` — see [[core.lumen#Scope]], the decoder ring. Absent on the wire ≡ the `null` arm (local).
   scope?: Scope
   /// description: The id, relative to `scope` (or the absolute URI when `scope` is `"uri"`).
   id:     string
@@ -169,28 +176,7 @@ type pinned<T>   is ref<T> { rev: Rev }
 type unpinned<T> is ref<T> { rev: null }
 
 // -----------------------------------------------------------------------------
-// 1.4  Types on a resource — the (authority, type) pair
-// -----------------------------------------------------------------------------
-// A resource's type is a path, fully qualified by the authority that names it.
-// (The overlay that defines types — TypeBead / TypeDef — is §2.1.)
-
-## PathString
-/// description: A slash-delimited path — `"issue/task"` (a bead kind) or `"text/plain"` (a content media type).
-/// normative: Two first path segments are reserved — `bdp` (the protocol's own fixed routes) and `sys` (in-band system resources, e.g. `/sys/changes`).
-type PathString = string
-
-## Authority
-/// description: The resource that names a `type` — a package (for a bead) or a registry like IANA (for content). A ResourceRef, so the pin lives in its `rev`.
-/// normative: The pair (authority, type) fully qualifies a type. The authority is pinned (its `rev` = the resolved digest/semver), so the type a resource was born against is frozen at inception and replays identically.
-/// normative: `authority` MAY be caller-supplied (accepted as given); when absent on a write it is server-resolved from `type` — an installed default package (the standard types) is consulted before a registry like IANA, and a `type` that resolves to neither is ad-hoc (authority absent / duck-typed). A service SHOULD cache the well-known media types so content resolution need not reach IANA.
-type Authority = ResourceRef
-
-## PackageRef
-/// description: A pinned reference to a Package resource — an Authority that is a package (a bead's authority).
-type PackageRef = ref<PackageBead>
-
-// -----------------------------------------------------------------------------
-// 1.5  The Resource shape
+// 1.4  The Resource shape
 // -----------------------------------------------------------------------------
 
 ## Resource
@@ -214,6 +200,27 @@ type Resource {
   /// description: How the resource is kept — durable, ephemeral, or intrinsic.
   storageClass?: StorageClass
 }
+
+// -----------------------------------------------------------------------------
+// 1.5  Types on a resource — the (authority, type) pair
+// -----------------------------------------------------------------------------
+// A resource's type is a path, fully qualified by the authority that names it.
+// (The overlay that defines types — TypeBead / TypeDef — is §2.1.)
+
+## PathString
+/// description: A slash-delimited path — `"issue/task"` (a bead kind) or `"text/plain"` (a content media type).
+/// normative: Two first path segments are reserved — `bdp` (the protocol's own fixed routes) and `sys` (in-band system resources, e.g. `/sys/changes`).
+type PathString = string
+
+## Authority
+/// description: The resource that names a `type` — a package (for a bead) or a registry like IANA (for content). A ResourceRef, so the pin lives in its `rev`.
+/// normative: The pair (authority, type) fully qualifies a type. The authority is pinned (its `rev` = the resolved digest/semver), so the type a resource was born against is frozen at inception and replays identically.
+/// normative: `authority` MAY be caller-supplied (accepted as given); when absent on a write it is server-resolved from `type` — an installed default package (the standard types) is consulted before a registry like IANA, and a `type` that resolves to neither is ad-hoc (authority absent / duck-typed). A service SHOULD cache the well-known media types so content resolution need not reach IANA.
+type Authority = ResourceRef
+
+## PackageRef
+/// description: A pinned reference to a Package resource — an Authority that is a package (a bead's authority).
+type PackageRef = ref<PackageBead>
 
 // -----------------------------------------------------------------------------
 // 1.6  Metadata & provenance
@@ -360,9 +367,11 @@ type TypeDef {
   refines?:   TypeRef
   /// description: True ⇒ not directly instantiable; a bead must use a leaf.
   abstract?:  bool
-  /// description: The body's declared properties; inherited ones merge per the rules.
-  properties: namedDeclarations
+  /// description: The schema of the record that becomes the body of resources of this type; inherited fields merge per the §2.1 rules.
+  bodySchema: namedDeclarations
 }
+// TYPES-PASS: `bodySchema` is `namedDeclarations` (a record shape) for now; type it
+// as a first-class `Record` once BeadSchema's arms are broken into named, unioned types.
 
 ## namedDeclarations
 /// description: A list of named, typed declarations with required-ness — the shape of a record (a parameter list, a Type's property definitions).
@@ -712,6 +721,7 @@ type Outcome<T, E> = union {
 
 ## Problem
 /// description: An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.
+/// normative: The fault model. Every primitive returns its declared value on success or faults with a Problem — delivered out of band as the HTTP non-2xx response (RFC 9457), never part of the declared return type; a fault is orthogonal to the value. Only `call` additionally carries a declared failure (`Outcome.failure`, HTTP 409) — an operation's own "no". The data primitives have none: a read returns a `rep` or faults. A Problem is the universal fault channel, not the `E` of a `Result`.
 type Problem = {
   /// description: A URI naming the problem kind.
   type:      AbsoluteUri,
