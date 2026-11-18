@@ -978,7 +978,7 @@ type JsonPatch = [ JsonPatchOp ]
 type ListFilter = [ listCondition ]
 
 ## listCondition
-/// description: One flat field condition. `isKind` matches against the kind-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
+/// description: One flat field condition. `isType` matches against the type-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
 type listCondition = union {
   /// description: Compare a field to a value with a scalar operator (or set membership, `in`).
   compare     { field: FieldPath, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value: any }
@@ -994,8 +994,8 @@ type listCondition = union {
   containsAny { field: FieldPath, values: [ any ] }
   /// description: A list field does not contain the value.
   excludes    { field: FieldPath, value: any }
-  /// description: Match the kind-path (`type.id`) by prefix (the "is it an issue?" test) or exact.
-  isKind      { kind: RelativeId, match: "exact" | "prefix" = "prefix" }
+  /// description: Match the type-path (`type.id`) by prefix (the "is it an issue?" test) or exact.
+  isType      { type: RelativeId, match: "exact" | "prefix" = "prefix" }
 }
 
 ## FieldPath
@@ -1003,7 +1003,7 @@ type listCondition = union {
 type FieldPath = [ string ]
 
 ## RelativeId
-/// description: A kind-path as a local id segment, relative to the scope (the target for isKind's prefix/exact match).
+/// description: A type-path as a local id segment, relative to the scope (the target for isType's prefix/exact match).
 type RelativeId is string
 
 // -----------------------------------------------------------------------------
@@ -1038,10 +1038,10 @@ type ChangeEnvelope = {
   at:           Timestamp,
   /// description: The changed resource — { scope, id, rev }; `rev` is the new (or tombstone) revision.
   subject:      ResourceId,
-  /// description: The subject's kind path, denormalized (derived from `type.id`).
-  subjectKind?: PathString,                         // was `Kind` (killed)
-  /// description: The subject's type bead.
-  subjectType?: ref<TypeBead>,
+  /// description: The subject's type path (= its kind, `type.id`), denormalized for filtering.
+  subjectType?:      PathString,
+  /// description: Who names the subject's type — the package or registry, denormalized. Absent ⇒ ad-hoc.
+  subjectAuthority?: Authority,
   /// description: Shared across one commit.
   transaction:  Transaction,
   /// description: The cause this change ran under.
