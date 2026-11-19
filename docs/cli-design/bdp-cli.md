@@ -322,6 +322,180 @@ outcomes replace per-member postimages.
 > final batch/owner output follows the shared mutation descriptor; actual Types
 > composition and qualification remain explicit. No interruption request.
 
+## The type-driven write surface (v0.2)
+
+> **Status.** This section realigns the generic write verbs — `create`, `update`,
+> `put`, `delete` — to the merged Core v0.2 model (relationships-as-resources, the
+> core-model scrub, change events). It replaces the Link-era `bd link *` tree, which
+> is removed: a relationship is now an ordinary resource, created and read through
+> these same generic verbs. `update` and `delete` have open corners, called out below.
+
+The organizing idea: **the type drives the shape of the command.** A write verb is
+generic machinery; the *type* supplies its surface — which flags exist, what they
+mean, which are positional, what they default to — through metadata the CLI
+**discovers**, never hardcodes. The CLI ships no knowledge of issues, memories or any
+pack; it reads a type's definition and renders the verb accordingly.
+
+### Invocation
+
+`create` names its type, in two interchangeable spellings:
+
+```
+bdp create <type> [fields] [options]        # type as a positional subcommand
+bdp create --type <type> [fields] [options]
+```
+
+The type is **required** — there is no default type. (A deployment that wants the
+product's historical `task` default may set a single `cli.defaultType` configuration
+value; no pack may contribute one.) Requiring the type is also what keeps the surface
+unambiguous: the type is known before any of its flags are parsed, so its hints are in
+hand for the rest of the line. The type is a leaf-resolved token or a path —
+`bdp create bug` and `bdp create issue/bug` both resolve. An abstract type, or a
+wildcard, faults on `create`.
+
+### Type-specific help
+
+Because the type is explicit, `--help` is type-aware:
+
+```
+bdp create <type> --help     # the signature for THIS type: its flags, aliases, defaults, edges
+bdp create --help            # the generic create help; does NOT enumerate types
+```
+
+The set of creatable types can be large, so bare `create --help` never lists them. The
+enumeration lives in `bdp types` and in shell completion, where it is asked for rather
+than dumped.
+
+### Setting the body: the property-flag rule
+
+A body property is set by a flag named for it. The long flag is **auto-inferred** from
+the property name (camelCase → kebab-case: `externalRef` → `--external-ref`); no
+metadata is needed for it, so a brand-new type is fully usable from its schema alone.
+
+- `--<property> VALUE` sets that property. The value is coerced to the property's
+  declared type (number, bool, date, `ref<T>` from an id); a coercion failure is an
+  error.
+- A flag that is **not** a property of the type is **rejected** — not silently
+  ignored, not folded into metadata.
+- A property whose name collides with a reserved global (`--type`, `--properties`,
+  `--metadata`, `--id`, `--dry-run`, …) is not auto-flagged; it is set through the
+  generic `--properties` form below.
+- A **list**-typed property accepts both repeated flags (`--p a --p b`) and a
+  comma-separated value (`--p a,b`); repeated is the escape hatch for values that
+  contain commas.
+
+Two escape hatches carry whole records:
+
+- `--properties '{json}'` sets body properties as JSON (the typed-field channel).
+- `--metadata '{json}'` sets the resource's open `metadata` record — unconstrained,
+  and distinct from the body (see Core's `Resource { body, metadata }`).
+
+Where a flag and `--properties` set the same field, the duplicate is **refused**.
+
+### Access modes
+
+`create` honors each property's access mode. It must be given every **required**
+property (a missing one faults, listing them); it **rejects** client-set of
+`computed`, `service-managed` and `read-only` properties; and it accepts `init-only`
+properties, which are settable only here.
+
+### Per-type CLI hints (`cliMapping`, lifted to types)
+
+The `cliMapping` hints a Callable carries (flag spellings, positionals) apply, one
+tier up, to a **type** — shaping the generic verbs for it. They are declared as
+metadata on the type and its properties, and the CLI reads them from the `TypeBead` at
+resolution time. Three keys on properties, one on the type:
+
+| key | on | effect |
+|---|---|---|
+| `cli: alias <short>` | property | a short flag, e.g. `-p` for `priority` (the long flag always works too) |
+| `cli: positional <n>` | property | bind the property to positional slot `n` (slots count *after* the type) |
+| `cli: default <value>` | property | the value used when the flag is omitted (Core has no `default`, so it is purely a CLI hint) |
+| `cli.edge: …` | type | a flag that creates a related **edge resource** — see below |
+
+`Issue`, in `specs/src/packs/issue/issue.lumen`, is the worked example: `title` is
+positional 0; `priority`/`assignee`/`description`/`status`/`estimate` carry
+`-p`/`-a`/`-d`/`-s`/`-e`; `priority` defaults to `2`. Everything else auto-infers its
+long flag with no annotation.
+
+### Edge sugar
+
+A dependency is **not** a property — it is a separate edge resource. `cli.edge`
+declares a flag that, as part of one `create`, also creates that edge:
+
+```
+bdp create task "Fix login" --blocks bd-42
+```
+
+creates the task **and** a `Blocks` resource (source = the new task, target = `bd-42`)
+atomically — the one-command form of the two-step `create task …` then
+`create Blocks --from … --to bd-42`. On `Issue`, `cli.edge` declares `--blocks`,
+`--blocked-by` and `--deps TYPE:ID`; `self` is the resource being created, and the
+flag's value is the other endpoint.
+
+### The designated-operation trapdoor
+
+The hints cover the common 80%. For a type whose creation is genuinely complex —
+multi-resource, transactional, derived, or with a bespoke argument shape — the type
+designates an operation and `create` **delegates** to it:
+
+- `cli.create = <operationRef>` (and likewise `cli.update`, `cli.delete`).
+- When present, `bdp create <type>` stops doing the default and invokes that Callable,
+  mapping the command line to the Callable's parameters through the Callable's own
+  `cliMapping`. The operation then does whatever it needs.
+
+The user still types `bdp create <type>`; the type decides whether that lowers to the
+`create` primitive or reroutes to a precise operation. On `Issue`, the gnarly flows —
+`--parent` (hierarchical child + id derivation), `--graph` (a plan file), `-f` (one
+issue per `##` heading) — are designated operations, not `create` flags.
+
+### `create`, `put`, `update` and `delete`: upsert, conflict and resurrection
+
+`create` establishes a resource; the id model decides what a collision means, and a
+tombstone (Core's terminal-revision delete) is just another state the id can be in:
+
+| situation | `create` keyed | `create` surrogate | `create --id` | `put` (at id) | `update` |
+|---|---|---|---|---|---|
+| target absent | create new | new (fresh id) | create at id | create at id | fault |
+| target live | idempotent upsert | — (new id) | fault (occupied) | replace | patch |
+| target tombstoned | **resurrect** | — | fault → use `put` | **resurrect** | **fault** |
+
+The principle: **`create`/`put` establish** (and will resurrect a tombstone);
+**`update` modifies a live** resource (and faults on a tombstone). Resurrection rides
+the create family. (`update` *can* resurrect, but only deliberately — by naming the
+tombstone's revision via `--from-revision` — never by accident. A `--no-resurrect`
+guard on `create` is available where silent resurrection would surprise.)
+
+### Polymorphic (ref-first) operations
+
+`show`/`update`/`delete`/`put` take a **ref, not a type**, so the type is latent at
+invocation. This costs convenience, never correctness:
+
+- The CLI is a **thin forwarder** for the generic surface: `bdp update <ref>
+  --priority 1 --properties '{…}'` sends name=value pairs (or JSON), and the **server**
+  — which knows the resource's type — validates and coerces, rejecting unknown
+  properties. No type knowledge is needed in the client to update any ref.
+- Type-specific **sugar** — short aliases, type-specific `--help`, early client-side
+  coercion — needs the type, so the CLI learns it by resolving the ref (one `get`).
+  `bdp update <ref> --help` resolves the ref, then shows that type's update signature.
+  Scripts that use long flags and `--properties` skip the round trip.
+
+> **Open.** `update` and `delete` have harder corners than `create`: retype semantics
+> (`--type` on `update` = retype, validated against the new type; a migrating retype is
+> a designated `cli.update` operation), the `--force` / `--from-revision` concurrency
+> model, and cascade / dry-run on `delete`. These are specified in their own pass.
+
+### Storage class
+
+Whether a resource keeps revision history is the scope-wide `revisionModel`
+(`versioned | unversioned`). Whether a resource is **ephemeral or durable** is
+**per-resource** — a durable scope supports both; an ephemeral-only store rejects
+durable — so `--ephemeral` / `--storage-class` is a valid per-resource `create` flag.
+
+> **Open.** Per-resource history suppression (the product's `--no-history`) — a third
+> knob, "do not retain this resource's history even in a versioned scope" — is not yet
+> decided: Core model or product GC.
+
 ## CLI specification
 
 Common flags are defined in groups first. Each command then lists the flags
