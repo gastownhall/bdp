@@ -36,21 +36,32 @@ type text is string
 /// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
 /// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
 /// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
+/// cli.edge: `--blocks TARGET` creates a `Blocks` edge — source = this issue, target = TARGET.
+/// cli.edge: `--blocked-by TARGET` creates a `Blocks` edge — source = TARGET, target = this issue.
+/// cli.edge: `--deps TYPE:ID` creates a dependency of the named concrete type; a bare `ID` defaults to `Blocks`.
+/// cli: `--labels`/`-l` is annotation sugar (stdlib) — it creates rev-neutral `Label` resources pointing at the issue, not an Issue field.
+/// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
 type Issue is Resource {
   // required
+  /// cli: positional 0
   title:    string { minLength: 1 },
+  /// cli: alias `-s`
   status:   string { minLength: 1 },             // a built-in or provider-configured value
+  /// cli: alias `-p`, default 2
   priority: number { 0..4 },                     // 0 = P0; never absent
 
   // optional work fields
+  /// cli: alias `-d`
   description?:        text,
   acceptanceCriteria?: text,
   design?:             text,
   notes?:              text,
   owner?:              string { maxLength: 255 },  // native human string — NOT a ref
+  /// cli: alias `-a`
   assignee?:           string { maxLength: 255 },  // same
   createdAt?:  Timestamp, startedAt?: Timestamp, closedAt?: Timestamp,
   deferUntil?: Timestamp, dueAt?:     Timestamp,
+  /// cli: alias `-e`
   estimatedMinutes?:   number { min: 0 },
   externalRef?:        string,
   specId?:             text,
