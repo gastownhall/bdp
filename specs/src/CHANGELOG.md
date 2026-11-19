@@ -7,7 +7,9 @@ it. Strict semver (patch = non-breaking) tightens once the draft stabilizes. The
 version lives in `bdp.md` frontmatter and the `core.lumen` header; this file is
 the delta log.
 
-## Unreleased
+## 0.2.2 — 2026-11-18
+
+Breaking draft changes to the core model (pre-1.0, status: draft).
 
 - **Core-model simplification** — dropped `rep<T>` (a read yields the type itself;
   `get(ref<T>) -> T`), the `Bead<T>` constructor (a bead is now `type X is Resource
