@@ -38,6 +38,17 @@ Breaking draft changes to the core model (pre-1.0, status: draft).
   revision-transparent — a change in its value alone mints no revision, emits no
   change event, and it never enters a content hash. Its storage is unspecified
   (recompute or cache); the derivation formula is supplied by a pack, not Core.
+- **Change-event correlation** — rename `Frame` → `CallId` (and the `frame`
+  fields → `callId`); `calledBy` stays the parent-call pointer. A call's
+  correlation token now reads as what it is — a node in the call tree — distinct
+  from `cause` (correlation to an initiation) and `transaction` (the atomic
+  commit).
+- **Call / cause / transaction model** (`bdp.md` §6, §8) — three orthogonal axes
+  with their propagation rules: cause propagates unconditionally; transaction
+  propagates by enlistment (Required / RequiresNew / detach); crossing a scope
+  forces a transaction boundary but carries the cause.
+- **Proposed (Open)** — `CallEnter` / `CallLeave` arms on `ChangeEvent`, the
+  operation-frame boundaries. Flagged for a ruling, not adopted.
 
 ## 0.2.1 — 2026-11-17
 

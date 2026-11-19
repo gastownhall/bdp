@@ -238,9 +238,33 @@ in one place keeps the other operations simple.
 
 A call can run asynchronously. Then it returns at once with an
 [[core.lumen#AsyncResult]] — a resource you poll or watch until it settles.
-[[core.lumen#cancel]] stops a running one. The cause and frame fields
-([[core.lumen#Cause]], [[core.lumen#Frame]]) tie an effect back to the request
-that set it off, so work started by a call stays findable.
+[[core.lumen#cancel]] stops a running one.
+
+Three tokens tie an effect back to the work that set it off, and they are three
+orthogonal axes rather than one. The **call** ([[core.lumen#CallId]]) is the call
+tree: each call has an id, and `calledBy` points at its caller — control flow, who
+invoked whom. The **cause** ([[core.lumen#Cause]]) is correlation: it is minted at
+an initiating call and propagates unchanged to everything that call sets off,
+however deep, with `causedBy` pointing at the parent cause — the distributed trace
+that answers "what one initiation is all of this part of". The **transaction**
+([[core.lumen#Transaction]]) is atomicity: the set of changes that commit together,
+all or nothing.
+
+The three coincide for a single synchronous call and separate as work spreads out,
+and what separates them is how each token crosses a call. Cause crosses
+unconditionally — a callee always inherits its caller's cause; correlation is not
+something you opt out of. A transaction crosses by enlistment — a callee joins its
+caller's transaction, starts its own, or runs in none, by a declared disposition.
+The default is *Required*: enlist in the caller's transaction if there is one, else
+start a fresh one. *RequiresNew* always starts its own, keeping the cause but
+beginning a new transaction. A **detach** is the full boundary — a new cause and a
+new transaction both — and it is a propagation boundary in its own right,
+independent of whether the call is asynchronous.
+
+Crossing a scope forces a transaction boundary. The base protocol has no
+distributed commit, so a call into another store commits there on its own. The
+cause still crosses — it is only a token to carry — so work stays correlated across
+stores even where it is no longer atomic with them.
 
 ## 8. The resource lifecycle — the primitives
 
@@ -281,10 +305,23 @@ event is durable with its change — never committed without its event, never
 published for a change that did not commit. A change that arrives by replication
 still appears on the feed.
 
-An event carries the new revision, the time, and the cause, spread from a shared
-[[core.lumen#ChangeEnvelope]]. An update's payload is either a full post-image or
-a patch; a delete carries explicit provenance, because there is no post-image to
-carry it.
+An event carries the new revision and the time, and three correlation tokens
+spread from a shared [[core.lumen#ChangeEnvelope]]: its call, its cause, and its
+transaction (§6). With them a consumer groups the changes of one commit, traces
+them to one initiation, and sees which committed atomically — without a second
+query. An update's payload is either a full post-image or a patch; a delete
+carries explicit provenance, because there is no post-image to carry it.
+
+> **Open** — should the changefeed also carry operation boundaries? A proposal
+> adds two non-resource arms, `CallEnter` and `CallLeave`, marking where an
+> operation's frame opens and closes: the enter carries the operation and its
+> cause, the leave carries the outcome. They would make an operation visible even
+> when it changes nothing — today it leaves no trace on the feed — and put a
+> command's descriptor and result on the same stream as its effects. The cost is
+> that the changefeed is resource-centric: every arm today has a `subject`, and
+> these arms have none. The alternative keeps operation boundaries off the feed
+> and reads them from the request/reply pair, which already carries the same call,
+> cause, and transaction tokens plus the outcome. Unresolved.
 
 ## 10. Export and import
 
