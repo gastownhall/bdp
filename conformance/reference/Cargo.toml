@@ -1,0 +1,23 @@
+[package]
+name = "bdp-ref"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# The one green endpoint: InMemScope served over HTTP by bdp-protocol::Server. The wire-level
+# conformance cases run black-box against this via RemoteScope::connect(addr). Pin-agnostic:
+# it serves whatever the in-memory scope implements, so the spec pin never touches this bin.
+[[bin]]
+name = "bdp-ref"
+path = "src/main.rs"
+
+[dependencies]
+bdp-inmem = { path = "../vendor/bdp-inmem" }
+bdp-protocol = { path = "../vendor/bdp-protocol" }
+tokio = { version = "1", features = ["rt", "macros", "net", "io-util"] }
+
+[dev-dependencies]
+# For the end-to-end liveness test (tests/liveness.rs): build a CreateBody and drive the trait.
+bdp-primitives = { path = "../vendor/bdp-primitives" }
+bytes = "1"
+serde_json = "1"
