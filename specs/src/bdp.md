@@ -78,11 +78,11 @@ purpose: an id, a type, and a body are always present; a scope, metadata,
 provenance, a creation time, and a storage class are optional. The type is a
 path, such as `text/plain` or `issue/task`. The body is the content.
 
-A [[core.lumen#Bead]] is a resource whose body follows a declared schema. A bead
-is a **marker**, not a new envelope. Narrowing it puts the subtype's fields
-under `body` — never beside the id and type. This is the firewall: domain fields
-live in the body, and the envelope stays the same for every resource in the
-store. That is what lets one set of operations serve every type.
+A **bead** is a [[core.lumen#Resource]] whose body follows a package-declared
+schema. There is no separate bead type: `type X is Resource { fields }` puts the
+subtype's fields under `body` — never beside the id and type. This is the firewall:
+domain fields live in the body, and the envelope stays the same for every resource
+in the store. That is what lets one set of operations serve every type.
 
 Content — a `text/plain` file, an image — is a bare resource. Its type is a media
 type, and its body is the raw bytes. A bead and a piece of content differ only in
@@ -104,18 +104,15 @@ and does not claim it is true.
 
 ## 3. References and representations
 
-Two typed forms sit on top of the plain reference, and the difference between
-them is by-reference versus by-value.
+A [[core.lumen#ref]] is a reference: a resource's name, nothing resolved. The type
+parameter on it is for the checker only; it is gone on the wire. The representation
+is just the resolved value — a `T` — so `ref<T>` is the by-reference form and `T`
+itself is the by-value form; there is no separate representation type.
 
-A [[core.lumen#ref]] is a reference: a resource's name, nothing resolved. A
-[[core.lumen#rep]] is a representation: the resolved value a read returns, as of
-one revision. You name a resource with a `ref` and you read it into a `rep`. The
-type parameter on each is for the checker only; it is gone on the wire.
-
-[[core.lumen#get]] resolves a `ref` to a `rep`. It is safe — it never changes
-anything — and it has no declared failure: it returns a representation or it
-faults with a [[core.lumen#Problem]]. A read can carry a selector that keeps only
-part of the representation, and a projected read gets its own cacheable identity.
+[[core.lumen#get]] resolves a `ref<T>` to a `T`. It is safe — it never changes
+anything — and it has no declared failure: it returns the resource or it faults
+with a [[core.lumen#Problem]]. A read can carry a selector that keeps only part of
+the representation, and a projected read gets its own cacheable identity.
 
 A reference either pins a revision or it does not. [[core.lumen#pinned]] carries a
 `rev`; [[core.lumen#unpinned]] floats to the current one. The distinction
@@ -126,7 +123,7 @@ resource to its tombstone.
 ## 4. The relationship model
 
 A relationship between two resources is itself a resource. There is no separate
-edge or link type: a relationship is a [[core.lumen#Relationship]] — a bead whose
+edge or link type: a relationship is declared with [[core.lumen#rel]] — a bead whose
 body carries two endpoints, `source` (the resource that asserts the relationship)
 and `target` (the one it points at), plus the relationship's own properties. It
 has an identity, a revision history, provenance and an authority like any other

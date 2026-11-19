@@ -9,7 +9,15 @@ the delta log.
 
 ## Unreleased
 
-- **Relationships are resources** — a relationship is a `Relationship`, declared
+- **Core-model simplification** — dropped `rep<T>` (a read yields the type itself;
+  `get(ref<T>) -> T`), the `Bead<T>` constructor (a bead is now `type X is Resource
+  { fields }` — the firewall is the default — whose authority is a package), and the
+  nominal `Relationship` base (`rel<F, T>` is the sole relationship construct).
+  `namedDeclarations` splits into `PropertyDeclaration` (`{ name, type, computed? }`
+  plus the sibling access modes) on `TypeDef.properties` and `ParameterDeclaration`
+  (`{ name, type, required? }`) on `Signature.parameters`. Renamed `ElementRef` →
+  `PackageElementRef`.
+- **Relationships are resources** — a relationship is a resource, declared
   with the `rel<F, T>` form (`type X is <modifiers> rel<F, T> { <edge-fields> }`,
   refined with `is`) and refining it into a bead whose body implicitly carries
   `source` / `target` plus its own properties — identity, revision history and
