@@ -36,7 +36,7 @@ type text is string
 /// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
 /// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
 /// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
-type Issue is bead {
+type Issue is Resource {
   // required
   title:    string { minLength: 1 },
   status:   string { minLength: 1 },             // a built-in or provider-configured value
