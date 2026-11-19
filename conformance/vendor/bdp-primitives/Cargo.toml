@@ -1,0 +1,8 @@
+[package]
+name = "bdp-primitives"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+bytes = "1"

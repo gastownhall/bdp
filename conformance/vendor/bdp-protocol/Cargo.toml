@@ -1,0 +1,19 @@
+[package]
+name = "bdp-protocol"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# A thin BDP HTTP protocol spike over the shared `BdpScope` trait. Deliberately uses
+# ONLY crates already in the workspace tree (tokio/serde/serde_json/bytes) — the HTTP/1.1
+# transport is hand-rolled (`src/http.rs`) to keep the wire explicit (the point of the
+# spike) and avoid pulling a web framework. Pin: see PIN.md (gastownhall/bdp @ b555931c).
+[dependencies]
+bdp-primitives = { path = "../bdp-primitives" }
+bytes = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util"] }
