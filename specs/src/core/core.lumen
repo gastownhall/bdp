@@ -1063,57 +1063,57 @@ type RelativeId is string
 // commit; read it with `pull`.
 
 ## ChangeEvent
-/// description: Core's report of one committed change to one Resource, as a top-level DU on lifecycle (a relationship change is an Updated to its source bead). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.
-/// normative: One commit produces exactly one event per resource changed, however many times the request touched it; a failed request and a no-change request produce no event. An event is durable with its change — never committed without its event, never published for a change that did not commit. A change that arrives by replication MUST still appear on the changefeed. The full (post-image) encoding is required of every service; the patch encoding is optional (a reader that meets a patch it cannot apply re-reads the resource).
+/// description: Core's report of one committed change to one Resource — Created / Updated / Deleted — or an operation-frame boundary (CallEnter / CallLeave) for an unsafe call. A top-level DU on lifecycle (a relationship change is an Updated to the relationship resource). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.
+/// normative: One commit produces exactly one event per resource changed, however many times the request touched it; a failed request and a no-change request produce no resource event. An event is durable with its change — never committed without its event, never published for a change that did not commit. A change that arrives by replication MUST still appear on the changefeed. The full (post-image) encoding is required of every service; the patch encoding is optional (a reader that meets a patch it cannot apply re-reads the resource).
+/// normative: CallEnter / CallLeave bound an operation's frame on the feed — the open carries the operation, the close its outcome. They are emitted for an UNSAFE or unspecified operation only (the `safe` marker on [[core.lumen#Operation]] is the gate); a safe operation makes no change and leaves no frame — its boundaries are read from the Request/Reply pair, which already carries the same callId / cause / transaction and the outcome. So an unsafe operation that changes nothing is still visible — its enter and leave bracket no resource events — while a read leaves the feed untouched.
 type ChangeEvent = union {
   Created
   Updated
   Deleted
+  CallEnter
+  CallLeave
 }
 // >DB? the delete-provenance shape (provenance per-arm, elided where the post-image
 // carries it, explicit on patch/delete) is the proposal you marked "review this shape".
-//
-// > **Open** — operation-frame events on the changefeed. A proposal to extend
-// > ChangeEvent with two non-resource arms, the open and close of an operation frame:
-// >     CallEnter { ...callId, cause, operation: ref<OperationBead> }   — frame opened
-// >     CallLeave { ...callId, outcome: Outcome<any, any> }             — frame closed
-// > They put a call's boundaries on the feed: the operation's descriptor and its
-// > outcome, and they make an operation that changes nothing visible (today it leaves
-// > no trace — no resource event). The cost is architectural: ChangeEnvelope is
-// > resource-centric (every arm has a `subject`), and these arms have none, so they
-// > would not spread it. The alternative keeps operation boundaries OFF the feed and
-// > reads them from Request/Reply, which already carries callId/cause/transaction plus
-// > the outcome. Not adopted — ruling deferred (bdp.md §8).
+// >DB the wire discriminator for this DU is a `kind` field = the arm identifier
+// lowercased (`created` … `call-leave`), NOT the `type` kind-path — deferred to the
+// lumen scrub; the tag field is not written here yet.
 
 ## ChangeEnvelope
-/// description: Fields common to every change arm; spread into each. `subject.rev` is the new (or tombstone) revision — there is no separate revision field.
+/// description: Fields common to EVERY arm — position, time, and the correlation tokens. No subject: a resource arm adds that via [[core.lumen#ResourceChange]]; a frame arm (CallEnter / CallLeave) has none.
 type ChangeEnvelope = {
   /// description: Position in the changefeed, assigned on append.
   ordinal:      Ordinal,
-  /// description: When the change committed.
+  /// description: When the event committed.
   at:           Timestamp,
-  /// description: The changed resource — { scope, id, rev }; `rev` is the new (or tombstone) revision.
-  subject:      ResourceId,
-  /// description: The subject's type path (= its kind, `type.id`), denormalized for filtering.
-  subjectType?:      PathString,
-  /// description: Who names the subject's type — the package or registry, denormalized. Absent ⇒ ad-hoc.
-  subjectAuthority?: Authority,
-  /// description: Shared across one commit.
+  /// description: The commit this event belongs to — and, for a read's frame, the OCC snapshot the operation saw. Always present.
   transaction:  Transaction,
-  /// description: The cause this change ran under.
+  /// description: The cause this event ran under.
   cause?:       Cause,
   /// description: The parent cause — the cause-tree back-pointer.
   causedBy?:    Cause,
-  /// description: The call this change ran under — its CallId (diagnostic-tier).
+  /// description: The call this event belongs to — its CallId (its own, for a frame arm) (diagnostic-tier).
   callId?:      CallId,
   /// description: The parent call — the call-tree back-pointer (diagnostic-tier).
   calledBy?:    CallId
 }
 
+## ResourceChange
+/// description: What the resource arms (Created / Updated / Deleted) add to [[core.lumen#ChangeEnvelope]] — the subject and its denormalized type. A frame arm carries none of these.
+type ResourceChange = {
+  ...ChangeEnvelope,
+  /// description: The changed resource — { scope, id, rev }; `rev` is the new (or tombstone) revision.
+  subject:           ResourceId,
+  /// description: The subject's type path (= its kind, `type.id`), denormalized for filtering.
+  subjectType?:      PathString,
+  /// description: Who names the subject's type — the package or registry, denormalized. Absent ⇒ ad-hoc.
+  subjectAuthority?: Authority
+}
+
 ## Created
 /// description: A resource admitted. Full post-image; its provenance is the representation's provenance.
 type Created = {
-  ...ChangeEnvelope,
+  ...ResourceChange,
   /// description: The full post-image of the new resource; its provenance is the change's provenance.
   representation: Resource
 }
@@ -1121,7 +1121,7 @@ type Created = {
 ## Updated
 /// description: A resource changed. `content` is the orthogonal encoding axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.
 type Updated = {
-  ...ChangeEnvelope,
+  ...ResourceChange,
   /// description: The change payload — a full post-image or a patch delta (see [[core.lumen#ChangeContent]]).
   content: ChangeContent
 }
@@ -1129,9 +1129,25 @@ type Updated = {
 ## Deleted
 /// description: A resource retired — the tombstone. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.
 type Deleted = {
-  ...ChangeEnvelope,
+  ...ResourceChange,
   /// description: Explicit provenance for the retirement — there is no post-image to carry it.
   provenance: Provenance
+}
+
+## CallEnter
+/// description: An operation frame opened — the open boundary of an unsafe call on the changefeed. Carries the operation; its callId / cause / transaction ride the envelope.
+type CallEnter = {
+  ...ChangeEnvelope,
+  /// description: The operation whose frame opened.
+  operation: ref<OperationBead>
+}
+
+## CallLeave
+/// description: An operation frame closed — the close boundary of an unsafe call. Carries the outcome (success / failure / fault / canceled, with the value); its callId / cause / transaction ride the envelope.
+type CallLeave = {
+  ...ChangeEnvelope,
+  /// description: How the call settled — the domain Result or a non-domain fate, with its value.
+  outcome: Outcome<any, any>
 }
 
 ## ChangeContent

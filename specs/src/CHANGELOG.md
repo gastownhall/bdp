@@ -47,8 +47,12 @@ Breaking draft changes to the core model (pre-1.0, status: draft).
   with their propagation rules: cause propagates unconditionally; transaction
   propagates by enlistment (Required / RequiresNew / detach); crossing a scope
   forces a transaction boundary but carries the cause.
-- **Proposed (Open)** — `CallEnter` / `CallLeave` arms on `ChangeEvent`, the
-  operation-frame boundaries. Flagged for a ruling, not adopted.
+- **Operation-frame events** — `CallEnter` / `CallLeave` arms on `ChangeEvent`
+  bracket an operation's effects (enter names the operation, leave carries the
+  outcome), emitted for unsafe operations only; a safe op leaves no frame. The
+  envelope splits: `ChangeEnvelope` (common, no subject) + `ResourceChange` (adds
+  the subject) for the Created / Updated / Deleted arms; the frame arms carry no
+  subject. `transaction` is now required — a read carries the OCC snapshot it saw.
 
 ## 0.2.1 — 2026-11-17
 

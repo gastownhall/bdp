@@ -312,16 +312,15 @@ them to one initiation, and sees which committed atomically — without a second
 query. An update's payload is either a full post-image or a patch; a delete
 carries explicit provenance, because there is no post-image to carry it.
 
-> **Open** — should the changefeed also carry operation boundaries? A proposal
-> adds two non-resource arms, `CallEnter` and `CallLeave`, marking where an
-> operation's frame opens and closes: the enter carries the operation and its
-> cause, the leave carries the outcome. They would make an operation visible even
-> when it changes nothing — today it leaves no trace on the feed — and put a
-> command's descriptor and result on the same stream as its effects. The cost is
-> that the changefeed is resource-centric: every arm today has a `subject`, and
-> these arms have none. The alternative keeps operation boundaries off the feed
-> and reads them from the request/reply pair, which already carries the same call,
-> cause, and transaction tokens plus the outcome. Unresolved.
+The feed also carries two operation-frame boundaries, `CallEnter` and `CallLeave`,
+that bracket the resource events an operation caused: the enter names the
+operation, the leave carries its outcome. They are emitted for an **unsafe**
+operation only — a safe (read-only) operation makes no change and leaves no frame,
+and its boundaries are read instead from the request/reply pair, which already
+carries the same call, cause, and transaction tokens plus the outcome. So an unsafe
+operation that changed nothing is still visible on the feed — its enter and leave
+bracket no resource events — while a read leaves the feed untouched. These two arms
+carry no `subject`; the subject-bearing fields belong to the resource arms alone.
 
 ## 10. Export and import
 
