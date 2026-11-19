@@ -1,0 +1,195 @@
+// =============================================================================
+// issue.lumen — the Issue pack (the resource / relationship model)
+// =============================================================================
+// An example BDP pack modelling a unit of work and its dependency graph on the
+// resource model. Issue and Spike are beads; a Dependency is a first-class
+// relationship — an edge resource, not a set of refs; the blocked facts are
+// computed projections. §2 derives the command surface from the §1 model.
+//
+// PRINCIPLES — why it is shaped this way:
+//   1. Model before commands. §1 models Issue and Dependency completely; §2's
+//      commands are a thin surface over that model, never the reverse.
+//   2. Specific before general. These are the ISSUE commands. Generalising the
+//      parts that recur across packs is a later pass — not this file.
+//   3. Verbs lower to primitives; behaviour is an operation. The generic
+//      create/show/list/update/delete verbs ARE the core primitives (§2.A); only
+//      issue-specific behaviour is a declared operation (§2.B, §2.C).
+//   4. Compat by rendering. The trained command names render over this model;
+//      output format is the orthogonal `--output-mode`, never a semantic — so no
+//      signature here mentions it.
+//   5. Dependencies are edge resources. `dep add` / `dep remove` create and
+//      delete a Dependency; the blocked facts are COMPUTED and revision-transparent.
+// =============================================================================
+
+/// description: Free text — a nominal string.
+type text is string
+
+
+// #############################################################################
+// §1. The model
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// §1.1  Issue — a unit of work
+// -----------------------------------------------------------------------------
+
+/// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
+/// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
+/// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
+type Issue is bead {
+  // required
+  title:    string { minLength: 1 },
+  status:   string { minLength: 1 },             // a built-in or provider-configured value
+  priority: number { 0..4 },                     // 0 = P0; never absent
+
+  // optional work fields
+  description?:        text,
+  acceptanceCriteria?: text,
+  design?:             text,
+  notes?:              text,
+  owner?:              string { maxLength: 255 },  // native human string — NOT a ref
+  assignee?:           string { maxLength: 255 },  // same
+  createdAt?:  Timestamp, startedAt?: Timestamp, closedAt?: Timestamp,
+  deferUntil?: Timestamp, dueAt?:     Timestamp,
+  estimatedMinutes?:   number { min: 0 },
+  externalRef?:        string,
+  specId?:             text,
+  closeReason?:        text,
+
+  // computed projections over the dependency graph — revision-transparent.
+  // (`{ computed }` marks the property's access mode; the exact spelling of the
+  //  access-mode modifier is owned by the Lumen scrub, alongside init-only /
+  //  service-managed.)
+  isBlocked:      bool   { computed },           // an open Blocks edge targets an unclosed blocker
+  blockedByCount: number { computed },           // the number of such open blockers
+}
+
+/// description: Spike — the native spike classification; a subkind of Issue with no added properties.
+type Spike is Issue {}
+
+
+// -----------------------------------------------------------------------------
+// §1.2  Dependency — the relationship, as an edge resource
+// -----------------------------------------------------------------------------
+
+/// description: Dependency — a relationship FROM an Issue, carried as a first-class edge resource. It has its own identity, revision history and provenance; `createdBy`/`threadId` are ordinary body properties, not a second-class metadata bag. `unique` keys the edge by its natural key (source, target), from which its id is derived deterministically — at most one Dependency of a given concrete type between a given pair.
+/// normative: `abstract` — only the concrete subtypes below are instantiated. Creating, re-typing or deleting a Dependency does NOT touch its endpoints' revisions; the edge carries its own identity and history. Delete is a tombstone (a terminal revision), not an erasure.
+abstract type Dependency is unique rel<Issue, resource> {
+  createdBy?: text,     // native creator string — NOT a BDP attribution
+  threadId?:  text,     // conversation grouping carried from the native row
+}
+
+/// description: Blocks — "source blocks target"; both endpoints are Issues and the relation is ACYCLIC (a cycle is a deadlock). This is the default dependency type.
+/// normative: OPEN — `Blocks` narrows the parent's target from `resource` to `Issue` and adds the `acyclic` graph modifier. Whether a refinement may narrow a parent rel's endpoints and add a graph modifier is a language question owned by the Lumen scrub; the intent is written here with the conformance list (`is Dependency, acyclic rel<Issue, Issue>`).
+type Blocks is Dependency, acyclic rel<Issue, Issue> {}
+
+/// description: ConditionalBlocks — a soft/conditional block whose target may be any resource (often an Issue) and which is not acyclic.
+type ConditionalBlocks is Dependency {}
+
+/// description: RepliesTo — a reply relation from an Issue to any resource (often an Issue).
+type RepliesTo is Dependency {}
+
+
+// #############################################################################
+// §2. The command surface — derived from §1
+// #############################################################################
+// Three tiers. §2.A is the generic verbs, which ARE core primitives and are NOT
+// redefined here. §2.B is issue behaviour. §2.C is the dependency graph. Queries
+// are `fn` (safe); batches are `command`. Full argument lists are folded from the
+// callable catalog (specs/types/issue/callables.md); the signatures below model
+// the shape — representative parameters, not every field — and are marked where
+// abbreviated.
+
+// -----------------------------------------------------------------------------
+// §2.A  Generic verbs → core primitives (rendered, never redefined)
+// -----------------------------------------------------------------------------
+//   create   → create(Issue)                 show     → get(ref<Issue>)
+//   list      → list(Issue, where?)          update   → patch(ref<Issue>, …)
+//   delete    → delete(ref<Issue>)           get-many → batch get / list
+//   count     → list(Issue, where?):count    query    → list(Issue, where)
+// The pack RENDERS the trained names; each lowers to the primitive beside it. A
+// generic verb gains no issue-specific behaviour — behaviour lives in §2.B/§2.C.
+
+// -----------------------------------------------------------------------------
+// §2.B  Issue operations (behaviour — pack callables)
+// -----------------------------------------------------------------------------
+
+/// description: Ready work — issues that are open, unblocked, and not deferred. (`issue/ready`.)
+fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: number) -> [ rep<Issue> ]
+
+/// description: Count of ready work. (`issue/ready-count`.)
+fn countReadyWork(type?: PathString, excludeType?: PathString) -> number
+
+/// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
+fn listBlockedIssues(type?: PathString, limit?: number) -> [ rep<Issue> ]
+
+/// description: Work-shaping context for an actor — the standard "what should I do" projection. (`issue/context`.)
+fn getContext(assignee?: string) -> rep<Resource>
+
+/// description: Aggregate issue statistics. (`issue/stats`.)
+fn getStats() -> rep<Resource>
+
+/// description: Claim an issue for the acting principal (the actor rides in provenance, never a parameter). (`issue/claim`.)
+command claimIssue(issue: ref<Issue>) -> rep<Issue>
+
+/// description: Claim the next ready issue for the acting principal. (`issue/claim-next`.)
+command claimNextIssue(type?: PathString) -> rep<Issue>
+
+/// description: Release a claimed issue. (`issue/unclaim`.)
+command releaseIssue(issue: ref<Issue>) -> rep<Issue>
+
+/// description: Refresh the lease/fence on a claimed issue. (`issue/heartbeat`.)
+command heartbeatIssue(issue: ref<Issue>) -> rep<Issue>
+
+/// description: Close an issue, recording a reason. (`issue/close`.)
+command closeIssue(issue: ref<Issue>, closeReason?: text) -> rep<Issue>
+
+/// description: Reopen a closed issue. (`issue/reopen`.)
+command reopenIssue(issue: ref<Issue>) -> rep<Issue>
+
+/// description: Advance a molecule/workflow step on an issue. (`issue/advance`.)
+command advanceMolecule(issue: ref<Issue>) -> rep<Issue>
+
+/// description: Reclaim issues whose lease has expired. (`issue/reclaim`.)
+command reclaimIssues(where?: ListFilter) -> [ rep<Issue> ]
+
+/// description: Add a comment — writes a Comment annotation resource pointing at the issue (rev-neutral). (`issue/comment`.)
+command addComment(issue: ref<Issue>, body: text) -> rep<Resource>
+
+/// description: Compare-and-set a metadata value under optimistic concurrency. (`issue/metadata/compare-and-set`.)
+command compareAndSetMetadata(issue: ref<Issue>, key: string, expected?: any, value: any) -> rep<Issue>
+
+/// description: Sweep closed/stale issues — the prune/purge batch (differs only in tier defaults). (`issue/purge`, `issue/prune`.)
+command sweepIssues(tier?: string, dryRun?: bool) -> ImportReport
+
+// Batch forms (create-many, close-many, batch-apply, delete-many, get-many) are
+// the generic batch primitives applied to Issue; they are rendered per §2.A, not
+// issue behaviour, and are listed here only for the trained names.
+
+// -----------------------------------------------------------------------------
+// §2.C  Dependency graph (edge resources + traversal)
+// -----------------------------------------------------------------------------
+
+/// description: Add a dependency edge — CREATES a Dependency resource (default concrete type `Blocks`). A same-key re-add is the upsert that `unique` already implies, not a special path. (`issue/dep/add`.)
+command addDependency(source: ref<Issue>, target: ref<resource>, type?: PathString, createdBy?: text, threadId?: text) -> rep<Dependency>
+
+/// description: Remove a dependency edge — DELETES (tombstones) the Dependency resource. (`issue/dep/remove`.)
+command removeDependency(dependency: ref<Dependency>) -> Rev
+
+/// description: The dependency edges of an issue — the Dependency resources on a source. (`issue/dep/edges`.)
+fn listDependencies(source?: ref<Issue>, type?: PathString) -> [ rep<Dependency> ]
+
+/// description: Count dependency edges. (`issue/dep/count`.)
+fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> number
+
+/// description: Related issues — the targets reached from a source across the dependency relations. (`issue/dep/list`.)
+fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ rep<Issue> ]
+
+/// description: The dependency tree from a root — the transitive closure over Blocks. Lowers to the traversal `root -> Blocks+`. (`issue/dep/tree`.)
+fn getDependencyTree(root: ref<Issue>) -> [ rep<Issue> ]
+
+/// description: Dependency cycles — lowers to `cycles(Blocks)` over the graph. (`issue/dep/cycles`.)
+fn listDependencyCycles() -> [ [ rep<Issue> ] ]
+
+/// description: Blocking annotations — the open blockers that make issues blocked. (`issue/blocking-annotations`.)
+fn listBlockingAnnotations(issue?: ref<Issue>) -> [ rep<Dependency> ]
