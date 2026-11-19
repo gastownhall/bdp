@@ -303,6 +303,50 @@ type AbsoluteUri is string
 /// description: A semantic-version string (a package's declared version).
 type SemVer is string
 
+// -----------------------------------------------------------------------------
+// 1.7  Relationships — a relationship is a resource
+// -----------------------------------------------------------------------------
+// A relationship between two resources is not a construct of its own: it is a
+// Resource (a bead) whose body implicitly carries two endpoints and the
+// relationship's own properties, with its own identity, revision history and
+// provenance. There is no separate edge or link type. A relationship type is
+// declared with the `rel<F, T>` form and refined with `is`, e.g.
+// `type Dependency is unique acyclic rel<Issue, Issue> { note?: string }` and
+// `type Blocks is Dependency`.
+
+## Relationship
+/// description: The base of every relationship — a bead whose body implicitly carries `source` (the owning endpoint, which asserts the relationship) and `target` (the referenced endpoint), plus the relationship type's own properties. The declared name is the representation, used everywhere; `ref<X>` references one.
+/// normative: A relationship is declared `type X is <modifiers> rel<F, T> { <edge-fields> }` — a nominal bead refining `Relationship<F, T>`. Body is implicit: `source`/`target` are not written, and the trailing `{ <edge-fields> }` record is the relationship's own body as ordinary properties — there is no second "edge metadata" bag. Changing a property mints a new revision of the relationship itself; creating or deleting a relationship does NOT touch either endpoint's revision.
+/// normative: A relationship IS a resource and therefore a valid reference target — a reference MAY point at a relationship, and a relationship's endpoints MAY themselves be relationships. Nothing distinguishes a relationship but its structural `source`/`target` pair: a bare `ref<T>` in any other body field is data, not a relationship. An edge is a declared relationship type, never an incidental reference.
+/// normative: Referential integrity follows the KIND of reference. `source` and `target` are STRUCTURAL: a scope either cascades an endpoint's retirement to the relationship, or restricts the retirement while the relationship stands — a relationship never outlives a structural endpoint. A reference that only points AT a resource (a note, an annotation) is SOFT: it tolerates a retired target and resolves to that target's tombstone. Deletion is the resource tombstone ([[core.lumen#delete]]) — a terminal revision that keeps the id and the history; a true destroy (purge) is a separate, rare operation, not a base primitive.
+type Relationship<S, T> = Bead<{ source: ref<S>, target: ref<T>, ...: any }>
+
+## rel
+/// description: The relationship-declaration form. `type X is <modifiers> rel<F, T> { <edge-fields> }` mints a nominal relationship type refining [[core.lumen#Relationship]], with the trailing record as its body; a bare `<modifiers> rel<F, T>` is the same shape without the nominal identity.
+/// normative: `unique` is the optional uniqueness modifier — `unique rel<F, T>` keys the relationship by its natural key (`source`, `target`) and derives its id deterministically from that key, so the same logical relationship resolves to one id in every replica. Without `unique`, each relationship takes a surrogate id and several over the same pair coexist as distinct resources. The relationship `type` is NOT part of the natural key.
+/// normative: Graph modifiers constrain the relation as a whole — `acyclic` (a DAG), `symmetric`, `reflexive`; the default is irreflexive and `acyclic` implies it. Reachability and traversal through relationships are a corelib surface, not Core.
+type rel<F, T> = Relationship<F, T>
+
+// -----------------------------------------------------------------------------
+// 1.8  Computed properties — derived, and revision-transparent
+// -----------------------------------------------------------------------------
+// `computed` is a body-property modifier, NOT a type — it sits with the
+// access-mode modifiers (`init-only` / `service-managed` / `read-only`). A field
+// marked `computed` is DERIVED — a pure function of the store's authored state,
+// not authored input — and carries one rule: a derived value leaves no trace in
+// the revision stream. It never contributes to the revision (a change in a
+// computed value alone mints no new Rev and emits no ChangeEvent — the
+// state-unchanged rule already excludes it), it is excluded from any content
+// hash, and it surfaces read-only (a write that sets it is ignored, never
+// authored). Its storage is unspecified — recompute on read, or cache — provided
+// the authoritative value stays the function of authored state and the cache
+// never appears in the revision stream. Core declares only the category and this
+// contract; the derivation itself is supplied by a pack, never by Core.
+//
+// > **Open** — the exact grammar by which `computed` and the access-mode
+// > modifiers attach to a field is settled with that modifier family in the
+// > Lumen scrub.
+
 
 
 // #############################################################################

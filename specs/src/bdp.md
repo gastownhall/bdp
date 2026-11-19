@@ -87,7 +87,9 @@ store. That is what lets one set of operations serve every type.
 Content — a `text/plain` file, an image — is a bare resource. Its type is a media
 type, and its body is the raw bytes. A bead and a piece of content differ only in
 what names the type: a package names a bead's type; a registry such as IANA names
-a content type.
+a content type. The one question that classifies a resource is which of these it
+is: a `type` that is a package-defined kind-path makes a bead; a media type makes
+content.
 
 Who named the type is the [[core.lumen#Authority]]. A caller may supply it; absent
 on a write, the server resolves it from the type. An installed default package of
@@ -121,7 +123,67 @@ matters most after a delete: a pinned reference still resolves, because revision
 are immutable and history is kept, while an unpinned reference follows the
 resource to its tombstone.
 
-## 4. Types — the kind system
+## 4. The relationship model
+
+A relationship between two resources is itself a resource. There is no separate
+edge or link type: a relationship is a [[core.lumen#Relationship]] — a bead whose
+body carries two endpoints, `source` (the resource that asserts the relationship)
+and `target` (the one it points at), plus the relationship's own properties. It
+has an identity, a revision history, provenance and an authority like any other
+resource, and it is subject to the whole model: you read it, reference it and
+version it exactly as you do an issue or a document.
+
+A relationship type is declared with the [[core.lumen#rel]] form and refined with
+`is`:
+
+    type Dependency is unique acyclic rel<Issue, Issue> { note?: string }
+    type Blocks     is Dependency
+
+The trailing record is the relationship's body — ordinary properties, not a
+second "edge metadata" bag — and the prefix modifiers carry its constraints. The
+declared name, `Dependency`, is the one used everywhere: it is the
+representation, and `ref<Dependency>` is how you point at one. Only `source` and
+`target` make a relationship a relationship; a bare reference in any other body
+field is data, not an edge. And because a relationship is a resource, a reference
+may point at a relationship, and a relationship's endpoints may themselves be
+relationships.
+
+The most important consequence is what a relationship does **not** touch.
+Creating or deleting a relationship revises the relationship itself and leaves
+both endpoints untouched: an issue's revision does not move because something
+started or stopped depending on it. The edge carries its own identity and its own
+history; the endpoints carry theirs.
+
+Whether a relationship type is unique is a modifier it declares, not a rule of the
+model. `unique` keys the relationship by its natural pair — `source` and
+`target` — and derives its id deterministically from that key, so the same
+logical relationship resolves to one id in every replica; the relationship `type`
+is not part of the key. Without `unique`, each relationship takes a surrogate id,
+and several of the same type over the same pair coexist as distinct resources.
+Further modifiers constrain the relation as a whole — `acyclic` makes it a DAG,
+`symmetric` and `reflexive` shape its graph. Reachability and traversal through
+relationships are a corelib surface, outside the core.
+
+Referential integrity follows the **kind** of reference, not one global rule.
+`source` and `target` are structural: a relationship never outlives them, so
+retiring an endpoint either cascades to the relationship or is restricted while
+the relationship stands. A reference that only points at a resource — a note, an
+annotation — is soft: it tolerates a retired target and resolves to that target's
+tombstone. Deletion itself is the tombstone every resource gets: a terminal
+revision that keeps the id and the history, with a true destroy (purge) a
+separate, rare operation.
+
+A body property may be **computed** rather than authored — a pure function of the
+store's state, such as a rollup or a blocked-by flag. `computed` is a field
+modifier, and it carries one rule: a computed value leaves no trace in the
+revision stream. Changing it mints no revision, emits no change event and never
+enters a content hash; it surfaces read-only, and how it is kept — recomputed on
+read, or cached — is the service's choice, so long as the authoritative value
+stays the function of authored state. The protocol declares only that a property
+is computed and revision-transparent; the formula that computes it belongs to a
+package, not to Core.
+
+## 5. Types — the kind system
 
 A type is a path, and the path is its meaning. `issue/task` is a task, which is a
 kind of issue. The path is built by single refinement: `task` refines `issue`,
@@ -138,7 +200,7 @@ consumers outside BDP. Reading, resolving and constraining type definitions is
 the work of the Types layer; the core only needs the type path and the authority
 that qualifies it.
 
-## 5. Channels and the streaming model
+## 6. Channels and the streaming model
 
 Some resources are read as a sequence rather than a single value. A
 [[core.lumen#Channel]] is such a sequence — an event stream with a declared event
@@ -158,7 +220,7 @@ is the channel's [[core.lumen#Retention]]; below the floor, a stale cursor fault
 and the reader resyncs. The request bundle for any streaming read is a
 [[core.lumen#ReadRequest]], and a windowed response is a [[core.lumen#Page]].
 
-## 6. Operations — call, cancel, and the reply model
+## 7. Operations — call, cancel, and the reply model
 
 Most of BDP is data: you read and write resources, and a data operation returns
 its value directly or faults with a Problem. One operation is different.
@@ -183,7 +245,7 @@ A call can run asynchronously. Then it returns at once with an
 ([[core.lumen#Cause]], [[core.lumen#Frame]]) tie an effect back to the request
 that set it off, so work started by a call stays findable.
 
-## 7. The resource lifecycle — the primitives
+## 8. The resource lifecycle — the primitives
 
 The core is a uniform set of operations over the resource store. Each one is
 defined once, at the model it belongs to, and each is a primitive — not a
@@ -208,7 +270,7 @@ if it matches the current revision; a stale value changes nothing and faults wit
 and it is the whole of it: there is no revision-keyed read cursor, and a specific
 revision is read with `get` under `?revision=`.
 
-## 8. Change events and the changefeed
+## 9. Change events and the changefeed
 
 Every store has one built-in changefeed — a channel at `/sys/changes` whose
 events are what the write operations commit. Read it with `pull`.
@@ -227,7 +289,7 @@ An event carries the new revision, the time, and the cause, spread from a shared
 a patch; a delete carries explicit provenance, because there is no post-image to
 carry it.
 
-## 9. Export and import
+## 10. Export and import
 
 Export and the changefeed are the bulk and live faces of one thing. The feed
 streams every commit as it happens; [[core.lumen#export]] serialises the same
@@ -246,7 +308,7 @@ ends.
 order to rebuild the chain, or sets current state from a state file. It is not a
 filter operation.
 
-## 10. The HTTP binding
+## 11. The HTTP binding
 
 BDP is an HTTP protocol, and the binding is part of the specification, not an
 afterthought. Each operation has a method, a path, query parameters, headers, a
@@ -261,7 +323,7 @@ HTTP appendix lists the headers, the status table, and the Problem codes in full
 The context a request and reply carry — the transaction, the cause, the cursor —
 rides in `BDP-*` headers, one value each, never folded into the body.
 
-## 11. Conformance and the normative rules
+## 12. Conformance and the normative rules
 
 A conformance suite is built from this specification, not from any
 implementation. Each `/// normative:` line in the formal source is a conformance
