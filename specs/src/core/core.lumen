@@ -690,13 +690,13 @@ type Signature {
 // --- the call protocol: correlation, request/reply, result/outcome/problem ---
 
 ## Cause
-/// description: A correlation token naming the cause of a call — the cause-tree back-pointer.
+/// description: A correlation token shared down a causal chain — minted at an initiating (often detached) call and propagated unchanged to every call it sets off; `causedBy` points at the parent cause. Correlates all of one initiation's work. See bdp.md §6.
 type Cause       is string
-## Frame
-/// description: A correlation token naming the calling frame — the call-tree back-pointer (diagnostic-tier).
-type Frame       is string
+## CallId
+/// description: A correlation token naming one call — a node in the call tree; `calledBy` points at the parent call. Distinct from `Cause` (correlation to an initiation) and `Transaction` (the atomic commit). Diagnostic-tier.
+type CallId      is string
 ## Transaction
-/// description: A correlation token shared across one commit.
+/// description: A correlation token naming one atomic commit — shared by every change that commits together. Propagated by enlistment, not unconditionally (Required / RequiresNew / detach); crossing a scope forces a new one. See bdp.md §6.
 type Transaction is string
 ## IdempotencyKey
 /// description: Caller-chosen key that makes a retried write safe to collapse onto the first effect.
@@ -712,8 +712,8 @@ type Request = {
   async:          bool = false,
   /// description: The cause that triggered this call (correlation).
   causedBy?:      Cause,
-  /// description: The calling frame (correlation, diagnostic-tier).
-  calledBy?:      Frame,
+  /// description: The parent call — its CallId (correlation, diagnostic-tier).
+  calledBy?:      CallId,
   /// description: The caller's part of provenance only (principals/message/metadata); never server fields.
   provenance?:    Provenance,
   /// description: Collapses a retried call onto the first effect.
@@ -730,8 +730,8 @@ type Reply = {
   outcome:      Outcome<any, any>,
   /// description: The cause this call ran under (correlation).
   cause:        Cause,
-  /// description: The frame this call ran under (correlation).
-  frame:        Frame,
+  /// description: This call's id (correlation).
+  callId:       CallId,
   /// description: The commit this call belonged to, if any.
   transaction?: Transaction,
   /// description: Opaque per-reply sidecar.
@@ -790,8 +790,8 @@ type AsyncResult = {
   operation:    ref<OperationBead>,
   /// description: The cause this call ran under (queryable while pending, before `reply`).
   cause:        Cause,
-  /// description: The frame this call ran under (queryable while pending).
-  frame:        Frame,
+  /// description: This call's id (queryable while pending).
+  callId:       CallId,
   /// description: The original request.
   request:      Request,
   /// description: The settlement, once it arrives (absent while pending).
@@ -800,7 +800,7 @@ type AsyncResult = {
   replyChannel: ref<ChannelBead>
 }
 // Note (resolved): as a bead (below) this inherits provenance/createdAt/metadata from the
-// envelope. `cause`/`frame` are kept at top-level (queryable while `reply` is absent),
+// envelope. `cause`/`callId` are kept at top-level (queryable while `reply` is absent),
 // per your "would you query it while pending?" note.
 
 ## AsyncResultBead
@@ -1063,45 +1063,57 @@ type RelativeId is string
 // commit; read it with `pull`.
 
 ## ChangeEvent
-/// description: Core's report of one committed change to one Resource, as a top-level DU on lifecycle (a relationship change is an Updated to its source bead). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.
-/// normative: One commit produces exactly one event per resource changed, however many times the request touched it; a failed request and a no-change request produce no event. An event is durable with its change — never committed without its event, never published for a change that did not commit. A change that arrives by replication MUST still appear on the changefeed. The full (post-image) encoding is required of every service; the patch encoding is optional (a reader that meets a patch it cannot apply re-reads the resource).
+/// description: Core's report of one committed change to one Resource — Created / Updated / Deleted — or an operation-frame boundary (CallEnter / CallLeave) for an unsafe call. A top-level DU on lifecycle (a relationship change is an Updated to the relationship resource). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.
+/// normative: One commit produces exactly one event per resource changed, however many times the request touched it; a failed request and a no-change request produce no resource event. An event is durable with its change — never committed without its event, never published for a change that did not commit. A change that arrives by replication MUST still appear on the changefeed. The full (post-image) encoding is required of every service; the patch encoding is optional (a reader that meets a patch it cannot apply re-reads the resource).
+/// normative: CallEnter / CallLeave bound an operation's frame on the feed — the open carries the operation, the close its outcome. They are emitted for an UNSAFE or unspecified operation only (the `safe` marker on [[core.lumen#Operation]] is the gate); a safe operation makes no change and leaves no frame — its boundaries are read from the Request/Reply pair, which already carries the same callId / cause / transaction and the outcome. So an unsafe operation that changes nothing is still visible — its enter and leave bracket no resource events — while a read leaves the feed untouched.
 type ChangeEvent = union {
   Created
   Updated
   Deleted
+  CallEnter
+  CallLeave
 }
 // >DB? the delete-provenance shape (provenance per-arm, elided where the post-image
 // carries it, explicit on patch/delete) is the proposal you marked "review this shape".
+// >DB the wire discriminator for this DU is a `kind` field = the arm identifier
+// lowercased (`created` … `call-leave`), NOT the `type` kind-path — deferred to the
+// lumen scrub; the tag field is not written here yet.
 
 ## ChangeEnvelope
-/// description: Fields common to every change arm; spread into each. `subject.rev` is the new (or tombstone) revision — there is no separate revision field.
+/// description: Fields common to EVERY arm — position, time, and the correlation tokens. No subject: a resource arm adds that via [[core.lumen#ResourceChange]]; a frame arm (CallEnter / CallLeave) has none.
 type ChangeEnvelope = {
   /// description: Position in the changefeed, assigned on append.
   ordinal:      Ordinal,
-  /// description: When the change committed.
+  /// description: When the event committed.
   at:           Timestamp,
-  /// description: The changed resource — { scope, id, rev }; `rev` is the new (or tombstone) revision.
-  subject:      ResourceId,
-  /// description: The subject's type path (= its kind, `type.id`), denormalized for filtering.
-  subjectType?:      PathString,
-  /// description: Who names the subject's type — the package or registry, denormalized. Absent ⇒ ad-hoc.
-  subjectAuthority?: Authority,
-  /// description: Shared across one commit.
+  /// description: The commit this event belongs to — and, for a read's frame, the OCC snapshot the operation saw. Always present.
   transaction:  Transaction,
-  /// description: The cause this change ran under.
+  /// description: The cause this event ran under.
   cause?:       Cause,
   /// description: The parent cause — the cause-tree back-pointer.
   causedBy?:    Cause,
-  /// description: The calling frame (diagnostic-tier).
-  frame?:       Frame,
-  /// description: The call-tree back-pointer (diagnostic-tier).
-  calledBy?:    Frame
+  /// description: The call this event belongs to — its CallId (its own, for a frame arm) (diagnostic-tier).
+  callId?:      CallId,
+  /// description: The parent call — the call-tree back-pointer (diagnostic-tier).
+  calledBy?:    CallId
+}
+
+## ResourceChange
+/// description: What the resource arms (Created / Updated / Deleted) add to [[core.lumen#ChangeEnvelope]] — the subject and its denormalized type. A frame arm carries none of these.
+type ResourceChange = {
+  ...ChangeEnvelope,
+  /// description: The changed resource — { scope, id, rev }; `rev` is the new (or tombstone) revision.
+  subject:           ResourceId,
+  /// description: The subject's type path (= its kind, `type.id`), denormalized for filtering.
+  subjectType?:      PathString,
+  /// description: Who names the subject's type — the package or registry, denormalized. Absent ⇒ ad-hoc.
+  subjectAuthority?: Authority
 }
 
 ## Created
 /// description: A resource admitted. Full post-image; its provenance is the representation's provenance.
 type Created = {
-  ...ChangeEnvelope,
+  ...ResourceChange,
   /// description: The full post-image of the new resource; its provenance is the change's provenance.
   representation: Resource
 }
@@ -1109,7 +1121,7 @@ type Created = {
 ## Updated
 /// description: A resource changed. `content` is the orthogonal encoding axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.
 type Updated = {
-  ...ChangeEnvelope,
+  ...ResourceChange,
   /// description: The change payload — a full post-image or a patch delta (see [[core.lumen#ChangeContent]]).
   content: ChangeContent
 }
@@ -1117,9 +1129,25 @@ type Updated = {
 ## Deleted
 /// description: A resource retired — the tombstone. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.
 type Deleted = {
-  ...ChangeEnvelope,
+  ...ResourceChange,
   /// description: Explicit provenance for the retirement — there is no post-image to carry it.
   provenance: Provenance
+}
+
+## CallEnter
+/// description: An operation frame opened — the open boundary of an unsafe call on the changefeed. Carries the operation; its callId / cause / transaction ride the envelope.
+type CallEnter = {
+  ...ChangeEnvelope,
+  /// description: The operation whose frame opened.
+  operation: ref<OperationBead>
+}
+
+## CallLeave
+/// description: An operation frame closed — the close boundary of an unsafe call. Carries the outcome (success / failure / fault / canceled, with the value); its callId / cause / transaction ride the envelope.
+type CallLeave = {
+  ...ChangeEnvelope,
+  /// description: How the call settled — the domain Result or a non-domain fate, with its value.
+  outcome: Outcome<any, any>
 }
 
 ## ChangeContent
