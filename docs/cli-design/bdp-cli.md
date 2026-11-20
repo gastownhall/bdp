@@ -1326,6 +1326,126 @@ bd update note-1 --type task@=type-r2
 
 ```
 
+#### `bd patch`
+
+Apply a partial edit to one Bead's body and metadata — the ergonomic surface over the
+`patch` primitive (a JSON Patch limited to `/body` and `/metadata`). The target must
+already be live: `patch` never creates and never changes a Bead's Type.
+
+##### Usage
+
+```text
+bd patch REF [--scope SCOPE]
+    [--if-revision TOKEN]
+    [--if-property 'PRED']... [--if-metadata-field 'PRED']... [--if-filter 'as NAME where PRED']
+    [--properties JSON | --patch-properties JSON
+       | [--set-property KEY=VALUE]... [--unset-property KEY]...]
+    [--metadata JSON | --patch-metadata JSON
+       | [--set-metadata KEY=VALUE]... [--unset-metadata KEY]...]
+    [--revision-provenance JSON] [--actor ACTOR]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
+    [--output-mode MODE] [--output-format default|detail|json|jsonl] [--long]
+bd patch --retry-file FILE
+    [--output-mode MODE] [--output-format default|detail|json|jsonl] [--long]
+```
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| REF | Yes, except retry | One unpinned Bead ID or absolute Resource URL; the target must be live. |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--scope SCOPE` | Command context | Choose or verify the command Scope. See [Scope selection](#scope-selection). |
+| `--properties JSON` | No body edit | Shallow-merge supplied top-level body values (each lowers to a JSON Patch `add`). See [object inputs](#object-inputs). |
+| `--patch-properties JSON` | No body edit | Apply an ordered strict RFC-6902 JSON Patch to the body. See [object inputs](#object-inputs). |
+| `--set-property KEY=VALUE` | No keyed edit | Set one top-level body property; repeatable. **Loose-typed:** VALUE is sent as a string and the service coerces it to the property's declared type (`priority=P2` → `2`), never guessed by the client. See [object inputs](#object-inputs). |
+| `--unset-property KEY` | No keyed edit | Remove one top-level body property idempotently (JSON Patch `remove`; an absent key succeeds). Repeatable. |
+| `--metadata JSON` / `--patch-metadata JSON` | No metadata edit | Shallow-merge / strict-patch the open `metadata` record. |
+| `--set-metadata KEY=VALUE` | No keyed edit | Set one top-level metadata key; repeatable. **Self-typed:** `metadata` has no schema to coerce against, so `true`/`false`/`null`/JSON numbers take those values and all other text is a string; use `--metadata`/`--patch-metadata` JSON for structured values. |
+| `--unset-metadata KEY` | No keyed edit | Remove one top-level metadata key idempotently. Repeatable. |
+| `--if-revision TOKEN` | No guard | Require the exact current revision token (If-Match). A mismatch writes nothing and faults `revision-mismatch`. See [write revisions](#write-revision-flags). |
+| `--if-property 'PATH OP VALUE'` | No guard | A [`Filter`](#collection-paging-and-filters) predicate the live target must satisfy; repeatable and ANDed. Lowers to a JSON Patch `test` prepended to the patch; property values are schema-coerced. |
+| `--if-metadata-field 'PATH OP VALUE'` | No guard | The same, over the `metadata` plane (self-typed values). |
+| `--if-filter 'as NAME where PREDICATE'` | No guard | One boolean [`Filter`](#collection-paging-and-filters) (OR/NOT) over the target, under an explicit alias. |
+| `--revision-provenance JSON` / `--actor ACTOR` | No attribution | Caller version attribution; `--actor` is writer-supplied and is not an edit by itself. |
+| `--idempotency-key KEY` | Generated and saved | Set the applied write key. See [write delivery](#mutation-delivery). |
+| `--retry-file FILE` | Off | Recover only the frozen invocation; semantic flags conflict. |
+| `--dry-run-mode MODE` | Off | `batch` emits a member; `bdp` previews the request. See [emission](#mutation-delivery). |
+| `--output-mode MODE` | Current | Select the output rendering, including a legacy-compatible mode. See [write output](#mutation-delivery). |
+| `--output-format FORMAT` | `default` | `default`, `detail`, `json` or `jsonl`. |
+| `--long` | Off | Full references and administrative detail in human output. |
+
+##### Behavior
+
+The target must be a **live** unpinned Bead — `patch` never creates. A missing target
+faults `404` (exit `3`); a deleted one faults `410 Gone` (retired, never resurrected).
+Supply at least one body or metadata edit; a guard or attribution alone is not a patch.
+Properties and metadata choose their editing modes independently, and a mode conflicts
+with a keyed edit on the same plane. All supplied edits lower to **one** JSON Patch over
+`/body` and `/metadata`, applied atomically; a genuine no-op result mints no revision or
+Event.
+
+`--set-property` values are **loose** — the string crosses the wire and the service
+coerces it to the property's declared type (or faults), so a brand-new type is usable
+from its schema alone with no client type knowledge. `--set-metadata` values are
+**self-typed** — `metadata` is an open record with no schema, so the client assigns the
+JSON type. (The one justified asymmetry between the planes: properties have a declared
+schema, metadata does not.)
+
+Guards lower to JSON Patch `test` operations prepended to the patch: `--if-revision`
+guards the revision (If-Match); `--if-property` / `--if-metadata-field` / `--if-filter`
+guard the target's current state with a `Filter` predicate. Any failed test writes
+nothing and faults.
+
+`patch` does not change a Bead's Type (use `put` for a full-state write, or the stdlib
+`update` for the combined compatibility surface) and does not create (use `create` or
+`put`).
+
+##### Results
+
+Return the complete native `mutationResult` with its `changed` value and the patched
+Resource postimage. Emission returns the unexecuted operation record instead and does
+not report mutation success.
+
+##### Errors and exit status
+
+Uses the [common exit statuses](#exit-status). Invalid or conflicting inputs return `2`;
+a missing target returns `3` with a `404` Problem and a retired target `3` with a
+`410 Gone` Problem; a revision or `test`-guard mismatch returns `4`; an unsupported patch
+capability returns `5`. Other failures use their precise Problem and status `1`.
+
+##### Protocol correspondence
+
+| CLI input | Protocol request or client behavior |
+| --- | --- |
+| REF | Target of a `PATCH` to the `patch` primitive at the resource URL, `Content-Type: application/json-patch+json`. |
+| Merge / keyed / strict body edits | Lower to `add` / `remove` / the supplied JSON Patch ops over `/body`, composed in first-occurrence order (sets before unsets). |
+| Metadata edits | The same over `/metadata`. |
+| `--set-property KEY=VALUE` | `add` at `/body/KEY` with VALUE as a **string**; the service coerces it against the declared type. |
+| `--if-property 'PATH OP VALUE'` | A JSON Patch `test` prepended to the patch; property values are schema-coerced. |
+| `--if-revision TOKEN` | `If-Match: TOKEN`, unchanged. |
+| `--dry-run-mode batch` | Emit `operation:"patch"`; do not execute it. |
+
+##### Examples
+
+```sh
+# Set one property — loose: the service coerces P2 to the declared number.
+bd patch bd-42 --set-property priority=P2
+
+# Guarded partial edit: close only if it is still open.
+bd patch bd-42 --set-property status=closed --if-property 'status = "open"'
+
+# Remove a body property and a metadata key.
+bd patch bd-42 --unset-property dueAt --unset-metadata reviewer
+
+# Apply a strict RFC-6902 patch to the body.
+bd patch bd-42 --patch-properties '[{"op":"replace","path":"/title","value":"Reviewed"}]'
+```
+
 #### `bd delete`
 
 Preview or apply deletion of one Bead.
