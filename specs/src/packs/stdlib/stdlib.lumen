@@ -1,0 +1,61 @@
+// =============================================================================
+// stdlib.lumen — the standard-library pack (generalised annotation resources)
+// =============================================================================
+// A RECORD of what the stdlib owes the other packs, landed with #403 so the issue
+// pack's `computed labels` / `comments` projections have a type to resolve against.
+// This is the as-needed shape, NOT the finished generalisation: the real
+// define + implement + prove pass runs in parallel (a background effort), and the
+// two reconcile in a later sweep — see the OPEN sidebar in §1.
+//
+// SCOPE — what lives here:
+//   Annotation — a rev-neutral resource that points AT a target resource and
+//   carries its own payload. Label and Comment are the two concrete annotations
+//   the issue pack leans on today; both generalise a per-target annotation from a
+//   single target type to any resource.
+//
+// PRINCIPLES:
+//   1. Annotations are rev-neutral. Creating, editing or deleting an annotation
+//      never advances its target's revision, emits no change event on the target,
+//      and never enters the target's content hash. The annotation carries its own
+//      identity, revision history and provenance; its OWN revision advances normally.
+//   2. Point AT, don't own. An annotation is a first-class resource that names its
+//      target by ref — it is NOT a field on the target. The target's view of its
+//      annotations (issue.lumen `labels` / `comments`) is a COMPUTED projection.
+//   3. Record now, generalise later. These shapes capture what the model needs
+//      today; the rel<>-vs-resource question (§1 OPEN) is deferred to the sweep.
+// =============================================================================
+
+/// description: Free text — a nominal string.
+type text is string
+
+
+// #############################################################################
+// §1. The model
+// #############################################################################
+
+// > **Open** — whether an Annotation is better carried as a `rel<resource, …>`
+// > edge (like issue.lumen's Dependency) rather than a resource with a `target`
+// > property, and whether the issue pack keeps `labels` / `comments` as computed
+// > projections over this model or folds them in, is the generalisation question.
+// > Deferred to the reconciliation sweep; the parallel define + implement + prove
+// > effort owns it.
+
+/// description: Annotation — a rev-neutral resource that points AT a target resource and carries its own payload. `abstract` — only the concrete annotations below are instantiated.
+/// normative: Rev-neutral — writing or removing an Annotation NEVER advances its `target`'s revision, emits no change event on the target, and never enters the target's content hash. The Annotation has its own identity, revision history and provenance; its own revision advances normally.
+/// normative: An Annotation names its `target` by ref and is NOT a field on the target. A target's view of its annotations is a COMPUTED projection (see issue.lumen `labels` / `comments`).
+abstract type Annotation is Resource {
+  target: ref<resource>,          // the annotated resource
+}
+
+/// description: Comment — free-text commentary on a target resource.
+/// normative: `author` is a native human/agent string — NOT a BDP attribution ref. `body` is the comment text.
+type Comment is Annotation {
+  body:    text,
+  author?: text,                  // native author string — NOT a ref
+}
+
+/// description: Label — a named tag on a target resource.
+/// normative: The natural key is (`target`, `name`) — at most one Label of a given `name` on a given target. Whether this is spelled `unique` (as on a rel) or as a resource natural-key constraint is settled in the sweep.
+type Label is Annotation {
+  name: text,
+}
