@@ -201,8 +201,8 @@ Keys and retry files apply only against a Scope advertising Write's `idempotency
 capability. Against a Scope without it the client sends no key, and
 `--idempotency-key` and `--retry-file` refuse before transmission. A lost response
 is then recovered by reading: `--if-revision` guards an update or deletion, and a
-supplied `--id` makes a repeated creation `identity-taken` while that Bead is live; one
-arriving after its deletion adds a revision under that identity. A repeated creation
+supplied `--id` makes a repeated creation `identity-taken`, whether that Bead is live
+or already deleted — a tombstone is terminal, never resurrected. A repeated creation
 without `--id` allocates a second identity, so the client reports such an uncertain
 outcome and does not retry it automatically. `alias put`, `alias delete` and
 `alias resolve` refuse before dispatch against a Scope that does not advertise
@@ -449,7 +449,7 @@ The user still types `bdp create <type>`; the type decides whether that lowers t
 `--parent` (hierarchical child + id derivation), `--graph` (a plan file), `-f` (one
 issue per `##` heading) — are designated operations, not `create` flags.
 
-### `create`, `put`, `update` and `delete`: upsert, conflict and resurrection
+### `create`, `put`, `update` and `delete`: upsert, conflict and tombstones
 
 `create` establishes a resource; the id model decides what a collision means, and a
 tombstone (Core's terminal-revision delete) is just another state the id can be in:
@@ -458,13 +458,15 @@ tombstone (Core's terminal-revision delete) is just another state the id can be 
 |---|---|---|---|---|---|
 | target absent | create new | new (fresh id) | create at id | create at id | fault |
 | target live | idempotent upsert | — (new id) | fault (occupied) | replace | patch |
-| target tombstoned | **resurrect** | — | fault → use `put` | **resurrect** | **fault** |
+| target tombstoned | `identity-taken` | — | `identity-taken` | `identity-taken` | `410 Gone` |
 
-The principle: **`create`/`put` establish** (and will resurrect a tombstone);
-**`update` modifies a live** resource (and faults on a tombstone). Resurrection rides
-the create family. (`update` *can* resurrect, but only deliberately — by naming the
-tombstone's revision via `--from-revision` — never by accident. A `--no-resurrect`
-guard on `create` is available where silent resurrection would surprise.)
+The principle: **`create`/`put` establish** a resource and **`update` modifies a
+live** one; **a tombstone is terminal** — the id is never reused. `create`/`put`
+against a deleted id fault `identity-taken` (the id is used-and-retired); `update`
+faults `410 Gone` (distinct from a missing target's `404`). There is no resurrection — the identity stays terminal, consistent with Core's
+`delete` semantics. `--from-revision` recovers
+*content* from a **live** resource's own history (see
+[write revisions](#write-revision-flags)); it never revives a deleted identity.
 
 ### Polymorphic (ref-first) operations
 
@@ -1310,10 +1312,8 @@ same-key recovery information; it is not permission to submit a fresh write.
 ##### Examples
 
 ```sh
-# Copy exact retained editable content R1 while guarding actual current R7.
+# Copy exact retained editable content R1 from a live Bead, guarding current R7.
 bd update note-1 --from-revision =saved-r1 --if-revision saved-r7
-# Recover the same deleted Bead, guarding genuine terminal D obtained separately.
-bd update note-1 --from-revision =saved-r1 --if-revision deletion-D
 
 # Set one property while requiring the current revision.
 bd update note-1 --set-property title=Reviewed --if-revision saved-r7
@@ -1370,8 +1370,10 @@ and retry inputs require apply intent; a saved retry already carries that intent
 
 With `--force`, invoke the ordinary deletion and recheck all admission conditions.
 The flag does not waive authorization, integrity or revision guards and does not
-reach the wire. The target remains unpinned. A deleted canonical ID names no other
-Resource, and a later creation supplying it adds a revision under that identity.
+reach the wire. The target remains unpinned. **Deletion is terminal:** a deleted
+canonical ID is never reused — it names no other Resource. A later `create`/`put`
+supplying it faults `identity-taken`, and `update` faults `410 Gone`; the identity is
+never resurrected.
 
 A Bead with live incident Links through an unpinned endpoint cannot be deleted by this
 command. Remove those Links explicitly; there is no implicit cascade. A Link that

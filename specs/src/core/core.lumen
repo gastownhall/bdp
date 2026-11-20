@@ -72,7 +72,7 @@
 // cancel + compensation); the `/sys/` scheme beyond `/sys/changes`; capability
 // discovery; full filter / query / search / count / graph (corelib capabilities,
 // advertised, not base); aliases & Transfer; the `canceled` HTTP status;
-// delete-and-bring-back; the deferred types pass (BeadSchema ⇄ PackageElementRef).
+// the deferred types pass (BeadSchema ⇄ PackageElementRef).
 //
 // Review markers: a line beginning `>DB?` is an open question for the owner;
 // `// TYPES-PASS:` marks work deferred to the type-value reconciliation.
@@ -235,8 +235,8 @@ type Metadata = { ...: any }
 type Provenance = {
   /// description: The principals who took part in the change. May be empty for observed or baseline revisions.
   principals:        [ Principal ],
-  /// description: How the Resource's present period began — freshly created, imported, revived after a delete, or unknown.
-  inception:         "create" | "import" | "revive" | "unknown",
+  /// description: How the Resource's present period began — freshly created, imported, or unknown. A deleted identity is terminal and never revived.
+  inception:         "create" | "import" | "unknown",
   /// description: When this revision committed; server-supplied, never request input.
   committedAt:       Timestamp,
   /// description: The before-image pointer — the basis for compensation. Null on create; structural lineage, often known even when the principals are not.

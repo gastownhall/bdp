@@ -7,6 +7,19 @@ it. Strict semver (patch = non-breaking) tightens once the draft stabilizes. The
 version lives in `bdp.md` frontmatter and the `core.lumen` header; this file is
 the delta log.
 
+## 0.2.3 — unreleased
+
+Draft changes toward the next release (pre-1.0, status: draft).
+
+- **Deletion is terminal — no resurrection.** A deleted id is never reused and never
+  revived: `create`/`put` over a retired id fault `identity-taken`, and an unpinned
+  read or `update` of a tombstone faults `410 Gone` (distinct from a missing
+  target's `404`). Dropped the resurrection vestige — `Provenance.inception` no
+  longer offers a `"revive"` basis, and `delete-and-bring-back` leaves the parked
+  list — and reversed the CLI's create-family resurrection design (`bdp-cli.md`
+  §452) to match. `--from-revision` recovers *content* from a live resource's
+  history only; it does not revive a deleted identity.
+
 ## 0.2.2 — 2026-11-18
 
 Breaking draft changes to the core model (pre-1.0, status: draft).
