@@ -98,8 +98,12 @@ that projects the `rep` before it is returned ([core.lumen#selector](../../specs
 - `--expand <name>` — inline a named reference instead of leaving it a ref.
 - `--select <spec>` — shorthand that lowers to the above.
 
-`id` and `type` are never dropped. The selector is a query-string parameter, so a projected
-read has its own cacheable identity.
+`id` and `type` are never dropped. When honored **server-side** (a scope advertising
+`selector: true`), the selector is a query-string parameter, so a projected read has its own
+cacheable identity. When a scope advertises `selector: false`, the CLI applies
+`--include`/`--omit` as a **client-side projection** of the received rep (no cache benefit,
+same view); `--expand` (inlining a ref) requires server support. The default output shaping
+below is always client-side. Server-side honoring is the tracked follow-up.
 
 **Default output shaping** (so `show` isn't a wall of noise):
 1. Field order by importance: `id`, `type`, `body`, then `metadata` / `provenance` /

@@ -1308,15 +1308,17 @@ Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their 
 
 ```
 Shape — the capabilities document is { scope, base, repModel, defaultType?,
-capabilities (the primitives + call), operations (bare call-by-path strings,
-back-compat), packs[] }. `defaultType` is the scope's deployment default concrete
+capabilities (the primitives + call), packs[] }. (No top-level `operations` list —
+`packs[].operations` is authoritative; the flat bare-path back-compat list is dropped.)
+`defaultType` is the scope's deployment default concrete
 type for a bare `create` (a per-scope RUNTIME fact, NOT a pack hint); absent ⇒ a bare
 create with no --type/--kind faults, listing the creatable types.
 Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   type = { type (kind-path), bead, abstract, extends?, summary?, properties[
            { name, type, required, cli?{ alias, positional, default } } ],
-           edges[ { flag, summary?, op, self, other, args? } ] (type-level cli.edge,
-           lowered — one `create` flag that also invokes an edge op; see bdp-cli.md) }
+           edgeFlags[ { flag, summary?, op, self, other, args? } ] (type-level cli.edge,
+           lowered — one `create` flag that also invokes an edge op; named `edgeFlags`
+           to disambiguate from a `dep edges` op; see bdp-cli.md) }
   op   = { path (call-by-path), kind ("command" | "fn"), summary?, parameters[
            { name, type, required, cli?{ … } } ], errors[] (the Result E set), returns }
 `cli.alias` is the bare short letter ("s" → the CLI renders -s); `cli.positional` is
