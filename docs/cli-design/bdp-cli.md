@@ -31,8 +31,8 @@ in v0 this is also the reachable base URL). Resolution order:
 
 - `bdp connect <uri>` reads the scope's discovery, verifies it, and saves it as the default.
 - `bdp connect` (no arg) prints the current default; `bdp connect --clear` forgets it.
-- `--scope` is the canonical name (BDP addresses *scopes*, not transports). `--server` is
-  accepted as a **deprecated alias** for continuity.
+- `--scope` is the only name (BDP addresses *scopes*, not transports). There is NO
+  `--server`/`--service` alias — nothing has shipped, so no back-compat is carried.
 
 ## 2. Universal flags (accepted on every command)
 
