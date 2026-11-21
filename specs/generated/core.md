@@ -750,7 +750,7 @@ How far back a cursor can resume; below the floor a cursor faults `cursor-expire
 ```lumen
 type Retention = union {
   Forever
-  Window    { by: "time" | "count" | "size", amount: number }
+  Window    { by: "time" | "count" | "size", amount: integer }
   Compacted { window?: Retention }
 }
 ```
@@ -758,7 +758,7 @@ type Retention = union {
 | Variant | Payload | Description |
 |---|---|---|
 | `Forever` | — | Every event is resumable; the stream is never trimmed. |
-| `Window` | `{ by: "time" \| "count" \| "size", amount: number }` | Resumable within a trailing window, bounded by time, count, or size. |
+| `Window` | `{ by: "time" \| "count" \| "size", amount: integer }` | Resumable within a trailing window, bounded by time, count, or size. |
 | `Compacted` | `{ window?: Retention }` | Compacted to latest-per-key; an optional window bounds the compacted tail. |
 
 --- the streaming model: source<T>, the three forms, cursors, windows --- A `source<T>` is a finite, resumable, ordered sequence of `T`. Four reads produce one: `pull` (a Channel), `list` (a scope's current resources), `revisions` (one resource's history), `export` (a scope backup). A reader consumes it in one of three transport forms (the `--format` / Accept arm):
@@ -776,7 +776,7 @@ type Retention = union {
 An event's position in its stream; monotone within one Channel.
 
 ```lumen
-type Ordinal is number
+type Ordinal is integer
 ```
 
 <a id="Cursor"></a>
@@ -809,7 +809,7 @@ The input to a streaming read ([pull](#pull) / [list](#list) / [revisions](#revi
 type ReadRequest = {
   after?:  Cursor,
   from?:   Ordinal,
-  limit?:  number,
+  limit?:  integer,
   format?: Transport,
   filter?: Filter,
   select?: selector
@@ -820,7 +820,7 @@ type ReadRequest = {
 |---|---|---|
 | `after?` | `Cursor` | Resume at an opaque cursor (exact). |
 | `from?` | `Ordinal` | Start at a known ordinal (xor `after`). |
-| `limit?` | `number` | Cap the window size. |
+| `limit?` | `integer` | Cap the window size. |
 | `format?` | `Transport` | The transport form. |
 | `filter?` | `Filter` | Filter the stream. |
 | `select?` | `selector` | Project each event. |
@@ -925,8 +925,8 @@ What [push](#push) returns — the high-water ordinal accepted, a per-event resu
 type PushAck = {
   acceptedThrough: Ordinal,
   results:         [PushResult],
-  credit:          number,
-  retryAfter?:     number
+  credit:          integer,
+  retryAfter?:     integer
 }
 ```
 
@@ -934,8 +934,8 @@ type PushAck = {
 |---|---|---|
 | `acceptedThrough` | `Ordinal` | The high-water ordinal durably appended by this call; the pusher re-offers from `acceptedThrough + 1`. |
 | `results` | `[PushResult]` | Per offered event, in order — appended, deduped (idempotent re-push), or deferred under backpressure. |
-| `credit` | `number` | How many more events the channel will accept right now (admission credit); `0` means hold and retry. |
-| `retryAfter?` | `number` | How long to wait before re-offering the deferred tail (seconds; maps to HTTP `Retry-After`). |
+| `credit` | `integer` | How many more events the channel will accept right now (admission credit); `0` means hold and retry. |
+| `retryAfter?` | `integer` | How long to wait before re-offering the deferred tail (seconds; maps to HTTP `Retry-After`). |
 
 <a id="PushResult"></a>
 
@@ -1164,7 +1164,7 @@ An RFC 9457 problem document — what a `fault` carries, and the body of a faili
 type Problem = {
   type:      AbsoluteUri,
   title:     string,
-  status:    number,
+  status:    integer,
   code:      string,
   retry:     "never" | "after-state-change" | "after-delay",
   detail?:   string,
@@ -1176,7 +1176,7 @@ type Problem = {
 |---|---|---|
 | `type` | `AbsoluteUri` | A URI naming the problem kind. |
 | `title` | `string` | A short human summary. |
-| `status` | `number` | The HTTP status code. |
+| `status` | `integer` | The HTTP status code. |
 | `code` | `string` | A stable, machine-readable problem code. |
 | `retry` | `"never" \| "after-state-change" \| "after-delay"` | Whether a retry can help. |
 | `detail?` | `string` | An optional human detail. |
@@ -1916,16 +1916,16 @@ What `import` reports — counts and any skipped/conflicted records.
 
 ```lumen
 type ImportReport = {
-  imported:  number,
-  skipped:   number,
+  imported:  integer,
+  skipped:   integer,
   conflicts: [ { id: ref<any>, reason: string } ]
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
-| `imported` | `number` | How many records were written. |
-| `skipped` | `number` | How many were skipped (already present, under `dedup`). |
+| `imported` | `integer` | How many records were written. |
+| `skipped` | `integer` | How many were skipped (already present, under `dedup`). |
 | `conflicts` | `[ { id: ref<any>, reason: string } ]` | Rejected records, each by its id and the reason. |
 
 <a id="import"></a>
@@ -2104,7 +2104,7 @@ type ListCaps = {
   conditions: [ConditionKind],
   selector:   bool,
   sort:       bool,
-  maxLimit?:  number
+  maxLimit?:  integer
 }
 ```
 
@@ -2113,7 +2113,7 @@ type ListCaps = {
 | `conditions` | `[ConditionKind]` | The list-condition operators the low-bar filter supports. |
 | `selector` | `bool` | Whether a `select` projection is honored. |
 | `sort` | `bool` | Whether server-side sort is offered. |
-| `maxLimit?` | `number` | The maximum page size, when capped. |
+| `maxLimit?` | `integer` | The maximum page size, when capped. |
 
 <a id="ConditionKind"></a>
 
@@ -2257,15 +2257,15 @@ Limits advertised for `push`.
 
 ```lumen
 type PushCaps = {
-  maxBatch?: number,
-  window?:   number
+  maxBatch?: integer,
+  window?:   integer
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
-| `maxBatch?` | `number` | The maximum number of events accepted in one batch, when capped. |
-| `window?` | `number` | The admission window — how many events the channel will take before backpressure, when bounded. |
+| `maxBatch?` | `integer` | The maximum number of events accepted in one batch, when capped. |
+| `window?` | `integer` | The admission window — how many events the channel will take before backpressure, when bounded. |
 
 # Appendix A. Worked examples (wire representations)
 

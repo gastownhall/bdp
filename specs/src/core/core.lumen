@@ -543,7 +543,7 @@ type Retention = union {
   /// description: Every event is resumable; the stream is never trimmed.
   Forever
   /// description: Resumable within a trailing window, bounded by time, count, or size.
-  Window    { by: "time" | "count" | "size", amount: number }
+  Window    { by: "time" | "count" | "size", amount: integer }
   /// description: Compacted to latest-per-key; an optional window bounds the compacted tail.
   Compacted { window?: Retention }
 }
@@ -577,7 +577,7 @@ type Retention = union {
 
 ## Ordinal
 /// description: An event's position in its stream; monotone within one Channel.
-type Ordinal is number
+type Ordinal is integer
 
 ## Cursor
 /// description: Opaque, transport-independent resume token, bound to one stream and the selection it came from; refused elsewhere. Also the point an export is cut at.
@@ -595,7 +595,7 @@ type ReadRequest = {
   /// description: Start at a known ordinal (xor `after`).
   from?:   Ordinal,
   /// description: Cap the window size.
-  limit?:  number,
+  limit?:  integer,
   /// description: The transport form.
   format?: Transport,
   /// description: Filter the stream.
@@ -664,9 +664,9 @@ type PushAck = {
   /// description: Per offered event, in order — appended, deduped (idempotent re-push), or deferred under backpressure.
   results:         [PushResult],
   /// description: How many more events the channel will accept right now (admission credit); `0` means hold and retry.
-  credit:          number,
+  credit:          integer,
   /// description: How long to wait before re-offering the deferred tail (seconds; maps to HTTP `Retry-After`).
-  retryAfter?:     number
+  retryAfter?:     integer
 }
 
 ## PushResult
@@ -809,7 +809,7 @@ type Problem = {
   /// description: A short human summary.
   title:     string,
   /// description: The HTTP status code.
-  status:    number,
+  status:    integer,
   /// description: A stable, machine-readable problem code.
   code:      string,
   /// description: Whether a retry can help.
@@ -1325,9 +1325,9 @@ type ImportStrategy = {
 /// description: What `import` reports — counts and any skipped/conflicted records.
 type ImportReport = {
   /// description: How many records were written.
-  imported:  number,
+  imported:  integer,
   /// description: How many were skipped (already present, under `dedup`).
-  skipped:   number,
+  skipped:   integer,
   /// description: Rejected records, each by its id and the reason.
   conflicts: [ { id: ref<any>, reason: string } ]
 }
@@ -1448,7 +1448,7 @@ type ListCaps = {
   /// description: Whether server-side sort is offered.
   sort:       bool,
   /// description: The maximum page size, when capped.
-  maxLimit?:  number
+  maxLimit?:  integer
 }
 
 ## ConditionKind
@@ -1517,9 +1517,9 @@ type ImportCaps = {
 /// description: Limits advertised for `push`.
 type PushCaps = {
   /// description: The maximum number of events accepted in one batch, when capped.
-  maxBatch?: number,
+  maxBatch?: integer,
   /// description: The admission window — how many events the channel will take before backpressure, when bounded.
-  window?:   number
+  window?:   integer
 }
 
 

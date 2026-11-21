@@ -89,7 +89,7 @@ type Issue is Bead {
   // `claimIssue` sets `status` + a lease (+ `startedAt`).
   // isBlocked(X) = X is the TARGET of an open hard-blocking edge whose SOURCE (the blocker) is unclosed (`closedAt` null)
   computed isBlocked:      bool,
-  computed blockedByCount: number,
+  computed blockedByCount: integer,
 
   // -- computed: annotation + edge projections (reverse lookups; see §1.1.3, §1.2) --
   computed labels:       set<ref<IssueLabel>>,
@@ -105,13 +105,13 @@ type Issue is Bead {
   //    backend proved the distinction: a lease is stored, not recomputed. --
   serviceManaged closedBySession:  text,
   // arrivalSeq = commit-ordered create sequence (ephemeral-plane rows)
-  serviceManaged arrivalSeq:       number,
+  serviceManaged arrivalSeq:       integer,
   // lease / heartbeat (ephemeral, node-local; absent when unclaimed)
   serviceManaged leaseExpiresAt:   Timestamp,
   serviceManaged heartbeatAt:      Timestamp,
   serviceManaged leaseGrantedNode: text,
   // compaction state
-  serviceManaged compactionLevel:  number,
+  serviceManaged compactionLevel:  integer,
   serviceManaged compactedAt:      Timestamp,
 }
 
@@ -143,8 +143,8 @@ type Story is Issue {}
 
 /// description: Epic — a parent that aggregates child issues. Its rollups are COMPUTED over the `ParentChild` edges, not stored columns.
 type Epic is Issue {
-  computed totalChildren:  number,
-  computed closedChildren: number,
+  computed totalChildren:  integer,
+  computed closedChildren: integer,
   computed closeable:      bool,      // all children closed
 }
 
@@ -387,13 +387,13 @@ type DepAddError    = "would-cycle"
 // -----------------------------------------------------------------------------
 
 /// description: Ready work — the CLAIMABLE FRONTIER: issues that are open (closedAt null), unblocked, not deferred, AND not already claimed / in_progress. (Native excludes active claims — ready means claimable.) (`issue/ready`.)
-fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: number) -> [ rep<Issue> ]
+fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: integer) -> [ rep<Issue> ]
 
 /// description: Count of ready work (the claimable frontier; see `listReadyWork`). (`issue/ready-count`.)
 fn countReadyWork(type?: PathString, excludeType?: PathString) -> integer
 
 /// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
-fn listBlockedIssues(type?: PathString, limit?: number) -> [ rep<Issue> ]
+fn listBlockedIssues(type?: PathString, limit?: integer) -> [ rep<Issue> ]
 
 /// description: Work-shaping context for an actor — the standard "what should I do" projection. (`issue/context`.)
 fn getContext(assignee?: string) -> Resource
