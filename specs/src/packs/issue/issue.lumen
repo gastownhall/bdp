@@ -39,28 +39,32 @@ type text is string
 /// cli.edge: `--blocks TARGET` creates a `Blocks` edge — source = this issue, target = TARGET.
 /// cli.edge: `--blocked-by TARGET` creates a `Blocks` edge — source = TARGET, target = this issue.
 /// cli.edge: `--deps TYPE:ID` creates a dependency of the named concrete type; a bare `ID` defaults to `Blocks`.
-/// cli: `--labels`/`-l` is annotation sugar (stdlib) — it creates rev-neutral `Label` resources pointing at the issue, not an Issue field.
+/// cli: `--labels`/`-l` is annotation sugar — it creates rev-neutral `IssueLabel` resources pointing at the issue, not an Issue field.
 /// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
-type Issue is Resource {
+
+type Issue is Bead {
   // -- required --
-  /// cli: positional 0
+  /// cli.positional: 0
   title:    string { minLength: 1 },
-  /// cli: alias `-s`  (a built-in or provider-configured value)
+  // a built-in or provider-configured value
+  /// cli.alias: -s
   status:   string { minLength: 1 },
-  /// cli: alias `-p`, default 2  (0 = P0; never absent)
+  // 0 = P0; never absent
+  /// cli.alias: -p
+  /// cli.default: 2
   priority: number { 0..4 },
 
   // -- optional work fields --
-  /// cli: alias `-d`
+  /// cli.alias: -d
   description?:        text,
   acceptanceCriteria?: text,
   design?:             text,
   notes?:              text,
   // owner/assignee are native human strings — NOT BDP refs
   owner?:              string { maxLength: 255 },
-  /// cli: alias `-a`
+  /// cli.alias: -a
   assignee?:           string { maxLength: 255 },
-  /// cli: alias `-e`
+  /// cli.alias: -e
   estimatedMinutes?:   number { min: 0 },
   specId?:             text,
   externalRef?:        string,
@@ -83,9 +87,9 @@ type Issue is Resource {
   computed isBlocked:      bool,
   computed blockedByCount: number,
 
-  // -- computed: annotation + edge projections (reverse lookups; stdlib Label/Comment, §1.2 Dependency) --
-  computed labels:       set<ref<Label>>,
-  computed comments:     [ ref<Comment> ],
+  // -- computed: annotation + edge projections (reverse lookups; see §1.1.3, §1.2) --
+  computed labels:       set<ref<IssueLabel>>,
+  computed comments:     [ ref<IssueComment> ],
   computed dependencies: [ ref<Dependency> ],
 
   // -- computed: provenance + ordering (service-derived; client can't set) --
@@ -186,16 +190,43 @@ type Duration is string
 type BondRef = ref<Issue>
 
 // -----------------------------------------------------------------------------
+// §1.1.3  As-built annotations — IssueLabel / IssueComment (rev-neutral)
+// -----------------------------------------------------------------------------
+// Declared here (not stdlib) so the pack is self-contained, per the as-built. Both
+// are rev-neutral: they point AT an issue and writing one never advances the
+// issue's revision (the issue does not name them; a target's `labels` / `comments`
+// are the reverse-lookup projections in §1.1). The generalised stdlib `Annotation`
+// (a soft `target: ref<resource>`) is the eventual home; these are the
+// issue-specific form, named to avoid colliding with stdlib `Label` / `Comment`.
+
+/// description: IssueLabel — a named tag on an issue (the as-built label).
+/// normative: Natural key (`issue`, `name`) — at most one Label of a given `name` per issue. (Spelling the key needs the resource natural-key primitive flagged CORE-OPEN in stdlib.lumen §1.2.)
+type IssueLabel is Bead {
+  issue: ref<Issue>,     // the labelled issue
+  name:  text,           // the label string
+}
+
+/// description: IssueComment — free-text commentary on an issue (the as-built comment). Many per issue; no natural key.
+type IssueComment is Bead {
+  issue:   ref<Issue>,   // the commented issue
+  author?: text,         // native author string — NOT a ref
+  body:    text,         // the comment text
+}
+
+// -----------------------------------------------------------------------------
 // §1.1.2  Storage class — the "a wisp is ephemeral" finding
 // -----------------------------------------------------------------------------
-// > **Open** — pinning storage class per type. `storageClass` lives on `Resource`
-// > ({ versioned | unversioned | ephemeral }). The native model routes the
-// > liveness/operational chatter — heartbeats, pings, patrol / GC / recovery /
-// > error / escalation reports — onto the ephemeral (wisp) plane via a per-ROW
-// > flag, and that chatter surfaces as `Message` and `Event` issues. Open question:
-// > should `Message` and `Event` PIN `storageClass = ephemeral` at the TYPE level,
-// > so "a wisp is always ephemeral" is a model guarantee rather than a per-row
-// > convention? Left open pending the Lumen access-mode scrub.
+// `storageClass` lives on `Resource` ({ versioned | unversioned | ephemeral }).
+// The native model routes the liveness/operational chatter — heartbeats, pings,
+// patrol / GC / recovery / error / escalation reports — onto the ephemeral (wisp)
+// plane via a per-ROW flag, and that chatter surfaces as `Message` and `Event`.
+// RULING: conceptually yes, `Message`/`Event` ARE ephemeral — but it CANNOT be
+// pinned in-language. `storageClass` is a Resource-level concern, not a property
+// in the bead's properties bag, so a type-level pin would have to be modelled as a
+// metadata property. That is a genuine limitation of the "BDP on top, user data in
+// a nested value" model. Not switching now — noted.
+
+
 
 // -----------------------------------------------------------------------------
 // §1.2  Dependency — the relationship, as an edge resource
@@ -212,33 +243,40 @@ abstract type Dependency is unique rel<Issue, resource> {
 // -----------------------------------------------------------------------------
 // §1.3  Readiness capabilities as abstract types — prefix queries, not markers
 // -----------------------------------------------------------------------------
-// "Affects ready-work" and "hard-blocking" are capabilities, not marker interfaces.
-// They fit the single-inheritance type path because they NEST: hard-blocking ⊂
-// ready-affecting. So each is an intermediate abstract type, and a capability check
-// is a type-path PREFIX test —
+// "Affects ready-work" and "hard-blocking" are capabilities that NEST
+// (hard-blocking ⊂ ready-affecting), so each is an intermediate abstract type and
+// a capability check is a type-path PREFIX test —
 //   ready-affecting?  →  dependency/ready-affecting/*
 //   hard-blocking?    →  dependency/ready-affecting/hard-blocking/*
-// Both ready-affecting endpoints are Issues, so the subtree narrows to Issue→Issue
-// and its graphs are acyclic. Per the `acyclic` rule the keyword RESTIPULATES the
-// rel (`acyclic rel<Issue, Issue>`); `unique` is inherited from Dependency and the
-// restipulation does not undo it.
+// Both ready-affecting endpoints are Issues, so the subtree narrows to Issue→Issue.
+//
+// ACYCLICITY CROSS-CUTS the hierarchy — it is NOT a prefix. The enforced-acyclic
+// set is { Blocks, ConditionalBlocks, ParentChild }:
+//   - `WaitsFor` is hard-blocking, but a MUTUAL wait is legitimate fanout-gate
+//     semantics (not a deadlock), so it is NOT acyclic;
+//   - `ParentChild` is acyclic but NOT hard-blocking.
+// So `acyclic` sits on neither `ReadyAffecting` nor `HardBlocking`; it is stated
+// per concrete type. This is the genuine cross-cutting-capability case — a marker
+// that does NOT fit the single-inheritance path, unlike the nesting ones above.
+// Per the `acyclic` rule the keyword RESTIPULATES the rel (`acyclic rel<Issue,
+// Issue>`); `unique` is inherited from Dependency and the restipulation keeps it.
 
-/// description: ReadyAffecting — an edge that affects an issue's ready-work status; both endpoints are Issues. Abstract.
+/// description: ReadyAffecting — an edge that affects an issue's ready-work status; both endpoints are Issues. Abstract. NOT acyclic as a whole (`WaitsFor` permits mutual waits — see §1.3).
 /// normative: Narrows the parent target from `resource` to `Issue`. (Whether a refinement may narrow a parent rel's endpoints is a Lumen-scrub question; the intent is the conformance list `is Dependency rel<Issue, Issue>`.)
 abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
 
-/// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge to an unclosed target makes the source blocked. The hard-blocking subgraph is ACYCLIC (a cycle is a deadlock). Abstract.
-/// normative: `acyclic` restipulates `rel<Issue, Issue>` (the keyword requires it); `unique` is inherited and preserved.
-abstract type HardBlocking is ReadyAffecting, acyclic rel<Issue, Issue> {}
+/// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge to an unclosed target makes the source blocked. Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
+abstract type HardBlocking is ReadyAffecting {}
 
-/// description: Blocks — "source blocks target"; the default dependency type.
-type Blocks is HardBlocking {}
-/// description: ConditionalBlocks — "B runs only if A fails"; a conditional block.
-type ConditionalBlocks is HardBlocking {}
-/// description: WaitsFor — a fanout gate: wait for dynamically-discovered children.
+/// description: Blocks — "source blocks target"; the default dependency type. ACYCLIC (a cycle is a deadlock).
+/// normative: `acyclic` restipulates `rel<Issue, Issue>`; `unique` is inherited and preserved.
+type Blocks is HardBlocking, acyclic rel<Issue, Issue> {}
+/// description: ConditionalBlocks — "B runs only if A fails"; a conditional block. ACYCLIC.
+type ConditionalBlocks is HardBlocking, acyclic rel<Issue, Issue> {}
+/// description: WaitsFor — a fanout gate: wait for dynamically-discovered children. NOT acyclic — a mutual wait is legitimate gate semantics, not a deadlock.
 type WaitsFor is HardBlocking {}
 
-/// description: ParentChild — hierarchy: `source` is the parent of `target`. Ready-affecting and structural, NOT hard-blocking; the hierarchy is ACYCLIC (its own graph, separate from the hard-blocking subgraph).
+/// description: ParentChild — hierarchy: `source` is the parent of `target`. Ready-affecting and structural, NOT hard-blocking; the hierarchy is ACYCLIC.
 /// normative: `acyclic` restipulates `rel<Issue, Issue>`.
 type ParentChild is ReadyAffecting, acyclic rel<Issue, Issue> {}
 
@@ -299,6 +337,14 @@ type DelegatedFrom is Dependency {}
 // The pack RENDERS the trained names; each lowers to the primitive beside it. A
 // generic verb gains no issue-specific behaviour — behaviour lives in §2.B/§2.C.
 
+
+
+// > **Open** — Result<T, E> return convention. Should the §2 commands / fns return
+// > a `Result<T, E>` (explicit success-or-error) rather than a bare `T`? If so,
+// > what is `E` — one shared fault type (code + message), or per-operation errors?
+// > A bare `T` leaves failure with nowhere honest to go. Under discussion.
+
+
 // -----------------------------------------------------------------------------
 // §2.B  Issue operations (behaviour — pack callables)
 // -----------------------------------------------------------------------------
@@ -342,8 +388,8 @@ command advanceMolecule(issue: ref<Issue>) -> Issue
 /// description: Reclaim issues whose lease has expired. (`issue/reclaim`.)
 command reclaimIssues(where?: ListFilter) -> [ Issue ]
 
-/// description: Add a comment — writes a Comment annotation resource pointing at the issue (rev-neutral). (`issue/comment`.)
-command addComment(issue: ref<Issue>, body: text) -> Resource
+/// description: Add a comment — writes an `IssueComment` annotation pointing at the issue (rev-neutral). (`issue/comment`.)
+command addComment(issue: ref<Issue>, body: text) -> IssueComment
 
 /// description: Compare-and-set a metadata value under optimistic concurrency. (`issue/metadata/compare-and-set`.)
 command compareAndSetMetadata(issue: ref<Issue>, key: string, expected?: any, value: any) -> Issue
@@ -377,7 +423,7 @@ fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ Issue ]
 /// description: The dependency tree from a root — the transitive closure over the hard-blocking subgraph. Lowers to the traversal `root -> HardBlocking+`. (`issue/dep/tree`.)
 fn getDependencyTree(root: ref<Issue>) -> [ Issue ]
 
-/// description: Dependency cycles — lowers to `cycles(HardBlocking)` over the graph. (`issue/dep/cycles`.)
+/// description: Dependency cycles — the reported blocking cycles, over `Blocks` + `ConditionalBlocks` (`WaitsFor`'s mutual waits are legitimate and excluded). (`issue/dep/cycles`.)
 fn listDependencyCycles() -> [ [ Issue ] ]
 
 /// description: Blocking annotations — the open blockers that make issues blocked. (`issue/blocking-annotations`.)

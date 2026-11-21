@@ -408,9 +408,9 @@ resolution time. Three keys on properties, one on the type:
 
 | key | on | effect |
 |---|---|---|
-| `cli: alias <short>` | property | a short flag, e.g. `-p` for `priority` (the long flag always works too) |
-| `cli: positional <n>` | property | bind the property to positional slot `n` (slots count *after* the type) |
-| `cli: default <value>` | property | the value used when the flag is omitted (Core has no `default`, so it is purely a CLI hint) |
+| `cli.alias: <short>` | property | a short flag, e.g. `-p` for `priority` (the long flag always works too) |
+| `cli.positional: <n>` | property | bind the property to positional slot `n` (slots count *after* the type) |
+| `cli.default: <value>` | property | the value used when the flag is omitted (Core has no `default`, so it is purely a CLI hint) |
 | `cli.edge: …` | type | a flag that creates a related **edge resource** — see below |
 
 `Issue`, in `specs/src/packs/issue/issue.lumen`, is the worked example: `title` is
