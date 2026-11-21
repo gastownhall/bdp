@@ -36,8 +36,8 @@ type text is string
 /// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
 /// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
 /// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
-/// cli.edge: `--blocks TARGET` creates a `Blocks` edge — source = this issue, target = TARGET.
-/// cli.edge: `--blocked-by TARGET` creates a `Blocks` edge — source = TARGET, target = this issue.
+/// cli.edge: `--blocks TARGET` — this issue blocks TARGET (so TARGET depends on it): a `Blocks` edge with source = TARGET, target = this issue.
+/// cli.edge: `--blocked-by TARGET` — this issue is blocked by TARGET: a `Blocks` edge with source = this issue, target = TARGET.
 /// cli.edge: `--deps TYPE:ID` creates a dependency of the named concrete type; a bare `ID` defaults to `Blocks`.
 /// cli: `--labels`/`-l` is annotation sugar — it creates rev-neutral `IssueLabel` resources pointing at the issue, not an Issue field.
 /// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
@@ -279,7 +279,7 @@ abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
 /// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge to an unclosed target makes the source blocked. Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
 abstract type HardBlocking is ReadyAffecting {}
 
-/// description: Blocks — "source blocks target"; the default dependency type. ACYCLIC (a cycle is a deadlock).
+/// description: Blocks — the TARGET blocks the SOURCE: the source DEPENDS ON the target and is not ready until the target closes (native: `IssueID` = source depends on `DependsOnID` = target). The default dependency type. ACYCLIC (a cycle is a deadlock).
 /// normative: `acyclic` restipulates `rel<Issue, Issue>`; `unique` is inherited and preserved.
 type Blocks is HardBlocking, acyclic rel<Issue, Issue> {}
 /// description: ConditionalBlocks — "B runs only if A fails"; a conditional block. ACYCLIC.
