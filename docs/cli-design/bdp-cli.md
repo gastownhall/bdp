@@ -352,19 +352,24 @@ bdp create <type> [fields] [options]        # type as a positional subcommand
 bdp create --type <type> [fields] [options]
 ```
 
-The type is **required** — there is no default type. (A deployment that wants the
-product's historical `task` default may set a single `cli.defaultType` configuration
-value; no pack may contribute one.) This covers a pack-family's **subtype** selector
-too: where a family verb picks the concrete type with a `--kind`/`--type` flag (e.g.
-`issue create --kind bug`), that flag is likewise required with no pack/catalog default
-— the catalog MUST NOT ship `--kind: task` as a hint; only `cli.defaultType`
-(deployment-level) supplies one. Requiring the type is also what keeps the surface
+The type is **required** — there is no *catalog-shipped* default type. A deployment
+that wants the product's historical `task` default sets the deployment-level
+`$BDP_DEFAULT_TYPE`; no pack contributes one through the catalog. This covers a
+pack-family's **subtype** selector too: where a family verb picks the concrete type
+with a `--kind`/`--type` flag (e.g. `create --kind bug`), that flag is required and the
+catalog ships no `--kind` default. Requiring the type is also what keeps the surface
 unambiguous: the type is known before any of its flags are parsed, so its hints are in
 hand for the rest of the line.
 
-> **Open** — whether to relax this so a single-pack deployment may let the *pack*
-> declare its default concrete type (native `bd create` defaults to `task`). Held at
-> "deployment `cli.defaultType` only" for now; flagged for review. The type is a leaf-resolved token or a path —
+Resolution order: `--type` / `--kind` (explicit) → `$BDP_DEFAULT_TYPE` (deployment) →
+*fault*, listing the creatable types.
+
+> **Open** — whether to relax this so a type may ALSO carry a `cli.defaultType` **catalog
+> hint** (the pack's own default concrete type — native `bd create` defaults to `task`),
+> slotting below `$BDP_DEFAULT_TYPE` in the order above. The implementation currently
+> carries it (`issue` → `issue/task`) as the relaxed candidate, behind the deployment
+> override; a one-line removal makes it strict. Donna's call — do not toggle it again
+> until she rules. The type is a leaf-resolved token or a path —
 `bdp create bug` and `bdp create issue/bug` both resolve. An abstract type, or a
 wildcard, faults on `create`.
 
