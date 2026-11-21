@@ -1272,6 +1272,8 @@ Dispatch is implicit: a request routes to the target resource. Beads take client
 
 Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à la carte. `get` and discovery (a readable /sys/capabilities) are the mandatory floor; every other primitive is present iff advertised. A request for an un-offered primitive is refused `capability-not-supported`.
 
+Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their property declarations + cli hints — cli.alias / cli.positional / cli.default / cli.edge) and the OPERATION signatures (parameters + each op's declared domain-error set), so a client renders the available typed commands from discovery alone, with no out-of-band pack knowledge.
+
 Error model: a data primitive returns its success value and faults with a Problem. Writes return a pinned ref; reads a rep; `delete` a tombstone Rev. (Ruling §0.8.)
 
 ## 3.1  Write & read the resource store — create, put, patch, delete, list, revisions

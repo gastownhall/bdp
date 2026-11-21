@@ -401,7 +401,10 @@ properties, which are settable only here.
 The `cliMapping` hints a Callable carries (flag spellings, positionals) apply, one
 tier up, to a **type** — shaping the generic verbs for it. They are declared as
 metadata on the type and its properties, and the CLI reads them from the type's
-definition (`rep<TypeDef>`) at resolution time. Three keys on properties, one on the type:
+definition (`rep<TypeDef>`) — served by the scope's discovery (`/sys/capabilities`),
+alongside the operation signatures — at resolution time. The CLI renders typed
+subcommands from discovery alone, with no out-of-band pack knowledge. Three keys on
+properties, one on the type:
 
 | key | on | effect |
 |---|---|---|
