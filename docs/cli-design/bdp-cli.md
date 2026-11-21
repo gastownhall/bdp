@@ -333,6 +333,16 @@ mean, which are positional, what they default to — through metadata the CLI
 **discovers**, never hardcodes. The CLI ships no knowledge of issues, memories or any
 pack; it reads a type's definition and renders the verb accordingly.
 
+**Built-in vs catalog.** The generic verbs themselves are **built-in** machinery, one
+per core primitive (`create`→create, `show`→get, `list`→list, `update`→patch,
+`put`→put, `delete`→delete, plus the stdlib reductions `count`/`query`/`search`). The
+CLI renders a generic verb for a type only when the scope **advertises that primitive**
+in discovery; the generic verbs are NOT enumerated per pack in the catalog. What the
+catalog's `operations[]` carries is the pack's **behavioral** ops (`claim`, `close`,
+`ready`, `dep add`, …) — the callables with their own signatures and domain errors. So
+types + per-type hints + behavioral ops come from discovery; the generic CRUD verbs are
+induced from the advertised primitive floor and merely *flavored* by each type's hints.
+
 ### Invocation
 
 `create` names its type, in two interchangeable spellings:
@@ -344,9 +354,17 @@ bdp create --type <type> [fields] [options]
 
 The type is **required** — there is no default type. (A deployment that wants the
 product's historical `task` default may set a single `cli.defaultType` configuration
-value; no pack may contribute one.) Requiring the type is also what keeps the surface
+value; no pack may contribute one.) This covers a pack-family's **subtype** selector
+too: where a family verb picks the concrete type with a `--kind`/`--type` flag (e.g.
+`issue create --kind bug`), that flag is likewise required with no pack/catalog default
+— the catalog MUST NOT ship `--kind: task` as a hint; only `cli.defaultType`
+(deployment-level) supplies one. Requiring the type is also what keeps the surface
 unambiguous: the type is known before any of its flags are parsed, so its hints are in
-hand for the rest of the line. The type is a leaf-resolved token or a path —
+hand for the rest of the line.
+
+> **Open** — whether to relax this so a single-pack deployment may let the *pack*
+> declare its default concrete type (native `bd create` defaults to `task`). Held at
+> "deployment `cli.defaultType` only" for now; flagged for review. The type is a leaf-resolved token or a path —
 `bdp create bug` and `bdp create issue/bug` both resolve. An abstract type, or a
 wildcard, faults on `create`.
 
