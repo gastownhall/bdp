@@ -344,10 +344,36 @@ type DelegatedFrom is Dependency {}
 
 
 
-// > **Open** — Result<T, E> return convention. Should the §2 commands / fns return
-// > a `Result<T, E>` (explicit success-or-error) rather than a bare `T`? If so,
-// > what is `E` — one shared fault type (code + message), or per-operation errors?
-// > A bare `T` leaves failure with nowhere honest to go. Under discussion.
+// -----------------------------------------------------------------------------
+// §2.0  The error model — primitives fault; operations declare a Result<T, E>
+// -----------------------------------------------------------------------------
+// Settled (core `Outcome` / `Problem`): a PRIMITIVE returns its value or faults
+// with a `Problem` (the universal fault channel — not-found, conflict,
+// precondition), out of band; it declares no `E` and is not cancellable. An
+// OPERATION (a `call` callable) settles as `Outcome<T, E> = Result<T, E> | fault |
+// canceled`, so a command with its own domain "no" declares `Result<T, E>` — `T`
+// is the resulting `rep<Issue>`, `E` is that op's DOMAIN refusals (business rules
+// only; not-found / malformed stay Problems). Safe queries (`fn`) read-or-fault and
+// carry no domain `E`. (`Result` / `rep` / `Problem` are core types.)
+
+/// description: Domain refusals of `claimIssue`.
+type ClaimError     = "already-claimed" | "closed"
+/// description: Domain refusal of `claimNextIssue`.
+type ClaimNextError = "none-ready"
+/// description: Domain refusals of `releaseIssue`.
+type ReleaseError   = "not-claimed" | "not-owner"
+/// description: Domain refusals of `heartbeatIssue`.
+type HeartbeatError = "not-claimed" | "not-owner" | "lease-expired"
+/// description: Domain refusal of `closeIssue`.
+type CloseError     = "already-closed"
+/// description: Domain refusal of `reopenIssue`.
+type ReopenError    = "not-closed"
+/// description: Domain refusals of `advanceMolecule`.
+type AdvanceError   = "not-a-molecule" | "no-next-step" | "gate-unmet"
+/// description: Domain refusal of `compareAndSetMetadata` (optimistic concurrency).
+type CasError       = "expectation-mismatch"
+/// description: Domain refusal of `addDependency` — the edge would create a cycle in an acyclic graph.
+type DepAddError    = "would-cycle"
 
 
 // -----------------------------------------------------------------------------
@@ -355,13 +381,13 @@ type DelegatedFrom is Dependency {}
 // -----------------------------------------------------------------------------
 
 /// description: Ready work — issues that are open, unblocked, and not deferred. (`issue/ready`.)
-fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: number) -> [ Issue ]
+fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: number) -> [ rep<Issue> ]
 
 /// description: Count of ready work. (`issue/ready-count`.)
 fn countReadyWork(type?: PathString, excludeType?: PathString) -> number
 
 /// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
-fn listBlockedIssues(type?: PathString, limit?: number) -> [ Issue ]
+fn listBlockedIssues(type?: PathString, limit?: number) -> [ rep<Issue> ]
 
 /// description: Work-shaping context for an actor — the standard "what should I do" projection. (`issue/context`.)
 fn getContext(assignee?: string) -> Resource
@@ -370,34 +396,34 @@ fn getContext(assignee?: string) -> Resource
 fn getStats() -> Resource
 
 /// description: Claim an issue for the acting principal (the actor rides in provenance, never a parameter). (`issue/claim`.)
-command claimIssue(issue: ref<Issue>) -> Issue
+command claimIssue(issue: ref<Issue>) -> Result<rep<Issue>, ClaimError>
 
 /// description: Claim the next ready issue for the acting principal. (`issue/claim-next`.)
-command claimNextIssue(type?: PathString) -> Issue
+command claimNextIssue(type?: PathString) -> Result<rep<Issue>, ClaimNextError>
 
 /// description: Release a claimed issue. (`issue/unclaim`.)
-command releaseIssue(issue: ref<Issue>) -> Issue
+command releaseIssue(issue: ref<Issue>) -> Result<rep<Issue>, ReleaseError>
 
 /// description: Refresh the lease/fence on a claimed issue. (`issue/heartbeat`.)
-command heartbeatIssue(issue: ref<Issue>) -> Issue
+command heartbeatIssue(issue: ref<Issue>) -> Result<rep<Issue>, HeartbeatError>
 
 /// description: Close an issue, recording a reason. (`issue/close`.)
-command closeIssue(issue: ref<Issue>, closeReason?: text) -> Issue
+command closeIssue(issue: ref<Issue>, closeReason?: text) -> Result<rep<Issue>, CloseError>
 
 /// description: Reopen a closed issue. (`issue/reopen`.)
-command reopenIssue(issue: ref<Issue>) -> Issue
+command reopenIssue(issue: ref<Issue>) -> Result<rep<Issue>, ReopenError>
 
 /// description: Advance a molecule/workflow step on an issue. (`issue/advance`.)
-command advanceMolecule(issue: ref<Issue>) -> Issue
+command advanceMolecule(issue: ref<Issue>) -> Result<rep<Issue>, AdvanceError>
 
 /// description: Reclaim issues whose lease has expired. (`issue/reclaim`.)
-command reclaimIssues(where?: ListFilter) -> [ Issue ]
+command reclaimIssues(where?: Filter) -> [ rep<Issue> ]
 
 /// description: Add a comment — writes an `IssueComment` annotation pointing at the issue (rev-neutral). (`issue/comment`.)
-command addComment(issue: ref<Issue>, body: text) -> IssueComment
+command addComment(issue: ref<Issue>, body: text) -> rep<IssueComment>
 
 /// description: Compare-and-set a metadata value under optimistic concurrency. (`issue/metadata/compare-and-set`.)
-command compareAndSetMetadata(issue: ref<Issue>, key: string, expected?: any, value: any) -> Issue
+command compareAndSetMetadata(issue: ref<Issue>, key: string, expected?: any, value: any) -> Result<rep<Issue>, CasError>
 
 /// description: Sweep closed/stale issues — the prune/purge batch (differs only in tier defaults). (`issue/purge`, `issue/prune`.)
 command sweepIssues(tier?: string, dryRun?: bool) -> ImportReport
@@ -411,25 +437,25 @@ command sweepIssues(tier?: string, dryRun?: bool) -> ImportReport
 // -----------------------------------------------------------------------------
 
 /// description: Add a dependency edge — CREATES a Dependency resource (default concrete type `Blocks`). A same-key re-add is the upsert that `unique` already implies, not a special path. (`issue/dep/add`.)
-command addDependency(source: ref<Issue>, target: ref<resource>, type?: PathString, createdBy?: text, threadId?: text) -> Dependency
+command addDependency(source: ref<Issue>, target: ref<resource>, type?: PathString, createdBy?: text, threadId?: text) -> Result<rep<Dependency>, DepAddError>
 
 /// description: Remove a dependency edge — DELETES (tombstones) the Dependency resource. (`issue/dep/remove`.)
 command removeDependency(dependency: ref<Dependency>) -> Rev
 
 /// description: The dependency edges of an issue — the Dependency resources on a source. (`issue/dep/edges`.)
-fn listDependencies(source?: ref<Issue>, type?: PathString) -> [ Dependency ]
+fn listDependencies(source?: ref<Issue>, type?: PathString) -> [ rep<Dependency> ]
 
 /// description: Count dependency edges. (`issue/dep/count`.)
 fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> number
 
 /// description: Related issues — the targets reached from a source across the dependency relations. (`issue/dep/list`.)
-fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ Issue ]
+fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ rep<Issue> ]
 
 /// description: The dependency tree from a root — the transitive closure over the hard-blocking subgraph. Lowers to the traversal `root -> HardBlocking+`. (`issue/dep/tree`.)
-fn getDependencyTree(root: ref<Issue>) -> [ Issue ]
+fn getDependencyTree(root: ref<Issue>) -> [ rep<Issue> ]
 
 /// description: Dependency cycles — the reported blocking cycles, over `Blocks` + `ConditionalBlocks` (`WaitsFor`'s mutual waits are legitimate and excluded). (`issue/dep/cycles`.)
-fn listDependencyCycles() -> [ [ Issue ] ]
+fn listDependencyCycles() -> [ [ rep<Issue> ] ]
 
 /// description: Blocking annotations — the open blockers that make issues blocked. (`issue/blocking-annotations`.)
-fn listBlockingAnnotations(issue?: ref<Issue>) -> [ Dependency ]
+fn listBlockingAnnotations(issue?: ref<Issue>) -> [ rep<Dependency> ]

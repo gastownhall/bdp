@@ -91,7 +91,7 @@ type text is string
 /// description: Annotation — a rev-neutral resource that points AT a target resource and carries its own payload. `abstract` — only the concrete annotations below are instantiated.
 /// normative: Rev-neutral w.r.t. the target. Writing, editing or removing an Annotation NEVER advances its `target`'s revision, emits NO change event on the target, and NEVER enters the target's content hash. This holds because the target is not touched by the write: the Annotation is a separate resource and the target does not name it. The Annotation has its own identity, revision history and provenance; its OWN revision advances normally, and its own write DOES emit a change event on the Annotation.
 /// normative: `target` is a SOFT reference ([[core.lumen#rel]]): it is a plain `ref<resource>` body property, NOT the structural `source`/`target` of a `rel<>`. It tolerates a retired target and resolves to the target's tombstone; the target's retirement is never cascaded or restricted by an Annotation. An Annotation is NOT a field on the target — a target's view of its annotations is a COMPUTED projection (see issue.lumen `labels` / `comments`), computed by walking `target` in reverse.
-abstract type Annotation is Resource {
+abstract type Annotation is Bead {
   target: ref<resource>,          // the annotated resource — a SOFT reference
 }
 
