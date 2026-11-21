@@ -133,31 +133,33 @@ type ResourceId {
 }
 
 // -----------------------------------------------------------------------------
-// 1.2  References & representations — ref<T> and `get`
+// 1.2  References & representations — ref<T>, rep<T>, and `get`
 // -----------------------------------------------------------------------------
-// You name a resource with a `ref<T>` and read it into a `T` — the representation.
-// `get` is the primitive that turns the first into the second.
+// You name a resource with a `ref<T>` and read it into a `rep<T>` — the
+// representation (the envelope around a `body: T`, §1.4). `get` turns the first
+// into the second. `T` is the resource's BODY type: `ref<Issue>` references the
+// resource whose body is `Issue`.
 
 ## ResourceRef
 /// description: A reference to a resource is just its id.
 type ResourceRef = ResourceId
 
 ## ref
-/// description: A typed (phantom) reference — the by-reference form. `T` is checker-only and erases on the wire (a `ref` is a `ResourceId`).
+/// description: A typed (phantom) reference — the by-reference form. `T` is the referenced resource's BODY type; it is checker-only and erases on the wire (a `ref` is a `ResourceId`).
 type ref<T> = ResourceRef
 
 ## get
 /// bdp = { kind = "primitive", primitive = "get" }
-/// description: Safe point read — resolve a `ref` to the current representation, or a pinned revision when the ref pins `rev` (or `?revision=`). An optional `selector` projects the result (which gets its own cacheable identity). Faults 404/410 when absent or erased.
-/// normative: `get` is safe and has no declared failure — it returns a `Resource` (the by-value representation of the referenced resource) or faults with a Problem. A `selector`-projected read is a partial representation, cacheable under its own query-string identity.
+/// description: Safe point read — resolve a `ref<T>` to the current representation `rep<T>`, or a pinned revision when the ref pins `rev` (or `?revision=`). An optional `selector` projects the result (which gets its own cacheable identity). Faults 404/410 when absent or erased.
+/// normative: `get` is safe and has no declared failure — it returns a `rep<T>` (the by-value representation of the referenced resource) or faults with a Problem. A `selector`-projected read is a partial representation, cacheable under its own query-string identity.
 /// normative: A resource outside the caller's authorization view is reported exactly as a missing one — identical status, on every operation and every stream. A service never reveals that a hidden resource exists, including through an error only a hidden resource could cause.
 /// openapi = { operationId = "get", method = "GET", pathItem = "resource", tags = ["Core"], params = { revision = { in = "query", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,406,410] } }
-fn get(
+fn get<T>(
     /// description: The reference to resolve — current revision, or the pinned one when `rev` is set (or `?revision=`).
-    resource:  ref<Resource>,
+    resource:  ref<T>,
     /// description: Optional projection; a projected read gets its own cacheable identity.
     selector?: selector
-  ) -> Resource
+  ) -> rep<T>
 
 // -----------------------------------------------------------------------------
 // 1.3  Revision pinning — pinned<T> / unpinned<T>
@@ -175,21 +177,32 @@ type pinned<T>   is ref<T> { rev: Rev }
 type unpinned<T> is ref<T> { rev: null }
 
 // -----------------------------------------------------------------------------
-// 1.4  The Resource shape
+// 1.4  The representation — rep<T> — and the kind markers
 // -----------------------------------------------------------------------------
+// A resource splits cleanly in two: a uniform protocol ENVELOPE and a typed BODY.
+// `rep<T>` is the on-wire REPRESENTATION — the envelope around a `body: T`. A
+// domain type (`Issue`, `TypeDef`, `rel<…>`) is written as a plain record — the
+// body ALONE — and the envelope is applied by `rep<T>` at the point of use:
+//     type Issue is Bead { title: string, status: string }   // Issue IS the body
+//     get(ref<Issue>) -> rep<Issue>                           // { id, …, body: Issue }
+// There is no firewall rule and no envelope-field magic: the fields a type writes
+// ARE its body, and nothing nests them — `rep<T>` does, explicitly, once. So the
+// wire is root-addressed with no remapping: a selector / filter / patch names
+// `/body/status`, `/type`, `/metadata/…` literally. The CLI MAY sugar the `/body`
+// prefix away; the wire does not.
 
-## Resource
-/// description: The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
-/// normative: `type X is Resource { fields }` is the firewall: the refinement's fields become the subtype's `body` schema (`Resource { fields } ≡ Resource<XBody>`), never new envelope fields. A "bead" is just such a resource whose `authority` is a package; a content resource has a media-type `type` and a raw `body`.
-type Resource {
-  /// description: The resource's identity.
+## rep
+/// description: The representation of a versioned resource — the protocol envelope around a typed `body: T`. The by-value form a read returns; `ref<T>` is the by-reference form. `Resource` is `rep<any>`, an untyped representation.
+/// normative: The envelope members are fixed and closed — a domain type contributes only `body`, never a new envelope member. `id`, `type` and `body` are always present; the rest is optional. On a representation `id.rev` is the resolved revision; a reference floats to the current revision when its `rev` is absent.
+type rep<T> = {
+  /// description: The resource's identity (scope + id); on a representation `rev` is the resolved revision, on a reference the optional pin.
   id:            ResourceId
   /// description: Who names `type` — a package (bead) or a registry like IANA (content). Absent ⇒ ad-hoc / duck-typed.
   authority?:    Authority
   /// description: The type path, resolved within `authority`'s namespace.
   type:          PathString
-  /// description: The content — raw for a bare (content) resource; narrowed to a schema when the type refines `Resource { fields }` (the firewall).
-  body:          any
+  /// description: The typed body — the domain payload. `any` for an untyped `Resource`; a record for a bead; raw bytes/text for a content resource.
+  body:          T
   /// description: Opaque per-resource sidecar the protocol does not interpret.
   metadata?:     Metadata
   /// description: Who caused this revision, how its period began, and when.
@@ -199,6 +212,18 @@ type Resource {
   /// description: How the resource is kept — durable, ephemeral, or intrinsic.
   storageClass?: StorageClass
 }
+
+## Resource
+/// description: An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
+type Resource = rep<any>
+
+## Bead
+/// description: A vacuous kind marker — a body type tagged `is Bead` is a package-authored record. It adds no members; it marks intention, lets a signature demand a bead (`ref<Bead>`), and carries the enforcement that a bead body is a record under a package authority. It is the implicit ROOT of a bead's kind path and contributes NO path segment: `type Issue is Bead` ⇒ kind `"issue"`.
+type Bead {}
+
+## Content
+/// description: A vacuous kind marker — a body type tagged `is Content` is a registry-named (media-type) resource with an opaque body (bytes / text). The complement of `Bead`; a root marker, no path segment.
+type Content {}
 
 // -----------------------------------------------------------------------------
 // 1.5  Types on a resource — the (authority, type) pair
@@ -312,11 +337,11 @@ type SemVer is string
 // `type Blocks is Dependency`.
 
 ## rel
-/// description: The relationship construct and its declaration form. `rel<F, T>` is a Resource whose body implicitly carries `source` (type F, the owning endpoint that asserts the relationship) and `target` (type T), plus the relationship type's own properties. A relationship type is declared `type X is <modifiers> rel<F, T> { <edge-fields> }` — a nominal refinement whose trailing record is its body; a bare `<modifiers> rel<F, T>` is the same shape without the nominal identity. The declared name is the representation; `ref<X>` references one.
+/// description: The relationship construct and its declaration form. `rel<F, T>` is a `Bead` body type that carries `source` (type F, the owning endpoint that asserts the relationship) and `target` (type T), plus the relationship type's own properties; its resource is `rep<rel<F, T>>`. A relationship type is declared `type X is <modifiers> rel<F, T> { <edge-fields> }` — a nominal refinement whose trailing record extends the body; a bare `<modifiers> rel<F, T>` is the same shape without the nominal identity. The declared name is the body type; `ref<X>` references the relationship, `rep<X>` is its representation.
 /// normative: A relationship IS a resource (a bead — its authority is a package): it has its own identity, revision history and provenance. Body is implicit — `source`/`target` are not written, and the `{ <edge-fields> }` are ordinary body properties, not a second "edge metadata" bag. Changing a property mints a new revision of the relationship itself; creating or deleting a relationship does NOT touch either endpoint's revision. A relationship is a valid reference target, and its endpoints MAY themselves be relationships.
 /// normative: Nothing distinguishes a relationship but its structural `source`/`target` pair — a bare `ref<T>` in any other body field is data, not a relationship; an edge is a declared relationship type, never an incidental reference. Referential integrity follows the KIND of reference: `source`/`target` are STRUCTURAL (a scope cascades an endpoint's retirement to the relationship, or restricts the retirement while it stands — a relationship never outlives a structural endpoint); a reference that only points AT a resource (a note, an annotation) is SOFT (it tolerates a retired target and resolves to its tombstone). Deletion is the resource tombstone ([[core.lumen#delete]]) — a terminal revision that keeps the id and history; a true destroy (purge) is a separate, rare operation, not a base primitive.
 /// normative: `unique` is the optional uniqueness modifier — `unique rel<F, T>` keys the relationship by its natural key (`source`, `target`) and derives its id deterministically, so the same logical relationship resolves to one id in every replica. Without `unique`, each takes a surrogate id and several over the same pair coexist as distinct resources. The relationship `type` is NOT part of the natural key. Graph modifiers constrain the relation as a whole — `acyclic` (a DAG), `symmetric`, `reflexive`; the default is irreflexive and `acyclic` implies it. Reachability and traversal through relationships are a corelib surface, not Core.
-type rel<F, T> = Resource { source: ref<F>, target: ref<T>, ...: any }
+type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 
 // -----------------------------------------------------------------------------
 // 1.8  Computed properties — derived, and revision-transparent
@@ -343,15 +368,18 @@ type rel<F, T> = Resource { source: ref<F>, target: ref<T>, ...: any }
 // #############################################################################
 // 2. Beads
 // #############################################################################
-// A bead is a Resource whose body is a package-defined schema and whose authority
-// is that package. There is no `Bead<T>` constructor: a bead is just `type X is
-// Resource { fields }` — the firewall puts the fields under `body` — authored in a
-// package. "Bead" names this category; "content" (a media-type `type`, a raw
-// `body`) is the complement. The authority discriminates: a package ref
-// (versioned, pinned) ⇒ bead; a registry ref (IANA, stable) ⇒ content; `authority`
-// is optional, so a bead MAY be duck-typed. The four definitional bead kinds
-// (Type, Channel, Operation, Package) are how BDP describes and distributes types,
-// operations, and channels: the overlay system.
+// A bead is a resource whose body is a package-defined record and whose authority
+// is that package. A bead type is written as the BODY alone, tagged `is Bead`:
+// `type Issue is Bead { title: string, status: string }` — `Issue` IS the body
+// record, and its resource is `rep<Issue>` (§1.4). `Bead` is a vacuous kind marker
+// (intention + static enforcement), the implicit root of the kind path, adding no
+// path segment. "Content" (`is Content` — a media-type `type`, an opaque `body`)
+// is the complement; the marker also carries the authority intention (a package
+// ref ⇒ bead; a registry ref like IANA ⇒ content), and `authority` is optional, so
+// a bead MAY be duck-typed. The four definitional bead kinds (Type, Channel,
+// Operation, Package) are how BDP describes and distributes types, operations, and
+// channels — the overlay system; each is a `Bead` body type whose resource is a
+// `rep<…>`, with no separate `…Bead` wrapper type.
 
 // Content is a bare Resource — no narrowing: `type` is a media type named by a
 // registry, `body` is raw bytes/text. (See the worked examples at the end.)
@@ -408,7 +436,10 @@ type PropertyDeclaration = {
   name:            string,
   type:            BeadSchema,
   computed?:       bool,
-  initOnly?:       bool,
+  initOnly?:       bool,   //// so much for yagni :-).  It's fine - keep it.
+
+//// do we need either of these?  I was hoping computed covered them both.
+
   serviceManaged?: bool,
   readOnly?:       bool
 }
@@ -439,13 +470,14 @@ type BeadSchema =
   | Array   { element: BeadSchema }
   | Set     { element: BeadSchema, on?: [ LocalName ] }
   | TypeRef { to: TypeRef }                                  // TYPES-PASS: was `to: Kind`
-  | Opaque  { jsonSchema: JsonSchema }
+  | Opaque  { jsonSchema: JsonSchema }. ///// Uh, we decided this should be JsonSchema { text: string }
 
 ## LocalName
 /// description: A short identifier token for a view or a well-known name; leading letter.
 /// jsonschema = { pattern = "^[A-Za-z][A-Za-z0-9_-]*$" }
 type LocalName is string
 
+//// redundant - lifted to  top level ARM to replace Opaque (seee previous comment)
 ## JsonSchema
 /// description: A JSON Schema document — the lowered/exported form of a type-as-value for external (non-BDP) consumers.
 type JsonSchema {
@@ -469,6 +501,8 @@ type PackageElementRef {
 /// description: A package-relative element path (the single-`is` chain).
 type ElementPath = PathString
 
+
+//// do we need these or can we just use packref<T>
 ## TypeRef
 /// description: A reference to a type element.
 type TypeRef      = PackageElementRef
@@ -486,6 +520,8 @@ type ChannelRef   = PackageElementRef
 // read of any sequence (a channel, a scope listing, a resource's history, an
 // export) is a `source<T>` — and BDP offers one streaming convention over it.
 
+
+//// let's jam interactively on the canonical way to write down a resource type and bead type.  We are all over the place in this doc.  Easy fix.
 ## ChannelBead
 /// description: A bead whose body is a channel descriptor.
 type ChannelBead is Resource { body: Channel }
@@ -672,6 +708,8 @@ type Operation {
   atomic?:         bool
 }
 
+//// should we define function/command at this level or leave it for upper layers?  We induce it pretty quickly in issue.lumen (and likely don't bother to document)
+
 ## Signature
 /// description: An operation's call contract — its interface, kept separate from the implementation and the effect markers.
 type Signature {
@@ -719,7 +757,7 @@ type Request = {
   /// description: Collapses a retried call onto the first effect.
   idempotencyKey: IdempotencyKey,
   /// description: Opaque per-call sidecar.
-  metadata?:      Metadata
+  metadata?:      Metadata //// can we call these fields requestMetadata and responseMetadata (and provenanceMetadata if we have it up there)
 }
 
 ## Reply
@@ -890,6 +928,7 @@ type Id {
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
 command create(
     /// description: The scope to create the resource in.
+    //// shall we start using self parameters please?  We'll want it for Lumen language bindings. 
     scope:        Scope,
     /// description: Caller-proposed identity (no rev yet) — an exact `Id` or a prefix `IdRoot` the server mints the leaf under. Absent, the server assigns the id.
     requestedId?: IdRoot | Id,
@@ -918,6 +957,9 @@ idempotent command put(
     /// description: The package that names `type`. Caller may supply; absent, the server resolves it from `type`.
     authority?:  PackageRef,
     /// description: The full new body — `put` replaces state wholesale.
+
+//// we are tweenered on body.   I *think* we want it to be ANY, not open record if we want to support arbitrary resources.  The CLI will lower the properties flags to make this a record.  This is likely true on create and other ops.
+
     body:        { ...: any },
     /// description: Optional open sidecar the protocol does not interpret.
     metadata?:   Metadata,
@@ -935,6 +977,10 @@ command patch(
     /// description: The resource to patch (its current revision).
     resource:    unpinned<Resource>,
     /// description: The JSON Patch to apply — paths limited to `/body` and `/metadata`.
+
+
+/// Ah, here's where the body thing bites us again.  We've said we want to support mutating the type/authority.  Where do we do that?  Distinct arguments?  (ok for now). BTW, the way we've structured these as a single patch means that us changing the layout means we need to chagne these sigs.  Good interactive chat.
+
     patch:       JsonPatch,
     /// description: Optional If-Match precondition — apply only if this matches the current revision.
     ifRevision?: Rev
@@ -949,6 +995,11 @@ command patch(
 idempotent command delete(
     /// description: The resource to retire (its current revision).
     resource:    unpinned<Resource>,
+
+
+//// hey, what happened to our flags for cascade delete?  And dry-run (whcih I think we wanted on put/patch/create/update as well yes?)
+
+
     /// description: Optional If-Match precondition — delete only if this matches the current revision.
     ifRevision?: Rev
   ) -> Rev
@@ -963,6 +1014,10 @@ fn list(
     /// description: The scope to list.
     scope:   Scope,
     /// description: The low-bar filter — a flat conjunction of field conditions (overlaps `request.filter`; see the open shape note).
+
+
+//// no rename to filter?  And where was filter on put/patch?
+
     where?:  ListFilter,
     /// description: Projection applied to each result (overlaps `request.select`).
     select?: selector,
