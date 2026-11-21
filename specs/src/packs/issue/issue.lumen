@@ -36,8 +36,8 @@ type text is string
 /// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
 /// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
 /// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
-/// cli.edge: `--blocks TARGET` — this issue blocks TARGET (so TARGET depends on it): a `Blocks` edge with source = TARGET, target = this issue.
-/// cli.edge: `--blocked-by TARGET` — this issue is blocked by TARGET: a `Blocks` edge with source = this issue, target = TARGET.
+/// cli.edge: `--blocks TARGET` — this issue blocks TARGET: a `Blocks` edge source = this issue, target = TARGET (TARGET is the one blocked).
+/// cli.edge: `--blocked-by TARGET` — this issue is blocked by TARGET: a `Blocks` edge source = TARGET, target = this issue (this issue is the one blocked).
 /// cli.edge: `--deps TYPE:ID` creates a dependency of the named concrete type; a bare `ID` defaults to `Blocks`.
 /// cli: `--labels`/`-l` is annotation sugar — it creates rev-neutral `IssueLabel` resources pointing at the issue, not an Issue field.
 /// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
@@ -87,7 +87,7 @@ type Issue is Bead {
   // LIFECYCLE (Donna to confirm): the canonical "closed" signal is `closedAt` being
   // set — NOT the free `status` string; open ⇔ `closedAt` null (and not deferred);
   // `claimIssue` sets `status` + a lease (+ `startedAt`).
-  // isBlocked = an open hard-blocking edge to an UNCLOSED target (`closedAt` null)
+  // isBlocked(X) = X is the TARGET of an open hard-blocking edge whose SOURCE (the blocker) is unclosed (`closedAt` null)
   computed isBlocked:      bool,
   computed blockedByCount: number,
 
@@ -276,10 +276,10 @@ abstract type Dependency is unique rel<Issue, resource> {
 /// normative: Narrows the parent target from `resource` to `Issue`. (Whether a refinement may narrow a parent rel's endpoints is a Lumen-scrub question; the intent is the conformance list `is Dependency rel<Issue, Issue>`.)
 abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
 
-/// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge to an unclosed target makes the source blocked. Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
+/// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge from an unclosed SOURCE makes the TARGET blocked (the target depends on the source). Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
 abstract type HardBlocking is ReadyAffecting {}
 
-/// description: Blocks — the TARGET blocks the SOURCE: the source DEPENDS ON the target and is not ready until the target closes (native: `IssueID` = source depends on `DependsOnID` = target). The default dependency type. ACYCLIC (a cycle is a deadlock).
+/// description: Blocks — source blocks target: the TARGET depends on the SOURCE and is blocked until the source closes (native: a `blocks:<id>` edge means `<id>` = target depends on the holder = source; SKILL.md "blocks edges hide a bead until its blockers close"). The default dependency type. ACYCLIC (a cycle is a deadlock).
 /// normative: `acyclic` restipulates `rel<Issue, Issue>`; `unique` is inherited and preserved.
 type Blocks is HardBlocking, acyclic rel<Issue, Issue> {}
 /// description: ConditionalBlocks — "B runs only if A fails"; a conditional block. ACYCLIC.
