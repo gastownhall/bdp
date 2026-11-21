@@ -16,7 +16,13 @@ When the two disagree about a shape, an operation, a parameter or a status code,
 
 Do not edit a generated file by hand. Change `core.lumen` and generate again.
 
-The generator is not in this repository yet, and nothing here checks that `generated/core.md` matches `core.lumen`. After a change to `core.lumen`, the reference is out of date until it is generated again. When the two disagree, `core.lumen` is right.
+The reference generator **is** in this repository: `scripts/lumen-to-markdown.py`, which follows the format in [`formats/lumendoc-markdown-reference.md`](formats/lumendoc-markdown-reference.md). (A Rust `lumendoc` is a *speculative* future replacement — not yet used in the product; today it has no reference renderer.) Regenerate with:
+
+```
+python3 scripts/lumen-to-markdown.py specs/src/core/core.lumen specs/generated/core.md
+```
+
+Nothing here *checks* that `generated/core.md` matches `core.lumen`, so regenerate after every `core.lumen` change — the reference is out of date until you do. When the two disagree, `core.lumen` is right.
 
 ## Rules for `core.lumen`
 
