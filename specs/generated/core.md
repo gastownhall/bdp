@@ -113,9 +113,9 @@ type ResourceId {
 | `id` | `string` | The id, relative to `scope` (or the absolute URI when `scope` is `"uri"`). |
 | `rev?` | `Rev` | The specific revision; absent ⇒ the current one. |
 
-## 1.2  References & representations — ref<T> and `get`
+## 1.2  References & representations — ref<T>, rep<T>, and `get`
 
-You name a resource with a `ref<T>` and read it into a `T` — the representation. `get` is the primitive that turns the first into the second.
+You name a resource with a `ref<T>` and read it into a `rep<T>` — the representation (the envelope around a `body: T`, §1.4). `get` turns the first into the second. `T` is the resource's BODY type: `ref<Issue>` references the resource whose body is `Issue`.
 
 <a id="ResourceRef"></a>
 
@@ -131,7 +131,7 @@ type ResourceRef = ResourceId
 
 ### `ref`
 
-A typed (phantom) reference — the by-reference form. `T` is checker-only and erases on the wire (a `ref` is a `ResourceId`).
+A typed (phantom) reference — the by-reference form. `T` is the referenced resource's BODY type; it is checker-only and erases on the wire (a `ref` is a `ResourceId`).
 
 ```lumen
 type ref<T> = ResourceRef
@@ -141,25 +141,25 @@ type ref<T> = ResourceRef
 
 ### `get`
 
-Safe point read — resolve a `ref` to the current representation, or a pinned revision when the ref pins `rev` (or `?revision=`). An optional `selector` projects the result (which gets its own cacheable identity). Faults 404/410 when absent or erased.
+Safe point read — resolve a `ref<T>` to the current representation `rep<T>`, or a pinned revision when the ref pins `rev` (or `?revision=`). An optional `selector` projects the result (which gets its own cacheable identity). Faults 404/410 when absent or erased.
 
-> **Normative.** `get` is safe and has no declared failure — it returns a `Resource` (the by-value representation of the referenced resource) or faults with a Problem. A `selector`-projected read is a partial representation, cacheable under its own query-string identity.
+> **Normative.** `get` is safe and has no declared failure — it returns a `rep<T>` (the by-value representation of the referenced resource) or faults with a Problem. A `selector`-projected read is a partial representation, cacheable under its own query-string identity.
 
 > **Normative.** A resource outside the caller's authorization view is reported exactly as a missing one — identical status, on every operation and every stream. A service never reveals that a hidden resource exists, including through an error only a hidden resource could cause.
 
 ```lumen
-fn get(
-    resource:  ref<Resource>,
+fn get<T>(
+    resource:  ref<T>,
     selector?: selector
-  ) -> Resource
+  ) -> rep<T>
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `ref<Resource>` | The reference to resolve — current revision, or the pinned one when `rev` is set (or `?revision=`). |
+| `resource` | `ref<T>` | The reference to resolve — current revision, or the pinned one when `rev` is set (or `?revision=`). |
 | `selector?` | `selector` | Optional projection; a projected read gets its own cacheable identity. |
 
-**Returns** `Resource` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+**Returns** `rep<T>`
 
 ## 1.3  Revision pinning — pinned<T> / unpinned<T>
 
@@ -187,22 +187,36 @@ An unpinned reference (`rev` absent) — floats to the current revision.
 type unpinned<T> is ref<T> { rev: null }
 ```
 
-## 1.4  The Resource shape
+## 1.4  The representation — rep<T> — and the kind markers
 
-<a id="Resource"></a>
+```
+A resource splits cleanly in two: a uniform protocol ENVELOPE and a typed BODY.
+`rep<T>` is the on-wire REPRESENTATION — the envelope around a `body: T`. A
+domain type (`Issue`, `TypeDef`, `rel<…>`) is written as a plain record — the
+body ALONE — and the envelope is applied by `rep<T>` at the point of use:
+    type Issue is Bead { title: string, status: string }   // Issue IS the body
+    get(ref<Issue>) -> rep<Issue>                           // { id, …, body: Issue }
+There is no firewall rule and no envelope-field magic: the fields a type writes
+ARE its body, and nothing nests them — `rep<T>` does, explicitly, once. So the
+wire is root-addressed with no remapping: a selector / filter / patch names
+`/body/status`, `/type`, `/metadata/…` literally. The CLI MAY sugar the `/body`
+prefix away; the wire does not.
+```
 
-### `Resource`
+<a id="rep"></a>
 
-The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+### `rep`
 
-> **Normative.** `type X is Resource { fields }` is the firewall: the refinement's fields become the subtype's `body` schema (`Resource { fields } ≡ Resource<XBody>`), never new envelope fields. A "bead" is just such a resource whose `authority` is a package; a content resource has a media-type `type` and a raw `body`.
+The representation of a versioned resource — the protocol envelope around a typed `body: T`. The by-value form a read returns; `ref<T>` is the by-reference form. `Resource` is `rep<any>`, an untyped representation.
+
+> **Normative.** The envelope members are fixed and closed — a domain type contributes only `body`, never a new envelope member. `id`, `type` and `body` are always present; the rest is optional. On a representation `id.rev` is the resolved revision; a reference floats to the current revision when its `rev` is absent.
 
 ```lumen
-type Resource {
+type rep<T> = {
   id:            ResourceId
   authority?:    Authority
   type:          PathString
-  body:          any
+  body:          T
   metadata?:     Metadata
   provenance?:   Provenance
   createdAt?:    Timestamp
@@ -212,18 +226,48 @@ type Resource {
 
 | Member | Type | Description |
 |---|---|---|
-| `id` | `ResourceId` | The resource's identity. |
+| `id` | `ResourceId` | The resource's identity (scope + id); on a representation `rev` is the resolved revision, on a reference the optional pin. |
 | `authority?` | `Authority` | Who names `type` — a package (bead) or a registry like IANA (content). Absent ⇒ ad-hoc / duck-typed. |
 | `type` | `PathString` | The type path, resolved within `authority`'s namespace. |
-| `body` | `any` | The content — raw for a bare (content) resource; narrowed to a schema when the type refines `Resource { fields }` (the firewall). |
+| `body` | `T` | The typed body — the domain payload. `any` for an untyped `Resource`; a record for a bead; raw bytes/text for a content resource. |
 | `metadata?` | `Metadata` | Opaque per-resource sidecar the protocol does not interpret. |
 | `provenance?` | `Provenance` | Who caused this revision, how its period began, and when. |
 | `createdAt?` | `Timestamp` | The resource's birth time, denormalized onto every revision. |
 | `storageClass?` | `StorageClass` | How the resource is kept — durable, ephemeral, or intrinsic. |
 
+<a id="Resource"></a>
+
+### `Resource`
+
+An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
+
+```lumen
+type Resource = rep<any>
+```
+
+<a id="Bead"></a>
+
+### `Bead`
+
+A vacuous kind marker — a body type tagged `is Bead` is a package-authored record. It adds no members; it marks intention, lets a signature demand a bead (`ref<Bead>`), and carries the enforcement that a bead body is a record under a package authority. It is the implicit ROOT of a bead's kind path and contributes NO path segment: `type Issue is Bead` ⇒ kind `"issue"`.
+
+```lumen
+type Bead {}
+```
+
+<a id="Content"></a>
+
+### `Content`
+
+A vacuous kind marker — a body type tagged `is Content` is a registry-named (media-type) resource with an opaque body (bytes / text). The complement of `Bead`; a root marker, no path segment.
+
+```lumen
+type Content {}
+```
+
 ## 1.5  Types on a resource — the (authority, type) pair
 
-A resource's type is a path, fully qualified by the authority that names it. (The overlay that defines types — TypeBead / TypeDef — is §2.1.)
+A resource's type is a path, fully qualified by the authority that names it. (The overlay that defines types — TypeDef — is §2.1.)
 
 <a id="PathString"></a>
 
@@ -258,7 +302,7 @@ type Authority = ResourceRef
 A pinned reference to a Package resource — an Authority that is a package (a bead's authority).
 
 ```lumen
-type PackageRef = ref<PackageBead>
+type PackageRef = ref<PackageDef>
 ```
 
 ## 1.6  Metadata & provenance
@@ -415,7 +459,7 @@ declared with the `rel<F, T>` form and refined with `is`, e.g.
 
 ### `rel`
 
-The relationship construct and its declaration form. `rel<F, T>` is a Resource whose body implicitly carries `source` (type F, the owning endpoint that asserts the relationship) and `target` (type T), plus the relationship type's own properties. A relationship type is declared `type X is <modifiers> rel<F, T> { <edge-fields> }` — a nominal refinement whose trailing record is its body; a bare `<modifiers> rel<F, T>` is the same shape without the nominal identity. The declared name is the representation; `ref<X>` references one.
+The relationship construct and its declaration form. `rel<F, T>` is a `Bead` body type that carries `source` (type F, the owning endpoint that asserts the relationship) and `target` (type T), plus the relationship type's own properties; its resource is `rep<rel<F, T>>`. A relationship type is declared `type X is <modifiers> rel<F, T> { <edge-fields> }` — a nominal refinement whose trailing record extends the body; a bare `<modifiers> rel<F, T>` is the same shape without the nominal identity. The declared name is the body type; `ref<X>` references the relationship, `rep<X>` is its representation.
 
 > **Normative.** A relationship IS a resource (a bead — its authority is a package): it has its own identity, revision history and provenance. Body is implicit — `source`/`target` are not written, and the `{ <edge-fields> }` are ordinary body properties, not a second "edge metadata" bag. Changing a property mints a new revision of the relationship itself; creating or deleting a relationship does NOT touch either endpoint's revision. A relationship is a valid reference target, and its endpoints MAY themselves be relationships.
 
@@ -424,7 +468,7 @@ The relationship construct and its declaration form. `rel<F, T>` is a Resource w
 > **Normative.** `unique` is the optional uniqueness modifier — `unique rel<F, T>` keys the relationship by its natural key (`source`, `target`) and derives its id deterministically, so the same logical relationship resolves to one id in every replica. Without `unique`, each takes a surrogate id and several over the same pair coexist as distinct resources. The relationship `type` is NOT part of the natural key. Graph modifiers constrain the relation as a whole — `acyclic` (a DAG), `symmetric`, `reflexive`; the default is irreflexive and `acyclic` implies it. Reachability and traversal through relationships are a corelib surface, not Core.
 
 ```lumen
-type rel<F, T> = Resource { source: ref<F>, target: ref<T>, ...: any }
+type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 ```
 
 ## 1.8  Computed properties — derived, and revision-transparent
@@ -436,20 +480,23 @@ type rel<F, T> = Resource { source: ref<F>, target: ref<T>, ...: any }
 # 2. Beads
 
 ```
-A bead is a Resource whose body is a package-defined schema and whose authority
-is that package. There is no `Bead<T>` constructor: a bead is just `type X is
-Resource { fields }` — the firewall puts the fields under `body` — authored in a
-package. "Bead" names this category; "content" (a media-type `type`, a raw
-`body`) is the complement. The authority discriminates: a package ref
-(versioned, pinned) ⇒ bead; a registry ref (IANA, stable) ⇒ content; `authority`
-is optional, so a bead MAY be duck-typed. The four definitional bead kinds
-(Type, Channel, Operation, Package) are how BDP describes and distributes types,
-operations, and channels: the overlay system.
+A bead is a resource whose body is a package-defined record and whose authority
+is that package. A bead type is written as the BODY alone, tagged `is Bead`:
+`type Issue is Bead { title: string, status: string }` — `Issue` IS the body
+record, and its resource is `rep<Issue>` (§1.4). `Bead` is a vacuous kind marker
+(intention + static enforcement), the implicit root of the kind path, adding no
+path segment. "Content" (`is Content` — a media-type `type`, an opaque `body`)
+is the complement; the marker also carries the authority intention (a package
+ref ⇒ bead; a registry ref like IANA ⇒ content), and `authority` is optional, so
+a bead MAY be duck-typed. The four definitional bead kinds (Type, Channel,
+Operation, Package) are how BDP describes and distributes types, operations, and
+channels — the overlay system; each is a `Bead` body type whose resource is a
+`rep<…>`, with no separate `…Bead` wrapper type.
 ```
 
 Content is a bare Resource — no narrowing: `type` is a media type named by a registry, `body` is raw bytes/text. (See the worked examples at the end.)
 
-## 2.1  Types — the kind system, TypeBead & the value-schema
+## 2.1  Types — the kind system, TypeDef & the value-schema
 
 ```
 path = chain. Bead subtypes use single inheritance; the `is` chain builds the
@@ -470,26 +517,16 @@ cross-module: a foreign name never enters the path. A cross-module `is` makes th
 
 refinement vs union: refinement (`is`) = open kind hierarchy, path-addressed; `union` = closed value-level sum type.
 
-<a id="TypeBead"></a>
-
-### `TypeBead`
-
-A bead whose body is a type definition — the type of a type.
-
-```lumen
-type TypeBead is Resource { body: TypeDef }
-```
-
 <a id="TypeDef"></a>
 
 ### `TypeDef`
 
-The body of a TypeBead — one node in the single-`is` refinement tree.
+A type-definition bead body — one node in the single-`is` refinement tree. Its resource is `rep<TypeDef>`.
 
 > **Normative.** A type's element path is parent-path ⊕ its own name. A same-package parent is the path prefix (implicit); `refines` is set only for a cross-package parent. The Types resolver flattens the chain base→leaf per the §2.1 inheritance rules.
 
 ```lumen
-type TypeDef {
+type TypeDef is Bead {
   refines?:   TypeRef
   abstract?:  bool
   properties: [ PropertyDeclaration ]
@@ -516,9 +553,6 @@ type PropertyDeclaration = {
   type:            BeadSchema,
   computed?:       bool,
   initOnly?:       bool,
-  serviceManaged?: bool,
-  readOnly?:       bool
-}
 ```
 
 | Member | Type | Description |
@@ -527,8 +561,6 @@ type PropertyDeclaration = {
 | `type` | `BeadSchema` |  |
 | `computed?` | `bool` |  |
 | `initOnly?` | `bool` |  |
-| `serviceManaged?` | `bool` |  |
-| `readOnly?` | `bool` |  |
 
 <a id="ParameterDeclaration"></a>
 
@@ -569,7 +601,7 @@ type BeadSchema =
   | Array   { element: BeadSchema }
   | Set     { element: BeadSchema, on?: [ LocalName ] }
   | TypeRef { to: TypeRef }
-  | Opaque  { jsonSchema: JsonSchema }
+  | JsonSchema { text: string }
 ```
 
 | Alternative | Description |
@@ -583,7 +615,7 @@ type BeadSchema =
 | `Array { element: BeadSchema }` |  |
 | `Set { element: BeadSchema, on?: [ LocalName ] }` |  |
 | `TypeRef { to: TypeRef }` | A reference to a type element. |
-| `Opaque { jsonSchema: JsonSchema }` |  |
+| `JsonSchema { text: string }` |  |
 
 <a id="LocalName"></a>
 
@@ -594,22 +626,6 @@ A short identifier token for a view or a well-known name; leading letter.
 ```lumen
 type LocalName is string
 ```
-
-<a id="JsonSchema"></a>
-
-### `JsonSchema`
-
-A JSON Schema document — the lowered/exported form of a type-as-value for external (non-BDP) consumers.
-
-```lumen
-type JsonSchema {
-  text: string
-}
-```
-
-| Member | Type | Description |
-|---|---|---|
-| `text` | `string` | The JSON Schema document, as text. |
 
 **element references (how one overlay element names another)**
 
@@ -642,6 +658,8 @@ A package-relative element path (the single-`is` chain).
 ```lumen
 type ElementPath = PathString
 ```
+
+Open: could `TypeRef` / `OperationRef` / `ChannelRef` collapse into one `packref<T>`?
 
 <a id="TypeRef"></a>
 
@@ -677,28 +695,18 @@ type ChannelRef   = PackageElementRef
 
 A channel carries a sequence of events; `pull` reads it and `push` writes it. A read of any sequence (a channel, a scope listing, a resource's history, an export) is a `source<T>` — and BDP offers one streaming convention over it.
 
-<a id="ChannelBead"></a>
-
-### `ChannelBead`
-
-A bead whose body is a channel descriptor.
-
-```lumen
-type ChannelBead is Resource { body: Channel }
-```
-
 <a id="Channel"></a>
 
 ### `Channel`
 
-The body of a ChannelBead — its two event schemas, direction, and delivery characteristics.
+A channel-descriptor bead body — its two event schemas, direction, and delivery characteristics. Its resource is `rep<Channel>`.
 
 > **Normative.** `direction` and the two schemas are mutually constraining — `source` ⟺ pullSchema set & pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
 
 > **Normative.** A Channel bead's revision does NOT change when events arrive — the bead is not the stream. Appended events ride the channel's own stream, never the changefeed.
 
 ```lumen
-type Channel {
+type Channel is Bead {
   pushSchema?: BeadSchema
   pullSchema?: BeadSchema
   direction:   "source" | "sink" | "duplex"
@@ -785,7 +793,7 @@ type ReadRequest = {
   from?:   Ordinal,
   limit?:  number,
   format?: Transport,
-  filter?: ListFilter,
+  filter?: Filter,
   select?: selector
 }
 ```
@@ -796,7 +804,7 @@ type ReadRequest = {
 | `from?` | `Ordinal` | Start at a known ordinal (xor `after`). |
 | `limit?` | `number` | Cap the window size. |
 | `format?` | `Transport` | The transport form. |
-| `filter?` | `ListFilter` | Filter the stream. |
+| `filter?` | `Filter` | Filter the stream. |
 | `select?` | `selector` | Project each event. |
 
 <a id="Page"></a>
@@ -829,14 +837,14 @@ Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stre
 
 ```lumen
 fn pull(
-    channel: unpinned<ChannelBead>,
+    channel: unpinned<Channel>,
     request: ReadRequest
   ) -> Page
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `channel` | `unpinned<ChannelBead>` | The channel to read — the changefeed or a declared stream. |
+| `channel` | `unpinned<Channel>` | The channel to read — the changefeed or a declared stream. |
 | `request` | `ReadRequest` | Where to resume, how much, and the transport (see [ReadRequest](#ReadRequest)). |
 
 **Returns** `Page` — One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
@@ -857,14 +865,14 @@ Append one or more events to a Channel. The pusher offers a batch and the channe
 
 ```lumen
 command push(
-    channel: unpinned<ChannelBead>,
+    channel: unpinned<Channel>,
     events:  [PushEvent]
   ) -> PushAck
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `channel` | `unpinned<ChannelBead>` | The channel to append to — must accept writes (`sink`/`duplex`). |
+| `channel` | `unpinned<Channel>` | The channel to append to — must accept writes (`sink`/`duplex`). |
 | `events` | `[PushEvent]` | One or more events to append, in order; each the channel's `pushSchema` type. A keyed event carries a pusher-assigned `ordinal`. |
 
 **Returns** `PushAck` — What [push](#push) returns — the high-water ordinal accepted, a per-event result, and the backpressure signal (`credit` + optional `retryAfter`). A short `results` with `credit: 0` and a deferred tail is normal flow, not an error.
@@ -935,26 +943,16 @@ type PushResult = union {
 
 An operation is a declared callable. `call` invokes it (sync or async); it is the only primitive with the rich Outcome (a user Operation has a declared success/failure in its signature; the data primitives do not).
 
-<a id="OperationBead"></a>
-
-### `OperationBead`
-
-A bead whose body is an operation descriptor.
-
-```lumen
-type OperationBead is Resource { body: Operation }
-```
-
 <a id="Operation"></a>
 
 ### `Operation`
 
-The body of an OperationBead — the call contract, the implementation, and the behavioural guarantees.
+An operation-descriptor bead body — the call contract, the implementation, and the behavioural guarantees. Its resource is `rep<Operation>`.
 
 > **Normative.** The effect markers (`pure`/`safe`/`idempotent`/`atomic`) are three-valued — present = a known guarantee, absent = unknown. `pure` ⟹ `safe`; `pure:true` + `safe:false` is a rejectable contradiction. The Lumen surface callable keywords lower to these fields (`fn` ⇒ pure).
 
 ```lumen
-type Operation {
+type Operation is Bead {
   signature:       Signature
   implementation?: any
   pure?:           bool
@@ -972,6 +970,8 @@ type Operation {
 | `safe?` | `bool` | Known not to write (reads allowed); pure ⟹ safe. |
 | `idempotent?` | `bool` | Known to be idempotent. |
 | `atomic?` | `bool` | Known to commit as a single transaction. deferred to the scheduler. |
+
+Open: define `fn` / `command` at the core level, or leave it to the upper layers (packs induce it)?
 
 <a id="Signature"></a>
 
@@ -1053,8 +1053,6 @@ type Request = {
   calledBy?:      CallId,
   provenance?:    Provenance,
   idempotencyKey: IdempotencyKey,
-  metadata?:      Metadata
-}
 ```
 
 | Member | Type | Description |
@@ -1065,7 +1063,6 @@ type Request = {
 | `calledBy?` | `CallId` | The parent call — its CallId (correlation, diagnostic-tier). |
 | `provenance?` | `Provenance` | The caller's part of provenance only (principals/message/metadata); never server fields. |
 | `idempotencyKey` | `IdempotencyKey` | Collapses a retried call onto the first effect. |
-| `metadata?` | `Metadata` | Opaque per-call sidecar. |
 
 <a id="Reply"></a>
 
@@ -1172,36 +1169,26 @@ type Problem = {
 The async result of one `call` — a handle you show for the record and `cancel` to kill. References a one-and-done source Channel that fires the Reply on settlement.
 
 ```lumen
-type AsyncResult = {
-  operation:    ref<OperationBead>,
+type AsyncResult is Bead {
+  operation:    ref<Operation>,
   cause:        Cause,
   callId:       CallId,
   request:      Request,
   reply?:       Reply,
-  replyChannel: ref<ChannelBead>
+  replyChannel: ref<Channel>
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
-| `operation` | `ref<OperationBead>` | The operation that was called. |
+| `operation` | `ref<Operation>` | The operation that was called. |
 | `cause` | `Cause` | The cause this call ran under (queryable while pending, before `reply`). |
 | `callId` | `CallId` | This call's id (queryable while pending). |
 | `request` | `Request` | The original request. |
 | `reply?` | `Reply` | The settlement, once it arrives (absent while pending). |
-| `replyChannel` | `ref<ChannelBead>` | The one-and-done source Channel that fires the Reply on settlement. |
+| `replyChannel` | `ref<Channel>` | The one-and-done source Channel that fires the Reply on settlement. |
 
 Note (resolved): as a bead (below) this inherits provenance/createdAt/metadata from the envelope. `cause`/`callId` are kept at top-level (queryable while `reply` is absent), per your "would you query it while pending?" note.
-
-<a id="AsyncResultBead"></a>
-
-### `AsyncResultBead`
-
-A bead whose body is an async-call handle.
-
-```lumen
-type AsyncResultBead is Resource { body: AsyncResult }
-```
 
 <a id="call"></a>
 
@@ -1209,16 +1196,18 @@ type AsyncResultBead is Resource { body: AsyncResult }
 
 Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Location when `creates` / 409 on a declared failure / Problem status on `fault`). `?mode=async` returns 202 + the AsyncResult at Location; settle later. The only primitive with the rich Outcome.
 
+> **Normative.** Dispatch rule — `call` is a primitive and may fault with a `Problem` like any primitive. A PRE-dispatch failure (unresolvable `operation`, malformed `request`, unauthorized, idempotency-key mismatch) faults as a `Problem` with NO `Outcome`: the operation never ran and nothing is recorded. A POST-dispatch failure rides the `Outcome` (`Result.failure` → 409; `fault { problem }` → the Problem's status; `canceled`). So a bare `Problem` means the call could not run; a `Problem` inside `Outcome.fault` means the operation ran and faulted — the recorded `AsyncResult.reply` is the witness that it dispatched.
+
 ```lumen
 fn call(
-    operation: ref<OperationBead>,
+    operation: ref<Operation>,
     request:   Request
   ) -> Reply
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `operation` | `ref<OperationBead>` | The operation to invoke (see [Operation](#Operation)). |
+| `operation` | `ref<Operation>` | The operation to invoke (see [Operation](#Operation)). |
 | `request` | `Request` | The call input — arguments, idempotency key, and cause (see [Request](#Request)). |
 
 **Returns** `Reply` — What a `call` returns — flat, no context wrapper. `outcome` keeps the domain `Result` nested in `Outcome`.
@@ -1231,40 +1220,30 @@ Kill -9 on a running AsyncResult — writes `reply.outcome = canceled`. Runs no 
 
 ```lumen
 command cancel(
-    asyncResult: unpinned<AsyncResultBead>
-  ) -> pinned<AsyncResultBead>
+    asyncResult: unpinned<AsyncResult>
+  ) -> pinned<AsyncResult>
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `asyncResult` | `unpinned<AsyncResultBead>` | The running async handle to stop (see [AsyncResult](#AsyncResult)). |
+| `asyncResult` | `unpinned<AsyncResult>` | The running async handle to stop (see [AsyncResult](#AsyncResult)). |
 
-**Returns** `pinned<AsyncResultBead>` — A bead whose body is an async-call handle.
+**Returns** `pinned<AsyncResult>` — The async result of one `call` — a handle you show for the record and `cancel` to kill. References a one-and-done source Channel that fires the Reply on settlement.
 
 ## 2.4  Packages
 
 A package is the authority that names a bead's type — a versioned bundle of overlay elements (type / operation / channel defs) and file assets.
 
-<a id="PackageBead"></a>
-
-### `PackageBead`
-
-A bead whose body is a package.
-
-```lumen
-type PackageBead is Resource { body: PackageDef }
-```
-
 <a id="PackageDef"></a>
 
 ### `PackageDef`
 
-The body of a PackageBead — its declared version and its elements.
+A package bead body — its declared version and its elements. Its resource is `rep<PackageDef>`.
 
 > **Normative.** A package is a resource; its canonical identity is its own `id` ({ scope:"uri", id:<url>, rev:<pin> }) — exactly what beads stamp as their `authority`. It is NOT restated in the body.
 
 ```lumen
-type PackageDef {
+type PackageDef is Bead {
   semVer:   SemVer
   elements: { ...: Resource }
 }
@@ -1327,25 +1306,7 @@ Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the creat
 
 ```lumen
 command create(
-    scope:        Scope,
-    requestedId?: IdRoot | Id,
-    type:         PathString,
-    authority?:   PackageRef,
-    body:         { ...: any },
-    metadata?:    Metadata
-  ) -> pinned<Resource>
 ```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `scope` | `Scope` | The scope to create the resource in. |
-| `requestedId?` | `IdRoot \| Id` | Caller-proposed identity (no rev yet) — an exact `Id` or a prefix `IdRoot` the server mints the leaf under. Absent, the server assigns the id. |
-| `type` | `PathString` | The bead's type path (e.g. `issue/task`). |
-| `authority?` | `PackageRef` | The package that names `type`. Caller may supply; absent, the server resolves it from `type`. |
-| `body` | `{ ...: any }` | The bead's body — the firewalled domain payload; owned `ref<T>` properties live here. |
-| `metadata?` | `Metadata` | Optional open sidecar the protocol does not interpret. |
-
-**Returns** `pinned<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
 
 <a id="put"></a>
 
@@ -1359,25 +1320,25 @@ Upsert / remember — idempotent full-state write. Create-or-replace; the lifecy
 
 ```lumen
 idempotent command put(
-    resource:    unpinned<Resource>,
+    resource:    unpinned<any>,
     type:        PathString,
     authority?:  PackageRef,
-    body:        { ...: any },
+    body:        any,
     metadata?:   Metadata,
     ifRevision?: Rev
-  ) -> pinned<Resource>
+  ) -> pinned<any>
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` | The resource to write (its id; `rev` ignored — `put` targets the current resource). |
+| `resource` | `unpinned<any>` | The resource to write (its id; `rev` ignored — `put` targets the current resource). |
 | `type` | `PathString` | The bead's type path. |
 | `authority?` | `PackageRef` | The package that names `type`. Caller may supply; absent, the server resolves it from `type`. |
-| `body` | `{ ...: any }` | The full new body — `put` replaces state wholesale. |
+| `body` | `any` | The full new body — `put` replaces state wholesale (`any` at core; typed `body: T` at the pack level). |
 | `metadata?` | `Metadata` | Optional open sidecar the protocol does not interpret. |
 | `ifRevision?` | `Rev` | Optional If-Match precondition — apply only if this matches the current revision. |
 
-**Returns** `pinned<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+**Returns** `pinned<any>`
 
 Note: a separate id proposal was folded into the `resource` ref. `ifRevision` (If-Match) is carried by put/patch/delete — see the precondition rule above.
 
@@ -1385,23 +1346,18 @@ Note: a separate id proposal was folded into the `resource` ref. `ifRevision` (I
 
 ### `patch`
 
-JSON Patch limited to /body and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 
 ```lumen
 command patch(
-    resource:    unpinned<Resource>,
-    patch:       JsonPatch,
-    ifRevision?: Rev
-  ) -> pinned<Resource>
+    resource:    unpinned<any>,
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` | The resource to patch (its current revision). |
-| `patch` | `JsonPatch` | The JSON Patch to apply — paths limited to `/body` and `/metadata`. |
-| `ifRevision?` | `Rev` | Optional If-Match precondition — apply only if this matches the current revision. |
+| `resource` | `unpinned<any>` | The resource to patch (its current revision). |
 
-**Returns** `pinned<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+Resolved: `type` / `authority` are mutated by patching `/type` / `/authority` at root — no distinct arguments. Root-addressing means a layout change never changes this signature.
 
 <a id="delete"></a>
 
@@ -1415,41 +1371,31 @@ Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound ref
 
 ```lumen
 idempotent command delete(
-    resource:    unpinned<Resource>,
-    ifRevision?: Rev
-  ) -> Rev
+    resource:    unpinned<any>,
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` | The resource to retire (its current revision). |
-| `ifRevision?` | `Rev` | Optional If-Match precondition — delete only if this matches the current revision. |
+| `resource` | `unpinned<any>` | The resource to retire (its current revision). |
 
-**Returns** `Rev` — A resource-version token — opaque by definition; compared for exact equality only, never inspected.
+Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create / put / patch / delete).
 
 <a id="list"></a>
 
 ### `list`
 
-A collection of current resources in a scope, as a source<Resource>. `where` is a ListFilter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
+A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
 
 ```lumen
 fn list(
     scope:   Scope,
-    where?:  ListFilter,
-    select?: selector,
-    request?: ReadRequest
-  ) -> source<Resource>
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
 | `scope` | `Scope` | The scope to list. |
-| `where?` | `ListFilter` | The low-bar filter — a flat conjunction of field conditions (overlaps `request.filter`; see the open shape note). |
-| `select?` | `selector` | Projection applied to each result (overlaps `request.select`). |
-| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`). |
 
-**Returns** `source<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+Open: should put / patch also accept a `filter` (to scope a conditional write)? (ListFilter is now `Filter`.)
 
 <a id="revisions"></a>
 
@@ -1459,7 +1405,7 @@ The history of one resource — id-targeted like `get`, list-shaped like `list`.
 
 ```lumen
 fn revisions(
-    resource: unpinned<Resource>,
+    resource: unpinned<any>,
     select?:  selector,
     request?: ReadRequest
   ) -> source<Resource>
@@ -1467,11 +1413,11 @@ fn revisions(
 
 | Parameter | Type | Description |
 |---|---|---|
-| `resource` | `unpinned<Resource>` | The resource whose history to read. |
+| `resource` | `unpinned<any>` | The resource whose history to read. |
 | `select?` | `selector` | Projection per revision — ids-only vs full representations. |
 | `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`). |
 
-**Returns** `source<Resource>` — The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional.
+**Returns** `source<Resource>` — An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
 
 **read-shaping & patch bodies (shared by the reads above)**
 
@@ -1509,7 +1455,7 @@ type JsonPointer is string
 
 ### `JsonPatchOp`
 
-One RFC 6902 operation. In `patch`, paths are limited to /body and /metadata.
+One RFC 6902 operation. In `patch`, paths are root-addressed over the rep (`/body`, `/metadata`, `/type`, `/authority`; the rest is read-only).
 
 ```lumen
 type JsonPatchOp = {
@@ -1537,14 +1483,14 @@ An ordered list of JSON Patch operations — the `patch` body, and a change-even
 type JsonPatch = [ JsonPatchOp ]
 ```
 
-<a id="ListFilter"></a>
+<a id="Filter"></a>
 
-### `ListFilter`
+### `Filter`
 
 The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal `filter` is a corelib capability (query), not base.
 
 ```lumen
-type ListFilter = [ listCondition ]
+type Filter = [ listCondition ]
 ```
 
 <a id="listCondition"></a>
@@ -1740,13 +1686,13 @@ An operation frame opened — the open boundary of an unsafe call on the changef
 ```lumen
 type CallEnter = {
   ...ChangeEnvelope,
-  operation: ref<OperationBead>
+  operation: ref<Operation>
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
-| `operation` | `ref<OperationBead>` | The operation whose frame opened. |
+| `operation` | `ref<Operation>` | The operation whose frame opened. |
 
 <a id="CallLeave"></a>
 
@@ -1798,7 +1744,7 @@ type ExportRecord = ExportBegin | Resource | ExportEnd
 | Alternative | Description |
 |---|---|
 | `ExportBegin` | The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`. |
-| `Resource` | The universal shape of a versioned resource — bead or not. Only `id`, `type` and `body` are always present; the rest is optional. |
+| `Resource` | An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read). |
 | `ExportEnd` | The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole. |
 
 <a id="ExportBegin"></a>
@@ -1843,12 +1789,12 @@ type ExportEnd = {
 
 ### `export`
 
-Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ ListFilter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
+Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 
 ```lumen
 fn export(
     scope:      Scope,
-    where?:     ListFilter,
+    where?:     Filter,
     select?:    selector,
     revisions?: bool
   ) -> source<ExportRecord>
@@ -1857,7 +1803,7 @@ fn export(
 | Parameter | Type | Description |
 |---|---|---|
 | `scope` | `Scope` | The scope to back up. |
-| `where?` | `ListFilter` | Restrict the export to matching resources (see [ListFilter](#ListFilter)). |
+| `where?` | `Filter` | Restrict the export to matching resources (see [Filter](#Filter)). |
 | `select?` | `selector` | Project each exported resource. |
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
 
@@ -1895,7 +1841,7 @@ What `import` reports — counts and any skipped/conflicted records.
 type ImportReport = {
   imported:  number,
   skipped:   number,
-  conflicts: [ { id: ref<Resource>, reason: string } ]
+  conflicts: [ { id: ref<any>, reason: string } ]
 }
 ```
 
@@ -1903,7 +1849,7 @@ type ImportReport = {
 |---|---|---|
 | `imported` | `number` | How many records were written. |
 | `skipped` | `number` | How many were skipped (already present, under `dedup`). |
-| `conflicts` | `[ { id: ref<Resource>, reason: string } ]` | Rejected records, each by its id and the reason. |
+| `conflicts` | `[ { id: ref<any>, reason: string } ]` | Rejected records, each by its id and the reason. |
 
 <a id="import"></a>
 

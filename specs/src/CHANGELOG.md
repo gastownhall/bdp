@@ -20,6 +20,31 @@ Draft changes toward the next release (pre-1.0, status: draft).
   §452) to match. `--from-revision` recovers *content* from a live resource's
   history only; it does not revive a deleted identity.
 
+- **`rep<T>` and the `Bead` / `Content` markers — the canonical resource/bead form**
+  (reintroduces `rep<T>`, dropped in 0.2.2, with a cleaner motivation). A resource
+  splits into a uniform envelope and a typed body: a domain type is written as the
+  body ALONE and tagged (`type Issue is Bead { title, status }`), and `rep<T>` — the
+  envelope around `body: T` — is applied at use (`get(ref<T>) -> rep<T>`). `Resource`
+  is `rep<any>`. `Bead` / `Content` are vacuous kind markers (intention + static
+  enforcement; the kind-path root). No firewall rule and no envelope-field magic —
+  the wire is root-addressed (`/body/…`, `/type`, `/metadata/…`) with no remapping;
+  the CLI MAY sugar the `/body` prefix. The `…Bead` wrapper types collapse
+  (`type TypeDef is Bead`, its resource `rep<TypeDef>`), and `rel<F, T>` is a `Bead`
+  body type.
+- **`patch` is root-addressed** over the representation (`/body`, `/metadata`,
+  `/type`, `/authority`; the immutable envelope and computed properties are
+  read-only). This is how `type` / `authority` are mutated — no distinct arguments.
+- **Operation result model.** A primitive returns its value or faults with a
+  `Problem` (no declared `E`, not cancellable); an operation (`call` callable)
+  settles as `Outcome<T, E> = Result<T, E> | fault | canceled`, so a command with a
+  domain refusal declares `Result<T, E>` (`E` = business refusals; not-found /
+  malformed stay Problems). Documented the `call` dispatch rule: a pre-dispatch
+  failure is a bare `Problem` (no `Outcome`); a post-dispatch failure rides the
+  `Outcome`.
+- **Smaller core edits.** `ListFilter` → `Filter`; `BeadSchema`'s `Opaque` arm →
+  an inline `JsonSchema { text }` (dropped the redundant standalone type); `create`
+  / `put` body is `any` (the typed `body: T` is the pack-level view).
+
 ## 0.2.2 — 2026-11-18
 
 Breaking draft changes to the core model (pre-1.0, status: draft).
