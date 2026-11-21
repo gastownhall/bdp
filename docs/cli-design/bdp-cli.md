@@ -108,9 +108,11 @@ below is always client-side. Server-side honoring is the tracked follow-up.
 **Default output shaping** (so `show` isn't a wall of noise):
 1. Field order by importance: `id`, `type`, `body`, then `metadata` / `provenance` /
    timestamps / envelope.
-2. **Empty computed collections are omitted by default** (`labels: []`, `comments: []`,
-   `dependencies: []`, zero counts) — precisely, via each property's `computed` marker in
-   discovery (no blanket guessing). They appear only under `--include`/`--expand`.
+2. **Default-valued computed fields are omitted by default** — empty collections
+   (`labels: []`, `comments: []`, `dependencies: []`), zero counts (`blockedByCount: 0`),
+   and false flags (`isBlocked: false`) — precisely, via each property's `computed` marker
+   in discovery (no blanket guessing; a non-computed field is never hidden). They appear
+   only under `--include`/`--expand`.
 
 **Lists** return a `Page {items, cursor, head}`; `--limit <n>` caps the window, `--cursor <c>`
 resumes after it. With no `--limit`, a read returns the whole current set in one page, bounded
