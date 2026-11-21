@@ -3,7 +3,7 @@
 // =============================================================================
 // An example BDP pack in the kind model: arbitrary knowledge (Memory), obligations
 // (Constraint), assessments (Evaluation), and reified conformance claims (Conformance).
-// Companion to bdp.lumen (the base spec) and issue.lumen. The toolchain projects this
+// Companion to bdp.lumen (the base spec). The toolchain projects this
 // file to the trait + artifacts, so a pack's signatures are mechanically available.
 //
 // Roots (global aliases this pack defines): `memory`, `conformance`.

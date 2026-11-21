@@ -11,7 +11,7 @@
 //
 // Depends on core (bdp.lumen): bead, resource, ref, unpinned, pinned, Operation,
 // Channel, BeadType, ExportRecord/import, source, Problem, Outcome, selector,
-// ListFilter, LocalName. Example packs in the kind model: memory.lumen, issue.lumen.
+// ListFilter, LocalName. Example packs in the kind model: memory.lumen.
 // =============================================================================
 
 /// description: A semantic version string, "MAJOR.MINOR.PATCH" (e.g. "0.2.0").
