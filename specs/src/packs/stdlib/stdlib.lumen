@@ -1,28 +1,44 @@
 // =============================================================================
 // stdlib.lumen — the standard-library pack (generalised annotation resources)
 // =============================================================================
-// A RECORD of what the stdlib owes the other packs, landed with #403 so the issue
-// pack's `computed labels` / `comments` projections have a type to resolve against.
-// This is the as-needed shape, NOT the finished generalisation: the real
-// define + implement + prove pass runs in parallel (a background effort), and the
-// two reconcile in a later sweep — see the OPEN sidebar in §1.
+// The generalised annotation model the issue pack's `computed labels` / `comments`
+// projections resolve against. An Annotation is a rev-neutral resource that points
+// AT a target resource and carries its own payload; Label and Comment are the two
+// concrete annotations the issue pack leans on today, each generalised from a
+// single target type to any resource.
+//
+// This refines the as-needed record landed with #403 (commit 07b65251): the §1
+// OPEN is now RESOLVED (annotations are resources that SOFT-reference their target,
+// not `rel<>` edges — see §1.0), and the rev-neutrality guarantee is stated
+// normatively (§1, PRINCIPLE 1). One question remains, and it belongs to Core, not
+// here: Core has no resource-level natural-key constraint yet (`unique` is rel-only),
+// so Label's (target, name) key is spelled as intent and flagged CORE-OPEN (§1.2).
 //
 // SCOPE — what lives here:
 //   Annotation — a rev-neutral resource that points AT a target resource and
 //   carries its own payload. Label and Comment are the two concrete annotations
-//   the issue pack leans on today; both generalise a per-target annotation from a
-//   single target type to any resource.
+//   the issue pack leans on today.
 //
 // PRINCIPLES:
-//   1. Annotations are rev-neutral. Creating, editing or deleting an annotation
-//      never advances its target's revision, emits no change event on the target,
-//      and never enters the target's content hash. The annotation carries its own
-//      identity, revision history and provenance; its OWN revision advances normally.
-//   2. Point AT, don't own. An annotation is a first-class resource that names its
-//      target by ref — it is NOT a field on the target. The target's view of its
+//   1. Annotations are rev-neutral w.r.t. their target. Creating, editing or
+//      deleting an annotation NEVER advances its target's revision, emits no change
+//      event on the target, and never enters the target's content hash. The
+//      annotation carries its own identity, revision history and provenance; its
+//      OWN revision advances normally. This is not a special rule — it falls out of
+//      the target being untouched (an annotation is a separate resource; the target
+//      does not name it), under Core's revision rule: "the revision changes exactly
+//      when the resource's state changes" ([[core.lumen#Rev]]).
+//   2. Point AT, don't own — and point SOFTLY. An annotation is a first-class
+//      resource that names its target with a `target: ref<resource>` property. That
+//      reference is SOFT, not structural: it tolerates a retired target and resolves
+//      to its tombstone, and the target never cascades its retirement to the
+//      annotation (contrast a `rel<>`'s structural `source`/`target`, which a scope
+//      cascades or restricts — [[core.lumen#rel]]). The target's view of its
 //      annotations (issue.lumen `labels` / `comments`) is a COMPUTED projection.
-//   3. Record now, generalise later. These shapes capture what the model needs
-//      today; the rel<>-vs-resource question (§1 OPEN) is deferred to the sweep.
+//   3. Projection is a reverse lookup, revision-transparent. A target's `labels` /
+//      `comments` are computed by walking the `target` reference in REVERSE from the
+//      target. Computing one never advances the target's revision, emits no event,
+//      and never enters its content hash.
 // =============================================================================
 
 /// description: Free text — a nominal string.
@@ -33,29 +49,66 @@ type text is string
 // §1. The model
 // #############################################################################
 
-// > **Open** — whether an Annotation is better carried as a `rel<resource, …>`
-// > edge (like issue.lumen's Dependency) rather than a resource with a `target`
-// > property, and whether the issue pack keeps `labels` / `comments` as computed
-// > projections over this model or folds them in, is the generalisation question.
-// > Deferred to the reconciliation sweep; the parallel define + implement + prove
-// > effort owns it.
+// -----------------------------------------------------------------------------
+// §1.0  RESOLVED — annotation is a resource that SOFT-references its target,
+//       NOT a `rel<>` edge.
+// -----------------------------------------------------------------------------
+// The #403 record left open whether an Annotation is better carried as a
+// `rel<resource, …>` edge (like issue.lumen's Dependency) or as a resource with a
+// `target` property. It is a resource with a `target` property. Three reasons, each
+// grounded in Core:
+//
+//   1. A `rel<F, T>` is defined by its STRUCTURAL `source`/`target` pair — "nothing
+//      distinguishes a relationship but its structural `source`/`target` pair"
+//      ([[core.lumen#rel]]). An annotation has exactly ONE resource reference (its
+//      target) plus value payload (`body`/`author`/`name`); there is no second
+//      resource endpoint — a comment's `author` is a native string, not a ref. There
+//      is no `source` resource to put on the left of a `rel<>`. Modelling it as a rel
+//      would mean inventing a spurious endpoint.
+//
+//   2. Core already classifies this exact case. A reference that only points AT a
+//      resource — "a note, an annotation" — is a SOFT reference, opposed to the
+//      structural `source`/`target` of an edge ([[core.lumen#rel]], verbatim
+//      example). A soft reference "tolerates a retired target and resolves to its
+//      tombstone"; a structural endpoint never outlives its resource. An annotation
+//      wants the soft semantics: a comment on a deleted issue should survive and
+//      resolve to the issue's tombstone, not be cascade-retired and not pin the
+//      issue open.
+//
+//   3. The payload IS the point. A rel's `{ edge-fields }` are properties OF the
+//      relationship (Dependency's `createdBy`/`threadId`); the relationship without
+//      its endpoints is nothing. An annotation's `body`/`name` are its reason to
+//      exist; the target is the thing it is attached to. That is the shape of a
+//      resource-with-a-soft-ref, not an edge.
+//
+// Discriminator for future packs: two resources genuinely related → `rel<>` (an
+// edge, structural, keyed on the pair). One resource annotated by a free-standing
+// payload → an Annotation (a resource, soft ref, keyed on target + its own fields).
+//
+// The issue pack KEEPS `labels` / `comments` as computed projections over this
+// model (PRINCIPLE 3); it does not fold them into Issue.
 
 /// description: Annotation — a rev-neutral resource that points AT a target resource and carries its own payload. `abstract` — only the concrete annotations below are instantiated.
-/// normative: Rev-neutral — writing or removing an Annotation NEVER advances its `target`'s revision, emits no change event on the target, and never enters the target's content hash. The Annotation has its own identity, revision history and provenance; its own revision advances normally.
-/// normative: An Annotation names its `target` by ref and is NOT a field on the target. A target's view of its annotations is a COMPUTED projection (see issue.lumen `labels` / `comments`).
+/// normative: Rev-neutral w.r.t. the target. Writing, editing or removing an Annotation NEVER advances its `target`'s revision, emits NO change event on the target, and NEVER enters the target's content hash. This holds because the target is not touched by the write: the Annotation is a separate resource and the target does not name it. The Annotation has its own identity, revision history and provenance; its OWN revision advances normally, and its own write DOES emit a change event on the Annotation.
+/// normative: `target` is a SOFT reference ([[core.lumen#rel]]): it is a plain `ref<resource>` body property, NOT the structural `source`/`target` of a `rel<>`. It tolerates a retired target and resolves to the target's tombstone; the target's retirement is never cascaded or restricted by an Annotation. An Annotation is NOT a field on the target — a target's view of its annotations is a COMPUTED projection (see issue.lumen `labels` / `comments`), computed by walking `target` in reverse.
 abstract type Annotation is Resource {
-  target: ref<resource>,          // the annotated resource
+  target: ref<resource>,          // the annotated resource — a SOFT reference
 }
 
 /// description: Comment — free-text commentary on a target resource.
-/// normative: `author` is a native human/agent string — NOT a BDP attribution ref. `body` is the comment text.
+/// normative: `author` is a native human/agent string — NOT a BDP attribution ref. `body` is the comment text. Two Comments on the same target are distinct resources (no natural key): a target may carry many, each with its own id and history.
 type Comment is Annotation {
   body:    text,
   author?: text,                  // native author string — NOT a ref
 }
 
-/// description: Label — a named tag on a target resource.
-/// normative: The natural key is (`target`, `name`) — at most one Label of a given `name` on a given target. Whether this is spelled `unique` (as on a rel) or as a resource natural-key constraint is settled in the sweep.
+// -----------------------------------------------------------------------------
+// §1.2  Label — a named tag; the natural-key question is CORE-OPEN.
+// -----------------------------------------------------------------------------
+
+/// description: Label — a named tag on a target resource. Its natural key is (`target`, `name`): at most one Label of a given `name` on a given target, and a same-key re-add is an upsert onto the one id.
+/// normative: The natural key (`target`, `name`) is a RESOURCE natural-key constraint, NOT `unique` on a rel. `unique rel<F, T>` keys ONLY on the structural (`source`, `target`) pair and explicitly excludes body fields ([[core.lumen#rel]]); Label is not a rel, and `name` is a value, not a resource endpoint — so a rel's `unique` cannot express this key. The key must be carried by the resource, over one ref property (`target`) and one value property (`name`).
+/// normative: CORE-OPEN — Core has no resource-level natural-key primitive today; `unique` is defined for `rel<>` only, where it derives the id deterministically from (`source`, `target`). Spelling Label's key therefore needs ONE of: (a) Core grows a resource natural-key modifier — the resource analogue of rel `unique`, deriving the id deterministically from a declared key tuple that may mix ref and value properties (e.g. `unique(target, name)`); or (b) the at-most-one-per-(target, name) invariant is enforced at the pack/operation layer (an upsert guard on label-add), NOT by a Core-derived id. (a) is preferred — it keeps the same-key-resolves-to-one-id replica guarantee that rel `unique` already gives Dependency. The decision is the Lumen scrub's; the intent is written here with the key tuple explicit so whichever spelling lands is a mechanical substitution.
 type Label is Annotation {
-  name: text,
+  name: text,                     // natural key with `target` (see CORE-OPEN above)
 }
