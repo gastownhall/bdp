@@ -905,6 +905,17 @@ type PackageDef is Bead {
 // instantiable: `create` defaults to the configured concrete type (`cli.defaultType`,
 // e.g. `issue` → `issue/task`), else it lists the concrete subtypes.
 //
+// Command placement — a pack sets `cli.mount` (where its commands attach to the
+// aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd
+// issue …`; default the pack name), and an operation sets `cli.name` (its command
+// name, overriding the path-derived default; may contain spaces to nest, e.g.
+// `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a
+// top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`)
+// always works. The same document MAY be checked in STATICALLY (identical shape): a
+// client bootstraps — or build-time codegens typed, statically-checked commands —
+// from the static catalog when it cannot discover from a live endpoint. `--help` is
+// rendered from the catalog (summaries, parameters, defaults, error sets).
+//
 // Error model: a data primitive returns its success value and faults with a Problem.
 // Writes return a pinned ref; reads a rep; `delete` a tombstone Rev. (Ruling §0.8.)
 

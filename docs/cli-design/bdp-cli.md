@@ -412,6 +412,8 @@ properties, one on the type:
 | `cli.positional: <n>` | property | bind the property to positional slot `n` (slots count *after* the type) |
 | `cli.default: <value>` | property | the value used when the flag is omitted (Core has no `default`, so it is purely a CLI hint) |
 | `cli.edge: …` | type | a flag that creates a related **edge resource** — see below |
+| `cli.name: <name>` | operation | the op's command name in the tree (default: the path tail), overriding the call-path — e.g. `issue/ready` → `cli.name: "ready"` → `bd ready`; may contain spaces to nest (`"dep add"`). The call-by-path (`bd call issue/ready`) always works. |
+| `cli.mount: <prefix>` | pack | where the pack's commands attach to the aggregate `bd` tree — `"/"` (top-level, so `bd ready`), or a prefix (`"issue"` → `bd issue …`); default: the pack name |
 
 `Issue`, in `specs/src/packs/issue/issue.lumen`, is the worked example: `title` is
 positional 0; `priority`/`assignee`/`description`/`status`/`estimate` carry
