@@ -403,8 +403,8 @@ properties, which are settable only here.
 
 The `cliMapping` hints a Callable carries (flag spellings, positionals) apply, one
 tier up, to a **type** — shaping the generic verbs for it. They are declared as
-metadata on the type and its properties, and the CLI reads them from the `TypeBead` at
-resolution time. Three keys on properties, one on the type:
+metadata on the type and its properties, and the CLI reads them from the type's
+definition (`rep<TypeDef>`) at resolution time. Three keys on properties, one on the type:
 
 | key | on | effect |
 |---|---|---|
@@ -804,8 +804,12 @@ use stderr and the command's exit status to check whether the command completed.
 
 #### Properties, metadata and provenance
 
-Properties hold a Bead or Link's domain data. Metadata is a separate object.
-Choose their editing modes independently:
+Properties hold a Bead's domain data — on the wire they are the representation's body
+(`rep<T>.body`); the CLI calls them *properties* and sugars the `/body` prefix away
+(`/properties/title` is the wire's `/body/title`). Metadata is the separate
+`rep<T>.metadata` object; the id, type, revision, provenance and storage class are the
+rest of the envelope, shown as read-only context. Choose the editing modes of
+properties and metadata independently:
 
 | Intent | Properties flag | Metadata flag |
 | --- | --- | --- |
@@ -1326,11 +1330,83 @@ bd update note-1 --type task@=type-r2
 
 ```
 
+#### `bd put`
+
+Create-or-replace one resource by id — the ergonomic surface over the `put` primitive
+(idempotent full-state write). Unlike `patch` (a partial edit of a live resource), `put`
+writes the WHOLE body and may create: a `put` at an absent id creates it, at a live id
+replaces its state wholesale. A tombstoned id faults `identity-taken` (§452).
+
+##### Usage
+
+```text
+bd put REF --type TYPE [--scope SCOPE]
+    [--properties JSON | --<property> VALUE ...]
+    [--metadata JSON]
+    [--if-revision TOKEN]
+    [--revision-provenance JSON] [--actor ACTOR]
+    [--idempotency-key KEY | --dry-run-mode batch|bdp]
+    [--output-mode MODE] [--output-format default|detail|json|jsonl] [--long]
+bd put --retry-file FILE
+    [--output-mode MODE] [--output-format default|detail|json|jsonl] [--long]
+```
+
+##### Arguments
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| REF | Yes, except retry | One unpinned Bead ID or absolute Resource URL — the id to write (its `rev` is ignored; `put` targets the current resource). |
+
+##### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--type TYPE` | Required | The resource's type path (`put` is a full-state write, so the type is given, not latent). Writing a different type at a live id is a retype, validated against the new type. |
+| `--properties JSON` / `--<property> VALUE` | Required body | The **full** new body — `put` replaces state wholesale. Per-property flags lower into the body (the [property-flag rule](#setting-the-body-the-property-flag-rule)); loose-coerced against the declared type. |
+| `--metadata JSON` | Unchanged | The full new `metadata` record. |
+| `--if-revision TOKEN` | No guard | If-Match: apply only if this matches the current revision; a stale value faults `revision-mismatch` (`412`). See [write revisions](#write-revision-flags). |
+| `--revision-provenance JSON` / `--actor ACTOR` | No attribution | Caller version attribution. |
+| `--idempotency-key KEY` | Generated | The applied write key. See [write delivery](#mutation-delivery). |
+| `--dry-run-mode MODE` | Off | `batch` emits a member; `bdp` previews the request. See [emission](#mutation-delivery). |
+| `--output-mode` / `--output-format` / `--long` | — | As for every write. |
+
+##### Behavior
+
+`put` is an idempotent **full-state** write: at an absent id it **creates**, at a live id
+it **replaces** the whole body (omitted properties are cleared, not merged — use `patch`
+to merge). A full-state write that changes nothing succeeds, keeps the revision, records
+no provenance and emits no Event. A tombstoned id faults `identity-taken` — the identity
+is terminal (§452). `--if-revision` gives optimistic concurrency.
+
+##### Results
+
+Return the complete native `mutationResult` with its `changed` value and the written
+Resource postimage (a pinned ref; the lifecycle effect — create vs replace — is what the
+changefeed reports).
+
+##### Errors and exit status
+
+Uses the [common exit statuses](#exit-status). Invalid inputs return `2`; a tombstoned id
+returns `3` with an `identity-taken` Problem; a revision mismatch returns `4`; an
+unsupported capability returns `5`. Other failures use their precise Problem and status `1`.
+
+##### Protocol correspondence
+
+| CLI input | Protocol request |
+| --- | --- |
+| REF + `--type` + body | `PUT` to the `put` primitive at the resource URL — a full-state upsert. |
+| `--if-revision TOKEN` | `If-Match: TOKEN`. |
+| `--dry-run-mode batch` | Emit `operation:"put"`; do not execute it. |
+
 #### `bd patch`
 
 Apply a partial edit to one Bead's body and metadata — the ergonomic surface over the
-`patch` primitive (a JSON Patch limited to `/body` and `/metadata`). The target must
-already be live: `patch` never creates and never changes a Bead's Type.
+`patch` primitive. The `patch` primitive is **root-addressed** over the representation
+(`rep<T>`): a JSON Patch may touch `/body`, `/metadata`, `/type` and `/authority` (the
+immutable envelope — `/id`, `/revision`, `/provenance`, `/createdAt` — and computed
+properties are read-only). `bd patch` surfaces the common body + metadata edits; a
+**retype** (`/type` or `/authority`) goes through `bd update --type` (§452). The target
+must already be live: `patch` never creates.
 
 ##### Usage
 
@@ -1401,9 +1477,9 @@ guards the revision (If-Match); `--if-property` / `--if-metadata-field` / `--if-
 guard the target's current state with a `Filter` predicate. Any failed test writes
 nothing and faults.
 
-`patch` does not change a Bead's Type (use `put` for a full-state write, or the stdlib
-`update` for the combined compatibility surface) and does not create (use `create` or
-`put`).
+`bd patch` does not retype (the `patch` primitive can, over `/type`, but the ergonomic
+surface routes retype through `bd update --type`, §452) and does not create (use
+`bd create` or `bd put` for a full-state write).
 
 ##### Results
 
@@ -2662,6 +2738,24 @@ a BDP Type prints by its short name. A table leaves out a column
 empty in every row, and shortens a long cell and says so; `key: value` lines keep the
 value whole. `--output-format detail` prints that object as indented JSON. Listing uses
 `result_kind` `callable_catalog`.
+
+##### Outcome rendering
+
+`call` settles as core's `Outcome<T, E> = Result<T, E> | fault | canceled` (core
+`## Outcome` / `## call`). The CLI renders each arm:
+
+- **`Result.success`** → the `callableResult` above (exit `0`).
+- **`Result.failure { error: E }`** → a `callable-error`: the operation's own domain
+  "no" (its declared `E`), rendered below. It is NOT a transport failure — the call
+  dispatched and the operation answered no.
+- **`fault { problem }`** → a `Problem`, rendered as any primitive fault (the statuses
+  below).
+- **`canceled`** → an async invocation stopped by `bd cancel`.
+
+The dispatch rule (core `## call`) decides where a `Problem` appears: a PRE-dispatch
+failure (unknown NAME, malformed `--arguments`, unauthorized) is a bare `Problem` with
+no `Outcome` — the Callable never ran; a POST-dispatch failure rides the `Outcome`
+(`callable-error` for a domain `E`, a `fault` Problem otherwise).
 
 ##### Errors and exit status
 
