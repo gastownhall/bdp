@@ -1274,6 +1274,25 @@ Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à 
 
 Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their property declarations + cli hints — cli.alias / cli.positional / cli.default / cli.edge) and the OPERATION signatures (parameters + each op's declared domain-error set), so a client renders the available typed commands from discovery alone, with no out-of-band pack knowledge.
 
+```
+Shape — the capabilities document is { scope, base, repModel, capabilities (the
+primitives + call), operations (bare call-by-path strings, back-compat), packs[] }.
+Each pack is { name, types[], operations[] }:
+  type = { type (kind-path), bead, abstract, extends?, summary?, properties[
+           { name, type, required, cli?{ alias, positional, default, edge } } ] }
+  op   = { path (call-by-path), kind ("command" | "fn"), summary?, parameters[
+           { name, type, required, cli?{ … } } ], errors[] (the Result E set), returns }
+`cli.alias` is the bare short letter ("s" → the CLI renders -s); `cli.positional` is
+a 0-based slot; `cli.default` is a JSON value. An op `path` splits on "/" into nested
+subcommands (`issue/dep/add` → `bdp issue dep add`). The generic CRUD verbs
+(create/show/list/update/delete/get) are the UNIVERSAL primitives the CLI knows
+intrinsically — it parameterises `create <type>` from the type's properties + cli
+hints; the catalog's `operations` are the pack callables, rendered as typed verbs
+(not duplicated per-type). An abstract type (e.g. `issue`) is not directly
+instantiable: `create` defaults to the configured concrete type (`cli.defaultType`,
+e.g. `issue` → `issue/task`), else it lists the concrete subtypes.
+```
+
 Error model: a data primitive returns its success value and faults with a Problem. Writes return a pinned ref; reads a rep; `delete` a tombstone Rev. (Ruling §0.8.)
 
 ## 3.1  Write & read the resource store — create, put, patch, delete, list, revisions
