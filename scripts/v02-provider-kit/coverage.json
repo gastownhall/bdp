@@ -1,0 +1,463 @@
+{
+  "commit": "e108a3241e8127e5325748e9325aedd984ff5117",
+  "profile": "read-only",
+  "files": {
+    "specs/src/core/core.lumen": {
+      "sha256": "9a8e0bbb3657524b871a68b43c5ce641d5a47d7b5ced6a8e3706fb5202723ae2",
+      "points": [
+        {
+          "anchor": "Scope#1",
+          "sha256": "db755bcb5a62028eb49f546a8d9b8cbee3e3089b69d100f74427ec5817147031",
+          "checks": ["core.representations"]
+        },
+        {
+          "anchor": "Rev#1",
+          "sha256": "c0b86f88f570951a6ae59677c20ea73565d9420b568c1cc55741c0aa1eaadd06",
+          "checks": ["core.stability"]
+        },
+        {
+          "anchor": "Digest#1",
+          "sha256": "fa7d32ff8ff74ef29c15541d53d13284523a5b6b87d5a0266d04eb06826fed8d",
+          "checks": ["core.representations"]
+        },
+        {
+          "anchor": "get#1",
+          "sha256": "0f9a85176665fb3ea0a0b4ea8e5947f5ef037f8a5b8765cae7e8bf52c3113c46",
+          "checks": ["core.point-read", "core.absence"]
+        },
+        {
+          "anchor": "get#2",
+          "sha256": "ca71fededf03a38c143702afdf10f10c87cd05256133dbe7755708ec03ec61be",
+          "checks": ["core.point-read", "core.absence"]
+        },
+        {
+          "anchor": "pinned#1",
+          "sha256": "41ff311e90d29a523be750a1ac152991aaa4f9c44da77c91ecefbaf1599df2cd",
+          "checks": ["core.point-read"]
+        },
+        {
+          "anchor": "rep#1",
+          "sha256": "76f78c30e56230501eba9a9f4bfaf23163f43df760756438089f86c4a82c6d21",
+          "checks": ["core.representations"]
+        },
+        {
+          "anchor": "PathString#1",
+          "sha256": "cd4fb7d38e73090f7af9250cd2902a3fa45ad2d59e005274ecc87c16c1fdf92b",
+          "checks": ["core.discovery", "core.representations"]
+        },
+        {
+          "anchor": "Authority#1",
+          "sha256": "c454daaf05ef6b3f39e0f0d4e8f5912e8ef9539a23f173728adb557c43255109",
+          "checks": ["core.representations", "core.read-only"]
+        },
+        {
+          "anchor": "Authority#2",
+          "sha256": "43e3716bee0d66ec926d2d09c3eb70df80a8706484d0a36614ab0a6a7e4fcc54",
+          "checks": ["core.representations", "core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "Provenance#1",
+          "sha256": "7f14400e8e0a1cd1682547758d5321b21f84661d885e2f4c960134bbcf1442ab",
+          "checks": ["core.representations", "core.read-only"]
+        },
+        {
+          "anchor": "IdentityBasis#1",
+          "sha256": "db4a18dd291f40f290efd32997aafed561a4ed5ace61c064a4d5431b9ccc9bd0",
+          "checks": ["core.representations"]
+        },
+        {
+          "anchor": "StorageClass#1",
+          "sha256": "154f38f55b16d030069c09fec0352a690b48fd98964b381ef0d3b02968480044",
+          "checks": ["core.discovery", "core.representations"]
+        },
+        {
+          "anchor": "rel#1",
+          "sha256": "ff5bed57f7fa800f4b26e27b9f62d4b1f2788c5993e13970228ff8f41f83e3f5",
+          "checks": ["core.representations", "core.read-only"]
+        },
+        {
+          "anchor": "rel#2",
+          "sha256": "da083281f14309373cd66759e8c128036f0c6a44d9d68fd671102d1bf6df382c",
+          "checks": ["core.representations", "core.read-only"]
+        },
+        {
+          "anchor": "rel#3",
+          "sha256": "a45ed08ab61f60ff86d5ac63efc56b5da57b645ac79a2c5ee6c5e1d863a8dbb3",
+          "checks": ["core.representations", "core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "TypeDef#1",
+          "sha256": "ef6e4095f3fff887f48108878947ef6e20057e94d17204228f189a93acb86a1e",
+          "checks": ["core.descriptors"]
+        },
+        {
+          "anchor": "PropertyDeclaration#1",
+          "sha256": "51f7f8f16fdf78f1d921552a9875dd147eee3f46cb55029c9e16205f8f51c900",
+          "checks": ["core.descriptors"]
+        },
+        {
+          "anchor": "BeadSchema#1",
+          "sha256": "8500c25d164bf9663c8bfd203aaee043f8b355928ed312388a2a204462604387",
+          "checks": ["core.descriptors", "core.export"]
+        },
+        {
+          "anchor": "PackageElementRef#1",
+          "sha256": "44a6932c9f2d52fbe8ffdba709f942f583b494712aa31c56f5114471a5f3c6fc",
+          "checks": ["core.descriptors"]
+        },
+        {
+          "anchor": "Channel#1",
+          "sha256": "df5756c67ffeba5ab75068caaa25b26dd340179066f8b6f74623ac79323a487c",
+          "checks": ["core.descriptors", "core.feed"]
+        },
+        {
+          "anchor": "Channel#2",
+          "sha256": "9eca4908d6bf8ce4cb6f2cd2b9d7e27fbf88e291a8ef89c23140239cbf0de47c",
+          "checks": ["core.descriptors", "core.feed"]
+        },
+        {
+          "anchor": "pull#1",
+          "sha256": "5220141da0025715606eff7de61f050cb48784fd9ce3a5d064733ae5f165b111",
+          "checks": ["core.feed"]
+        },
+        {
+          "anchor": "push#1",
+          "sha256": "a4e35c6eada8b1c2e9d7590ae22c9e4520a90a8883839882e3d857b9e4bb0be0",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "push#2",
+          "sha256": "638c9e8067b7d7beb0c6d8facf3a4b28946d11b1f270ae1e96c8efadb080bd22",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "push#3",
+          "sha256": "c9eb8e0b82405498c723e443ca07c5d57517b90ed707adc1244e266b5c9a8379",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "push#4",
+          "sha256": "b45d0257c6c4f034e9a23bbdb2e15b7ae4cddd03e7ee97265b725597df5d603e",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "Operation#1",
+          "sha256": "2e913fc33ca79d09fb5d52ccb21d08b5624c6781dadb8c47b5f6b558bc035398",
+          "checks": ["core.descriptors"]
+        },
+        {
+          "anchor": "Reply#1",
+          "sha256": "e37246f4762e0b4cdd3a3069fdb885215b61b98b0c32ceaf3bf896a3a38bf263",
+          "checks": ["stdlib.query", "stdlib.count"]
+        },
+        {
+          "anchor": "Outcome#1",
+          "sha256": "3666a79f9b0c70811de9d7cf2bb846e0b23ff8eec8208a020219dc058c3ff6d2",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "Outcome#2",
+          "sha256": "d471ed50ed65fa6ed04cdf6018c4da1d8b5e807513ad658ec6c8ea451741a0bd",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "Outcome#3",
+          "sha256": "066bc3456287c8a0d010d7cdbff8a67cef6f520d4929d2031210b179eae93e71",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "Problem#1",
+          "sha256": "99596dda2c9830a33c31f08d858195772b643c16c9c52f4651d2f59f7eac6df0",
+          "checks": ["core.absence", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "call#1",
+          "sha256": "26f955d72d3993af05c061f464e85ad1ede631606e5f6c5fbd472f947e24c3e9",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "call#2",
+          "sha256": "29d9cce7ca94520ea30287b5e62fb3153ec6460636cfd6aebc5e074a97ad6d1c",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "PackageDef#1",
+          "sha256": "3a54b45da1f9f33eb24cb7985c0914e547f1e6cab6708fe7856ea3adc6850877",
+          "checks": ["core.descriptors"]
+        },
+        {
+          "anchor": "create#1",
+          "sha256": "ace0afaeebd3a80bb95f91974c1d0472396b86bed12066498ecedf327081d2fb",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "put#1",
+          "sha256": "887fca3431e7b41b51ab84ec43ab6a737db78eb44e96761c6509d1d9ea252c2c",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "put#2",
+          "sha256": "23e1b1053bb676e2ad2e411563c0cb72290dafe1d45c800c7fbca9dedcc366a5",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "delete#1",
+          "sha256": "56c7a57e1959f9e71102836ea05a44b59bcddbc8ae56dd3c34b100e541b89115",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "delete#2",
+          "sha256": "e616ab2016acfc3165b38b2ed8a4d66452fdacfa652113c0a4e8b607547bb89e",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "delete#3",
+          "sha256": "5bd18e4ab63f572d68a793e0a322725af7d72fb6f58a2ad219dd1366cd86f2c8",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "listCondition#1",
+          "sha256": "d77fcf2c0bf9bacd11a08f31919881cdaca62eb18dfa3cdd3e0ff55b4bc8512c",
+          "checks": ["core.list-filter", "stdlib.query"]
+        },
+        {
+          "anchor": "listCondition#2",
+          "sha256": "3d7c6049e5ad84366e7d110e4b4dca42a012c0f18895a6ace814a236cb7ff28f",
+          "checks": ["core.list-filter", "stdlib.query"]
+        },
+        {
+          "anchor": "listCondition#3",
+          "sha256": "ec9ad4f91a3d3fe4a9b425c493b22d78808baa93fc9afab501941b07d9974ed6",
+          "checks": ["core.list-filter", "stdlib.query"]
+        },
+        {
+          "anchor": "ChangeEvent#1",
+          "sha256": "f1c780b9b919bb7c50ea36b11bc133ef7289de31c8ec7a606c5ff96c26a5f532",
+          "checks": ["core.read-only", "core.safe-reads"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "ChangeEvent#2",
+          "sha256": "1f6d69d08d6fc6a5b527c0a1bbf748e6594ff087f90aec763ce5a3d8e41a8177",
+          "checks": ["core.read-only", "core.safe-reads"]
+        },
+        {
+          "anchor": "Capabilities#1",
+          "sha256": "4824c6813853e4f0d92f5eb513642988357485baabc29c9587970ebb5e9a15c6",
+          "checks": ["core.discovery", "core.unoffered"]
+        },
+        {
+          "anchor": "RevisionModel#1",
+          "sha256": "a0d615e212396e0004cd95ceb4a3663714bd7ad6e496f6011d7d2ffefc56614d",
+          "checks": ["core.discovery", "core.point-read", "core.feed"]
+        }
+      ]
+    },
+    "specs/src/packs/stdlib/stdlib.lumen": {
+      "sha256": "74ebc3d151aa683a3120c4bd5e5e7466fdeed3ec390b1f23563636bd8498fa40",
+      "points": [
+        {
+          "anchor": "#1",
+          "sha256": "62f72ede6e1f8bea5c1c7e746f09b60378541ed610eb018df8adc5a2203a684c",
+          "appliesWhen": "stdlib:annotation",
+          "checks": ["coverage.unsupported-stdlib-annotation"]
+        },
+        {
+          "anchor": "#2",
+          "sha256": "d85f64e42ee1f6846c4a6760976e122478785ff3c097775950ec19266f4abb5b",
+          "appliesWhen": "stdlib:annotation",
+          "checks": ["coverage.unsupported-stdlib-annotation"]
+        },
+        {
+          "anchor": "#3",
+          "sha256": "6ddfbd7e597365d97df5592fa7906530a6d530e94ddedf049c8c8b1cc9586cef",
+          "appliesWhen": "stdlib:comment",
+          "checks": ["coverage.unsupported-stdlib-comment"]
+        },
+        {
+          "anchor": "#4",
+          "sha256": "fcc86f2b513559240b4b9792c708b9bb63adf5ace9c20e31eaf537ffea3f0e9e",
+          "appliesWhen": "stdlib:label",
+          "checks": ["coverage.unsupported-stdlib-label"]
+        },
+        {
+          "anchor": "#5",
+          "sha256": "5889157260bccd66df93c4d4d19e8fcdb80b4dff18a7d64e06cfff9c9f58eef0",
+          "appliesWhen": "stdlib:label",
+          "checks": ["coverage.unsupported-stdlib-label"]
+        },
+        {
+          "anchor": "#6",
+          "sha256": "4256b97aea46062df1920c6836c80bd55242abf6edb5e227c9274b457333a4dd",
+          "appliesWhen": "stdlib:query",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "#7",
+          "sha256": "de5d2532c94216395195567e12fefd8fc3ac192d1b7ecfb8e7f7b5781aaf18d2",
+          "appliesWhen": "stdlib:query",
+          "checks": ["stdlib.query", "stdlib.query-rejections"]
+        },
+        {
+          "anchor": "#8",
+          "sha256": "2e853a20a63924816ddb3848460ec58a9f87252bbf339254e23c889f9a8fa6cb",
+          "appliesWhen": "stdlib:search",
+          "checks": ["coverage.unsupported-stdlib-search"]
+        },
+        {
+          "anchor": "#9",
+          "sha256": "ae9c4d5c2449715ccbe39d7692ac03f1df2491886f5a053b7bc0f9ff5eb07473",
+          "appliesWhen": "stdlib:search",
+          "checks": ["coverage.unsupported-stdlib-search"]
+        },
+        {
+          "anchor": "#10",
+          "sha256": "56c255e97b1c0095db6e0cbfdb016fd0d012c748d01c84602ab470c0651ccbef",
+          "appliesWhen": "stdlib:graph",
+          "checks": ["coverage.unsupported-stdlib-graph"]
+        },
+        {
+          "anchor": "#11",
+          "sha256": "0926234dd361b56aaa4f840dfe8a74acd8817f0d47893338e7c310f48bd664bb",
+          "appliesWhen": "stdlib:batch",
+          "checks": ["coverage.unsupported-stdlib-batch"]
+        },
+        {
+          "anchor": "#12",
+          "sha256": "0e5a5ddd73183e5978731e44bf663e3cd651f8989fa4e01158bd48577ee94399",
+          "appliesWhen": "stdlib:batch",
+          "checks": ["coverage.unsupported-stdlib-batch"]
+        },
+        {
+          "anchor": "#13",
+          "sha256": "77f9e1627eca457ff6a981c7e5e72401c7b2a9e6fe354c6a925f311177dfb667",
+          "appliesWhen": "stdlib:batch",
+          "checks": ["coverage.unsupported-stdlib-batch"]
+        },
+        {
+          "anchor": "#14",
+          "sha256": "219f86f7f6ec3c27c744e1b846c70f7ce4c890ed8baefc7fa55f754780558d75",
+          "appliesWhen": "stdlib:count",
+          "checks": ["stdlib.count"]
+        },
+        {
+          "anchor": "#15",
+          "sha256": "60b9441f459a395e3ad29d19892fb1f8c866341853180693e42893067ec7d5b6",
+          "appliesWhen": "stdlib:kv",
+          "checks": ["coverage.unsupported-stdlib-kv"]
+        },
+        {
+          "anchor": "#16",
+          "sha256": "82e970d6b2a682f43e42bfe618e09977b25ca27a0651352e93268b30b4dc0f85",
+          "appliesWhen": "stdlib:stale",
+          "checks": ["coverage.unsupported-stdlib-stale"]
+        },
+        {
+          "anchor": "#17",
+          "sha256": "ce5fbf2ea301bc2d12e30bb9615f9497a9c9c2172452891385d2e0ea0b50b36f",
+          "appliesWhen": "stdlib:duplicates",
+          "checks": ["coverage.unsupported-stdlib-duplicates"]
+        },
+        {
+          "anchor": "#18",
+          "sha256": "3316ab7141dcfdf27ab1ab92c6f573d0a0f5cbc6736a6e1d52b8386399a421d2",
+          "appliesWhen": "stdlib:similar",
+          "checks": ["coverage.unsupported-stdlib-similar"]
+        },
+        {
+          "anchor": "#19",
+          "sha256": "a02665591a820600d5fe2fab243656760e3d7a2680953346193906ed74905e4f",
+          "appliesWhen": "stdlib:lint",
+          "checks": ["coverage.unsupported-stdlib-lint"]
+        }
+      ]
+    }
+  },
+  "appendixE": [
+    {
+      "number": 1,
+      "statement": "A stable identity per resource \u2014 never reused, never changed; opaque local part.",
+      "checks": ["core.inventory", "core.stability"]
+    },
+    {
+      "number": 2,
+      "statement": "A type per resource \u2014 the (authority, type) pair, frozen at inception.",
+      "checks": ["core.representations", "core.stability"]
+    },
+    {
+      "number": 3,
+      "statement": "A body and metadata it stores and does NOT interpret.",
+      "checks": ["core.point-read", "core.stability"]
+    },
+    {
+      "number": 4,
+      "statement": "A storage class per resource \u2014 Durable | Ephemeral | Intrinsic; whether",
+      "checks": ["core.representations", "core.restart"]
+    },
+    {
+      "number": 5,
+      "statement": "A revision per resource that changes exactly when its state changes.",
+      "checks": ["core.point-read", "core.stability"]
+    },
+    {
+      "number": 6,
+      "statement": "History where offered \u2014 prior revisions addressable; offered or not, discoverable.",
+      "checks": ["core.discovery", "core.history"]
+    },
+    {
+      "number": 7,
+      "statement": "A transaction marker shared by everything committed together.",
+      "checks": ["core.read-only"],
+      "appliesWhen": "unoffered-write"
+    },
+    {
+      "number": 8,
+      "statement": "A cause minted once per incoming request, stamped on every effect it sets off.",
+      "checks": ["core.context", "stdlib.query"]
+    },
+    {
+      "number": 9,
+      "statement": "A durable change record per resource per commit \u2014 none for a failed or no-change request.",
+      "checks": ["core.read-only"],
+      "appliesWhen": "unoffered-write"
+    },
+    {
+      "number": 10,
+      "statement": "Provenance saved with the change, immutable, never invented.",
+      "checks": ["core.representations", "core.read-only"]
+    },
+    {
+      "number": 11,
+      "statement": "A changefeed at /sys/changes carrying every commit (replication included).",
+      "checks": ["core.feed", "core.safe-reads"]
+    },
+    {
+      "number": 12,
+      "statement": "An export consistent with itself, with the cursor that matches it.",
+      "checks": ["core.export"]
+    },
+    {
+      "number": 13,
+      "statement": "An authorization view \u2014 a hidden resource reads exactly as a missing one.",
+      "checks": ["core.absence"]
+    },
+    {
+      "number": 14,
+      "statement": "Deletion that does not erase \u2014 the id stays accounted for, the tombstone is kept.",
+      "checks": ["core.read-only"],
+      "appliesWhen": "unoffered-write"
+    }
+  ]
+}

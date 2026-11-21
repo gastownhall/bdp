@@ -1,3 +1,14 @@
+# Current provider kit: version selection
+
+For Core v0.2 read-only providers use the [v0.2 qualification profile](v02-read-only-provider-kit.md):
+
+```sh
+node scripts/current-provider-kit.mjs --spec v0.2 --profile read-only --scope https://provider.example/ --allow-refusal-probes
+```
+
+The remainder of this document describes the retained **v0.1** slice, selected
+when `--spec` is absent. Its incomplete-qualification policy has not been changed.
+
 # Current Core / ordinary Write provider kit
 
 This is a repository-contained, public-HTTP **vertical slice**, not complete
