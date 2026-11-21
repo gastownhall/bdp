@@ -1277,7 +1277,7 @@ Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their 
 ```
 Shape — the capabilities document is { scope, base, repModel, capabilities (the
 primitives + call), operations (bare call-by-path strings, back-compat), packs[] }.
-Each pack is { name, types[], operations[] }:
+Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   type = { type (kind-path), bead, abstract, extends?, summary?, properties[
            { name, type, required, cli?{ alias, positional, default, edge } } ] }
   op   = { path (call-by-path), kind ("command" | "fn"), summary?, parameters[
@@ -1293,7 +1293,23 @@ instantiable: `create` defaults to the configured concrete type (`cli.defaultTyp
 e.g. `issue` → `issue/task`), else it lists the concrete subtypes.
 ```
 
-Command placement — a pack sets `cli.mount` (where its commands attach to the aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd issue …`; default the pack name), and an operation sets `cli.name` (its command name, overriding the path-derived default; may contain spaces to nest, e.g. `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`) always works. The same document MAY be checked in STATICALLY (identical shape): a client bootstraps — or build-time codegens typed, statically-checked commands — from the static catalog when it cannot discover from a live endpoint. `--help` is rendered from the catalog (summaries, parameters, defaults, error sets).
+Command placement — a pack sets `cli.mount` (where its commands attach to the aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd issue …`; default the pack name), and an operation sets `cli.name` (its command name, overriding the path-derived default; may contain spaces to nest, e.g. `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`) always works. `--help` is rendered from the catalog (summaries, parameters, defaults, error sets).
+
+```
+Static catalog — the pack overlay MAY be checked in and rendered offline. Its
+canonical form is the `packs` member VERBATIM: `{ packs: [ … ] }` (well-known
+`catalog.json`), byte-identical to `/sys/capabilities`.`packs`, so a client slices
+`.packs` off a live doc to produce one and renders typed commands from either
+source by the same path. ONLY the pack overlay is static — it is the versioned,
+deployment-independent part (type defs + op signatures + cli hints), and each pack
+MAY carry its `version` (SemVer) so a checked-in catalog pins exact pack versions
+for reproducible build-time codegen. The scope-level fields (scope / base /
+repModel / capabilities) are per-deployment RUNTIME facts a live endpoint supplies
+and are NOT part of the static catalog: rendering offline, a client assumes the
+full primitive floor, and a live `capabilities` later narrows which generic verbs
+apply. From this the CLI bootstraps — or build-time codegens typed, statically-
+checked commands — when it cannot reach a live endpoint.
+```
 
 Error model: a data primitive returns its success value and faults with a Problem. Writes return a pinned ref; reads a rep; `delete` a tombstone Rev. (Ruling §0.8.)
 
