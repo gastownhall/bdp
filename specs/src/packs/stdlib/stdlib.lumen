@@ -256,3 +256,68 @@ command batch(items: [ BatchItem ], atomic?: bool = false) -> [ BatchResult ]
 /// description: The number of current resources in `scope` matching `where` — the aggregate reduction of `query`/`list`, computed service-side (no bodies returned). The op issue.lumen §2.A's `count` verb lowers to. (`stdlib/count`; `cli.name: "count"` → `bd count`.)
 /// normative: Read-or-fault — no domain `E`. `where` is the full `QueryExpr`; a service offering only base `list` MAY accept a flat `Filter` (a degenerate `all` of `cond`s) and fault `query-capability-unsupported` on richer predicates.
 fn count(scope: Scope, where?: QueryExpr) -> integer
+
+
+// #############################################################################
+// §3. Surface-coverage ops — the v0 HTTP data commands beyond core + issue
+// #############################################################################
+// Named entry points for the generic, portable DATA/analysis commands the native
+// `bd serve` surface exposes beyond core + issue, drafted from a per-handler read.
+// (Admin/ops commands — compact/gc/purge/config/… — go to ops.lumen. TWO native
+// commands are deliberately NOT here: `orphans` cross-references open issues against
+// GIT COMMIT messages — a product VCS-integration feature, backend/git-coupled, not a
+// portable op; and `prime` is an agent-memory feature.) Several of these GENERALISE an
+// issue-flavoured native command — the generic form is parameterised and the type/pack
+// supplies the specifics; each is flagged for the review's placement call.
+//
+// >Review: `Duration` is used here and in ops.lumen but currently lives in issue.lumen
+//   — it should move to CORE so the lower packs can use it without an upward dependency.
+
+// -----------------------------------------------------------------------------
+// §3.1  kv — a general key-value side-store (a RESOURCE type, no new primitives)
+// -----------------------------------------------------------------------------
+
+/// description: A general-purpose scoped key-value entry — arbitrary string data under a dotted key, outside the domain model (native `bd kv`). Modelled as a RESOURCE: `get`/`put`/`list`/`delete` are the generic primitives, and the CLI sugars `kv get/set/list/clear` (cli.name-mounted) onto them — so no new ops are needed. Distinct from ops `config` (operational settings): kv is user DATA, and the two MUST NOT share keys.
+/// normative: The `id` is the key; `value` is opaque text. Reserved key namespaces (`memory.*`, `sync.*`, `config.*`, …) are refused. A `KvEntry` is an ordinary resource (own revision + provenance), not ephemeral unless stored so.
+type KvEntry is Bead {
+  value: string,
+}
+
+// -----------------------------------------------------------------------------
+// §3.2  stale — a named time-predicate query
+// -----------------------------------------------------------------------------
+
+/// description: Resources not updated within `olderThan` — the "possibly abandoned" view (native `bd stale`). A NAMED entry point over `query`: it composes the `updatedAt`-age predicate so callers need not hand-roll it. Generic over any resource carrying an `updatedAt`. (`stdlib/stale`; `cli.name: "stale"`.)
+/// normative: Read-or-fault. The generic predicate is `updatedAt` age ONLY; a pack MAY refine it (issue additionally excludes actively-leased/claimed work and filters by status) in its own `stale`-flavoured op — those refinements do not live here. `where?` pre-filters, `limit?` caps.
+fn stale(olderThan: Duration, where?: QueryExpr, limit?: integer) -> source<Resource>
+
+// -----------------------------------------------------------------------------
+// §3.3  duplicates / similar — DETECTION only (never merge)
+// -----------------------------------------------------------------------------
+// Detection only — the resolve/merge action (re-parenting edges, closing sources) is
+// domain-specific and stays in the owning pack (issue). stdlib FINDS; the pack FIXES.
+
+/// description: Exact-content duplicate GROUPS — resources whose content (a declared `fields` set) is identical, grouped (native `bd duplicates`, detection half). `fields` names the `FieldPath` set that defines "content"; a type MAY declare a default content-key as metadata. (`stdlib/duplicates`; `cli.name: "duplicates"`.)
+/// normative: Read-only. Groups resources sharing an identical tuple over `fields` (a group has ≥2 members). Does NOT merge — merging is a pack op. `fields` is required unless the scoped type declares a content-key.
+fn duplicates(type: PathString, fields?: [ FieldPath ], where?: QueryExpr) -> [ DuplicateGroup ]
+
+/// description: A set of resources sharing identical content.
+type DuplicateGroup = { members: [ ref<resource> ], contentKey?: string }
+
+/// description: Similar (not identical) resource PAIRS, ranked — the fuzzy counterpart to `duplicates` (native `bd find-duplicates`). `mode` picks the scorer, `threshold` the floor. Capability-gated like `search`. (`stdlib/similar`; `cli.name: "similar"`.)
+/// normative: Read-only. `mode` ∈ the service's advertised `similarityModes` (`lexical` the floor; `semantic` where offered — an unoffered mode faults `similarity-mode-unsupported`). Scores order ONE response only. A `semantic` mode MAY call an external model; a service that will not simply omits the mode.
+fn similar(type: PathString, mode?: string = "lexical", threshold?: number, fields?: [ FieldPath ], where?: QueryExpr, limit?: integer) -> [ SimilarPair ]
+
+/// description: One scored pair of similar resources.
+type SimilarPair = { a: ref<resource>, b: ref<resource>, score: number, reason?: string }
+
+// -----------------------------------------------------------------------------
+// §3.4  lint — validate resources against their type's declared requirements
+// -----------------------------------------------------------------------------
+
+/// description: Validate resources against their TYPE's declared requirements and report what is missing/ill-formed — never auto-fixing (native `bd lint`, which only reports). The requirements are TYPE-declared metadata (e.g. an issue subtype's required template sections); `lint` is the generic checker that reads them. (`stdlib/lint`; `cli.name: "lint"`.)
+/// normative: Read-only — reports, never mutates; a clean resource yields no findings. The rule source is type-declared metadata (a pack ships its rules on its types) — stdlib supplies the ENGINE, not the rules. `where?` scopes the set.
+fn lint(where?: QueryExpr, limit?: integer) -> [ LintResult ]
+
+/// description: One resource's lint findings — the resource and its list of issues (missing sections, warnings).
+type LintResult = { resource: ref<resource>, findings: [ string ] }

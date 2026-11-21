@@ -1290,7 +1290,7 @@ type ExportEnd = {
   /// description: The discriminator that marks the closing line.
   kind:  "export-end",
   /// description: The number of resource records — lets a reader detect a truncated file.
-  count: number
+  count: integer
 }
 
 ## export

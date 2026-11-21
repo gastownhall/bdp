@@ -1853,14 +1853,14 @@ The closing line — a count of the Resource records, so a truncated file (one e
 ```lumen
 type ExportEnd = {
   kind:  "export-end",
-  count: number
+  count: integer
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `kind` | `"export-end"` | The discriminator that marks the closing line. |
-| `count` | `number` | The number of resource records — lets a reader detect a truncated file. |
+| `count` | `integer` | The number of resource records — lets a reader detect a truncated file. |
 
 <a id="export"></a>
 
