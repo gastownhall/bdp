@@ -150,11 +150,20 @@ native domain flags (via the pack) PLUS the canonical universals — `--output-m
 filter/selector flags, the write-guard set — layered uniformly (§2). (This requires an
 issue.lumen ↔ `bd` flag diff to align the hints; tracked for the review.)
 
-**`create`.** Each body property is a flag named for it (`--priority`, short alias where the
-hint gives one; positionals where `cli.positional` is set). `--kind <leaf>` picks the concrete
-subtype; `--metadata <json>` sets the open metadata record. The concrete type is required —
-there is no pack-shipped default (a scope `defaultType` or `$BDP_DEFAULT_TYPE` may supply one;
-a pack MUST NOT).
+**`create`.** Each body property is a flag whose long name is the property's own name, which a
+`cli.flag` hint may override (presentational only — e.g. `estimatedMinutes` renders `--estimate`;
+the property is NOT renamed); a short alias is added where `cli.alias` gives one, and positionals
+where `cli.positional` is set. `--type <type>` picks the concrete type (resolved by last segment —
+see **Type-name resolution** below); `--metadata <json>` sets the open metadata record. The
+concrete type is required — there is no pack-shipped default (a scope `defaultType` or
+`$BDP_DEFAULT_TYPE` may supply one; a pack MUST NOT).
+
+**Type-name resolution (normative).** `--type` and every type-name argument accept a **leaf
+(last-segment) name**: the CLI matches the final `/`-segment of each known type's path. An
+unambiguous match resolves; an **ambiguous** leaf (two installed types share it) is **refused** —
+the error lists the candidates and the user re-runs with a longer, qualified path. There is **no
+`--kind` flag and no `kind` argument** for top-level constructs; the subtype selector is `--type`
+only.
 
 **Write modifiers — the canonical 5 + 5.** `create` and `update` share ONE modifier set over
 the two open sub-trees, `/body` (properties) and `/metadata` — five operations each, all
@@ -187,7 +196,7 @@ freely across them); a raw `--patch` is exclusive with all of the above.
 
 **create vs update.** On `create` (no prior state) only the **initializers** apply —
 `--properties` / `--set-property` / typed `--<prop>` (+ the `/metadata` mirror), plus
-`--kind`/`--type` and the edge sugar. The **mutators** (`--replace-*` / `--unset-*` /
+`--type` and the edge sugar. The **mutators** (`--replace-*` / `--unset-*` /
 `--patch-*`, and raw `--patch`) presume existing state and are `update`-only.
 
 **Guards.** `--if-revision <rev>` (If-Match — whole-resource OCC) is accepted on `update` AND
@@ -223,6 +232,8 @@ json` always returns the plain underlying rep.
   HardBlocking → Blocks/…). A `type list` that omits the dependency types is a lie; discovery
   must emit them.
 - `bdp type show <type>` — `show` of one `TypeDef`: properties, `extends`, `abstract`, edges.
+  `<type>` resolves by last segment (§6 Type-name resolution); an ambiguous leaf is refused with
+  the candidate list.
 - `bdp pack list` — `list` over the `PackageDef` resources (name, version, mount).
 - `bdp pack show <pack>` — `show` of one `PackageDef`: its types + operations.
 - `bdp pack install <ref>` / `uninstall <pack>` — **deferred** (a real mutating lifecycle

@@ -58,6 +58,7 @@ type Issue is Bead {
   // -- optional work fields --
   /// cli.alias: -d
   description?:        text,
+  /// cli.flag: --acceptance
   acceptanceCriteria?: text,
   design?:             text,
   notes?:              text,
@@ -66,8 +67,11 @@ type Issue is Bead {
   /// cli.alias: -a
   assignee?:           string { maxLength: 255 },
   /// cli.alias: -e
+  /// cli.flag: --estimate
   estimatedMinutes?:   integer { min: 0 },
+  /// cli.flag: --spec-id
   specId?:             text,
+  /// cli.flag: --external-ref
   externalRef?:        string,
   // native federation origin — the adapter/system a cross-system import came through
   sourceSystem?:       text,
@@ -77,7 +81,9 @@ type Issue is Bead {
   closedAt?:    Timestamp,
   closeReason?: text,
   // hide from ready work until this time
+  /// cli.flag: --defer
   deferUntil?:  Timestamp,
+  /// cli.flag: --due
   dueAt?:       Timestamp,
 
   // a persistent context marker, not a work item

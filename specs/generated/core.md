@@ -1312,10 +1312,10 @@ capabilities (the primitives + call), packs[] }. (No top-level `operations` list
 `packs[].operations` is authoritative; the flat bare-path back-compat list is dropped.)
 `defaultType` is the scope's deployment default concrete
 type for a bare `create` (a per-scope RUNTIME fact, NOT a pack hint); absent ⇒ a bare
-create with no --type/--kind faults, listing the creatable types.
+create with no --type faults, listing the creatable types.
 Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   type = { type (kind-path), bead, abstract, extends?, summary?, properties[
-           { name, type, required, computed?, cli?{ alias, positional, default } } ],
+           { name, type, required, computed?, cli?{ alias, flag, positional, default } } ],
            (`computed: true` marks a derived read-only property, so a client can omit
             EMPTY computed collections by default without guessing — §5 shaping)
            edgeFlags[ { flag, summary?, op, self, other, args? } ] (type-level cli.edge,
@@ -1324,17 +1324,19 @@ Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   op   = { path (call-by-path), kind ("command" | "fn"), summary?, parameters[
            { name, type, required, cli?{ … } } ], errors[] (the Result E set), returns }
 `cli.alias` is the bare short letter ("s" → the CLI renders -s); `cli.positional` is
-a 0-based slot; `cli.default` is a JSON value. An op `path` splits on "/" into nested
+a 0-based slot; `cli.default` is a JSON value; `cli.flag` overrides the long flag name
+(presentational only — e.g. `estimatedMinutes` renders `--estimate`; the property name
+is unchanged). An op `path` splits on "/" into nested
 subcommands (`issue/dep/add` → `bdp issue dep add`). The generic CRUD verbs
 (create/show/list/update/delete/get) are the UNIVERSAL primitives the CLI knows
 intrinsically — it parameterises `create <type>` from the type's properties + cli
 hints; the catalog's `operations` are the pack callables, rendered as typed verbs
 (not duplicated per-type). An abstract type (e.g. `issue`) is not directly
-instantiable: with no explicit `--type`/`--kind`, `create` takes the scope's
+instantiable: with no explicit `--type`, `create` takes the scope's
 advertised `defaultType` (the deployment default; a client `$BDP_DEFAULT_TYPE` may
 override), else it lists the subtypes. A pack MUST NOT declare a default type — there
 is no `cli.defaultType` catalog hint; the default is a scope/client fact ONLY, and the
-feature is discouraged (prefer an explicit `--type`/`--kind`).
+feature is discouraged (prefer an explicit `--type`).
 ```
 
 Command placement — a pack sets `cli.mount` (where its commands attach to the aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd issue …`; default the pack name), and an operation sets `cli.name` (its command name, overriding the path-derived default; may contain spaces to nest, e.g. `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`) always works. `cli.mount` is the SINGLE placement choice — "/" renders the pack's commands flat with NO namespaced form, a prefix renders them only under that prefix; a pack does not get both. The call-by-path (`bdp call issue/ready`) is the invariant long form — for scripting, and for disambiguating a `cli.name` collision between two "/"-mounted packs. `--help` is rendered from the catalog (summaries, parameters, defaults, error sets).
