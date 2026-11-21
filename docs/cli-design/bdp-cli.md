@@ -2202,10 +2202,13 @@ bd alias resolve NAME [--scope SCOPE]
 
 ##### Behavior
 
-Resolve a relative name against the Scope itself, without automatically adding
-the advertised alias base. Its complete URL must lie in the advertised alias
-namespace. Expect one alias redirect to a canonical in-Scope Bead URL. Do not
-follow that redirect to retrieve the Bead body.
+Join a bare relative NAME under the **advertised alias base** (discovery's alias
+namespace, conventionally `aliases/` — plural): the resolved URL is
+`<scope>/<alias-base>/<NAME>`, and it must lie in the advertised alias namespace. Use
+the advertised base — never the bare Scope root, and never a hardcoded segment (the
+client reads the base from discovery; `bd alias put`/`delete` join the same way). Expect
+one alias redirect to a canonical in-Scope Bead URL. Do not follow that redirect to
+retrieve the Bead body.
 
 A normal Resource 200 is `not_an_alias`, not a successful alias binding or a
 fabricated BDP 404. No revision, target body, paging or field-mask operation is

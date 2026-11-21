@@ -504,6 +504,10 @@ element path, which is `type.id`, which is `kind`:
   type Issue is Bead  { … }   → "issue"
   type Task  is Issue { … }   → "issue/task"
 Only one `is` parent is allowed — that is what makes the path (a tree) unique.
+A kind / type-path PREFIX test is SEGMENT-bounded: a prefix matches only at a `/`
+boundary (or the whole path), so `issue` matches `issue` and `issue/task` but NOT
+`issuecomment`. Naive string-prefix matching false-matches siblings — a real bug,
+and it governs every capability query (`dependency/ready-affecting/*`) and `is-a` test.
 ```
 
 - additive: a child has all parent fields plus its own
