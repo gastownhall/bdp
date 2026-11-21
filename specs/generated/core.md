@@ -508,6 +508,10 @@ A kind / type-path PREFIX test is SEGMENT-bounded: a prefix matches only at a `/
 boundary (or the whole path), so `issue` matches `issue` and `issue/task` but NOT
 `issuecomment`. Naive string-prefix matching false-matches siblings — a real bug,
 and it governs every capability query (`dependency/ready-affecting/*`) and `is-a` test.
+A segment is the type NAME kebab-cased (PascalCase/camelCase → kebab): `Issue` → "issue",
+`IssueComment` → "issue-comment", `HardBlocking` → "hard-blocking", `ReadyAffecting` →
+"ready-affecting" — matching the dependency types and the cli-flag convention; NOT
+lowercase-run-together ("issuecomment" is wrong).
 ```
 
 - additive: a child has all parent fields plus its own
@@ -1372,6 +1376,8 @@ Resolved: `type` / `authority` are mutated by patching `/type` / `/authority` at
 ### `delete`
 
 Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the tombstone Rev, not a representation.
+
+> **Normative.** Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ "rev": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.
 
 > **Normative.** Delete is not erasure — a deleted resource's id stays accounted for, its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`), and the id is never reused. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
 

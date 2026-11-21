@@ -48,7 +48,8 @@ type Issue is Bead {
   title:    string { minLength: 1 },
   // a built-in or provider-configured value
   /// cli.alias: -s
-  status:   string { minLength: 1 },
+  /// cli.default: open
+  status:   string { minLength: 1 },             // free, provider-configured; canonical open/closed is `closedAt` (§lifecycle), not this label
   // 0 = P0; never absent
   /// cli.alias: -p
   /// cli.default: 2

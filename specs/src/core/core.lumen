@@ -396,6 +396,10 @@ type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 // boundary (or the whole path), so `issue` matches `issue` and `issue/task` but NOT
 // `issuecomment`. Naive string-prefix matching false-matches siblings — a real bug,
 // and it governs every capability query (`dependency/ready-affecting/*`) and `is-a` test.
+// A segment is the type NAME kebab-cased (PascalCase/camelCase → kebab): `Issue` → "issue",
+// `IssueComment` → "issue-comment", `HardBlocking` → "hard-blocking", `ReadyAffecting` →
+// "ready-affecting" — matching the dependency types and the cli-flag convention; NOT
+// lowercase-run-together ("issuecomment" is wrong).
 //
 // inheritance (how a chain flattens to one effective schema):
 //   - additive: a child has all parent fields plus its own
@@ -963,6 +967,7 @@ command patch(
 ## delete
 /// bdp = { kind = "primitive", primitive = "delete" }
 /// description: Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the tombstone Rev, not a representation.
+/// normative: Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ "rev": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.
 /// normative: Delete is not erasure — a deleted resource's id stays accounted for, its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`), and the id is never reused. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
 /// normative: Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
