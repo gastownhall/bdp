@@ -140,17 +140,14 @@ substitutes for ordinary flags.
 | connect [URL] [--clear] | Store the default Scope after reading its discovery, show the Scope in use and its source, or forget it; [`bd connect`](#bd-connect) |
 | scope inspect [SCOPE] | GET discovered machine description; [profiles](retained-profiles.md) |
 | show REF | One current or exact Resource; [reads](reads-and-paging.md) |
-| link show REF | Same read with actual Link assertion |
 | list [SCOPE] [FILTERS] | Bead inventory, no domain/Type default |
-| link list [ID1 [ID2]] [LINK-FILTERS] | Current Link inventory/incidence/pair, selected Scope explicit/default |
-| events [RESOURCE]; link events RESOURCE | Optional advertised Events; required postimages within that contract, optional delta; [Events](events.md) |
-| versions REF; link versions REF | Optional complete History versions page, below |
+| events [RESOURCE] | Optional advertised Events; required postimages within that contract, optional delta; [Events](events.md) |
+| versions REF | Optional complete History versions page, below |
 | create [SCOPE] --type REF [--id ID] [INITIAL-OBJECTS] | createBead singleton; product allocation adapter may admit --id-root |
-| link create SOURCE TARGET --type REF [--id ID] [INITIAL-OBJECTS] | createLink; SOURCE --to TARGET or --from SOURCE --to TARGET also admitted |
 | update REF [--type REF] [OBJECT-EDITS] [--from-revision REV] [--if-revision TOKEN] | updateBead; source-only historical Update requires its selected extension |
-| link update REF [--type REF] [--from REF] [--to REF] [OBJECT-EDITS] [--if-revision TOKEN] | updateLink; whole endpoint corrections preserve Link identity |
 | delete REF --force [--if-revision TOKEN] | deleteBead apply; [proposed deletion-mode flags](#proposed-deletion-mode-flags) select delete-modes1 |
-| link delete REF --force [--if-revision TOKEN] | deleteLink apply |
+
+(No `link` command tree in v0.2.3 — a relationship is an ordinary resource addressed by the generic verbs: `create <RelType> --from … --to …`, `show`/`list`/`delete` on its ref. See §"The type-driven write surface".)
 | alias resolve NAME | One-step alias Location, never target body |
 | alias put NAME --target REF | putAlias, canonical in-Scope unpinned Bead target |
 | alias delete NAME --force | deleteAlias, explicit apply intent |
@@ -1586,8 +1583,11 @@ and the result lists them. This command has no flag yet for the deletion's wire
 A preview returns the ordinary `resource` descriptor with
 `context.preview:"delete"`. Apply returns the complete native deletion
 `mutationResult`, with the deleted identity and any applicable native context,
-without a new Resource body. Emission prints an unexecuted delete member;
-canonical command rendering retains `--force`.
+without a new Resource body. In `default` (human) mode an applied delete renders a
+short acknowledgement — the deleted id and the tombstone revision, e.g.
+`Deleted bd-42 (rev <tombstone>)` — with `json` / `jsonl` carrying the full
+`mutationResult`; a preview stays the human record. Emission prints an unexecuted
+delete member; canonical command rendering retains `--force`.
 
 
 ##### Errors and exit status
