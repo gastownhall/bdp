@@ -448,10 +448,32 @@ bdp create task "Fix login" --blocks bd-42
 ```
 
 creates the task **and** a `Blocks` resource (source = the new task, target = `bd-42`)
-atomically — the one-command form of the two-step `create task …` then
-`create Blocks --from … --to bd-42`. On `Issue`, `cli.edge` declares `--blocks`,
-`--blocked-by` and `--deps TYPE:ID`; `self` is the resource being created, and the
-flag's value is the other endpoint.
+— the one-command form of `create task …` then `dep add`. On `Issue`, `cli.edge`
+declares `--blocks`, `--blocked-by` and `--deps TYPE:ID`.
+
+**Discovery entry.** Each `cli.edge` lowers to one `edges[]` entry on the type in
+discovery, generic enough that the CLI needs no pack knowledge:
+
+| field | meaning |
+|---|---|
+| `flag` | the flag spelling (`"blocks"` → `--blocks`); the flag is **repeatable** |
+| `summary?` | help text |
+| `op` | the operation path invoked per value (`"issue/dep/add"`) |
+| `self` | the op parameter that receives the **newly-created** resource's id (`"source"`) |
+| `other` | the op parameter that receives the **flag's value** (`"target"`) |
+| `args?` | fixed extra arguments to the op (`{ "type": "Blocks" }`) |
+
+So `--blocks` has `self: "source"`, `other: "target"` (the new resource blocks the
+value); `--blocked-by` swaps them (`self: "target"`, `other: "source"`) — Camp B, read
+straight off the entry. After the `create` settles, the CLI invokes `op` once per flag
+value with `self`←the new id, `other`←the value, plus `args`, and returns
+`{ created, edges: [ <per-edge Outcome> ] }` — the plain ref when no edge flag is used.
+
+**Atomicity.** Where the scope advertises `batch`, `create --blocks` lowers to ONE
+atomic `batch` (`[create, edge-ops]`, `atomic: true`) — all-or-nothing. Otherwise it is
+best-effort: the `create` commits first, then each edge op runs and is reported in
+`edges[]`; a failing edge (e.g. `would-cycle`) leaves the created resource in place,
+its failure visible in its `Outcome`.
 
 ### The designated-operation trapdoor
 

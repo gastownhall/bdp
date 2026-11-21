@@ -1279,7 +1279,9 @@ Shape — the capabilities document is { scope, base, repModel, capabilities (th
 primitives + call), operations (bare call-by-path strings, back-compat), packs[] }.
 Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   type = { type (kind-path), bead, abstract, extends?, summary?, properties[
-           { name, type, required, cli?{ alias, positional, default, edge } } ] }
+           { name, type, required, cli?{ alias, positional, default } } ],
+           edges[ { flag, summary?, op, self, other, args? } ] (type-level cli.edge,
+           lowered — one `create` flag that also invokes an edge op; see bdp-cli.md) }
   op   = { path (call-by-path), kind ("command" | "fn"), summary?, parameters[
            { name, type, required, cli?{ … } } ], errors[] (the Result E set), returns }
 `cli.alias` is the bare short letter ("s" → the CLI renders -s); `cli.positional` is
@@ -1293,7 +1295,7 @@ instantiable: `create` defaults to the configured concrete type (`cli.defaultTyp
 e.g. `issue` → `issue/task`), else it lists the concrete subtypes.
 ```
 
-Command placement — a pack sets `cli.mount` (where its commands attach to the aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd issue …`; default the pack name), and an operation sets `cli.name` (its command name, overriding the path-derived default; may contain spaces to nest, e.g. `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`) always works. `--help` is rendered from the catalog (summaries, parameters, defaults, error sets).
+Command placement — a pack sets `cli.mount` (where its commands attach to the aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd issue …`; default the pack name), and an operation sets `cli.name` (its command name, overriding the path-derived default; may contain spaces to nest, e.g. `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`) always works. `cli.mount` is the SINGLE placement choice — "/" renders the pack's commands flat with NO namespaced form, a prefix renders them only under that prefix; a pack does not get both. The call-by-path (`bdp call issue/ready`) is the invariant long form — for scripting, and for disambiguating a `cli.name` collision between two "/"-mounted packs. `--help` is rendered from the catalog (summaries, parameters, defaults, error sets).
 
 ```
 Static catalog — the pack overlay MAY be checked in and rendered offline. Its
