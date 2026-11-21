@@ -1569,6 +1569,10 @@ type Filter = [ listCondition ]
 
 One flat field condition. `isType` matches against the type-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
 
+> **Normative.** Field paths are root-addressed `FieldPath` ARRAYS (`["body","status"]`, `["metadata","x"]`, `["type"]`) — the array disambiguates a key that itself contains a dot, and the first segment selects the root member (`body`/`metadata`/`type`/`authority`), consistent with root-addressed `patch`/`selector`. NOT a dotted string.
+
+> **Normative.** Wire encoding — every protocol DU is INTERNALLY-TAGGED with a `kind` discriminator = the arm name in kebab-case (the convention of [Outcome](#Outcome), [ChangeEvent](#ChangeEvent)), NEVER externally-tagged (`{"compare":{…}}`). A condition is `{"kind":"compare","field":["body","status"],"op":"eq","value":…}`; a flat `Filter` is a JSON array of them. list and the stdlib `query` share this one encoding.
+
 ```lumen
 type listCondition = union {
   compare     { field: FieldPath, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value: any }

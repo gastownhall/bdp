@@ -160,6 +160,7 @@ type Label is Annotation {
 // -----------------------------------------------------------------------------
 
 /// description: The full query predicate — the rich form of list's flat [[core.lumen#Filter]]. A tree of boolean combinators over the same leaf conditions, plus edge traversal. `cond` reuses the base `listCondition` verbatim, so every `where: Filter` is a degenerate `all` of `cond`s — floor and capability speak ONE condition language.
+/// normative: Wire encoding — internally-tagged with a `kind` discriminator (the convention of [[core.lumen#Outcome]] / [[core.lumen#listCondition]]): `{"kind":"all","of":[…]}`, `{"kind":"any","of":[…]}`, `{"kind":"not","expr":…}`, `{"kind":"cond","condition":<listCondition>}`, `{"kind":"via","edge":…,"direction":"out"|"in","where"?:…}`. `cond.condition` carries a core `listCondition` VERBATIM (same kind-tagged, root-addressed `FieldPath` array encoding). So a flat `where: Filter` [c₁, c₂] is exactly `{"kind":"all","of":[{"kind":"cond","condition":c₁},{"kind":"cond","condition":c₂}]}` — one condition language across `list` and `query`.
 type QueryExpr = union {
   /// description: Conjunction — every sub-expression must hold (an empty `of` is vacuously true).
   all  { of: [ QueryExpr ] }
