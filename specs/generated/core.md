@@ -1275,8 +1275,11 @@ Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à 
 Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their property declarations + cli hints — cli.alias / cli.positional / cli.default / cli.edge) and the OPERATION signatures (parameters + each op's declared domain-error set), so a client renders the available typed commands from discovery alone, with no out-of-band pack knowledge.
 
 ```
-Shape — the capabilities document is { scope, base, repModel, capabilities (the
-primitives + call), operations (bare call-by-path strings, back-compat), packs[] }.
+Shape — the capabilities document is { scope, base, repModel, defaultType?,
+capabilities (the primitives + call), operations (bare call-by-path strings,
+back-compat), packs[] }. `defaultType` is the scope's deployment default concrete
+type for a bare `create` (a per-scope RUNTIME fact, NOT a pack hint); absent ⇒ a bare
+create with no --type/--kind faults, listing the creatable types.
 Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   type = { type (kind-path), bead, abstract, extends?, summary?, properties[
            { name, type, required, cli?{ alias, positional, default } } ],
@@ -1291,9 +1294,10 @@ subcommands (`issue/dep/add` → `bdp issue dep add`). The generic CRUD verbs
 intrinsically — it parameterises `create <type>` from the type's properties + cli
 hints; the catalog's `operations` are the pack callables, rendered as typed verbs
 (not duplicated per-type). An abstract type (e.g. `issue`) is not directly
-instantiable: with no explicit `--type`/`--kind`, `create` takes the deployment's
-`$BDP_DEFAULT_TYPE`, else (an open relaxation — see bdp-cli.md) a type's
-`cli.defaultType` catalog hint (`issue` → `issue/task`), else it lists the subtypes.
+instantiable: with no explicit `--type`/`--kind`, `create` takes the scope's
+advertised `defaultType` (the deployment default; a client `$BDP_DEFAULT_TYPE` may
+override), else (an open relaxation — see bdp-cli.md) a type's `cli.defaultType`
+catalog hint, else it lists the subtypes.
 ```
 
 Command placement — a pack sets `cli.mount` (where its commands attach to the aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd issue …`; default the pack name), and an operation sets `cli.name` (its command name, overriding the path-derived default; may contain spaces to nest, e.g. `issue/dep/add` → "dep add"). So `issue/ready` with `cli.name:"ready"` under a top-level pack renders `bd ready`, while the call-by-path (`bdp call issue/ready`) always works. `cli.mount` is the SINGLE placement choice — "/" renders the pack's commands flat with NO namespaced form, a prefix renders them only under that prefix; a pack does not get both. The call-by-path (`bdp call issue/ready`) is the invariant long form — for scripting, and for disambiguating a `cli.name` collision between two "/"-mounted packs. `--help` is rendered from the catalog (summaries, parameters, defaults, error sets).
