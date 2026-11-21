@@ -1573,6 +1573,8 @@ One flat field condition. `isType` matches against the type-path (`type.id`): `p
 
 > **Normative.** Wire encoding — every protocol DU is INTERNALLY-TAGGED with a `kind` discriminator = the arm name in kebab-case (the convention of [Outcome](#Outcome), [ChangeEvent](#ChangeEvent)), NEVER externally-tagged (`{"compare":{…}}`). A condition is `{"kind":"compare","field":["body","status"],"op":"eq","value":…}`; a flat `Filter` is a JSON array of them. list and the stdlib `query` share this one encoding.
 
+> **Normative.** v0 `compare` is LEXICAL (string) comparison — a numeric `lt`/`le`/`gt`/`ge` on a value like `priority` orders as text (`"10" < "2"`). Typed comparison by the field's declared type (now that `integer` and `number` are distinguished) is a follow-up, to land consistently across `list` and `query`.
+
 ```lumen
 type listCondition = union {
   compare     { field: FieldPath, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value: any }

@@ -154,6 +154,14 @@ type Label is Annotation {
 // `E`; `batch` (`command`) carries each item's own `Outcome` and needs no
 // top-level `E`. (`Scope` / `Filter` / `listCondition` / `selector` / `ReadRequest`
 // / `Outcome` / `rep` / `source` / `PathString` / `FieldPath` are core types.)
+//
+// Pack fault codes (Problem `code`): `query-capability-unsupported` (a `via` traversal
+// the service does not offer), `search-mode-unsupported` (an unoffered `SearchMode`),
+// `match-mode-unsupported` (an unoffered `matches.using`, e.g. `regex`),
+// `graph-depth-exceeded` (depth past `maxGraphDepth`), `limit-exceeded` (a batch past
+// `maxBatch` — core's existing 422 static-bound code, NOT a new `batch-*` code),
+// `nested-batch-unsupported` (a batch item whose op is `stdlib/batch`),
+// `atomic-unsupported` (an atomic batch before the atomic lowering lands).
 
 // -----------------------------------------------------------------------------
 // §2.1  query — list's rich sibling
@@ -225,11 +233,11 @@ fn graph(roots: [ ref<resource> ], edgeTypes?: [ PathString ], direction?: "out"
 // §2.4  batch — many invocations, one request
 // -----------------------------------------------------------------------------
 
-/// description: One invocation inside a `batch` — the op to run (a primitive name like `create`/`patch`/`delete`, or an operation path like `issue/claim`), its `target` resource where the op takes one, and its `arguments` (the same name/value shape as [[core.lumen#Request]]). `id` is a caller label echoed on the matching result.
+/// description: One invocation inside a `batch` — the op to run (a primitive name like `create`/`patch`/`delete`, or an operation path like `issue/claim`) and its `arguments` (the same name/value shape as [[core.lumen#Request]]), which carry EVERY input including the subject/target resource as a named value. `id` is a caller label echoed on the matching result.
+/// normative: There is NO separate `target` field — a resource-targeted op names its subject as an ordinary argument (`{"name":"issue","value":{"id":"a"}}`), exactly as `call`'s `Request.arguments` does, so the generic router needs no per-op "which arg is the target" knowledge. The CLI MAY sugar a positional target onto the right named arg via the op's `cli` hints.
 type BatchItem = {
   id:        string,
   op:        PathString,
-  target?:   ref<resource>,
   arguments: [ { name: string, value: any } ]
 }
 
@@ -238,6 +246,7 @@ type BatchResult = { id: string, outcome: Outcome<any, any> }
 
 /// description: Run many invocations in one request. `atomic: false` (default) runs the items independently and best-effort — each result stands alone and partial success is normal. `atomic: true` runs them in one transaction — all commit or none. Items apply in array order. (`stdlib/batch`; `cli.name: "batch"` → `bd batch`.)
 /// normative: The call returns `200` with one `BatchResult` per item, keyed by `id`; the HTTP status reports the batch TRANSPORT, never an item's fate (read each item's `outcome`). ATOMIC rollback: if any item settles as other than `success`, NOTHING commits, and every result reports either the triggering `failure`/`fault` or — for the siblings rolled back — `canceled { reason: "rolled-back" }`. So "did the batch commit?" is exactly "is every outcome a success?". A whole-request fault (malformed, or past `maxBatch`) faults with a `Problem` and returns no results. v0.2: items target ONE scope; cross-scope batching is out of scope.
+/// normative: Per-item faults are OUTCOME-WRAPPED — a failing item's `outcome` is the `fault`/`failure`/`canceled` arm (`{"kind":"fault","problem":…}`), because `batch` (like `call`) reports each result as an `Outcome`. This differs from a DIRECT `fn`/primitive call, which faults out-of-band as a BARE `Problem` (no Outcome envelope). A whole-request `batch` fault is likewise a bare `Problem`: past `maxBatch` → `limit-exceeded`, a nested `stdlib/batch` item → `nested-batch-unsupported`, `atomic:true` before the atomic lowering lands → `atomic-unsupported`.
 command batch(items: [ BatchItem ], atomic?: bool = false) -> [ BatchResult ]
 
 // -----------------------------------------------------------------------------
