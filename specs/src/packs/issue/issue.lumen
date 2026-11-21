@@ -279,7 +279,7 @@ abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
 /// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge from an unclosed SOURCE makes the TARGET blocked (the target depends on the source). Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
 abstract type HardBlocking is ReadyAffecting {}
 
-/// description: Blocks — source blocks target: the TARGET depends on the SOURCE and is blocked until the source closes (native: a `blocks:<id>` edge means `<id>` = target depends on the holder = source; SKILL.md "blocks edges hide a bead until its blockers close"). The default dependency type. ACYCLIC (a cycle is a deadlock).
+/// description: Blocks — source blocks target: the TARGET is blocked (it depends on the source; not ready until the source closes), the SOURCE is the ready blocker. Concretely: `a Blocks b` ⇒ b blocked, a ready; closing a unblocks b. (Native `bd dep <blocker> --blocks <blocked>`: the `--blocks` argument is the blocked one.) The default dependency type. ACYCLIC (a cycle is a deadlock).
 /// normative: `acyclic` restipulates `rel<Issue, Issue>`; `unique` is inherited and preserved.
 type Blocks is HardBlocking, acyclic rel<Issue, Issue> {}
 /// description: ConditionalBlocks — "B runs only if A fails"; a conditional block. ACYCLIC.
@@ -386,10 +386,10 @@ type DepAddError    = "would-cycle"
 // §2.B  Issue operations (behaviour — pack callables)
 // -----------------------------------------------------------------------------
 
-/// description: Ready work — issues that are open, unblocked, and not deferred. (`issue/ready`.)
+/// description: Ready work — the CLAIMABLE FRONTIER: issues that are open (closedAt null), unblocked, not deferred, AND not already claimed / in_progress. (Native excludes active claims — ready means claimable.) (`issue/ready`.)
 fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: number) -> [ rep<Issue> ]
 
-/// description: Count of ready work. (`issue/ready-count`.)
+/// description: Count of ready work (the claimable frontier; see `listReadyWork`). (`issue/ready-count`.)
 fn countReadyWork(type?: PathString, excludeType?: PathString) -> number
 
 /// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
