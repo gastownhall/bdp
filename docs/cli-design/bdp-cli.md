@@ -169,11 +169,27 @@ lowering to root-addressed JSON-Patch:
 | `--patch-properties <jsonpatch>` | `--patch-metadata <jsonpatch>` | apply an RFC-6902 patch |
 
 The **typed per-property `--<prop>` flags** (from the type's cli hints) are sugar over
-`--set-property` on `/body`. A collision between a typed flag / `--set-property` and a
-whole-tree `--properties` / `--replace-properties` / `--patch-properties` is **refused**, not
-silently merged. `update` and `create` accept the same 5+5; `create` additionally takes
-`--kind`/`--type` and the edge sugar. Write guards layer on: `--if-revision` (If-Match) and a
-CAS/expected-value guard.
+`--set-property` on `/body`.
+
+**Lowering.** Every modifier lowers to the root-addressed `patch` primitive:
+`--set-property k=v` → `add /body/k` · `--unset-property k` → `remove /body/k` ·
+`--properties J` → one `add /body/<key>` per key (a shallow **merge-set**, NOT whole-replace) ·
+`--replace-properties J` → `replace /body` · `--patch-properties A` → `A` with every path
+**rebased under `/body`** (`/status` → `/body/status`). The `/metadata` five mirror this under
+`/metadata`. A raw `--patch <jsonpatch>` (root-addressed — `/body/…`, `/metadata/…`, `/type`,
+`/authority`) is the escape hatch for what the structured flags don't reach (e.g. `/type`).
+
+**Exclusivity.** Per sub-tree, the **key** ops (typed `--<prop>`, `--set-property`,
+`--unset-property`, `--properties`) compose — a key touched by more than one is **refused**.
+The **whole-tree** ops (`--replace-properties`, `--patch-properties`) are each **exclusive**
+with every other modifier on that sub-tree. `/body` and `/metadata` are independent (mix
+freely across them); a raw `--patch` is exclusive with all of the above.
+
+**create vs update.** On `create` (no prior state) only the **initializers** apply —
+`--properties` / `--set-property` / typed `--<prop>` (+ the `/metadata` mirror), plus
+`--kind`/`--type` and the edge sugar. The **mutators** (`--replace-*` / `--unset-*` /
+`--patch-*`, and raw `--patch`) presume existing state and are `update`-only. Guards layer on
+either verb: `--if-revision` (If-Match) and a CAS/expected-value guard.
 
 **Edge sugar.** A type's `cli.edge` hints render as repeatable create flags that also invoke an
 edge op (e.g. `--blocks <ref>` / `--blocked-by <ref>` → an `issue/dep/add` with `type: Blocks`).
