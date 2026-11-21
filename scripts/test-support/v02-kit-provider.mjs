@@ -269,6 +269,8 @@ export async function serveFixture(mutation = "none") {
             url.searchParams.has("select") ? JSON.parse(url.searchParams.get("select")) : undefined,
           );
       } else {
+        if (mutation === "magic-path" && url.searchParams.get("selector")?.includes("__proto__"))
+          fail();
         const id = decodeURIComponent(url.pathname.slice(1));
         if (id.endsWith(":revisions")) fail(422, "capability-not-supported");
         const found = data.find((r) => r.id.id === id);

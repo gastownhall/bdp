@@ -83,6 +83,7 @@ test("a conforming domain-neutral read-only wire fixture reaches real exit-zero 
   assert.equal(report.exitCode, 0);
 });
 for (const mutation of [
+  "magic-path",
   "context-floor",
   "channel-point",
   "discovery",

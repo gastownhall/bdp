@@ -365,6 +365,7 @@ export async function runV02Provider(target, options = {}) {
         { include: ["/id", "/type"] },
         { omit: ["/id", "/type", "/body"] },
         { include: [""] },
+        { include: ["/body/__proto__/provider-kit-missing"] },
       ]) {
         const u = `sys/capabilities?selector=${encodeURIComponent(JSON.stringify(selector))}`;
         const v = decoded(await request(u));
@@ -397,7 +398,11 @@ export async function runV02Provider(target, options = {}) {
           { kind: "matches", field: ["type"], using: "glob", pattern: "*" },
         ],
         has: [{ kind: "has", field: ["body"] }],
-        missing: [{ kind: "missing", field: ["provider-kit-absent"] }],
+        missing: [
+          { kind: "missing", field: ["provider-kit-absent"] },
+          { kind: "missing", field: ["body", "constructor"] },
+          { kind: "missing", field: ["body", "__proto__", "provider-kit-missing"] },
+        ],
         contains: [
           {
             kind: "contains",
