@@ -1,28 +1,37 @@
 // =============================================================================
-// memory.lumen — the Memory pack, authored as Lumen (the kind model)
+// memory.lumen — the Memory pack (the resource / relationship model)
 // =============================================================================
-// An example BDP pack in the kind model: arbitrary knowledge (Memory), obligations
-// (Constraint), assessments (Evaluation), and reified conformance claims (Conformance).
-// Companion to bdp.lumen (the base spec). The toolchain projects this
-// file to the trait + artifacts, so a pack's signatures are mechanically available.
+// A BDP pack modelling arbitrary knowledge (Memory), obligations (Constraint),
+// assessments (Evaluation), and reified conformance claims (Conformance) on the
+// 0.2.3 resource model. Companion to the Issue and stdlib packs.
 //
-// Roots (global aliases this pack defines): `memory`, `conformance`.
-// Subtype = kind-path PREFIX. A relationship is an owned `ref<T>` property on the source
-// bead (no Link). Sealed kinds list their arms (= A | B | …); open kinds omit the arms.
+// PRINCIPLES (as issue.lumen):
+//   1. Model before commands. §1 models the resources completely; a command
+//      surface is a thin pass over them, authored later, not here.
+//   2. Refinement via `is`. A subtype refines its parent with `type X is T`;
+//      `abstract type` marks a parent that is not directly instantiated — only
+//      its concrete leaves are. The type graph is OPEN: a closed/exhaustive set
+//      is a modelling intent, not an enforced closure.
+//   3. Relationships are refs. A pointer from one resource to another is an
+//      owned `ref<T>` property; there is no Link.
 // =============================================================================
 
-/// description: Markdown text. A nominal string (lowers to Nominal over string).
+/// description: Markdown text — a nominal string (lowers to a nominal over string).
 type markdown is string
 
 
+// #############################################################################
+// §1. The model
+// #############################################################################
+
 // -----------------------------------------------------------------------------
-// §1. Memory — arbitrary knowledge (root; OPEN)
+// §1.1  Memory — arbitrary knowledge (root; OPEN, directly instantiable)
 // -----------------------------------------------------------------------------
 
-/// description: Memory — a unit of arbitrary knowledge. OPEN: plain memories exist and packs add subkinds.
-/// normative: `supersededBy` is a ≤1 replacement pointer; its chains are acyclic. `references` are context
-/// normative: pointers to any resource; they carry no further semantics.
-kind Memory is bead {
+/// description: Memory — a unit of arbitrary knowledge. Plain memories exist and packs refine subtypes.
+/// normative: `supersededBy` is a ≤1 replacement pointer; its chains are acyclic. `references` are
+/// normative: context pointers to any resource; they carry no further semantics.
+type Memory is Bead {
   body:          markdown,
   references?:   set<ref<resource>>,          // context pointers (unique by ref)
   supersededBy?: ref<Memory> { acyclic },     // ≤1 replacement; chains acyclic
@@ -30,37 +39,44 @@ kind Memory is bead {
 
 
 // -----------------------------------------------------------------------------
-// §2. Constraint — an obligation (SEALED: four kinds)
+// §1.2  Constraint — an obligation (abstract; four concrete subtypes)
 // -----------------------------------------------------------------------------
 
-/// description: Constraint — an obligation. SEALED into Policy | Requirement | Scenario | Specification
-/// normative: (exhaustive match). `requires` are prerequisite constraints; `definedBy` is a ≤1 defining parent;
-/// normative: `appliesTo` are the beads this constraint governs. These are three SEPARATE props (no family).
-kind Constraint is Memory {
+/// description: Constraint — an obligation. Abstract: only the concrete subtypes below are instantiated.
+/// normative: `requires` are prerequisite constraints; `definedBy` is a ≤1 defining parent; `appliesTo`
+/// normative: are the resources this constraint governs. These are three SEPARATE props (no family).
+abstract type Constraint is Memory {
   requires?:  set<ref<Constraint>>,           // prerequisite constraints
   definedBy?: ref<Constraint>,                // ≤1 defining parent
-  appliesTo?: set<ref<bead>>,                 // targets this constraint governs
-} = Policy | Requirement | Scenario | Specification
+  appliesTo?: set<ref<resource>>,             // targets this constraint governs
+}
+type Policy is Constraint {}
+type Requirement is Constraint {}
+type Scenario is Constraint {}
+type Specification is Constraint {}
 
 
 // -----------------------------------------------------------------------------
-// §3. Evaluation — an assessment over a subject group
+// §1.3  Evaluation — an assessment over a subject group
 // -----------------------------------------------------------------------------
 
-/// description: Evaluation — an assessment over a NONEMPTY group of subject beads.
-kind Evaluation is Memory {
-  subjects: set<ref<bead>> { minSize: 1 },
+/// description: Evaluation — an assessment over a NONEMPTY group of subject resources.
+type Evaluation is Memory {
+  subjects: set<ref<resource>> { minSize: 1 },
 }
 
 
 // -----------------------------------------------------------------------------
-// §4. Conformance — a reified claim (SEALED: three kinds)
+// §1.4  Conformance — a reified claim (abstract; three concrete subtypes)
 // -----------------------------------------------------------------------------
 
-/// description: Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a bare
-/// normative: edge). SEALED into Addresses | Satisfies | Violates. `constraint` is what it claims about; `evaluation`
-/// normative: is the owning assessment (which names the subjects).
-kind Conformance is bead {
+/// description: Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a
+/// normative: bare edge). Abstract: only the concrete subtypes below are instantiated. `constraint` is what
+/// normative: it claims about; `evaluation` is the owning assessment (which names the subjects).
+abstract type Conformance is Bead {
   constraint: ref<Constraint>,
   evaluation: ref<Evaluation>,
-} = Addresses | Satisfies | Violates
+}
+type Addresses is Conformance {}
+type Satisfies is Conformance {}
+type Violates is Conformance {}
