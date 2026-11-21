@@ -95,21 +95,23 @@ type Issue is Bead {
   computed comments:     [ ref<IssueComment> ],
   computed dependencies: [ ref<Dependency> ],
 
-  // -- computed: provenance + ordering (service-derived; client can't set) --
-  // createdBy is a temporary hack — the actor who ran create
-  computed createdBy:       text,
-  computed closedBySession: text,
+  // -- computed: provenance projection --
+  // createdBy is a temporary hack — the create actor, projected from provenance
+  computed createdBy: text,
+
+  // -- serviceManaged: service-stored state — not client-settable, but NOT
+  //    revision-transparent (so NOT `computed`, which is DERIVED). The reference
+  //    backend proved the distinction: a lease is stored, not recomputed. --
+  serviceManaged closedBySession:  text,
   // arrivalSeq = commit-ordered create sequence (ephemeral-plane rows)
-  computed arrivalSeq:      number,
-
-  // -- computed: lease / heartbeat (ephemeral, node-local; absent when unclaimed) --
-  computed leaseExpiresAt:   Timestamp,
-  computed heartbeatAt:      Timestamp,
-  computed leaseGrantedNode: text,
-
-  // -- computed: compaction state --
-  computed compactionLevel: number,
-  computed compactedAt:     Timestamp,
+  serviceManaged arrivalSeq:       number,
+  // lease / heartbeat (ephemeral, node-local; absent when unclaimed)
+  serviceManaged leaseExpiresAt:   Timestamp,
+  serviceManaged heartbeatAt:      Timestamp,
+  serviceManaged leaseGrantedNode: text,
+  // compaction state
+  serviceManaged compactionLevel:  number,
+  serviceManaged compactedAt:      Timestamp,
 }
 
 // Elided from the model — internal routing / hydration that never reaches the wire:
