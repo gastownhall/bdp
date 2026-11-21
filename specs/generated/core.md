@@ -1280,6 +1280,28 @@ type PackageDef is Bead {
 
 Dispatch is implicit: a request routes to the target resource. Beads take client CRUD (create/put/patch/delete/list/revisions); the three model-specific primitives live with their models (§1.2 `get`, §2.2 `pull`/`push`, §2.3 `call`/`cancel`). This section is the uniform write/read surface over any resource, then the export & change-notification cluster.
 
+--- the HTTP route table (relative to a scope's base URL) --- Each primitive's `openapi.pathItem` (resource / scope / channel / operation / asyncResult) resolves to a concrete route below. Two first segments are reserved ([ResourceId](#ResourceId)): `/sys/*` for in-band system RESOURCES (addressed and read with `get`, e.g. `/sys/changes`, `/sys/capabilities`) and `/bdp/*` for the protocol's own fixed ROUTES (the bulk operations). A `:verb` suffix dispatches an ACTION on a target; a `/subpath` is a projection / sub-collection read. So the scope-root reads/writes never collide with the bulk ops.
+
+```
+  primitive   method  route                     notes
+  discovery   GET     /sys/capabilities         the mandatory floor (a `get`)
+  get         GET     /{id}
+  list        GET     /                         scope root → Page
+  create      POST    /                         scope root; body = the rep (body: any)
+  put         PUT     /{id}                     If-Match carries --if-revision (OCC)
+  patch       PATCH   /{id}                     root-addressed JSON-Patch body
+  delete      DELETE  /{id}
+  revisions   GET     /{id}/revisions           the resource's history → Page
+  call        POST    /{opPath}:call            +?mode=async → 202 + AsyncResult Location
+  cancel      POST    /{asyncResultId}:cancel   {asyncResultId} = the async Location
+  pull        GET     /{channel}                a Channel, e.g. /sys/changes (changefeed)
+  push        POST    /{channel}                append jsonl to a sink/duplex Channel
+  export      GET     /bdp/export               bulk scope serialization → JSONL
+  import      POST    /bdp/import               bulk load ← JSONL → ImportReport
+```
+
+`create` (POST /) vs `import` (POST /bdp/import), and `list` (GET /) vs `export` (GET /bdp/export), are disjoint — the scope-level bulk ops live under `/bdp`, never on the scope root. `push` is NOT the stdlib `batch`: it appends to a Channel.
+
 Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à la carte. `get` and discovery (a readable /sys/capabilities) are the mandatory floor; every other primitive is present iff advertised. A request for an un-offered primitive is refused `capability-not-supported`.
 
 Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their property declarations + cli hints — cli.alias / cli.positional / cli.default / cli.edge) and the OPERATION signatures (parameters + each op's declared domain-error set), so a client renders the available typed commands from discovery alone, with no out-of-band pack knowledge.
