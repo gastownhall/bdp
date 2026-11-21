@@ -83,7 +83,10 @@ type Issue is Bead {
   pinned?: bool,
 
   // -- computed: readiness over the dependency graph (revision-transparent) --
-  // isBlocked = an open hard-blocking edge targets an unclosed blocker
+  // LIFECYCLE (Donna to confirm): the canonical "closed" signal is `closedAt` being
+  // set — NOT the free `status` string; open ⇔ `closedAt` null (and not deferred);
+  // `claimIssue` sets `status` + a lease (+ `startedAt`).
+  // isBlocked = an open hard-blocking edge to an UNCLOSED target (`closedAt` null)
   computed isBlocked:      bool,
   computed blockedByCount: number,
 

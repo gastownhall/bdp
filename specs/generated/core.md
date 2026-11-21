@@ -1118,6 +1118,8 @@ What happened to an invocation — the domain Result, or a non-domain fate.
 
 > **Normative.** A present `outcome` means the invocation is settled, whichever arm it holds; a transient state (running/waiting) is NOT an arm. Each arm is an open record — a reader MUST ignore a member it does not know. Only `success` means the operation went as intended.
 
+> **Normative.** Wire encoding — `Result` and `Outcome` lower to an INTERNALLY-TAGGED JSON object with a `kind` discriminator: `{ "kind": "success", "value": T }` · `{ "kind": "failure", "error": E }` · `{ "kind": "fault", "problem": Problem }` · `{ "kind": "canceled", "reason"?: string }`. The HTTP status aligns (200 success · 409 the domain failure · the Problem's own status for a fault · 202 for an async `AsyncResult`), but `kind` is explicit in the body so a reader never infers the arm from the status alone.
+
 ```lumen
 type Outcome<T, E> = union {
   Result<T, E>
@@ -1197,6 +1199,8 @@ Note (resolved): as a bead (below) this inherits provenance/createdAt/metadata f
 Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Location when `creates` / 409 on a declared failure / Problem status on `fault`). `?mode=async` returns 202 + the AsyncResult at Location; settle later. The only primitive with the rich Outcome.
 
 > **Normative.** Dispatch rule — `call` is a primitive and may fault with a `Problem` like any primitive. A PRE-dispatch failure (unresolvable `operation`, malformed `request`, unauthorized, idempotency-key mismatch) faults as a `Problem` with NO `Outcome`: the operation never ran and nothing is recorded. A POST-dispatch failure rides the `Outcome` (`Result.failure` → 409; `fault { problem }` → the Problem's status; `canceled`). So a bare `Problem` means the call could not run; a `Problem` inside `Outcome.fault` means the operation ran and faulted — the recorded `AsyncResult.reply` is the witness that it dispatched.
+
+> **Normative.** Addressing — an INTRINSIC operation (implementation absent, [Operation](#Operation)) is addressed by its well-known element path (e.g. `issue/claim`); `operation: ref<Operation>` resolves to that path, and the client does NOT materialize an Operation bead first. A stored operation (implementation present) is an ordinary resolvable bead.
 
 ```lumen
 fn call(
