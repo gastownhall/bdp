@@ -138,8 +138,14 @@ pack knowledge.
 verbs, their positionals, flags, short aliases, defaults, and edge sugar — MUST match the
 pack's declaration (issue.lumen's `cli` hints + op signatures) **exactly**: no command or flag
 the pack does not declare, none it declares missing. The only additions are the **universal
-flags** (§2), which layer on uniformly, and (deferred) the stdin/`--file` input and
-`--output-mode` mechanics.
+flags** (§2), which layer on uniformly, and (deferred) the stdin/`--file` input mechanics.
+
+**Native parity + superset (A/B).** Where a pack mirrors a native tool (Issue ↔ `bd`), its
+declared `cli` hints SHOULD use the SAME domain flag names/aliases as the native command, so
+`bdp` and `bd` are A/B-comparable on the domain surface. `bdp` is then a **superset**: the
+native domain flags (via the pack) PLUS the canonical universals — `--output-mode`, the
+filter/selector flags, the write-guard set — layered uniformly (§2). (This requires an
+issue.lumen ↔ `bd` flag diff to align the hints; tracked for the review.)
 
 **`create`.** Each body property is a flag named for it (`--priority`, short alias where the
 hint gives one; positionals where `cli.positional` is set). `--kind <leaf>` picks the concrete
