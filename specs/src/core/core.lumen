@@ -229,7 +229,7 @@ type Content {}
 // 1.5  Types on a resource — the (authority, type) pair
 // -----------------------------------------------------------------------------
 // A resource's type is a path, fully qualified by the authority that names it.
-// (The overlay that defines types — TypeBead / TypeDef — is §2.1.)
+// (The overlay that defines types — TypeDef — is §2.1.)
 
 ## PathString
 /// description: A slash-delimited path — `"issue/task"` (a bead kind) or `"text/plain"` (a content media type).
@@ -244,7 +244,7 @@ type Authority = ResourceRef
 
 ## PackageRef
 /// description: A pinned reference to a Package resource — an Authority that is a package (a bead's authority).
-type PackageRef = ref<PackageBead>
+type PackageRef = ref<PackageDef>
 
 // -----------------------------------------------------------------------------
 // 1.6  Metadata & provenance
@@ -385,7 +385,7 @@ type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 // registry, `body` is raw bytes/text. (See the worked examples at the end.)
 
 // -----------------------------------------------------------------------------
-// 2.1  Types — the kind system, TypeBead & the value-schema
+// 2.1  Types — the kind system, TypeDef & the value-schema
 // -----------------------------------------------------------------------------
 // path = chain. Bead subtypes use single inheritance; the `is` chain builds the
 // element path, which is `type.id`, which is `kind`:
@@ -413,14 +413,10 @@ type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 // refinement vs union: refinement (`is`) = open kind hierarchy, path-addressed;
 // `union` = closed value-level sum type.
 
-## TypeBead
-/// description: A bead whose body is a type definition — the type of a type.
-type TypeBead is Resource { body: TypeDef }
-
 ## TypeDef
-/// description: The body of a TypeBead — one node in the single-`is` refinement tree.
+/// description: A type-definition bead body — one node in the single-`is` refinement tree. Its resource is `rep<TypeDef>`.
 /// normative: A type's element path is parent-path ⊕ its own name. A same-package parent is the path prefix (implicit); `refines` is set only for a cross-package parent. The Types resolver flattens the chain base→leaf per the §2.1 inheritance rules.
-type TypeDef {
+type TypeDef is Bead {
   /// description: Cross-package parent only; a same-package parent is the path prefix. Null + no prefix ⇒ root.
   refines?:   TypeRef
   /// description: True ⇒ not directly instantiable; a bead must use a leaf.
@@ -436,10 +432,8 @@ type PropertyDeclaration = {
   name:            string,
   type:            BeadSchema,
   computed?:       bool,
-  initOnly?:       bool,   //// so much for yagni :-).  It's fine - keep it.
-
-//// do we need either of these?  I was hoping computed covered them both.
-
+  initOnly?:       bool,
+  // Open (Lumen scrub): do `serviceManaged` / `readOnly` earn their place, or does `computed` subsume them?
   serviceManaged?: bool,
   readOnly?:       bool
 }
@@ -470,20 +464,12 @@ type BeadSchema =
   | Array   { element: BeadSchema }
   | Set     { element: BeadSchema, on?: [ LocalName ] }
   | TypeRef { to: TypeRef }                                  // TYPES-PASS: was `to: Kind`
-  | Opaque  { jsonSchema: JsonSchema }. ///// Uh, we decided this should be JsonSchema { text: string }
+  | JsonSchema { text: string }
 
 ## LocalName
 /// description: A short identifier token for a view or a well-known name; leading letter.
 /// jsonschema = { pattern = "^[A-Za-z][A-Za-z0-9_-]*$" }
 type LocalName is string
-
-//// redundant - lifted to  top level ARM to replace Opaque (seee previous comment)
-## JsonSchema
-/// description: A JSON Schema document — the lowered/exported form of a type-as-value for external (non-BDP) consumers.
-type JsonSchema {
-  /// description: The JSON Schema document, as text.
-  text: string
-}
 
 // --- element references (how one overlay element names another) ---
 
@@ -502,7 +488,7 @@ type PackageElementRef {
 type ElementPath = PathString
 
 
-//// do we need these or can we just use packref<T>
+// Open: could `TypeRef` / `OperationRef` / `ChannelRef` collapse into one `packref<T>`?
 ## TypeRef
 /// description: A reference to a type element.
 type TypeRef      = PackageElementRef
@@ -521,16 +507,11 @@ type ChannelRef   = PackageElementRef
 // export) is a `source<T>` — and BDP offers one streaming convention over it.
 
 
-//// let's jam interactively on the canonical way to write down a resource type and bead type.  We are all over the place in this doc.  Easy fix.
-## ChannelBead
-/// description: A bead whose body is a channel descriptor.
-type ChannelBead is Resource { body: Channel }
-
 ## Channel
-/// description: The body of a ChannelBead — its two event schemas, direction, and delivery characteristics.
+/// description: A channel-descriptor bead body — its two event schemas, direction, and delivery characteristics. Its resource is `rep<Channel>`.
 /// normative: `direction` and the two schemas are mutually constraining — `source` ⟺ pullSchema set & pushSchema null; `sink` ⟺ pushSchema set & pullSchema null; `duplex` ⟺ both set.
 /// normative: A Channel bead's revision does NOT change when events arrive — the bead is not the stream. Appended events ride the channel's own stream, never the changefeed.
-type Channel {
+type Channel is Bead {
   /// description: What `push` accepts; null on a source (pull-only).
   pushSchema?: BeadSchema
   /// description: What `pull` delivers; null on a sink (push-only).
@@ -598,7 +579,7 @@ type ReadRequest = {
   /// description: The transport form.
   format?: Transport,
   /// description: Filter the stream.
-  filter?: ListFilter,
+  filter?: Filter,
   /// description: Project each event.
   select?: selector
 }
@@ -621,7 +602,7 @@ type Page = {
 /// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
 fn pull(
     /// description: The channel to read — the changefeed or a declared stream.
-    channel: unpinned<ChannelBead>,
+    channel: unpinned<Channel>,
     /// description: Where to resume, how much, and the transport (see [[core.lumen#ReadRequest]]).
     request: ReadRequest
   ) -> Page
@@ -636,7 +617,7 @@ fn pull(
 /// openapi = { operationId = "push", method = "POST", pathItem = "channel", tags = ["Core"], request = { contentType = "application/jsonl" }, success = { status = 200 }, problem = { status = [400,405,409,422] } }
 command push(
     /// description: The channel to append to — must accept writes (`sink`/`duplex`).
-    channel: unpinned<ChannelBead>,
+    channel: unpinned<Channel>,
     /// description: One or more events to append, in order; each the channel's `pushSchema` type. A keyed event carries a pusher-assigned `ordinal`.
     events:  [PushEvent]
   ) -> PushAck
@@ -686,14 +667,10 @@ type PushResult = union {
 // only primitive with the rich Outcome (a user Operation has a declared
 // success/failure in its signature; the data primitives do not).
 
-## OperationBead
-/// description: A bead whose body is an operation descriptor.
-type OperationBead is Resource { body: Operation }
-
 ## Operation
-/// description: The body of an OperationBead — the call contract, the implementation, and the behavioural guarantees.
+/// description: An operation-descriptor bead body — the call contract, the implementation, and the behavioural guarantees. Its resource is `rep<Operation>`.
 /// normative: The effect markers (`pure`/`safe`/`idempotent`/`atomic`) are three-valued — present = a known guarantee, absent = unknown. `pure` ⟹ `safe`; `pure:true` + `safe:false` is a rejectable contradiction. The Lumen surface callable keywords lower to these fields (`fn` ⇒ pure).
-type Operation {
+type Operation is Bead {
   /// description: The call contract.
   signature:       Signature
   /// description: The mounted AST. Present ⇒ stored (ships in the pack) · absent ⇒ intrinsic (native).
@@ -708,7 +685,7 @@ type Operation {
   atomic?:         bool
 }
 
-//// should we define function/command at this level or leave it for upper layers?  We induce it pretty quickly in issue.lumen (and likely don't bother to document)
+// Open: define `fn` / `command` at the core level, or leave it to the upper layers (packs induce it)?
 
 ## Signature
 /// description: An operation's call contract — its interface, kept separate from the implementation and the effect markers.
@@ -757,7 +734,8 @@ type Request = {
   /// description: Collapses a retried call onto the first effect.
   idempotencyKey: IdempotencyKey,
   /// description: Opaque per-call sidecar.
-  metadata?:      Metadata //// can we call these fields requestMetadata and responseMetadata (and provenanceMetadata if we have it up there)
+  // Open: rename the per-call metadata fields to requestMetadata / responseMetadata (and provenanceMetadata)?
+  metadata?:      Metadata
 }
 
 ## Reply
@@ -823,9 +801,9 @@ type Problem = {
 
 ## AsyncResult
 /// description: The async result of one `call` — a handle you show for the record and `cancel` to kill. References a one-and-done source Channel that fires the Reply on settlement.
-type AsyncResult = {
+type AsyncResult is Bead {
   /// description: The operation that was called.
-  operation:    ref<OperationBead>,
+  operation:    ref<Operation>,
   /// description: The cause this call ran under (queryable while pending, before `reply`).
   cause:        Cause,
   /// description: This call's id (queryable while pending).
@@ -835,23 +813,19 @@ type AsyncResult = {
   /// description: The settlement, once it arrives (absent while pending).
   reply?:       Reply,
   /// description: The one-and-done source Channel that fires the Reply on settlement.
-  replyChannel: ref<ChannelBead>
+  replyChannel: ref<Channel>
 }
 // Note (resolved): as a bead (below) this inherits provenance/createdAt/metadata from the
 // envelope. `cause`/`callId` are kept at top-level (queryable while `reply` is absent),
 // per your "would you query it while pending?" note.
 
-## AsyncResultBead
-/// description: A bead whose body is an async-call handle.
-type AsyncResultBead is Resource { body: AsyncResult }
-
 ## call
 /// bdp = { kind = "primitive", primitive = "call" }
 /// description: Invoke an Operation. Sync (default) returns the Outcome directly (200 / 201+Location when `creates` / 409 on a declared failure / Problem status on `fault`). `?mode=async` returns 202 + the AsyncResult at Location; settle later. The only primitive with the rich Outcome.
-/// openapi = { operationId = "call", method = "POST", pathItem = "operation", tags = ["Core"], params = { mode = { in = "query", schema = "\"sync\" | \"async\"", required = false } }, responses = [ { status = 200, schema = "Reply", description = "sync ok" }, { status = 201, schema = "Reply", description = "sync ok, mints a resource" }, { status = 409, schema = "Reply", description = "declared failure — branch on the arm" }, { status = 202, schema = "AsyncResultBead", description = "async — result at Location" } ], responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } } }
+/// openapi = { operationId = "call", method = "POST", pathItem = "operation", tags = ["Core"], params = { mode = { in = "query", schema = "\"sync\" | \"async\"", required = false } }, responses = [ { status = 200, schema = "Reply", description = "sync ok" }, { status = 201, schema = "Reply", description = "sync ok, mints a resource" }, { status = 409, schema = "Reply", description = "declared failure — branch on the arm" }, { status = 202, schema = "rep<AsyncResult>", description = "async — result at Location" } ], responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } } }
 fn call(
     /// description: The operation to invoke (see [[core.lumen#Operation]]).
-    operation: ref<OperationBead>,
+    operation: ref<Operation>,
     /// description: The call input — arguments, idempotency key, and cause (see [[core.lumen#Request]]).
     request:   Request
   ) -> Reply
@@ -862,8 +836,8 @@ fn call(
 /// openapi = { operationId = "cancel", method = "POST", pathItem = "asyncResult", tags = ["Core"], success = { status = 200 }, problem = { status = [404,409] } }
 command cancel(
     /// description: The running async handle to stop (see [[core.lumen#AsyncResult]]).
-    asyncResult: unpinned<AsyncResultBead>
-  ) -> pinned<AsyncResultBead>
+    asyncResult: unpinned<AsyncResult>
+  ) -> pinned<AsyncResult>
 
 // -----------------------------------------------------------------------------
 // 2.4  Packages
@@ -871,14 +845,10 @@ command cancel(
 // A package is the authority that names a bead's type — a versioned bundle of
 // overlay elements (type / operation / channel defs) and file assets.
 
-## PackageBead
-/// description: A bead whose body is a package.
-type PackageBead is Resource { body: PackageDef }
-
 ## PackageDef
-/// description: The body of a PackageBead — its declared version and its elements.
+/// description: A package bead body — its declared version and its elements. Its resource is `rep<PackageDef>`.
 /// normative: A package is a resource; its canonical identity is its own `id` ({ scope:"uri", id:<url>, rev:<pin> }) — exactly what beads stamp as their `authority`. It is NOT restated in the body.
-type PackageDef {
+type PackageDef is Bead {
   /// description: The version this package declares; refs pin to a resolved one via their `rev`.
   semVer:   SemVer
   /// description: Elements keyed by package-relative path; value = any resource — bead defs and file assets.
@@ -928,7 +898,7 @@ type Id {
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
 command create(
     /// description: The scope to create the resource in.
-    //// shall we start using self parameters please?  We'll want it for Lumen language bindings. 
+    // Open: adopt `self` parameters here for the Lumen language bindings?
     scope:        Scope,
     /// description: Caller-proposed identity (no rev yet) — an exact `Id` or a prefix `IdRoot` the server mints the leaf under. Absent, the server assigns the id.
     requestedId?: IdRoot | Id,
@@ -936,11 +906,11 @@ command create(
     type:         PathString,
     /// description: The package that names `type`. Caller may supply; absent, the server resolves it from `type`.
     authority?:   PackageRef,
-    /// description: The bead's body — the firewalled domain payload; owned `ref<T>` properties live here.
-    body:         { ...: any },
+    /// description: The bead's body — the domain payload (`any` at core; the typed `body: T` is the pack-level view). The CLI lowers property flags into this record.
+    body:         any,
     /// description: Optional open sidecar the protocol does not interpret.
     metadata?:    Metadata
-  ) -> pinned<Resource>
+  ) -> pinned<any>
 // >DB? can `create` admit a content resource (media-type `type` + registry authority), or only `put`?
 
 ## put
@@ -951,40 +921,37 @@ command create(
 /// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
 idempotent command put(
     /// description: The resource to write (its id; `rev` ignored — `put` targets the current resource).
-    resource:    unpinned<Resource>,
+    resource:    unpinned<any>,
     /// description: The bead's type path.
     type:        PathString,
     /// description: The package that names `type`. Caller may supply; absent, the server resolves it from `type`.
     authority?:  PackageRef,
-    /// description: The full new body — `put` replaces state wholesale.
-
-//// we are tweenered on body.   I *think* we want it to be ANY, not open record if we want to support arbitrary resources.  The CLI will lower the properties flags to make this a record.  This is likely true on create and other ops.
-
-    body:        { ...: any },
+    /// description: The full new body — `put` replaces state wholesale (`any` at core; typed `body: T` at the pack level).
+    body:        any,
     /// description: Optional open sidecar the protocol does not interpret.
     metadata?:   Metadata,
     /// description: Optional If-Match precondition — apply only if this matches the current revision.
     ifRevision?: Rev
-  ) -> pinned<Resource>
+  ) -> pinned<any>
 // Note: a separate id proposal was folded into the `resource` ref. `ifRevision`
 // (If-Match) is carried by put/patch/delete — see the precondition rule above.
 
 ## patch
 /// bdp = { kind = "primitive", primitive = "patch" }
-/// description: JSON Patch limited to /body and /metadata. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+/// description: JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 /// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
 command patch(
     /// description: The resource to patch (its current revision).
-    resource:    unpinned<Resource>,
-    /// description: The JSON Patch to apply — paths limited to `/body` and `/metadata`.
+    resource:    unpinned<any>,
+    /// description: The JSON Patch to apply — root-addressed over the rep (`/body`, `/metadata`, `/type`, `/authority`; the rest is read-only).
 
 
-/// Ah, here's where the body thing bites us again.  We've said we want to support mutating the type/authority.  Where do we do that?  Distinct arguments?  (ok for now). BTW, the way we've structured these as a single patch means that us changing the layout means we need to chagne these sigs.  Good interactive chat.
+// Resolved: `type` / `authority` are mutated by patching `/type` / `/authority` at root — no distinct arguments. Root-addressing means a layout change never changes this signature.
 
     patch:       JsonPatch,
     /// description: Optional If-Match precondition — apply only if this matches the current revision.
     ifRevision?: Rev
-  ) -> pinned<Resource>
+  ) -> pinned<any>
 
 ## delete
 /// bdp = { kind = "primitive", primitive = "delete" }
@@ -994,10 +961,10 @@ command patch(
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 idempotent command delete(
     /// description: The resource to retire (its current revision).
-    resource:    unpinned<Resource>,
+    resource:    unpinned<any>,
 
 
-//// hey, what happened to our flags for cascade delete?  And dry-run (whcih I think we wanted on put/patch/create/update as well yes?)
+// Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create / put / patch / delete).
 
 
     /// description: Optional If-Match precondition — delete only if this matches the current revision.
@@ -1008,7 +975,7 @@ idempotent command delete(
 
 ## list
 /// bdp = { kind = "primitive", primitive = "list" }
-/// description: A collection of current resources in a scope, as a source<Resource>. `where` is a ListFilter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
+/// description: A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
 /// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,406] } }
 fn list(
     /// description: The scope to list.
@@ -1016,9 +983,9 @@ fn list(
     /// description: The low-bar filter — a flat conjunction of field conditions (overlaps `request.filter`; see the open shape note).
 
 
-//// no rename to filter?  And where was filter on put/patch?
+// Open: should put / patch also accept a `filter` (to scope a conditional write)?  (ListFilter is now `Filter`.)
 
-    where?:  ListFilter,
+    where?:  Filter,
     /// description: Projection applied to each result (overlaps `request.select`).
     select?: selector,
     /// description: Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`).
@@ -1031,7 +998,7 @@ fn list(
 /// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,404] } }
 fn revisions(
     /// description: The resource whose history to read.
-    resource: unpinned<Resource>,
+    resource: unpinned<any>,
     /// description: Projection per revision — ids-only vs full representations.
     select?:  selector,
     /// description: Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`).
@@ -1056,7 +1023,7 @@ type selector {
 type JsonPointer is string
 
 ## JsonPatchOp
-/// description: One RFC 6902 operation. In `patch`, paths are limited to /body and /metadata.
+/// description: One RFC 6902 operation. In `patch`, paths are root-addressed over the rep (`/body`, `/metadata`, `/type`, `/authority`; the rest is read-only).
 type JsonPatchOp = {
   /// description: The RFC 6902 operation to perform.
   op:     "add" | "remove" | "replace" | "move" | "copy" | "test",
@@ -1072,9 +1039,9 @@ type JsonPatchOp = {
 /// description: An ordered list of JSON Patch operations — the `patch` body, and a change-event patch payload.
 type JsonPatch = [ JsonPatchOp ]
 
-## ListFilter
+## Filter
 /// description: The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal `filter` is a corelib capability (query), not base.
-type ListFilter = [ listCondition ]
+type Filter = [ listCondition ]
 
 ## listCondition
 /// description: One flat field condition. `isType` matches against the type-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
@@ -1194,7 +1161,7 @@ type Deleted = {
 type CallEnter = {
   ...ChangeEnvelope,
   /// description: The operation whose frame opened.
-  operation: ref<OperationBead>
+  operation: ref<Operation>
 }
 
 ## CallLeave
@@ -1243,13 +1210,13 @@ type ExportEnd = {
 
 ## export
 /// bdp = { kind = "primitive", primitive = "export" }
-/// description: Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ ListFilter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
+/// description: Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 /// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
 fn export(
     /// description: The scope to back up.
     scope:      Scope,
-    /// description: Restrict the export to matching resources (see [[core.lumen#ListFilter]]).
-    where?:     ListFilter,
+    /// description: Restrict the export to matching resources (see [[core.lumen#Filter]]).
+    where?:     Filter,
     /// description: Project each exported resource.
     select?:    selector,
     /// description: Emit every revision in order (a true backup) instead of current state.
@@ -1277,7 +1244,7 @@ type ImportReport = {
   /// description: How many were skipped (already present, under `dedup`).
   skipped:   number,
   /// description: Rejected records, each by its id and the reason.
-  conflicts: [ { id: ref<Resource>, reason: string } ]
+  conflicts: [ { id: ref<any>, reason: string } ]
 }
 
 ## import
