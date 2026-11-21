@@ -109,7 +109,8 @@ below is always client-side. Server-side honoring is the tracked follow-up.
 1. Field order by importance: `id`, `type`, `body`, then `metadata` / `provenance` /
    timestamps / envelope.
 2. **Empty computed collections are omitted by default** (`labels: []`, `comments: []`,
-   `dependencies: []`, zero counts). They appear only under `--include`/`--expand`.
+   `dependencies: []`, zero counts) — precisely, via each property's `computed` marker in
+   discovery (no blanket guessing). They appear only under `--include`/`--expand`.
 
 **Lists** return a `Page {items, cursor, head}`; `--limit <n>` caps the window, `--cursor <c>`
 resumes after it. With no `--limit`, a read returns the whole current set in one page, bounded
@@ -153,11 +154,24 @@ subtype; `--metadata <json>` sets the open metadata record. The concrete type is
 there is no pack-shipped default (a scope `defaultType` or `$BDP_DEFAULT_TYPE` may supply one;
 a pack MUST NOT).
 
-**`update` mirrors `create`'s typed surface.** It accepts the same per-property `--<prop>`
-flags (each lowering to a `/body/<prop>` patch op), plus `--unset-property <key>`,
-`--metadata`/`--set-metadata`, a raw `--patch <json>`, and the write guards (`--if-revision`,
-and a CAS/expected-value guard). A per-property flag sets that property when there is no
-conflict with `--patch`/`--properties`; a collision is refused, not silently merged.
+**Write modifiers — the canonical 5 + 5.** `create` and `update` share ONE modifier set over
+the two open sub-trees, `/body` (properties) and `/metadata` — five operations each, all
+lowering to root-addressed JSON-Patch:
+
+| property flag | metadata flag | effect |
+|---|---|---|
+| `--properties <json>` | `--metadata <json>` | shallow-**merge** the object in |
+| `--replace-properties <json>` | `--replace-metadata <json>` | **replace** the whole sub-tree |
+| `--set-property K=V` | `--set-metadata K=V` | set one key (repeatable) |
+| `--unset-property K` | `--unset-metadata K` | remove one key (repeatable) |
+| `--patch-properties <jsonpatch>` | `--patch-metadata <jsonpatch>` | apply an RFC-6902 patch |
+
+The **typed per-property `--<prop>` flags** (from the type's cli hints) are sugar over
+`--set-property` on `/body`. A collision between a typed flag / `--set-property` and a
+whole-tree `--properties` / `--replace-properties` / `--patch-properties` is **refused**, not
+silently merged. `update` and `create` accept the same 5+5; `create` additionally takes
+`--kind`/`--type` and the edge sugar. Write guards layer on: `--if-revision` (If-Match) and a
+CAS/expected-value guard.
 
 **Edge sugar.** A type's `cli.edge` hints render as repeatable create flags that also invoke an
 edge op (e.g. `--blocks <ref>` / `--blocked-by <ref>` → an `issue/dep/add` with `type: Blocks`).
@@ -190,13 +204,13 @@ json` always returns the plain underlying rep.
 
 ## 8. Aliases — `alias`
 
-A human-friendly name bound to a resource ref (an addressing convenience; the underlying
-alias registry/mechanism is confirmed in the addressing design).
+A human-friendly name bound to a resource ref, kept in a well-known registry at
+`/sys/aliases/<name>` (a system resource, like `/sys/changes` / `/sys/capabilities`).
 
-- `bdp alias set <name> <target>` — create or update the binding.
-- `bdp alias unset <name>` — remove it (the target is untouched).
-- `bdp alias resolve <name>` — the resource the name points at.
-- `bdp alias isalias <name>` — whether `name` is an alias (vs a raw id).
+- `bdp alias set <name> <target>` — bind (`PUT /sys/aliases/<name>`).
+- `bdp alias unset <name>` — remove the binding (`DELETE /sys/aliases/<name>`); the target is untouched.
+- `bdp alias resolve <name>` — the resource the name points at (`GET /sys/aliases/<name>`).
+- `bdp alias isalias <name>` — whether `name` is a bound alias vs a raw id (a `GET` existence check).
 
 ## 9. The service-side CLI — `bdpd serve`
 

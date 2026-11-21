@@ -1315,7 +1315,9 @@ type for a bare `create` (a per-scope RUNTIME fact, NOT a pack hint); absent ⇒
 create with no --type/--kind faults, listing the creatable types.
 Each pack is { name, version?, cli?{ mount }, types[], operations[] }:
   type = { type (kind-path), bead, abstract, extends?, summary?, properties[
-           { name, type, required, cli?{ alias, positional, default } } ],
+           { name, type, required, computed?, cli?{ alias, positional, default } } ],
+           (`computed: true` marks a derived read-only property, so a client can omit
+            EMPTY computed collections by default without guessing — §5 shaping)
            edgeFlags[ { flag, summary?, op, self, other, args? } ] (type-level cli.edge,
            lowered — one `create` flag that also invokes an edge op; named `edgeFlags`
            to disambiguate from a `dep edges` op; see bdp-cli.md) }
