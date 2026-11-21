@@ -1421,7 +1421,7 @@ Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create 
 
 ### `list`
 
-A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full `filter`/`query` is a corelib capability. Snapshot — `--format json|jsonl`, no `sse`.
+A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability ([query](#query)). Snapshot — `--format json|jsonl`, no `sse`.
 
 ```lumen
 fn list(
@@ -1524,7 +1524,7 @@ type JsonPatch = [ JsonPatchOp ]
 
 ### `Filter`
 
-The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal `filter` is a corelib capability (query), not base.
+The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal predicate is a stdlib capability (`query`, [query](#query)), not base.
 
 ```lumen
 type Filter = [ listCondition ]
