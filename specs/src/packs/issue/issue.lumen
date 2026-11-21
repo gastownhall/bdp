@@ -42,63 +42,241 @@ type text is string
 /// cli: `--labels`/`-l` is annotation sugar (stdlib) — it creates rev-neutral `Label` resources pointing at the issue, not an Issue field.
 /// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
 type Issue is Resource {
-  // required
+  // -- required --
   /// cli: positional 0
   title:    string { minLength: 1 },
-  /// cli: alias `-s`
-  status:   string { minLength: 1 },             // a built-in or provider-configured value
-  /// cli: alias `-p`, default 2
-  priority: number { 0..4 },                     // 0 = P0; never absent
+  /// cli: alias `-s`  (a built-in or provider-configured value)
+  status:   string { minLength: 1 },
+  /// cli: alias `-p`, default 2  (0 = P0; never absent)
+  priority: number { 0..4 },
 
-  // optional work fields
+  // -- optional work fields --
   /// cli: alias `-d`
   description?:        text,
   acceptanceCriteria?: text,
   design?:             text,
   notes?:              text,
-  owner?:              string { maxLength: 255 },  // native human string — NOT a ref
+  // owner/assignee are native human strings — NOT BDP refs
+  owner?:              string { maxLength: 255 },
   /// cli: alias `-a`
-  assignee?:           string { maxLength: 255 },  // same
-  createdAt?:  Timestamp, startedAt?: Timestamp, closedAt?: Timestamp,
-  deferUntil?: Timestamp, dueAt?:     Timestamp,
+  assignee?:           string { maxLength: 255 },
   /// cli: alias `-e`
   estimatedMinutes?:   number { min: 0 },
-  externalRef?:        string,
   specId?:             text,
-  closeReason?:        text,
+  externalRef?:        string,
+  // native federation origin — the adapter/system a cross-system import came through
+  sourceSystem?:       text,
 
-  // computed projections over the dependency graph — revision-transparent.
-  // (`{ computed }` marks the property's access mode; the exact spelling of the
-  //  access-mode modifier is owned by the Lumen scrub, alongside init-only /
-  //  service-managed.)
-  isBlocked:      bool   { computed },           // an open Blocks edge targets an unclosed blocker
-  blockedByCount: number { computed },           // the number of such open blockers
+  // -- lifecycle (set by the lifecycle ops, not by patch; createdAt lives on Resource) --
+  startedAt?:   Timestamp,
+  closedAt?:    Timestamp,
+  closeReason?: text,
+  // hide from ready work until this time
+  deferUntil?:  Timestamp,
+  dueAt?:       Timestamp,
+
+  // a persistent context marker, not a work item
+  pinned?: bool,
+
+  // -- computed: readiness over the dependency graph (revision-transparent) --
+  // isBlocked = an open hard-blocking edge targets an unclosed blocker
+  computed isBlocked:      bool,
+  computed blockedByCount: number,
+
+  // -- computed: annotation + edge projections (reverse lookups; stdlib Label/Comment, §1.2 Dependency) --
+  computed labels:       set<ref<Label>>,
+  computed comments:     [ ref<Comment> ],
+  computed dependencies: [ ref<Dependency> ],
+
+  // -- computed: provenance + ordering (service-derived; client can't set) --
+  // createdBy is a temporary hack — the actor who ran create
+  computed createdBy:       text,
+  computed closedBySession: text,
+  // arrivalSeq = commit-ordered create sequence (ephemeral-plane rows)
+  computed arrivalSeq:      number,
+
+  // -- computed: lease / heartbeat (ephemeral, node-local; absent when unclaimed) --
+  computed leaseExpiresAt:   Timestamp,
+  computed heartbeatAt:      Timestamp,
+  computed leaseGrantedNode: text,
+
+  // -- computed: compaction state --
+  computed compactionLevel: number,
+  computed compactedAt:     Timestamp,
 }
 
-/// description: Spike — the native spike classification; a subkind of Issue with no added properties.
-type Spike is Issue {}
+// Elided from the model — internal routing / hydration that never reaches the wire:
+//   contentHash, rowVersion (surfaced instead as the Resource `revision`), sourceRepo,
+//   idPrefix, prefixOverride, wispPlaneOverride, originalSize, isLitePartial.
 
+// -----------------------------------------------------------------------------
+// §1.1.1  Issue subtypes — the 13 native issue types (the `type` discriminator)
+// -----------------------------------------------------------------------------
+// Each is a kind of Issue; the native flat row's type-specific columns distribute
+// onto the subtype that uses them. Seven add no properties; four add fields; Epic
+// and Milestone add computed rollups only.
+
+/// description: Bug — a defect.
+type Bug is Issue {}
+/// description: Feature — a new capability.
+type Feature is Issue {}
+/// description: Task — a unit of work with no finer classification.
+type Task is Issue {}
+/// description: Chore — maintenance or housekeeping work.
+type Chore is Issue {}
+/// description: Decision — a decision record (often linked by `Supersedes` / `RelatesTo`).
+type Decision is Issue {}
+/// description: Spike — a timeboxed investigation to reduce uncertainty.
+type Spike is Issue {}
+/// description: Story — a user story: a feature from the user's perspective.
+type Story is Issue {}
+
+/// description: Epic — a parent that aggregates child issues. Its rollups are COMPUTED over the `ParentChild` edges, not stored columns.
+type Epic is Issue {
+  computed totalChildren:  number,
+  computed closedChildren: number,
+  computed closeable:      bool,      // all children closed
+}
+
+/// description: Milestone — marks completion of a set of related issues; holds no work of its own. Its completion is COMPUTED over the issues that target it.
+type Milestone is Issue {
+  computed closeable: bool,
+}
+
+/// description: Message — an inter-agent message. Carries a sender; typically lives on the ephemeral (wisp) plane (see §1.1.2).
+type Message is Issue {
+  // native sender string — NOT a ref
+  sender?: text,
+}
+
+/// description: Molecule — a swarm/patrol/work coordination unit; `advanceMolecule` (§2.B) steps it.
+type Molecule is Issue {
+  molType?:    MolType,          // swarm | patrol | work    (empty = work)
+  workType?:   WorkType,         // mutex | open_competition (empty = mutex)
+  isTemplate?: bool,             // a read-only template molecule
+  bondedFrom?: [ BondRef ],      // compound lineage — the constituent protos
+}
+
+/// description: Gate — an async coordination primitive: it waits on a condition and clears.
+type Gate is Issue {
+  awaitType?:      text,         // condition type: gh:run | gh:pr | timer | human | mail
+  awaitId?:        text,         // condition identifier (run id, PR number, …)
+  timeout?:        Duration,     // max wait before escalation
+  waiters?:        [ text ],     // mail addresses notified when the gate clears
+  sourceFormula?:  text,         // formula where the step was defined (cooking origin)
+  sourceLocation?: text,         // path within that formula, e.g. "steps[0]"
+}
+
+/// description: Event — an operational state change (append-only); typically lives on the ephemeral (wisp) plane.
+type Event is Issue {
+  eventKind?: text,              // namespaced, e.g. "patrol.muted", "agent.started"
+  actor?:     text,              // entity URI that caused the event
+  target?:    text,              // entity URI or issue id affected
+  payload?:   text,              // event-specific JSON
+}
+
+// Supporting nominal types for the subtype fields.
+/// description: MolType — molecule coordination kind.
+type MolType = "swarm" | "patrol" | "work"
+/// description: WorkType — assignment model.
+type WorkType = "mutex" | "open_competition"
+/// description: Duration — a time span (e.g. a gate timeout); wire form (ISO-8601 vs native span) is a small open.
+type Duration is string
+/// description: BondRef — a reference to a constituent proto in a compound molecule's lineage.
+type BondRef = ref<Issue>
+
+// -----------------------------------------------------------------------------
+// §1.1.2  Storage class — the "a wisp is ephemeral" finding
+// -----------------------------------------------------------------------------
+// > **Open** — pinning storage class per type. `storageClass` lives on `Resource`
+// > ({ versioned | unversioned | ephemeral }). The native model routes the
+// > liveness/operational chatter — heartbeats, pings, patrol / GC / recovery /
+// > error / escalation reports — onto the ephemeral (wisp) plane via a per-ROW
+// > flag, and that chatter surfaces as `Message` and `Event` issues. Open question:
+// > should `Message` and `Event` PIN `storageClass = ephemeral` at the TYPE level,
+// > so "a wisp is always ephemeral" is a model guarantee rather than a per-row
+// > convention? Left open pending the Lumen access-mode scrub.
 
 // -----------------------------------------------------------------------------
 // §1.2  Dependency — the relationship, as an edge resource
 // -----------------------------------------------------------------------------
 
-/// description: Dependency — a relationship FROM an Issue, carried as a first-class edge resource. It has its own identity, revision history and provenance; `createdBy`/`threadId` are ordinary body properties, not a second-class metadata bag. `unique` keys the edge by its natural key (source, target), from which its id is derived deterministically — at most one Dependency of a given concrete type between a given pair.
+/// description: Dependency — a relationship FROM an Issue, carried as a first-class edge resource. It has its own identity, revision history and provenance; `createdBy`/`threadId` are ordinary body properties, not a second-class metadata bag. `unique` keys the edge by its natural key (source, target); its id derives deterministically — at most one Dependency of a given concrete type between a given pair.
 /// normative: `abstract` — only the concrete subtypes below are instantiated. Creating, re-typing or deleting a Dependency does NOT touch its endpoints' revisions; the edge carries its own identity and history. Delete is a tombstone (a terminal revision), not an erasure.
+/// normative: TARGET — the parent target is `resource`, not `Issue`. Most edges point at Issues, but the attribution edges point at a PRINCIPAL (`AuthoredBy`/`AssignedTo`/`ApprovedBy`/`DelegatedFrom`), `Attests` at a skill/claim, and `CausedBy` at the triggering event. Only the homogeneous Issue→Issue subset (`ReadyAffecting` and below) narrows the target, and only a homogeneous graph can be `acyclic`.
 abstract type Dependency is unique rel<Issue, resource> {
   createdBy?: text,     // native creator string — NOT a BDP attribution
   threadId?:  text,     // conversation grouping carried from the native row
 }
 
-/// description: Blocks — "source blocks target"; both endpoints are Issues and the relation is ACYCLIC (a cycle is a deadlock). This is the default dependency type.
-/// normative: OPEN — `Blocks` narrows the parent's target from `resource` to `Issue` and adds the `acyclic` graph modifier. Whether a refinement may narrow a parent rel's endpoints and add a graph modifier is a language question owned by the Lumen scrub; the intent is written here with the conformance list (`is Dependency, acyclic rel<Issue, Issue>`).
-type Blocks is Dependency, acyclic rel<Issue, Issue> {}
+// -----------------------------------------------------------------------------
+// §1.3  Readiness capabilities as abstract types — prefix queries, not markers
+// -----------------------------------------------------------------------------
+// "Affects ready-work" and "hard-blocking" are capabilities, not marker interfaces.
+// They fit the single-inheritance type path because they NEST: hard-blocking ⊂
+// ready-affecting. So each is an intermediate abstract type, and a capability check
+// is a type-path PREFIX test —
+//   ready-affecting?  →  dependency/ready-affecting/*
+//   hard-blocking?    →  dependency/ready-affecting/hard-blocking/*
+// Both ready-affecting endpoints are Issues, so the subtree narrows to Issue→Issue
+// and its graphs are acyclic. Per the `acyclic` rule the keyword RESTIPULATES the
+// rel (`acyclic rel<Issue, Issue>`); `unique` is inherited from Dependency and the
+// restipulation does not undo it.
 
-/// description: ConditionalBlocks — a soft/conditional block whose target may be any resource (often an Issue) and which is not acyclic.
-type ConditionalBlocks is Dependency {}
+/// description: ReadyAffecting — an edge that affects an issue's ready-work status; both endpoints are Issues. Abstract.
+/// normative: Narrows the parent target from `resource` to `Issue`. (Whether a refinement may narrow a parent rel's endpoints is a Lumen-scrub question; the intent is the conformance list `is Dependency rel<Issue, Issue>`.)
+abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
 
-/// description: RepliesTo — a reply relation from an Issue to any resource (often an Issue).
+/// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge to an unclosed target makes the source blocked. The hard-blocking subgraph is ACYCLIC (a cycle is a deadlock). Abstract.
+/// normative: `acyclic` restipulates `rel<Issue, Issue>` (the keyword requires it); `unique` is inherited and preserved.
+abstract type HardBlocking is ReadyAffecting, acyclic rel<Issue, Issue> {}
+
+/// description: Blocks — "source blocks target"; the default dependency type.
+type Blocks is HardBlocking {}
+/// description: ConditionalBlocks — "B runs only if A fails"; a conditional block.
+type ConditionalBlocks is HardBlocking {}
+/// description: WaitsFor — a fanout gate: wait for dynamically-discovered children.
+type WaitsFor is HardBlocking {}
+
+/// description: ParentChild — hierarchy: `source` is the parent of `target`. Ready-affecting and structural, NOT hard-blocking; the hierarchy is ACYCLIC (its own graph, separate from the hard-blocking subgraph).
+/// normative: `acyclic` restipulates `rel<Issue, Issue>`.
+type ParentChild is ReadyAffecting, acyclic rel<Issue, Issue> {}
+
+// -----------------------------------------------------------------------------
+// §1.4  The remaining dependency types — plain edges (target stays `resource`)
+// -----------------------------------------------------------------------------
+// None affects ready-work; several point at non-Issue resources (see the TARGET note).
+
+/// description: Related — a generic relation between two issues.
+type Related is Dependency {}
+/// description: DiscoveredFrom — this issue was discovered while working the target.
+type DiscoveredFrom is Dependency {}
+/// description: RepliesTo — conversation threading: a reply to the target.
 type RepliesTo is Dependency {}
+/// description: RelatesTo — a loose knowledge-graph edge.
+type RelatesTo is Dependency {}
+/// description: Duplicates — a deduplication link: this issue duplicates the target.
+type Duplicates is Dependency {}
+/// description: Supersedes — a replacement link: the target is superseded by this issue. NOT a version relation.
+type Supersedes is Dependency {}
+/// description: AuthoredBy — creator relationship; target is a principal, not an Issue.
+type AuthoredBy is Dependency {}
+/// description: AssignedTo — assignment relationship; target is a principal.
+type AssignedTo is Dependency {}
+/// description: ApprovedBy — approval relationship; target is a principal.
+type ApprovedBy is Dependency {}
+/// description: Attests — skill attestation ("source attests target has a skill"); target is a skill/claim.
+type Attests is Dependency {}
+/// description: Tracks — a convoy→issue tracking edge; non-blocking.
+type Tracks is Dependency {}
+/// description: Until — active until the target closes (e.g. muted until an issue resolves).
+type Until is Dependency {}
+/// description: CausedBy — triggered by the target (audit trail); target is often an event.
+type CausedBy is Dependency {}
+/// description: Validates — a validation relationship.
+type Validates is Dependency {}
+/// description: DelegatedFrom — work delegated from the target (a parent/principal); completion cascades up.
+type DelegatedFrom is Dependency {}
 
 
 // #############################################################################
@@ -196,10 +374,10 @@ fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> number
 /// description: Related issues — the targets reached from a source across the dependency relations. (`issue/dep/list`.)
 fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ Issue ]
 
-/// description: The dependency tree from a root — the transitive closure over Blocks. Lowers to the traversal `root -> Blocks+`. (`issue/dep/tree`.)
+/// description: The dependency tree from a root — the transitive closure over the hard-blocking subgraph. Lowers to the traversal `root -> HardBlocking+`. (`issue/dep/tree`.)
 fn getDependencyTree(root: ref<Issue>) -> [ Issue ]
 
-/// description: Dependency cycles — lowers to `cycles(Blocks)` over the graph. (`issue/dep/cycles`.)
+/// description: Dependency cycles — lowers to `cycles(HardBlocking)` over the graph. (`issue/dep/cycles`.)
 fn listDependencyCycles() -> [ [ Issue ] ]
 
 /// description: Blocking annotations — the open blockers that make issues blocked. (`issue/blocking-annotations`.)
