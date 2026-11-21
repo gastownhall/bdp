@@ -44,7 +44,7 @@ commands (see §6).
 | `--scope <uri>` | the target scope (§1) |
 | `--principal <id>` | the acting principal — rides in a write/call's `provenance` |
 | `--select` / `--include <ptr>` / `--omit <ptr>` / `--expand <name>` | read projection (§5) |
-| `--output-mode <mode>` | `json` (default, pretty) · `raw` (compact) · `human` (shape-aware: lists → table, singletons → property view — §5.1). *Deferred:* `jsonl`, `ids` |
+| `--output-mode <mode>` | `json` (default, pretty) · `raw` (compact) · `text` (shape-aware: lists → table, singletons → property view — §5.1). *Deferred:* `jsonl`, `ids` |
 | `--if-revision <rev>` | optimistic-concurrency guard on a write (`If-Match`) |
 
 ## 3. The primitives — route table
@@ -115,9 +115,9 @@ below is always client-side. Server-side honoring is the tracked follow-up.
 resumes after it. With no `--limit`, a read returns the whole current set in one page, bounded
 by the scope's advertised `maxLimit` (a larger set returns `maxLimit` + a resume cursor).
 
-### 5.1 The `human` output mode — tables & property views
+### 5.1 The `text` output mode — tables & property views
 
-`--output-mode human` renders by the **shape of the response**:
+`--output-mode text` renders by the **shape of the response**:
 
 - A **list / `Page`** → a **table**: one row per item; columns are the type's summary
   properties (default: `id`, the title/name, `status`, `priority`; a type MAY later declare
@@ -125,7 +125,7 @@ by the scope's advertised `maxLimit` (a larger set returns `maxLimit` + a resume
 - A **single resource** → a **property view**: `id` and `type` first, then the body properties
   as aligned `key: value` lines, grouped, with empty computed collections omitted.
 
-Both honor the default shaping (§5) and any `--include`/`--omit`. `human` is the natural TTY
+Both honor the default shaping (§5) and any `--include`/`--omit`. `text` is the natural TTY
 mode; `json` stays the default and the scripting form.
 
 ## 6. Typed commands — `create`, `update`, pack operations
@@ -220,7 +220,7 @@ bdpd serve --backend <inmem|postgres|fs> [--port <p>] [--scope <name|uri>] [--de
 
 ### Open / deferred (tracked for the review)
 
-- `--output-mode`: the `human` table/property view is specified (§5.1); the `jsonl`/`ids`
+- `--output-mode`: the `text` table/property view is specified (§5.1); the `jsonl`/`ids`
   modes, the `cli.summary` table-column hint, and stdin/`--file` input are the next pass.
 - `pack install`/`uninstall` lifecycle capability.
 - `rel<F, T>` endpoints: **`source`/`target`** (resolved — bd's dep output is
