@@ -205,6 +205,7 @@ type SearchHit = {
 
 /// description: Ranked text search over resource bodies in `scope` — the matches for `text`, best first. `where` pre-filters the corpus (the same predicate as `query`); `mode` picks lexical / semantic / hybrid; `select` expands each hit's resource inline. (`stdlib/search`; `cli.name: "search"` → `bd search`.)
 /// normative: Read-or-fault — no domain `E`. `lexical` is the floor every `search` service offers; requesting a `mode` the service does not advertise faults `search-mode-unsupported`. Scores order ONE response and are not comparable across calls or services.
+/// normative: `search` returns a ranked `[SearchHit]` bounded by `limit` — it is NOT a `source<Resource>` sequence and does NOT use the `Page` cursor envelope (a caller wants the top matches, not a resumable full stream). `graph`'s `Subgraph` is likewise a bounded STRUCTURE, not a Page. The unified `Page` read envelope ([[core.lumen#Page]]) covers only the ordered resumable reads (list / query / pull / revisions / export). Cursoring `search` is a possible future extension, not v0.
 fn search(scope: Scope, text: string, where?: QueryExpr, mode?: SearchMode = "lexical", select?: selector, limit?: integer) -> [ SearchHit ]
 
 // -----------------------------------------------------------------------------
