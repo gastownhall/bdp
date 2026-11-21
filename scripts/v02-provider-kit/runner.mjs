@@ -54,7 +54,7 @@ export async function runV02Provider(target, options = {}) {
     kit: "bdp-v0.2-read-only",
     qualificationScope: "Core read-only; advertised stdlib query/count",
     specification:
-      "https://github.com/gastownhall/bdp/blob/e108a3241e8127e5325748e9325aedd984ff5117/specs/src/core/core.lumen",
+      "https://github.com/gastownhall/bdp/blob/5ea7cb385deb3027742984c0ef8a7f2442a91260/specs/src/core/core.lumen",
     profile: "read-only",
     scope: target.scope,
     qualificationComplete: false,

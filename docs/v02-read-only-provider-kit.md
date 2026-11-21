@@ -12,7 +12,7 @@ node --test scripts/v02-provider-kit.node-test.mjs
 
 The default entry point retains its existing v0.1 behavior when `--spec` is absent.
 The v0.2 profile follows `specs/src/core/core.lumen` and the stdlib source at
-`e108a3241e8127e5325748e9325aedd984ff5117`, the current PR403 head. It uses structured
+`5ea7cb385deb3027742984c0ef8a7f2442a91260`, the current PR403 head. It uses structured
 ResourceIds, `rep<T>`/`body`, capability presence, relationships as resources,
 internally tagged Filter/QueryExpr, named call arguments, and Reply/Outcome.
 It does not reinterpret v0.1 profiles or separate Link records as v0.2.
