@@ -190,12 +190,14 @@ freely across them); a raw `--patch` is exclusive with all of the above.
 `--kind`/`--type` and the edge sugar. The **mutators** (`--replace-*` / `--unset-*` /
 `--patch-*`, and raw `--patch`) presume existing state and are `update`-only.
 
-**Guards** layer on `update`/`put`: `--if-revision <rev>` (If-Match — whole-resource OCC), and
-the value-level CAS guards `--expect-property <field>=<value>` / `--expect-metadata
-<key>=<value>` (both repeatable). Each lowers to a JSON-Patch `test` op prepended to the patch
-(`{op:test, path:/body/<field>, value}`, resp. `/metadata/<key>`), so the write is refused —
-`expectation-mismatch` — if the current value differs. Guards are **prepended**, so they
-compose with every modifier and are not subject to the whole-tree exclusivity.
+**Guards.** `--if-revision <rev>` (If-Match — whole-resource OCC) is accepted on `update` AND
+`put`. The value-level CAS guards `--expect-property <field>=<value>` / `--expect-metadata
+<key>=<value>` (both repeatable) are `update`-ONLY: each lowers to a JSON-Patch `test` op
+prepended to the patch (`{op:test, path:/body/<field>, value}`, resp. `/metadata/<key>`), so
+the write is refused — `expectation-mismatch` (422) — if the current value differs. That
+mechanism fits `update`'s patch, not `put`'s whole-rep replace; for a CAS'd whole-body replace,
+use `update --replace-properties {…} --expect-property …`. The guards are **prepended**, so
+they compose with every modifier and are not subject to the whole-tree exclusivity.
 
 **Edge sugar.** A type's `cli.edge` hints render as repeatable create flags that also invoke an
 edge op (e.g. `--blocks <ref>` / `--blocked-by <ref>` → an `issue/dep/add` with `type: Blocks`).
