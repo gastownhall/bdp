@@ -443,6 +443,16 @@ A semantic-version string (a package's declared version).
 type SemVer is string
 ```
 
+<a id="integer"></a>
+
+### `integer`
+
+A whole number — JSON `number` restricted to an integer value. Distinct from `number` (which admits fractions) so a typed or generated client maps it to an integer type (e.g. i64); on the wire it is an integer-valued JSON number. Use `integer` for counts, bounds, positions and priorities; keep `number` for genuinely fractional values (a score, a ratio).
+
+```lumen
+type integer is number
+```
+
 ## 1.7  Relationships — a relationship is a resource
 
 ```

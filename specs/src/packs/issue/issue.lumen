@@ -53,7 +53,7 @@ type Issue is Bead {
   // 0 = P0; never absent
   /// cli.alias: -p
   /// cli.default: 2
-  priority: number { 0..4 },
+  priority: integer { 0..4 },
 
   // -- optional work fields --
   /// cli.alias: -d
@@ -66,7 +66,7 @@ type Issue is Bead {
   /// cli.alias: -a
   assignee?:           string { maxLength: 255 },
   /// cli.alias: -e
-  estimatedMinutes?:   number { min: 0 },
+  estimatedMinutes?:   integer { min: 0 },
   specId?:             text,
   externalRef?:        string,
   // native federation origin — the adapter/system a cross-system import came through
@@ -390,7 +390,7 @@ type DepAddError    = "would-cycle"
 fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: number) -> [ rep<Issue> ]
 
 /// description: Count of ready work (the claimable frontier; see `listReadyWork`). (`issue/ready-count`.)
-fn countReadyWork(type?: PathString, excludeType?: PathString) -> number
+fn countReadyWork(type?: PathString, excludeType?: PathString) -> integer
 
 /// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
 fn listBlockedIssues(type?: PathString, limit?: number) -> [ rep<Issue> ]
@@ -452,7 +452,7 @@ command removeDependency(dependency: ref<Dependency>) -> Rev
 fn listDependencies(source?: ref<Issue>, type?: PathString) -> [ rep<Dependency> ]
 
 /// description: Count dependency edges. (`issue/dep/count`.)
-fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> number
+fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> integer
 
 /// description: Related issues — the targets reached from a source across the dependency relations. (`issue/dep/list`.)
 fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ rep<Issue> ]
