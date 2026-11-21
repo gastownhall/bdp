@@ -368,12 +368,11 @@ client-side override) → the scope's advertised `defaultType` (the deployment d
 on the SCOPE, not in a pack's catalog, so no pack dictates the global default, yet a
 fresh client still learns it from discovery (no client config needed).
 
-> **Open** — whether to ALSO let a type carry a `cli.defaultType` **catalog hint** (the
-> pack's own default concrete type — native `bd create` defaults to `task`), slotting
-> BELOW the scope `defaultType`. Held OFF: the scope default already gives `bd create` →
-> `issue/task` through the spec-pure mechanism, so the catalog hint earns its keep only
-> if Donna wants a pack to ship a *portable* default that travels with it. Donna's call
-> in review; no toggling meanwhile. The type is a leaf-resolved token or a path —
+> **Resolved** — a pack MUST NOT declare a default type; the catalog ships no
+> `cli.defaultType` hint, ever. The default lives ONLY on the scope (the deployment
+> `defaultType`) or as the client-side `$BDP_DEFAULT_TYPE` — never in a pack. It defaults
+> on (`issue/task`) for continuity with native `bd create`, but the feature is
+> **discouraged**: prefer an explicit `--type`/`--kind`; no one should need to set it. The type is a leaf-resolved token or a path —
 `bdp create bug` and `bdp create issue/bug` both resolve. An abstract type, or a
 wildcard, faults on `create`.
 

@@ -565,8 +565,15 @@ type Retention = union {
 // The transport enum is `Transport`, the response window is `Page`, and the request
 // bundle is `ReadRequest` (shared by pull / list / revisions).
 // >DB? shape (still open for your read): list/revisions take `where?`/`select?` and a
-//   `ReadRequest` whose `filter`/`select` overlap them — collapse to one? And `pull`
-//   returns `Page` while list/export return `source<T>` — unify the return?
+//   `ReadRequest` whose `filter`/`select` overlap them — collapse to one? (Still open.)
+// RESOLVED (return unified): EVERY `source<T>` read — pull / list / revisions / the stdlib
+// `query` / export — wire-returns a `Page` window `{ items, cursor, head? }`. `source<T>`
+// is the logical sequence; `Page` is its one-request window, the universal read envelope,
+// so `list`/`query` return a Page, NOT a bare array. `cursor` resumes AFTER its last item
+// (exclusive, opaque; null/absent once `head`). With `limit` absent a read returns the
+// whole current set in one Page, BOUNDED by the service's advertised `maxLimit` — a larger
+// set returns `maxLimit` items + a resume `cursor`, never unbounded. One Cursor spans the
+// json / jsonl / sse transports.
 
 ## Ordinal
 /// description: An event's position in its stream; monotone within one Channel.
@@ -914,8 +921,9 @@ type PackageDef is Bead {
 // (not duplicated per-type). An abstract type (e.g. `issue`) is not directly
 // instantiable: with no explicit `--type`/`--kind`, `create` takes the scope's
 // advertised `defaultType` (the deployment default; a client `$BDP_DEFAULT_TYPE` may
-// override), else (an open relaxation — see bdp-cli.md) a type's `cli.defaultType`
-// catalog hint, else it lists the subtypes.
+// override), else it lists the subtypes. A pack MUST NOT declare a default type — there
+// is no `cli.defaultType` catalog hint; the default is a scope/client fact ONLY, and the
+// feature is discouraged (prefer an explicit `--type`/`--kind`).
 //
 // Command placement — a pack sets `cli.mount` (where its commands attach to the
 // aggregate `bd` tree: "/" = top-level so `bd ready`, a prefix like "issue" → `bd
