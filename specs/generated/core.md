@@ -1291,7 +1291,7 @@ Dispatch is implicit: a request routes to the target resource. Beads take client
   put         PUT     /{id}                     If-Match carries --if-revision (OCC)
   patch       PATCH   /{id}                     root-addressed JSON-Patch body
   delete      DELETE  /{id}
-  revisions   GET     /{id}/revisions           the resource's history → Page
+  revisions   GET     /{id}:revisions           the resource's history → Page (a `:verb`, NOT /{id}/revisions — ids contain `/`, so a /subpath is ambiguous with an id segment)
   call        POST    /{opPath}:call            +?mode=async → 202 + AsyncResult Location
   cancel      POST    /{asyncResultId}:cancel   {asyncResultId} = the async Location
   pull        GET     /{channel}                a Channel, e.g. /sys/changes (changefeed)
