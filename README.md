@@ -4,79 +4,33 @@ BDP is an HTTP and JSON protocol for reading and changing Beads and Links across
 
 This repository — [gastownhall/bdp](https://github.com/gastownhall/bdp) — is the canonical source of truth for BDP. Wherever you are reading a vendored copy, the original lives here.
 
-## Canonical specification review
+## The specification
 
-Donna's review corpus has six directly editable documents:
+The protocol is defined by a small set of authored sources under [`specs/src/`](specs/src/), from which every machine-readable artifact is generated. Read them in this order:
 
-- [Core](specs/profiles/core/core.md)
-- [Write](specs/profiles/write/write.md)
-- [Types](specs/profiles/types/types.md)
-- [Events](specs/profiles/events/events.md)
-- [Transfer — proposed](specs/profiles/transfer/transfer.md)
-- [CLI](docs/cli-design/bdp-cli.md)
+1. **[`specs/src/bdp.md`](specs/src/bdp.md)** — the protocol itself: the model, the semantics, and the HTTP rules that span operations — identity, reads, writes, change events, authorization, and the wire details.
+2. **[`specs/src/core/core.lumen`](specs/src/core/core.lumen)** — the formal Core source: the type system, the fixed set of primitives, and the Core operations. It projects deterministically to the JSON Schema bundle, the OpenAPI catalog, and the generated Markdown reference.
+3. **[`specs/src/bdppacks.md`](specs/src/bdppacks.md)** and **[`specs/src/packs/`](specs/src/packs/)** — the standard packs (`stdlib`, `issue`, `memory`, `ops`): optional capabilities a service may advertise on top of Core.
+4. **[`docs/cli-design/bdp-cli.md`](docs/cli-design/bdp-cli.md)** — the `bdp` command-line surface, a client specification over the protocol (not a separate wire profile).
 
-Transfer is a new proposal with explicit unresolved mappings; its location does
-not adopt a capability or new wire binding. Its proposed command mapping is inline
-in the existing CLI document.
+Supporting material:
 
-Start with **Core**, not a retained-profile wrapper or an amendment map. The documents state the current draft rules in place. Types is optional; carrying a Type affiliation does not by itself require a descriptor engine.
+- **[`specs/formats/`](specs/formats/)** — the authoring conventions for the Markdown ↔ JSON Schema / OpenAPI projections. Generated Markdown adheres to these.
+- **[`specs/generated/`](specs/generated/)** — generated artifacts (the Markdown reference, the schemas, the OpenAPI catalog). Produced from the sources above and never hand-edited.
+- **[`specs/history/`](specs/history/)** — preserved historical inputs and their immutable original revisions.
 
-The [editing routine](docs/spec-review/README.md) explains the VS Code comment/process/push loop. PR337 established the canonical draft; subsequent main changes deliver the canonical CLI, opt-in six-CRUD atomic batch and historical-source Update. Donna’s editorial review continues through small PRs. The [decision receipt map](docs/plans/decision-implementation-map.md) distinguishes landed source and qualification from remaining implementation and deferred design; implementation checks remain separate from specification-artifact checks.
+Core works without the packs. A pack adds its stated responsibilities without changing Core identity or read meanings.
 
-[Stabilization plan](docs/plans/bdp-stabilization.md) · [Specification status and supporting schemas](specs/README.md) · [CLI design](docs/cli-design/bdp-cli.md) · [Historical inputs](specs/history/pre-canonical-20261101/README.md)
+## Consolidation in progress
 
-## Conformance tests: where to look and how to run them
+The per-profile documents under `specs/profiles/` and the type documents under `specs/types/` are an **earlier structure being consolidated into `bdp.md`, `core.lumen`, and the packs**. They are retained only until that migration completes, are not the current source of truth, and will be removed. Prefer `specs/src/`.
 
-Start with the [conformance testing guide](docs/conformance-testing.md). It
-separates three kinds of evidence that answer different questions:
+## Building and checking
 
-1. **Specification artifact checks** verify that schemas, generated projections,
-   and authored specification contracts agree. Run `pnpm test:markdown` and
-   `pnpm openapi:check`; the broader `pnpm test` also runs catalog and boundary
-   checks.
-2. **Endpoint interoperability checks** exercise behavior through public HTTP.
-   The current [Core/ordinary Write provider kit](docs/current-provider-kit.md)
-   runs against the reference endpoint with:
+```sh
+pnpm install --frozen-lockfile
+pnpm openapi:check   # regenerate the OpenAPI catalog and verify it matches the sources
+pnpm test            # the full artifact, schema, markdown and boundary checks
+```
 
-   ```sh
-   pnpm install --frozen-lockfile
-   pnpm build
-   node scripts/current-provider-kit.mjs --provider "$PWD/scripts/current-provider-reference-adapter.mjs"
-   ```
-
-   To use another endpoint, provide a trusted adapter module that provisions an
-   isolated Scope and fixture and owns its cleanup; the runner discovers the
-   service routes and sends real HTTP requests to that Scope. This is a partial
-   19-case slice, reports incomplete qualification, and is not a provider
-   certification. There is not yet a one-flag `--scope <url>` mode or a complete
-   standalone service/client conformance release.
-3. **Implementation tests** exercise this repository's client, reference
-   service, and supporting packages. Run `pnpm build && pnpm test`; the reference
-   performance trend runner is documented in
-   [`scripts/perf/README.md`](scripts/perf/README.md). These tests establish
-   implementation behavior and reliability, not interoperability of an
-   arbitrary implementation.
-
-The guide links the normative obligations, executable matrices, current runner,
-and each command's limits. Use it when preparing an endpoint for external review.
-
-## Try the installed CLI during review
-
-Use the [disposable reference review lab](docs/spec-review/reference-lab.md) for a
-fresh local Scope, installed canonical CLI and explicit restart/recovery controls:
-`pnpm build` then `pnpm review:lab` (or `pnpm review:lab --check` for the finite journey).
-The foreground owner cleans up its privileged fixture on stop, EOF or interruption.
-This is a review workstation, not full provider conformance.
-
-## Implementation and evidence
-
-This repository also contains TypeScript protocol/client/server packages, a reference SQLite service, black-box conformance tooling and historical implementation evidence. Source publication is not a conformance claim. Product source, build, configuration and test evidence keep their own exact identities; the editorial branch does not promote any of them.
-
-The current draft reference API is [documented here](docs/reference-service.md):
-`RetainedClient` and `@bdp/server/reference` select ordinary Core/Write. Legacy
-`BdpClient`, `bdptest` and adapter conformance evidence retain their original
-contracts; their historical seals do not qualify the new composition.
-
-See [packed smoke routes](docs/test-smoke-routes.md), [shadow test routing](docs/test-routing-shadow.md), [implementation status](STATUS.md), [reference-service milestones](docs/design/bdp-reference-service-milestones.md) and the [conformance evidence guide](packages/conformance/matrices/README.md).
-
-License: MIT. Copyright 2026 Gas City Inc.
+Specification-artifact checks (schemas, generated projections and authored contracts agree) are distinct from endpoint-interoperability checks (behaviour exercised through public HTTP). A specification edit does not by itself qualify an implementation.
