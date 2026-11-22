@@ -260,7 +260,7 @@
       "specs/profiles/write/write.md": "329343b01e7021d212cccb21ce8fa9c0117db17df88772786e75e33b216bf911",
       "specs/profiles/events/events.md": "315ba4eb7cc0e1312e73c536b211d9d793131b9876c314bf6cdaf3c301668253",
       "specs/profiles/types/types.md": "d3dcc1b0d6eafbf37f49081e8968018d8c264920b10d1013013b14103e3045fa",
-      "specs/profiles/transfer/transfer.md": "63be10c6ee7669ed6733cc6ec12ff8b43c94359a088d61406f130c0face3ddb8",
+      "specs/profiles/transfer/transfer.md": "3ed63cb2a3a093b2fba587d1f114155640b2834b18451e134db3fc12a59e7e51",
       "specs/formats/markdown-openapi.md": "1ad51d3ae1a14503cb5d2955fa32044a52a1051c661c1e5c8f5640340e537bd8",
       "specs/profiles/types/types-v1.schema.json": "c02a57d5cddb2084154d924fc2ebfca3c150b35587f6fb43f0da9f93931f1571",
       "scripts/generate-openapi.mjs": "0764d0619db3864da2255a236c2d573f694dd5ae649bfe2543f66b171b93f49f",

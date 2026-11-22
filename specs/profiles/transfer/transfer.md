@@ -276,7 +276,7 @@ No new vote is requested on both encodings, Resource-first bodies, all-retained 
 
 ## 11. Correspondence sources
 
-The companion [Transfer review notes](../../../docs/spec-review/transfer-review.md) pins the selected source paths and relevant clause ranges, records stale proposal mismatches and separates settled outcomes from new draft choices. CLI mapping is in [the canonical CLI's proposed Transfer section](../../../docs/cli-design/bdp-cli.md#proposed-transfer-commands). Examples in the older Resource comparison demonstrate shape only; they lack the required retained families and are not complete packages under this draft. Nothing here claims an implementation, review council, executed acceptance test, adoption or promotion.
+The companion [Transfer review notes](../../../docs/spec-review/transfer-review.md) pins the selected source paths and relevant clause ranges, records stale proposal mismatches and separates settled outcomes from new draft choices. CLI mapping is in [the proposed Transfer section of the archived beads CLI](../../../docs/cli-design/legacy-beads-cli.md#proposed-transfer-commands). Examples in the older Resource comparison demonstrate shape only; they lack the required retained families and are not complete packages under this draft. Nothing here claims an implementation, review council, executed acceptance test, adoption or promotion.
 
 ## Schemas
 
