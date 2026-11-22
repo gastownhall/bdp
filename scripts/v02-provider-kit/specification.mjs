@@ -65,6 +65,8 @@ export async function loadCoverage() {
   inputs.toolingFiles = {};
   for (const file of [
     "runner.mjs",
+    "readonly-operations.mjs",
+    "history-witness.mjs",
     "contract.mjs",
     "evaluate.mjs",
     "transport.mjs",

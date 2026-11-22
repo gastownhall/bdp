@@ -89,11 +89,11 @@ export function transport(
 ) {
   const origin = new URL(scope).origin,
     agents = {
-      http: new http.Agent({ keepAlive: true }),
-      https: new https.Agent({ keepAlive: true }),
+      http: new http.Agent({ keepAlive: false }),
+      https: new https.Agent({ keepAlive: false }),
     };
   const receipts = [];
-  async function request(target, { method = "GET", body, headers = {} } = {}) {
+  async function request(target, { method = "GET", body, headers = {}, observeForMs } = {}) {
     const url = new URL(target, scope);
     if (url.origin !== origin || url.username || url.password)
       throw new HarnessError("Undeclared or credential-bearing navigation origin");
@@ -102,11 +102,13 @@ export function transport(
         ? undefined
         : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
     return new Promise((resolve, reject) => {
-      let ended = false;
+      let ended = false,
+        observationTimer;
       const finish = (error, value) => {
         if (ended) return;
         ended = true;
         clearTimeout(timer);
+        clearTimeout(observationTimer);
         error ? reject(error) : resolve(value);
       };
       const req = (url.protocol === "https:" ? https : http).request(
@@ -137,7 +139,7 @@ export function transport(
             finish(new HarnessError("HTTP response ended before observation completed")),
           );
           res.on("aborted", () => finish(new HarnessError("HTTP response was truncated")));
-          res.on("end", () => {
+          const complete = (live) => {
             const data = Buffer.concat(parts);
             let text;
             try {
@@ -151,6 +153,7 @@ export function transport(
               headers: res.headers,
               rawHeaders: res.rawHeaders,
               text,
+              ...(observeForMs ? { live, observedMs: observeForMs } : {}),
             };
             receipts.push({
               method,
@@ -158,9 +161,13 @@ export function transport(
               status: res.statusCode,
               bytes,
               sha256: hash(data),
+              ...(observeForMs ? { observation: "live-window", live } : {}),
             });
             finish(null, result);
-          });
+            if (live) res.destroy();
+          };
+          res.on("end", () => complete(false));
+          if (observeForMs) observationTimer = setTimeout(() => complete(true), observeForMs);
         },
       );
       const timer = setTimeout(() => {

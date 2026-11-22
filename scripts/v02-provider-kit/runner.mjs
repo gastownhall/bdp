@@ -15,6 +15,15 @@ import {
 import { canonical, identity, filter, query, projected } from "./evaluate.mjs";
 import { transport, parseJson, HarnessError, hash } from "./transport.mjs";
 import { loadCoverage, qualify } from "./specification.mjs";
+import {
+  searchCase,
+  sortingCase,
+  graphCase,
+  duplicatesCase,
+  similarCase,
+  lintCase,
+  historyCase,
+} from "./readonly-operations.mjs";
 export const rowIds = [
   "spec.coverage",
   "core.discovery",
@@ -36,7 +45,14 @@ export const rowIds = [
   "stdlib.query-rejections",
   "stdlib.query-via",
   "stdlib.count",
+  "stdlib.search",
+  "stdlib.graph",
+  "stdlib.duplicates",
+  "stdlib.similar",
+  "stdlib.lint",
+  "core.sorting",
   "core.feed",
+  "core.live",
   "core.export",
   "core.safe-reads",
   "core.unoffered",
@@ -52,9 +68,9 @@ const cond = (condition) => ({ kind: "cond", condition });
 export async function runV02Provider(target, options = {}) {
   const report = {
     kit: "bdp-v0.2-read-only",
-    qualificationScope: "Core read-only; advertised stdlib query/count",
+    qualificationScope: "Core read-only; advertised read-only stdlib operations",
     specification:
-      "https://github.com/gastownhall/bdp/blob/5ea7cb385deb3027742984c0ef8a7f2442a91260/specs/src/core/core.lumen",
+      "https://github.com/gastownhall/bdp/blob/c66f0c66b6026fd270a5d77252fcd01260601631/specs/src/core/core.lumen",
     profile: "read-only",
     scope: target.scope,
     qualificationComplete: false,
@@ -178,7 +194,10 @@ export async function runV02Provider(target, options = {}) {
     const r = await request(`stdlib/${name}:call`, {
       method: "POST",
       body: {
-        arguments: Object.entries({ scope: null, ...args }).map(([name, value]) => ({
+        arguments: Object.entries({
+          ...(["query", "count", "search"].includes(name) ? { scope: null } : {}),
+          ...args,
+        }).map(([name, value]) => ({
           name,
           value,
         })),
@@ -379,8 +398,7 @@ export async function runV02Provider(target, options = {}) {
     "core.list-filter": async () => {
       requiredValue(caps, "discovery");
       ifOffered(caps.core.list, "List is not offered");
-      if (caps.core.list.sort)
-        throw new NotRun("Advertised server sorting needs additional qualification cases");
+
       requiredValue(resources, "inventory");
       const r = restricted()[0],
         type = r.type;
@@ -429,6 +447,13 @@ export async function runV02Provider(target, options = {}) {
             await list(where),
             resources.filter((r) => filter(where, r)),
           );
+        }
+      }
+      if(caps.core.list.conditions.includes("matches")&&caps.core.list.conditions.includes("compare")){
+        const textResource=restricted().find(r=>typeof r.body?.text==='string'&&r.body.text.length>2000);
+        if(textResource){
+          const where=[{kind:'compare',field:['id','id'],op:'eq',value:textResource.id.id},{kind:'matches',field:['body','text'],using:'glob',pattern:'*e'.repeat(24)+'*\uffff'}];
+          sameSet(await list(where),resources.filter(r=>filter(where,r)));
         }
       }
       await fault(`?filter=${encodeURIComponent('[{"kind":"has","field":"body.x"}]')}`, [400]);
@@ -639,6 +664,57 @@ export async function runV02Provider(target, options = {}) {
         "Count ignored the Query predicate",
       );
     },
+    "stdlib.lint": async () => {
+      ifOffered(hasStdlib("lint") || options.requiredStdlib?.includes("lint"), "Lint not offered");
+      requireThat(hasStdlib("lint"), "Required stdlib lint capability is missing");
+      await lintCase({ caps, resources, scope: target.scope, invoke, fault });
+    },
+    "stdlib.similar": async () => {
+      ifOffered(
+        hasStdlib("similar") || options.requiredStdlib?.includes("similar"),
+        "Similar not offered",
+      );
+      requireThat(hasStdlib("similar"), "Required stdlib similar capability is missing");
+      await similarCase({ caps, resources, scope: target.scope, invoke, fault });
+    },
+    "stdlib.duplicates": async () => {
+      ifOffered(
+        hasStdlib("duplicates") || options.requiredStdlib?.includes("duplicates"),
+        "Duplicates not offered",
+      );
+      requireThat(hasStdlib("duplicates"), "Required stdlib duplicates capability is missing");
+      await duplicatesCase({ caps, resources, scope: target.scope, invoke, fault });
+    },
+    "stdlib.graph": async () => {
+      ifOffered(
+        hasStdlib("graph") || options.requiredStdlib?.includes("graph"),
+        "Graph not offered",
+      );
+      requireThat(hasStdlib("graph"), "Required stdlib graph capability is missing");
+      await graphCase({ caps, resources, scope: target.scope, invoke, fault });
+    },
+    "core.sorting": async () => {
+      ifOffered(caps.core.list?.sort || options.requiredSort, "Server sorting not offered");
+      await sortingCase({
+        caps,
+        resources,
+        scope: target.scope,
+        invoke,
+        request,
+        decoded,
+        fault,
+        numericSort:
+          options.requiredScalarSort || caps.packs?.stdlib?.query?.sortOrder === "scalar",
+      });
+    },
+    "stdlib.search": async () => {
+      ifOffered(
+        hasStdlib("search") || options.requiredStdlib?.includes("search"),
+        "Search not offered",
+      );
+      requireThat(hasStdlib("search"), "Required stdlib search capability is missing");
+      await searchCase({ caps, resources, scope: target.scope, invoke, fault });
+    },
     "core.feed": async () => {
       requiredValue(caps, "discovery");
       ifOffered(caps.core.pull, "Pull is not offered");
@@ -687,10 +763,46 @@ export async function runV02Provider(target, options = {}) {
               changeEvent(e, caps.scope.revisionModel);
             });
       }
-      if (caps.core.pull.sse)
-        throw new NotRun("Live SSE qualification is not implemented by this read-only runner");
+
       if (!caps.core.pull.sse)
         await fault("sys/changes?format=sse", [400, 406, 422], "capability-not-supported");
+    },
+    "core.live": async () => {
+      ifOffered(caps.core.pull?.sse || options.requiredSse, "SSE not offered");
+      requireThat(caps.core.pull?.sse === true, "Required live SSE capability is missing");
+      const cursor = requiredValue(initialFeed, "feed cursor");
+      for (const init of [
+        {
+          path: `sys/changes?format=sse&after=${encodeURIComponent(cursor)}`,
+          headers: { Accept: "text/event-stream" },
+        },
+        { path: "sys/changes", headers: { Accept: "text/event-stream", "Last-Event-ID": cursor } },
+      ]) {
+        const r = await request(init.path, { headers: init.headers, observeForMs: 300 });
+        requireThat(
+          r.status === 200 &&
+            (r.headers["content-type"] ?? "").split(";")[0] === "text/event-stream" &&
+            r.live === true,
+          "Advertised SSE must remain a live event-stream",
+        );
+        for (const block of r.text.split(/\r?\n\r?\n/)) {
+          const lines = block.split(/\r?\n/),
+            data = lines
+              .filter((l) => l.startsWith("data:"))
+              .map((l) => l.slice(5).trimStart())
+              .join("\n");
+          if (data) {
+            requireThat(
+              lines.some((l) => l.startsWith("id:")),
+              "SSE event needs resumable id",
+            );
+            changeEvent(parseJson(data), caps.scope.revisionModel);
+          }
+        }
+      }
+      await fault("sys/changes?format=sse&after=invalid-cursor", [400, 410, 422], undefined, {
+        headers: { Accept: "text/event-stream" },
+      });
     },
     "core.export": async () => {
       requiredValue(caps, "discovery");
@@ -702,8 +814,7 @@ export async function runV02Provider(target, options = {}) {
         r.status === 200 && (r.headers["content-type"] ?? "").split(";")[0] === "application/jsonl",
         "Export must offer JSONL",
       );
-      if (caps.core.export.revisions)
-        throw new NotRun("History export qualification is not implemented");
+
       const lines = r.text.trimEnd().split("\n").map(parseJson),
         begin = lines.shift(),
         end = lines.pop();
@@ -734,6 +845,35 @@ export async function runV02Provider(target, options = {}) {
       if (caps.core.pull) {
         const p = decoded(await request(`sys/changes?after=${encodeURIComponent(begin.cursor)}`));
         page(p);
+      }
+      if (caps.core.export.revisions) {
+        const history = await request("bdp/export?format=jsonl&revisions=true", {
+          headers: { Accept: "application/jsonl" },
+        });
+        requireThat(history.status === 200, "History export unavailable");
+        const records = history.text.trimEnd().split("\n").map(parseJson),
+          begin = records.shift(),
+          end = records.pop();
+        requireThat(
+          begin?.kind === "export-begin" &&
+            typeof begin.cursor === "string" &&
+            end?.kind === "export-end" &&
+            end.count === records.length,
+          "History export incomplete",
+        );
+        const keys = new Set();
+        for (const r of records) {
+          resource(r);
+          const k = canonical([key(r), r.id.rev]);
+          requireThat(!keys.has(k), "History export repeats a revision");
+          keys.add(k);
+        }
+        for (const r of resources)
+          if (r.storageClass?.kind !== "ephemeral")
+            requireThat(
+              keys.has(canonical([key(r), r.id.rev])),
+              "History export omits a known revision",
+            );
       }
       if (!caps.core.export.revisions)
         await fault("bdp/export?revisions=true", [400, 422, 405], "capability-not-supported");
@@ -769,8 +909,8 @@ export async function runV02Provider(target, options = {}) {
     },
     "core.history": async () => {
       requiredValue(caps, "discovery");
-      ifOffered(caps.core.revisions, "Prior history is not offered");
-      throw new NotRun("This profile does not yet qualify offered revision-history reads");
+      ifOffered(caps.core.revisions || options.requiredHistory, "Prior history is not offered");
+      await historyCase({ caps, resources, scope: target.scope, request, decoded, fault });
     },
     "core.restart": async () => {
       requiredValue(caps, "discovery");
@@ -793,6 +933,8 @@ export async function runV02Provider(target, options = {}) {
       const start = performance.now();
       const row = { id, required: true, state: "not-run" };
       try {
+        if (options.only && !options.only.includes(id))
+          throw new NotRun("Outside focused development run");
         await rows[id]();
         row.state = "pass";
       } catch (error) {

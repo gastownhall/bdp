@@ -22,7 +22,8 @@ fresh random identity. They must all refuse. Use this flag only on an owned test
 scope: a broken provider could accept one. No such methods are sent unless the
 flag is present **and** discovery first passes read-only capability admission.
 Without this permission the refusal row is `not-run`, so qualification is incomplete.
-Successful calls are limited to the spec's safe `stdlib/query` and `stdlib/count`.
+Successful calls are limited to advertised safe read-only operations: `query`,
+`count`, `search`, `graph`, `duplicates`, `similar` and `lint`.
 There is no inference, data ingestion or mutation fixture in this profile.
 
 A bearer credential, if required, comes only from `--token-env NAME`; anonymous
@@ -72,10 +73,38 @@ that observed safe call IDs acquire no unsafe call frames. General write/crash
 semantics are outside this profile. Durable resources require a restart witness;
 intrinsic computed resources do not acquire a persistence claim.
 
-An offered feature without qualification cases stays `not-run`. This currently
-includes revision-history reads/export, live SSE, filtered/projected event streams,
-server sorting and stdlib operations other than query/count. This tool does not
-award coverage for those features. The target must remain quiescent during a run;
+The optional-operation cases check bounded ranked SearchHit arrays, case-insensitive
+lexical matching, QueryExpr prefilters, selector expansion, unoffered mode faults,
+BFS graph depth/directions/type prefixes/cycle edges, exact duplicate field tuples,
+bounded distinct similarity pairs, and lint result shape/selection. Where a provider
+publishes `metadata.lint` rules in the tested field/required/nonempty/reference
+form, lint findings are independently checked against those declarations. Other
+rule languages are opaque; this is not a universal lint-language interpreter.
+
+History checks sample each observed type, consume its revision pages and compare
+pinned Get representations. History export checks framing, counts, unique
+identity/revision pairs and inclusion of known current revisions. A single known
+baseline revision is valid; tests do not fabricate older publications.
+
+Live SSE checks observe two bounded open-stream windows, explicit `after` and
+Accept/Last-Event-ID resumption, plus invalid cursor refusal. A keepalive-only stream
+is valid for an unchanged snapshot. Observation receipts explicitly identify a
+live window; they are not a claim of complete finite-stream consumption. Event
+publication/recovery requires a real changed-data witness outside this frozen
+read-only scope. The transport avoids pooled idle sockets so CPU-heavy reference
+calculations cannot accidentally reuse a server-closed socket.
+
+Sorting checks exercise standard stdlib Query Sort keys and cursor binding.
+When `packs.stdlib.query.sortOrder` advertises `scalar`, numeric keys are checked
+numerically; otherwise the general checker uses string identity keys. This
+provider policy does not change Core Filter comparisons, which remain lexical. The
+Core draft advertises List sorting but lacks its parameter in the List signature;
+the List `sort` JSON query parameter is an explicit provider binding exercised by
+this tool, not an invented normative parameter in the Lumen source.
+
+An offered feature without qualification cases stays `not-run`. This still
+includes filtered/projected event streams and other optional stdlib operations.
+This tool does not award coverage for those features. The target must remain quiescent during a run;
 a changing baseline cannot support the inventory/export equality checks.
 
 | Exit | State | Meaning |
@@ -107,3 +136,9 @@ reuse, wrong traversal direction, malformed Query acceptance, invented commit
 transactions, truncated exports, bad cut cursors and undefined envelope members
 cannot qualify. These are checker regressions. Qualification of an application
 still requires running the tool against that actual candidate and its real data.
+
+The JavaScript runner accepts focused development `only` and `requiredStdlib`,
+`requiredSort`, `requiredScalarSort`, `requiredHistory`, `requiredSse` options. These drive red/green
+implementation before discovery advertises a feature. Focused runs retain all
+omitted rows as required `not-run` and cannot qualify. Final evidence must use
+the full CLI run against the staged candidate.

@@ -180,3 +180,33 @@ test("unrepresentable numeric evidence is inconclusive instead of silently round
   assert.throws(() => parseJson("9007199254740993"), /lossless bounds/);
   assert.throws(() => parseJson("1e999"), /lossless bounds/);
 });
+
+test("extended read-only fixture qualifies sorting, search, graph, detection, lint, history and live SSE", async () => {
+  const r = await runV02Provider(await serveFixture("extended"), {
+    allowRefusalProbes: true,
+    maxPages: 100,
+  });
+  assert.equal(
+    r.state,
+    "pass",
+    JSON.stringify(r.obligations.filter((x) => !["pass", "not-applicable"].includes(x.state))),
+  );
+});
+for (const [mutation, row] of [
+  ["search", "stdlib.search"],
+  ["sort", "core.sorting"],
+  ["graph", "stdlib.graph"],
+  ["duplicates", "stdlib.duplicates"],
+  ["similar", "stdlib.similar"],
+  ["lint", "stdlib.lint"],
+  ["history", "core.history"],
+  ["live", "core.live"],
+])
+  test(`checker catches broken optional wire behavior: ${mutation}`, async () => {
+    const r = await runV02Provider(await serveFixture(`extended-${mutation}`), {
+      allowRefusalProbes: true,
+      maxPages: 100,
+    });
+    assert.equal(r.obligations.find((x) => x.id === row)?.state, "fail");
+    assert.equal(r.claimEligible, false);
+  });

@@ -3,6 +3,7 @@ import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 export async function serveFixture(mutation = "none") {
+  const extended = mutation.startsWith("extended");
   let origin;
   const caps = {
     core: {
@@ -51,6 +52,35 @@ export async function serveFixture(mutation = "none") {
       cardinality: "broadcast",
     }),
   ];
+  if (extended) {
+    a.body.text = "Alpha reference content ".repeat(6);
+    b.body.text = "Beta reference content ".repeat(6);
+    a.body.kind = b.body.kind = "article";
+    a.body.ordinal = 2;
+    b.body.ordinal = 10;
+    c.body.ordinal = 0;
+    b.type = "note";
+    caps.core.list.sort = true;
+    caps.packs.stdlib.query.sortOrder = "scalar";
+    caps.core.pull.sse = true;
+    caps.core.revisions = {};
+    caps.core.export.revisions = true;
+    Object.assign(caps.packs.stdlib, {
+      search: { modes: ["lexical"] },
+      graph: { maxGraphDepth: 4 },
+      duplicates: {},
+      similar: { similarityModes: ["lexical"] },
+      lint: {},
+    });
+    data.push(wrap("edge/ba", "edge", { source: { id: "b" }, target: { id: "a" } }));
+    const decl = wrap("types/note", "core/type-def", {
+      properties: [{ name: "title", type: { type: "string" } }],
+    });
+    decl.metadata = {
+      lint: [{ field: ["body", "published"], required: true, message: "Publication date missing" }],
+    };
+    data.push(decl);
+  }
   const field = (r, path) => {
     let x = r;
     for (const p of path) {
@@ -136,6 +166,8 @@ export async function serveFixture(mutation = "none") {
     if (!s) return structuredClone(r);
     if (s.include?.includes("")) return structuredClone(r);
     const out = s.include ? { id: r.id, type: r.type } : structuredClone(r);
+    if (s.include?.includes("/body/title") && r.body.title !== undefined)
+      out.body = { title: r.body.title };
     if (s.omit?.includes("/body")) delete out.body;
     return mutation === "selector" ? structuredClone(r) : out;
   }
@@ -160,6 +192,110 @@ export async function serveFixture(mutation = "none") {
       head: end === items.length,
     };
   }
+  const sorted = (items, sort) =>
+    !sort || mutation === "extended-sort"
+      ? items
+      : [...items].sort((a, b) => {
+          for (const k of sort) {
+            const left = field(a, k.field).value,
+              right = field(b, k.field).value,
+              x = typeof left === "number" && typeof right === "number" ? left : String(left),
+              y = typeof left === "number" && typeof right === "number" ? right : String(right),
+              n = x < y ? -1 : x > y ? 1 : 0;
+            if (n) return k.order === "desc" ? -n : n;
+          }
+          return a.id.id < b.id.id ? -1 : a.id.id > b.id.id ? 1 : 0;
+        });
+  function optional(name, args, items, fail) {
+    if (name === "search") {
+      if (args.mode && args.mode !== "lexical") fail(422, "search-mode-unsupported");
+      const matches = items
+        .filter((r) => JSON.stringify(r.body).toLowerCase().includes(args.text.toLowerCase()))
+        .slice(0, args.limit ?? 20)
+        .map((r) => ({
+          resource: args.select ? select(r, args.select) : r.id,
+          score: 1,
+          snippet: r.body.text ?? r.body.title,
+        }));
+      return mutation === "extended-search" ? { items: matches, cursor: null } : matches;
+    }
+    if (name === "graph") {
+      if (args.depth > 4) fail(422, "graph-depth-exceeded");
+      const dir = args.direction ?? "out",
+        depth = args.depth ?? 1,
+        depths = new Map(args.roots.map((r) => [r.id, 0])),
+        queue = [...depths.keys()],
+        edges = new Map();
+      for (const current of queue) {
+        if (depths.get(current) >= depth) continue;
+        for (const edge of data.filter((r) => r.body.source && r.body.target)) {
+          if (
+            args.edgeTypes &&
+            !args.edgeTypes.some((t) => edge.type === t || edge.type.startsWith(`${t}/`))
+          )
+            continue;
+          const next = [];
+          if (dir !== "in" && edge.body.source.id === current) next.push(edge.body.target.id);
+          if (dir !== "out" && edge.body.target.id === current) next.push(edge.body.source.id);
+          for (const id of next) {
+            edges.set(edge.id.id, {
+              edge: edge.id,
+              type: edge.type,
+              source: edge.body.source,
+              target: edge.body.target,
+            });
+            if (!depths.has(id)) {
+              depths.set(id, depths.get(current) + 1);
+              queue.push(id);
+            }
+          }
+        }
+      }
+      return {
+        nodes: queue.map((id) => ({
+          resource: data.find((r) => r.id.id === id).id,
+          depth: depths.get(id),
+        })),
+        edges: mutation === "extended-graph" ? [] : [...edges.values()],
+      };
+    }
+    if (name === "duplicates") {
+      if (!args.fields) fail();
+      const groups = new Map();
+      for (const r of items.filter(
+        (r) => r.type === args.type || r.type.startsWith(`${args.type}/`),
+      )) {
+        const k = JSON.stringify(args.fields.map((f) => field(r, f).value));
+        groups.set(k, [...(groups.get(k) ?? []), r.id]);
+      }
+      return mutation === "extended-duplicates"
+        ? [{ members: [a.id] }]
+        : [...groups.values()].filter((g) => g.length > 1).map((members) => ({ members }));
+    }
+    if (name === "similar") {
+      if (args.mode && args.mode !== "lexical") fail(422, "similarity-mode-unsupported");
+      const selected = items.filter(
+          (r) => r.type === args.type || r.type.startsWith(`${args.type}/`),
+        ),
+        pairs = [];
+      for (let i = 0; i < selected.length; i++)
+        for (let j = i + 1; j < selected.length; j++)
+          if ((args.threshold ?? 0) <= 0.5)
+            pairs.push({
+              a: selected[i].id,
+              b: mutation === "extended-similar" ? selected[i].id : selected[j].id,
+              score: 0.5,
+            });
+      return pairs.slice(0, args.limit ?? 20);
+    }
+    if (name === "lint")
+      return mutation === "extended-lint"
+        ? []
+        : items
+            .filter((r) => r.type === "note" && !r.body.published)
+            .slice(0, args.limit ?? 100)
+            .map((r) => ({ resource: r.id, findings: ["Publication date missing"] }));
+  }
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, origin),
       method = req.method;
@@ -180,12 +316,23 @@ export async function serveFixture(mutation = "none") {
       if (!["GET", "HEAD", "POST"].includes(method)) fail(405, "capability-not-supported");
       const format =
         url.searchParams.get("format") ??
-        (req.headers.accept === "application/jsonl" ? "jsonl" : undefined);
+        (req.headers.accept === "application/jsonl"
+          ? "jsonl"
+          : req.headers.accept === "text/event-stream"
+            ? "sse"
+            : undefined);
       const accept = req.headers.accept;
       if (accept === "text/html" || accept?.startsWith("application/json;q=0"))
         fail(406, "capability-not-supported");
       if (method === "POST") {
-        if (!["/stdlib/query:call", "/stdlib/count:call"].includes(url.pathname))
+        const name = /^\/stdlib\/([a-z]+):call$/.exec(url.pathname)?.[1];
+        if (
+          ![
+            "query",
+            "count",
+            ...(extended ? ["search", "graph", "duplicates", "similar", "lint"] : []),
+          ].includes(name)
+        )
           fail(405, "capability-not-supported");
         const chunks = [];
         for await (const chunk of req) chunks.push(chunk);
@@ -198,16 +345,25 @@ export async function serveFixture(mutation = "none") {
           if (mutation !== "malformed-query") fail(400, "malformed-query");
           where = { kind: "any", of: [] };
         }
-        const items = data.filter((r) => predicate(where, r));
+        const items = sorted(
+          data.filter((r) => predicate(where, r)),
+          args.sort,
+        );
         let result = url.pathname.includes("count")
           ? items.length
           : window(
               items,
               args.request,
-              JSON.stringify([where, args.select, args.request?.select]),
+              JSON.stringify([
+                where,
+                args.select,
+                args.request?.select,
+                ...(args.sort ? [args.sort] : []),
+              ]),
               "query",
               args.select ?? args.request?.select,
             );
+        if (!["query", "count"].includes(name)) result = optional(name, args, items, fail);
         if (mutation === "count" && typeof result === "number") result = String(result);
         value = {
           outcome: { kind: "success", value: result },
@@ -221,7 +377,14 @@ export async function serveFixture(mutation = "none") {
         (mutation === "channel-point" ||
           (!url.searchParams.has("revision") && !url.searchParams.has("selector")))
       ) {
-        if (format === "sse") fail(422, "capability-not-supported");
+        if (format === "sse") {
+          if (!extended) fail(422, "capability-not-supported");
+          if (url.searchParams.has("after") && url.searchParams.get("after") !== "cut") fail();
+          res.writeHead(200, { "Content-Type": "text/event-stream" });
+          res.write(": waiting\n\n");
+          if (mutation === "extended-live") res.end();
+          return;
+        }
         if (url.searchParams.has("after") && url.searchParams.get("after") !== "cut") fail();
         value = { items: [], cursor: "cut", head: true };
         if (format === "jsonl") {
@@ -229,7 +392,8 @@ export async function serveFixture(mutation = "none") {
           value = "";
         }
       } else if (url.pathname === "/bdp/export") {
-        if (url.searchParams.get("revisions") === "true") fail(422, "capability-not-supported");
+        if (!extended && url.searchParams.get("revisions") === "true")
+          fail(422, "capability-not-supported");
         contentType = "application/jsonl";
         const records = [
           {
@@ -247,8 +411,10 @@ export async function serveFixture(mutation = "none") {
         if (format === "sse") fail(422, "capability-not-supported");
         const where = JSON.parse(url.searchParams.get("filter") ?? "[]");
         if (where.some((c) => c.kind !== "is-type" && !Array.isArray(c.field))) fail();
-        const items =
-          mutation === "filter" ? data : data.filter((r) => where.every((c) => match(c, r)));
+        const items = sorted(
+          mutation === "filter" ? data : data.filter((r) => where.every((c) => match(c, r))),
+          url.searchParams.has("sort") ? JSON.parse(url.searchParams.get("sort")) : undefined,
+        );
         if (format === "jsonl") {
           if (mutation === "no-jsonl") fail(422, "capability-not-supported");
           contentType = "application/jsonl";
@@ -272,21 +438,32 @@ export async function serveFixture(mutation = "none") {
         if (mutation === "magic-path" && url.searchParams.get("selector")?.includes("__proto__"))
           fail();
         const id = decodeURIComponent(url.pathname.slice(1));
-        if (id.endsWith(":revisions")) fail(422, "capability-not-supported");
-        const found = data.find((r) => r.id.id === id);
-        if (!found) fail(404, "resource-not-found");
-        res.setHeader("ETag", '"1"');
-        if (req.headers["if-none-match"] === '"1"') {
-          res.writeHead(304);
-          res.end();
-          return;
+        if (id.endsWith(":revisions")) {
+          if (!extended) fail(422, "capability-not-supported");
+          const found = data.find((r) => r.id.id === id.slice(0, -10));
+          if (!found) fail(404, "resource-not-found");
+          value = window(
+            mutation === "extended-history" ? [] : [found],
+            Object.fromEntries(url.searchParams),
+            id,
+            "revisions",
+          );
+        } else {
+          const found = data.find((r) => r.id.id === id);
+          if (!found) fail(404, "resource-not-found");
+          res.setHeader("ETag", '"1"');
+          if (req.headers["if-none-match"] === '"1"') {
+            res.writeHead(304);
+            res.end();
+            return;
+          }
+          value = select(
+            found,
+            url.searchParams.has("selector")
+              ? JSON.parse(url.searchParams.get("selector"))
+              : undefined,
+          );
         }
-        value = select(
-          found,
-          url.searchParams.has("selector")
-            ? JSON.parse(url.searchParams.get("selector"))
-            : undefined,
-        );
       }
       if (mutation === "extra-envelope") {
         const mutate = (r) =>
@@ -322,5 +499,12 @@ export async function serveFixture(mutation = "none") {
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
-  return { scope: `${origin}/`, cleanup: () => new Promise((resolve) => server.close(resolve)) };
+  return {
+    scope: `${origin}/`,
+    cleanup: () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        server.closeAllConnections();
+      }),
+  };
 }
