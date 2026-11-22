@@ -251,10 +251,14 @@ test("coverage ties every operation to real source/CLI lines and capabilities st
       if (!op) continue;
       assert(!seen.has(op.operationId));
       seen.add(op.operationId);
-      for (const link of [...op["x-bdp-sources"], op["x-bdp-cli"]]) {
+      for (const link of op["x-bdp-sources"]) {
         const lines = readFileSync(resolve(root, link.file), "utf8").split("\n");
         assert(link.line > 0 && link.line < lines.length, JSON.stringify(link));
       }
+      assert(
+        op["x-bdp-cli"] === null || typeof op["x-bdp-cli"].command === "string",
+        JSON.stringify(op["x-bdp-cli"]),
+      );
       assert(
         readFileSync(resolve(root, "specs/openapi/coverage.md"), "utf8").includes(op.operationId),
       );
@@ -616,7 +620,7 @@ test("cache metadata and landing request-media note retain their actual conditio
   }
 });
 
-test("Link read and point projection CLI references select their actual correspondence", () => {
+test("Link read and point projection CLI references select their actual command", () => {
   for (const [id, command] of [
     ["linkProperties", "bd link show"],
     ["historicalLink", "bd link show"],
@@ -625,11 +629,7 @@ test("Link read and point projection CLI references select their actual correspo
     ["projectedHistoricalBead", "bd show"],
     ["projectedHistoricalLink", "bd link show"],
   ]) {
-    const cite = catalog.components.pathItems[id].get["x-bdp-cli"];
-    assert.equal(
-      readFileSync(resolve(root, cite.file), "utf8").split(/\r?\n/)[cite.line - 1],
-      `#### \`${command}\``,
-    );
+    assert.equal(catalog.components.pathItems[id].get["x-bdp-cli"].command, command);
   }
 });
 
@@ -866,7 +866,6 @@ test("landing discovery metadata is body-independent and generation fingerprints
     assert.match(op.responses["304"].headers.Link.description, /Scope discovery navigation/);
   }
   for (const path of [
-    "docs/cli-design/bdp-cli.md",
     "specs/profiles/types/types-v1.schema.json",
     "scripts/generate-openapi.mjs",
     "fixtures/openapi/bindings.json",
