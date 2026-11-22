@@ -11,7 +11,7 @@ The editorial review corpus contains four selected protocol documents, the propo
 5. [Transfer — proposed](profiles/transfer/transfer.md) — complete retained-data packages and original-state admission; [remaining design work](../docs/spec-review/transfer-review.md) is explicit.
 6. [CLI](../docs/cli-design/bdp-cli.md) — shared command behavior, output and protocol correspondence. The [mismatch audit](../docs/spec-review/cli-mismatches.md) records its current reconciliation work.
 
-Editorial drafts for the preview pin, not selected until Donna marks them: [Callables](profiles/callables/callables.md), and the Issue package in two halves, [Issue and Dependency Types](types/issue/issue.md) and [Issue and Dependency Callables](types/issue/callables.md).
+Editorial drafts for the preview pin, not selected until marked: [Callables](profiles/callables/callables.md) and [Issue and Dependency Callables](types/issue/callables.md).
 
 A v0.2 rework is underway as fresh top-level documents: [Types — v0.2 draft](types.md) (status: draft). The v0.1 [Types](profiles/types/types.md) profile above remains the source of the Types schema, OpenAPI and kit until the v0.2 sections are ruled.
 
