@@ -67,13 +67,20 @@ export function condition(c, r) {
     if (c.using === "substring") return value.includes(c.pattern);
     if (c.using === "regex") return new RegExp(c.pattern, "u").test(value);
     // Independent dynamic-programming glob evaluator; no backtracking regex.
-    const pattern=[...c.pattern], text=[...value];
-    let previous=new Uint8Array(pattern.length+1);previous[0]=1;
-    for(let j=1;j<=pattern.length;j++)previous[j]=pattern[j-1]==='*'?previous[j-1]:0;
-    for(const ch of text){
-      const next=new Uint8Array(pattern.length+1);
-      for(let j=1;j<=pattern.length;j++)next[j]=pattern[j-1]==='*'?(previous[j]||next[j-1]):(pattern[j-1]==='?'||pattern[j-1]===ch)&&previous[j-1];
-      previous=next;
+    const pattern = [...c.pattern],
+      text = [...value];
+    let previous = new Uint8Array(pattern.length + 1);
+    previous[0] = 1;
+    for (let j = 1; j <= pattern.length; j++)
+      previous[j] = pattern[j - 1] === "*" ? previous[j - 1] : 0;
+    for (const ch of text) {
+      const next = new Uint8Array(pattern.length + 1);
+      for (let j = 1; j <= pattern.length; j++)
+        next[j] =
+          pattern[j - 1] === "*"
+            ? previous[j] || next[j - 1]
+            : (pattern[j - 1] === "?" || pattern[j - 1] === ch) && previous[j - 1];
+      previous = next;
     }
     return !!previous[pattern.length];
   }

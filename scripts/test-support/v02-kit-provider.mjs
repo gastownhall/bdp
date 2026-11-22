@@ -495,7 +495,11 @@ export async function serveFixture(mutation = "none") {
         retry: "never",
       };
     }
-    if (mutation === "extended-history-missing-cause" && code === 400 && url.pathname.endsWith(":revisions"))
+    if (
+      mutation === "extended-history-missing-cause" &&
+      code === 400 &&
+      url.pathname.endsWith(":revisions")
+    )
       res.removeHeader("BDP-Cause");
     res.writeHead(code, { "Content-Type": contentType });
     res.end(

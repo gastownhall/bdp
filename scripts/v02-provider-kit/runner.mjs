@@ -449,11 +449,27 @@ export async function runV02Provider(target, options = {}) {
           );
         }
       }
-      if(caps.core.list.conditions.includes("matches")&&caps.core.list.conditions.includes("compare")){
-        const textResource=restricted().find(r=>typeof r.body?.text==='string'&&r.body.text.length>2000);
-        if(textResource){
-          const where=[{kind:'compare',field:['id','id'],op:'eq',value:textResource.id.id},{kind:'matches',field:['body','text'],using:'glob',pattern:'*e'.repeat(24)+'*\uffff'}];
-          sameSet(await list(where),resources.filter(r=>filter(where,r)));
+      if (
+        caps.core.list.conditions.includes("matches") &&
+        caps.core.list.conditions.includes("compare")
+      ) {
+        const textResource = restricted().find(
+          (r) => typeof r.body?.text === "string" && r.body.text.length > 2000,
+        );
+        if (textResource) {
+          const where = [
+            { kind: "compare", field: ["id", "id"], op: "eq", value: textResource.id.id },
+            {
+              kind: "matches",
+              field: ["body", "text"],
+              using: "glob",
+              pattern: "*e".repeat(24) + "*\uffff",
+            },
+          ];
+          sameSet(
+            await list(where),
+            resources.filter((r) => filter(where, r)),
+          );
         }
       }
       await fault(`?filter=${encodeURIComponent('[{"kind":"has","field":"body.x"}]')}`, [400]);
