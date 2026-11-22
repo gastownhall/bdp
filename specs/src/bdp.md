@@ -88,7 +88,7 @@ Content — a `text/plain` file, an image — is a bare resource. Its type is a 
 type, and its body is the raw bytes. A bead and a piece of content differ only in
 what names the type: a package names a bead's type; a registry such as IANA names
 a content type. The one question that classifies a resource is which of these it
-is: a `type` that is a package-defined kind-path makes a bead; a media type makes
+is: a `type` that is a package-defined type-path makes a bead; a media type makes
 content.
 
 Who named the type is the [[core.lumen#Authority]]. A caller may supply it; absent
@@ -161,7 +161,7 @@ Further modifiers constrain the relation as a whole — `acyclic` makes it a DAG
 `symmetric` and `reflexive` shape its graph. Reachability and traversal through
 relationships are a corelib surface, outside the core.
 
-Referential integrity follows the **kind** of reference, not one global rule.
+Referential integrity follows the **sort** of reference, not one global rule.
 `source` and `target` are structural: a relationship never outlives them, so
 retiring an endpoint either cascades to the relationship or is restricted while
 the relationship stands. A reference that only points at a resource — a note, an
@@ -180,14 +180,14 @@ stays the function of authored state. The protocol declares only that a property
 is computed and revision-transparent; the formula that computes it belongs to a
 package, not to Core.
 
-## 5. Types — the kind system
+## 5. Types
 
 A type is a path, and the path is its meaning. `issue/task` is a task, which is a
-kind of issue. The path is built by single refinement: `task` refines `issue`,
+subtype of issue. The path is built by single refinement: `task` refines `issue`,
 and the chain from the root to the leaf is the path. Only one parent is allowed,
 which is what keeps the path a tree and an id unique.
 
-The type path is also the resource's **kind**. Kind is not a stored field; it is
+The type path is also the resource's **type**. The type is not a stored field; it is
 the type's id. A filter that asks "is this an issue?" tests the path by prefix.
 
 Types can also be written down and published. A [[core.lumen#TypeBead]] carries a
@@ -362,7 +362,7 @@ A conformance suite is built from this specification, not from any
 implementation. Each `/// normative:` line in the formal source is a conformance
 point, and a service either meets it or does not.
 
-The rules come in two kinds. Most sit on a single form and govern it — how
+The rules come in two sorts. Most sit on a single form and govern it — how
 `delete` treats inbound references, when a revision changes, how a hidden
 resource reads. Those travel with their form in the reference. The store-wide
 guarantees — a change produces exactly one event, an id is never reused, a hidden
