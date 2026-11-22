@@ -192,6 +192,24 @@ test("extended read-only fixture qualifies sorting, search, graph, detection, li
     JSON.stringify(r.obligations.filter((x) => !["pass", "not-applicable"].includes(x.state))),
   );
 });
+test("qualification uses valid HTTP targets for BDP history refusal checks", async () => {
+  const r = await runV02Provider(await serveFixture("extended-edge-parser"), {
+    allowRefusalProbes: true,
+    maxPages: 100,
+  });
+  assert.equal(r.obligations.find((x) => x.id === "core.history")?.state, "pass");
+  assert.equal(r.state, "pass");
+});
+test("history refusal still fails qualification when its BDP reply lacks cause context", async () => {
+  const r = await runV02Provider(await serveFixture("extended-history-missing-cause"), {
+    allowRefusalProbes: true,
+    maxPages: 100,
+  });
+  const history = r.obligations.find((x) => x.id === "core.history");
+  assert.equal(history?.state, "fail");
+  assert.equal(history?.reason, "Missing response BDP-Cause");
+  assert.equal(r.claimEligible, false);
+});
 for (const [mutation, row] of [
   ["search", "stdlib.search"],
   ["sort", "core.sorting"],

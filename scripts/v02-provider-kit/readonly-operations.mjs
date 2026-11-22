@@ -435,7 +435,10 @@ export async function historyCase({ caps, resources, scope, request, decoded, fa
     !!caps.core.revisions && caps.scope.revisionModel === "versioned",
     "Required versioned resource history capability is missing",
   );
-  await fault("./%ZZ:revisions", [400], undefined);
+  // Keep the HTTP request target valid: a proxy can reject invalid percent
+  // encoding before BDP runs. A conflicting Page position reaches the history
+  // operation and must return a proper BDP Problem, including reply context.
+  await fault("sys/capabilities:revisions?after=bad&from=0", [400], "invalid-parameter");
   const samples = [...new Map(resources.map((r) => [r.type, r])).values()].slice(0, 16);
   for (const r of samples) {
     const values = [],

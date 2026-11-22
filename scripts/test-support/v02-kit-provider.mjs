@@ -297,6 +297,13 @@ export async function serveFixture(mutation = "none") {
             .map((r) => ({ resource: r.id, findings: ["Publication date missing"] }));
   }
   const server = http.createServer(async (req, res) => {
+    // Model an HTTP server rejecting a malformed request target before routing.
+    // This is not a BDP reply and deliberately carries no protocol headers.
+    if (mutation === "extended-edge-parser" && /%(?![0-9a-f]{2})/i.test(req.url)) {
+      res.writeHead(400, { "Content-Type": "text/html" });
+      res.end("<h1>400 Bad Request</h1>");
+      return;
+    }
     const url = new URL(req.url, origin),
       method = req.method;
     let code = 200,
@@ -488,6 +495,8 @@ export async function serveFixture(mutation = "none") {
         retry: "never",
       };
     }
+    if (mutation === "extended-history-missing-cause" && code === 400 && url.pathname.endsWith(":revisions"))
+      res.removeHeader("BDP-Cause");
     res.writeHead(code, { "Content-Type": contentType });
     res.end(
       method === "HEAD"

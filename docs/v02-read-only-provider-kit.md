@@ -12,7 +12,7 @@ node --test scripts/v02-provider-kit.node-test.mjs
 
 The default entry point retains its existing v0.1 behavior when `--spec` is absent.
 The v0.2 profile follows `specs/src/core/core.lumen` and the stdlib source at
-`5ea7cb385deb3027742984c0ef8a7f2442a91260`, the current PR403 head. It uses structured
+`c66f0c66b6026fd270a5d77252fcd01260601631`, the merged PR403 head. It uses structured
 ResourceIds, `rep<T>`/`body`, capability presence, relationships as resources,
 internally tagged Filter/QueryExpr, named call arguments, and Reply/Outcome.
 It does not reinterpret v0.1 profiles or separate Link records as v0.2.
@@ -59,6 +59,12 @@ JSON/JSONL cursor interoperability, and export/feed-cut consistency. Body and
 metadata values remain opaque; data is learned over HTTP, not from a provider's
 private storage or expected-answer hook. No domain-specific type or known corpus
 answer is hardcoded.
+
+Refusal probes use syntactically valid HTTP request targets. For example, history
+rejects conflicting `after` and `from` positions with a BDP Problem and cause
+header. A raw malformed percent escape can be rejected by an HTTP gateway before
+BDP routing and is not a history-operation probe. The checker does not waive
+Problem or reply-context requirements on any BDP response.
 
 Channel Get and Pull share a URL in the draft binding. Descriptor point checks use
 the already-defined Get `revision` parameter (or `selector` on unversioned scopes);
