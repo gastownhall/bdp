@@ -241,13 +241,23 @@ json` always returns the plain underlying rep.
 
 ## 8. Aliases — `alias`
 
-A human-friendly name bound to a resource ref, kept in a well-known registry at
-`/sys/aliases/<name>` (a system resource, like `/sys/changes` / `/sys/capabilities`).
+A human-friendly name bound to a resource, kept in a well-known registry at
+`/sys/aliases/<name>` (a system resource, like `/sys/changes` / `/sys/capabilities`). An alias
+is a **single-hop, same-scope** pointer (never an alias of an alias, never cross-scope);
+resolving through it is a transparent rewrite — the reply carries `Content-Location` naming the
+target's canonical id. See [core.lumen#Alias](../../specs/src/core/core.lumen).
 
-- `bdp alias set <name> <target>` — bind (`PUT /sys/aliases/<name>`).
+- `bdp alias <name> <target>` — bind; the shorthand for `set`. **Git-style precedence:** if the
+  first argument is a known subcommand (`set`/`unset`/`show`/`list`) it dispatches there, so to
+  bind an alias whose name collides with one, use the explicit `set` form.
+- `bdp alias set <name> <target>` — bind or repoint (`PUT /sys/aliases/<name>`).
 - `bdp alias unset <name>` — remove the binding (`DELETE /sys/aliases/<name>`); the target is untouched.
-- `bdp alias resolve <name>` — the resource the name points at (`GET /sys/aliases/<name>`).
-- `bdp alias isalias <name>` — whether `name` is a bound alias vs a raw id (a `GET` existence check).
+- `bdp alias show <name>` — read the alias record (`GET /sys/aliases/<name>`): its `target` and
+  repoint history. Succeeds iff `<name>` is a bound alias, so it doubles as the is-an-alias
+  check. (To follow the alias to its target resource, use an ordinary `bdp show <name>` — the
+  overlay resolves it transparently.)
+- `bdp alias list [<target>]` — the reverse lookup: with `<target>`, the names that point at it
+  (`list /sys/aliases` filtered on `target`); with no argument, every alias in the scope.
 
 ## 9. The service-side CLI — `bdpd serve`
 
