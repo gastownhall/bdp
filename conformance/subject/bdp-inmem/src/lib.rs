@@ -129,6 +129,11 @@ impl InMemScope {
     /// The `apply` boundary: a single exclusive write guard over the whole write-set with
     /// all-or-nothing rollback. Single writes go through here as a one-element set.
     fn commit(&self, writes: &[Write]) -> Result<Vec<ResourceId>, BdpError> {
+        // Read the DECLARED id model rather than assuming one. Retirement semantics are
+        // model-dependent — under `permanent` a retired id is spent, under `reusable` it is free —
+        // so a write path that hard-coded either would be behaving on an undeclared basis, which
+        // is the defect `delete_then_erased` was built on.
+        let id_model = self.scope_capabilities().id_model;
         let txn = Uuid::new_v4().to_string();
         let mut store = self.store.write().unwrap();
 
@@ -142,7 +147,7 @@ impl InMemScope {
             let key = write_key(self, w);
             touched.entry(key.clone()).or_insert_with(|| store.by_id.get(&key).cloned());
 
-            match apply_one(&mut store, &self.scope_name, w, &txn) {
+            match apply_one(&mut store, &self.scope_name, w, &txn, id_model) {
                 Ok(r) => out.push(r),
                 Err(e) => {
                     // roll back: truncate the log and restore every touched index entry.
@@ -182,7 +187,13 @@ fn write_key(scope: &InMemScope, w: &Write) -> (String, String) {
 
 /// Apply one write to the store in place (mutating real state so later writes in the same set see
 /// it — pg's in-transaction visibility). Any `Err` leaves `commit` to roll the whole set back.
-fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Result<ResourceId, BdpError> {
+fn apply_one(
+    store: &mut Store,
+    scope_name: &str,
+    w: &Write,
+    txn: &str,
+    id_model: IdModel,
+) -> Result<ResourceId, BdpError> {
     match w {
         Write::Create { id, body } => {
             let scope = scope_name.to_string();
@@ -247,8 +258,28 @@ fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Resul
                 return Err(BdpError::AlreadyExists(target.clone()));
             }
 
+            // DELETION IS TERMINAL under `permanent`: a bare `put` TARGETS the retired resource,
+            // so it faults `410 Gone` and MUST NOT resurrect it. This arm used to classify a
+            // tombstone head as a fresh "create", which revived a spent identity — the subject
+            // contradicting a merged normative rule, not merely leaving a row uncovered.
+            //
+            // The CLAIMING path is already handled above and is a different fault: a `put` under
+            // `ifAbsent` asserts the id is free, so a spent id is `identity-taken` (409). Rooting
+            // cannot discriminate the two, since every `put` is id-rooted — the guard is what does.
+            //
+            // Under `reusable` a retired id IS free, so the same write legitimately creates. Hence
+            // the branch on the declared model rather than one hard-coded answer.
+            if let Some(h) = head.as_ref().filter(|h| h.op == "delete") {
+                if id_model == IdModel::Permanent {
+                    return Err(BdpError::Erased {
+                        id: target.clone(),
+                        at: Rev(h.rev.clone().into()),
+                    });
+                }
+            }
             let (op, prev, created_at) = match &head {
                 None => ("create", None, now_rfc3339()),
+                // Reachable only under `reusable`, where a retired id is free to mint again.
                 Some(h) if h.op == "delete" => ("create", None, now_rfc3339()),
                 Some(h) => ("update", Some(h.rev.clone()), h.created_at.clone()),
             };

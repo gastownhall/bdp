@@ -316,6 +316,46 @@ async fn put_stale_guard_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> 
     Ok(vec![fault("put", 412)])
 }
 
+/// A bare `put` targeting a retired resource → 410 Erased, and it must mint NOTHING.
+/// Covers op/put/fault/410.
+///
+/// This is the LAST declared row that was blocked on the subject rather than on a ruling. `put` over
+/// a tombstone used to start a fresh lifecycle, which revived a spent identity — the subject
+/// contradicting a merged rule, not merely leaving a row uncovered.
+///
+/// The distinction the spec draws, and the one this case pins against its neighbour below: a BARE
+/// `put` TARGETS the retired resource, so it is `410`; a `put` under `ifAbsent` CLAIMS the id, so a
+/// spent one is `identity-taken` (409). Rooting cannot tell them apart — every `put` is id-rooted —
+/// so the guard is what does.
+async fn put_tombstone_410(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if r.scope_capabilities().id_model != IdModel::Permanent {
+        // Under `reusable` a retired id is free, so a put legitimately creates and the row is
+        // unreachable rather than failing.
+        return Ok(vec![]);
+    }
+    let target = ResourceId::head(Scope::This, Id("put-410".into()));
+    seed(r, &target, "doomed").await?;
+    let del = r.delete(target.clone(), None).await.map_err(|e| format!("seed delete: {e:?}"))?;
+    if del.not_implemented {
+        return Err("delete advertised but not_implemented".into());
+    }
+    match r.put(target.clone(), note_body("revived?"), Guards::default()).await {
+        Err(BdpError::Erased { .. }) => {}
+        other => {
+            return Err(format!(
+                "expected Erased (410) on a bare put at a retired id — a spent identity must not be \
+                 revived; got {other:?}"
+            ))
+        }
+    }
+    // The refusal must also have written nothing: a fault that still revived the id would be worse
+    // than no fault at all, and the status alone cannot tell the difference.
+    match r.get(&target, None).await {
+        Err(BdpError::Erased { .. }) => Ok(vec![fault("put", 410)]),
+        other => Err(format!("the id must remain retired after the refused put; got {other:?}")),
+    }
+}
+
 /// `put` under `if_absent` at an id that is already taken → 409. Covers op/put/fault/409.
 ///
 /// `ifAbsent` is the CLAIMING path: `If-None-Match: *` asserts the id is free, so an occupied id
@@ -757,6 +797,7 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("put", &mut covered, &mut failures, put_target(&remote)).await;
     record("put/412", &mut covered, &mut failures, put_stale_guard_412(&remote)).await;
     record("put/409", &mut covered, &mut failures, put_if_absent_taken_409(&remote)).await;
+    record("put/410", &mut covered, &mut failures, put_tombstone_410(&remote)).await;
     record(
         "put unguarded updates",
         &mut covered,

@@ -42,18 +42,18 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 21/54**, across three case families:
+**Current coverage: 22/54**, across three case families:
 
 - **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
   InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/404`, `delete/412`, `put/409`, `put/412`, `patch/410` (triggered through the typed
-  `RemoteScope`, which now also reads the scope's declared traits).
+  `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410` (triggered through the
+  typed `RemoteScope`, which now also reads the scope's declared traits).
 - **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 33 rows are uncovered for concrete, recorded reasons:
+The remaining 32 rows are uncovered for concrete, recorded reasons:
 
 - **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
   `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the
@@ -82,12 +82,13 @@ The remaining 33 rows are uncovered for concrete, recorded reasons:
   is *silent* (no content negotiation, no referential integrity) is a gap. A row that is unreachable
   because the subject *accepts a precondition and ignores it* is a defect, and the only way to tell them
   apart is to probe each one and read what came back.
-- **`put/410` is the last write `410` left, and it is blocked on the subject rather than on keying.**
-  A write that TARGETS a retired resource faults Gone, reachable **only under `idModel: permanent`** —
-  and the scope-level capability surface now exists, so a case has something to key on. `patch/410` is
-  covered on that basis. `put/410` is not, because `put` over a tombstone still treats it as a fresh
-  create (`subject/bdp-inmem`, the `Write::Put` arm) — the resurrection vestige, which belongs to the
-  0.2.3 terminality work rather than to the cases.
+- **All three `410` rows are now covered** (`get`, `put`, `patch`). A write that TARGETS a retired
+  resource faults Gone, reachable **only under `idModel: permanent`**, so each case keys on the
+  declared model rather than asserting terminality outright. `put/410` was the last declared row
+  blocked on the subject rather than on a ruling: `put` over a tombstone used to start a fresh
+  lifecycle, reviving a spent identity, which is the **subject contradicting a merged rule** rather
+  than a gap. A subject test had pinned that behaviour by name, so the defect could not be corrected
+  without it going red — which is the useful kind of failure.
 - **`get/410` was re-keyed, not deleted.** It had asserted terminality outright and *happened* to be
   right, because this subject is `versioned` and `versioned` REQUIRES `permanent`. Being right for a
   reason a case never checked is still worth fixing: it now reads the declared `idModel` and asserts
