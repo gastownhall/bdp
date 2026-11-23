@@ -19,8 +19,8 @@ use bdp_gate::{denominator, SurfaceId};
 use bdp_inmem::InMemScope;
 use bdp_primitives::{
     BdpError, BdpResult, BdpScope, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id,
-    JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation, Request,
-    ResourceId, Rev, Scope, Selector,
+    IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation,
+    Request, ResourceId, Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
@@ -161,9 +161,60 @@ async fn delete_then_erased(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     if del.not_implemented {
         return Err("delete advertised but not_implemented".into());
     }
-    match r.get(&target, None).await {
-        Err(BdpError::Erased { .. }) => Ok(vec![op("delete"), fault("get", 410)]),
-        other => Err(format!("expected Erased (410) after delete, got {other:?}")),
+    // RE-KEYED on the scope's DECLARED id model rather than asserting terminality outright.
+    // Terminality is not universal: a write's 410 — and `get`'s — is reachable only under
+    // `permanent`. Under `reusable` a retired id is simply absent, so the truthful answer is 404
+    // and asserting 410 would claim more than the spec grants.
+    //
+    // This case previously asserted 410 unconditionally and happened to be right, because this
+    // subject is `versioned` and `versioned` REQUIRES `permanent`. Right for a reason it never
+    // checked is still worth fixing: the next subject need not be versioned.
+    match (r.scope_capabilities().id_model, r.get(&target, None).await) {
+        (IdModel::Permanent, Err(BdpError::Erased { .. })) => {
+            Ok(vec![op("delete"), fault("get", 410)])
+        }
+        (IdModel::Permanent, other) => Err(format!(
+            "scope declares `permanent`, so a retired id must fault Erased (410); got {other:?}"
+        )),
+        // A `reusable` scope keeps no retirement record, so 404 is correct and `get/410` is simply
+        // unreachable there — reported as covering `delete` only, never as covering the 410.
+        (IdModel::Reusable, Err(BdpError::NotFound(_))) => Ok(vec![op("delete")]),
+        (IdModel::Reusable, other) => Err(format!(
+            "scope declares `reusable`, so a retired id must fault NotFound (404); got {other:?}"
+        )),
+    }
+}
+
+/// `patch` targeting a retired resource → 410 Erased. Covers op/patch/fault/410.
+///
+/// A write that TARGETS what is gone faults Gone, which is distinct from its two neighbours: a
+/// never-retired missing id is 404, and CLAIMING a spent id is identity-taken (409). Keyed on
+/// `permanent` for the same reason as `get/410` — under `reusable` the id is merely absent, so the
+/// row is unreachable rather than failing.
+async fn patch_tombstone_410(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if r.scope_capabilities().id_model != IdModel::Permanent {
+        // Not a failure: the row is unreachable on this scope's declared model.
+        return Ok(vec![]);
+    }
+    let target = ResourceId::head(Scope::This, Id("patch-410".into()));
+    seed(r, &target, "doomed").await?;
+    let del = r
+        .delete(target.clone(), None)
+        .await
+        .map_err(|e| format!("seed delete: {e:?}"))?;
+    if del.not_implemented {
+        return Err("delete advertised but not_implemented".into());
+    }
+    match r
+        .patch(
+            target,
+            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"after"}]"#),
+            None,
+        )
+        .await
+    {
+        Err(BdpError::Erased { .. }) => Ok(vec![fault("patch", 410)]),
+        other => Err(format!("expected Erased (410) patching a retired resource, got {other:?}")),
     }
 }
 
@@ -263,6 +314,46 @@ async fn put_stale_guard_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> 
         ));
     }
     Ok(vec![fault("put", 412)])
+}
+
+/// A bare `put` targeting a retired resource → 410 Erased, and it must mint NOTHING.
+/// Covers op/put/fault/410.
+///
+/// This is the LAST declared row that was blocked on the subject rather than on a ruling. `put` over
+/// a tombstone used to start a fresh lifecycle, which revived a spent identity — the subject
+/// contradicting a merged rule, not merely leaving a row uncovered.
+///
+/// The distinction the spec draws, and the one this case pins against its neighbour below: a BARE
+/// `put` TARGETS the retired resource, so it is `410`; a `put` under `ifAbsent` CLAIMS the id, so a
+/// spent one is `identity-taken` (409). Rooting cannot tell them apart — every `put` is id-rooted —
+/// so the guard is what does.
+async fn put_tombstone_410(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if r.scope_capabilities().id_model != IdModel::Permanent {
+        // Under `reusable` a retired id is free, so a put legitimately creates and the row is
+        // unreachable rather than failing.
+        return Ok(vec![]);
+    }
+    let target = ResourceId::head(Scope::This, Id("put-410".into()));
+    seed(r, &target, "doomed").await?;
+    let del = r.delete(target.clone(), None).await.map_err(|e| format!("seed delete: {e:?}"))?;
+    if del.not_implemented {
+        return Err("delete advertised but not_implemented".into());
+    }
+    match r.put(target.clone(), note_body("revived?"), Guards::default()).await {
+        Err(BdpError::Erased { .. }) => {}
+        other => {
+            return Err(format!(
+                "expected Erased (410) on a bare put at a retired id — a spent identity must not be \
+                 revived; got {other:?}"
+            ))
+        }
+    }
+    // The refusal must also have written nothing: a fault that still revived the id would be worse
+    // than no fault at all, and the status alone cannot tell the difference.
+    match r.get(&target, None).await {
+        Err(BdpError::Erased { .. }) => Ok(vec![fault("put", 410)]),
+        other => Err(format!("the id must remain retired after the refused put; got {other:?}")),
+    }
 }
 
 /// `put` under `if_absent` at an id that is already taken → 409. Covers op/put/fault/409.
@@ -744,6 +835,18 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 struct NullScope;
 
 impl BdpScope for NullScope {
+    /// A null SUBJECT still has to state its traits — they are what a trait-dependent case keys
+    /// on, and refusing to state them would make this scope unreadable rather than merely
+    /// unimplemented. `Versioned` + `Permanent` is the legal pair that lets such a case run at
+    /// all, so any row it then claims is claimed on the strength of behaviour it did not provide.
+    fn scope_capabilities(&self) -> ScopeCapabilities {
+        ScopeCapabilities {
+            storage_classes: vec![StorageClass::Ephemeral],
+            revision_model: RevisionModel::Versioned,
+            id_model: IdModel::Permanent,
+        }
+    }
+
     fn capabilities(&self) -> Vec<PrimitiveCapabilities> {
         vec![
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
@@ -810,9 +913,11 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("get/404", &mut covered, &mut failures, get_missing_404(&remote)).await;
     record("create/409", &mut covered, &mut failures, create_duplicate_409(&remote)).await;
     record("delete+erased", &mut covered, &mut failures, delete_then_erased(&remote)).await;
+    record("patch/410", &mut covered, &mut failures, patch_tombstone_410(&remote)).await;
     record("put", &mut covered, &mut failures, put_target(&remote)).await;
     record("put/412", &mut covered, &mut failures, put_stale_guard_412(&remote)).await;
     record("put/409", &mut covered, &mut failures, put_if_absent_taken_409(&remote)).await;
+    record("put/410", &mut covered, &mut failures, put_tombstone_410(&remote)).await;
     record(
         "put unguarded updates",
         &mut covered,

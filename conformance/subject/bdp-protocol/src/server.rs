@@ -95,7 +95,10 @@ impl<S: BdpScope> Server<S> {
     /// `RemoteScope`) can proxy them instead of guessing. Per Donna's advertised⟹implemented ruling
     /// the wire representation of the scope must be faithful — this is what makes that possible.
     fn do_capabilities(&self) -> HttpResponse {
-        let wire = crate::wire::caps_to_wire(&self.scope.capabilities());
+        let wire = crate::wire::WireDiscovery {
+            scope: crate::wire::WireScopeCapabilities::from_trait(&self.scope.scope_capabilities()),
+            primitives: crate::wire::caps_to_wire(&self.scope.capabilities()),
+        };
         HttpResponse::json(200, serde_json::to_vec(&wire).unwrap())
     }
 

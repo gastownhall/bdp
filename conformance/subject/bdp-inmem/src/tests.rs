@@ -67,19 +67,37 @@ async fn delete_then_erased() {
     assert!(matches!(got, Err(BdpError::Erased { .. })), "got {got:?}");
 }
 
+/// RE-DERIVED. This test was named `put_after_delete_revives_as_create` and asserted that a `put`
+/// over a tombstone starts a fresh lifecycle. That is what the spec now forbids: this scope declares
+/// `idModel: permanent`, under which a retired id is spent and a bare `put` TARGETS the retired
+/// resource, faulting `410 Gone`.
+///
+/// The test was not merely stale — it PINNED the defect, so the subject could not be corrected
+/// without it going red. That is the useful kind of failure: a test asserting the old rule is how you
+/// find out the rule changed. Re-derived rather than deleted, because the scenario it exercises
+/// (delete, then write to the same id) is exactly the one worth keeping.
 #[tokio::test]
-async fn put_after_delete_revives_as_create() {
+async fn put_over_a_tombstone_is_terminal_not_a_revival() {
     let s = scope();
     let id = Id("rev1".into());
     s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, id.clone()), None).await.unwrap();
-    // a put over a tombstone is a fresh create (new lifecycle), readable again
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":2}"#), Guards::default()).await.unwrap();
-    let got = s.get(&ResourceId::head(Scope::This, id.clone()), None).await.unwrap().value.unwrap();
-    match got {
-        Representation::Bead { properties, .. } => assert!(String::from_utf8_lossy(&properties.0).contains("2")),
-        _ => panic!("expected a bead"),
-    }
+
+    // A bare put at a retired target: 410, and it must mint nothing.
+    let revived = s
+        .put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":2}"#), Guards::default())
+        .await;
+    assert!(
+        matches!(revived, Err(BdpError::Erased { .. })),
+        "a bare put over a tombstone must fault Erased (410) under `permanent`, not revive the id; got {revived:?}"
+    );
+
+    // And the resource stays retired — a fault that still wrote would be the worse failure.
+    let got = s.get(&ResourceId::head(Scope::This, id.clone()), None).await;
+    assert!(
+        matches!(got, Err(BdpError::Erased { .. })),
+        "the id must remain retired after the refused put; got {got:?}"
+    );
 }
 
 #[tokio::test]
