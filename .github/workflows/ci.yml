@@ -1,8 +1,13 @@
 name: CI
 
 on:
+  # No `branches:` filter here ON PURPOSE. For `pull_request` that key filters the
+  # BASE branch, so listing bases silently gave a stacked PR (one based on another
+  # feature branch) ZERO checks while GitHub still reported it mergeable — PR #411
+  # sat in exactly that state until it was rebased onto main. Every pull request
+  # gets the full workflow regardless of what it targets. `push` below keeps its
+  # filter: there the key means the pushed ref, which is a different question.
   pull_request:
-    branches: [main, "release/**", "codex/bdp-v0.1", "codex/trish-bdp-preview3-baseline-20261023"]
   push:
     branches: [main, "release/**", "codex/vickie-*", "codex/bdp-v0.1", "codex/trish-bdp-preview3-baseline-20261023"]
 
