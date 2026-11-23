@@ -115,7 +115,7 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 
 **Design deferred.** [Callables §12](profiles/callables/callables.md#12-deferred) lists what preview-1 leaves unselected: readable bodies and parameter binding, how an endpoint advertises what it supports, registration details settled together with packages, the command tree, how the CLI learns what Callables exist, how much of `cliMapping` survives, and paged or streamed results. CALL-O1, CALL-O2 and CALL-O3 of the experimental draft close at preview depth only as that document states, once its rulings are marked.
 
-**Owner / revisit:** Callables owner with Donna, after the preview; the advertising exercise follows the specification work, and registration is settled with packages. The archived draft is [callables-draft-20261030](history/callables-draft-20261030/callables.md).
+**Owner / revisit:** Callables owner with Donna, after the preview; the advertising exercise follows the specification work, and registration is settled with packages. The archived draft is [callables-draft-20261030](../docs/history/callables-draft-20261030/callables.md).
 
 ### CALL-COMMANDS — Commands without raw generic writes
 
@@ -127,7 +127,7 @@ These are **not newly deferred protocol design**: the bounded URI/security/consu
 
 **Design deferred.** [Issue §11](types/issue/issue.md#11-carried-open-items) indexes the carried items: policy-dependent status meaning, operational observations, codified metadata, ownership, pinned endpoints, Link recovery, properties replacement, comments as Beads and custom classification lifecycle.
 
-**Owner / revisit:** Types and Issue package owners with Donna, after the preview. The October draft is [issue-draft-20261014](history/issue-draft-20261014/issue.md).
+**Owner / revisit:** Types and Issue package owners with Donna, after the preview. The October draft is [issue-draft-20261014](../docs/history/issue-draft-20261014/issue.md).
 
 ### LINK-RECOVERY — Historical update and recovery for Links
 

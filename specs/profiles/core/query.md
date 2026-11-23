@@ -4,4 +4,4 @@ The selected logical resource-selection and graph-query rules are stated directl
 
 The [native structured-read proposal](read-operations.md) remains proposed. Its transport and explicitly proposed policies do not become Core requirements through this pointer.
 
-The [earlier mixed selected/proposed text](../../history/pre-canonical-20261101/profiles/core/query.md) is preserved as historical material, not a second specification.
+The [earlier mixed selected/proposed text](../../../docs/history/pre-canonical-20261101/profiles/core/query.md) is preserved as historical material, not a second specification.

@@ -830,7 +830,7 @@ errors each section names and the v0 components they reach;
 
 The fragments of §9 extract to `specs/types/issue/issue-callables-preview-1.schema.json`.
 This edition replaces the command-shaped draft archived at
-`specs/history/issue-callables-reshaped-20261105/`, which is history, not authority.
+`docs/history/issue-callables-reshaped-20261105/`, which is history, not authority.
 """
 
 

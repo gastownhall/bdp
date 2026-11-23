@@ -30,7 +30,7 @@ The two BDP v0 schema copies, [specs source](profiles/core/bdp-v0.schema.json) a
 - [Common JSON schema](profiles/core/bdp-v0.1.schema.json) and [Types schema](profiles/types/types-v1.schema.json) are machine-readable companions. Unused historical helper definitions do not add operations to the canonical prose. Their alignment is checked explicitly as the specification is reviewed.
 - The [current OpenAPI catalog](openapi/README.md) is generated from visible profile appendices. Its checks are separate from implementation qualification.
 - The CLI is a client specification, not another protocol profile. Its proposed encodings remain proposals unless expressly selected.
-- [Historical source](history/pre-canonical-20261101/README.md) preserves the inputs to this consolidation and their immutable original revisions.
+- [Historical source](../docs/history/pre-canonical-20261101/README.md) preserves the inputs to this consolidation and their immutable original revisions.
 - [Query design context](profiles/core/query.md), [native structured-read proposal](profiles/core/read-operations.md) and [experimental work](../experimental/README.md) do not add requirements to Core, Write or Types merely by being present.
 
 Protocol semantics, client design, implementation support and release qualification are distinct. A document's location or a schema-valid example is not an implementation claim.

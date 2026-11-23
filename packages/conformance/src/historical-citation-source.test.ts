@@ -27,14 +27,14 @@ describe("historical citation cutline 692d is a separate test source", () => {
     expect(readSpecificationSource("specs/profiles/core/core.md").replace(/\s+/g, " ")).toContain(
       "These discovery objects are closed; there is no required or guessed `beads` or `links` member.",
     );
-    expect(isProtocolSpecificationSource("specs/history/core-v0-types.md")).toBe(false);
+    expect(isProtocolSpecificationSource("docs/history/core-v0-types.md")).toBe(false);
     expect(isProtocolSpecificationSource("specs/profiles/types/types.md")).toBe(true);
     expect(isProtocolSpecificationSource("docs/specs/bdp.md")).toBe(false);
   });
 
   it("has no current-file, history, alternate-spelling or network source fallback", () => {
     for (const source of [
-      "specs/history/core-v0-types.md",
+      "docs/history/core-v0-types.md",
       "specs/profiles/types/types.md",
       "specs/profiles/core/retained-core.md",
       "./specs/profiles/core/core.md",
