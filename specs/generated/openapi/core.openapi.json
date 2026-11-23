@@ -1,0 +1,2994 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "BDP Core",
+    "version": "0.2.2",
+    "description": "Generated from specs/src/core/core.lumen (Appendix C lowering)."
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "paths": {
+    "/{id}": {
+      "get": {
+        "operationId": "get",
+        "summary": "Safe point read — resolve a `ref<T>` to the current representation `rep<T>`, or a pinned revision when the ref pins `rev",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Rev"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "omit",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "select",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/selector"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put",
+        "summary": "Upsert / remember — idempotent full-state write",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Rev"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "precondition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch",
+        "summary": "JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`)",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Rev"
+            }
+          },
+          {
+            "name": "precondition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {}
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete",
+        "summary": "Retire a Resource, minting a final (tombstone) revision",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Rev"
+            }
+          },
+          {
+            "name": "precondition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{channel}": {
+      "get": {
+        "operationId": "pull",
+        "summary": "Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` event",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Ordinal"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "format",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Transport"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "push",
+        "summary": "Append one or more events to a Channel",
+        "tags": [
+          "Core"
+        ],
+        "requestBody": {
+          "content": {
+            "application/jsonl": {}
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{opPath}/-/call": {
+      "post": {
+        "operationId": "call",
+        "summary": "Invoke an Operation",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "sync ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "sync ok, mints a resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "declared failure — branch on the arm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "async — result at Location",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncResult"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{asyncResultId}/-/cancel": {
+      "post": {
+        "operationId": "cancel",
+        "summary": "Kill -9 on a running AsyncResult — writes `reply.outcome = canceled`",
+        "tags": [
+          "Core"
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "404": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/-/create": {
+      "post": {
+        "operationId": "create",
+        "summary": "Admit a new Bead at `POST /-/create` (under the action fence; the bare root `GET /` is the ServiceDescriptor)",
+        "tags": [
+          "Core"
+        ],
+        "responses": {
+          "201": {
+            "description": "success",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/-/list": {
+      "get": {
+        "operationId": "list",
+        "summary": "A collection of current resources in a scope, as a source<Resource>",
+        "tags": [
+          "Core"
+        ],
+        "parameters": [
+          {
+            "name": "where",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "omit",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "select",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/selector"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{id}/-/revisions": {
+      "get": {
+        "operationId": "revisions",
+        "summary": "The history of one resource — id-targeted like `get`, list-shaped like `list`",
+        "tags": [
+          "Core"
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/-/export": {
+      "get": {
+        "operationId": "export",
+        "summary": "Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: cr",
+        "tags": [
+          "Core"
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/-/import": {
+      "post": {
+        "operationId": "import",
+        "summary": "The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the",
+        "tags": [
+          "Core"
+        ],
+        "responses": {
+          "200": {
+            "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BdpScope": {
+        "description": "The URL of a BDP scope (a store).",
+        "$ref": "#/components/schemas/AbsoluteUri"
+      },
+      "Scope": {
+        "description": "The decoder ring for every id — the namespace an `id` resolves in, and so how to read the `id`. The one place the three readings are defined; everything that carries an id is read through this.",
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/BdpScope"
+          },
+          {
+            "const": "uri"
+          }
+        ]
+      },
+      "Rev": {
+        "description": "A resource-version token — opaque by definition; compared for exact equality only, never inspected.",
+        "type": "string"
+      },
+      "Digest": {
+        "description": "A content-addressed rev (sha256 / commit) — a Rev that is a digest.",
+        "$ref": "#/components/schemas/Rev"
+      },
+      "ResourceId": {
+        "description": "The identity of a resource — a scope, an id within it, and an optional revision. The wire URL is the projection (scope URL ⊕ id).",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "id": {
+            "type": "string"
+          },
+          "rev": {
+            "$ref": "#/components/schemas/Rev"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceRef": {
+        "description": "A reference to a resource is just its id.",
+        "$ref": "#/components/schemas/ResourceId"
+      },
+      "ref": {
+        "description": "A typed (phantom) reference — the by-reference form. `T` is the referenced resource's BODY type; it is checker-only and erases on the wire (a `ref` is a `ResourceId`).",
+        "$ref": "#/components/schemas/ResourceRef"
+      },
+      "pinned": {
+        "description": "A reference pinned to one exact revision (`rev` present).",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ref"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "rev": {
+                "$ref": "#/components/schemas/Rev"
+              }
+            },
+            "required": [
+              "rev"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "unpinned": {
+        "description": "An unpinned reference (`rev` absent) — floats to the current revision.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ref"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "rev": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "rev"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "rep": {
+        "description": "The representation of a versioned resource — the protocol envelope around a typed `body: T`. The by-value form a read returns; `ref<T>` is the by-reference form. `Resource` is `rep<any>`, an untyped representation.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "authority": {
+            "$ref": "#/components/schemas/Authority"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PathString"
+          },
+          "body": {},
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "storageClass": {
+            "$ref": "#/components/schemas/StorageClass"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "Resource": {
+        "description": "An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).",
+        "$ref": "#/components/schemas/Resource"
+      },
+      "Bead": {
+        "description": "A vacuous kind marker — a body type tagged `is Bead` is a package-authored record. It adds no members; it marks intention, lets a signature demand a bead (`ref<Bead>`), and carries the enforcement that a bead body is a record under a package authority. It is the implicit ROOT of a bead's kind path and contributes NO path segment: `type Issue is Bead` ⇒ kind `\"issue\"`.",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "Content": {
+        "description": "A vacuous kind marker — a body type tagged `is Content` is a registry-named (media-type) resource with an opaque body (bytes / text). The complement of `Bead`; a root marker, no path segment.",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "PathString": {
+        "description": "A slash-delimited path — `\"issue/task\"` (a bead kind) or `\"text/plain\"` (a content media type).",
+        "type": "string"
+      },
+      "Authority": {
+        "description": "The resource that names a `type` — a package (for a bead) or a registry like IANA (for content). A ResourceRef, so the pin lives in its `rev`.",
+        "$ref": "#/components/schemas/ResourceRef"
+      },
+      "PackageRef": {
+        "description": "A pinned reference to a Package resource — an Authority that is a package (a bead's authority).",
+        "$ref": "#/components/schemas/ResourceRef"
+      },
+      "Metadata": {
+        "description": "Opaque, open per-resource (or per-call) sidecar — data the protocol does not interpret.",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      },
+      "Provenance": {
+        "description": "Who took part in the change that made a revision, how the Resource's present period began, and when. `previousRevision` is the before-image pointer — the basis for compensation — and rides in the post-image, so a ChangeEvent carries it for free.",
+        "type": "object",
+        "properties": {
+          "principals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Principal"
+            }
+          },
+          "inception": {
+            "enum": [
+              "create",
+              "import",
+              "unknown"
+            ]
+          },
+          "committedAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "previousRevision": {
+            "$ref": "#/components/schemas/Rev"
+          },
+          "message": {
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          }
+        },
+        "required": [
+          "principals",
+          "inception",
+          "committedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Principal": {
+        "description": "An identity that took part in a change — a person, agent or service account. A role grants no permission; authorization is a separate decision.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/AbsoluteUri"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "basis": {
+            "$ref": "#/components/schemas/IdentityBasis"
+          },
+          "authority": {
+            "$ref": "#/components/schemas/AbsoluteUri"
+          }
+        },
+        "required": [
+          "id",
+          "basis"
+        ],
+        "additionalProperties": false
+      },
+      "IdentityBasis": {
+        "description": "How a service established a principal's identity.",
+        "enum": [
+          "writer-supplied",
+          "channel-authenticated",
+          "unknown"
+        ]
+      },
+      "StorageClass": {
+        "description": "How a Resource is kept — whether it is persisted, not whether it is versioned (that is the scope's revision model). Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).",
+        "enum": [
+          "durable",
+          "ephemeral",
+          "intrinsic"
+        ]
+      },
+      "Timestamp": {
+        "description": "RFC 3339 date-time; uppercase `T` and `Z`.",
+        "type": "string",
+        "format": "date-time"
+      },
+      "AbsoluteUri": {
+        "description": "Any absolute URI — a Problem `type`, a Principal `id`; need not resolve. NOT a resource reference (those are `ref<T>`).",
+        "type": "string",
+        "format": "uri"
+      },
+      "SemVer": {
+        "description": "A semantic-version string (a package's declared version).",
+        "type": "string"
+      },
+      "integer": {
+        "description": "A whole number — JSON `number` restricted to an integer value. Distinct from `number` (which admits fractions) so a typed or generated client maps it to an integer type (e.g. i64); on the wire it is an integer-valued JSON number. Use `integer` for counts, bounds, positions and priorities; keep `number` for genuinely fractional values (a score, a ratio).",
+        "type": "integer"
+      },
+      "rel": {
+        "description": "The relationship construct and its declaration form. `rel<F, T>` is a `Bead` body type that carries `source` (type F, the owning endpoint that asserts the relationship) and `target` (type T), plus the relationship type's own properties; its resource is `rep<rel<F, T>>`. A relationship type is declared `type X is <modifiers> rel<F, T> { <edge-fields> }` — a nominal refinement whose trailing record extends the body; a bare `<modifiers> rel<F, T>` is the same shape without the nominal identity. The declared name is the body type; `ref<X>` references the relationship, `rep<X>` is its representation.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/ResourceRef"
+              },
+              "target": {
+                "$ref": "#/components/schemas/ResourceRef"
+              }
+            },
+            "required": [
+              "source",
+              "target"
+            ],
+            "additionalProperties": true
+          }
+        ]
+      },
+      "Alias": {
+        "description": "A named pointer — a second name for a resource. The alias's own id is the name, under the reserved `sys/aliases/` root; its `target` names the resource the name stands for.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "target": {
+                "$ref": "#/components/schemas/ResourceRef"
+              }
+            },
+            "required": [
+              "target"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "TypeDef": {
+        "description": "A type-definition bead body — one node in the single-`is` refinement tree. Its resource is `rep<TypeDef>`.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "refines": {
+                "$ref": "#/components/schemas/TypeRef"
+              },
+              "abstract": {
+                "type": "boolean"
+              },
+              "properties": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PropertyDeclaration"
+                }
+              }
+            },
+            "required": [
+              "properties"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PropertyDeclaration": {
+        "description": "One property in a type's body — its name, its type, and its access mode. `computed` marks a derived, revision-transparent property (see §1.8); `initOnly` / `serviceManaged` / `readOnly` are the sibling write-access modes. Property optionality rides the property's `type`.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/BeadSchema"
+          },
+          "computed": {
+            "type": "boolean"
+          },
+          "initOnly": {
+            "type": "boolean"
+          },
+          "serviceManaged": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "ParameterDeclaration": {
+        "description": "One parameter of an operation — its name, its type, and whether it is required. A default value is NOT a core concern; it is a CLI surface hint carried outside the protocol.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/BeadSchema"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "BeadSchema": {
+        "description": "A type written down as a value — the ref-preserving type representation. (A `schema` has no identity, so a type-as-value is a `schema`.)",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "of": {
+                "enum": [
+                  "string",
+                  "number",
+                  "bool",
+                  "bytes"
+                ]
+              },
+              "kind": {
+                "const": "scalar"
+              }
+            },
+            "required": [
+              "kind",
+              "of"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "value": {},
+              "kind": {
+                "const": "literal"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "base": {
+                "$ref": "#/components/schemas/BeadSchema"
+              },
+              "refinement": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              },
+              "kind": {
+                "const": "nominal"
+              }
+            },
+            "required": [
+              "kind",
+              "name",
+              "base"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "$ref": "#/components/schemas/BeadSchema"
+                    },
+                    "required": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "required"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "open": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "record"
+              }
+            },
+            "required": [
+              "kind",
+              "fields",
+              "open"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "arms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tag": {
+                      "type": "string"
+                    },
+                    "payload": {
+                      "$ref": "#/components/schemas/BeadSchema"
+                    }
+                  },
+                  "required": [
+                    "tag"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "kind": {
+                "const": "d-u"
+              }
+            },
+            "required": [
+              "kind",
+              "arms"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "options": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BeadSchema"
+                }
+              },
+              "kind": {
+                "const": "union"
+              }
+            },
+            "required": [
+              "kind",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "element": {
+                "$ref": "#/components/schemas/BeadSchema"
+              },
+              "kind": {
+                "const": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "element"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "element": {
+                "$ref": "#/components/schemas/BeadSchema"
+              },
+              "on": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LocalName"
+                }
+              },
+              "kind": {
+                "const": "set"
+              }
+            },
+            "required": [
+              "kind",
+              "element"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "to": {
+                "$ref": "#/components/schemas/TypeRef"
+              },
+              "kind": {
+                "const": "type-ref"
+              }
+            },
+            "required": [
+              "kind",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "json-schema"
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "LocalName": {
+        "description": "A short identifier token for a view or a well-known name; leading letter.",
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+      },
+      "PackageElementRef": {
+        "description": "A bundled reference to a package element — a package authority plus the element's relative path.",
+        "type": "object",
+        "properties": {
+          "authority": {
+            "$ref": "#/components/schemas/PackageRef"
+          },
+          "path": {
+            "$ref": "#/components/schemas/ElementPath"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "ElementPath": {
+        "description": "A package-relative element path (the single-`is` chain).",
+        "$ref": "#/components/schemas/PathString"
+      },
+      "TypeRef": {
+        "description": "A reference to a type element.",
+        "$ref": "#/components/schemas/PackageElementRef"
+      },
+      "OperationRef": {
+        "description": "A reference to an operation element.",
+        "$ref": "#/components/schemas/PackageElementRef"
+      },
+      "ChannelRef": {
+        "description": "A reference to a channel element.",
+        "$ref": "#/components/schemas/PackageElementRef"
+      },
+      "Channel": {
+        "description": "A channel-descriptor bead body — its two event schemas, direction, and delivery characteristics. Its resource is `rep<Channel>`.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "pushSchema": {
+                "$ref": "#/components/schemas/BeadSchema"
+              },
+              "pullSchema": {
+                "$ref": "#/components/schemas/BeadSchema"
+              },
+              "direction": {
+                "enum": [
+                  "source",
+                  "sink",
+                  "duplex"
+                ]
+              },
+              "retention": {
+                "$ref": "#/components/schemas/Retention"
+              },
+              "cardinality": {
+                "enum": [
+                  "single",
+                  "broadcast"
+                ]
+              }
+            },
+            "required": [
+              "direction",
+              "retention",
+              "cardinality"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Retention": {
+        "description": "How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).",
+        "oneOf": [
+          {
+            "const": "forever"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "by": {
+                "enum": [
+                  "time",
+                  "count",
+                  "size"
+                ]
+              },
+              "amount": {
+                "type": "integer"
+              },
+              "kind": {
+                "const": "window"
+              }
+            },
+            "required": [
+              "kind",
+              "by",
+              "amount"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "window": {
+                "$ref": "#/components/schemas/Retention"
+              },
+              "kind": {
+                "const": "compacted"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "Ordinal": {
+        "description": "An event's position in its stream; monotone within one Channel.",
+        "type": "integer"
+      },
+      "Cursor": {
+        "description": "Opaque, transport-independent resume token, bound to one stream and the selection it came from; refused elsewhere. Also the point an export is cut at.",
+        "type": "string"
+      },
+      "Transport": {
+        "description": "The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.",
+        "enum": [
+          "json",
+          "jsonl",
+          "sse"
+        ]
+      },
+      "ReadRequest": {
+        "description": "The input to a streaming read ([[core.lumen#pull]] / [[core.lumen#list]] / [[core.lumen#revisions]]) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.",
+        "type": "object",
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/Cursor"
+          },
+          "from": {
+            "$ref": "#/components/schemas/Ordinal"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/components/schemas/Transport"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/Filter"
+          },
+          "select": {
+            "$ref": "#/components/schemas/selector"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Page": {
+        "description": "One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {}
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/Cursor"
+          },
+          "head": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "PushEvent": {
+        "description": "One event offered to [[core.lumen#push]]. `body` is the payload (the channel's `pushSchema` type); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.",
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "$ref": "#/components/schemas/Ordinal"
+          },
+          "body": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "PushAck": {
+        "description": "What [[core.lumen#push]] returns — the high-water ordinal accepted, a per-event result, and the backpressure signal (`credit` + optional `retryAfter`). A short `results` with `credit: 0` and a deferred tail is normal flow, not an error.",
+        "type": "object",
+        "properties": {
+          "acceptedThrough": {
+            "$ref": "#/components/schemas/Ordinal"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PushResult"
+            }
+          },
+          "credit": {
+            "type": "integer"
+          },
+          "retryAfter": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "acceptedThrough",
+          "results",
+          "credit"
+        ],
+        "additionalProperties": false
+      },
+      "PushResult": {
+        "description": "The fate of one offered event.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ordinal": {
+                "$ref": "#/components/schemas/Ordinal"
+              },
+              "kind": {
+                "const": "accepted"
+              }
+            },
+            "required": [
+              "kind",
+              "ordinal"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ordinal": {
+                "$ref": "#/components/schemas/Ordinal"
+              },
+              "kind": {
+                "const": "deduped"
+              }
+            },
+            "required": [
+              "kind",
+              "ordinal"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "const": "deferred"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "Operation": {
+        "description": "An operation-descriptor bead body — the call contract, the implementation, and the behavioural guarantees. Its resource is `rep<Operation>`.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "signature": {
+                "$ref": "#/components/schemas/Signature"
+              },
+              "implementation": {},
+              "pure": {
+                "type": "boolean"
+              },
+              "safe": {
+                "type": "boolean"
+              },
+              "idempotent": {
+                "type": "boolean"
+              },
+              "atomic": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "signature"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Signature": {
+        "description": "An operation's call contract — its interface, kept separate from the implementation and the effect markers.",
+        "type": "object",
+        "properties": {
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParameterDeclaration"
+            }
+          },
+          "success": {
+            "$ref": "#/components/schemas/BeadSchema"
+          },
+          "failure": {
+            "$ref": "#/components/schemas/BeadSchema"
+          },
+          "async": {
+            "enum": [
+              "no",
+              "optional",
+              "required"
+            ]
+          },
+          "creates": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Cause": {
+        "description": "A correlation token shared down a causal chain — minted at an initiating (often detached) call and propagated unchanged to every call it sets off; `causedBy` points at the parent cause. Correlates all of one initiation's work. See bdp.md §6.",
+        "type": "string"
+      },
+      "CallId": {
+        "description": "A correlation token naming one call — a node in the call tree; `calledBy` points at the parent call. Distinct from `Cause` (correlation to an initiation) and `Transaction` (the atomic commit). Diagnostic-tier.",
+        "type": "string"
+      },
+      "Transaction": {
+        "description": "A correlation token naming one atomic commit — shared by every change that commits together. Propagated by enlistment, not unconditionally (Required / RequiresNew / detach); crossing a scope forces a new one. See bdp.md §6.",
+        "type": "string"
+      },
+      "IdempotencyKey": {
+        "description": "Caller-chosen key that makes a retried write safe to collapse onto the first effect.",
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,256}$"
+      },
+      "Request": {
+        "description": "What a caller sends to `call`. `arguments` is a name/value list whose shape the Operation's `parameters` dictate.",
+        "type": "object",
+        "properties": {
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "value": {}
+              },
+              "required": [
+                "name",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "async": {
+            "type": "boolean",
+            "default": false
+          },
+          "causedBy": {
+            "$ref": "#/components/schemas/Cause"
+          },
+          "calledBy": {
+            "$ref": "#/components/schemas/CallId"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          }
+        },
+        "required": [
+          "arguments",
+          "async",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "Reply": {
+        "description": "What a `call` returns — flat, no context wrapper. `outcome` keeps the domain `Result` nested in `Outcome`.",
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/Cause"
+          },
+          "callId": {
+            "$ref": "#/components/schemas/CallId"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          }
+        },
+        "required": [
+          "outcome",
+          "cause",
+          "callId"
+        ],
+        "additionalProperties": false
+      },
+      "Result": {
+        "description": "A callable's own verdict — succeeded with a value, or failed with its declared error.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "value": {},
+              "kind": {
+                "const": "success"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "error": {},
+              "kind": {
+                "const": "failure"
+              }
+            },
+            "required": [
+              "kind",
+              "error"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "Outcome": {
+        "description": "What happened to an invocation — the domain Result, or a non-domain fate.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "problem": {
+                "$ref": "#/components/schemas/Problem"
+              },
+              "kind": {
+                "const": "fault"
+              }
+            },
+            "required": [
+              "kind",
+              "problem"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "canceled"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "Problem": {
+        "description": "An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.",
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/AbsoluteUri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "retry": {
+            "enum": [
+              "never",
+              "after-state-change",
+              "after-delay"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "$ref": "#/components/schemas/AbsoluteUri"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "retry"
+        ],
+        "additionalProperties": false
+      },
+      "AsyncResult": {
+        "description": "The async result of one `call` — a handle you show for the record and `cancel` to kill. References a one-and-done source Channel that fires the Reply on settlement.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "$ref": "#/components/schemas/ResourceRef"
+              },
+              "cause": {
+                "$ref": "#/components/schemas/Cause"
+              },
+              "callId": {
+                "$ref": "#/components/schemas/CallId"
+              },
+              "request": {
+                "$ref": "#/components/schemas/Request"
+              },
+              "reply": {
+                "$ref": "#/components/schemas/Reply"
+              },
+              "replyChannel": {
+                "$ref": "#/components/schemas/ResourceRef"
+              }
+            },
+            "required": [
+              "operation",
+              "cause",
+              "callId",
+              "request",
+              "replyChannel"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PackageDef": {
+        "description": "A package bead body — its declared version and its elements. Its resource is `rep<PackageDef>`.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bead"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "semVer": {
+                "$ref": "#/components/schemas/SemVer"
+              },
+              "elements": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "semVer",
+              "elements"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "IdRoot": {
+        "description": "A prefix-rooted auto-id proposal (the server mints the leaf).",
+        "type": "object",
+        "properties": {
+          "prefix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prefix"
+        ],
+        "additionalProperties": false
+      },
+      "Id": {
+        "description": "An exact caller-proposed id.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "selector": {
+        "description": "A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `type`/`id` are never dropped.",
+        "type": "object",
+        "properties": {
+          "include": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JsonPointer"
+            }
+          },
+          "omit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JsonPointer"
+            }
+          },
+          "expand": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalName"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "JsonPointer": {
+        "description": "A JSON Pointer (RFC 6901) into a representation.",
+        "type": "string"
+      },
+      "JsonPatchOp": {
+        "description": "One RFC 6902 operation. In `patch`, paths are root-addressed over the rep (`/body`, `/metadata`, `/type`, `/authority`; the rest is read-only).",
+        "type": "object",
+        "properties": {
+          "op": {
+            "enum": [
+              "add",
+              "remove",
+              "replace",
+              "move",
+              "copy",
+              "test"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "value": {},
+          "from": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "JsonPatch": {
+        "description": "An ordered list of JSON Patch operations — the `patch` body, and a change-event patch payload.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/JsonPatchOp"
+        }
+      },
+      "Envelope": {
+        "description": "The query-tier body-form envelope — the ONE place a write guard rides a body. Used only when an over-budget `precondition` (or representation) spills to `POST /{id}/-/{put|patch|delete}`; the direct `put`/`patch`/`delete` verbs never carry it. Media type `application/vnd.bdp.envelope+json`.",
+        "type": "object",
+        "properties": {
+          "precondition": {
+            "$ref": "#/components/schemas/Filter"
+          },
+          "representation": {},
+          "patch": {
+            "$ref": "#/components/schemas/JsonPatch"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Filter": {
+        "description": "The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal predicate is a stdlib capability (`query`, [[stdlib.lumen#query]]), not base.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/listCondition"
+        }
+      },
+      "listCondition": {
+        "description": "One flat field condition. `isType` matches against the type-path (`type.id`): `prefix` ⊑ (the \"is it an issue(-ish)?\" test), `exact` =.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "op": {
+                "enum": [
+                  "eq",
+                  "ne",
+                  "lt",
+                  "le",
+                  "gt",
+                  "ge",
+                  "in"
+                ]
+              },
+              "value": {},
+              "kind": {
+                "const": "compare"
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "op",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "using": {
+                "enum": [
+                  "substring",
+                  "glob",
+                  "regex"
+                ]
+              },
+              "kind": {
+                "const": "matches"
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "pattern",
+              "using"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "kind": {
+                "const": "has"
+              }
+            },
+            "required": [
+              "kind",
+              "field"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "kind": {
+                "const": "missing"
+              }
+            },
+            "required": [
+              "kind",
+              "field"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "value": {},
+              "kind": {
+                "const": "contains"
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "values": {
+                "type": "array",
+                "items": {}
+              },
+              "kind": {
+                "const": "contains-any"
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "values"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/components/schemas/FieldPath"
+              },
+              "value": {},
+              "kind": {
+                "const": "excludes"
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/components/schemas/RelativeId"
+              },
+              "match": {
+                "enum": [
+                  "exact",
+                  "prefix"
+                ],
+                "default": "prefix"
+              },
+              "kind": {
+                "const": "is-type"
+              }
+            },
+            "required": [
+              "kind",
+              "type",
+              "match"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "FieldPath": {
+        "description": "A field path as a segment array (disambiguates dotted keys); selector/patch keep JSON Pointer.",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "RelativeId": {
+        "description": "A type-path as a local id segment, relative to the scope (the target for isType's prefix/exact match).",
+        "type": "string"
+      },
+      "ChangeEvent": {
+        "description": "Core's report of one committed change to one Resource — Created / Updated / Deleted — or an operation-frame boundary (CallEnter / CallLeave) for an unsafe call. A top-level DU on lifecycle (a relationship change is an Updated to the relationship resource). `subject.rev` is the new (or tombstone) revision. Provenance rides in the post-image where there is one and is explicit where there is not.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Created"
+          },
+          {
+            "$ref": "#/components/schemas/Updated"
+          },
+          {
+            "$ref": "#/components/schemas/Deleted"
+          },
+          {
+            "$ref": "#/components/schemas/CallEnter"
+          },
+          {
+            "$ref": "#/components/schemas/CallLeave"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "ChangeEnvelope": {
+        "description": "Fields common to EVERY arm — position, time, and the correlation tokens. No subject: a resource arm adds that via [[core.lumen#ResourceChange]]; a frame arm (CallEnter / CallLeave) has none.",
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "$ref": "#/components/schemas/Ordinal"
+          },
+          "at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/Cause"
+          },
+          "causedBy": {
+            "$ref": "#/components/schemas/Cause"
+          },
+          "callId": {
+            "$ref": "#/components/schemas/CallId"
+          },
+          "calledBy": {
+            "$ref": "#/components/schemas/CallId"
+          }
+        },
+        "required": [
+          "ordinal",
+          "at",
+          "transaction"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceChange": {
+        "description": "What the resource arms (Created / Updated / Deleted) add to [[core.lumen#ChangeEnvelope]] — the subject and its denormalized type. A frame arm carries none of these.",
+        "type": "object",
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "subjectType": {
+            "$ref": "#/components/schemas/PathString"
+          },
+          "subjectAuthority": {
+            "$ref": "#/components/schemas/Authority"
+          }
+        },
+        "required": [
+          "subject"
+        ],
+        "additionalProperties": true
+      },
+      "Created": {
+        "description": "A resource admitted. Full post-image; its provenance is the representation's provenance.",
+        "type": "object",
+        "properties": {
+          "representation": {
+            "$ref": "#/components/schemas/Resource"
+          }
+        },
+        "required": [
+          "representation"
+        ],
+        "additionalProperties": true
+      },
+      "Updated": {
+        "description": "A resource changed. `content` is the orthogonal encoding axis — `full` carries a post-image (provenance rides in it), `patch` is a delta with explicit provenance.",
+        "type": "object",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/ChangeContent"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": true
+      },
+      "Deleted": {
+        "description": "A resource retired — the tombstone. No post-image, so provenance is explicit; `subject.rev` is the tombstone revision.",
+        "type": "object",
+        "properties": {
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        },
+        "required": [
+          "provenance"
+        ],
+        "additionalProperties": true
+      },
+      "CallEnter": {
+        "description": "An operation frame opened — the open boundary of an unsafe call on the changefeed. Carries the operation; its callId / cause / transaction ride the envelope.",
+        "type": "object",
+        "properties": {
+          "operation": {
+            "$ref": "#/components/schemas/ResourceRef"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": true
+      },
+      "CallLeave": {
+        "description": "An operation frame closed — the close boundary of an unsafe call. Carries the outcome (success / failure / fault / canceled, with the value); its callId / cause / transaction ride the envelope.",
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "additionalProperties": true
+      },
+      "ChangeContent": {
+        "description": "The change payload for Updated — full-vs-patch, the encoding axis (orthogonal to lifecycle).",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "representation": {
+                "$ref": "#/components/schemas/Resource"
+              },
+              "kind": {
+                "const": "full"
+              }
+            },
+            "required": [
+              "kind",
+              "representation"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "patch": {
+                "$ref": "#/components/schemas/JsonPatch"
+              },
+              "provenance": {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              "kind": {
+                "const": "patch"
+              }
+            },
+            "required": [
+              "kind",
+              "patch",
+              "provenance"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "ExportRecord": {
+        "description": "One line of an export.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ExportBegin"
+          },
+          {
+            "$ref": "#/components/schemas/Resource"
+          },
+          {
+            "$ref": "#/components/schemas/ExportEnd"
+          }
+        ]
+      },
+      "ExportBegin": {
+        "description": "The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`.",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "export-begin"
+          },
+          "scope": {
+            "type": "string",
+            "format": "uri"
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/Cursor"
+          }
+        },
+        "required": [
+          "kind",
+          "scope",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ExportEnd": {
+        "description": "The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "export-end"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "ImportStrategy": {
+        "description": "How `import` merges — strategy and id remap.",
+        "type": "object",
+        "properties": {
+          "dedup": {
+            "type": "boolean"
+          },
+          "allowStale": {
+            "type": "boolean"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "idRoot": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportReport": {
+        "description": "What `import` reports — counts and any skipped/conflicted records.",
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/ResourceRef"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "imported",
+          "skipped",
+          "conflicts"
+        ],
+        "additionalProperties": false
+      },
+      "ServiceDescriptor": {
+        "description": "The bounded discovery signpost returned by `GET /` (a scope's base URL) — a THIN envelope that names the protocol and LINKS to the rest, never embedding it. With `get` and `/sys/capabilities`, it is the mandatory floor.",
+        "type": "object",
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/SemVer"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Rev"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BdpScope"
+          },
+          "base": {
+            "type": "string",
+            "format": "uri"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ServiceLinks"
+          }
+        },
+        "required": [
+          "version",
+          "links"
+        ],
+        "additionalProperties": false
+      },
+      "ServiceLinks": {
+        "description": "The discovery link set — RFC 8631 web-service link relations to the service's other resources. A relation's absence means the service does not offer it. Mirrored in the `Link` header.",
+        "type": "object",
+        "properties": {
+          "serviceDesc": {
+            "type": "string",
+            "format": "uri"
+          },
+          "serviceMeta": {
+            "type": "string",
+            "format": "uri"
+          },
+          "serviceDoc": {
+            "type": "string",
+            "format": "uri"
+          },
+          "changes": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Capabilities": {
+        "description": "What a scope advertises through discovery — read it by `get` on the well-known `/sys/capabilities` resource. Its primitive capabilities are partitioned by package (`core` is the base; other packages advertise their own), à la carte: a primitive is supported iff its capability is present. Scope-wide traits that are not per-primitive live in `scope`.",
+        "type": "object",
+        "properties": {
+          "core": {
+            "$ref": "#/components/schemas/CoreCapabilities"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopeCapabilities"
+          },
+          "packs": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "core",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "CoreCapabilities": {
+        "description": "The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side.",
+        "type": "object",
+        "properties": {
+          "get": {
+            "$ref": "#/components/schemas/GetCaps"
+          },
+          "list": {
+            "$ref": "#/components/schemas/ListCaps"
+          },
+          "pull": {
+            "$ref": "#/components/schemas/PullCaps"
+          },
+          "create": {
+            "$ref": "#/components/schemas/CreateCaps"
+          },
+          "put": {
+            "$ref": "#/components/schemas/PutCaps"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/PatchCaps"
+          },
+          "delete": {
+            "$ref": "#/components/schemas/DeleteCaps"
+          },
+          "revisions": {
+            "$ref": "#/components/schemas/RevisionsCaps"
+          },
+          "export": {
+            "$ref": "#/components/schemas/ExportCaps"
+          },
+          "import": {
+            "$ref": "#/components/schemas/ImportCaps"
+          },
+          "push": {
+            "$ref": "#/components/schemas/PushCaps"
+          }
+        },
+        "required": [
+          "get"
+        ],
+        "additionalProperties": false
+      },
+      "ScopeCapabilities": {
+        "description": "A scope's scope-wide traits — the capabilities that are neither per-primitive nor pack-specific. Storage classes, the revision model, and whether aliases are supported live here.",
+        "type": "object",
+        "properties": {
+          "storageClasses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageClass"
+            }
+          },
+          "revisionModel": {
+            "$ref": "#/components/schemas/RevisionModel"
+          },
+          "aliases": {
+            "$ref": "#/components/schemas/AliasCaps"
+          },
+          "bodyFormSpill": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "storageClasses",
+          "revisionModel"
+        ],
+        "additionalProperties": false
+      },
+      "AliasCaps": {
+        "description": "Advertised for `aliases` — its presence signals that `Alias` resources under `sys/aliases/` and the scope-root overlay are active. An alias is always single-hop and same-scope (no chains); any further limits (e.g. a cap on aliases per target) ride here.",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      },
+      "RevisionModel": {
+        "description": "A scope's revision model — a scope-wide trait, stated outright (no implicit default).",
+        "enum": [
+          "versioned",
+          "unversioned"
+        ]
+      },
+      "GetCaps": {
+        "description": "Limits advertised for `get`.",
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "additionalProperties": false
+      },
+      "ListCaps": {
+        "description": "Limits advertised for `list`.",
+        "type": "object",
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionKind"
+            }
+          },
+          "selector": {
+            "type": "boolean"
+          },
+          "sort": {
+            "type": "boolean"
+          },
+          "compactFilter": {
+            "type": "boolean"
+          },
+          "maxLimit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "conditions",
+          "selector",
+          "sort",
+          "compactFilter"
+        ],
+        "additionalProperties": false
+      },
+      "ConditionKind": {
+        "description": "One operator in the low-bar `list` filter. The richer filter / query language is a corelib (query-pack) capability, not core.",
+        "enum": [
+          "compare",
+          "matches",
+          "has",
+          "missing",
+          "contains",
+          "containsAny",
+          "excludes",
+          "isType"
+        ]
+      },
+      "PullCaps": {
+        "description": "Limits advertised for `pull` (the changefeed and declared streams).",
+        "type": "object",
+        "properties": {
+          "sse": {
+            "type": "boolean"
+          },
+          "jsonl": {
+            "type": "boolean"
+          },
+          "filter": {
+            "type": "boolean"
+          },
+          "selector": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sse",
+          "jsonl",
+          "filter",
+          "selector"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCaps": {
+        "description": "Limits advertised for `create`.",
+        "type": "object",
+        "properties": {
+          "serverAllocatesId": {
+            "type": "boolean"
+          },
+          "clientProposedId": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "serverAllocatesId",
+          "clientProposedId"
+        ],
+        "additionalProperties": false
+      },
+      "PutCaps": {
+        "description": "Limits advertised for `put` — which write guards it honors. The `precondition` operator set is ⊆ [[core.lumen#ListCaps]] `conditions`.",
+        "type": "object",
+        "properties": {
+          "ifRevision": {
+            "type": "boolean"
+          },
+          "ifAbsent": {
+            "type": "boolean"
+          },
+          "precondition": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ifRevision",
+          "ifAbsent",
+          "precondition"
+        ],
+        "additionalProperties": false
+      },
+      "PatchCaps": {
+        "description": "Limits advertised for `patch`. The `precondition` operator set is ⊆ [[core.lumen#ListCaps]] `conditions`.",
+        "type": "object",
+        "properties": {
+          "ifRevision": {
+            "type": "boolean"
+          },
+          "precondition": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ifRevision",
+          "precondition"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteCaps": {
+        "description": "Limits advertised for `delete`. The `precondition` operator set is ⊆ [[core.lumen#ListCaps]] `conditions`.",
+        "type": "object",
+        "properties": {
+          "ifRevision": {
+            "type": "boolean"
+          },
+          "precondition": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ifRevision",
+          "precondition"
+        ],
+        "additionalProperties": false
+      },
+      "RevisionsCaps": {
+        "description": "Presence advertises that prior revisions are addressable (`revisions`); offered only by a `versioned` scope.",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "ExportCaps": {
+        "description": "Limits advertised for `export`.",
+        "type": "object",
+        "properties": {
+          "revisions": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revisions"
+        ],
+        "additionalProperties": false
+      },
+      "ImportCaps": {
+        "description": "Limits advertised for `import`.",
+        "type": "object",
+        "properties": {
+          "historyRestore": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "historyRestore"
+        ],
+        "additionalProperties": false
+      },
+      "PushCaps": {
+        "description": "Limits advertised for `push`.",
+        "type": "object",
+        "properties": {
+          "maxBatch": {
+            "type": "integer"
+          },
+          "window": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
