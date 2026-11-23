@@ -15,8 +15,16 @@
         {
           "type": "object",
           "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
             "body": {
               "$ref": "#/$defs/markdown"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
             },
             "references": {
               "type": "array",
@@ -30,6 +38,7 @@
             }
           },
           "required": [
+            "title",
             "body"
           ],
           "additionalProperties": false
@@ -104,13 +113,19 @@
       ]
     },
     "Specification": {
+      "description": "Specification — an intended result, described well enough to be checked against.",
       "allOf": [
         {
           "$ref": "#/$defs/Constraint"
         },
         {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "additionalProperties": false
         }
       ]
@@ -130,7 +145,7 @@
                 "$ref": "core.schema.json#/$defs/ResourceRef"
               },
               "uniqueItems": true,
-              "minSize": 1
+              "minItems": 1
             }
           },
           "required": [
@@ -199,6 +214,55 @@
           "additionalProperties": false
         }
       ]
+    },
+    "RememberError": {
+      "description": "Domain refusals of `rememberMemory`.",
+      "enum": [
+        "already-exists",
+        "not-a-memory",
+        "identity-consumed"
+      ]
+    },
+    "ForgetError": {
+      "description": "Domain refusals of `forgetMemory`.",
+      "enum": [
+        "has-incident-links",
+        "not-a-memory"
+      ]
+    },
+    "MemorySummary": {
+      "description": "MemorySummary — one row of the compact summary view: identity, title, a bounded body excerpt, and the optional `details` fields.",
+      "type": "object",
+      "properties": {
+        "memory": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "title": {
+          "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "core.schema.json#/$defs/PathString"
+        },
+        "revision": {
+          "$ref": "core.schema.json#/$defs/Rev"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "linkCount": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "memory",
+        "title",
+        "excerpt",
+        "type"
+      ],
+      "additionalProperties": false
     }
   }
 }

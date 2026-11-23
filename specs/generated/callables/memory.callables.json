@@ -1,4 +1,315 @@
 {
   "pack": "memory",
-  "callables": []
+  "callables": [
+    {
+      "path": "memory/remember",
+      "operation": "rememberMemory",
+      "safe": false,
+      "idempotent": false,
+      "cli": "remember",
+      "summary": "Store a Memory, or update the same Memory under an explicit identity — the create-or-update convenience over the generic `create`/`patch`",
+      "parameters": [
+        {
+          "name": "body",
+          "type": "markdown",
+          "required": false
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "update",
+          "type": "ref<Memory>",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "createOnly",
+          "type": "bool",
+          "required": false
+        }
+      ],
+      "returns": "rep<Memory>",
+      "errors": [
+        "RememberError"
+      ]
+    },
+    {
+      "path": "memory/recall",
+      "operation": "recallMemory",
+      "safe": true,
+      "idempotent": false,
+      "cli": "recall",
+      "summary": "Read a Memory's Markdown body — only the body, not the bead document",
+      "parameters": [
+        {
+          "name": "memory",
+          "type": "ref<Memory>",
+          "required": true
+        }
+      ],
+      "returns": "markdown"
+    },
+    {
+      "path": "memory/memories",
+      "operation": "listMemorySummaries",
+      "safe": true,
+      "idempotent": false,
+      "cli": "memories",
+      "summary": "Browse compact Memory summaries, optionally matching text in the id, title or body",
+      "parameters": [
+        {
+          "name": "search",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "all",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "details",
+          "type": "bool",
+          "required": false
+        }
+      ],
+      "returns": "[ MemorySummary ]"
+    },
+    {
+      "path": "memory/forget",
+      "operation": "forgetMemory",
+      "safe": false,
+      "idempotent": false,
+      "cli": "forget",
+      "summary": "Forget a Memory — delete one live, unreferenced Memory; the invocation itself supplies the delete intent",
+      "parameters": [
+        {
+          "name": "memory",
+          "type": "ref<Memory>",
+          "required": true
+        }
+      ],
+      "returns": "Rev",
+      "errors": [
+        "ForgetError"
+      ]
+    },
+    {
+      "path": "memory/references",
+      "operation": "listReferences",
+      "safe": true,
+      "idempotent": false,
+      "cli": "references",
+      "summary": "Follow outgoing References from each root to find related context",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/referenced-by",
+      "operation": "listReferencedBy",
+      "safe": true,
+      "idempotent": false,
+      "cli": "referenced-by",
+      "summary": "Follow incoming References to find the beads that refer to each root",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/successor",
+      "operation": "getSuccessorChain",
+      "safe": true,
+      "idempotent": false,
+      "cli": "successor",
+      "summary": "Follow the replacement chain FORWARD from each retiring Memory to its current successor",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/supersedes",
+      "operation": "listSupersedes",
+      "safe": true,
+      "idempotent": false,
+      "cli": "supersedes",
+      "summary": "Follow the replacement chain BACKWARD from a replacement, showing its direct predecessors by default",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/requirements",
+      "operation": "listRequirements",
+      "safe": true,
+      "idempotent": false,
+      "cli": "requirements",
+      "summary": "Follow the outgoing Requires FAMILY — including Defines — to collect the constraints necessary for each root",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/required-by",
+      "operation": "listRequiredBy",
+      "safe": true,
+      "idempotent": false,
+      "cli": "required-by",
+      "summary": "Follow the incoming Requires family to find the constraints that depend on each root, showing direct dependents by default",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/definition",
+      "operation": "getDefinition",
+      "safe": true,
+      "idempotent": false,
+      "cli": "definition",
+      "summary": "Follow outgoing Defines to read each root's defining parts — its defining tree",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/defined-by",
+      "operation": "listDefinedBy",
+      "safe": true,
+      "idempotent": false,
+      "cli": "defined-by",
+      "summary": "Follow incoming Defines to find each root's defining parent, showing the direct parent by default",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/constraints",
+      "operation": "listConstraints",
+      "safe": true,
+      "idempotent": false,
+      "cli": "constraints",
+      "summary": "Discover the rules governing each subject — its explicit Subject To declarations, then the Requires-family paths that follow from them",
+      "parameters": [
+        {
+          "name": "subjects",
+          "type": "[ ref<resource> ]",
+          "required": true
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "memory/subjects",
+      "operation": "listSubjects",
+      "safe": true,
+      "idempotent": false,
+      "cli": "subjects",
+      "summary": "Find the beads that DIRECTLY declare themselves subject to each selected Constraint",
+      "parameters": [
+        {
+          "name": "constraints",
+          "type": "[ ref<resource> ]",
+          "required": true
+        }
+      ],
+      "returns": "Subgraph"
+    }
+  ]
 }
