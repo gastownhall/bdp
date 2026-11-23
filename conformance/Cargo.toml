@@ -6,21 +6,35 @@
 # so the denominator tracks the spec instead of a frozen copy. `reference` stays pin-agnostic (it
 # serves whatever InMemScope implements).
 #
-# vendor/ holds the reference-implementation crates (the in-memory BDP scope + the framework-free
-# HTTP server/client), copied in so the gate builds with no out-of-tree source. See README.md for
-# the vendor-vs-purpose-built note.
+# subject/ holds the SUBJECT UNDER TEST — the in-memory BDP scope plus the framework-free HTTP
+# server/client the cases drive. It was once called `vendor/`, which was the wrong name: it implied
+# these were copies tracking an upstream, and they are not.
+#
+# ===========================================================================================
+#  THESE CRATES ARE SUITE-INTERNAL AND CARRY NO EXTERNAL CONTRACT.
+#
+#  They are owned here, in gastownhall/bdp, and they exist to be measured by the conformance
+#  cases next to them. There is NO semver, NO published API, NO stability promise, and no
+#  upstream to track or re-vendor from. They change whenever a case needs them to.
+#
+#  An implementation is welcome to copy them, and then owns whatever churn follows. Do not take
+#  a dependency on them expecting them to hold still. `publish = false` below enforces the
+#  mechanical half of this; this comment is the half that reaches a person first.
+#
+#  Divergence from any similarly-named crate elsewhere is EXPECTED, not a defect to reconcile.
+# ===========================================================================================
 [workspace]
 resolver = "2"
 members = [
     "reference",
     "gate",
-    "vendor/bdp-primitives",
-    "vendor/bdp-jsonpatch",
-    "vendor/bdp-protocol",
-    "vendor/bdp-inmem",
+    "subject/bdp-primitives",
+    "subject/bdp-jsonpatch",
+    "subject/bdp-protocol",
+    "subject/bdp-inmem",
 ]
 
-# Values the vendored crates inherit via `version.workspace` / `edition.workspace`.
+# Values the subject crates inherit via `version.workspace` / `edition.workspace`.
 [workspace.package]
 version = "0.0.0"
 edition = "2021"

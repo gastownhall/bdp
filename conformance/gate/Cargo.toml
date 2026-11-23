@@ -18,9 +18,9 @@ publish = false
 serde_json = "1"
 
 [dev-dependencies]
-bdp-primitives = { path = "../vendor/bdp-primitives" }
-bdp-protocol = { path = "../vendor/bdp-protocol" }
-bdp-inmem = { path = "../vendor/bdp-inmem" }
+bdp-primitives = { path = "../subject/bdp-primitives" }
+bdp-protocol = { path = "../subject/bdp-protocol" }
+bdp-inmem = { path = "../subject/bdp-inmem" }
 bytes = "1"
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "macros", "net", "io-util"] }

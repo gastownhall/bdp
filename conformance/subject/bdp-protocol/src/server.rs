@@ -186,6 +186,29 @@ impl<S: BdpScope> Server<S> {
     }
 
     async fn do_patch(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
+        // `patch` pins its request media type to application/json-patch+json (core.lumen: the
+        // "patch is root-addressed" change), so any other type faults 415. RFC 7396 merge-patch is
+        // the explicitly excluded case, not an accepted alternative.
+        //
+        // This check is the ONLY producer of op/patch/fault/415 — the well-formed client always
+        // sends the right type (client.rs), so the row is unreachable without validating here.
+        // A missing Content-Type is NOT rejected: it leaves the type unstated rather than wrong,
+        // and the body is still parsed as a JSON Patch, which is the pre-existing behaviour.
+        const JSON_PATCH: &str = "application/json-patch+json";
+        if let Some(ct) = req.header("content-type") {
+            // Compare the media type only; parameters such as `; charset=utf-8` are not part of it.
+            let media_type = ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+            if !media_type.is_empty() && media_type != JSON_PATCH {
+                return HttpResponse::json(
+                    415,
+                    problem_body(
+                        415,
+                        "unsupported-media-type",
+                        &format!("patch requires {JSON_PATCH}, got {media_type}"),
+                    ),
+                );
+            }
+        }
         let target = resource_id_from(id_seg, None);
         let patch = p::JsonPatch(p::RawJson(bytes::Bytes::copy_from_slice(&req.body)));
         let if_rev = req.header("if-match").map(|s| p::Rev(std::sync::Arc::from(s)));
