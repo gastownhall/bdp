@@ -1071,7 +1071,7 @@ command create(
 /// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
 /// normative: A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.
 /// normative: WRITE GUARDS ARE PRECONDITIONS, NEVER BODY. A guard rides the request line (a header or the query string), never the payload — so a `put` body stays exactly the resource representation and a `patch` body stays exactly the JSON Patch, unwrapped and correctly typed. Three guards, carried by `put`, `patch` and `delete` (`put` also carries the second): (1) `ifRevision` → `If-Match: "<Rev>"` (the `Rev` as a double-quoted strong entity-tag, RFC 9110 §8.8.3), the optimistic-concurrency / revision guard — a stale value makes no change and faults `revision-mismatch` (412); (2) `ifAbsent` → `If-None-Match: *`, create-if-absent — the write applies only if nothing is there, else faults `identity-taken` (409 — the same status as a `create` collision, so a client has one id-taken handler) (`put` only); (3) `precondition` → `?precondition=<Filter>`, a STATE guard — the write applies only if the current resource satisfies the Filter, else faults `precondition-failed` (412). The state guard is the same flat-AND [[core.lumen#Filter]] grammar `list` uses, projected onto the query string exactly like a read filter. A guard too large for the URL budget MAY spill to an OPTIONAL, advertised `query`-tier body-form (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`) carrying an [[core.lumen#Envelope]] — `{ precondition?, representation }` for put (the FULL representation, never a bare body), `{ precondition?, patch }` for patch, `{ precondition? }` for delete — the one place an envelope appears; the `If-Match`/`If-None-Match` guards keep riding their headers, and a scope that does not advertise spill rejects an over-budget guard with `request-too-large`. See Appendix D. There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
-/// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, ifAbsent = { in = "header", name = "If-None-Match", schema = "\"*\"", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
+/// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, ifAbsent = { in = "header", name = "If-None-Match", schema = "\"*\"", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,409,410,412,422] } }
 idempotent command put(
     /// description: The resource to write (its id; `rev` ignored — `put` targets the current resource).
     resource:    unpinned<any>,
@@ -1097,7 +1097,7 @@ idempotent command put(
 ## patch
 /// bdp = { kind = "primitive", primitive = "patch" }
 /// description: JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
-/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,415,422] } }
+/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,410,412,415,422] } }
 command patch(
     /// description: The resource to patch (its current revision).
     resource:    unpinned<any>,
@@ -1117,7 +1117,11 @@ command patch(
 /// bdp = { kind = "primitive", primitive = "delete" }
 /// description: Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound references are owned by other beads' revisions, so they may dangle; a service that enforces referential integrity faults when inbound references pin it (advertised, not base). Returns the tombstone Rev, not a representation.
 /// normative: Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ "rev": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.
-/// normative: Delete is not erasure — a deleted resource's id stays accounted for, its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`), and the id is never reused. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
+/// normative: Delete is not erasure — a deleted resource's id stays accounted for, and its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`). Keeping that tombstone revision is revision-dependent, so it relaxes under `unversioned` ([[core.lumen#RevisionModel]]); the id accounting does not relax with it. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
+/// normative: Whether the retired id may be minted again is the scope's declared id model ([[core.lumen#IdModel]]), not a property of `delete`: under `permanent` the id is never reused, under `reusable` it may be. These are three separate obligations — id accounting, the tombstone revision, and id permanence — and only the second is revision-dependent.
+/// normative: `delete` is idempotent on an EXISTING resource, not total. Deleting a resource that is already retired is the idempotent case: it returns the same tombstone `Rev` and does not fault, which is why `delete` alone among the writes declares no `410`. Deleting an id that NEVER existed is a different case and faults `404`, because an absent target is not a resource to retire: there is nothing for `delete` to act on, and the declared `404` has no other producer. Retiring an id is a consequence of retiring a resource, never a way to reserve or deny one — so `delete` MUST NOT mint a tombstone for an id it did not retire. That prohibition stands on the sentence before it and not on any implementation's behaviour; note only as a consequence of violating it that under `permanent` ([[core.lumen#IdModel]]) a minting `delete` would let any caller able to delete permanently spend any id in the space, since `create` at that id would then fault `identity-taken` for ever.
+/// normative: `delete`'s idempotency is UNCONDITIONAL; only its `404`'s reachability varies, and it varies with whether the scope can tell the two cases apart. A scope retains a record of a retirement if it is `versioned` (the tombstone revision) or `permanent` (the retired-id accounting, [[core.lumen#IdModel]]) — either suffices, and such a scope MUST fault `404` for an id that never existed. A scope that is BOTH `unversioned` AND `reusable` retains neither record, so for it "already retired" and "never existed" are the same state: it answers the idempotent success, and its `404` is simply unreachable, exactly as a write's `410` is unreachable under `reusable`. Idempotency sits on the unconditional side because a fault that no scope can produce costs nothing, while a guarantee that varies by model forces every client to learn a scope's models before it can act. It is NOT justified by retry safety, and must not be read as making a `delete` retry safe.
+/// normative: A write that TARGETS a retired resource faults `410 Gone`, so `put` and `patch` both declare it alongside `get`. It is distinct from its two neighbours: a never-retired missing id is `404`, and CLAIMING a spent id is `identity-taken` (409). On `put` the 409 is the **`ifAbsent` guard's** fault, never the operation's — every `put` is id-rooted (`PUT /{id}`), so rooting cannot discriminate and the guard is what does: a bare `put` targets the resource, so a retired target is `410`, while a `put` under `If-None-Match: *` asserts the id is free, so a spent id is `409` — the same status as a `create` collision, keeping one id-taken handler for the claiming path. Updating what is gone and claiming an identity that is spent are different faults, and on `put` the guard is what tells them apart. `put` declares no `404` because an absent id is not an error for it: `put` creates. Like `get`'s 410, a write's 410 is reachable only under `permanent`; under `reusable` a retired id is simply absent, so the write sees `404` or creates.
 /// normative: Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 /// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 idempotent command delete(
@@ -1135,6 +1139,16 @@ idempotent command delete(
   ) -> Rev
 // >DB? delete → bare `Rev` (your instinct) breaks the "writes return a pinned ref"
 // symmetry on purpose — a tombstone has no representation. Confirm.
+
+// > **Open** — the CLIENT side of the recycled-id retry. A `reusable` scope must now
+// > advertise a guard on `delete` ([[core.lumen#IdModel]]), so the mechanism is always
+// > there; what is not yet stated is whether a client retrying a `delete` under `reusable`
+// > MUST use it. Offering a guard does not oblige anyone to reach for it, and an unguarded
+// > retry stays unsafe: A deletes X, the response is lost, B legitimately takes the freed
+// > id, and A's retry destroys B's resource — reporting success, so A cannot learn it from
+// > the result. `delete`'s idempotency makes the STATUS stable, never the effect. The
+// > obligation would sit beside the reference rule in [[core.lumen#IdModel]]: a reference
+// > needs a pinned revision to survive a delete, a retry needs a guard to survive a reuse.
 
 ## list
 /// bdp = { kind = "primitive", primitive = "list" }
@@ -1551,6 +1565,8 @@ type ScopeCapabilities = {
   storageClasses: [StorageClass],
   /// description: Whether the scope mints revisions, scope-wide. See [[core.lumen#RevisionModel]].
   revisionModel:  RevisionModel,
+  /// description: Whether a retired id is permanently spent, scope-wide. See [[core.lumen#IdModel]].
+  idModel:        IdModel,
   /// description: Present iff the scope supports alias resources and the scope-root overlay. See [[core.lumen#Alias]], [[core.lumen#AliasCaps]].
   aliases?:       AliasCaps,
   /// description: Present and `true` iff the scope accepts the OPTIONAL body-form spill ([[core.lumen#Envelope]]) for an over-budget read or write guard; absent/false ⇒ an over-budget request is refused `request-too-large`. There is no advertised URL-byte budget — intermediaries, not the origin, impose the limit, so a client is reactive to `414`/`431`/`400`-by-length regardless.
@@ -1565,6 +1581,13 @@ type AliasCaps = { ...: any }
 /// description: A scope's revision model — a scope-wide trait, stated outright (no implicit default).
 /// normative: `versioned` ⇒ the scope mints revisions; write refs are `pinned`, pinned-revision (time-travel) `get` resolves, and the changefeed carries revisions. `unversioned` ⇒ the scope mints no revisions; `rev` is absent everywhere, write refs relax to `unpinned`, and every revision-dependent behaviour relaxes scope-wide.
 type RevisionModel = "versioned" | "unversioned"
+
+## IdModel
+/// description: A scope's id model — a scope-wide trait, stated outright (no implicit default). Whether an id retired by `delete` is permanently spent or may be minted again.
+/// normative: `permanent` ⇒ a retired id is never reused. An unpinned inbound reference to it resolves to the tombstone and faults `410 Gone`; `create`, or an id-rooted `put`, at that id faults `identity-taken`. `reusable` ⇒ a retired id MAY be minted again. `get` of a retired id faults `404`, a later `create` at that id succeeds, and an unpinned inbound reference MAY therefore resolve to an UNRELATED resource — so a client that needs a reference to survive a delete MUST pin a revision rather than rely on the id.
+/// normative: The id model is declared, never inferred, and a scope states it outright like its revision model. `permanent` is not a floor every provider can hold: a scope projecting an existing system whose id allocation it does not control is expected to state `reusable` rather than claim a guarantee it cannot keep. Stating `reusable` is conformant; claiming `permanent` and reusing an id is not.
+/// normative: A scope declaring `reusable` and offering `delete` MUST advertise at least one write guard ON `delete` — `ifRevision` or `precondition` true in [[core.lumen#DeleteCaps]]. `precondition` alone satisfies it, and that is what keeps the requirement reachable for an `unversioned` scope: it pins by CONTENT rather than by revision, so a projection with no revision identity can still offer one. The guard must be on `delete` specifically, not merely somewhere among the writes — the hazard is a `delete` RETRY against a recycled id, so a scope guarding `put` while leaving `delete` unguarded would satisfy a looser rule and remain unsafe. Without a guard a client has no safe way to retry a `delete` at all, and cannot learn that from a failure, because the unsafe retry SUCCEEDS.
+type IdModel = "permanent" | "reusable"
 
 ## GetCaps
 /// description: Limits advertised for `get`.
@@ -1911,9 +1934,16 @@ type PushCaps = {
 //   application/jsonl             bulk stream (pull / list / export; push / import body)
 //   text/event-stream            live pull (SSE); the SSE event id is the cursor, so a
 //                                reconnect's `Last-Event-ID` resumes exactly as `after`
-//   application/json-patch+json  the direct `patch` body (RFC 6902; REQUIRED — a direct `patch`
-//                                with another media type faults `415`, so RFC 7396 merge-patch
-//                                is never silently applied)
+//   application/json-patch+json  the direct `patch` body (RFC 6902). REQUIRED means
+//                                PRESENT-OR-FAULT: a direct `patch` whose `Content-Type` names
+//                                another media type, OR OMITS THE HEADER, faults `415`. Absence
+//                                is not the lenient case — a requirement that bites only when
+//                                you declare something else can be evaded by declaring nothing,
+//                                and an omission must never downgrade a guarantee. The
+//                                guarantee here is that RFC 7396 merge-patch is never silently
+//                                applied; one mistake gets one fault, so a wrong OR missing
+//                                media type is `415` rather than 415-or-422 depending on which
+//                                way the client erred.
 //   application/vnd.bdp.envelope+json  the OPTIONAL body-form spill body ([[core.lumen#Envelope]]):
 //                                a POST `/{id}/-/{put|patch|delete}` carrying an over-budget guard
 //   application/problem+json     every failing body (RFC 9457 Problem)

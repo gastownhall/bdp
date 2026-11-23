@@ -16,7 +16,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
 - **Denominator** — `bdp_gate::denominator()` parses the repo's generated v0.2.3 OpenAPI catalog, read
   **live** from `specs/generated/openapi/core.openapi.json`, into the tier-1 coverage surface: every
   primitive operation plus each of its declared `>=400` fault statuses. The v0.2.3 surface is
-  **52 rows** (13 ops + 39 faults). Reading it live is what makes the gate *lockstep*: when the spec's
+  **54 rows** (13 ops + 41 faults). Reading it live is what makes the gate *lockstep*: when the spec's
   wire surface moves, the denominator moves with it (and a unit test tripwires on the row count so the
   change gets reviewed). A frozen vendored copy would silently stop catching spec changes.
 - **Generator witness** — `bdp_gate::source_surface()` derives the SAME surface independently, straight
@@ -42,7 +42,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 16/52**, across three case families:
+**Current coverage: 17/54**, across three case families:
 
 - **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
   InMemScope implements).
@@ -52,7 +52,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 36 rows are uncovered for concrete, recorded reasons — and splitting them shows the
+The remaining 37 rows are uncovered for concrete, recorded reasons — and splitting them shows the
 next decision:
 
 - **~20 rows need the reference to route/implement 8 more primitives** — `list`, `export`, `import`,

@@ -1527,7 +1527,15 @@ Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound ref
 
 > **Normative.** Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ "rev": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.
 
-> **Normative.** Delete is not erasure — a deleted resource's id stays accounted for, its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`), and the id is never reused. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
+> **Normative.** Delete is not erasure — a deleted resource's id stays accounted for, and its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`). Keeping that tombstone revision is revision-dependent, so it relaxes under `unversioned` ([RevisionModel](#RevisionModel)); the id accounting does not relax with it. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
+
+> **Normative.** Whether the retired id may be minted again is the scope's declared id model ([IdModel](#IdModel)), not a property of `delete`: under `permanent` the id is never reused, under `reusable` it may be. These are three separate obligations — id accounting, the tombstone revision, and id permanence — and only the second is revision-dependent.
+
+> **Normative.** `delete` is idempotent on an EXISTING resource, not total. Deleting a resource that is already retired is the idempotent case: it returns the same tombstone `Rev` and does not fault, which is why `delete` alone among the writes declares no `410`. Deleting an id that NEVER existed is a different case and faults `404`, because an absent target is not a resource to retire: there is nothing for `delete` to act on, and the declared `404` has no other producer. Retiring an id is a consequence of retiring a resource, never a way to reserve or deny one — so `delete` MUST NOT mint a tombstone for an id it did not retire. That prohibition stands on the sentence before it and not on any implementation's behaviour; note only as a consequence of violating it that under `permanent` ([IdModel](#IdModel)) a minting `delete` would let any caller able to delete permanently spend any id in the space, since `create` at that id would then fault `identity-taken` for ever.
+
+> **Normative.** `delete`'s idempotency is UNCONDITIONAL; only its `404`'s reachability varies, and it varies with whether the scope can tell the two cases apart. A scope retains a record of a retirement if it is `versioned` (the tombstone revision) or `permanent` (the retired-id accounting, [IdModel](#IdModel)) — either suffices, and such a scope MUST fault `404` for an id that never existed. A scope that is BOTH `unversioned` AND `reusable` retains neither record, so for it "already retired" and "never existed" are the same state: it answers the idempotent success, and its `404` is simply unreachable, exactly as a write's `410` is unreachable under `reusable`. Idempotency sits on the unconditional side because a fault that no scope can produce costs nothing, while a guarantee that varies by model forces every client to learn a scope's models before it can act. It is NOT justified by retry safety, and must not be read as making a `delete` retry safe.
+
+> **Normative.** A write that TARGETS a retired resource faults `410 Gone`, so `put` and `patch` both declare it alongside `get`. It is distinct from its two neighbours: a never-retired missing id is `404`, and CLAIMING a spent id is `identity-taken` (409). On `put` the 409 is the **`ifAbsent` guard's** fault, never the operation's — every `put` is id-rooted (`PUT /{id}`), so rooting cannot discriminate and the guard is what does: a bare `put` targets the resource, so a retired target is `410`, while a `put` under `If-None-Match: *` asserts the id is free, so a spent id is `409` — the same status as a `create` collision, keeping one id-taken handler for the claiming path. Updating what is gone and claiming an identity that is spent are different faults, and on `put` the guard is what tells them apart. `put` declares no `404` because an absent id is not an error for it: `put` creates. Like `get`'s 410, a write's 410 is reachable only under `permanent`; under `reusable` a retired id is simply absent, so the write sees `404` or creates.
 
 > **Normative.** Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 
@@ -1541,6 +1549,8 @@ idempotent command delete(
 | `resource` | `unpinned<any>` | The resource to retire (its current revision). |
 
 Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create / put / patch / delete).
+
+> **Open** — the CLIENT side of the recycled-id retry. A `reusable` scope must now > advertise a guard on `delete` ([IdModel](#IdModel)), so the mechanism is always > there; what is not yet stated is whether a client retrying a `delete` under `reusable` > MUST use it. Offering a guard does not oblige anyone to reach for it, and an unguarded > retry stays unsafe: A deletes X, the response is lost, B legitimately takes the freed > id, and A's retry destroys B's resource — reporting success, so A cannot learn it from > the result. `delete`'s idempotency makes the STATUS stable, never the effect. The > obligation would sit beside the reference rule in [IdModel](#IdModel): a reference > needs a pinned revision to survive a delete, a retry needs a guard to survive a reuse.
 
 <a id="list"></a>
 
@@ -2223,6 +2233,7 @@ A scope's scope-wide traits — the capabilities that are neither per-primitive 
 type ScopeCapabilities = {
   storageClasses: [StorageClass],
   revisionModel:  RevisionModel,
+  idModel:        IdModel,
   aliases?:       AliasCaps,
   bodyFormSpill?: bool
 }
@@ -2232,6 +2243,7 @@ type ScopeCapabilities = {
 |---|---|---|
 | `storageClasses` | `[StorageClass]` | Which persistence classes the scope can honor — a set over `Durable` / `Ephemeral`. A resource whose class is not honored cannot be hosted. `Intrinsic` is universal and never appears here. |
 | `revisionModel` | `RevisionModel` | Whether the scope mints revisions, scope-wide. See [RevisionModel](#RevisionModel). |
+| `idModel` | `IdModel` | Whether a retired id is permanently spent, scope-wide. See [IdModel](#IdModel). |
 | `aliases?` | `AliasCaps` | Present iff the scope supports alias resources and the scope-root overlay. See [Alias](#Alias), [AliasCaps](#AliasCaps). |
 | `bodyFormSpill?` | `bool` | Present and `true` iff the scope accepts the OPTIONAL body-form spill ([Envelope](#Envelope)) for an over-budget read or write guard; absent/false ⇒ an over-budget request is refused `request-too-large`. There is no advertised URL-byte budget — intermediaries, not the origin, impose the limit, so a client is reactive to `414`/`431`/`400`-by-length regardless. |
 
@@ -2255,6 +2267,22 @@ A scope's revision model — a scope-wide trait, stated outright (no implicit de
 
 ```lumen
 type RevisionModel = "versioned" | "unversioned"
+```
+
+<a id="IdModel"></a>
+
+### `IdModel`
+
+A scope's id model — a scope-wide trait, stated outright (no implicit default). Whether an id retired by `delete` is permanently spent or may be minted again.
+
+> **Normative.** `permanent` ⇒ a retired id is never reused. An unpinned inbound reference to it resolves to the tombstone and faults `410 Gone`; `create`, or an id-rooted `put`, at that id faults `identity-taken`. `reusable` ⇒ a retired id MAY be minted again. `get` of a retired id faults `404`, a later `create` at that id succeeds, and an unpinned inbound reference MAY therefore resolve to an UNRELATED resource — so a client that needs a reference to survive a delete MUST pin a revision rather than rely on the id.
+
+> **Normative.** The id model is declared, never inferred, and a scope states it outright like its revision model. `permanent` is not a floor every provider can hold: a scope projecting an existing system whose id allocation it does not control is expected to state `reusable` rather than claim a guarantee it cannot keep. Stating `reusable` is conformant; claiming `permanent` and reusing an id is not.
+
+> **Normative.** A scope declaring `reusable` and offering `delete` MUST advertise at least one write guard ON `delete` — `ifRevision` or `precondition` true in [DeleteCaps](#DeleteCaps). `precondition` alone satisfies it, and that is what keeps the requirement reachable for an `unversioned` scope: it pins by CONTENT rather than by revision, so a projection with no revision identity can still offer one. The guard must be on `delete` specifically, not merely somewhere among the writes — the hazard is a `delete` RETRY against a recycled id, so a scope guarding `put` while leaving `delete` unguarded would satisfy a looser rule and remain unsafe. Without a guard a client has no safe way to retry a `delete` at all, and cannot learn that from a failure, because the unsafe retry SUCCEEDS.
+
+```lumen
+type IdModel = "permanent" | "reusable"
 ```
 
 <a id="GetCaps"></a>
@@ -2718,9 +2746,16 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   application/jsonl             bulk stream (pull / list / export; push / import body)
   text/event-stream            live pull (SSE); the SSE event id is the cursor, so a
                                reconnect's `Last-Event-ID` resumes exactly as `after`
-  application/json-patch+json  the direct `patch` body (RFC 6902; REQUIRED — a direct `patch`
-                               with another media type faults `415`, so RFC 7396 merge-patch
-                               is never silently applied)
+  application/json-patch+json  the direct `patch` body (RFC 6902). REQUIRED means
+                               PRESENT-OR-FAULT: a direct `patch` whose `Content-Type` names
+                               another media type, OR OMITS THE HEADER, faults `415`. Absence
+                               is not the lenient case — a requirement that bites only when
+                               you declare something else can be evaded by declaring nothing,
+                               and an omission must never downgrade a guarantee. The
+                               guarantee here is that RFC 7396 merge-patch is never silently
+                               applied; one mistake gets one fault, so a wrong OR missing
+                               media type is `415` rather than 415-or-422 depending on which
+                               way the client erred.
   application/vnd.bdp.envelope+json  the OPTIONAL body-form spill body ([[core.lumen#Envelope]]):
                                a POST `/{id}/-/{put|patch|delete}` carrying an over-budget guard
   application/problem+json     every failing body (RFC 9457 Problem)
