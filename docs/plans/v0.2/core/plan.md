@@ -159,7 +159,8 @@ plan: all {
   the earlier version Donna proposed release branches ("Maybe we just keep release
   branches?") and then asked for "the labeled v0.1 branch and commit". Both exist: branch
   `release/v0.1` and tag `spec/v0.1`, on the last commit of main before any v0.2 content
-  (`6237f293`). Moving `specs/history/` out of `specs/` is not done yet.
+  (`6237f293`). The former `specs/history/` now lives at `docs/history/`, so no history
+  remains under `specs/`.
 - **The spec may lead the reference implementation; conformance may not lag (Donna,
   2026-11-10).** Asked whether spec text may merge on main ahead of the reference
   implementation: "A is fine for this week. I think the reference implementation thing may

@@ -320,7 +320,7 @@ Start with a durable installation query and explicit service availability report
 
 ## Current design sequence
 
-The active design pass is Packages: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](../specs/history/callables-draft-20261030/callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
+The active design pass is Packages: give the definition/member/import graph and installation/closure/catalog boundary a concrete shape. The standalone Callable issues [CALL-O1 through CALL-O3](../docs/history/callables-draft-20261030/callables.md#open-issues) remain open and are revisited once this package shape can inform them. Work here may clarify required closure inputs, but must not invent unresolved Callable parameter nodes, invocation envelopes or Go implementation identity rules by implication.
 
 ## Installed CLI surface
 

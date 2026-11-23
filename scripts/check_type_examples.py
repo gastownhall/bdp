@@ -14,7 +14,7 @@ from referencing.jsonschema import DRAFT202012
 
 ROOT = Path(__file__).resolve().parent.parent
 HERE = ROOT / "specs/profiles/types"
-ISSUE = ROOT / "specs/history/issue-draft-20261014"
+ISSUE = ROOT / "docs/history/issue-draft-20261014"
 NAMES = (
     "type-definition.properties.schema.json",
     "bead-type-definition.properties.schema.json",
@@ -663,7 +663,7 @@ assert not read_validators["success"].is_valid({**unknown_origin, "originScope":
 assert read_cases["recordSource"]["path"] == read_cases["intrinsicSource"]["path"] == "definitions.json"
 assert (read_cases["recordSource"]["id"], read_cases["recordSource"]["revision"]) == pin_of(read_cases["queryCases"][0]["query"])
 assert len(read_cases["semanticCases"]) == 6  # Unexecuted provider expectations, not six PASS claims.
-read_text = (ROOT / "specs/history/pre-canonical-20261101/profiles/types/exact-definition-read.md").read_text()
+read_text = (ROOT / "docs/history/pre-canonical-20261101/profiles/types/exact-definition-read.md").read_text()
 read_inline = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", read_text, re.S)]
 assert read_inline[0]["capabilities"][read_cases["capability"]]["1"] == read_cases["advertisementDetail"]
 assert read_inline[1] == read_cases["unknownVersionProblem"]

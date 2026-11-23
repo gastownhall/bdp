@@ -17,6 +17,7 @@ theme: jekyll-theme-cayman
 exclude:
   - cli-design/
   - design/
+  - history/
   - releases/
   - research/
   - specs/

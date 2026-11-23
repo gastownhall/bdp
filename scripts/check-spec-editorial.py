@@ -148,7 +148,7 @@ EDITORIAL_PREFIXES = (
     "specs/profiles/transfer/",
     "specs/profiles/events/", "specs/formats/",
     "specs/types/type-system/",
-    "specs/history/",
+    "docs/history/",
     "docs/spec-review/",
     "docs/cli-design/", "docs/design/", "docs/releases/", "specs/openapi/",
 )

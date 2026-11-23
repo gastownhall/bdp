@@ -1,6 +1,6 @@
 # Working on the Core specification
 
-This file is for anyone, person or agent, who changes the Core v0.2 specification. It covers three files: the normative source [`src/core/core.lumen`](src/core/core.lumen), the narrative [`src/bdp.md`](src/bdp.md), and the generated reference [`generated/core.md`](generated/core.md). (The old root `core.md` is retired as [`obsolete-core.md`](obsolete-core.md) — harvest only, do not cite.)
+This file is for anyone, person or agent, who changes the Core v0.2 specification. It covers three files: the normative source [`src/core/core.lumen`](src/core/core.lumen), the narrative [`src/bdp.md`](src/bdp.md), and the generated reference [`generated/core.md`](generated/core.md). (The old root `core.md` is retired to [`docs/history/obsolete-core.md`](../docs/history/obsolete-core.md) — harvest only, do not cite.)
 
 ## Which file says what
 
