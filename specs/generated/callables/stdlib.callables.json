@@ -1,0 +1,265 @@
+{
+  "pack": "stdlib",
+  "callables": [
+    {
+      "path": "stdlib/query",
+      "operation": "query",
+      "safe": true,
+      "idempotent": false,
+      "summary": "The full query — list's rich sibling",
+      "parameters": [
+        {
+          "name": "scope",
+          "type": "Scope",
+          "required": true
+        },
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": true
+        },
+        {
+          "name": "sort",
+          "type": "[ Sort ]",
+          "required": false
+        },
+        {
+          "name": "select",
+          "type": "selector",
+          "required": false
+        },
+        {
+          "name": "request",
+          "type": "ReadRequest",
+          "required": false
+        }
+      ],
+      "returns": "source<Resource>"
+    },
+    {
+      "path": "stdlib/search",
+      "operation": "search",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Ranked text search over resource bodies in `scope` — the matches for `text`, best first",
+      "parameters": [
+        {
+          "name": "scope",
+          "type": "Scope",
+          "required": true
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "SearchMode",
+          "required": false
+        },
+        {
+          "name": "select",
+          "type": "selector",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ SearchHit ]"
+    },
+    {
+      "path": "stdlib/graph",
+      "operation": "graph",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Traverse relationships from one or more roots into a `Subgraph`",
+      "parameters": [
+        {
+          "name": "roots",
+          "type": "[ ref<resource> ]",
+          "required": true
+        },
+        {
+          "name": "edgeTypes",
+          "type": "[ PathString ]",
+          "required": false
+        },
+        {
+          "name": "direction",
+          "type": "\"out\" | \"in\" | \"both\"",
+          "required": false
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "select",
+          "type": "selector",
+          "required": false
+        }
+      ],
+      "returns": "Subgraph"
+    },
+    {
+      "path": "stdlib/batch",
+      "operation": "batch",
+      "safe": false,
+      "idempotent": false,
+      "summary": "Run many invocations in one request",
+      "parameters": [
+        {
+          "name": "items",
+          "type": "[ BatchItem ]",
+          "required": true
+        },
+        {
+          "name": "atomic",
+          "type": "bool",
+          "required": false
+        }
+      ],
+      "returns": "[ BatchResult ]"
+    },
+    {
+      "path": "stdlib/count",
+      "operation": "count",
+      "safe": true,
+      "idempotent": false,
+      "summary": "The number of current resources in `scope` matching `where` — the aggregate reduction of `query`/`list`, computed service-side (no bodies re",
+      "parameters": [
+        {
+          "name": "scope",
+          "type": "Scope",
+          "required": true
+        },
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": false
+        }
+      ],
+      "returns": "integer"
+    },
+    {
+      "path": "stdlib/stale",
+      "operation": "stale",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Resources not updated within `olderThan` — the \"possibly abandoned\" view (native `bd stale`)",
+      "parameters": [
+        {
+          "name": "olderThan",
+          "type": "Duration",
+          "required": true
+        },
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "source<Resource>"
+    },
+    {
+      "path": "stdlib/duplicates",
+      "operation": "duplicates",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Exact-content duplicate GROUPS — resources whose content (a declared `fields` set) is identical, grouped (native `bd duplicates`, detection ",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": true
+        },
+        {
+          "name": "fields",
+          "type": "[ FieldPath ]",
+          "required": false
+        },
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": false
+        }
+      ],
+      "returns": "[ DuplicateGroup ]"
+    },
+    {
+      "path": "stdlib/similar",
+      "operation": "similar",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Similar (not identical) resource PAIRS, ranked — the fuzzy counterpart to `duplicates` (native `bd find-duplicates`)",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": true
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "threshold",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "fields",
+          "type": "[ FieldPath ]",
+          "required": false
+        },
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ SimilarPair ]"
+    },
+    {
+      "path": "stdlib/lint",
+      "operation": "lint",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Validate resources against their TYPE's declared requirements and report what is missing/ill-formed — never auto-fixing (native `bd lint`, w",
+      "parameters": [
+        {
+          "name": "where",
+          "type": "QueryExpr",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ LintResult ]"
+    }
+  ]
+}
