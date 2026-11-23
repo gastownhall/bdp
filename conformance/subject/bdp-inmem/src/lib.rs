@@ -216,10 +216,37 @@ fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Resul
             });
             Ok(ResourceId::pinned(Scope::Named(ScopeName(scope.into())), Id(id_s.into()), Rev(rev.into())))
         }
-        Write::Put { target, body } => {
+        Write::Put { target, body, guards } => {
             let scope = scope_str_of(scope_name, &target.scope);
             let id_s = target.id.0.to_string();
             let head = store.head(&scope, &id_s).cloned();
+
+            // HONOUR THE GUARDS BEFORE MINTING ANYTHING. `put` previously accepted none, so an
+            // `If-Match` was silently ignored and the write proceeded against a stale revision
+            // while reporting success — a lost-update vector the client could not detect from the
+            // result. A guard that is accepted and not enforced is worse than one that is refused.
+            //
+            // `ifRevision`: a stale value makes NO change and faults 412. A guard against a head
+            // that does not exist cannot be satisfied, so that faults too.
+            if let Some(want) = &guards.if_revision {
+                let found = head.as_ref().map(|h| Rev(h.rev.clone().into()));
+                let matches = found.as_ref().map(|f| f.0.as_ref() == want.0.as_ref()).unwrap_or(false);
+                if !matches {
+                    return Err(BdpError::RevisionMismatch {
+                        id: target.clone(),
+                        expected: want.clone(),
+                        found,
+                    });
+                }
+            }
+            // `ifAbsent`: the write applies only if nothing is there. A live resource OR a
+            // tombstone both count as present — a tombstoned id is spent, not free, so claiming it
+            // is the same fault as a `create` collision. That keeps ONE id-taken handler on the
+            // client for the whole claiming path.
+            if guards.if_absent && head.is_some() {
+                return Err(BdpError::AlreadyExists(target.clone()));
+            }
+
             let (op, prev, created_at) = match &head {
                 None => ("create", None, now_rfc3339()),
                 Some(h) if h.op == "delete" => ("create", None, now_rfc3339()),
@@ -595,7 +622,7 @@ impl BdpScope for InMemScope {
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
             PrimitiveCapabilities::Resolve(ResolveCaps { selector: false, max_batch: None }),
             PrimitiveCapabilities::Create(CreateCaps { server_allocates_id: true, client_proposed_id: true }),
-            PrimitiveCapabilities::Put(PutCaps {}),
+            PrimitiveCapabilities::Put(PutCaps { if_match: true, if_absent: true }),
             PrimitiveCapabilities::Patch(PatchCaps { if_match: true }),
             PrimitiveCapabilities::Delete(DeleteCaps { if_match: true }),
             // acyclicity DEFERRED until the ref-encoding pin (honest: advertised ⟹ implemented).
@@ -659,8 +686,8 @@ impl BdpScope for InMemScope {
         Ok(one(r))
     }
 
-    async fn put(&self, target: ResourceId, body: CreateBody) -> Result<BdpResult<ResourceId>, BdpError> {
-        let r = self.commit(&[Write::Put { target, body }])?.pop().unwrap();
+    async fn put(&self, target: ResourceId, body: CreateBody, guards: Guards) -> Result<BdpResult<ResourceId>, BdpError> {
+        let r = self.commit(&[Write::Put { target, body, guards }])?.pop().unwrap();
         Ok(one(r))
     }
 
@@ -833,6 +860,8 @@ impl BdpScope for InMemScope {
                             id.id.clone(),
                         );
                         writes.push(Write::Put {
+                            // An import replays stored state; it asserts no precondition.
+                            guards: Guards::default(),
                             target,
                             body: CreateBody {
                                 kind: kind.clone(),

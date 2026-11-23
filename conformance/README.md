@@ -42,17 +42,18 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 18/54**, across three case families:
+**Current coverage: 21/54**, across three case families:
 
 - **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
   InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/404`, `delete/412` (triggered through the typed `RemoteScope`).
+  `delete/404`, `delete/412`, `put/409`, `put/412`, `patch/410` (triggered through the typed
+  `RemoteScope`, which now also reads the scope's declared traits).
 - **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 36 rows are uncovered for concrete, recorded reasons:
+The remaining 33 rows are uncovered for concrete, recorded reasons:
 
 - **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
   `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the
@@ -66,25 +67,32 @@ The remaining 36 rows are uncovered for concrete, recorded reasons:
   | row | probe | observed | why it is not producible |
   |---|---|---|---|
   | `get/406` | `Accept: application/xml` | `200` | no content negotiation; `Accept` is ignored |
-  | `put/412` | `If-Match: stale-rev` | `200` | `put` has **no guard parameter in the trait** |
-  | `put/409` | `If-None-Match: *` on a live id | `200` | `If-None-Match` is read nowhere |
   | `put/422`, `create/422` | malformed payload | `400` | malformed bodies are rejected at the wire, so these need a *valid-but-unprocessable* body the subject does not distinguish |
   | `patch/400` | non-array, then non-JSON | `422` | both land on `patch/422`, which is already covered; `patch/400` has no producer |
   | `delete/409` | plain delete | `200` | referential integrity is an advertised capability the subject does not claim |
 
-  **Two of those are findings, not merely gaps.** `do_put` never reads `if-match`, and nothing reads
-  `if-none-match` — so a client that sends either gets `200` and believes it had a guard. The `If-Match`
-  case is a **lost-update vector**: the write proceeds against a stale revision and reports success.
-  Both are trait-level (`BdpScope::put` takes no `if_rev`, unlike `patch` and `delete`), so neither is
-  fixable from the cases.
-- **The write `410` rows are blocked on a capabilities surface, not on effort.** `put/410` and
-  `patch/410` are declared, and a write's `410` is reachable **only under `idModel: permanent`**. The
-  subject declares no scope-level id model at all, so a case has nothing to key on.
-  `get/410` **is** covered, and correctly so: the subject is `versioned`, and `versioned ⇒ permanent`,
-  so keying on the tombstone revision cannot be wrong here. **It needs re-keying rather than deleting**
-  — its expectation stays true under `permanent`, but asserting it unconditionally claims more than the
-  spec grants, and the mechanism (a tombstone *revision*) would be wrong for an `unversioned` +
-  `permanent` scope, which discharges the same obligation from retired-id accounting instead.
+  **Two rows left this table by being FIXED rather than explained.** The probe also returned `200` for
+  `put/412` (`If-Match: stale-rev`) and `put/409` (`If-None-Match: *` on a live id) — because `put`
+  could not carry a guard at all: the trait took no `if_rev`, so the server read no precondition and a
+  guarded write proceeded against a stale revision while reporting success. That was a **lost-update
+  vector**, not a coverage gap. `put` now carries `Guards` and the subject enforces them, so both rows
+  are covered above.
+
+  **That is the distinction this table exists to draw.** A row that is unreachable because the subject
+  is *silent* (no content negotiation, no referential integrity) is a gap. A row that is unreachable
+  because the subject *accepts a precondition and ignores it* is a defect, and the only way to tell them
+  apart is to probe each one and read what came back.
+- **`put/410` is the last write `410` left, and it is blocked on the subject rather than on keying.**
+  A write that TARGETS a retired resource faults Gone, reachable **only under `idModel: permanent`** —
+  and the scope-level capability surface now exists, so a case has something to key on. `patch/410` is
+  covered on that basis. `put/410` is not, because `put` over a tombstone still treats it as a fresh
+  create (`subject/bdp-inmem`, the `Write::Put` arm) — the resurrection vestige, which belongs to the
+  0.2.3 terminality work rather than to the cases.
+- **`get/410` was re-keyed, not deleted.** It had asserted terminality outright and *happened* to be
+  right, because this subject is `versioned` and `versioned` REQUIRES `permanent`. Being right for a
+  reason a case never checked is still worth fixing: it now reads the declared `idModel` and asserts
+  `410` under `permanent` or `404` under `reusable`, so the next subject need not be versioned for the
+  case to stay honest.
 
 ### Counting honestly
 
