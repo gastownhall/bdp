@@ -1949,6 +1949,9 @@
         "revisionModel": {
           "$ref": "#/$defs/RevisionModel"
         },
+        "idModel": {
+          "$ref": "#/$defs/IdModel"
+        },
         "aliases": {
           "$ref": "#/$defs/AliasCaps"
         },
@@ -1958,7 +1961,8 @@
       },
       "required": [
         "storageClasses",
-        "revisionModel"
+        "revisionModel",
+        "idModel"
       ],
       "additionalProperties": false
     },
@@ -1973,6 +1977,13 @@
       "enum": [
         "versioned",
         "unversioned"
+      ]
+    },
+    "IdModel": {
+      "description": "A scope's id model — a scope-wide trait, stated outright (no implicit default). Whether an id retired by `delete` is permanently spent or may be minted again.",
+      "enum": [
+        "permanent",
+        "reusable"
       ]
     },
     "GetCaps": {

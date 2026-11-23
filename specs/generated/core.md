@@ -1527,7 +1527,9 @@ Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound ref
 
 > **Normative.** Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ "rev": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.
 
-> **Normative.** Delete is not erasure — a deleted resource's id stays accounted for, its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`), and the id is never reused. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
+> **Normative.** Delete is not erasure — a deleted resource's id stays accounted for, and its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`). Keeping that tombstone revision is revision-dependent, so it relaxes under `unversioned` ([RevisionModel](#RevisionModel)); the id accounting does not relax with it. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
+
+> **Normative.** Whether the retired id may be minted again is the scope's declared id model ([IdModel](#IdModel)), not a property of `delete`: under `permanent` the id is never reused, under `reusable` it may be. These are three separate obligations — id accounting, the tombstone revision, and id permanence — and only the second is revision-dependent.
 
 > **Normative.** Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 
@@ -2223,6 +2225,7 @@ A scope's scope-wide traits — the capabilities that are neither per-primitive 
 type ScopeCapabilities = {
   storageClasses: [StorageClass],
   revisionModel:  RevisionModel,
+  idModel:        IdModel,
   aliases?:       AliasCaps,
   bodyFormSpill?: bool
 }
@@ -2232,6 +2235,7 @@ type ScopeCapabilities = {
 |---|---|---|
 | `storageClasses` | `[StorageClass]` | Which persistence classes the scope can honor — a set over `Durable` / `Ephemeral`. A resource whose class is not honored cannot be hosted. `Intrinsic` is universal and never appears here. |
 | `revisionModel` | `RevisionModel` | Whether the scope mints revisions, scope-wide. See [RevisionModel](#RevisionModel). |
+| `idModel` | `IdModel` | Whether a retired id is permanently spent, scope-wide. See [IdModel](#IdModel). |
 | `aliases?` | `AliasCaps` | Present iff the scope supports alias resources and the scope-root overlay. See [Alias](#Alias), [AliasCaps](#AliasCaps). |
 | `bodyFormSpill?` | `bool` | Present and `true` iff the scope accepts the OPTIONAL body-form spill ([Envelope](#Envelope)) for an over-budget read or write guard; absent/false ⇒ an over-budget request is refused `request-too-large`. There is no advertised URL-byte budget — intermediaries, not the origin, impose the limit, so a client is reactive to `414`/`431`/`400`-by-length regardless. |
 
@@ -2255,6 +2259,20 @@ A scope's revision model — a scope-wide trait, stated outright (no implicit de
 
 ```lumen
 type RevisionModel = "versioned" | "unversioned"
+```
+
+<a id="IdModel"></a>
+
+### `IdModel`
+
+A scope's id model — a scope-wide trait, stated outright (no implicit default). Whether an id retired by `delete` is permanently spent or may be minted again.
+
+> **Normative.** `permanent` ⇒ a retired id is never reused. An unpinned inbound reference to it resolves to the tombstone and faults `410 Gone`; `create`, or an id-rooted `put`, at that id faults `identity-taken`. `reusable` ⇒ a retired id MAY be minted again. `get` of a retired id faults `404`, a later `create` at that id succeeds, and an unpinned inbound reference MAY therefore resolve to an UNRELATED resource — so a client that needs a reference to survive a delete MUST pin a revision rather than rely on the id.
+
+> **Normative.** The id model is declared, never inferred, and a scope states it outright like its revision model. `permanent` is not a floor every provider can hold: a scope projecting an existing system whose id allocation it does not control is expected to state `reusable` rather than claim a guarantee it cannot keep. Stating `reusable` is conformant; claiming `permanent` and reusing an id is not.
+
+```lumen
+type IdModel = "permanent" | "reusable"
 ```
 
 <a id="GetCaps"></a>
