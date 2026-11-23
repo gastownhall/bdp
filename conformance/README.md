@@ -151,6 +151,23 @@ is a correct change for a case-shaped reason — see the `415` check in `subject
 cites the media-type clause and flags the one sub-case the spec leaves ambiguous rather than settling
 it by appeal to existing behaviour.
 
+**Flagging beats resolving.** When the spec is genuinely ambiguous, the discipline does not tell you
+which reading to take — it tells you to take one and *say so*. Record which reading, and why the other
+is live, in the code. That is what makes a wrong choice correctable:
+
+> The discipline's value isn't that it makes you right. It's that it makes you **legible when you are
+> wrong.**
+
+The `415` check is the worked example. Its first version exempted an absent `Content-Type` on the
+narrower reading that the fault clause named only *"another media type"* — and flagged the ambiguity
+rather than closing it by appeal to what the code already did. The spec then ruled present-or-fault,
+against that reading, and the fix was one condition because the open question was already written down.
+Had it instead said *"preserves existing behaviour"*, the gap would have sat there looking deliberate
+and the ruling would have had nothing to land on.
+
+This is a different claim from the independence principle above. That one is about **who** checks; this
+one is about **why flagging beats resolving** when you cannot check.
+
 **Two limits, so this isn't oversold:**
 
 - It does **not** protect against the spec itself being wrong. That is what the independent

@@ -194,6 +194,11 @@ impl<S: BdpScope> Server<S> {
         //    omission must never downgrade a guarantee."
         // and the lowering annotation `request = { contentType = "application/json-patch+json" }`.
         //
+        // The word REQUIRED is in the MERGED text; the clarification above only settles which way its
+        // ambiguity falls. So this check does not depend on an unmerged ruling — the merged spec
+        // already requires the header, and a reading that let an absent one through was the weaker
+        // of the two available readings rather than the plain one.
+        //
         // This check is the ONLY producer of op/patch/fault/415 — the well-formed client always
         // sends the right type (client.rs), so the row is unreachable without validating here.
         //
