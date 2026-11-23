@@ -42,15 +42,17 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 22/54** — measured by running the gate, not derived. The figure is deceptively
-stable across the 0.2.3 binding port: it was 22 before and is 22 after, because `call` and `call/409`
-arrived (+2) while `get/400` and `delete/400` stopped being reachable (−2). **Four rows changed and
-the total did not.** Read the composition below, not the number — a count that restates a list is a
-second source of truth about that list, and this one has drifted from it four times.
+**Current coverage: 24/54** — measured by running the gate, not derived. Read the composition below
+rather than the number: a count that restates a list is a second source of truth about that list, and
+this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
+this figure from one branch while hand-resolving the list it summarises, leaving them independent. The
+figure was right by arithmetic coincidence (`call` + `call/409` arriving while `get/400` and
+`delete/400` stopped being reachable), and **four rows had changed while the total did not.** A count
+that survives a merge is not evidence its list did.
 
 Across three case families:
 
-- **Typed happy-path** — `op/{create,get,put,patch,delete,call}` (the primitives the Server routes
+- **Typed happy-path** — `op/{create,get,put,patch,delete,call,revisions}` (the primitives the Server routes
   and InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
   `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410`, `call/409` (triggered
@@ -62,17 +64,19 @@ Across three case families:
   reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 32 rows are uncovered for concrete, recorded reasons:
+The remaining 30 rows are uncovered for concrete, recorded reasons:
 
-- **24 of the 32 need the subject to implement 7 more primitives** — `list`, `export`, `import`,
-  `pull`, `push`, `cancel`, `revisions`: the 7 `op/*` rows plus 17 of their declared faults. Counted
-  from the gate's own uncovered list, not estimated. These are now ROUTED by the fence but answer
-  `501` ("not implemented by this scope"), and `RemoteScope` has no client method for them. *Routed
-  but not implemented* is a different statement from *unroutable*, and the gate can tell them apart.
+- **21 of the 30 need the subject to implement 6 more primitives** — `list`, `export`, `import`,
+  `pull`, `push`, `cancel`: the 6 `op/*` rows plus 15 of their declared faults. Counted from the
+  gate's own uncovered list, not estimated. These are now ROUTED by the fence but answer `501`
+  ("not implemented by this scope"), and `RemoteScope` has no client method for them. *Routed but
+  not implemented* is a different statement from *unroutable*, and the gate can tell them apart.
   Fixing the subject is in scope (see below), so this is work rather than a blocked decision.
-- **The other 8 are faults on primitives already implemented** — `create/422`, `delete/400`,
-  `delete/409`, `get/400`, `get/406`, `patch/400`, `patch/409`, `put/422`. Every one was probed and
-  none is producible without a subject change; the measured table below says what each probe returned.
+- **The other 9 are faults on primitives already implemented** — `create/422`, `delete/400`,
+  `delete/409`, `get/400`, `get/406`, `patch/400`, `patch/409`, `put/422`, `revisions/400`. Every one
+  was probed and none is producible without a subject change; the measured table below says what each
+  probe returned. `revisions/400` joins them with the others' reason: 400 has no normative producer
+  in Appendix D.8 at all (see the ungrounded-rows section).
 - **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
   covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
   design: `call`'s dispatch rule mandates the fault's *shape* — a `Problem` with no `Outcome` — and

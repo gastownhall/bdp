@@ -981,6 +981,50 @@ impl BdpScope for InMemScope {
         );
         Ok(BdpResult::ok(CallOutcome::Reply(Reply(RawJson(Bytes::from(reply.into_bytes()))))))
     }
+
+    /// revisions — one resource's history, oldest first, as pinned representations.
+    ///
+    /// This scope declares `revisionModel: versioned`, so it HAS history to offer: `by_id` already
+    /// holds every log position for a resource, which is the same index `export(revisions: true)`
+    /// walks. Nothing new is stored for this primitive — the history was always there and simply
+    /// had no way to be asked for.
+    ///
+    /// A RETIRED RESOURCE STILL YIELDS ITS HISTORY. `revisions` declares no `410`, and guarantee 14
+    /// keeps a retired id accounted for, so neither Gone nor Not-Found is available for a resource
+    /// that once existed. `get` faults `410` because it answers *"what is the current state"*;
+    /// `revisions` answers *"what states were there"*, and retirement does not unmake them.
+    ///
+    /// The tombstone revision itself is NOT enumerated — matching `export`, which skips delete rows
+    /// for the same reason: a tombstone is not a state the resource was ever in. Guarantee 14's
+    /// *"the tombstone revision is kept"* is still satisfied, and observably so: a pinned `get` at
+    /// that revision faults `410` carrying it. **Whether `revisions` ought to enumerate tombstones
+    /// is not settled by anything normative** — the section carries zero `/// normative:` lines —
+    /// so this is flagged rather than resolved, and no case asserts either way.
+    async fn revisions(&self, resource: &ResourceId, _selector: Option<&Selector>, page: Page)
+        -> Result<BdpResult<Vec<Representation>>, BdpError> {
+        let store = self.store.read().unwrap();
+        let scope = self.scope_str(&resource.scope);
+        let id = resource.id.0.to_string();
+        let positions = store
+            .by_id
+            .get(&(scope, id))
+            // An id with NO log positions never existed in this scope — the one 404 `revisions`
+            // declares. Distinct from a retired id, which has positions and yields them.
+            .ok_or_else(|| BdpError::NotFound(resource.clone()))?;
+
+        let mut out = Vec::new();
+        for &pos in positions {
+            let row = &store.log[pos];
+            if row.op == "delete" {
+                continue;
+            }
+            out.push(bead_from_row(&resource.scope, &resource.id, row));
+        }
+        if let Some(limit) = page.limit {
+            out.truncate(limit as usize);
+        }
+        Ok(BdpResult::ok(out))
+    }
 }
 
 /// The closed built-in set. Adding an arm is a SUBJECT change and moves no row.

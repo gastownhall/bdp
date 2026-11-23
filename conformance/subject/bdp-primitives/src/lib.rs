@@ -725,6 +725,26 @@ pub trait BdpScope: Send + Sync {
         Ok(BdpResult::not_implemented())
     }
 
+    /// `revisions` — the history of ONE resource. Id-targeted like `get`, list-shaped like `list`.
+    ///
+    /// WHETHER HISTORY EXISTS AT ALL IS A SCOPE TRAIT, not a property of the resource: store-wide
+    /// guarantee 4 says *"whether revisions are kept is the scope's `revisionModel`, not a
+    /// per-resource field"*, and guarantee 6 says *"prior revisions addressable; offered or not,
+    /// **discoverable**"*. So a caller reads [`ScopeCapabilities::revision_model`] to know what to
+    /// expect here, and an `unversioned` scope answering `not_implemented` is conformant rather
+    /// than deficient — under that model no revision is ever minted, so the guarantee is vacuous
+    /// rather than violated.
+    ///
+    /// NO `410` IS DECLARED, and that absence is load-bearing. `revisions` declares `[400, 404]`
+    /// only, while `get` declares `410`. A retired resource therefore cannot be answered Gone here
+    /// — and guarantee 14 keeps the id accounted for, which rules out `404` as well. The remaining
+    /// possibility is the one the spec intends: **a retired resource still yields its history.**
+    /// That is derived from the declared fault set, not chosen.
+    async fn revisions(&self, _resource: &ResourceId, _selector: Option<&Selector>, _page: Page)
+        -> Result<BdpResult<Vec<Representation>>, BdpError> {
+        Ok(BdpResult::not_implemented())
+    }
+
     // ---- OPTIONAL writes / state mutation ----
     /// create — first revision; `id = None` => the scope allocates the id.
     async fn create(&self, _id: Option<Id>, _body: CreateBody)

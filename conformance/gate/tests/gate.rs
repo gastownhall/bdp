@@ -20,7 +20,7 @@ use bdp_inmem::InMemScope;
 use bdp_primitives::{
     BdpError, BdpResult, BdpScope, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id,
     IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation,
-    Request, ResourceId, Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
+    Page, Request, ResourceId, Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
@@ -384,6 +384,130 @@ async fn put_unguarded_still_updates(r: &RemoteScope) -> Result<Vec<SurfaceId>, 
         return Err("put advertised but not_implemented".into());
     }
     Ok(vec![])
+}
+
+// ---- revisions --------------------------------------------------------------
+
+/// `revisions` returns a resource's history. Covers op/revisions.
+///
+/// KEYED ON THE DECLARED `revision_model`, not asserted outright. Store-wide guarantee 4 says
+/// whether revisions are kept is the scope's `revisionModel` — so history is a scope trait, and a
+/// case that demanded it unconditionally would fail a conformant `unversioned` store. Under that
+/// model guarantee 5 says no revision is minted at all, which makes history *vacuous rather than
+/// violated*, so `not_implemented` is the conformant answer and this case accepts it.
+///
+/// This is the same correction `delete_then_erased` needed against `id_model`, made before the
+/// case was written rather than after it was caught.
+async fn revisions_history_is_addressable(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("rev-history".into()));
+    // Three distinct states, so "history" means more than "the current state in a list".
+    seed(r, &target, "v0").await?;
+    seed(r, &target, "v1").await?;
+    seed(r, &target, "v2").await?;
+
+    let res = r
+        .revisions(&target, None, Page::default())
+        .await
+        .map_err(|e| format!("revisions transport: {e:?}"))?;
+
+    if r.scope_capabilities().revision_model == RevisionModel::Unversioned {
+        // An unversioned scope mints no revisions, so it has no history to offer. Guarantee 6
+        // requires that this be DISCOVERABLE, which it is — the declared model above says so.
+        if res.not_implemented {
+            return Ok(vec![]);
+        }
+        return Err("an `unversioned` scope must not claim to offer history".into());
+    }
+
+    if res.not_implemented {
+        return Err("a `versioned` scope declares revisions are kept, so revisions must answer".into());
+    }
+    let history = res.value.ok_or("revisions returned Ok with no history")?;
+    if history.len() < 3 {
+        return Err(format!(
+            "expected at least the 3 seeded states in the history, got {}. A scope declaring \
+             `versioned` keeps prior revisions addressable (store-wide guarantee 6)",
+            history.len()
+        ));
+    }
+    // PRIOR revisions, not three copies of the current one — the guarantee is that earlier states
+    // stay addressable, and a subject returning the head N times would satisfy a length check.
+    let revs: BTreeSet<String> = history.iter().filter_map(rep_rev_string).collect();
+    if revs.len() < 3 {
+        return Err(format!(
+            "history has {} entries but only {} distinct revisions — prior revisions are not \
+             actually addressable",
+            history.len(),
+            revs.len()
+        ));
+    }
+    Ok(vec![op("revisions")])
+}
+
+/// `revisions` of an id that never existed faults 404. Covers op/revisions/fault/404.
+async fn revisions_never_existed_404(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let absent = ResourceId::head(Scope::This, Id("rev-never-existed".into()));
+    match r.revisions(&absent, None, Page::default()).await {
+        Err(BdpError::NotFound(_)) => Ok(vec![fault("revisions", 404)]),
+        other => Err(format!("expected NotFound for an id with no history, got {other:?}")),
+    }
+}
+
+/// A RETIRED resource still yields its history.
+///
+/// Claims no row — 410 is not declared on `revisions` — but it is the assertion that makes the two
+/// rows above mean something, and it is DERIVED rather than chosen:
+///
+/// * `revisions` declares `[400, 404]`. There is no `410`, so Gone is not available to it, unlike
+///   `get`.
+/// * Store-wide guarantee 14 keeps a retired id accounted for, so `404` would be false — the id
+///   demonstrably existed.
+///
+/// One possibility remains: the history survives retirement. `get` answers *"what is the current
+/// state"* and faults `410`; `revisions` answers *"what states were there"*, and retiring a
+/// resource does not unmake them.
+///
+/// It is also the anti-vacuity guard for `revisions/404`: without it, a subject that answered 404
+/// to every `revisions` call would claim that row.
+async fn revisions_survive_retirement(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("rev-retired".into()));
+    seed(r, &target, "before-delete").await?;
+    let del = r
+        .delete(target.clone(), None)
+        .await
+        .map_err(|e| format!("delete transport: {e:?}"))?;
+    if del.not_implemented {
+        return Err("delete advertised but not_implemented — retirement never happened".into());
+    }
+    // Confirm the resource really is retired, so this proves history-survives-retirement rather
+    // than history-of-a-live-resource.
+    match r.get(&target, None).await {
+        Err(BdpError::Erased { .. }) | Err(BdpError::NotFound(_)) => {}
+        other => return Err(format!("the resource is not retired after delete, got {other:?}")),
+    }
+
+    let res = r.revisions(&target, None, Page::default()).await.map_err(|e| {
+        format!(
+            "a retired resource must still yield its history: `revisions` declares no 410, and \
+             guarantee 14 keeps the id accounted for so 404 is false. Got {e:?}"
+        )
+    })?;
+    if res.not_implemented {
+        return Ok(vec![]); // unversioned: no history to survive. Keyed, not asserted.
+    }
+    let history = res.value.ok_or("revisions returned Ok with no history")?;
+    if history.is_empty() {
+        return Err("a retired resource's history is empty — retirement unmade its prior states".into());
+    }
+    Ok(vec![])
+}
+
+/// A representation's own revision, as a comparable string.
+fn rep_rev_string(rep: &Representation) -> Option<String> {
+    match rep {
+        Representation::Bead { id, .. } => id.rev.as_ref().map(|r| r.0.to_string()),
+        _ => None,
+    }
 }
 
 // ---- call -------------------------------------------------------------------
@@ -931,6 +1055,15 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("delete/412", &mut covered, &mut failures, delete_stale_412(&remote)).await;
     record("delete/404", &mut covered, &mut failures, delete_never_existed_404(&remote)).await;
     record("delete idempotent", &mut covered, &mut failures, delete_twice_is_idempotent(&remote)).await;
+    record("revisions", &mut covered, &mut failures, revisions_history_is_addressable(&remote)).await;
+    record("revisions/404", &mut covered, &mut failures, revisions_never_existed_404(&remote)).await;
+    record(
+        "revisions survive retirement",
+        &mut covered,
+        &mut failures,
+        revisions_survive_retirement(&remote),
+    )
+    .await;
     record("call", &mut covered, &mut failures, call_success(&remote)).await;
     record("call/409", &mut covered, &mut failures, call_declared_failure_409(&remote)).await;
     record(

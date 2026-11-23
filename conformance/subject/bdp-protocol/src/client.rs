@@ -363,6 +363,31 @@ impl BdpScope for RemoteScope {
     /// only the other non-2xx statuses are Problems. `Outcome` is an OPEN union, and the arm is
     /// read from the body's `kind`, never from the status — so this client does not enumerate
     /// arms at all and an arm added later passes through untouched.
+    /// `GET /{id}/-/revisions`.
+    ///
+    /// A 404 here means the id never existed in this scope. It does NOT mean "retired" — that is
+    /// `get`'s `410`, which `revisions` does not declare, so this client never synthesises an
+    /// `Erased` from a `revisions` response. Mapping a 404 to anything other than `NotFound` would
+    /// invent a distinction the wire does not carry.
+    async fn revisions(&self, resource: &p::ResourceId, _selector: Option<&p::Selector>, page: p::Page)
+        -> Result<p::BdpResult<Vec<p::Representation>>, p::BdpError> {
+        let mut target = format!("/{}/-/revisions", pct_encode(&resource.id.0));
+        if let Some(limit) = page.limit {
+            target.push_str(&format!("?limit={limit}"));
+        }
+        let resp = self.request("GET", &target, vec![], vec![]).await?;
+        match resp.status {
+            501 => Ok(p::BdpResult::not_implemented()),
+            200 => {
+                let wire: Vec<WireRepresentation> = serde_json::from_slice(&resp.body)
+                    .map_err(|e| p::BdpError::Backend(format!("bad revisions response: {e}")))?;
+                let reps = wire.into_iter().map(|w| w.to_trait()).collect();
+                Ok(p::BdpResult::ok(reps))
+            }
+            _ => Err(error_from(resp.status, &resp.body, resource)),
+        }
+    }
+
     async fn call(&self, operation: &p::ResourceId, request: p::Request)
         -> Result<p::BdpResult<p::CallOutcome>, p::BdpError> {
         let target = format!("/{}/-/call", pct_encode(&operation.id.0));
