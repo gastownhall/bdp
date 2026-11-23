@@ -8,7 +8,7 @@ import test from "node:test";
 import { spawnChild, terminateChild } from "../e2e-ready.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-async function run(args, { lateSignal = false, env = process.env } = {}) {
+async function run(args, { interruptAt = null, env = process.env } = {}) {
   let canonicalPnpmEntrypoint = null;
   if (env === process.env && env.npm_execpath) {
     // RUN contexts exercise the installed package's actual declared entry, not
@@ -33,7 +33,13 @@ async function run(args, { lateSignal = false, env = process.env } = {}) {
     ["scripts/perf/reference-trends.mjs", "--output", output, ...args],
     {
       cwd: root,
-      env: { ...env, TMPDIR: directory, TEMP: directory, TMP: directory },
+      env: {
+        ...env,
+        TMPDIR: directory,
+        TEMP: directory,
+        TMP: directory,
+        ...(interruptAt === null ? {} : { BDP_PERF_HOLD_AT: interruptAt }),
+      },
       stdio: ["ignore", "pipe", "pipe"],
       timeoutMs: 15_000,
       onStderr(chunk) {
@@ -41,14 +47,14 @@ async function run(args, { lateSignal = false, env = process.env } = {}) {
         const lines = buffer.split("\n");
         buffer = lines.pop();
         for (const line of lines) {
-          if (!line.startsWith('{"event":"reference-perf.checkpoint"')) continue;
+          if (!line.startsWith('{"event":"reference-perf.hold"')) continue;
           const event = JSON.parse(line);
-          if (lateSignal && !signaled && event.phase === "closed") {
+          if (!signaled && event.phase === interruptAt) {
             signaled = true;
-            // Hold the real process only at its observed closed-checkpoint boundary.
-            record.child.kill("SIGSTOP");
+            // The real process holds at this named lifecycle point until its
+            // interrupt is delivered, so the control exercises the genuine
+            // shutdown boundary instead of racing a few-millisecond window.
             record.child.kill("SIGTERM");
-            record.child.kill("SIGCONT");
           }
         }
       },
@@ -167,9 +173,11 @@ for (const scale of ["small", "medium"]) {
 test("late SIGTERM after final close reports failure and removes the actual owned store", {
   timeout: 20_000,
 }, async () => {
-  const result = await run(["--repetitions", "1"], { lateSignal: true });
+  const result = await run(["--repetitions", "1"], { interruptAt: "closed" });
   assert(result.signaled);
-  assert.equal(result.signal, null);
+  // The runner owes its own shutdown here: dying from the signal would mean the
+  // default disposition reached a process that still owned an unwritten report.
+  assert.equal(result.signal, null, result.stderr);
   assert.equal(result.code, 143, result.stderr);
   assert.equal(result.report.status, "failed");
   assert.match(result.report.error.message, /interrupted by SIGTERM/);
@@ -179,6 +187,34 @@ test("late SIGTERM after final close reports failure and removes the actual owne
   assert.equal(rep.cleanup.ownerCloseState, "closed");
   assert.equal(rep.cleanup.removedOwnedDirectory, true);
   assert.equal(result.storePresenceBeforeControlCleanup[0], false);
+});
+
+test("SIGTERM while the report is being finalized still records the complete run", {
+  timeout: 20_000,
+}, async () => {
+  const result = await run(["--repetitions", "1"], { interruptAt: "report" });
+  assert(result.signaled);
+  assert.equal(result.signal, null, result.stderr);
+  assert.equal(result.code, 143, result.stderr);
+  // This interrupt lands after the workload finished, so the repetition keeps
+  // its genuine passed outcome and its owned store is still gone.
+  const rep = result.report.repetitions[0];
+  assert.equal(rep.status, "passed");
+  assert.equal(rep.cleanup.ownerCloseState, "closed");
+  assert.equal(rep.cleanup.removedOwnedDirectory, true);
+  assert.equal(rep.cleanup.closeError, null);
+  assert.equal(result.storePresenceBeforeControlCleanup[0], false);
+  // Cancellation is never a pass, and the record survives it whole rather than
+  // being lost or truncated by a signal delivered during its own write.
+  assert.equal(result.report.status, "failed");
+  assert.match(result.report.error.message, /interrupted by SIGTERM/);
+  assert.equal(typeof result.report.finishedAt, "string");
+  assert.equal(typeof result.report.processPeakRssBytes, "number");
+  assert.equal(typeof result.report.elapsedMilliseconds, "number");
+  assert(
+    result.report.observations.some((entry) => entry.operation === "finalClose"),
+    "the finalized record must retain the completed workload's observations",
+  );
 });
 
 for (const args of [

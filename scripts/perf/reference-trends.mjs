@@ -127,7 +127,12 @@ const timer = setTimeout(
   () => controller.abort(new Error("performance run exceeded120s")),
   workload.runTimeoutMs,
 );
+let finalized = false;
 const interrupted = (signal) => {
+  // Once the report bytes are final the recorded outcome is fixed, so the one
+  // remaining write completes under the already recorded exit code instead of
+  // being truncated. Before that, every interrupt cancels the run.
+  if (finalized) return;
   process.exitCode = signal === "SIGINT" ? 130 : 143;
   controller.abort(new Error(`performance run interrupted by ${signal}`));
 };
@@ -135,6 +140,28 @@ const onInt = () => interrupted("SIGINT"),
   onTerm = () => interrupted("SIGTERM");
 process.on("SIGINT", onInt);
 process.on("SIGTERM", onTerm);
+// Lifecycle control for the committed interrupt cases only; unset in ordinary
+// runs. The shutdown windows a late signal must exercise are a few
+// milliseconds wide, so an external control cannot reach one by racing stderr.
+// Holding the real process at one named point until its interrupt is actually
+// delivered makes those cases exercise the genuine boundary deterministically.
+const holdAt = process.env.BDP_PERF_HOLD_AT ?? null;
+async function hold(phase) {
+  if (holdAt !== phase) return;
+  console.error(JSON.stringify({ event: "reference-perf.hold", phase }));
+  if (controller.signal.aborted) return;
+  await new Promise((resolve) => {
+    const expiry = setTimeout(resolve, 10_000);
+    controller.signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(expiry);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
 let directory, server, repetition;
 const started = performance.now();
 async function timed(operation, action, detail = {}) {
@@ -169,6 +196,7 @@ async function checkpoint(phase) {
     storeFiles: files.sort((a, b) => a.name.localeCompare(b.name)),
     storeBytes: files.reduce((sum, file) => sum + file.bytes, 0),
   });
+  await hold(phase);
 }
 const scope = "https://perf.invalid/reference/",
   media = "application/vnd.bdp.v0.1+json";
@@ -460,9 +488,14 @@ try {
 } finally {
   clearTimeout(timer);
   if (controller.signal.aborted && !failure) failure = controller.signal.reason;
-  process.off("SIGINT", onInt);
-  process.off("SIGTERM", onTerm);
 }
+// The report is the whole point of a run, so the interrupt handlers stay
+// installed until it is written: a signal delivered while finalizing must not
+// reach its default disposition, kill the process and leave the report missing
+// or truncated. Cancellation is never pass, so a signal that lands after the
+// workload but before its record is serialized still fails the run.
+await hold("report");
+if (controller.signal.aborted && !failure) failure = controller.signal.reason;
 report.status = failure ? "failed" : "passed";
 if (failure) report.error = { name: failure.name, message: failure.message };
 report.finishedAt = new Date().toISOString();
@@ -477,10 +510,13 @@ report.notes = [
   "No warmup exclusion, percentile gate, SLA, cold disk-cache promise, power-loss test, or external-provider qualification.",
 ];
 const json = `${JSON.stringify(report, null, 2)}\n`;
+finalized = true;
 if (output) {
   await mkdir(path.dirname(output), { recursive: true });
   await writeFile(output, json);
 } else process.stdout.write(json);
+process.off("SIGINT", onInt);
+process.off("SIGTERM", onTerm);
 if (failure) {
   console.error(failure);
   process.exitCode ||= 1;
