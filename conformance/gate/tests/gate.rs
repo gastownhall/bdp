@@ -19,8 +19,8 @@ use bdp_gate::{denominator, SurfaceId};
 use bdp_inmem::InMemScope;
 use bdp_primitives::{
     BdpError, BdpResult, BdpScope, CreateBody, CreateCaps, DeleteCaps, GetCaps, Id, JsonPatch, Kind,
-    PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation, ResourceId, Rev, Scope,
-    Selector,
+    IdModel, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation, ResourceId, Rev,
+    RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
@@ -161,9 +161,60 @@ async fn delete_then_erased(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     if del.not_implemented {
         return Err("delete advertised but not_implemented".into());
     }
-    match r.get(&target, None).await {
-        Err(BdpError::Erased { .. }) => Ok(vec![op("delete"), fault("get", 410)]),
-        other => Err(format!("expected Erased (410) after delete, got {other:?}")),
+    // RE-KEYED on the scope's DECLARED id model rather than asserting terminality outright.
+    // Terminality is not universal: a write's 410 — and `get`'s — is reachable only under
+    // `permanent`. Under `reusable` a retired id is simply absent, so the truthful answer is 404
+    // and asserting 410 would claim more than the spec grants.
+    //
+    // This case previously asserted 410 unconditionally and happened to be right, because this
+    // subject is `versioned` and `versioned` REQUIRES `permanent`. Right for a reason it never
+    // checked is still worth fixing: the next subject need not be versioned.
+    match (r.scope_capabilities().id_model, r.get(&target, None).await) {
+        (IdModel::Permanent, Err(BdpError::Erased { .. })) => {
+            Ok(vec![op("delete"), fault("get", 410)])
+        }
+        (IdModel::Permanent, other) => Err(format!(
+            "scope declares `permanent`, so a retired id must fault Erased (410); got {other:?}"
+        )),
+        // A `reusable` scope keeps no retirement record, so 404 is correct and `get/410` is simply
+        // unreachable there — reported as covering `delete` only, never as covering the 410.
+        (IdModel::Reusable, Err(BdpError::NotFound(_))) => Ok(vec![op("delete")]),
+        (IdModel::Reusable, other) => Err(format!(
+            "scope declares `reusable`, so a retired id must fault NotFound (404); got {other:?}"
+        )),
+    }
+}
+
+/// `patch` targeting a retired resource → 410 Erased. Covers op/patch/fault/410.
+///
+/// A write that TARGETS what is gone faults Gone, which is distinct from its two neighbours: a
+/// never-retired missing id is 404, and CLAIMING a spent id is identity-taken (409). Keyed on
+/// `permanent` for the same reason as `get/410` — under `reusable` the id is merely absent, so the
+/// row is unreachable rather than failing.
+async fn patch_tombstone_410(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if r.scope_capabilities().id_model != IdModel::Permanent {
+        // Not a failure: the row is unreachable on this scope's declared model.
+        return Ok(vec![]);
+    }
+    let target = ResourceId::head(Scope::This, Id("patch-410".into()));
+    seed(r, &target, "doomed").await?;
+    let del = r
+        .delete(target.clone(), None)
+        .await
+        .map_err(|e| format!("seed delete: {e:?}"))?;
+    if del.not_implemented {
+        return Err("delete advertised but not_implemented".into());
+    }
+    match r
+        .patch(
+            target,
+            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"after"}]"#),
+            None,
+        )
+        .await
+    {
+        Err(BdpError::Erased { .. }) => Ok(vec![fault("patch", 410)]),
+        other => Err(format!("expected Erased (410) patching a retired resource, got {other:?}")),
     }
 }
 
@@ -548,6 +599,18 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 struct NullScope;
 
 impl BdpScope for NullScope {
+    /// A null SUBJECT still has to state its traits — they are what a trait-dependent case keys
+    /// on, and refusing to state them would make this scope unreadable rather than merely
+    /// unimplemented. `Versioned` + `Permanent` is the legal pair that lets such a case run at
+    /// all, so any row it then claims is claimed on the strength of behaviour it did not provide.
+    fn scope_capabilities(&self) -> ScopeCapabilities {
+        ScopeCapabilities {
+            storage_classes: vec![StorageClass::Ephemeral],
+            revision_model: RevisionModel::Versioned,
+            id_model: IdModel::Permanent,
+        }
+    }
+
     fn capabilities(&self) -> Vec<PrimitiveCapabilities> {
         vec![
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
@@ -614,6 +677,7 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("get/404", &mut covered, &mut failures, get_missing_404(&remote)).await;
     record("create/409", &mut covered, &mut failures, create_duplicate_409(&remote)).await;
     record("delete+erased", &mut covered, &mut failures, delete_then_erased(&remote)).await;
+    record("patch/410", &mut covered, &mut failures, patch_tombstone_410(&remote)).await;
     record("put", &mut covered, &mut failures, put_target(&remote)).await;
     record("patch", &mut covered, &mut failures, patch_ok(&remote)).await;
     record("patch/404", &mut covered, &mut failures, patch_missing_404(&remote)).await;

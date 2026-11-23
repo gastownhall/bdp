@@ -103,14 +103,9 @@ impl Default for InMemScope {
 /// Per-SCOPE storage class (Lydia §78) — DISCOVERY METADATA, not a capability. Durability is a fact
 /// about the scope (what a hybrid-query/cache planner consumes to tell an ephemeral cache from a
 /// durable source), so it rides in discovery, distinct from the per-BEAD `storageClass` on `Bead`.
-/// Defined locally here: the shared `StorageClass` type + its trait/discovery surfacing in
-/// `bdp-primitives` is a Lydia/Portia change not owned by this backend; this is the value that
-/// surface will read for an in-memory scope.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StorageClass {
-    Durable { versioned: bool },
-    Ephemeral,
-}
+/// The local placeholder this used to define is RETIRED: `StorageClass` now lives in
+/// `bdp-primitives` alongside `ScopeCapabilities`, which is the "trait/discovery surfacing" its
+/// comment was waiting for. The value below is the one it said that surface would read.
 
 impl InMemScope {
     pub fn new(scope_name: impl Into<String>) -> Self {
@@ -575,6 +570,26 @@ fn matches_condition(
 // written yet — it will be the one-spot change when the encoding is pinned.
 
 impl BdpScope for InMemScope {
+    fn scope_capabilities(&self) -> ScopeCapabilities {
+        // Declared from what this store ACTUALLY does, not from what would be convenient.
+        //
+        // `Ephemeral`, NOT `Durable`, and this scope has said so all along: `storage_class()`
+        // below has returned `Ephemeral` since before this surface existed — "volatile, local,
+        // not a durable source". An in-memory store cannot HONOUR `Durable`, which is what
+        // `storage_classes` advertises, so claiming it would be advertising a persistence
+        // guarantee that a restart disproves. (I first wrote `Durable` here because the cases
+        // write persistent-looking data; the subject's own accessor was the correction.)
+        //
+        // `Versioned`: it appends a revision row per commit. And `versioned` REQUIRES `permanent`,
+        // which is also independently true — it keeps tombstones — so the pair is legal rather
+        // than merely declared.
+        ScopeCapabilities {
+            storage_classes: vec![StorageClass::Ephemeral],
+            revision_model: RevisionModel::Versioned,
+            id_model: IdModel::Permanent,
+        }
+    }
+
     fn capabilities(&self) -> Vec<PrimitiveCapabilities> {
         vec![
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
