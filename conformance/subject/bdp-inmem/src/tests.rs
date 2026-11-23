@@ -25,7 +25,7 @@ fn ids(v: Vec<ResourceId>) -> Vec<String> {
 async fn put_get_roundtrip() {
     let s = scope();
     let id = Id("t1".into());
-    let w = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"status":"open"}"#)).await.unwrap();
+    let w = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"status":"open"}"#), Guards::default()).await.unwrap();
     assert!(w.value.is_some() && !w.not_implemented);
     assert!(w.value.unwrap().rev.is_some(), "write returns a pinned ref (minted rev)");
     let got = s.get(&ResourceId::head(Scope::This, id.clone()), None).await.unwrap();
@@ -61,25 +61,43 @@ async fn create_existing_id_is_already_exists() {
 async fn delete_then_erased() {
     let s = scope();
     let id = Id("d1".into());
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", "{}")).await.unwrap();
+    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", "{}"), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, id.clone()), None).await.unwrap();
     let got = s.get(&ResourceId::head(Scope::This, id.clone()), None).await;
     assert!(matches!(got, Err(BdpError::Erased { .. })), "got {got:?}");
 }
 
+/// RE-DERIVED. This test was named `put_after_delete_revives_as_create` and asserted that a `put`
+/// over a tombstone starts a fresh lifecycle. That is what the spec now forbids: this scope declares
+/// `idModel: permanent`, under which a retired id is spent and a bare `put` TARGETS the retired
+/// resource, faulting `410 Gone`.
+///
+/// The test was not merely stale — it PINNED the defect, so the subject could not be corrected
+/// without it going red. That is the useful kind of failure: a test asserting the old rule is how you
+/// find out the rule changed. Re-derived rather than deleted, because the scenario it exercises
+/// (delete, then write to the same id) is exactly the one worth keeping.
 #[tokio::test]
-async fn put_after_delete_revives_as_create() {
+async fn put_over_a_tombstone_is_terminal_not_a_revival() {
     let s = scope();
     let id = Id("rev1".into());
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#)).await.unwrap();
+    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, id.clone()), None).await.unwrap();
-    // a put over a tombstone is a fresh create (new lifecycle), readable again
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":2}"#)).await.unwrap();
-    let got = s.get(&ResourceId::head(Scope::This, id.clone()), None).await.unwrap().value.unwrap();
-    match got {
-        Representation::Bead { properties, .. } => assert!(String::from_utf8_lossy(&properties.0).contains("2")),
-        _ => panic!("expected a bead"),
-    }
+
+    // A bare put at a retired target: 410, and it must mint nothing.
+    let revived = s
+        .put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":2}"#), Guards::default())
+        .await;
+    assert!(
+        matches!(revived, Err(BdpError::Erased { .. })),
+        "a bare put over a tombstone must fault Erased (410) under `permanent`, not revive the id; got {revived:?}"
+    );
+
+    // And the resource stays retired — a fault that still wrote would be the worse failure.
+    let got = s.get(&ResourceId::head(Scope::This, id.clone()), None).await;
+    assert!(
+        matches!(got, Err(BdpError::Erased { .. })),
+        "the id must remain retired after the refused put; got {got:?}"
+    );
 }
 
 #[tokio::test]
@@ -87,8 +105,8 @@ async fn resolve_batch_present_absent_erased() {
     let s = scope();
     let present = Id("r-present".into());
     let erased = Id("r-erased".into());
-    s.put(ResourceId::head(Scope::This, present.clone()), body("Task", r#"{"status":"open"}"#)).await.unwrap();
-    s.put(ResourceId::head(Scope::This, erased.clone()), body("Task", "{}")).await.unwrap();
+    s.put(ResourceId::head(Scope::This, present.clone()), body("Task", r#"{"status":"open"}"#), Guards::default()).await.unwrap();
+    s.put(ResourceId::head(Scope::This, erased.clone()), body("Task", "{}"), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, erased.clone()), None).await.unwrap();
     let refs = vec![
         ResourceId::head(Scope::This, present.clone()),
@@ -107,10 +125,10 @@ async fn apply_is_atomic_and_rolls_back() {
     let s = scope();
     let good = Id("a-good".into());
     let dup = Id("a-dup".into());
-    s.put(ResourceId::head(Scope::This, dup.clone()), body("Task", "{}")).await.unwrap();
+    s.put(ResourceId::head(Scope::This, dup.clone()), body("Task", "{}"), Guards::default()).await.unwrap();
     // a write-set whose SECOND write fails (create of an existing id) must leave the first unwritten
     let writes = vec![
-        Write::Put { target: ResourceId::head(Scope::This, good.clone()), body: body("Task", "{}") },
+        Write::Put { target: ResourceId::head(Scope::This, good.clone()), body: body("Task", "{}"), guards: Guards::default() },
         Write::Create { id: Some(dup.clone()), body: body("Task", "{}") },
     ];
     let r = s.apply(&writes).await;
@@ -139,7 +157,7 @@ async fn apply_multi_write_commits_together() {
 async fn patch_applies_delta_bumps_rev_keeps_kind() {
     let s = scope();
     let id = Id("p1".into());
-    let r0 = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"status":"open","n":1}"#)).await.unwrap().value.unwrap();
+    let r0 = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"status":"open","n":1}"#), Guards::default()).await.unwrap().value.unwrap();
     let rev0 = r0.rev.clone().unwrap();
     let patch = JsonPatch(RawJson(Bytes::from(
         r#"[{"op":"replace","path":"/properties/status","value":"closed"},{"op":"add","path":"/properties/assignee","value":"ada"}]"#.as_bytes().to_vec(),
@@ -160,7 +178,7 @@ async fn patch_applies_delta_bumps_rev_keeps_kind() {
 async fn patch_if_rev_guards() {
     let s = scope();
     let id = Id("p2".into());
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#)).await.unwrap();
+    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap();
     let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"replace","path":"/properties/n","value":2}]"#.as_bytes().to_vec())));
     let r = s.patch(ResourceId::head(Scope::This, id.clone()), patch, Some(Rev("stale-rev".into()))).await;
     assert!(matches!(r, Err(BdpError::RevisionMismatch { .. })), "stale if_rev must be rejected; got {r:?}");
@@ -178,7 +196,7 @@ async fn patch_missing_is_not_found() {
 async fn delete_if_rev_guards() {
     let s = scope();
     let id = Id("d2".into());
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", "{}")).await.unwrap();
+    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", "{}"), Guards::default()).await.unwrap();
     let r = s.delete(ResourceId::head(Scope::This, id.clone()), Some(Rev("stale".into()))).await;
     assert!(matches!(r, Err(BdpError::RevisionMismatch { .. })), "stale if_rev on delete rejected; got {r:?}");
 }
@@ -189,9 +207,9 @@ async fn delete_if_rev_guards() {
 async fn pinned_rev_get_is_time_travel() {
     let s = scope();
     let id = Id("tt".into());
-    let r0 = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#)).await.unwrap().value.unwrap();
+    let r0 = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap().value.unwrap();
     let rev0 = r0.rev.clone().unwrap();
-    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":2}"#)).await.unwrap();
+    s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":2}"#), Guards::default()).await.unwrap();
     // head reads the latest
     let head = s.get(&ResourceId::head(Scope::This, id.clone()), None).await.unwrap().value.unwrap();
     match head { Representation::Bead { properties, .. } => assert!(String::from_utf8_lossy(&properties.0).contains("2")), _ => panic!() }
@@ -203,7 +221,7 @@ async fn pinned_rev_get_is_time_travel() {
 #[tokio::test]
 async fn volatility_fresh_scope_is_empty_and_scopes_isolate() {
     let s1 = InMemScope::new("alpha");
-    s1.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", "{}")).await.unwrap();
+    s1.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", "{}"), Guards::default()).await.unwrap();
     assert_eq!(s1.list(&ListFilter::default(), Page::default()).await.unwrap().value.unwrap().len(), 1);
     // a separate scope (= a separate RAM store) sees nothing — ephemeral, local, isolated
     let s2 = InMemScope::new("beta");
@@ -222,9 +240,9 @@ async fn storage_class_is_ephemeral() {
 #[tokio::test]
 async fn list_empty_and_compare() {
     let s = scope();
-    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"status":"open"}"#)).await.unwrap();
-    s.put(ResourceId::head(Scope::This, Id("b".into())), body("Task", r#"{"status":"closed"}"#)).await.unwrap();
-    s.put(ResourceId::head(Scope::This, Id("c".into())), body("Task", r#"{"status":"open"}"#)).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"status":"open"}"#), Guards::default()).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("b".into())), body("Task", r#"{"status":"closed"}"#), Guards::default()).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("c".into())), body("Task", r#"{"status":"open"}"#), Guards::default()).await.unwrap();
     let all = s.list(&ListFilter::default(), Page::default()).await.unwrap().value.unwrap();
     assert_eq!(all.len(), 3);
     assert!(all.iter().all(|r| r.rev.is_some()), "list returns pinned refs");
@@ -239,9 +257,9 @@ async fn list_empty_and_compare() {
 #[tokio::test]
 async fn list_excludes_deleted_and_shows_latest() {
     let s = scope();
-    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"status":"open"}"#)).await.unwrap();
-    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"status":"closed"}"#)).await.unwrap(); // update
-    s.put(ResourceId::head(Scope::This, Id("b".into())), body("Task", "{}")).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"status":"open"}"#), Guards::default()).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"status":"closed"}"#), Guards::default()).await.unwrap(); // update
+    s.put(ResourceId::head(Scope::This, Id("b".into())), body("Task", "{}"), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, Id("b".into())), None).await.unwrap(); // tombstoned
     let open = ListFilter(vec![ListCondition::Compare {
         field: FieldPath(vec!["properties".into(), "status".into()]),
@@ -256,8 +274,8 @@ async fn list_excludes_deleted_and_shows_latest() {
 #[tokio::test]
 async fn list_has_missing_matches_type_limit() {
     let s = scope();
-    s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"assignee":"kai","title":"Fix the Login"}"#)).await.unwrap();
-    s.put(ResourceId::head(Scope::This, Id("y".into())), body("Bug", "{}")).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"assignee":"kai","title":"Fix the Login"}"#), Guards::default()).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("y".into())), body("Bug", "{}"), Guards::default()).await.unwrap();
     let has = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["properties".into(), "assignee".into()]) }]);
     assert_eq!(ids(s.list(&has, Page::default()).await.unwrap().value.unwrap()), vec!["x".to_string()]);
     let missing = ListFilter(vec![ListCondition::Missing { field: FieldPath(vec!["properties".into(), "assignee".into()]) }]);
@@ -282,7 +300,7 @@ async fn istype_subtype_prefix() {
     let mut writes = Vec::with_capacity(n);
     for i in 0..n {
         let kind = if i % 2 == 0 { "bead/issue/bug" } else { "bead/task" };
-        writes.push(Write::Put { target: ResourceId::head(Scope::This, Id(format!("k{i}").into())), body: body(kind, "{}") });
+        writes.push(Write::Put { target: ResourceId::head(Scope::This, Id(format!("k{i}").into())), body: body(kind, "{}"), guards: Guards::default() });
     }
     s.apply(&writes).await.unwrap();
     let sub = ListFilter(vec![ListCondition::IsType { r#type: RelativeId("bead/issue".into()), exact: false }]);
@@ -296,7 +314,7 @@ async fn istype_subtype_prefix() {
 #[tokio::test]
 async fn list_unadvertised_condition_is_limit_exceeded() {
     let s = scope();
-    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"tags":["x"]}"#)).await.unwrap();
+    s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"tags":["x"]}"#), Guards::default()).await.unwrap();
     // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains. A Contains condition is
     // within the advertised `list` op but exceeds its advertised condition set → over-limit.
     let filter = ListFilter(vec![ListCondition::Contains {
@@ -312,9 +330,9 @@ async fn list_unadvertised_condition_is_limit_exceeded() {
 #[tokio::test]
 async fn changes_reads_the_append_log() {
     let s = scope();
-    s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"n":1}"#)).await.unwrap(); // create
-    s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"n":2}"#)).await.unwrap(); // update
-    s.put(ResourceId::head(Scope::This, Id("y".into())), body("Task", "{}")).await.unwrap(); // create
+    s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap(); // create
+    s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"n":2}"#), Guards::default()).await.unwrap(); // update
+    s.put(ResourceId::head(Scope::This, Id("y".into())), body("Task", "{}"), Guards::default()).await.unwrap(); // create
     s.delete(ResourceId::head(Scope::This, Id("y".into())), None).await.unwrap(); // delete
 
     let res = s.changes(Page::default(), None, None).await.unwrap();
@@ -336,7 +354,7 @@ async fn changes_reads_the_append_log() {
 async fn changes_paging_cursor_and_head() {
     let s = scope();
     for i in 0..5 {
-        s.put(ResourceId::head(Scope::This, Id(format!("n{i}").into())), body("Task", "{}")).await.unwrap();
+        s.put(ResourceId::head(Scope::This, Id(format!("n{i}").into())), body("Task", "{}"), Guards::default()).await.unwrap();
     }
     // first page of 2: not caught up (head=false)
     let p1 = s.changes(Page { limit: Some(2), ..Default::default() }, None, None).await.unwrap();
@@ -356,8 +374,8 @@ async fn changes_paging_cursor_and_head() {
 #[tokio::test]
 async fn export_import_roundtrip_set_current() {
     let a = scope();
-    a.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"status":"open"}"#)).await.unwrap();
-    a.put(ResourceId::head(Scope::This, Id("y".into())), body("Note", r#"{"text":"hi"}"#)).await.unwrap();
+    a.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"status":"open"}"#), Guards::default()).await.unwrap();
+    a.put(ResourceId::head(Scope::This, Id("y".into())), body("Note", r#"{"text":"hi"}"#), Guards::default()).await.unwrap();
 
     let exp = a.export(&ListFilter::default(), None, false, Page::default()).await.unwrap().value.unwrap();
     assert!(matches!(exp.first(), Some(ExportRecord::Begin(_))), "starts with Begin");
@@ -381,8 +399,8 @@ async fn export_import_roundtrip_set_current() {
 async fn export_revisions_includes_history() {
     let s = scope();
     let id = ResourceId::head(Scope::This, Id("h".into()));
-    s.put(id.clone(), body("Task", r#"{"n":1}"#)).await.unwrap();
-    s.put(id.clone(), body("Task", r#"{"n":2}"#)).await.unwrap();
+    s.put(id.clone(), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap();
+    s.put(id.clone(), body("Task", r#"{"n":2}"#), Guards::default()).await.unwrap();
     let cur = s.export(&ListFilter::default(), None, false, Page::default()).await.unwrap().value.unwrap();
     assert_eq!(cur.iter().filter(|r| matches!(r, ExportRecord::Record(_))).count(), 1, "current-state: one record");
     let hist = s.export(&ListFilter::default(), None, true, Page::default()).await.unwrap().value.unwrap();

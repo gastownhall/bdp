@@ -17,13 +17,18 @@ use bdp_primitives as p;
 use bdp_primitives::BdpScope;
 
 use crate::http::{pct_encode, send, Outgoing};
-use crate::wire::{WireCapability, WireCreateRequest, WireProblem, WireRepresentation, WireResourceId, WireWrite};
+use crate::wire::{WireCreateRequest, WireProblem, WireRepresentation, WireResourceId, WireWrite};
 
 pub struct RemoteScope {
     host: String, // "127.0.0.1:PORT"
     /// The backing scope's advertised capabilities, fetched once at `connect`. `capabilities()`
     /// returns these filtered to what this client forwards.
     caps: Vec<p::PrimitiveCapabilities>,
+    /// The backing scope's own TRAITS, fetched at `connect` alongside the primitive list. Passed
+    /// through verbatim: unlike the primitive list these are not filtered, because they describe
+    /// the STORE rather than this client's forwarding surface, and a client that filtered them
+    /// would be reporting guarantees it does not make.
+    scope_caps: p::ScopeCapabilities,
 }
 
 /// The ops `RemoteScope` actually forwards over the wire, plus scope-level flags it passes through
@@ -43,13 +48,19 @@ impl RemoteScope {
     /// scope's base URL and read `discovery`; the spike pins one scope == one server root.)
     pub async fn connect(host: impl Into<String>) -> Result<Self, p::BdpError> {
         let host = host.into();
-        let caps = fetch_capabilities(&host).await?;
-        Ok(Self { host, caps })
+        let (scope_caps, caps) = fetch_capabilities(&host).await?;
+        Ok(Self { host, caps, scope_caps })
     }
 
     /// Construct with a known capability set and no discovery round-trip (tests / embedding).
-    pub fn with_capabilities(host: impl Into<String>, caps: Vec<p::PrimitiveCapabilities>) -> Self {
-        Self { host: host.into(), caps }
+    /// The scope traits must be supplied too: there is no safe default, since guessing one would
+    /// have this client assert a guarantee the backing store may not make.
+    pub fn with_capabilities(
+        host: impl Into<String>,
+        scope_caps: p::ScopeCapabilities,
+        caps: Vec<p::PrimitiveCapabilities>,
+    ) -> Self {
+        Self { host: host.into(), caps, scope_caps }
     }
 
     async fn request(
@@ -67,14 +78,20 @@ impl RemoteScope {
 
 /// Fetch the server scope's advertised capabilities (`GET /:capabilities`), decoded to the trait
 /// form, so `RemoteScope` can proxy them. A free fn so `connect` can call it before `Self` exists.
-async fn fetch_capabilities(host: &str) -> Result<Vec<p::PrimitiveCapabilities>, p::BdpError> {
+async fn fetch_capabilities(
+    host: &str,
+) -> Result<(p::ScopeCapabilities, Vec<p::PrimitiveCapabilities>), p::BdpError> {
     let resp = send(Outgoing { method: "GET", host, target: "/:capabilities", headers: vec![], body: vec![] })
         .await
         .map_err(|e| p::BdpError::Backend(format!("transport: {e}")))?;
     if resp.status == 200 {
-        let wire: Vec<WireCapability> = serde_json::from_slice(&resp.body)
+        let wire: crate::wire::WireDiscovery = serde_json::from_slice(&resp.body)
             .map_err(|e| p::BdpError::Backend(format!("bad capabilities response: {e}")))?;
-        Ok(crate::wire::caps_from_wire(wire))
+        let scope = wire
+            .scope
+            .to_trait()
+            .map_err(|e| p::BdpError::Backend(format!("bad scope capabilities: {e}")))?;
+        Ok((scope, crate::wire::caps_from_wire(wire.primitives)))
     } else {
         Err(p::BdpError::Backend(format!("capabilities discovery failed: http {}", resp.status)))
     }
@@ -159,6 +176,12 @@ fn write_result(resp: &crate::http::HttpResponse) -> Result<p::BdpResult<p::Reso
 }
 
 impl BdpScope for RemoteScope {
+    fn scope_capabilities(&self) -> p::ScopeCapabilities {
+        // Verbatim, NOT filtered. These describe the backing store's guarantees; narrowing them
+        // here would make this client claim a guarantee the store never made.
+        self.scope_caps.clone()
+    }
+
     fn capabilities(&self) -> Vec<p::PrimitiveCapabilities> {
         // Proxy the backing scope's advertised caps (incl. the Unversioned flag), filtered to the
         // ops this client forwards — never advertise what RemoteScope itself can't do.
@@ -247,7 +270,8 @@ impl BdpScope for RemoteScope {
         let wreq = WireCreateRequest::from_body(id.as_ref(), &body);
         let payload = serde_json::to_vec(&wreq).unwrap();
         let headers = vec![("content-type".into(), "application/json".into())];
-        let resp = self.request("POST", "/", headers, payload).await?;
+        // `create` is `POST /-/create` in the generated paths, not `POST /`.
+        let resp = self.request("POST", "/-/create", headers, payload).await?;
         if resp.status == 201 {
             write_result(&resp)
         } else if resp.status == 501 {
@@ -262,10 +286,19 @@ impl BdpScope for RemoteScope {
         &self,
         target: p::ResourceId,
         body: p::CreateBody,
+        guards: p::Guards,
     ) -> Result<p::BdpResult<p::ResourceId>, p::BdpError> {
         let wreq = WireCreateRequest::from_body(None, &body);
         let payload = serde_json::to_vec(&wreq).unwrap();
-        let headers = vec![("content-type".into(), "application/json".into())];
+        let mut headers = vec![("content-type".into(), "application/json".into())];
+        // Guards ride the request line. `put` sent none before this, which is why the server had
+        // nothing to enforce.
+        if let Some(rev) = &guards.if_revision {
+            headers.push(("if-match".into(), rev.0.to_string()));
+        }
+        if guards.if_absent {
+            headers.push(("if-none-match".into(), "*".into()));
+        }
         let t = target_for(&target.id, None);
         let resp = self.request("PUT", &t, headers, payload).await?;
         if resp.status == 200 {
@@ -315,6 +348,34 @@ impl BdpScope for RemoteScope {
             Ok(p::BdpResult::not_implemented())
         } else {
             Err(error_from(resp.status, &resp.body, &target))
+        }
+    }
+
+    /// `POST /{opPath}/-/call`.
+    ///
+    /// The status→error mapping every other primitive uses is WRONG here, and this is the one
+    /// place in the client where that matters. A 409 from `call` is a `Reply` on the declared-
+    /// failure arm — the operation ran and said no — so routing it through `error_from` would
+    /// turn the operation's own "no" into a transport-level fault and discard the `error` the
+    /// caller is meant to branch on.
+    ///
+    /// So the rule is the inverse of the usual one: a 2xx **or a 409** carries a `Reply`, and
+    /// only the other non-2xx statuses are Problems. `Outcome` is an OPEN union, and the arm is
+    /// read from the body's `kind`, never from the status — so this client does not enumerate
+    /// arms at all and an arm added later passes through untouched.
+    async fn call(&self, operation: &p::ResourceId, request: p::Request)
+        -> Result<p::BdpResult<p::CallOutcome>, p::BdpError> {
+        let target = format!("/{}/-/call", pct_encode(&operation.id.0));
+        let headers = vec![("content-type".into(), "application/json".into())];
+        let resp = self.request("POST", &target, headers, request.0 .0.to_vec()).await?;
+        match resp.status {
+            501 => Ok(p::BdpResult::not_implemented()),
+            200 | 201 | 409 => Ok(p::BdpResult::ok(p::CallOutcome::Reply(p::Reply(p::RawJson(
+                bytes::Bytes::from(resp.body.clone()),
+            ))))),
+            // 202 would carry an `AsyncResult` ref in `Location`, not a `Reply`; no scope mints
+            // one yet, so decoding it is left to the increment that implements `cancel`.
+            _ => Err(error_from(resp.status, &resp.body, operation)),
         }
     }
 }
