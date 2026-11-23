@@ -30,16 +30,27 @@
               "type": "array",
               "items": {
                 "$ref": "core.schema.json#/$defs/ResourceRef"
-              },
-              "uniqueItems": true
+              }
             },
             "supersededBy": {
-              "$ref": "core.schema.json#/$defs/ResourceRef"
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              }
+            },
+            "subjectTo": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              }
             }
           },
           "required": [
             "title",
-            "body"
+            "body",
+            "references",
+            "supersededBy",
+            "subjectTo"
           ],
           "additionalProperties": false
         }
@@ -58,20 +69,26 @@
               "type": "array",
               "items": {
                 "$ref": "core.schema.json#/$defs/ResourceRef"
-              },
-              "uniqueItems": true
+              }
             },
-            "definedBy": {
-              "$ref": "core.schema.json#/$defs/ResourceRef"
-            },
-            "appliesTo": {
+            "defines": {
               "type": "array",
               "items": {
                 "$ref": "core.schema.json#/$defs/ResourceRef"
-              },
-              "uniqueItems": true
+              }
+            },
+            "definedBy": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              }
             }
           },
+          "required": [
+            "requires",
+            "defines",
+            "definedBy"
+          ],
           "additionalProperties": false
         }
       ]
@@ -146,38 +163,67 @@
               },
               "uniqueItems": true,
               "minItems": 1
+            },
+            "conformance": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              }
             }
           },
           "required": [
-            "subjects"
+            "subjects",
+            "conformance"
           ],
           "additionalProperties": false
         }
       ]
     },
-    "Conformance": {
-      "description": "Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a",
+    "References": {
+      "description": "References — a relationship from a bead to useful context, carried as a first-class edge resource. The root of this pack's relationship family and the only one that is itself unowned.",
       "allOf": [
         {
-          "$ref": "core.schema.json#/$defs/Bead"
+          "$ref": "core.schema.json#/$defs/rel"
         },
         {
           "type": "object",
           "properties": {
-            "constraint": {
-              "$ref": "core.schema.json#/$defs/ResourceRef"
+            "title": {
+              "type": "string",
+              "minLength": 1
             },
-            "evaluation": {
-              "$ref": "core.schema.json#/$defs/ResourceRef"
+            "body": {
+              "$ref": "#/$defs/markdown",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
             }
           },
-          "required": [
-            "constraint",
-            "evaluation"
-          ],
           "additionalProperties": false
         }
       ]
+    },
+    "SupersededBy": {
+      "description": "SupersededBy — retires a Memory in favour of a replacement with a different identity. Source is the retiring bead, target its replacement.",
+      "$comment": "UNLOWERED: References, acyclic rel<Memory, Memory> {}"
+    },
+    "Requires": {
+      "description": "Requires — says the target Constraint is necessary for satisfying the source Constraint.",
+      "$comment": "UNLOWERED: References rel<Constraint, Constraint> {}"
+    },
+    "Defines": {
+      "description": "Defines — makes the source Constraint the DEFINING PARENT of the target, and inherits Requires' necessity. Source is the parent, target the child.",
+      "$comment": "UNLOWERED: Requires, acyclic rel<Constraint, Constraint> {}"
+    },
+    "SubjectTo": {
+      "description": "SubjectTo — declares that the target Constraint applies to the source bead. Source is the SUBJECT, which is the end that owns the declaration.",
+      "$comment": "UNLOWERED: References rel<Bead, Constraint> {}"
+    },
+    "Conformance": {
+      "description": "Conformance — the abstract claim family: a claim by the source Evaluation about its FULL assessed subject group relative to the target Constraint. Abstract, so only the three concrete peers below are instantiated.",
+      "$comment": "UNLOWERED: References rel<Evaluation, Constraint> {\n  evidence?: text { minLength: 1 },\n}"
     },
     "Addresses": {
       "allOf": [
@@ -263,6 +309,46 @@
         "type"
       ],
       "additionalProperties": false
+    },
+    "ReferenceError": {
+      "description": "Domain refusals of `createReference`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link"
+      ]
+    },
+    "SupersedeError": {
+      "description": "Domain refusals of `supersedeMemory`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link",
+        "already-superseded",
+        "would-cycle"
+      ]
+    },
+    "RequiresError": {
+      "description": "Domain refusals of `createRequires`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link"
+      ]
+    },
+    "DefinesError": {
+      "description": "Domain refusals of `createDefines`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link",
+        "already-defined",
+        "would-cycle"
+      ]
+    },
+    "SubjectToError": {
+      "description": "Domain refusals of `createSubjectTo`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link",
+        "source-lacks-ownership"
+      ]
     }
   }
 }

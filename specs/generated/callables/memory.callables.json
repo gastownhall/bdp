@@ -310,6 +310,201 @@
         }
       ],
       "returns": "Subgraph"
+    },
+    {
+      "path": "memory/reference",
+      "operation": "createReference",
+      "safe": false,
+      "idempotent": false,
+      "cli": "reference",
+      "summary": "Create a References edge from a bead to useful context",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Bead>",
+          "required": true
+        },
+        {
+          "name": "target",
+          "type": "ref<Bead>",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string { minLength: 1 }",
+          "required": false
+        }
+      ],
+      "returns": "rep<References>",
+      "errors": [
+        "ReferenceError"
+      ]
+    },
+    {
+      "path": "memory/supersede",
+      "operation": "supersedeMemory",
+      "safe": false,
+      "idempotent": false,
+      "cli": "supersede",
+      "summary": "Retire a Memory in favour of a replacement — creates the SupersededBy edge from the old memory to the new",
+      "parameters": [
+        {
+          "name": "old",
+          "type": "ref<Memory>",
+          "required": true
+        },
+        {
+          "name": "new",
+          "type": "ref<Memory>",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string { minLength: 1 }",
+          "required": false
+        }
+      ],
+      "returns": "rep<SupersededBy>",
+      "errors": [
+        "SupersedeError"
+      ]
+    },
+    {
+      "path": "memory/requires",
+      "operation": "createRequires",
+      "safe": false,
+      "idempotent": false,
+      "cli": "requires",
+      "summary": "Declare that the source Constraint depends on the target — creates the Requires edge",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "target",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string { minLength: 1 }",
+          "required": false
+        }
+      ],
+      "returns": "rep<Requires>",
+      "errors": [
+        "RequiresError"
+      ]
+    },
+    {
+      "path": "memory/defines",
+      "operation": "createDefines",
+      "safe": false,
+      "idempotent": false,
+      "cli": "defines",
+      "summary": "Make the parent Constraint the defining parent of the child — creates the Defines edge",
+      "parameters": [
+        {
+          "name": "parent",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "child",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string { minLength: 1 }",
+          "required": false
+        }
+      ],
+      "returns": "rep<Defines>",
+      "errors": [
+        "DefinesError"
+      ]
+    },
+    {
+      "path": "memory/subject-to",
+      "operation": "createSubjectTo",
+      "safe": false,
+      "idempotent": false,
+      "cli": "subject-to",
+      "summary": "Declare that a Constraint applies to a subject bead — creates the SubjectTo edge from the subject",
+      "parameters": [
+        {
+          "name": "subject",
+          "type": "ref<Bead>",
+          "required": true
+        },
+        {
+          "name": "constraint",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown { minLength: 1 }",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string { minLength: 1 }",
+          "required": false
+        }
+      ],
+      "returns": "rep<SubjectTo>",
+      "errors": [
+        "SubjectToError"
+      ]
     }
   ]
 }
