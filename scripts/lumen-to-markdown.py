@@ -273,11 +273,21 @@ while i < n:
         continue
     i += 1
 
+SRC_STEM = sys.argv[1].split('/')[-1].split('.')[0]   # e.g. "core" for core.lumen
 def linkify(s):
-    # [[core.lumen#Form]] / [[Form]] -> [Form](#Form); the anchor is the form-id
-    # (the text after '#', else the whole target). Code fences are left untouched.
-    return re.sub(r'\[\[([^\]]+)\]\]',
-                  lambda m: (lambda i: f'[{i}](#{i})')(m.group(1).split('#')[-1]), s)
+    # [[Form]] / [[<thisdoc>.lumen#Form]] -> [Form](#Form) (a same-doc anchor).
+    # A cross-doc ref ([[other.lumen#Form]]) renders as plain `Form`: the target's
+    # generated doc is emitted separately, so a local #anchor would dangle. Code
+    # fences are left untouched.
+    def repl(m):
+        target = m.group(1)
+        if '#' in target:
+            filepart, anchor = target.split('#', 1)
+            if filepart and filepart.split('.')[0] != SRC_STEM:
+                return anchor
+            return f'[{anchor}](#{anchor})'
+        return f'[{target}](#{target})'
+    return re.sub(r'\[\[([^\]]+)\]\]', repl, s)
 
 res, in_fence = [], False
 for l in out:

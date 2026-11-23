@@ -67,6 +67,8 @@ jobs:
           node scripts/spec-schema-fragments.mjs --check
       - name: Check canonical documents, local links and JSON examples
         run: python3 -B scripts/check-spec-editorial.py
+      - name: Check generated artifacts are current with specs/src and valid
+        run: python3 -B scripts/check-generated.py
 
   implementation:
     needs: changes
