@@ -42,36 +42,47 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 16/52**, across three case families:
+**Current coverage: 18/52**, across three case families:
 
 - **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
   InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/412` (triggered through the typed `RemoteScope`).
-- **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/422`
+  `delete/404`, `delete/412` (triggered through the typed `RemoteScope`).
+- **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 36 rows are uncovered for concrete, recorded reasons — and splitting them shows the
-next decision:
+The remaining 34 rows are uncovered for concrete, recorded reasons:
 
-- **~20 rows need the reference to route/implement 8 more primitives** — `list`, `export`, `import`,
-  `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the vendored `bdp-protocol` Server
-  ("unmapped in the spike" → 501), and `RemoteScope` has no client method for them. Covering them
-  means **forking the vendored crates** (reopening the vendor-vs-purpose-built question below) or
-  improving upstream `bdp-protocol`/`bdp-inmem` and re-vendoring.
-- **~16 rows are faults on routed ops** reachable with more raw-HTTP probing (content negotiation
-  `406`/`415`, specific `409`/`422` conditions) — or not producible against InMemScope at all (e.g.
-  `delete` is idempotent, so `delete/404` never fires).
-  - **`patch/415` is a REFERENCE gap, not a case gap.** It is the entire 52-vs-51 delta against v0.2.2
-    (the "`patch` is root-addressed" change pins the request to `application/json-patch+json`), and
-    `vendor/bdp-protocol` performs **no server-side content-type check at all** — the client sends the
-    right type, the Server never validates it. Covering it is one check in the patch route, not a new
-    case. Deliberately left uncovered-with-reason until the vendor-vs-upstream question below is ruled:
-    a local edit to a vendored crate would become a divergence to unwind if the ruling is "upstream".
+- **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
+  `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the
+  spike" → 501), and `RemoteScope` has no client method for them. Fixing the subject is in scope
+  (see below), so this is work rather than a blocked decision.
+- **~14 rows are faults on routed ops** reachable with more raw-HTTP probing (content negotiation
+  `406`, specific `409`/`422` conditions).
+- **The write `410` rows are blocked on a capabilities surface, not on effort.** A pending spec
+  change adds `put/410` and `patch/410` and makes a write's `410` reachable **only under
+  `idModel: permanent`**. The subject declares no scope-level id model at all, so a case would have
+  nothing to key on.
+  `get/410` **is** covered, and correctly so against the pinned spec, where terminality is
+  unconditional. **It will need re-keying, not deleting, once that change lands:** its expectation
+  stays true under `permanent`, but asserting it unconditionally would then claim more than the spec
+  grants.
 
-Growing coverage = extending the reference's routed surface and adding cases; the denominator is
-fixed by the spec.
+### Counting honestly
+
+**Coverage counts rows a case TOUCHES. It is not a claim that each row is independently verified.**
+Those are different properties, and conflating them is how a suite comes to overstate itself:
+
+- `delete+erased` was **vacuous** — it passed with its seed `put` never having run, because the
+  subject minted a tombstone for an id that never existed, so both `op/delete` and
+  `op/get/fault/410` were falsely claimed. Fixed in the subject and the case.
+- **5 of the covered rows do not depend on the scope at all** (the four malformed-id `400`s and
+  `patch/415`): the `Server` produces them in route parsing and media-type validation, before the
+  scope is consulted. The anti-vacuity test names that set exactly — see `SCOPE_INDEPENDENT_ROWS`.
+- A case that has **never been seen to fail is not yet evidence.** Each fix here was verified
+  red-then-green: the fix removed, the case observed failing with the right diagnostic, the fix
+  restored.
 
 ## Not the TypeScript `packages/conformance`
 
@@ -92,26 +103,50 @@ conformance/
   reference/          # bdp-ref: the ONE green endpoint (InMemScope over HTTP), pin-agnostic
     src/main.rs       #   Server::new(InMemScope).with_public_base(base).serve(listener)
     tests/liveness.rs #   RemoteScope <-> Server over HTTP: a create -> get round-trip
-  vendor/             # reference-implementation crates (see below)
+  subject/            # the SUBJECT UNDER TEST — suite-internal, no external contract (see below)
 ```
 
-## `vendor/` — the reference implementation
+## `subject/` — the subject under test
 
-`vendor/` holds four crates copied in so the gate builds with **no out-of-tree source**:
+Four crates, **owned here**, which the cases drive:
 
 - `bdp-primitives` — the `BdpScope` trait + wire types.
 - `bdp-jsonpatch` — the RFC-6902 subset used by `patch`.
 - `bdp-protocol` — the framework-free HTTP `Server` + the `RemoteScope` client (`impl BdpScope`).
 - `bdp-inmem` — the in-memory scope the reference serves.
 
-**Open decision (flagged for review):** vendoring these existing crates is the simplest path to a
-green gate. The alternative is a purpose-built minimal reference authored in-tree; if preferred,
-`vendor/` is the only thing that swaps.
+### No external contract
+
+These crates are **suite-internal**. They are owned in `gastownhall/bdp` and they exist to be
+measured by the cases next to them. There is **no semver, no published API, and no stability
+promise**, and there is no upstream to track or re-vendor from — they change whenever a case needs
+them to. `publish = false` enforces the mechanical half of that; this section is the half that
+reaches a person before they depend on the wrong thing.
+
+An implementation may copy them and then owns whatever churn follows. **Divergence from any
+similarly-named crate elsewhere is expected, not a defect to reconcile.**
+
+The directory was previously called `vendor/`, which was the wrong name: it implied these were
+copies tracking an upstream. They are not.
+
+### Fixing the subject is in scope
+
+When a case covers a row the subject does not implement correctly, **fixing the subject is part of
+the work**, not a cross-repo request. Two consequences worth stating, because they cut against the
+instinct to treat a green run as success:
+
+- A spec change propagates to the subject **only as far as coverage reaches**. The gate grows with
+  coverage; it does not hold the spec to implementation speed.
+- `not_implemented` is an **`Ok` signal**, not an error (a 501 is converted to it client-side, since
+  `RemoteScope` is itself a `BdpScope`). So a case that merely propagates errors passes against a
+  subject that implements *nothing*. The harness refuses a `not_implemented` response for any row a
+  case claims, rather than trusting each case to remember — see `record()` in `gate/tests/gate.rs`.
 
 ## Run
 
 ```
-cargo test -p bdp-gate                   # denominator asserts + wire cases + coverage report
+cargo test -p bdp-gate                   # denominator asserts + wire cases + anti-vacuity + report
+cargo test -p bdp-gate implements_nothing # the anti-vacuity backstop on its own
 cargo test -p bdp-gate -- --nocapture    # also print the covered/uncovered surface
 BDP_GATE_STRICT=1 cargo test -p bdp-gate # fail-if-no-coverage (blocking)
 cargo test -p bdp-ref                    # the liveness round-trip
