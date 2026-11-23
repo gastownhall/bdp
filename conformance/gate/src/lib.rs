@@ -367,20 +367,20 @@ mod tests {
     /// the right trade. If this ever feels expensive, the question to ask is whether the guarantee's
     /// MEANING moved, not how to make the test quieter.
     const EXPECTED_GUARANTEES: &[(u8, &str)] = &[
-        (1, "A stable identity per resource — never reused, never changed; opaque local part."),
+        (1, "A stable identity per resource — never changed, and under `permanent` ([[core.lumen#IdModel]]) never reused; opaque local part. Under `reusable` a retired id MAY be minted again, which is what that model declares."),
         (2, "A type per resource — the (authority, type) pair, frozen at inception."),
         (3, "A body and metadata it stores and does NOT interpret."),
         (4, "A storage class per resource — Durable | Ephemeral | Intrinsic; whether revisions are kept is the scope's revisionModel, not a per-resource field."),
-        (5, "A revision per resource that changes exactly when its state changes."),
+        (5, "Under `versioned` ([[core.lumen#RevisionModel]]), a revision per resource that changes exactly when its state changes. Under `unversioned` no revision is minted and `rev` is absent everywhere, so this guarantee is vacuous rather than violated."),
         (6, "History where offered — prior revisions addressable; offered or not, discoverable."),
         (7, "A transaction marker shared by everything committed together."),
         (8, "A cause minted once per incoming request, stamped on every effect it sets off."),
         (9, "A durable change record per resource per commit — none for a failed or no-change request."),
         (10, "Provenance saved with the change, immutable, never invented."),
         (11, "A changefeed at /sys/changes carrying every commit (replication included)."),
-        (12, "An export consistent with itself, with the cursor that matches it."),
+        (12, "Where `export` is offered, an export consistent with itself, with the cursor that matches it."),
         (13, "An authorization view — a hidden resource reads exactly as a missing one."),
-        (14, "Deletion that does not erase — the id stays accounted for, the tombstone is kept."),
+        (14, "Where `delete` is offered, deletion that does not erase — under `permanent` the id stays accounted for, and where the scope is also `versioned` the tombstone revision is kept. A `reusable` scope retains neither record ([[core.lumen#delete]]); that is the declared model, not a breach of this guarantee."),
     ];
 
     /// The guarantees are conformance points this crate could not previously see.
