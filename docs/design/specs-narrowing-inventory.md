@@ -26,6 +26,32 @@ documents. One of the two permitted directories.
 **`generated/`** — five schema bundles, `core.md`, `openapi/core.openapi.json`, four callable
 catalogs. Checked by `scripts/check-generated.py`. The other permitted directory.
 
+### Two of their paths are published interface, not internal layout
+
+These two are pinned at build time by the conformance gate, which lives in a **different
+repository**. Moving or renaming either breaks that build:
+
+- `specs/generated/openapi/core.openapi.json`
+- `specs/src/core/core.lumen`
+
+This matters beyond "don't touch them". Everything else in this inventory is internal layout,
+free to move once someone rules on it; these two are a **published interface with an external
+consumer**, so they are not at the disposal of a future `specs/` reorganization even inside
+`src/` and `generated/`. Any later tidying within the two keeper directories — splitting
+`core.lumen`, renaming the generated OpenAPI document, introducing a version segment — is a
+breaking change to another repository's build, not a local refactor. Treat a change to either
+path as requiring that repository's agreement first.
+
+Neither path is moved, renamed or repointed by the change this inventory accompanies, and
+neither appears anywhere in `docs/design/spec-path-map.json`.
+
+*Provenance of this entry:* relayed to me by the session coordinating this work, which recorded
+the full constraint in `specs/AGENTS.md` under "Paths another repository depends on". That
+section is **not** present at this branch's base (`aa439827`) — it lives on the unmerged
+`lydia/fix-resource-self-cycle` branch (PR #407) — so the constraint is recorded here as
+relayed, not as read from the tree. Whoever reads this after #407 merges should prefer the
+`specs/AGENTS.md` text, which names the pinning repository and gate.
+
 ## Blocked behind the protocol ref-map ruling
 
 These four cannot move until it is settled whether `packages/protocol` keeps implementing the
@@ -155,7 +181,7 @@ immediately.
 
 | resident | status | blocked by |
 |---|---|---|
-| `src/`, `generated/` | keep | — |
+| `src/`, `generated/` | keep | — (but `src/core/core.lumen` and `generated/openapi/core.openapi.json` are cross-repo pinned published interface — not freely movable even within the keepers) |
 | `profiles/` | live | protocol ref-map ruling |
 | `conformance.md` | live | `profiles/`, then conformance re-keying |
 | `openapi/` | generated | `profiles/` |
