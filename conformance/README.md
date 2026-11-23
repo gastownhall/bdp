@@ -1,7 +1,7 @@
 # `conformance/` — the BDP wire-level conformance gate (Rust)
 
-**Pin:** core spec **v0.2.3** = `gastownhall/bdp` #405 @`7aaecec2` (draft; re-pin to the #405 **merge**
-commit when it lands). This is the lockstep merge gate for the Beads Protocol.
+**Pin:** core spec **v0.2.3** = `gastownhall/bdp` `main` @`aa439827` (the #405 **merge** commit, where
+`specs/generated/` lands). This is the lockstep merge gate for the Beads Protocol.
 
 ## What this is
 
@@ -13,9 +13,12 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
 
 ## The tier-1 gate (`gate/`)
 
-- **Denominator** — `bdp_gate::denominator()` parses the pinned v0.2.3 OpenAPI catalog (vendored at
-  `gate/spec/core.openapi.json`) into the tier-1 coverage surface: every primitive operation plus
-  each of its declared `>=400` fault statuses. The v0.2.3 surface is **52 rows** (13 ops + 39 faults).
+- **Denominator** — `bdp_gate::denominator()` parses the repo's generated v0.2.3 OpenAPI catalog, read
+  **live** from `specs/generated/openapi/core.openapi.json`, into the tier-1 coverage surface: every
+  primitive operation plus each of its declared `>=400` fault statuses. The v0.2.3 surface is
+  **52 rows** (13 ops + 39 faults). Reading it live is what makes the gate *lockstep*: when the spec's
+  wire surface moves, the denominator moves with it (and a unit test tripwires on the row count so the
+  change gets reviewed). A frozen vendored copy would silently stop catching spec changes.
 - **Cases** — `gate/tests/gate.rs` drives a `RemoteScope` against `Server(InMemScope)` over loopback
   HTTP. Each case records the `SurfaceId`s it covers (e.g. `op/get`, `op/get/fault/404`).
 - **Two signals.** A case expected to pass that FAILS always fails the gate (a real wire-level
@@ -61,8 +64,8 @@ open ruling, not settled here.
 conformance/
   Cargo.toml          # the gate workspace
   gate/               # the TIER-1 gate
-    spec/core.openapi.json  #   pinned v0.2.3 OpenAPI (the denominator source)
-    src/lib.rs        #   denominator(): OpenAPI -> 52-row coverage surface
+    src/lib.rs        #   denominator(): the generated OpenAPI -> 52-row coverage surface
+                      #   (include_str! of ../../specs/generated/openapi/core.openapi.json, LIVE)
     tests/gate.rs     #   wire-level cases + coverage report (BDP_GATE_STRICT to block)
   reference/          # bdp-ref: the ONE green endpoint (InMemScope over HTTP), pin-agnostic
     src/main.rs       #   Server::new(InMemScope).with_public_base(base).serve(listener)

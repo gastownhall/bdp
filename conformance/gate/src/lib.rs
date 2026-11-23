@@ -1,12 +1,20 @@
 //! The BDP tier-1 conformance gate — the coverage DENOMINATOR.
 //!
-//! This library is pure and dependency-light: it parses the pinned, vendored v0.2.3 OpenAPI catalog
+//! This library is pure and dependency-light: it parses the repo's GENERATED v0.2.3 OpenAPI catalog
 //! and yields the tier-1 coverage surface — every primitive operation plus each of its declared
 //! `>=400` fault statuses. The wire-level CASES that cover this surface live in `tests/gate.rs`; they
 //! run black-box against the in-memory reference and report covered-vs-uncovered against this set.
 //!
-//! Pin: `gastownhall/bdp` #405 @`7aaecec2` (v0.2.3 generated artifacts, draft). Re-pin to the #405
-//! MERGE commit when it lands (pin merged commits, not the draft tip).
+//! The denominator is read LIVE from `specs/generated/openapi/core.openapi.json` — the artifact
+//! `check-generated.py` regenerates from `specs/src/` and drift-gates in the `specification` job. That
+//! is what makes this a LOCKSTEP gate: when the spec's wire surface moves, the denominator moves with
+//! it and the uncovered row surfaces here. A vendored snapshot would freeze the denominator and
+//! silently stop catching spec changes, which is why it was dropped once #405 merged.
+//!
+//! Pin: `gastownhall/bdp` `main` @`aa439827` — the #405 MERGE commit (merged commits, never draft
+//! tips), where `specs/generated/` first lands. Verified: the merged catalog is byte-identical
+//! (sha256 `8eca709d…`) to the draft copy this gate was first built against, so the 52-row surface is
+//! unchanged by the merge.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -30,14 +38,18 @@ impl fmt::Display for SurfaceId {
     }
 }
 
-/// The pinned v0.2.3 core OpenAPI catalog, vendored so the gate is self-contained.
-pub const CORE_OPENAPI: &str = include_str!("../spec/core.openapi.json");
+/// The repo's generated v0.2.3 core OpenAPI catalog, read live from `specs/generated/` so the
+/// denominator tracks the spec rather than a frozen copy (see the module docs). This is a
+/// compile-time include: if the artifact moves or disappears the gate fails loudly at build time
+/// instead of quietly measuring a stale surface.
+pub const CORE_OPENAPI: &str =
+    include_str!("../../../specs/generated/openapi/core.openapi.json");
 
 /// Derive the tier-1 denominator from the pinned OpenAPI: one `Op` per operation and one `Fault`
 /// per declared `>=400` response. This is the set the gate measures coverage against.
 pub fn denominator() -> BTreeSet<SurfaceId> {
     let doc: serde_json::Value =
-        serde_json::from_str(CORE_OPENAPI).expect("vendored core.openapi.json parses");
+        serde_json::from_str(CORE_OPENAPI).expect("specs/generated/openapi/core.openapi.json parses");
     let mut out = BTreeSet::new();
     let paths = doc
         .get("paths")
@@ -93,7 +105,16 @@ mod tests {
 
     #[test]
     fn denominator_is_52_rows() {
-        // 13 ops + 39 declared >=400 fault rows = 52 (v0.2.3 surface; see STATE F4).
-        assert_eq!(denominator().len(), 52, "tier-1 denominator should be 52 surface rows");
+        // 13 ops + 39 declared >=400 fault rows = 52 (the v0.2.3 surface @aa439827).
+        //
+        // Deliberate TRIPWIRE: the denominator is read live from specs/generated/, so if the spec's
+        // wire surface moves this fails. That is the lockstep gate working — a surface change must be
+        // reviewed and the cases updated alongside it, never silently absorbed.
+        assert_eq!(
+            denominator().len(),
+            52,
+            "tier-1 surface moved: the generated OpenAPI no longer yields 52 rows (13 ops + 39 \
+             faults). Review the delta and update the cases and this expectation together."
+        );
     }
 }

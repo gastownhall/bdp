@@ -326,7 +326,8 @@ async fn run_cases(addr: String) {
     let uncovered: Vec<&SurfaceId> = denom.difference(&covered).collect();
 
     eprintln!("\n=== BDP tier-1 gate ===");
-    eprintln!("pin: gastownhall/bdp #405 @7aaecec2 (v0.2.3 draft)");
+    eprintln!("pin: gastownhall/bdp main @aa439827 (v0.2.3, #405 merge)");
+    eprintln!("denominator source: specs/generated/openapi/core.openapi.json (live, drift-gated)");
     eprintln!(
         "coverage: {}/{} surface rows",
         covered_in_denom.len(),
