@@ -140,6 +140,41 @@ only, but it is the difference between a clean tree and a tree full of dead link
 5. **`experimental/`** (7 files) references `specs/formats/`, which survives — so it is
    unaffected, but it should be confirmed rather than assumed.
 
+## "Replacing the estate" is the wrong test — and the right one exposes a real gap
+
+The conformance lane raised the sharpest objection to this plan, and it refines rather than
+breaks it. Paraphrased: *"credibly covering what that estate covered" is not the same quantity
+as 54 rows. My denominator is the wire surface of core's 13 primitives. The estate covered
+whatever it covered — profiles, types, events — which I have never measured. So "my gate can
+replace that plumbing" is a claim I have no instrument to make, and 54/54 would not establish
+it.*
+
+That is correct, and the conclusion is that **replacement is the wrong test.** The estate
+covered the *v0.1* surface. The test is relevance, not equivalence:
+
+- `specs/profiles/` held `callables`, `core`, `events`, `transfer`, `types`, `write`.
+  **`events`, `transfer` and `callables` have no v0.2.3 successor** — those are features
+  dropped, not coverage lost.
+- `core` and `write` became `core.lumen`, whose wire surface *is* the gate's 54 rows.
+- `types` folded into `core.lumen`'s type system.
+
+**But the gap the objection points at is real, and it exists today.** v0.2.3 has four packs —
+`issue`, `memory`, `ops`, `stdlib` — and a type system. Their only verification is
+**structural**: `check-generated.py` regenerates the callable catalogs and asserts the JSON is
+well-formed with every `$ref` resolving. Nothing checks their *behaviour*. The Rust gate is
+core-only by construction; its own test is named
+`denominator_has_13_ops_and_matches_core_primitives`.
+
+So the packs and the type system have no behavioural conformance **before or after this
+retirement**. Retiring the estate does not create that gap — it makes it visible, by removing
+the large suite whose presence implied the repository was broadly verified. That is worth
+saying plainly, because "we retired the TS estate and coverage looks thin" and "the packs were
+never verified" are different problems and only one of them is caused here.
+
+**And it puts #418 in the critical path rather than beside it.** If retiring the estate rests
+on the Rust gate's credibility, then a conformance denominator asserting store-wide guarantees
+that a conformant store may legitimately break is not an adjacent tidy-up.
+
 ## What this does not decide
 
 Whether the repo keeps a Node toolchain at all. After this, the only Node left is
