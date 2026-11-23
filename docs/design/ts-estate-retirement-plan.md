@@ -181,11 +181,51 @@ So the number for this hole is **39 normative lines with nothing behind them**. 
 backends and says nothing whatever about those 39 — they are not under-reported by that grid,
 they are outside its denominator.
 
-And the pack *fault* surface is worse than unmeasured: seven Problem codes are declared in
-prose only (six in `stdlib`'s declared block, one in `ops`) and reach no generated artifact, so
-they cannot be enumerated at all. Two further names in that block are core codes deliberately
-reused, which means a pack-inclusive denominator cannot be computed by addition — it has to
-deduplicate against core's 54.
+### The pack fault surface cannot be expressed in the gate's unit at all
+
+Seven Problem codes are declared in prose only — six in `stdlib`'s declared block, one in `ops`
+— and reach no generated artifact. Two further names in that block are core codes deliberately
+reused (`limit-exceeded` is called out as "core's existing 422 static-bound code, NOT a new
+`batch-*` code").
+
+I first concluded from that reuse that a pack-inclusive denominator would have to **deduplicate**
+against core's 54. **That was wrong, and the real answer is stronger.** The gate's denominator
+counts `(op, status)` pairs; Problem *codes* live in the Problem body and in prose, so they are
+not rows — and that holds for core's own codes too:
+
+```
+core.openapi.json occurrences:
+  not-found 0 · revision-mismatch 0 · capability-not-supported 0 · identity-taken 0
+  limit-exceeded 1   (inside a description)
+```
+
+There was never anything to deduplicate against. And the structural fact that settles it: `call`
+declares exactly `[200, 201, 409, 202]`, so one row at `>=400` — the domain-failure arm. Its
+*fault* status is open-ended **by design**, stated verbatim in the spec:
+
+> The HTTP status aligns (200 success · 409 the domain failure · **the Problem's own status for
+> a fault** · 202 for an async `AsyncResult`)
+
+So every pack fault, whatever its code, arrives through `op/call` carrying a status the catalog
+does not enumerate and **cannot**, because the spec deliberately leaves it open. The surface
+tripwire would never notice, since it compares declared rows against declared rows.
+
+**Consequence: two denominators, not one.** A pack-level suite needs its own instrument in its
+own unit — callables × declared domain arms × declared Problem codes — and it is not an
+extension of the wire surface. Annotating the seven codes is *necessary* for a code-level
+denominator and *insufficient* to fold the packs into the gate's, because a code is not an
+`(op, status)` pair.
+
+**Which is the honest answer to "can this gate replace the estate", and it is better than any
+number.** Not "54 is not enough rows", not "the packs are unmeasured", but: **the gate measures
+one surface in one unit; the packs are a different surface in a different unit; and no amount of
+progress on the first produces coverage of the second.** That is defensible at a tag in a way a
+fraction never is, and it is falsifiable — if someone derives a single denominator over both,
+this is wrong and should be shown so.
+
+The honest figure, with its conditions attached: *42 callables / 9 domain arms at `c511f88c`,
+plus 7 prose-declared Problem codes of which 2 are core reuses, pack total not derivable.*
+Unwieldy, and the unwieldiness is the finding.
 
 So the packs and the type system have no behavioural conformance **before or after this
 retirement**. Retiring the estate does not create that gap — it makes it visible, by removing
