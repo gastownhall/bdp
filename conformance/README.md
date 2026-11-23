@@ -42,17 +42,17 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 18/54**, across three case families:
+**Current coverage: 20/54**, across three case families:
 
 - **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
   InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/404`, `delete/412` (triggered through the typed `RemoteScope`).
+  `delete/404`, `delete/412`, `put/409`, `put/412` (triggered through the typed `RemoteScope`).
 - **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 36 rows are uncovered for concrete, recorded reasons:
+The remaining 34 rows are uncovered for concrete, recorded reasons:
 
 - **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
   `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the

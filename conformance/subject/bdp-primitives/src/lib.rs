@@ -283,6 +283,45 @@ pub struct CreateBody {
 /// RFC 6902 patch, limited to /properties + /metadata. Raw at this layer.
 #[derive(Clone, Debug)]
 pub struct JsonPatch(pub RawJson);
+/// The write GUARDS. **Preconditions, never body** — each rides the request line (a header or the
+/// query string), so a `put` body stays exactly the representation and a `patch` body stays exactly
+/// the JSON Patch, unwrapped and correctly typed.
+///
+/// Carried by `put` here; `patch` and `delete` still take a bare `if_rev` and are a separate,
+/// mechanical retrofit. `if_absent` is `put`-ONLY and a scope MUST refuse it elsewhere.
+///
+/// WHY THIS EXISTS: `put` previously could not carry a guard AT ALL — the trait took no `if_rev`,
+/// so a client sending `If-Match` got `200` and believed it held a concurrency guard while the
+/// write proceeded against a stale revision. That is a lost-update vector in which the unsafe
+/// operation SUCCEEDS, so the client cannot learn it from the result.
+#[derive(Clone, Debug, Default)]
+pub struct Guards {
+    /// `ifRevision` -> `If-Match: "<Rev>"` (a strong entity-tag, RFC 9110 §8.8.3). Optimistic
+    /// concurrency: a stale value makes NO change and faults `RevisionMismatch` (412).
+    pub if_revision: Option<Rev>,
+    /// `ifAbsent` -> `If-None-Match: *`. The write applies only if nothing is there, else faults
+    /// `AlreadyExists` (409) — the same fault a `create` collision raises, so a client keeps ONE
+    /// id-taken handler for the claiming path. `put` only.
+    pub if_absent: bool,
+    /// `precondition` -> `?precondition=<Filter>`. A STATE guard: the write applies only if the
+    /// current resource satisfies the filter, else faults `RevisionMismatch` (412). Reuses the same
+    /// flat-AND grammar `list` takes.
+    pub precondition: Option<ListFilter>,
+}
+
+impl Guards {
+    pub fn if_revision(rev: Rev) -> Self {
+        Self { if_revision: Some(rev), ..Default::default() }
+    }
+    pub fn if_absent() -> Self {
+        Self { if_absent: true, ..Default::default() }
+    }
+    /// True when no guard is set — the unguarded write path.
+    pub fn is_empty(&self) -> bool {
+        self.if_revision.is_none() && !self.if_absent && self.precondition.is_none()
+    }
+}
+
 
 /// One write in an `apply` write-set — 1:1 with the single-write methods (create/put/patch/delete).
 #[derive(Clone, Debug)]
@@ -290,7 +329,7 @@ pub enum Write {
     /// bCreate — server allocates the id when `id` is `None`.
     Create { id: Option<Id>, body: CreateBody },
     /// bPut — client-id full-state upsert.
-    Put { target: ResourceId, body: CreateBody },
+    Put { target: ResourceId, body: CreateBody, guards: Guards },
     /// bPatch — JSON Patch delta over /properties + /metadata.
     Patch { target: ResourceId, patch: JsonPatch, if_rev: Option<Rev> },
     /// bDelete — tombstone.
@@ -486,7 +525,7 @@ pub struct ExportCaps { pub revisions: bool }
 pub struct CreateCaps { pub server_allocates_id: bool, pub client_proposed_id: bool }
 
 #[derive(Clone, Debug, Default)]
-pub struct PutCaps {}
+pub struct PutCaps { pub if_match: bool, pub if_absent: bool }
 
 #[derive(Clone, Debug, Default)]
 pub struct PatchCaps { pub if_match: bool }
@@ -619,7 +658,7 @@ pub trait BdpScope: Send + Sync {
     }
 
     /// put — client-known-id upsert / idempotent FULL-STATE write.
-    async fn put(&self, _target: ResourceId, _body: CreateBody)
+    async fn put(&self, _target: ResourceId, _body: CreateBody, _guards: Guards)
         -> Result<BdpResult<ResourceId>, BdpError> {
         Ok(BdpResult::not_implemented())
     }
