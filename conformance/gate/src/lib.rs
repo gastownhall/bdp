@@ -156,7 +156,7 @@ fn statuses(span: &str) -> Vec<u16> {
 ///   alone uses it, and that is LOAD-BEARING, not an inconsistency: its statuses carry distinct
 ///   schemas, and its `409` returns a `Reply` (a declared domain failure, branch on the arm), NOT a
 ///   `Problem`. Normalizing it to the shorthand would misstate the wire contract. A counter that
-///   knows only the shorthand silently undercounts by one and reports 51 instead of 52.
+///   knows only the shorthand silently undercounts by one and reports 53 instead of 54.
 pub fn source_surface() -> BTreeSet<SurfaceId> {
     let mut out = BTreeSet::new();
     for line in CORE_LUMEN.lines() {
@@ -207,7 +207,7 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 39 faults = 52.
+    /// fault statuses. 13 ops + 41 faults = 54.
     ///
     /// Spelled out rather than counted on purpose. A count alone asserts a WEAKER property than the
     /// one that matters: `patch/415` silently becoming `patch/416` keeps the total at 52, so a
@@ -228,10 +228,19 @@ mod tests {
         // application/json-patch+json, so any other type faults. It is the ENTIRE 52-vs-51 delta
         // against v0.2.2 @ca298b04 — and it is not producible against the current reference, which
         // performs no server-side content-type check at all.
-        ("patch", &[400, 404, 409, 412, 415, 422]),
+        //
+        // 410 is the 52-vs-54 delta: a write that TARGETS a retired resource faults Gone, so `put`
+        // and `patch` declare it alongside `get`. UNCOVERABLE here, and for the same reason as
+        // `get/410` — a write's 410 is reachable only under `idModel: permanent`, and this subject
+        // declares no scope-level id model at all, so a case has nothing to key on. Recorded
+        // uncovered rather than asserted unconditionally, which would claim more than the spec
+        // grants. `put` deliberately declares no 404: an absent id is not an error for `put`, which
+        // creates. On `put` the 409 belongs to the `ifAbsent` guard (claiming a spent id), never to
+        // the bare operation (updating what is gone) — two neighbours of the same row.
+        ("patch", &[400, 404, 409, 410, 412, 415, 422]),
         ("pull", &[400, 405, 410]),
         ("push", &[400, 405, 409, 422]),
-        ("put", &[400, 409, 412, 422]),
+        ("put", &[400, 409, 410, 412, 422]),
         ("revisions", &[400, 404]),
     ];
 
@@ -270,7 +279,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 52, "the v0.2.3 surface is 52 rows (13 ops + 39 faults)");
+        assert_eq!(actual.len(), 54, "the v0.2.3 surface is 54 rows (13 ops + 41 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must
