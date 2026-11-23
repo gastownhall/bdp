@@ -839,7 +839,9 @@ type Problem = {
   /// description: An optional human detail.
   detail?:   string,
   /// description: An optional URI for the specific occurrence.
-  instance?: AbsoluteUri
+  instance?: AbsoluteUri,
+  /// description: RFC 9457 §3.2 extension members. `code` and `retry` are BDP's own; a service MAY add others, so a Problem document is open. Closing it would forbid the extensibility this type's own normative note relies on.
+  ...: any
 }
 
 ## AsyncResult

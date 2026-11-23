@@ -1975,7 +1975,7 @@
           "code",
           "retry"
         ],
-        "additionalProperties": false
+        "additionalProperties": true
       },
       "AsyncResult": {
         "description": "The async result of one `call` — a handle you show for the record and `cancel` to kill. References a one-and-done source Channel that fires the Reply on settlement.",

@@ -1200,7 +1200,8 @@ type Problem = {
   code:      string,
   retry:     "never" | "after-state-change" | "after-delay",
   detail?:   string,
-  instance?: AbsoluteUri
+  instance?: AbsoluteUri,
+  ...: any
 }
 ```
 
