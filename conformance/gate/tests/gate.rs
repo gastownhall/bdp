@@ -390,6 +390,33 @@ async fn patch_wrong_media_type_415(host: &str) -> Result<Vec<SurfaceId>, String
     }
 }
 
+/// `PATCH` with NO `Content-Type` at all → 415. Also covers op/patch/fault/415.
+///
+/// `REQUIRED` means present-or-fault: absence is not the lenient case. A requirement that bites only
+/// when you declare something else can be evaded by declaring nothing, which makes it unenforceable
+/// in exactly the case a careless client produces — so an omission must never downgrade a guarantee.
+/// The guarantee is that RFC 7396 merge-patch is never silently applied.
+///
+/// Claims the same row as `patch_wrong_media_type_415`, deliberately: coverage does not move, but the
+/// second condition of the rule is pinned, and one mistake gets ONE fault — a client that erred either
+/// way sees 415, not 415-or-422 depending on how it erred.
+async fn patch_absent_media_type_415(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(
+        host,
+        "PATCH",
+        "/patch-target",
+        vec![],
+        br#"[{"op":"replace","path":"/properties/text","value":"no ctype"}]"#,
+    )
+    .await?
+    {
+        415 => Ok(vec![fault("patch", 415)]),
+        s => Err(format!(
+            "expected 415 for a patch with NO Content-Type (REQUIRED means present-or-fault), got {s}"
+        )),
+    }
+}
+
 /// A `patch` carrying the CORRECT media type must still be accepted — the 415 check must reject the
 /// wrong type without rejecting the right one. Claims no surface row (`op/patch` is covered by
 /// `patch_ok`); it exists so `patch/415` cannot be satisfied by a subject that 415s every patch.
@@ -599,6 +626,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("put/400 (raw)", &mut covered, &mut failures, put_malformed_400(&addr)).await;
     record("patch/422 (raw)", &mut covered, &mut failures, patch_unprocessable_422(&addr)).await;
     record("patch/415 (raw)", &mut covered, &mut failures, patch_wrong_media_type_415(&addr)).await;
+    record(
+        "patch/415 absent ctype (raw)",
+        &mut covered,
+        &mut failures,
+        patch_absent_media_type_415(&addr),
+    )
+    .await;
     record(
         "patch right media type (raw)",
         &mut covered,

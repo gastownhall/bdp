@@ -187,38 +187,38 @@ impl<S: BdpScope> Server<S> {
 
     async fn do_patch(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
         // SPEC BASIS (cited, not inferred): core.lumen's media-type appendix —
-        //   "application/json-patch+json  the direct `patch` body (RFC 6902; REQUIRED — a direct
-        //    `patch` with another media type faults `415`, so RFC 7396 merge-patch is never
-        //    silently applied)"
+        //   "application/json-patch+json  the direct `patch` body (RFC 6902). REQUIRED means
+        //    PRESENT-OR-FAULT: a direct `patch` whose `Content-Type` names another media type, OR
+        //    OMITS THE HEADER, faults `415`. Absence is not the lenient case — a requirement that
+        //    bites only when you declare something else can be evaded by declaring nothing, and an
+        //    omission must never downgrade a guarantee."
         // and the lowering annotation `request = { contentType = "application/json-patch+json" }`.
         //
         // This check is the ONLY producer of op/patch/fault/415 — the well-formed client always
         // sends the right type (client.rs), so the row is unreachable without validating here.
         //
-        // AN ABSENT Content-Type IS NOT REJECTED, and that is a JUDGEMENT CALL on a spec ambiguity,
-        // not something the text settles. The fault clause above is scoped to "another media type",
-        // which an absent header is not; but "REQUIRED" can equally be read as present-or-fault.
-        // Treating absent as unstated-rather-than-wrong is the narrower reading, and it keeps this
-        // check to exactly the behaviour the fault clause names. Flagged to the spec lane; if
-        // `REQUIRED` is ruled to mean present-or-fault, this grows one condition.
-        //
-        // (Deliberately NOT justified by "it preserves existing behaviour" — the subject is
-        // implemented from the spec, never from the cases, so a case-preserving rationale would be
-        // the wrong kind of reason even where it reaches the same code.)
+        // So ABSENT, EMPTY and WRONG all fault 415, and one mistake gets one fault: a client that
+        // erred either way sees 415 rather than 415-or-422 depending on how it erred. An earlier
+        // version of this check exempted an absent header, on the narrower reading that the old
+        // fault clause named only "another media type"; that ambiguity was flagged rather than
+        // closed here, and the spec has since ruled present-or-fault.
         const JSON_PATCH: &str = "application/json-patch+json";
-        if let Some(ct) = req.header("content-type") {
-            // Compare the media type only; parameters such as `; charset=utf-8` are not part of it.
-            let media_type = ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
-            if !media_type.is_empty() && media_type != JSON_PATCH {
-                return HttpResponse::json(
+        // Compare the media type only; parameters such as `; charset=utf-8` are not part of it.
+        // An absent header yields the empty string, which is != JSON_PATCH and so faults.
+        let media_type = req
+            .header("content-type")
+            .and_then(|ct| ct.split(';').next().map(|m| m.trim().to_ascii_lowercase()))
+            .unwrap_or_default();
+        if media_type != JSON_PATCH {
+            let got = if media_type.is_empty() { "no Content-Type" } else { &media_type };
+            return HttpResponse::json(
+                415,
+                problem_body(
                     415,
-                    problem_body(
-                        415,
-                        "unsupported-media-type",
-                        &format!("patch requires {JSON_PATCH}, got {media_type}"),
-                    ),
-                );
-            }
+                    "unsupported-media-type",
+                    &format!("patch requires {JSON_PATCH}, got {got}"),
+                ),
+            );
         }
         let target = resource_id_from(id_seg, None);
         let patch = p::JsonPatch(p::RawJson(bytes::Bytes::copy_from_slice(&req.body)));
