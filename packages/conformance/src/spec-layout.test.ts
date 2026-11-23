@@ -21,7 +21,9 @@ const documents = [
 describe("single specification authority and physical layout", () => {
   it("preserves every legacy protocol anchor at its explicit historical/current navigation target", () => {
     for (const [anchor, source] of Object.entries(map.anchors)) {
-      expect(source.startsWith("specs/")).toBe(true);
+      // Two sanctioned homes: the live specification under specs/, and the
+      // preserved pre-canonical originals under docs/history/.
+      expect(source.startsWith("specs/") || source.startsWith("docs/history/")).toBe(true);
       expect(
         markdownAnchors(read(source)).map((entry) => entry.anchor),
         source,
@@ -47,7 +49,7 @@ describe("single specification authority and physical layout", () => {
   });
 
   it("keeps the historical Read+Update alias with its heading in Write", () => {
-    const source = "specs/history/pre-canonical-20261101/profiles/write/write.md";
+    const source = "docs/history/pre-canonical-20261101/profiles/write/write.md";
     const alias = markdownAnchors(read(source)).find(
       (entry) => entry.anchor === "#part-ii--readupdate",
     );

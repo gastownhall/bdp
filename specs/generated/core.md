@@ -1200,7 +1200,8 @@ type Problem = {
   code:      string,
   retry:     "never" | "after-state-change" | "after-delay",
   detail?:   string,
-  instance?: AbsoluteUri
+  instance?: AbsoluteUri,
+  ...: any
 }
 ```
 
@@ -2567,6 +2568,25 @@ The lowering is deterministic and structure-preserving: a Lumen declaration and 
   responseHeaders         response headers         (Location)
   fn   (pure / safe)      a safe method (GET-shaped); no state change
   command                 a mutating method
+```
+
+```
+  Counting the fault surface — read BOTH response forms. Twelve of the thirteen
+  primitives declare their 4xx/5xx rows through `problem { status = [ … ] }`, and
+  `call` alone uses `responses [ … ]`, because its statuses carry distinct bodies.
+  A counter that reads only the shorthand silently drops `call`'s 409 — its only
+  >=400 row — and undercounts the surface by one (51 where the answer is 52). The
+  explicit form is NOT an inconsistency to normalize away: the shorthand asserts
+  "this status carries a Problem", and `call/409` does not.
+```
+
+```
+  So `call/409` is the ONLY >=400 response in this binding whose body is not a
+  Problem: it is `application/json` + `Reply`, against `application/problem+json`
+  + `Problem` everywhere else. A conformance case for it asserts a Reply, and the
+  response content type is the discriminator — machine-checkable, no prose needed.
+  A second non-Problem >=400 response would make this a class rather than an
+  exception, and should be ruled on rather than assumed Problem-shaped.
 ```
 
 ```

@@ -1,6 +1,6 @@
 # Working on the Core specification
 
-This file is for anyone, person or agent, who changes the Core v0.2 specification. It covers three files: the normative source [`src/core/core.lumen`](src/core/core.lumen), the narrative [`src/bdp.md`](src/bdp.md), and the generated reference [`generated/core.md`](generated/core.md). (The old root `core.md` is retired as [`obsolete-core.md`](obsolete-core.md) — harvest only, do not cite.)
+This file is for anyone, person or agent, who changes the Core v0.2 specification. It covers three files: the normative source [`src/core/core.lumen`](src/core/core.lumen), the narrative [`src/bdp.md`](src/bdp.md), and the generated reference [`generated/core.md`](generated/core.md). (The old root `core.md` is retired to [`docs/history/obsolete-core.md`](../docs/history/obsolete-core.md) — harvest only, do not cite.)
 
 ## Which file says what
 
@@ -46,6 +46,28 @@ Text with no sidebar is the specification as it stands. Do not record who decide
 ## Review notes
 
 A reviewer leaves a note as a line that begins with `>` and their marker, for example `>DB`. Put a note inside a prose block, never between a declaration and its metadata comments. A note is temporary. Remove it when it is answered.
+
+## Paths another repository depends on
+
+The conformance gate lives in its own repository and reads two paths out of this tree at
+build time. Treat both as a published interface, not as internal layout:
+
+- `generated/openapi/core.openapi.json` — the gate derives the tier-1 operation and fault
+  surface (its denominator) from the `paths` block.
+- `src/core/core.lumen` — the gate independently re-derives that same surface from the
+  `/// openapi =` annotations and asserts the two agree. That is a deliberate second
+  witness: it checks the generator from the consumer side, in another language, with no
+  shared code, so a generator bug cannot hide behind its own output.
+
+Moving or renaming either path breaks that build. It breaks loudly, which is the intent —
+but coordinate a restructuring that has to move them instead of discovering it in someone
+else's CI.
+
+Changing the `paths` block of the generated OpenAPI moves the gate's denominator in the
+same commit. Adding or removing an operation, or a declared `>=400` response, will fail
+the gate's row-by-row surface test until its cases and its expectation move together. That
+is the mechanism working, not a breakage: a silent surface change is the thing it exists
+to prevent.
 
 ## Public text
 

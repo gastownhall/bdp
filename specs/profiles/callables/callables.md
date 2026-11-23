@@ -913,7 +913,7 @@ to be added to the generator.
 
 This edition replaces the protocol outline, the Bead Types and the shared value
 shapes of the experimental draft of October 30, 2026, archived at
-`specs/history/callables-draft-20261030/`. Its scenarios S1–S6 become the
+`docs/history/callables-draft-20261030/`. Its scenarios S1–S6 become the
 conformance rows above or the deferred items, its "Open issues" table is closed at
 preview depth as stated in §§4–6 and reopened only for what §12 lists, and its
 "Depends on" table is replaced by this document's references. The JSON companion,
