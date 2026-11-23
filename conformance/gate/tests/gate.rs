@@ -108,9 +108,27 @@ async fn create_duplicate_409(r: &RemoteScope) -> Result<Vec<SurfaceId>, String>
 /// revision that keeps the id). Covers op/delete + op/get/fault/410.
 async fn delete_then_erased(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let target = ResourceId::head(Scope::This, Id("to-erase".into()));
-    r.put(target.clone(), note_body("to-erase"))
+    // VERIFY THE SEED, don't assume it. This case was VACUOUS: a subject whose `delete` minted a
+    // tombstone for an id that never existed let it pass with this `put` never having run, falsely
+    // claiming both its rows. `not_implemented` is an Ok-signal, so an unguarded `?` here passes
+    // against a subject that implements no `put` at all. A case must fail on its OWN terms rather
+    // than lean on a sibling row going red.
+    let seeded = r
+        .put(target.clone(), note_body("to-erase"))
         .await
         .map_err(|e| format!("seed put: {e:?}"))?;
+    if seeded.not_implemented {
+        return Err("seed put advertised but not_implemented — the tombstone precondition never ran".into());
+    }
+    // And confirm the resource is actually live before retiring it, so "erased" means erased-from-
+    // present rather than erased-from-nothing.
+    let live = r
+        .get(&target, None)
+        .await
+        .map_err(|e| format!("seed get: {e:?}"))?;
+    if live.not_implemented || live.value.is_none() {
+        return Err("seed: the resource is not live before delete, so 410 would prove nothing".into());
+    }
     let del = r
         .delete(target.clone(), None)
         .await
@@ -122,6 +140,61 @@ async fn delete_then_erased(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
         Err(BdpError::Erased { .. }) => Ok(vec![op("delete"), fault("get", 410)]),
         other => Err(format!("expected Erased (410) after delete, got {other:?}")),
     }
+}
+
+/// `delete` an id that NEVER existed → 404 NotFound, and it must mint nothing.
+/// Covers op/delete/fault/404.
+///
+/// This row was long recorded "not producible — delete is idempotent". That was wrong twice over.
+/// `delete` is idempotent on an EXISTING resource, not total: deleting an id that never existed is a
+/// different case and faults 404. A subject that instead mints a tombstone makes the declared 404
+/// unreachable AND, under `idModel: permanent`, lets any caller able to delete permanently spend any
+/// unused id in the space — `create` there faults identity-taken for all time.
+async fn delete_never_existed_404(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let victim = Id("never-existed-delete".into());
+    let target = ResourceId::head(Scope::This, victim.clone());
+    match r.delete(target, None).await {
+        Err(BdpError::NotFound(_)) => {}
+        other => return Err(format!("expected NotFound (404) deleting a never-created id, got {other:?}")),
+    }
+    // The fault is the declared half; "mints nothing" is the half that matters for safety, and it is
+    // observable without asserting any status: the id must still be claimable afterwards.
+    let claimed = r
+        .create(Some(victim), note_body("still claimable"))
+        .await
+        .map_err(|e| format!("the id was BURNED by a failed delete — create now faults {e:?}"))?;
+    if claimed.not_implemented {
+        return Err("create advertised but not_implemented".into());
+    }
+    Ok(vec![fault("delete", 404)])
+}
+
+/// Deleting an ALREADY-RETIRED resource is the idempotent case: same tombstone `Rev`, no fault, and
+/// no second revision. This is why `delete` alone among the writes declares no 410.
+///
+/// Asserts only what is invariant: the retry reports the same revision it was retired at. It claims
+/// no new surface row — it exists to stop the 404 case above being satisfied by a subject that
+/// faults on EVERY delete.
+async fn delete_twice_is_idempotent(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("delete-twice".into()));
+    let seeded = r.put(target.clone(), note_body("v0")).await.map_err(|e| format!("seed put: {e:?}"))?;
+    if seeded.not_implemented {
+        return Err("seed put advertised but not_implemented".into());
+    }
+    let first = r.delete(target.clone(), None).await.map_err(|e| format!("delete #1: {e:?}"))?;
+    let first_rev = first.value.clone().and_then(|id| id.rev).ok_or("delete #1 returned no rev")?;
+    let second = r
+        .delete(target, None)
+        .await
+        .map_err(|e| format!("delete #2 faulted, but an already-retired resource must not: {e:?}"))?;
+    let second_rev = second.value.clone().and_then(|id| id.rev).ok_or("delete #2 returned no rev")?;
+    if first_rev != second_rev {
+        return Err(format!(
+            "delete is not idempotent: retry minted a NEW revision ({first_rev:?} -> {second_rev:?}). \
+             An already-retired resource must report the revision it is retired at."
+        ));
+    }
+    Ok(vec![])
 }
 
 /// An RFC-6902-subset JSON Patch as the wire body.
@@ -314,6 +387,8 @@ async fn run_cases(addr: String) {
     record("patch/404", &mut covered, &mut failures, patch_missing_404(&remote)).await;
     record("patch/412", &mut covered, &mut failures, patch_stale_412(&remote)).await;
     record("delete/412", &mut covered, &mut failures, delete_stale_412(&remote)).await;
+    record("delete/404", &mut covered, &mut failures, delete_never_existed_404(&remote)).await;
+    record("delete idempotent", &mut covered, &mut failures, delete_twice_is_idempotent(&remote)).await;
     record("get/400 (raw)", &mut covered, &mut failures, get_malformed_400(&addr)).await;
     record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;
     record("put/400 (raw)", &mut covered, &mut failures, put_malformed_400(&addr)).await;
