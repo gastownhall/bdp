@@ -28,7 +28,18 @@ series is excluded or aggregated. A single repetition at sub-millisecond scale
 is especially sensitive to shared-runner noise and cannot establish a trend.
 The whole invocation uses 5s HTTP timeouts and a 120s cooperative run deadline. SIGINT/SIGTERM abort HTTP
 and trigger owned service/store cleanup. An external workflow timeout remains
-the hard bound if synchronous storage work stops the event loop. No caller
+the hard bound if synchronous storage work stops the event loop.
+
+SIGINT/SIGTERM is never left to its default disposition while the runner still
+owns a temporary store or an unwritten report: the runner handles the signal,
+cleans up, writes the complete report and exits 130/143 itself rather than
+dying from the signal. Cancellation is never pass, so a signal that lands after
+the last repetition but before the report is serialized still sets the run's
+status to failed with the interrupt as its error, while each repetition keeps
+the outcome it actually reached. Once the report bytes are serialized the
+recorded outcome is fixed: a later signal is ignored for the one remaining
+write, so the exit code and the stored report cannot disagree and a cancelled
+job cannot be left with a missing or truncated JSON artifact. No caller
 store, Go tool, Beads executable, optional profile or private timing hook is used.
 
 JSON records exact Git HEAD, porcelain dirty status, tracked diff digest,
@@ -77,10 +88,21 @@ pnpm exec node --test scripts/perf/reference-trends.node-test.mjs
 ```
 
 These current-lane controls verify both default series, raw repetition tags,
-removed fresh stores, late SIGTERM at the ordinary closed-checkpoint diagnostic,
-invalid scale/repetition bounds and package-manager provenance refusals. They
-observe owned-store presence before the control removes its own fallback root.
-The SIGSTOP/SIGTERM/SIGCONT boundary control is POSIX-only.
+removed fresh stores, late SIGTERM both at the ordinary closed-checkpoint
+diagnostic and during report finalization, invalid scale/repetition bounds and
+package-manager provenance refusals. They observe owned-store presence before
+the control removes its own fallback root. The interrupt controls are POSIX-only.
+
+Both shutdown windows a late signal must exercise are only a few milliseconds
+wide, so a control that merely watched stderr and signalled could not reach one
+reliably; it raced, and under shared-runner load it missed and reported the
+genuine kill as an intermittent failure. `BDP_PERF_HOLD_AT=closed|report` makes
+that rendezvous exact: the runner announces a `reference-perf.hold` event on
+stderr at the named point and holds the real process there until its interrupt
+is actually delivered, bounded at 10s. It is a lifecycle control for those
+committed cases, unset in ordinary and workflow runs, and it changes no measured
+operation. Interrupts are not simulated: the controls signal the real process
+and assert the real shutdown, exit code, report and removed owned store.
 
 ## pnpm entry provenance
 
