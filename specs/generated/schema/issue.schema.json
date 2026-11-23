@@ -1,0 +1,765 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/specs/generated/schema/issue.schema.json",
+  "$defs": {
+    "text": {
+      "description": "Free text — a nominal string.",
+      "type": "string"
+    },
+    "Issue": {
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "description": {
+              "type": "string"
+            },
+            "acceptanceCriteria": {
+              "type": "string"
+            },
+            "design": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "owner": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "assignee": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "estimatedMinutes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "specId": {
+              "type": "string"
+            },
+            "externalRef": {
+              "type": "string"
+            },
+            "sourceSystem": {
+              "type": "string"
+            },
+            "startedAt": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            },
+            "closedAt": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            },
+            "closeReason": {
+              "type": "string"
+            },
+            "deferUntil": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            },
+            "dueAt": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            },
+            "pinned": {
+              "type": "boolean"
+            },
+            "isBlocked": {
+              "type": "boolean"
+            },
+            "blockedByCount": {
+              "type": "integer"
+            },
+            "labels": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              },
+              "uniqueItems": true
+            },
+            "comments": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              }
+            },
+            "dependencies": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              }
+            },
+            "createdBy": {
+              "type": "string"
+            },
+            "closedBySession": {
+              "type": "string"
+            },
+            "arrivalSeq": {
+              "type": "integer"
+            },
+            "leaseExpiresAt": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            },
+            "heartbeatAt": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            },
+            "leaseGrantedNode": {
+              "type": "string"
+            },
+            "compactionLevel": {
+              "type": "integer"
+            },
+            "compactedAt": {
+              "$ref": "core.schema.json#/$defs/Timestamp"
+            }
+          },
+          "required": [
+            "title",
+            "status",
+            "priority",
+            "isBlocked",
+            "blockedByCount",
+            "labels",
+            "comments",
+            "dependencies",
+            "createdBy",
+            "closedBySession",
+            "arrivalSeq",
+            "leaseExpiresAt",
+            "heartbeatAt",
+            "leaseGrantedNode",
+            "compactionLevel",
+            "compactedAt"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Bug": {
+      "description": "Bug — a defect.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Feature": {
+      "description": "Feature — a new capability.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Task": {
+      "description": "Task — a unit of work with no finer classification.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Chore": {
+      "description": "Chore — maintenance or housekeeping work.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Decision": {
+      "description": "Decision — a decision record (often linked by `Supersedes` / `RelatesTo`).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Spike": {
+      "description": "Spike — a timeboxed investigation to reduce uncertainty.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Story": {
+      "description": "Story — a user story: a feature from the user's perspective.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Epic": {
+      "description": "Epic — a parent that aggregates child issues. Its rollups are COMPUTED over the `ParentChild` edges, not stored columns.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "totalChildren": {
+              "type": "integer"
+            },
+            "closedChildren": {
+              "type": "integer"
+            },
+            "closeable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "totalChildren",
+            "closedChildren",
+            "closeable"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Milestone": {
+      "description": "Milestone — marks completion of a set of related issues; holds no work of its own. Its completion is COMPUTED over the issues that target it.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "closeable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "closeable"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Message": {
+      "description": "Message — an inter-agent message. Carries a sender; lives on the ephemeral (wisp) plane (see §1.1.2).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sender": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Molecule": {
+      "description": "Molecule — a swarm/patrol/work coordination unit; `advanceMolecule` (§2.B) steps it.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "molType": {
+              "$ref": "#/$defs/MolType"
+            },
+            "workType": {
+              "$ref": "#/$defs/WorkType"
+            },
+            "isTemplate": {
+              "type": "boolean"
+            },
+            "bondedFrom": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/BondRef"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Gate": {
+      "description": "Gate — an async coordination primitive: it waits on a condition and clears.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "awaitType": {
+              "type": "string"
+            },
+            "awaitId": {
+              "type": "string"
+            },
+            "timeout": {
+              "$ref": "#/$defs/Duration"
+            },
+            "waiters": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sourceFormula": {
+              "type": "string"
+            },
+            "sourceLocation": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Event": {
+      "description": "Event — an operational state change (append-only); lives on the ephemeral (wisp) plane.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Issue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "eventKind": {
+              "type": "string"
+            },
+            "actor": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "payload": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "MolType": {
+      "description": "MolType — molecule coordination kind.",
+      "enum": [
+        "swarm",
+        "patrol",
+        "work"
+      ]
+    },
+    "WorkType": {
+      "description": "WorkType — assignment model.",
+      "enum": [
+        "mutex",
+        "open_competition"
+      ]
+    },
+    "Duration": {
+      "description": "Duration — a time span (e.g. a gate timeout); wire form (ISO-8601 vs native span) is a small open.",
+      "type": "string"
+    },
+    "BondRef": {
+      "description": "BondRef — a reference to a constituent proto in a compound molecule's lineage.",
+      "$ref": "core.schema.json#/$defs/ResourceRef"
+    },
+    "IssueLabel": {
+      "description": "IssueLabel — a named tag on an issue (the as-built label).",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "issue": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "issue",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "IssueComment": {
+      "description": "IssueComment — free-text commentary on an issue (the as-built comment). Many per issue; no natural key.",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "issue": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            },
+            "author": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "issue",
+            "body"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Dependency": {
+      "description": "Dependency — a relationship FROM an Issue, carried as a first-class edge resource. It has its own identity, revision history and provenance; `createdBy`/`threadId` are ordinary body properties, not a second-class metadata bag. `unique` keys the edge by its natural key (source, target); its id derives deterministically — at most one Dependency of a given concrete type between a given pair.",
+      "$comment": "UNLOWERED: unique rel<Issue, resource> {\n  createdBy?: text,\n  threadId?:  text,\n}"
+    },
+    "ReadyAffecting": {
+      "description": "ReadyAffecting — an edge that affects an issue's ready-work status; both endpoints are Issues. Abstract. NOT acyclic as a whole (`WaitsFor` permits mutual waits — see §1.3).",
+      "$comment": "UNLOWERED: Dependency rel<Issue, Issue> {}"
+    },
+    "HardBlocking": {
+      "description": "HardBlocking — a hard dependency (⊂ ready-affecting): an open edge where the SOURCE depends on the TARGET — while the target is unclosed the source is blocked (not ready), and the target is the blocker. Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/ReadyAffecting"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Blocks": {
+      "description": "Blocks — the default hard dependency: the SOURCE depends on the TARGET. `a Blocks b` ⇒ a is blocked, b is the blocker; a is not ready until b closes, and closing b unblocks a. Matches native `bd dep add <source> <target>` — source = the blocked/dependent issue (`issue_id`), target = what it depends on (`depends_on_id`). The default dependency type. ACYCLIC (a cycle is a deadlock).",
+      "$comment": "UNLOWERED: HardBlocking, acyclic rel<Issue, Issue> {}"
+    },
+    "ConditionalBlocks": {
+      "description": "ConditionalBlocks — \"B runs only if A fails\"; a conditional block. ACYCLIC.",
+      "$comment": "UNLOWERED: HardBlocking, acyclic rel<Issue, Issue> {}"
+    },
+    "WaitsFor": {
+      "description": "WaitsFor — a fanout gate: wait for dynamically-discovered children. NOT acyclic — a mutual wait is legitimate gate semantics, not a deadlock.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/HardBlocking"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ParentChild": {
+      "description": "ParentChild — hierarchy: `source` is the parent of `target`. Ready-affecting and structural, NOT hard-blocking; the hierarchy is ACYCLIC.",
+      "$comment": "UNLOWERED: ReadyAffecting, acyclic rel<Issue, Issue> {}"
+    },
+    "Related": {
+      "description": "Related — a generic relation between two issues.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DiscoveredFrom": {
+      "description": "DiscoveredFrom — this issue was discovered while working the target.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RepliesTo": {
+      "description": "RepliesTo — conversation threading: a reply to the target.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RelatesTo": {
+      "description": "RelatesTo — a loose knowledge-graph edge.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Duplicates": {
+      "description": "Duplicates — a deduplication link: this issue duplicates the target.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Supersedes": {
+      "description": "Supersedes — a replacement link: the target is superseded by this issue. NOT a version relation.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AuthoredBy": {
+      "description": "AuthoredBy — creator relationship; target is a principal, not an Issue.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AssignedTo": {
+      "description": "AssignedTo — assignment relationship; target is a principal.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ApprovedBy": {
+      "description": "ApprovedBy — approval relationship; target is a principal.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Attests": {
+      "description": "Attests — skill attestation (\"source attests target has a skill\"); target is a skill/claim.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Tracks": {
+      "description": "Tracks — a convoy→issue tracking edge; non-blocking.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Until": {
+      "description": "Until — active until the target closes (e.g. muted until an issue resolves).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CausedBy": {
+      "description": "CausedBy — triggered by the target (audit trail); target is often an event.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Validates": {
+      "description": "Validates — a validation relationship.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DelegatedFrom": {
+      "description": "DelegatedFrom — work delegated from the target (a parent/principal); completion cascades up.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Dependency"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ClaimError": {
+      "description": "Domain refusals of `claimIssue`.",
+      "enum": [
+        "already-claimed",
+        "closed"
+      ]
+    },
+    "ClaimNextError": {
+      "description": "Domain refusal of `claimNextIssue`.",
+      "const": "none-ready"
+    },
+    "ReleaseError": {
+      "description": "Domain refusals of `releaseIssue`.",
+      "enum": [
+        "not-claimed",
+        "not-owner"
+      ]
+    },
+    "HeartbeatError": {
+      "description": "Domain refusals of `heartbeatIssue`.",
+      "enum": [
+        "not-claimed",
+        "not-owner",
+        "lease-expired"
+      ]
+    },
+    "CloseError": {
+      "description": "Domain refusal of `closeIssue`.",
+      "const": "already-closed"
+    },
+    "ReopenError": {
+      "description": "Domain refusal of `reopenIssue`.",
+      "const": "not-closed"
+    },
+    "AdvanceError": {
+      "description": "Domain refusals of `advanceMolecule`.",
+      "enum": [
+        "not-a-molecule",
+        "no-next-step",
+        "gate-unmet"
+      ]
+    },
+    "CasError": {
+      "description": "Domain refusal of `compareAndSetMetadata` (optimistic concurrency).",
+      "const": "expectation-mismatch"
+    },
+    "DepAddError": {
+      "description": "Domain refusal of `addDependency` — the edge would create a cycle in an acyclic graph.",
+      "const": "would-cycle"
+    }
+  }
+}

@@ -219,41 +219,49 @@ def parse_field(field):
         sch = {**sch, "default": default}
     return nm, opt, sch
 
-# --- pass 1: collect `## Name` declarations with desc, jsonschema hint, body ------
+# --- pass 1: collect declarations. Works for both the `## Name` + `type Name` style
+# (core.lumen) and the bare `/// desc` + `type Name` style (packs): the name comes from
+# the `type`/`command`/`fn` line itself; buffered `/// description` / `/// jsonschema`
+# attach to the next declaration.
+DECL_RE = re.compile(
+    r'^(?:abstract\s+)?(?:type|idempotent\s+command|safe\s+command|command|fn)\s+([A-Za-z_]\w*)')
 decls = []
 i, n = 0, len(src)
+desc, js_hint = None, {}
 while i < n:
-    m = re.match(r'^## (\S.*)$', src[i])
-    if not m:
+    l = src[i]; s = l.strip()
+    dm = re.match(r'^/// description: ?(.*)$', l)
+    jm = re.match(r'^/// jsonschema\s*=\s*\{(.*)\}\s*$', l)
+    if dm:
+        desc = dm.group(1).strip(); i += 1; continue
+    if jm:
+        js_hint.update(parse_meta(jm.group(1))); i += 1; continue
+    if s.startswith('///'):                        # other `///` metadata — keep pending desc/js
         i += 1; continue
-    name = m.group(1).strip()
+    dmatch = DECL_RE.match(s)
+    if dmatch:
+        name, body, bdepth = dmatch.group(1), [], 0
+        while i < n:
+            ln = src[i]; st = ln.strip()
+            # once the decl is balanced and non-empty, the next decl / metadata / blank /
+            # comment / section ends it (packs put declarations back-to-back)
+            if body and bdepth <= 0 and (
+                    st == '' or st.startswith('///') or st.startswith('//')
+                    or DECL_RE.match(st) or re.match(r'^## ', ln)
+                    or re.match(r'^// [#=]{5,}', ln) or re.match(r'^// -{5,}', ln)):
+                break
+            if st == '' or st.startswith('///') or st.startswith('//'):
+                i += 1; continue                    # interior blank / param-/// / comment (bdepth>0)
+            code = re.sub(r'\s+//.*$', '', ln)
+            body.append(code)
+            bdepth += code.count('{') + code.count('[') - code.count('}') - code.count(']')
+            i += 1
+        decls.append({'name': name, 'desc': desc, 'js': js_hint, 'body': body})
+        desc, js_hint = None, {}
+        continue
+    if s == '' or s.startswith('##'):              # blank / section header resets pending meta
+        desc, js_hint = None, {}
     i += 1
-    desc, js_hint, body, in_decl, bdepth = None, {}, [], False, 0
-    while i < n:
-        l = src[i]
-        if re.match(r'^## ', l) or re.match(r'^// [#=]{5,}', l) or re.match(r'^// -{5,}', l):
-            break
-        s = l.strip()
-        if s == '':
-            if in_decl and bdepth <= 0: break     # blank line ends a BALANCED decl only
-            i += 1; continue
-        dm = re.match(r'^/// description: ?(.*)$', l)
-        jm = re.match(r'^/// jsonschema\s*=\s*\{(.*)\}\s*$', l)
-        if not in_decl and dm:
-            desc = dm.group(1).strip(); i += 1; continue
-        if not in_decl and jm:
-            js_hint.update(parse_meta(jm.group(1))); i += 1; continue
-        if s.startswith('///'):                   # any other doc-comment — skip
-            i += 1; continue
-        if s.startswith('//'):                     # plain comment
-            if in_decl and bdepth <= 0: break      # after the balanced decl — ends it
-            i += 1; continue                        # leading / interior-record comment — skip
-        in_decl = True
-        code = re.sub(r'\s+//.*$', '', l)           # strip trailing inline comment
-        body.append(code)
-        bdepth += code.count('{') + code.count('[') - code.count('}') - code.count(']')
-        i += 1
-    decls.append({'name': name, 'desc': desc, 'js': js_hint, 'body': body})
 
 def split_arms(body):
     # DU arms: each is a "literal", a bare `Name`/`Ref<...>`, or `Name { ... }`.
