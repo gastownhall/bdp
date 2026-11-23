@@ -64,7 +64,26 @@ def main():
         except Exception as error:   # noqa: BLE001 — report any malformed artifact
             fail.append(f"{os.path.relpath(f, ROOT)}: invalid JSON: {error}")
 
-    # 3. compilability — a resolvable $ref name is NOT enough. A def shaped
+    # 3. degenerate cycles — a def whose ENTIRE body is a $ref to itself has no base
+    # case and no validator can build it. Static and toolchain-free, so this class stays
+    # caught even where the Node/Ajv pass below cannot run, and it names the offender
+    # precisely instead of reporting a stack overflow.
+    #
+    # The predicate is deliberately NOT "is this def self-referential". At aa439827 three
+    # defs referred to themselves and only one was broken: `BeadSchema` and `Retention`
+    # carry their self-$ref inside a `oneOf` arm beside non-recursive siblings, which is
+    # legitimate recursion with a base case. Testing self-reference would have cried wolf
+    # on both while still needing a validator to tell them apart.
+    for name, b in bundles.items():
+        for def_name, body in (b.get("$defs") or {}).items():
+            if not isinstance(body, dict):
+                continue
+            if (set(body) - {"description", "$comment", "title"} == {"$ref"}
+                    and body.get("$ref") == f"#/$defs/{def_name}"):
+                fail.append(f"{name}: $defs/{def_name} is a degenerate self-cycle — its "
+                            f"whole body is a $ref to itself, so it has no base case")
+
+    # 4. compilability — a resolvable $ref name is NOT enough. A def shaped
     # {"$ref": "#/$defs/Self"} passes pass 2 and then blows a validator's stack, which
     # is how an uncompilable $defs/Resource shipped while this gate said "all $refs
     # resolve". Compile every def in a real 2020-12 validator (the one
