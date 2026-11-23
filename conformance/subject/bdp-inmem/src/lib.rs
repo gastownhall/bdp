@@ -615,6 +615,10 @@ impl BdpScope for InMemScope {
             PrimitiveCapabilities::Export(ExportCaps { revisions: true }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
+            // `async_supported: false` — this store settles every call synchronously. It mints no
+            // `AsyncResult`, so `?mode=async` is unimplemented rather than merely unused, and
+            // advertising it would promise a 202 + Location this store cannot produce.
+            PrimitiveCapabilities::Call(CallCaps { async_supported: false }),
             PrimitiveCapabilities::List(ListCaps {
                 conditions: vec![
                     ConditionKind::Compare,
@@ -864,6 +868,92 @@ impl BdpScope for InMemScope {
             }
             ImportStrategy::HistoryRestore => Ok(BdpResult::not_implemented()),
         }
+    }
+
+    /// call — invoke an Operation bead.
+    ///
+    /// This store has no execution engine of its own, so it offers a CLOSED, declared set of
+    /// built-in implementations and an Operation bead selects one by name. That set is the
+    /// SUBJECT's own business: no spec row depends on what an operation computes, only on the
+    /// dispatch rule and on the `Outcome` the call settles into. Two built-ins are enough to
+    /// reach both arms the binding projects to a status.
+    ///
+    /// The dispatch rule (core.lumen, `## call`) decides what may be returned here:
+    ///
+    ///   PRE-dispatch failure  -> a bare `Problem`, NO `Outcome`. The operation never ran.
+    ///   POST-dispatch failure -> rides the `Outcome` (`Result.failure`, `fault`, `canceled`).
+    ///
+    /// So an unresolvable `operation` is an `Err` (a Problem) and a *declared* failure is an
+    /// `Ok` carrying a settled `Outcome`. Collapsing the two would erase the only distinction
+    /// that says whether the operation ran.
+    async fn call(&self, operation: &ResourceId, request: Request)
+        -> Result<BdpResult<CallOutcome>, BdpError> {
+        // --- PRE-dispatch: resolve the operation. Faults as a Problem, no Outcome.
+        let implementation = {
+            let store = self.store.read().unwrap();
+            let scope = self.scope_str(&operation.scope);
+            let id = operation.id.0.to_string();
+            let row = match &operation.rev {
+                Some(rev) => store.at_rev(&scope, &id, rev.0.as_ref()),
+                None => store.head(&scope, &id),
+            };
+            let row = row.ok_or_else(|| BdpError::NotFound(operation.clone()))?;
+            if row.op == "delete" {
+                return Err(BdpError::Erased { id: operation.clone(), at: Rev(row.rev.clone().into()) });
+            }
+            builtin_of(row.properties.as_deref())
+        };
+
+        // Still pre-dispatch: a resource that resolves but names no built-in this store has is
+        // an unresolvable operation, not a failed one. Same Problem channel, still no Outcome.
+        let Some(builtin) = implementation else {
+            return Err(BdpError::NotFound(operation.clone()));
+        };
+
+        // --- POST-dispatch: the operation ran, so whatever happened rides the Outcome.
+        //
+        // `Outcome` lowers INTERNALLY TAGGED — `kind` is explicit in the body precisely so a
+        // reader never infers the arm from the HTTP status. The status is the binding's
+        // projection of this `kind`, not a second source of truth, so it is not computed here.
+        let outcome = match builtin {
+            Builtin::Echo => {
+                let args = json_str(&RawJson(request.0 .0.clone()));
+                format!(r#"{{"kind":"success","value":{args}}}"#)
+            }
+            // An operation's own "no" — the ONE declared failure in the protocol. `error` is the
+            // operation's declared `E`, NOT a Problem: a Problem here would claim the operation
+            // could not run when in fact it ran and said no.
+            Builtin::AlwaysRefuses => {
+                r#"{"kind":"failure","error":{"code":"refused","detail":"this operation always refuses"}}"#
+                    .to_string()
+            }
+        };
+        let reply = format!(
+            // `cause` and `callId` are REQUIRED members of `Reply`; `transaction` and `metadata`
+            // are optional and omitted rather than sent empty.
+            r#"{{"outcome":{outcome},"cause":{{"id":"inmem-cause"}},"callId":{{"id":"inmem-call"}}}}"#
+        );
+        Ok(BdpResult::ok(CallOutcome::Reply(Reply(RawJson(Bytes::from(reply.into_bytes()))))))
+    }
+}
+
+/// The closed built-in set. Adding an arm is a SUBJECT change and moves no row.
+#[derive(Clone, Copy, Debug)]
+enum Builtin {
+    /// Succeeds, carrying the request's arguments back as the value.
+    Echo,
+    /// Settles on the declared-failure arm — the 409 producer.
+    AlwaysRefuses,
+}
+
+/// Read an Operation bead's chosen built-in out of its `properties`. Unknown or absent ⇒ `None`,
+/// which the caller treats as an unresolvable operation (pre-dispatch), never as a failure.
+fn builtin_of(properties: Option<&str>) -> Option<Builtin> {
+    let v: serde_json::Value = serde_json::from_str(properties.unwrap_or("{}")).ok()?;
+    match v.get("implementation")?.as_str()? {
+        "echo" => Some(Builtin::Echo),
+        "always-refuses" => Some(Builtin::AlwaysRefuses),
+        _ => None,
     }
 }
 

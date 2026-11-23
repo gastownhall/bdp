@@ -42,22 +42,28 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 18/54**, across three case families:
+**Current coverage: 20/54**, across three case families:
 
-- **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
-  InMemScope implements).
+- **Typed happy-path** — `op/{create,get,put,patch,delete,call}` (the primitives the Server routes
+  and InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/404`, `delete/412`, `put/409`, `put/412` (triggered through the typed `RemoteScope`).
+  `delete/404`, `delete/412`, `put/409`, `put/412`, `call/409` (triggered through the typed
+  `RemoteScope`).
 - **Raw-HTTP protocol faults** — `create/400`, `put/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 36 rows are uncovered for concrete, recorded reasons:
+The remaining 34 rows are uncovered for concrete, recorded reasons:
 
-- **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
-  `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the
-  spike" → 501), and `RemoteScope` has no client method for them. Fixing the subject is in scope
-  (see below), so this is work rather than a blocked decision.
+- **~18 rows need the subject to route/implement 7 more primitives** — `list`, `export`, `import`,
+  `pull`, `push`, `cancel`, `revisions`. These are now ROUTED by the fence but answer `501`
+  ("not implemented by this scope"), and `RemoteScope` has no client method for them. *Routed but
+  not implemented* is a different statement from *unroutable*, and the gate can tell them apart.
+  Fixing the subject is in scope (see below), so this is work rather than a blocked decision.
+- **`call`'s two remaining declared faults are not among them.** `call` declares `[409]` only, and
+  that row is covered. Its other reachable faults — an unresolvable `operation` is a pre-dispatch
+  `404` — are **undeclared**, so the gate cannot count them. That is the subset property below,
+  observed on a primitive whose producer the spec itself mandates, rather than hypothesised.
 - **The faults on routed ops are NOT reachable by probing — measured, not estimated.** This list
   previously claimed ~14 of them were "reachable with more raw-HTTP probing". That was speculation and
   it was wrong: every candidate was probed against the subject and **none is producible without a
