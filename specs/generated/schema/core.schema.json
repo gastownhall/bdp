@@ -10,7 +10,7 @@
       "description": "The decoder ring for every id — the namespace an `id` resolves in, and so how to read the `id`. The one place the three readings are defined; everything that carries an id is read through this.",
       "oneOf": [
         {
-          "$ref": "#/$defs/null"
+          "type": "null"
         },
         {
           "$ref": "#/$defs/BdpScope"
@@ -33,9 +33,18 @@
       "type": "object",
       "properties": {
         "scope": {
-          "$comment": "UNLOWERED: Scope id: string rev?: Rev"
+          "$ref": "#/$defs/Scope"
+        },
+        "id": {
+          "type": "string"
+        },
+        "rev": {
+          "$ref": "#/$defs/Rev"
         }
       },
+      "required": [
+        "id"
+      ],
       "additionalProperties": false
     },
     "ResourceRef": {
@@ -76,7 +85,7 @@
           "type": "object",
           "properties": {
             "rev": {
-              "$ref": "#/$defs/null"
+              "type": "null"
             }
           },
           "required": [
@@ -91,11 +100,32 @@
       "type": "object",
       "properties": {
         "id": {
-          "$comment": "UNLOWERED: ResourceId authority?: Authority type: PathString body: T metadata?: Metadata provenance?: Provenance createdAt?: Timestamp storageClass?: StorageClass"
+          "$ref": "#/$defs/ResourceId"
+        },
+        "authority": {
+          "$ref": "#/$defs/Authority"
+        },
+        "type": {
+          "$ref": "#/$defs/PathString"
+        },
+        "body": {},
+        "metadata": {
+          "$ref": "#/$defs/Metadata"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "storageClass": {
+          "$ref": "#/$defs/StorageClass"
         }
       },
       "required": [
-        "id"
+        "id",
+        "type",
+        "body"
       ],
       "additionalProperties": false
     },
@@ -201,37 +231,19 @@
     },
     "IdentityBasis": {
       "description": "How a service established a principal's identity.",
-      "oneOf": [
-        {
-          "const": "writer-supplied"
-        },
-        {
-          "const": "channel-authenticated"
-        },
-        {
-          "const": "unknown"
-        }
-      ],
-      "discriminator": {
-        "propertyName": "kind"
-      }
+      "enum": [
+        "writer-supplied",
+        "channel-authenticated",
+        "unknown"
+      ]
     },
     "StorageClass": {
       "description": "How a Resource is kept — whether it is persisted, not whether it is versioned (that is the scope's revision model). Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).",
-      "oneOf": [
-        {
-          "$ref": "#/$defs/Durable"
-        },
-        {
-          "$ref": "#/$defs/Ephemeral"
-        },
-        {
-          "$ref": "#/$defs/Intrinsic"
-        }
-      ],
-      "discriminator": {
-        "propertyName": "kind"
-      }
+      "enum": [
+        "durable",
+        "ephemeral",
+        "intrinsic"
+      ]
     },
     "Timestamp": {
       "description": "RFC 3339 date-time; uppercase `T` and `Z`.",
@@ -305,16 +317,53 @@
           "type": "object",
           "properties": {
             "refines": {
-              "$comment": "UNLOWERED: TypeRef abstract?: bool properties: [ PropertyDeclaration ]"
+              "$ref": "#/$defs/TypeRef"
+            },
+            "abstract": {
+              "type": "boolean"
+            },
+            "properties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/PropertyDeclaration"
+              }
             }
           },
+          "required": [
+            "properties"
+          ],
           "additionalProperties": false
         }
       ]
     },
     "PropertyDeclaration": {
       "description": "One property in a type's body — its name, its type, and its access mode. `computed` marks a derived, revision-transparent property (see §1.8); `initOnly` / `serviceManaged` / `readOnly` are the sibling write-access modes. Property optionality rides the property's `type`.",
-      "$comment": "UNLOWERED: { name:            string, type:            BeadSchema, computed?:       bool, initOnly?:       bool"
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/BeadSchema"
+        },
+        "computed": {
+          "type": "boolean"
+        },
+        "initOnly": {
+          "type": "boolean"
+        },
+        "serviceManaged": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false
     },
     "ParameterDeclaration": {
       "description": "One parameter of an operation — its name, its type, and whether it is required. A default value is NOT a core concern; it is a CLI surface hint carried outside the protocol.",
@@ -340,54 +389,229 @@
       "description": "A type written down as a value — the ref-preserving type representation. (A `schema` has no identity, so a type-as-value is a `schema`.)",
       "oneOf": [
         {
-          "$ref": "#/$defs/Scalar",
-          "of": "string\" | \"number\" | \"bool\" | \"bytes"
-        },
-        {
-          "$ref": "#/$defs/Literal",
-          "value": "any"
-        },
-        {
-          "$ref": "#/$defs/Nominal",
-          "name": "string",
-          "base": "BeadSchema"
-        },
-        {
-          "$ref": "#/$defs/Record",
-          "fields": [
-            "{ name: string, type: BeadSchema, required: bool }"
+          "type": "object",
+          "properties": {
+            "of": {
+              "enum": [
+                "string",
+                "number",
+                "bool",
+                "bytes"
+              ]
+            },
+            "kind": {
+              "const": "scalar"
+            }
+          },
+          "required": [
+            "kind",
+            "of"
           ],
-          "open": "bool"
+          "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/DU",
-          "arms": [
-            "{ tag: string, payload?: BeadSchema }"
-          ]
+          "type": "object",
+          "properties": {
+            "value": {},
+            "kind": {
+              "const": "literal"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/Union",
-          "options": [
-            "BeadSchema"
-          ]
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "base": {
+              "$ref": "#/$defs/BeadSchema"
+            },
+            "refinement": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true
+            },
+            "kind": {
+              "const": "nominal"
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "base"
+          ],
+          "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/Array",
-          "element": "BeadSchema"
+          "type": "object",
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "$ref": "#/$defs/BeadSchema"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "type",
+                  "required"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "open": {
+              "type": "boolean"
+            },
+            "kind": {
+              "const": "record"
+            }
+          },
+          "required": [
+            "kind",
+            "fields",
+            "open"
+          ],
+          "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/Set",
-          "element": "BeadSchema"
+          "type": "object",
+          "properties": {
+            "arms": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "tag": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "$ref": "#/$defs/BeadSchema"
+                  }
+                },
+                "required": [
+                  "tag"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "kind": {
+              "const": "d-u"
+            }
+          },
+          "required": [
+            "kind",
+            "arms"
+          ],
+          "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/TypeRef",
-          "to": "TypeRef"
+          "type": "object",
+          "properties": {
+            "options": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/BeadSchema"
+              }
+            },
+            "kind": {
+              "const": "union"
+            }
+          },
+          "required": [
+            "kind",
+            "options"
+          ],
+          "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/JsonSchema",
-          "text": "string"
+          "type": "object",
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/BeadSchema"
+            },
+            "kind": {
+              "const": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "element"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/BeadSchema"
+            },
+            "on": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LocalName"
+              }
+            },
+            "kind": {
+              "const": "set"
+            }
+          },
+          "required": [
+            "kind",
+            "element"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "to": {
+              "$ref": "#/$defs/TypeRef"
+            },
+            "kind": {
+              "const": "type-ref"
+            }
+          },
+          "required": [
+            "kind",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "json-schema"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "additionalProperties": false
         }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "kind"
+      }
     },
     "LocalName": {
       "description": "A short identifier token for a view or a well-known name; leading letter.",
@@ -399,9 +623,15 @@
       "type": "object",
       "properties": {
         "authority": {
-          "$comment": "UNLOWERED: PackageRef path: ElementPath"
+          "$ref": "#/$defs/PackageRef"
+        },
+        "path": {
+          "$ref": "#/$defs/ElementPath"
         }
       },
+      "required": [
+        "path"
+      ],
       "additionalProperties": false
     },
     "ElementPath": {
@@ -430,22 +660,33 @@
           "type": "object",
           "properties": {
             "pushSchema": {
-              "oneOf": [
-                {
-                  "$comment": "UNLOWERED: BeadSchema pullSchema?: BeadSchema direction: \"source\""
-                },
-                {
-                  "const": "sink"
-                },
-                {
-                  "$comment": "UNLOWERED: \"duplex\" retention: Retention cardinality: \"single\""
-                },
-                {
-                  "const": "broadcast"
-                }
+              "$ref": "#/$defs/BeadSchema"
+            },
+            "pullSchema": {
+              "$ref": "#/$defs/BeadSchema"
+            },
+            "direction": {
+              "enum": [
+                "source",
+                "sink",
+                "duplex"
+              ]
+            },
+            "retention": {
+              "$ref": "#/$defs/Retention"
+            },
+            "cardinality": {
+              "enum": [
+                "single",
+                "broadcast"
               ]
             }
           },
+          "required": [
+            "direction",
+            "retention",
+            "cardinality"
+          ],
           "additionalProperties": false
         }
       ]
@@ -454,10 +695,7 @@
       "description": "How far back a cursor can resume; below the floor a cursor faults `cursor-expired` and the reader resyncs (list-bootstrap + follow from head).",
       "oneOf": [
         {
-          "$ref": "#/$defs/Forever"
-        },
-        {
-          "$ref": "#/$defs/Window"
+          "const": "forever"
         },
         {
           "type": "object",
@@ -471,25 +709,32 @@
             },
             "amount": {
               "type": "integer"
+            },
+            "kind": {
+              "const": "window"
             }
           },
           "required": [
+            "kind",
             "by",
             "amount"
           ],
           "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/Compacted"
-        },
-        {
           "type": "object",
           "properties": {
             "window": {
               "$ref": "#/$defs/Retention"
+            },
+            "kind": {
+              "const": "compacted"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
         }
       ],
       "discriminator": {
@@ -607,37 +852,39 @@
       "description": "The fate of one offered event.",
       "oneOf": [
         {
-          "$ref": "#/$defs/Accepted"
+          "type": "object",
+          "properties": {
+            "ordinal": {
+              "$ref": "#/$defs/Ordinal"
+            },
+            "kind": {
+              "const": "accepted"
+            }
+          },
+          "required": [
+            "kind",
+            "ordinal"
+          ],
+          "additionalProperties": false
         },
         {
           "type": "object",
           "properties": {
             "ordinal": {
               "$ref": "#/$defs/Ordinal"
+            },
+            "kind": {
+              "const": "deduped"
             }
           },
           "required": [
+            "kind",
             "ordinal"
           ],
           "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/Deduped"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "ordinal": {
-              "$ref": "#/$defs/Ordinal"
-            }
-          },
-          "required": [
-            "ordinal"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/Deferred"
+          "const": "deferred"
         }
       ],
       "discriminator": {
@@ -654,7 +901,20 @@
           "type": "object",
           "properties": {
             "signature": {
-              "$comment": "UNLOWERED: Signature implementation?: any pure?: bool safe?: bool idempotent?: bool atomic?: bool"
+              "$ref": "#/$defs/Signature"
+            },
+            "implementation": {},
+            "pure": {
+              "type": "boolean"
+            },
+            "safe": {
+              "type": "boolean"
+            },
+            "idempotent": {
+              "type": "boolean"
+            },
+            "atomic": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -669,17 +929,26 @@
       "type": "object",
       "properties": {
         "parameters": {
-          "oneOf": [
-            {
-              "$comment": "UNLOWERED: [ ParameterDeclaration ] success?: BeadSchema failure?: BeadSchema async?: \"no\""
-            },
-            {
-              "const": "optional"
-            },
-            {
-              "$comment": "UNLOWERED: \"required\" creates?: bool"
-            }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParameterDeclaration"
+          }
+        },
+        "success": {
+          "$ref": "#/$defs/BeadSchema"
+        },
+        "failure": {
+          "$ref": "#/$defs/BeadSchema"
+        },
+        "async": {
+          "enum": [
+            "no",
+            "optional",
+            "required"
           ]
+        },
+        "creates": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -703,14 +972,58 @@
     },
     "Request": {
       "description": "What a caller sends to `call`. `arguments` is a name/value list whose shape the Operation's `parameters` dictate.",
-      "$comment": "UNLOWERED: { arguments:      [ { name: string, value: any } ], async:          bool = false, causedBy?:      Cause, calledBy?:      CallId, provenance?:    Provenance, idempotencyKey: IdempotencyKey"
+      "type": "object",
+      "properties": {
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {}
+            },
+            "required": [
+              "name",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "async": {
+          "type": "boolean",
+          "default": false
+        },
+        "causedBy": {
+          "$ref": "#/$defs/Cause"
+        },
+        "calledBy": {
+          "$ref": "#/$defs/CallId"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "metadata": {
+          "$ref": "#/$defs/Metadata"
+        }
+      },
+      "required": [
+        "arguments",
+        "async",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
     },
     "Reply": {
       "description": "What a `call` returns — flat, no context wrapper. `outcome` keeps the domain `Result` nested in `Outcome`.",
       "type": "object",
       "properties": {
         "outcome": {
-          "$comment": "UNLOWERED: any, any"
+          "$ref": "#/$defs/Outcome"
         },
         "cause": {
           "$ref": "#/$defs/Cause"
@@ -736,31 +1049,29 @@
       "description": "A callable's own verdict — succeeded with a value, or failed with its declared error.",
       "oneOf": [
         {
-          "$ref": "#/$defs/success"
-        },
-        {
           "type": "object",
           "properties": {
-            "value": {
-              "$ref": "#/$defs/T"
+            "value": {},
+            "kind": {
+              "const": "success"
             }
           },
           "required": [
+            "kind",
             "value"
           ],
           "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/failure"
-        },
-        {
           "type": "object",
           "properties": {
-            "error": {
-              "$ref": "#/$defs/E"
+            "error": {},
+            "kind": {
+              "const": "failure"
             }
           },
           "required": [
+            "kind",
             "error"
           ],
           "additionalProperties": false
@@ -774,34 +1085,38 @@
       "description": "What happened to an invocation — the domain Result, or a non-domain fate.",
       "oneOf": [
         {
-          "$comment": "UNLOWERED: T, E"
-        },
-        {
-          "$ref": "#/$defs/fault"
+          "$ref": "#/$defs/Result"
         },
         {
           "type": "object",
           "properties": {
             "problem": {
               "$ref": "#/$defs/Problem"
+            },
+            "kind": {
+              "const": "fault"
             }
           },
           "required": [
+            "kind",
             "problem"
           ],
           "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/canceled"
         },
         {
           "type": "object",
           "properties": {
             "reason": {
               "type": "string"
+            },
+            "kind": {
+              "const": "canceled"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
         }
       ],
       "discriminator": {
@@ -896,11 +1211,17 @@
           "type": "object",
           "properties": {
             "semVer": {
-              "$comment": "UNLOWERED: SemVer elements:"
+              "$ref": "#/$defs/SemVer"
+            },
+            "elements": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true
             }
           },
           "required": [
-            "semVer"
+            "semVer",
+            "elements"
           ],
           "additionalProperties": false
         }
@@ -1021,9 +1342,6 @@
       "description": "One flat field condition. `isType` matches against the type-path (`type.id`): `prefix` ⊑ (the \"is it an issue(-ish)?\" test), `exact` =.",
       "oneOf": [
         {
-          "$ref": "#/$defs/compare"
-        },
-        {
           "type": "object",
           "properties": {
             "field": {
@@ -1040,17 +1358,18 @@
                 "in"
               ]
             },
-            "value": {}
+            "value": {},
+            "kind": {
+              "const": "compare"
+            }
           },
           "required": [
+            "kind",
             "field",
             "op",
             "value"
           ],
           "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/matches"
         },
         {
           "type": "object",
@@ -1067,9 +1386,13 @@
                 "glob",
                 "regex"
               ]
+            },
+            "kind": {
+              "const": "matches"
             }
           },
           "required": [
+            "kind",
             "field",
             "pattern",
             "using"
@@ -1077,37 +1400,20 @@
           "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/has"
-        },
-        {
           "type": "object",
           "properties": {
             "field": {
               "$ref": "#/$defs/FieldPath"
+            },
+            "kind": {
+              "const": "has"
             }
           },
           "required": [
+            "kind",
             "field"
           ],
           "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/missing"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "field": {
-              "$ref": "#/$defs/FieldPath"
-            }
-          },
-          "required": [
-            "field"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/contains"
         },
         {
           "type": "object",
@@ -1115,16 +1421,33 @@
             "field": {
               "$ref": "#/$defs/FieldPath"
             },
-            "value": {}
+            "kind": {
+              "const": "missing"
+            }
           },
           "required": [
-            "field",
-            "value"
+            "kind",
+            "field"
           ],
           "additionalProperties": false
         },
         {
-          "$ref": "#/$defs/containsAny"
+          "type": "object",
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/FieldPath"
+            },
+            "value": {},
+            "kind": {
+              "const": "contains"
+            }
+          },
+          "required": [
+            "kind",
+            "field",
+            "value"
+          ],
+          "additionalProperties": false
         },
         {
           "type": "object",
@@ -1135,16 +1458,17 @@
             "values": {
               "type": "array",
               "items": {}
+            },
+            "kind": {
+              "const": "contains-any"
             }
           },
           "required": [
+            "kind",
             "field",
             "values"
           ],
           "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/excludes"
         },
         {
           "type": "object",
@@ -1152,16 +1476,17 @@
             "field": {
               "$ref": "#/$defs/FieldPath"
             },
-            "value": {}
+            "value": {},
+            "kind": {
+              "const": "excludes"
+            }
           },
           "required": [
+            "kind",
             "field",
             "value"
           ],
           "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/isType"
         },
         {
           "type": "object",
@@ -1175,9 +1500,13 @@
                 "prefix"
               ],
               "default": "prefix"
+            },
+            "kind": {
+              "const": "is-type"
             }
           },
           "required": [
+            "kind",
             "type",
             "match"
           ],
@@ -1331,7 +1660,7 @@
       "type": "object",
       "properties": {
         "outcome": {
-          "$comment": "UNLOWERED: any, any"
+          "$ref": "#/$defs/Outcome"
         }
       },
       "required": [
@@ -1343,22 +1672,20 @@
       "description": "The change payload for Updated — full-vs-patch, the encoding axis (orthogonal to lifecycle).",
       "oneOf": [
         {
-          "$ref": "#/$defs/full"
-        },
-        {
           "type": "object",
           "properties": {
             "representation": {
               "$ref": "#/$defs/Resource"
+            },
+            "kind": {
+              "const": "full"
             }
           },
           "required": [
+            "kind",
             "representation"
           ],
           "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/patch"
         },
         {
           "type": "object",
@@ -1368,9 +1695,13 @@
             },
             "provenance": {
               "$ref": "#/$defs/Provenance"
+            },
+            "kind": {
+              "const": "patch"
             }
           },
           "required": [
+            "kind",
             "patch",
             "provenance"
           ],
@@ -1403,7 +1734,8 @@
           "const": "export-begin"
         },
         "scope": {
-          "$ref": "#/$defs/AbsoluteHttpUrl"
+          "type": "string",
+          "format": "uri"
         },
         "cursor": {
           "$ref": "#/$defs/Cursor"
@@ -1503,7 +1835,8 @@
           "$ref": "#/$defs/BdpScope"
         },
         "base": {
-          "$ref": "#/$defs/AbsoluteHttpUrl"
+          "type": "string",
+          "format": "uri"
         },
         "links": {
           "$ref": "#/$defs/ServiceLinks"
@@ -1520,16 +1853,20 @@
       "type": "object",
       "properties": {
         "serviceDesc": {
-          "$ref": "#/$defs/AbsoluteHttpUrl"
+          "type": "string",
+          "format": "uri"
         },
         "serviceMeta": {
-          "$ref": "#/$defs/AbsoluteHttpUrl"
+          "type": "string",
+          "format": "uri"
         },
         "serviceDoc": {
-          "$ref": "#/$defs/AbsoluteHttpUrl"
+          "type": "string",
+          "format": "uri"
         },
         "changes": {
-          "$ref": "#/$defs/AbsoluteHttpUrl"
+          "type": "string",
+          "format": "uri"
         }
       },
       "additionalProperties": false

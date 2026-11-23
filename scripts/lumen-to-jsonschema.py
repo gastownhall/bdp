@@ -28,6 +28,11 @@ BUNDLE_ID = "https://github.com/gastownhall/bdp/specs/generated/schema/core.sche
 src = open(sys.argv[1]).read().split('\n')
 out_path = sys.argv[2] if len(sys.argv) > 2 else None
 
+PRIMITIVES = {'string', 'number', 'integer', 'bool', 'boolean', 'any', 'text'}
+DEF_NAMES = set()   # populated after pass 1; used by the lowering to tell refs from nullary tags
+# scalar types used in core.lumen but declared elsewhere (no `## ` def here)
+KNOWN_SCALARS = {'AbsoluteHttpUrl': {"type": "string", "format": "uri"}}
+
 # --- generic shared lexer: split on a separator at bracket-depth 0, outside quotes ---
 def split_top(s, sep='|'):
     parts, buf, depth, q = [], '', 0, None
@@ -45,6 +50,25 @@ def split_top(s, sep='|'):
             buf += ch
     parts.append(buf)
     return [p.strip() for p in parts]
+
+def split_fields(body):
+    # record fields separate on a top-level ',' OR newline (Lumen allows either)
+    parts, buf, depth, q = [], '', 0, None
+    for ch in body:
+        if q:
+            buf += ch
+            if ch == q: q = None
+            continue
+        if ch in '"\'': q = ch; buf += ch; continue
+        if ch in '{[(<': depth += 1
+        elif ch in '}])>': depth = max(0, depth - 1)
+        if (ch == ',' or ch == '\n') and depth == 0:
+            if buf.strip(): parts.append(buf.strip())
+            buf = ''
+        else:
+            buf += ch
+    if buf.strip(): parts.append(buf.strip())
+    return parts
 
 # --- parse a Lumen metadata literal `{ k = v, k = v }` into a dict (jsonschema hints) ---
 def parse_meta(body):
@@ -101,9 +125,18 @@ def lower_type(expr):
     # top-level union  A | B  (or string enum "a" | "b")
     parts = split_top(expr, '|')
     if len(parts) > 1:
-        if all(re.match(r'^"[^"]*"$', p.strip()) for p in parts):
-            return {"enum": [p.strip()[1:-1] for p in parts]}
-        return {"oneOf": [lower_type(p) for p in parts]}
+        sp = [p.strip() for p in parts]
+        if all(re.match(r'^"[^"]*"$', p) for p in sp):
+            return {"enum": [p[1:-1] for p in sp]}
+        # nullary-tag union: every arm a bare name, none a primitive or a known def -> enum
+        if all(re.match(r'^[A-Za-z_]\w*$', p) and p not in PRIMITIVES and p not in DEF_NAMES
+               for p in sp):
+            return {"enum": sp}
+        # discriminated union written with pipes: arms are `Tag { fields }`
+        if any(re.match(r'^[A-Za-z_]\w*\s*\{', p) for p in sp):
+            return {"oneOf": [lower_arm(p) for p in sp],
+                    "discriminator": {"propertyName": "kind"}}
+        return {"oneOf": [lower_type(p) for p in sp]}
     # refinement with trailing constraints:  Base { ... }
     m = re.match(r'^(.+?)\s*\{(.+)\}$', expr)
     if m and '<' not in m.group(1)[-1:]:
@@ -117,14 +150,20 @@ def lower_type(expr):
     # scalar primitives
     prim = {'string': {"type": "string"}, 'number': {"type": "number"},
             'integer': {"type": "integer"}, 'bool': {"type": "boolean"},
-            'boolean': {"type": "boolean"}, 'any': {}, 'text': {"type": "string"}}
+            'boolean': {"type": "boolean"}, 'any': {}, 'text': {"type": "string"},
+            'null': {"type": "null"}}
     if expr in prim:
         return dict(prim[expr])
     # string literal const
     if re.match(r'^"[^"]*"$', expr):
         return {"const": expr[1:-1]}
-    # bare named type -> $ref
+    # generic type variable (T, E, F, U) erases to `any`
+    if re.match(r'^[A-Z]$', expr):
+        return {}
+    # bare named type -> $ref (or a known external scalar)
     if re.match(r'^[A-Za-z_]\w*$', expr):
+        if expr not in DEF_NAMES and expr in KNOWN_SCALARS:
+            return dict(KNOWN_SCALARS[expr])
         return {"$ref": f"#/$defs/{expr}"}
     WARN.append(expr)
     return {"$comment": f"UNLOWERED: {expr}"}
@@ -139,13 +178,13 @@ def lower_generic(g, inner):
         return {"type": "array", "items": lower_type(inner), "uniqueItems": True}
     if g in ('source',):
         return {"type": "array", "items": lower_type(inner)}  # a stream of T
-    # unknown wrapper: lower the carried type
-    return lower_type(inner)
+    # a nominal generic (Result<T,E>, Outcome<T,E>, rel<F,T>, …) refs its base def
+    return {"$ref": f"#/$defs/{g}"}
 
 def lower_inline_record(body):
     # body is the content between { }  — fields separated at top level by ','
     props, required, additional = {}, [], False
-    for field in split_top(body, ','):
+    for field in split_fields(body):
         field = field.strip()
         if not field: continue
         if field.startswith('...'):   # { ...: any }
@@ -189,32 +228,30 @@ while i < n:
         i += 1; continue
     name = m.group(1).strip()
     i += 1
-    desc, js_hint, body, in_decl = None, {}, [], False
+    desc, js_hint, body, in_decl, bdepth = None, {}, [], False, 0
     while i < n:
         l = src[i]
         if re.match(r'^## ', l) or re.match(r'^// [#=]{5,}', l) or re.match(r'^// -{5,}', l):
             break
         s = l.strip()
         if s == '':
-            if in_decl: break
+            if in_decl and bdepth <= 0: break     # blank line ends a BALANCED decl only
             i += 1; continue
         dm = re.match(r'^/// description: ?(.*)$', l)
         jm = re.match(r'^/// jsonschema\s*=\s*\{(.*)\}\s*$', l)
-        meta = re.match(r'^/// (bdp|openapi|normative|doc|review-todo)\b', l)
         if not in_decl and dm:
             desc = dm.group(1).strip(); i += 1; continue
         if not in_decl and jm:
             js_hint.update(parse_meta(jm.group(1))); i += 1; continue
-        if not in_decl and meta:
+        if s.startswith('///'):                   # any other doc-comment — skip
             i += 1; continue
-        if not in_decl and s.startswith('//'):   # leading plain comment
-            i += 1; continue
-        if in_decl and s.startswith('//') and not s.startswith('///'):
-            break                                 # trailing comment ends the decl
-        if s.startswith('///'):
-            i += 1; continue
+        if s.startswith('//'):                     # plain comment
+            if in_decl and bdepth <= 0: break      # after the balanced decl — ends it
+            i += 1; continue                        # leading / interior-record comment — skip
         in_decl = True
-        body.append(re.sub(r'\s+//.*$', '', l))   # strip trailing inline comments
+        code = re.sub(r'\s+//.*$', '', l)           # strip trailing inline comment
+        body.append(code)
+        bdepth += code.count('{') + code.count('[') - code.count('}') - code.count(']')
         i += 1
     decls.append({'name': name, 'desc': desc, 'js': js_hint, 'body': body})
 
@@ -245,31 +282,43 @@ def split_arms(body):
                     i += 1
                 break
             elif c in ' \t\n\r,' and depth == 0:
-                break
+                j = i                       # whitespace between a tag and its `{record}` is
+                while j < nn and body[j] in ' \t\n\r,': j += 1   # not an arm boundary — peek
+                if j < nn and body[j] == '{':
+                    i = j
+                else:
+                    break
             else:
                 i += 1
         out.append(body[start:i])
     return out
 
+def _kebab(name):
+    return re.sub(r'(?<!^)(?=[A-Z])', '-', name).lower()
+
+def lower_arm(arm):
+    # one DU arm: `Tag { fields }` (internally-tagged record), bare `Ref`, or nullary tag
+    arm = arm.strip()
+    am = re.match(r'^([A-Za-z_][\w<>]*)\s*(\{.*\})?\s*$', arm, re.S)
+    if am and am.group(2):
+        rec = lower_type(am.group(2))
+        rec.setdefault("properties", {})["kind"] = {"const": _kebab(am.group(1))}
+        req = rec.get("required", [])
+        rec["required"] = ["kind"] + [r for r in req if r != "kind"]
+        return rec
+    if am:
+        nm = re.sub('<.*>', '', am.group(1))
+        return {"$ref": f"#/$defs/{nm}"} if nm in DEF_NAMES else {"const": _kebab(nm)}
+    return lower_type(arm)
+
 def lower_du(body):
-    # closed discriminated union: arms are `Tag { fields }` or bare `Ref`
-    arms = []
-    for arm in split_arms(body):
-        arm = arm.strip()
-        if not arm: continue
-        am = re.match(r'^([A-Za-z_][\w<>]*)\s*(\{.*\})?\s*$', arm, re.S)
-        if am and am.group(2):
-            rec = lower_type(am.group(2))
-            kind = re.sub(r'(?<!^)(?=[A-Z])', '-', am.group(1)).lower()  # arm name -> kebab `kind`
-            rec.setdefault("properties", {})["kind"] = {"const": kind}
-            req = rec.get("required", [])
-            rec["required"] = ["kind"] + [r for r in req if r != "kind"]
-            arms.append(rec)
-        elif am:
-            arms.append({"$ref": f"#/$defs/{re.sub('<.*>', '', am.group(1))}"})
-        else:
-            arms.append(lower_type(arm))
+    # closed discriminated union (the `union { ... }` form)
+    arms = [lower_arm(a) for a in split_arms(body) if a.strip()]
+    if arms and all(list(a.keys()) == ["const"] for a in arms):   # all nullary -> enum
+        return {"enum": [a["const"] for a in arms]}
     return {"oneOf": arms, "discriminator": {"propertyName": "kind"}}
+
+DEF_NAMES.update(d['name'] for d in decls)   # now the lowering can tell refs from nullary tags
 
 # --- pass 2: classify + lower each declaration ----------------------------------
 defs = {}
@@ -282,7 +331,7 @@ for d in decls:
     # operations lower to OpenAPI, not $defs
     if re.match(r'^(idempotent command|safe command|command|fn)\b', head):
         skipped_ops.append(d['name']); continue
-    joined = ' '.join(b.strip() for b in body)
+    joined = '\n'.join(b.rstrip() for b in body)
     # strip the `type Name` / `abstract type Name` prefix, keep the RHS
     tm = re.match(r'^(?:abstract\s+)?type\s+([A-Za-z_]\w*(?:<[^>]*>)?)\s*(is|=)?\s*(.*)$',
                   joined, re.S)
