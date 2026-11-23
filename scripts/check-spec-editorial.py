@@ -27,7 +27,14 @@ AUTHORING_DOCS = (
     "specs/formats/markdown-type-definitions.md",
 )
 EDITORIAL_TOOLING = {
-    ".github/workflows/ci.yml", "scripts/check-spec-editorial.py",
+    # `.github/workflows/ci.yml` is DELIBERATELY ABSENT. It used to be here, which made a
+    # workflow-only change classify editorial and so SKIP `implementation` and `regression`
+    # — the file that decides which lanes run was on the list of files that skip them, and
+    # `verify` passed because the skip matched the verdict. A change to the lane definitions
+    # is exactly when the lanes must run. (`check-spec-editorial.py` below is self-listed too,
+    # but the always-on `specification` job runs both it and its test, so it is self-guarded;
+    # nothing tests a workflow file.)
+    "scripts/check-spec-editorial.py",
     "scripts/check-spec-editorial-test.py", "scripts/spec-schema-fragments.mjs",
     "scripts/spec-schema-fragments.node-test.mjs",
     "scripts/generate-openapi.mjs", "scripts/openapi.node-test.mjs",
