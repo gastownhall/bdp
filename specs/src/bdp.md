@@ -71,6 +71,32 @@ keeps "which resource" and "which version" in one place instead of two.
 Two first path segments are reserved: `bdp` for the protocol's own routes, and
 `sys` for in-band system resources such as the changefeed at `/sys/changes`.
 
+A scope may also give a resource a second name — an alias. An alias is not a
+special operation; it is itself a resource, an [[core.lumen#Alias]] bead that
+lives under the reserved `sys/aliases/` root and holds the resource it points at.
+You bind one by writing it, repoint it by writing it again, remove it by deleting
+it, and find the names that point at a resource by listing that root. Because it
+is an ordinary resource, repointing it keeps a history of where the name led.
+
+Using an alias is transparent. When a scope supports aliases, resolving a bare
+name checks the alias root first, and a name that is an alias resolves through to
+its target before the operation runs. So reading, writing, or deleting through an
+alias name acts on the resource it points at, and a read comes back with the
+target's own id and revision — the alias leaves no trace in the result. The
+address of the alias record itself, under `sys/aliases/`, is the one name that
+does not resolve through: deleting the record removes the name without touching
+the resource, while deleting the bare name deletes the resource.
+
+Two questions therefore need their own answer. To ask whether a name is an alias,
+read it under the alias root; to ask which names point at a resource, list the
+root filtered by target. And because a bare name now has two possible kinds of
+claimant, it is held by at most one — a resource or an alias, never both. Creating
+a resource at a name that is already an alias is refused, binding an alias at a
+name that is already a resource is refused, and a server that mints its own id
+avoids the alias names too. This was always true of ids; aliases only widen the
+set of names already taken. All of this applies only where a scope advertises that
+it supports aliases.
+
 ## 2. The resource model
 
 Everything a store holds is a [[core.lumen#Resource]]. The shape is small on
