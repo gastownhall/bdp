@@ -172,8 +172,10 @@ def lower_generic(g, inner):
     # ref<T>/pinned<T>/unpinned<T> erase T -> ResourceRef (Appendix C)
     if g in ('ref', 'pinned', 'unpinned'):
         return {"$ref": "#/$defs/ResourceRef"}
-    if g == 'rep':
-        return {"$ref": "#/$defs/Resource"}  # by-value representation
+    # `rep<T>` refs the `rep` envelope def itself (T erases to an open `body`).
+    # It must NOT ref `Resource`: core.lumen declares `type Resource = rep<any>`,
+    # so routing rep through Resource made Resource's own RHS a pure self-cycle
+    # (`$defs/Resource = {$ref: #/$defs/Resource}`), which no validator can compile.
     if g in ('set',):
         return {"type": "array", "items": lower_type(inner), "uniqueItems": True}
     if g in ('source',):
