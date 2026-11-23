@@ -52,7 +52,7 @@ impl<S: BdpScope> Server<S> {
     /// conventions (see `route.rs` / `BINDING.md`).
     pub async fn handle(&self, req: HttpRequest) -> HttpResponse {
         use crate::route::Route;
-        let (route, _style) = crate::route::parse(&req.method, &req.path);
+        let (route, _style) = crate::route::parse_raw(&req.method, &req.raw_path, &req.path);
         match route {
             Route::Get(id) => self.do_get(&req, &id).await,
             Route::ScopeCreate => self.do_create(&req).await,
@@ -67,6 +67,22 @@ impl<S: BdpScope> Server<S> {
             Route::ScopeEval => unmapped("eval not mapped in the spike"),
             Route::ScopeImport => unmapped("import not mapped in the spike"),
             Route::Revisions(_) => unmapped("revisions not mapped in the spike"),
+            // The fence split succeeded but named no known action, or named one with the wrong
+            // method / id-ness. 404 rather than 400: the request is well-formed and simply names
+            // nothing, which is what the spec says.
+            Route::UnknownAction => HttpResponse::json(
+                404,
+                problem_body(404, "not-found", "no such protocol action past the fence"),
+            ),
+            // The id LEFT of the fence contains a bare `-` segment, which no resource-id segment
+            // may be — a literal hyphen-only segment must arrive as `%2D`. Malformed id, so 400.
+            Route::InvalidFencedId => HttpResponse::json(
+                400,
+                problem_body(400, "bad-request", "a resource-id segment may not be a bare `-`"),
+            ),
+            // Routed by the fence, not yet implemented by this subject.
+            Route::Call(_) => unmapped("call not implemented by this scope"),
+            Route::Cancel(_) => unmapped("cancel not implemented by this scope"),
             Route::Unroutable => {
                 HttpResponse::json(400, problem_body(400, "bad-request", "Unroutable request"))
             }

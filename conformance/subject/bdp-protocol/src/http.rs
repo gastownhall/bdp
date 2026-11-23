@@ -20,6 +20,15 @@ use tokio::net::TcpStream;
 pub struct HttpRequest {
     pub method: String,
     pub path: String, // percent-DECODED path, no query string
+    /// The path EXACTLY as it arrived, before percent-decoding and without the query string.
+    ///
+    /// Routing the action fence requires this and cannot use `path`. The fence rule is defined over
+    /// the raw path on purpose: "a literal hyphen-only segment inside an id MUST be percent-encoded
+    /// (`%2D`) … so a crafted `%2D` never forges the fence and the id/action split is
+    /// deterministic". After decoding, `%2D` and a real fence are both `-`, so the two cases become
+    /// indistinguishable — which breaks a CONFORMANT client using the mandated encoding, not just a
+    /// crafted one. This field was previously computed one line above the decode and discarded.
+    pub raw_path: String,
     pub query: HashMap<String, String>,
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
@@ -243,7 +252,14 @@ pub async fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, HttpErr
     let headers = parse_headers(&header_block);
     let len = content_length(&headers);
     let body = read_body(stream, &mut buf, head_end, len).await?;
-    Ok(HttpRequest { method, path: pct_decode(&raw_path), query, headers, body })
+    Ok(HttpRequest {
+        method,
+        path: pct_decode(&raw_path),
+        raw_path,
+        query,
+        headers,
+        body,
+    })
 }
 
 pub async fn write_response(stream: &mut TcpStream, resp: &HttpResponse) -> Result<(), HttpError> {
