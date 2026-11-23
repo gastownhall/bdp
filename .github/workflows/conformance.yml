@@ -2,17 +2,40 @@ name: conformance
 
 # The BDP conformance gate. Self-contained Rust: builds the workspace and runs the wire-level
 # reference + liveness check. Uses the Rust toolchain preinstalled on GitHub runners (no external
-# setup action). Scoped to conformance/ so it does not run on unrelated changes.
+# setup action).
+#
+# THE PATH LIST MUST INCLUDE THE GATE'S LIVE SPEC INPUTS, not just conformance/.
+#
+# This is a LOCKSTEP gate: its whole purpose is that a spec change which alters a wire shape, with no
+# covering case, fails CI and cannot merge. It derives its coverage denominator at runtime by
+# `include_str!`ing two files OUTSIDE this directory:
+#
+#   specs/generated/openapi/core.openapi.json   -> the denominator (ops + declared >=400 faults)
+#   specs/src/core/core.lumen                   -> the independent source-side witness
+#
+# Scoped to `conformance/**` alone, the gate NEVER RAN ON A SPEC CHANGE — the exact event it exists to
+# catch. A PR touching only `specs/` would not trigger it, and because the `push` filter matched too,
+# it would not run on `main` after that PR merged either. So a surface change would leave the gate
+# broken LATENTLY on main, surfacing only when someone later touched `conformance/**` and appearing to
+# be their breakage.
+#
+# Found when PR #411 (declaring `put/410` and `patch/410`, moving the surface 52 -> 54) was mergeable
+# with the gate never having run on it. Keep these paths in step with the `include_str!`s in
+# conformance/gate/src/lib.rs: adding a live input without adding it here silently re-opens this hole.
 on:
   pull_request:
     paths:
       - "conformance/**"
       - ".github/workflows/conformance.yml"
+      - "specs/generated/openapi/core.openapi.json"
+      - "specs/src/core/core.lumen"
   push:
     branches: [main]
     paths:
       - "conformance/**"
       - ".github/workflows/conformance.yml"
+      - "specs/generated/openapi/core.openapi.json"
+      - "specs/src/core/core.lumen"
 
 jobs:
   gate:

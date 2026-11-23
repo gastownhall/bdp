@@ -150,6 +150,16 @@
               }
             }
           },
+          "410": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "412": {
             "description": "problem",
             "content": {
@@ -226,6 +236,16 @@
             }
           },
           "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "410": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -2764,6 +2784,9 @@
           "revisionModel": {
             "$ref": "#/components/schemas/RevisionModel"
           },
+          "idModel": {
+            "$ref": "#/components/schemas/IdModel"
+          },
           "aliases": {
             "$ref": "#/components/schemas/AliasCaps"
           },
@@ -2773,7 +2796,8 @@
         },
         "required": [
           "storageClasses",
-          "revisionModel"
+          "revisionModel",
+          "idModel"
         ],
         "additionalProperties": false
       },
@@ -2788,6 +2812,13 @@
         "enum": [
           "versioned",
           "unversioned"
+        ]
+      },
+      "IdModel": {
+        "description": "A scope's id model — a scope-wide trait, stated outright (no implicit default). Whether an id retired by `delete` is permanently spent or may be minted again.",
+        "enum": [
+          "permanent",
+          "reusable"
         ]
       },
       "GetCaps": {

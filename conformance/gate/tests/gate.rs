@@ -579,7 +579,7 @@ async fn run_cases(addr: String) {
     let uncovered: Vec<&SurfaceId> = denom.difference(&covered).collect();
 
     eprintln!("\n=== BDP tier-1 gate ===");
-    eprintln!("pin: gastownhall/bdp main @2dfc097f (v0.2.3; paths block sha256 770e3ccc…)");
+    eprintln!("pin: gastownhall/bdp main @488a2d01 (v0.2.3; paths block sha256 4bf1225b…)");
     eprintln!("denominator source: specs/generated/openapi/core.openapi.json (live, drift-gated)");
     eprintln!("coverage: {}/{} surface rows", covered_in_denom.len(), denom.len());
     let mut covered_sorted: Vec<&SurfaceId> = covered_in_denom.iter().copied().collect();
