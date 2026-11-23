@@ -262,10 +262,19 @@ impl BdpScope for RemoteScope {
         &self,
         target: p::ResourceId,
         body: p::CreateBody,
+        guards: p::Guards,
     ) -> Result<p::BdpResult<p::ResourceId>, p::BdpError> {
         let wreq = WireCreateRequest::from_body(None, &body);
         let payload = serde_json::to_vec(&wreq).unwrap();
-        let headers = vec![("content-type".into(), "application/json".into())];
+        let mut headers = vec![("content-type".into(), "application/json".into())];
+        // Guards ride the request line. `put` sent none before this, which is why the server had
+        // nothing to enforce.
+        if let Some(rev) = &guards.if_revision {
+            headers.push(("if-match".into(), rev.0.to_string()));
+        }
+        if guards.if_absent {
+            headers.push(("if-none-match".into(), "*".into()));
+        }
         let t = target_for(&target.id, None);
         let resp = self.request("PUT", &t, headers, payload).await?;
         if resp.status == 200 {

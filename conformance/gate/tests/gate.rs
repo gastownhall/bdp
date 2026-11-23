@@ -18,7 +18,7 @@ use std::future::Future;
 use bdp_gate::{denominator, SurfaceId};
 use bdp_inmem::InMemScope;
 use bdp_primitives::{
-    BdpError, BdpResult, BdpScope, CreateBody, CreateCaps, DeleteCaps, GetCaps, Id, JsonPatch, Kind,
+    BdpError, BdpResult, BdpScope, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id, JsonPatch, Kind,
     PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation, ResourceId, Rev, Scope,
     Selector,
 };
@@ -62,7 +62,7 @@ fn missing(id: &str) -> ResourceId {
 /// rather than lean on a downstream error.
 async fn seed(r: &RemoteScope, target: &ResourceId, text: &str) -> Result<(), String> {
     let res = r
-        .put(target.clone(), note_body(text))
+        .put(target.clone(), note_body(text), Guards::default())
         .await
         .map_err(|e| format!("seed put transport: {e:?}"))?;
     if res.not_implemented {
@@ -219,6 +219,82 @@ async fn delete_twice_is_idempotent(r: &RemoteScope) -> Result<Vec<SurfaceId>, S
     Ok(vec![])
 }
 
+/// `put` with a stale `if_revision` guard → 412 RevisionMismatch, and it must mint NOTHING.
+/// Covers op/put/fault/412.
+///
+/// This row had no producer at all until `put` could carry a guard: the trait took no `if_rev`, so
+/// the server read no precondition header and a guarded write proceeded against a stale revision
+/// while returning `200`. That is a LOST-UPDATE VECTOR in which the unsafe operation SUCCEEDS, so a
+/// client cannot learn it from the result — the same shape as a `delete` that mints a tombstone for
+/// an id it never retired.
+///
+/// So the case asserts the fault AND that the resource is untouched. The status alone would pass
+/// against a subject that faults after writing.
+async fn put_stale_guard_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("put-412".into()));
+    seed(r, &target, "v0").await?;
+    let before = r
+        .get(&target, None)
+        .await
+        .map_err(|e| format!("read-back before: {e:?}"))?
+        .value
+        .ok_or("no representation before the guarded put")?;
+
+    match r
+        .put(target.clone(), note_body("v1-should-not-land"), Guards::if_revision(Rev("stale-rev".into())))
+        .await
+    {
+        Err(BdpError::RevisionMismatch { .. }) => {}
+        other => return Err(format!("expected RevisionMismatch (412) on a stale guard, got {other:?}")),
+    }
+
+    // "Makes NO change" is the half that matters for safety and is observable without the status.
+    let after = r
+        .get(&target, None)
+        .await
+        .map_err(|e| format!("read-back after: {e:?}"))?
+        .value
+        .ok_or("no representation after the guarded put")?;
+    if format!("{:?}", before.id().rev) != format!("{:?}", after.id().rev) {
+        return Err(format!(
+            "the guarded put FAULTED BUT STILL WROTE: revision moved {:?} -> {:?}",
+            before.id().rev,
+            after.id().rev
+        ));
+    }
+    Ok(vec![fault("put", 412)])
+}
+
+/// `put` under `if_absent` at an id that is already taken → 409. Covers op/put/fault/409.
+///
+/// `ifAbsent` is the CLAIMING path: `If-None-Match: *` asserts the id is free, so an occupied id
+/// faults the same way a `create` collision does, keeping one id-taken handler on the client. The
+/// spec is explicit that on `put` the 409 is the guard's fault and never the bare operation's —
+/// a bare `put` at a live id is an ordinary update, which `put_target` already covers.
+async fn put_if_absent_taken_409(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("put-409".into()));
+    seed(r, &target, "occupied").await?;
+    match r.put(target, note_body("claim"), Guards::if_absent()).await {
+        Err(BdpError::AlreadyExists(_)) => Ok(vec![fault("put", 409)]),
+        other => return Err(format!("expected AlreadyExists (409) claiming a taken id, got {other:?}")),
+    }
+}
+
+/// An unguarded `put` at a live id must still be an ordinary update. Claims no row; it exists so
+/// `put/409` and `put/412` cannot be satisfied by a subject that faults on every `put`.
+async fn put_unguarded_still_updates(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("put-unguarded".into()));
+    seed(r, &target, "v0").await?;
+    let res = r
+        .put(target, note_body("v1"), Guards::default())
+        .await
+        .map_err(|e| format!("an UNGUARDED put at a live id must update, not fault: {e:?}"))?;
+    if res.not_implemented {
+        return Err("put advertised but not_implemented".into());
+    }
+    Ok(vec![])
+}
+
 /// An RFC-6902-subset JSON Patch as the wire body.
 fn json_patch(body: &str) -> JsonPatch {
     JsonPatch(RawJson(Bytes::from(body.as_bytes().to_vec())))
@@ -288,7 +364,7 @@ async fn delete_stale_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
 async fn put_target(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let target = ResourceId::head(Scope::This, Id("put-target".into()));
     let res = r
-        .put(target, note_body("put-value"))
+        .put(target, note_body("put-value"), Guards::default())
         .await
         .map_err(|e| format!("put transport: {e:?}"))?;
     if res.not_implemented {
@@ -555,7 +631,7 @@ impl BdpScope for NullScope {
                 server_allocates_id: true,
                 client_proposed_id: true,
             }),
-            PrimitiveCapabilities::Put(PutCaps {}),
+            PrimitiveCapabilities::Put(PutCaps { if_match: true, if_absent: true }),
             PrimitiveCapabilities::Patch(PatchCaps { if_match: true }),
             PrimitiveCapabilities::Delete(DeleteCaps { if_match: true }),
         ]
@@ -615,6 +691,15 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("create/409", &mut covered, &mut failures, create_duplicate_409(&remote)).await;
     record("delete+erased", &mut covered, &mut failures, delete_then_erased(&remote)).await;
     record("put", &mut covered, &mut failures, put_target(&remote)).await;
+    record("put/412", &mut covered, &mut failures, put_stale_guard_412(&remote)).await;
+    record("put/409", &mut covered, &mut failures, put_if_absent_taken_409(&remote)).await;
+    record(
+        "put unguarded updates",
+        &mut covered,
+        &mut failures,
+        put_unguarded_still_updates(&remote),
+    )
+    .await;
     record("patch", &mut covered, &mut failures, patch_ok(&remote)).await;
     record("patch/404", &mut covered, &mut failures, patch_missing_404(&remote)).await;
     record("patch/412", &mut covered, &mut failures, patch_stale_412(&remote)).await;
