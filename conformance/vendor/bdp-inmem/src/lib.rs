@@ -254,6 +254,26 @@ fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Resul
             let scope = scope_str_of(scope_name, &target.scope);
             let id_s = target.id.0.to_string();
             let head = store.head(&scope, &id_s).cloned();
+
+            // A NO-CHANGE DELETE MINTS NOTHING. `delete` is idempotent on an EXISTING resource, not
+            // total (core.lumen, `delete`): deleting an id that NEVER existed faults `404` and MUST
+            // NOT mint a tombstone, while deleting an already-retired resource is the idempotent case
+            // and returns the SAME tombstone `Rev` without faulting — which is why `delete` alone
+            // among the writes declares no `410`.
+            //
+            // Minting here retired an identity that was never admitted, and that is not cosmetic:
+            // the id is then spent forever by normative rule ("a deleted resource's id stays
+            // accounted for … and the id is never reused"), so under `idModel: permanent` ANY caller
+            // able to call `delete` could permanently deny any unused id in the space — `create`
+            // there faults identity-taken for all time. It also made the declared `404` unreachable,
+            // and let a read answer `410 erased` for something that never existed.
+            //
+            // Found against this subject, confirmed live in the reference backends and fixed there
+            // too. Verified red-then-green: with this block removed, `delete_never_existed_404` and
+            // `delete_then_erased_needs_its_seed` both fail.
+            if head.is_none() {
+                return Err(BdpError::NotFound(target.clone()));
+            }
             if let (Some(want), Some(h)) = (if_rev, &head) {
                 if want.0.as_ref() != h.rev {
                     return Err(BdpError::RevisionMismatch {
@@ -262,6 +282,15 @@ fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Resul
                         found: Some(Rev(h.rev.clone().into())),
                     });
                 }
+            }
+            // Already retired — the idempotent case. Report the revision it is retired AT, so a
+            // retry is identical to the first call and no second tombstone (or change row) appears.
+            if let Some(h) = head.as_ref().filter(|h| h.op == "delete") {
+                return Ok(ResourceId::pinned(
+                    target.scope.clone(),
+                    target.id.clone(),
+                    Rev(h.rev.clone().into()),
+                ));
             }
             let rev = Uuid::new_v4().to_string();
             let prev = head.as_ref().map(|h| h.rev.clone());
