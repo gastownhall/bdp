@@ -304,6 +304,51 @@ mod tests {
         }
     }
 
+    /// Direct test of the annotation parser, on both accepted shapes.
+    ///
+    /// The equality witness above already catches parser bugs, but only TRANSITIVELY and
+    /// AMBIGUOUSLY: a 38-row delta reads identically whether the catalog went stale or the parser
+    /// dropped something. This localizes it.
+    ///
+    /// Earned the hard way, twice. The Rust parser's first cut handled `status = N` but not
+    /// `status = [...]`, dropping every `problem`-form fault. Then a throwaway re-implementation of
+    /// this same logic, written to spot-check a branch, forgot to strip the leading `[` and so dropped
+    /// the FIRST status of every list — a 12-row phantom divergence that would have sent a peer
+    /// chasing a generator bug that did not exist. An off-by-one in bracket handling is evidently the
+    /// failure mode here, so both forms and the first-element case are pinned explicitly.
+    #[test]
+    fn parses_both_annotation_shapes_including_the_first_status() {
+        // The `problem` shorthand: every listed status, the first one included.
+        assert_eq!(
+            statuses(" status = [400,404,406,410] "),
+            vec![400, 404, 406, 410],
+            "the problem-shorthand status list must yield EVERY status, not all-but-the-first"
+        );
+        // The explicit per-response form, as `call` uses it.
+        assert_eq!(
+            statuses(" { status = 200, schema = \"Reply\" }, { status = 409, schema = \"Reply\" } "),
+            vec![200, 409],
+            "the explicit per-response array form must yield each response's status"
+        );
+        // Single-element list, and a span with no statuses at all.
+        assert_eq!(statuses(" status = [422] "), vec![422]);
+        assert_eq!(statuses(" nothing here "), Vec::<u16>::new());
+        // Balanced slicing must respect nesting rather than stopping at the first close.
+        assert_eq!(balanced("a = { b = { c }, d }, e", 0, b'{', b'}'), Some(" b = { c }, d "));
+
+        // And the shapes must both survive end-to-end: `call` contributes its 409 via the responses
+        // array, which is the row a shorthand-only counter silently loses.
+        let surface = source_surface();
+        assert!(
+            surface.contains(&SurfaceId::Fault("call".into(), 409)),
+            "call/409 comes from the `responses = [...]` form; losing it undercounts the surface by one"
+        );
+        assert!(
+            surface.contains(&SurfaceId::Fault("get".into(), 400)),
+            "get/400 is the FIRST entry of get's `problem` status list — the off-by-one canary"
+        );
+    }
+
     /// `call/409` is the ONE `>=400` row in the surface that does not return a `Problem`.
     ///
     /// Every other fault row responds `application/problem+json` with a `Problem`. `call`'s `409` is a
