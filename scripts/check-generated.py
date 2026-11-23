@@ -64,13 +64,25 @@ def main():
         except Exception as error:   # noqa: BLE001 — report any malformed artifact
             fail.append(f"{os.path.relpath(f, ROOT)}: invalid JSON: {error}")
 
+    # 3. compilability — a resolvable $ref name is NOT enough. A def shaped
+    # {"$ref": "#/$defs/Self"} passes pass 2 and then blows a validator's stack, which
+    # is how an uncompilable $defs/Resource shipped while this gate said "all $refs
+    # resolve". Compile every def in a real 2020-12 validator (the one
+    # packages/conformance uses) so the bundles are provably consumable.
+    compile_check = subprocess.run(
+        ["node", "scripts/compile-generated-schemas.mjs", "specs/generated/schema"],
+        cwd=ROOT, capture_output=True, text=True)
+    if compile_check.returncode != 0:
+        fail.append((compile_check.stderr or compile_check.stdout).strip()
+                    or "generated schema bundles failed to compile")
+
     if fail:
         print("\n".join(fail), file=sys.stderr)
         return 1
     defs = sum(len(v) for v in names.values())
     print(f"Generated artifacts current and valid: {len(bundles)} schema bundles "
           f"({defs} defs), core OpenAPI, {len(glob.glob(os.path.join(ROOT, 'specs/generated/callables/*.json')))} "
-          f"callable catalogs. No drift; all $refs resolve.")
+          f"callable catalogs. No drift; all $refs resolve; all defs compile.")
     return 0
 
 

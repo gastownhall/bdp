@@ -131,7 +131,7 @@
     },
     "Resource": {
       "description": "An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).",
-      "$ref": "#/$defs/Resource"
+      "$ref": "#/$defs/rep"
     },
     "Bead": {
       "description": "A vacuous kind marker — a body type tagged `is Bead` is a package-authored record. It adds no members; it marks intention, lets a signature demand a bead (`ref<Bead>`), and carries the enforcement that a bead body is a record under a package authority. It is the implicit ROOT of a bead's kind path and contributes NO path segment: `type Issue is Bead` ⇒ kind `\"issue\"`.",
