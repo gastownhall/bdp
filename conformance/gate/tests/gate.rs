@@ -17,7 +17,10 @@ use std::future::Future;
 
 use bdp_gate::{denominator, SurfaceId};
 use bdp_inmem::InMemScope;
-use bdp_primitives::{BdpError, BdpScope, CreateBody, Id, Kind, RawJson, ResourceId, Scope};
+use bdp_primitives::{
+    BdpError, BdpScope, CreateBody, Id, JsonPatch, Kind, RawJson, Rev, ResourceId, Scope,
+};
+use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
 use bytes::Bytes;
 use tokio::net::TcpListener;
@@ -121,6 +124,77 @@ async fn delete_then_erased(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     }
 }
 
+/// An RFC-6902-subset JSON Patch as the wire body.
+fn json_patch(body: &str) -> JsonPatch {
+    JsonPatch(RawJson(Bytes::from(body.as_bytes().to_vec())))
+}
+
+/// `patch` an existing resource with a delta. Covers op/patch.
+async fn patch_ok(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("patch-target".into()));
+    r.put(target.clone(), note_body("v0"))
+        .await
+        .map_err(|e| format!("seed put: {e:?}"))?;
+    let res = r
+        .patch(
+            target,
+            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"v1"}]"#),
+            None,
+        )
+        .await
+        .map_err(|e| format!("patch transport: {e:?}"))?;
+    if res.not_implemented {
+        return Err("patch advertised but not_implemented".into());
+    }
+    Ok(vec![op("patch")])
+}
+
+/// `patch` an id the reference never created → 404 NotFound. Covers op/patch/fault/404.
+async fn patch_missing_404(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    match r
+        .patch(
+            missing("patch-never"),
+            json_patch(r#"[{"op":"add","path":"/properties/x","value":1}]"#),
+            None,
+        )
+        .await
+    {
+        Err(BdpError::NotFound(_)) => Ok(vec![fault("patch", 404)]),
+        other => Err(format!("expected NotFound (404), got {other:?}")),
+    }
+}
+
+/// `patch` with a stale `if_rev` → 412 RevisionMismatch. Covers op/patch/fault/412.
+async fn patch_stale_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("patch-412".into()));
+    r.put(target.clone(), note_body("v0"))
+        .await
+        .map_err(|e| format!("seed put: {e:?}"))?;
+    match r
+        .patch(
+            target,
+            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"v1"}]"#),
+            Some(Rev("stale-rev".into())),
+        )
+        .await
+    {
+        Err(BdpError::RevisionMismatch { .. }) => Ok(vec![fault("patch", 412)]),
+        other => Err(format!("expected RevisionMismatch (412), got {other:?}")),
+    }
+}
+
+/// `delete` with a stale `if_rev` → 412 RevisionMismatch. Covers op/delete/fault/412.
+async fn delete_stale_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("delete-412".into()));
+    r.put(target.clone(), note_body("v0"))
+        .await
+        .map_err(|e| format!("seed put: {e:?}"))?;
+    match r.delete(target, Some(Rev("stale-rev".into()))).await {
+        Err(BdpError::RevisionMismatch { .. }) => Ok(vec![fault("delete", 412)]),
+        other => Err(format!("expected RevisionMismatch (412), got {other:?}")),
+    }
+}
+
 /// `put` a resource at a target id. Covers op/put.
 async fn put_target(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let target = ResourceId::head(Scope::This, Id("put-target".into()));
@@ -132,6 +206,83 @@ async fn put_target(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
         return Err("put advertised but not_implemented".into());
     }
     Ok(vec![op("put")])
+}
+
+// ---- raw-HTTP cases (protocol-level faults the typed client can't express) ---
+
+/// Send a raw request straight to the server, bypassing the typed `RemoteScope`, to exercise
+/// protocol-level faults (malformed/unsupported requests) that the well-formed client never emits.
+async fn raw_status(
+    host: &str,
+    method: &str,
+    target: &str,
+    headers: Vec<(String, String)>,
+    body: &[u8],
+) -> Result<u16, String> {
+    let resp = send(Outgoing {
+        method,
+        host,
+        target,
+        headers,
+        body: body.to_vec(),
+    })
+    .await
+    .map_err(|e| format!("raw send: {e:?}"))?;
+    Ok(resp.status)
+}
+
+fn ctype(v: &str) -> Vec<(String, String)> {
+    vec![("content-type".into(), v.into())]
+}
+
+/// A malformed resource id in the path → 400 bad-request. Covers op/get/fault/400.
+async fn get_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(host, "GET", "/a:b:c", vec![], b"").await? {
+        400 => Ok(vec![fault("get", 400)]),
+        s => Err(format!("expected 400 on a malformed id, got {s}")),
+    }
+}
+
+/// `POST /` (create) with a non-JSON body → 400 bad-request. Covers op/create/fault/400.
+async fn create_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(host, "POST", "/", ctype("application/json"), b"}{ not json").await? {
+        400 => Ok(vec![fault("create", 400)]),
+        s => Err(format!("expected 400 on a bad create body, got {s}")),
+    }
+}
+
+/// `PUT /{id}` with a non-JSON body → 400 bad-request. Covers op/put/fault/400.
+async fn put_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(host, "PUT", "/put-bad", ctype("application/json"), b"not json").await? {
+        400 => Ok(vec![fault("put", 400)]),
+        s => Err(format!("expected 400 on a bad put body, got {s}")),
+    }
+}
+
+/// `PATCH /{id}` of an existing resource with an unprocessable patch body → 422. Covers
+/// op/patch/fault/422. Targets `/patch-target` (seeded by the typed `patch` case earlier in the run)
+/// so the handler passes the existence check and reaches patch validation.
+async fn patch_unprocessable_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(
+        host,
+        "PATCH",
+        "/patch-target",
+        ctype("application/json-patch+json"),
+        b"not a patch",
+    )
+    .await?
+    {
+        422 => Ok(vec![fault("patch", 422)]),
+        s => Err(format!("expected 422 on an unprocessable patch, got {s}")),
+    }
+}
+
+/// `DELETE` of a malformed id → 400 bad-request. Covers op/delete/fault/400.
+async fn delete_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(host, "DELETE", "/a:b:c", vec![], b"").await? {
+        400 => Ok(vec![fault("delete", 400)]),
+        s => Err(format!("expected 400 on a malformed id, got {s}")),
+    }
 }
 
 // ---- harness ----------------------------------------------------------------
@@ -149,7 +300,7 @@ async fn tier1_gate() {
 }
 
 async fn run_cases(addr: String) {
-    let remote = RemoteScope::connect(addr).await.expect("connect (caps discovery)");
+    let remote = RemoteScope::connect(addr.clone()).await.expect("connect (caps discovery)");
 
     let mut covered: BTreeSet<SurfaceId> = BTreeSet::new();
     let mut failures: Vec<String> = Vec::new();
@@ -159,6 +310,15 @@ async fn run_cases(addr: String) {
     record("create/409", &mut covered, &mut failures, create_duplicate_409(&remote)).await;
     record("delete+erased", &mut covered, &mut failures, delete_then_erased(&remote)).await;
     record("put", &mut covered, &mut failures, put_target(&remote)).await;
+    record("patch", &mut covered, &mut failures, patch_ok(&remote)).await;
+    record("patch/404", &mut covered, &mut failures, patch_missing_404(&remote)).await;
+    record("patch/412", &mut covered, &mut failures, patch_stale_412(&remote)).await;
+    record("delete/412", &mut covered, &mut failures, delete_stale_412(&remote)).await;
+    record("get/400 (raw)", &mut covered, &mut failures, get_malformed_400(&addr)).await;
+    record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;
+    record("put/400 (raw)", &mut covered, &mut failures, put_malformed_400(&addr)).await;
+    record("patch/422 (raw)", &mut covered, &mut failures, patch_unprocessable_422(&addr)).await;
+    record("delete/400 (raw)", &mut covered, &mut failures, delete_malformed_400(&addr)).await;
 
     // ---- coverage report ----
     let denom = denominator();

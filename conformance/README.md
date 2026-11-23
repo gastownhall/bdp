@@ -23,19 +23,30 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 7/52** — `op/{create,get,put,delete}` + `create/fault/409`, `get/fault/404`,
-`get/fault/410`. The remaining rows are uncovered for concrete, recorded reasons:
+**Current coverage: 16/52**, across three case families:
 
-- **Reference doesn't implement the op** (over the wire): `pull`, `push`, `call`, `cancel`,
-  `revisions`, and `list`/`export`/`import` are not routed by the vendored `bdp-protocol` Server yet
-  (they round-trip as `not_implemented`).
-- **Reference semantics don't produce the fault**: e.g. `delete` is idempotent in InMemScope, so
-  `op/delete/fault/404` isn't producible against it.
-- **Protocol-level faults need raw HTTP** (malformed/`400`, `406`, `415`, `405`) rather than the
-  typed client — a later case family.
+- **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
+  InMemScope implements).
+- **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
+  `delete/412` (triggered through the typed `RemoteScope`).
+- **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/422`
+  (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
+  that the well-formed client never reaches).
 
-These are what the gate exists to make visible. Growing coverage = extending the reference's routed
-surface and adding cases; the denominator is fixed by the spec.
+The remaining 36 rows are uncovered for concrete, recorded reasons — and splitting them shows the
+next decision:
+
+- **~20 rows need the reference to route/implement 8 more primitives** — `list`, `export`, `import`,
+  `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the vendored `bdp-protocol` Server
+  ("unmapped in the spike" → 501), and `RemoteScope` has no client method for them. Covering them
+  means **forking the vendored crates** (reopening the vendor-vs-purpose-built question below) or
+  improving upstream `bdp-protocol`/`bdp-inmem` and re-vendoring.
+- **~16 rows are faults on routed ops** reachable with more raw-HTTP probing (content negotiation
+  `406`/`415`, specific `409`/`422` conditions) — or not producible against InMemScope at all (e.g.
+  `delete` is idempotent, so `delete/404` never fires).
+
+Growing coverage = extending the reference's routed surface and adding cases; the denominator is
+fixed by the spec.
 
 ## Not the TypeScript `packages/conformance`
 
