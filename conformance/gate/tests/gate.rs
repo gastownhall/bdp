@@ -18,9 +18,9 @@ use std::future::Future;
 use bdp_gate::{denominator, SurfaceId};
 use bdp_inmem::InMemScope;
 use bdp_primitives::{
-    BdpError, BdpResult, BdpScope, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id, IdModel,
-    JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation, ResourceId,
-    Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
+    BdpError, BdpResult, BdpScope, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id,
+    IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation,
+    Request, ResourceId, Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
@@ -386,6 +386,124 @@ async fn put_unguarded_still_updates(r: &RemoteScope) -> Result<Vec<SurfaceId>, 
     Ok(vec![])
 }
 
+// ---- call -------------------------------------------------------------------
+
+/// An Operation bead selecting one of the subject's built-in implementations.
+///
+/// Which built-ins exist is the SUBJECT's business — no row depends on what an operation
+/// computes. These cases depend only on which `Outcome` arm the call settles into.
+fn operation_body(implementation: &str) -> CreateBody {
+    CreateBody {
+        kind: Kind("operation".into()),
+        r#type: ResourceId::head(Scope::This, Id("BeadType:operation".into())),
+        properties: RawJson(Bytes::from(
+            serde_json::to_vec(&serde_json::json!({ "implementation": implementation })).unwrap(),
+        )),
+        metadata: RawJson(Bytes::from_static(b"{}")),
+    }
+}
+
+/// Seed an Operation bead, then `call` it. Returns the decoded `Reply` body.
+async fn seed_and_call(
+    r: &RemoteScope,
+    id: &str,
+    implementation: &str,
+    args: &str,
+) -> Result<serde_json::Value, String> {
+    let target = ResourceId::head(Scope::This, Id(id.into()));
+    let res = r
+        .put(target.clone(), operation_body(implementation), Guards::default())
+        .await
+        .map_err(|e| format!("seeding the Operation bead failed: {e:?}"))?;
+    if res.not_implemented {
+        return Err("seeding the Operation bead returned not_implemented".into());
+    }
+    let outcome = r
+        .call(&target, Request(RawJson(Bytes::from(args.as_bytes().to_vec()))))
+        .await
+        .map_err(|e| {
+            format!(
+                "`call` faulted with a Problem. A Problem means the operation could NOT RUN \
+                 (pre-dispatch); a declared failure rides the Outcome instead. Got {e:?}"
+            )
+        })?;
+    if outcome.not_implemented {
+        return Err("call advertised but not_implemented".into());
+    }
+    match outcome.value {
+        Some(CallOutcome::Reply(reply)) => serde_json::from_slice(&reply.0 .0)
+            .map_err(|e| format!("the Reply body is not JSON: {e}")),
+        Some(CallOutcome::Async(_)) => {
+            Err("a sync call must settle into a Reply, not an AsyncResult ref".into())
+        }
+        None => Err("call returned Ok with no CallOutcome".into()),
+    }
+}
+
+/// `call` an operation that succeeds. Covers op/call.
+///
+/// Asserts `kind` is PRESENT and `"success"` — the spec requires `kind` be explicit in the body
+/// so a reader never infers the arm from the status, so a 200 with the arm missing is not a
+/// conformant success.
+async fn call_success(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let reply = seed_and_call(r, "op-echo", "echo", r#"{"n":1}"#).await?;
+    let kind = reply["outcome"]["kind"]
+        .as_str()
+        .ok_or("the Reply's `outcome` carries no `kind` — the arm must be explicit in the body")?;
+    if kind != "success" {
+        return Err(format!("expected the success arm from a succeeding operation, got {kind:?}"));
+    }
+    // `cause` and `callId` are required members of `Reply`.
+    for required in ["cause", "callId"] {
+        if reply[required].is_null() {
+            return Err(format!("`Reply.{required}` is required and absent"));
+        }
+    }
+    Ok(vec![op("call")])
+}
+
+/// `call` an operation that settles on the DECLARED-FAILURE arm. Covers op/call/fault/409.
+///
+/// This is the only >=400 response in the binding whose body is not a `Problem`: the operation
+/// ran and said no, so 409 carries a `Reply` whose `outcome.error` is the operation's declared
+/// `E`. A subject that answered a Problem here would report that the call could not run.
+async fn call_declared_failure_409(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let reply = seed_and_call(r, "op-refuses", "always-refuses", "{}").await?;
+    let kind = reply["outcome"]["kind"].as_str().ok_or(
+        "the 409 body carries no `outcome.kind`. A declared failure must arrive as a Reply on \
+         the `failure` arm, not as a Problem",
+    )?;
+    if kind != "failure" {
+        return Err(format!("expected the `failure` arm at 409, got {kind:?}"));
+    }
+    if reply["outcome"]["error"].is_null() {
+        return Err("the `failure` arm must carry the operation's declared `error`".into());
+    }
+    // The arm is `failure`, not `fault`: a `fault` carries a Problem and means an UNDECLARED
+    // failure. Conflating them would lose the distinction 409 exists to make.
+    if !reply["outcome"]["problem"].is_null() {
+        return Err("a declared `failure` must not carry a `problem` — that is the `fault` arm".into());
+    }
+    Ok(vec![fault("call", 409)])
+}
+
+/// An unresolvable `operation` is a PRE-dispatch failure: a bare Problem with NO Outcome, because
+/// the operation never ran. Claims no row — 404 is not declared on `call` — but it is the anti-
+/// vacuity guard for the two cases above: without it, a subject that answered 409 to every call
+/// would satisfy `call/409`, and one that answered 200 to every call would satisfy `op/call`.
+async fn call_unresolvable_operation_never_ran(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let absent = ResourceId::head(Scope::This, Id("op-does-not-exist".into()));
+    match r.call(&absent, Request(RawJson(Bytes::from_static(b"{}")))).await {
+        Err(BdpError::NotFound(_)) => Ok(vec![]),
+        Ok(res) => Err(format!(
+            "calling an unresolvable operation must fault with a bare Problem (the operation never \
+             ran), not settle into an Outcome. Got Ok({:?})",
+            res.value.is_some()
+        )),
+        Err(other) => Err(format!("expected NotFound for an unresolvable operation, got {other:?}")),
+    }
+}
+
 /// An RFC-6902-subset JSON Patch as the wire body.
 fn json_patch(body: &str) -> JsonPatch {
     JsonPatch(RawJson(Bytes::from(body.as_bytes().to_vec())))
@@ -491,17 +609,10 @@ fn ctype(v: &str) -> Vec<(String, String)> {
     vec![("content-type".into(), v.into())]
 }
 
-/// A malformed resource id in the path → 400 bad-request. Covers op/get/fault/400.
-async fn get_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(host, "GET", "/a:b:c", vec![], b"").await? {
-        400 => Ok(vec![fault("get", 400)]),
-        s => Err(format!("expected 400 on a malformed id, got {s}")),
-    }
-}
 
 /// `POST /` (create) with a non-JSON body → 400 bad-request. Covers op/create/fault/400.
 async fn create_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(host, "POST", "/", ctype("application/json"), b"}{ not json").await? {
+    match raw_status(host, "POST", "/-/create", ctype("application/json"), b"}{ not json").await? {
         400 => Ok(vec![fault("create", 400)]),
         s => Err(format!("expected 400 on a bad create body, got {s}")),
     }
@@ -603,13 +714,24 @@ async fn patch_correct_media_type_is_accepted(host: &str) -> Result<Vec<SurfaceI
     }
 }
 
-/// `DELETE` of a malformed id → 400 bad-request. Covers op/delete/fault/400.
-async fn delete_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(host, "DELETE", "/a:b:c", vec![], b"").await? {
-        400 => Ok(vec![fault("delete", 400)]),
-        s => Err(format!("expected 400 on a malformed id, got {s}")),
-    }
-}
+
+/// RETIRED, not lost: `get/400` and `delete/400`.
+///
+/// Both were produced by the router rejecting a `:`-bearing id as an unknown verb — the prototype's
+/// `id:verb` convention, which the 0.2.3 action fence replaces. A `:` is now an ordinary id
+/// character, so `GET /a:b:c` is a well-formed read of an absent resource and correctly answers
+/// 404.
+///
+/// There is NO spec-grounded producer to move them to. `400` is declared on 11 of the 13 operations
+/// and Appendix D.8 — which names a producer for 404, 405, 409, 410, 412 and 415 — names none for
+/// it. The only `400` the spec grounds is a length-related one it attributes to intermediaries
+/// rather than the origin.
+///
+/// `create/400` and `put/400` SURVIVED the same change, and the difference is the point: they
+/// malform the BODY on a valid route, which is a real producer. These two malformed the ID, which
+/// was only a producer because of the convention. Four rows looked at risk; two actually were.
+///
+/// Recorded uncovered-with-reason rather than kept alive by retaining a dead convention.
 
 // ---- harness ----------------------------------------------------------------
 
@@ -701,10 +823,8 @@ async fn no_case_passes_against_a_subject_that_implements_nothing() {
 /// everything in it still does. Adding an entry to silence a failure, rather than because the row
 /// is genuinely produced pre-scope, defeats the whole test.
 const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
-    ("get", 400),
     ("create", 400),
     ("put", 400),
-    ("delete", 400),
     ("patch", 415),
 ];
 
@@ -811,7 +931,15 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("delete/412", &mut covered, &mut failures, delete_stale_412(&remote)).await;
     record("delete/404", &mut covered, &mut failures, delete_never_existed_404(&remote)).await;
     record("delete idempotent", &mut covered, &mut failures, delete_twice_is_idempotent(&remote)).await;
-    record("get/400 (raw)", &mut covered, &mut failures, get_malformed_400(&addr)).await;
+    record("call", &mut covered, &mut failures, call_success(&remote)).await;
+    record("call/409", &mut covered, &mut failures, call_declared_failure_409(&remote)).await;
+    record(
+        "call unresolvable never ran",
+        &mut covered,
+        &mut failures,
+        call_unresolvable_operation_never_ran(&remote),
+    )
+    .await;
     record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;
     record("put/400 (raw)", &mut covered, &mut failures, put_malformed_400(&addr)).await;
     record("patch/422 (raw)", &mut covered, &mut failures, patch_unprocessable_422(&addr)).await;
@@ -830,7 +958,6 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         patch_correct_media_type_is_accepted(&addr),
     )
     .await;
-    record("delete/400 (raw)", &mut covered, &mut failures, delete_malformed_400(&addr)).await;
 
     (covered, failures)
 }

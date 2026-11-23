@@ -270,7 +270,8 @@ impl BdpScope for RemoteScope {
         let wreq = WireCreateRequest::from_body(id.as_ref(), &body);
         let payload = serde_json::to_vec(&wreq).unwrap();
         let headers = vec![("content-type".into(), "application/json".into())];
-        let resp = self.request("POST", "/", headers, payload).await?;
+        // `create` is `POST /-/create` in the generated paths, not `POST /`.
+        let resp = self.request("POST", "/-/create", headers, payload).await?;
         if resp.status == 201 {
             write_result(&resp)
         } else if resp.status == 501 {
@@ -347,6 +348,34 @@ impl BdpScope for RemoteScope {
             Ok(p::BdpResult::not_implemented())
         } else {
             Err(error_from(resp.status, &resp.body, &target))
+        }
+    }
+
+    /// `POST /{opPath}/-/call`.
+    ///
+    /// The status→error mapping every other primitive uses is WRONG here, and this is the one
+    /// place in the client where that matters. A 409 from `call` is a `Reply` on the declared-
+    /// failure arm — the operation ran and said no — so routing it through `error_from` would
+    /// turn the operation's own "no" into a transport-level fault and discard the `error` the
+    /// caller is meant to branch on.
+    ///
+    /// So the rule is the inverse of the usual one: a 2xx **or a 409** carries a `Reply`, and
+    /// only the other non-2xx statuses are Problems. `Outcome` is an OPEN union, and the arm is
+    /// read from the body's `kind`, never from the status — so this client does not enumerate
+    /// arms at all and an arm added later passes through untouched.
+    async fn call(&self, operation: &p::ResourceId, request: p::Request)
+        -> Result<p::BdpResult<p::CallOutcome>, p::BdpError> {
+        let target = format!("/{}/-/call", pct_encode(&operation.id.0));
+        let headers = vec![("content-type".into(), "application/json".into())];
+        let resp = self.request("POST", &target, headers, request.0 .0.to_vec()).await?;
+        match resp.status {
+            501 => Ok(p::BdpResult::not_implemented()),
+            200 | 201 | 409 => Ok(p::BdpResult::ok(p::CallOutcome::Reply(p::Reply(p::RawJson(
+                bytes::Bytes::from(resp.body.clone()),
+            ))))),
+            // 202 would carry an `AsyncResult` ref in `Location`, not a `Reply`; no scope mints
+            // one yet, so decoding it is left to the increment that implements `cancel`.
+            _ => Err(error_from(resp.status, &resp.body, operation)),
         }
     }
 }

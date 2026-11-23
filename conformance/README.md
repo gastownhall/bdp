@@ -42,23 +42,45 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 22/54**, across three case families:
+**Current coverage: 22/54** — measured by running the gate, not derived. The figure is deceptively
+stable across the 0.2.3 binding port: it was 22 before and is 22 after, because `call` and `call/409`
+arrived (+2) while `get/400` and `delete/400` stopped being reachable (−2). **Four rows changed and
+the total did not.** Read the composition below, not the number — a count that restates a list is a
+second source of truth about that list, and this one has drifted from it four times.
 
-- **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
-  InMemScope implements).
+Across three case families:
+
+- **Typed happy-path** — `op/{create,get,put,patch,delete,call}` (the primitives the Server routes
+  and InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410` (triggered through the
-  typed `RemoteScope`, which now also reads the scope's declared traits).
-- **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/415`, `patch/422`
+  `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410`, `call/409` (triggered
+  through the typed `RemoteScope`, which also reads the scope's declared traits).
+- **Raw-HTTP protocol faults** — `create/400`, `put/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
-  that the well-formed client never reaches).
+  that the well-formed client never reaches). `get/400` and `delete/400` **left** this family when the
+  pre-0.2.3 binding was retired: both malformed the *id*, which only the retired convention made
+  reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
+  *malformed body* and *malformed id* look like one producer class and are two.
 
 The remaining 32 rows are uncovered for concrete, recorded reasons:
 
-- **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
-  `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the
-  spike" → 501), and `RemoteScope` has no client method for them. Fixing the subject is in scope
-  (see below), so this is work rather than a blocked decision.
+- **24 of the 32 need the subject to implement 7 more primitives** — `list`, `export`, `import`,
+  `pull`, `push`, `cancel`, `revisions`: the 7 `op/*` rows plus 17 of their declared faults. Counted
+  from the gate's own uncovered list, not estimated. These are now ROUTED by the fence but answer
+  `501` ("not implemented by this scope"), and `RemoteScope` has no client method for them. *Routed
+  but not implemented* is a different statement from *unroutable*, and the gate can tell them apart.
+  Fixing the subject is in scope (see below), so this is work rather than a blocked decision.
+- **The other 8 are faults on primitives already implemented** — `create/422`, `delete/400`,
+  `delete/409`, `get/400`, `get/406`, `patch/400`, `patch/409`, `put/422`. Every one was probed and
+  none is producible without a subject change; the measured table below says what each probe returned.
+- **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
+  covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
+  design: `call`'s dispatch rule mandates the fault's *shape* — a `Problem` with no `Outcome` — and
+  names its producers longhand (unresolvable `operation`, malformed `request`, unauthorized,
+  idempotency-key mismatch), but names no status. The 404 this subject answers is its own choice,
+  and D.8's catch-all puts a fault at its Problem's own status. So this is the open-ended fault
+  channel working as intended — distinct from a fault D.8 gives a *specific* status and producer
+  that no operation declares, which would be a genuine enumeration gap.
 - **The faults on routed ops are NOT reachable by probing — measured, not estimated.** This list
   previously claimed ~14 of them were "reachable with more raw-HTTP probing". That was speculation and
   it was wrong: every candidate was probed against the subject and **none is producible without a
@@ -94,6 +116,42 @@ The remaining 32 rows are uncovered for concrete, recorded reasons:
   reason a case never checked is still worth fixing: it now reads the declared `idModel` and asserts
   `410` under `permanent` or `404` under `reusable`, so the next subject need not be versioned for the
   case to stay honest.
+
+### 44% of the declared fault surface has no normative producer
+
+**18 of the 41 fault rows are declared without any normative line naming what produces them.**
+Appendix D.8 is a status-to-producer table and it covers `404`, `405`, `409`, `410`, `412` and `415`.
+It does not cover:
+
+| status | rows | state |
+|---|---|---|
+| `400` | 11 | the only grounded `400` is length-related and attributed to **intermediaries, not the origin** |
+| `406` | 2 | **zero** prose anywhere — and a probe shows `Accept: application/xml` returns `200`, so it is declared, undefined *and* unimplemented |
+| `422` | 5 | mentioned only incidentally |
+
+So **the denominator counts rows the spec does not define.** 54 overstates the *defined* surface, and
+the useful question is not "what produces a `400`" but **does the surface declare faults the spec does
+not define, and for each, define it or undeclare it?** On the second answer the denominator drops toward
+36. That is a ruling rather than a gate change, and it follows the precedent set for `delete/404`:
+ground it in the spec, not in an implementation's behaviour.
+
+A related limit, from the same appendix: *"4xx/5xx — any fault — the body is the Problem, carried at the
+Problem's own status."* So **any operation may answer a status its own declaration omits.** The declared
+fault lists are a subset of what can occur, by design — which means this denominator measures the
+*declared* surface and cannot measure the reachable one.
+
+### Two rows retired with the legacy binding
+
+`get/400` and `delete/400` were produced by the router rejecting a `:`-bearing id as an unknown verb —
+the pre-0.2.3 `id:verb` convention the action fence replaces. A `:` is now an ordinary id character, so
+those requests are well-formed reads of absent resources and correctly answer `404`. There is no
+spec-grounded producer to move them to, per the table above, so they are recorded uncovered rather than
+kept alive by retaining a dead convention.
+
+**`create/400` and `put/400` survived the same change, and the difference is the lesson:** they malform
+the *body* on a valid route, which is a real producer. The retired two malformed the *id*, which was
+only a producer because of the convention. Four rows looked at risk; two actually were — and the way to
+tell was to run it, not to reason about it.
 
 ### Counting honestly
 
