@@ -1997,12 +1997,17 @@ type PushCaps = {
 // carry them. A suite that derives an unconditional obligation from this list will fail a
 // conformant store on a guarantee its declared models never promised.
 //
-// So the count of this list is not its shape: it has fourteen entries, of which eleven bind
-// every store and three bind one only under a model it declares. A suite CITING one of the
-// three is not thereby testing it — the citation must carry the GATE the entry names, or the
-// case asserts against scopes the guarantee was never addressed to. A case whose precondition
-// is that one of these guarantees is false is testing the relaxation, which is sound, and is
-// not evidence about the guarantee.
+// So the count of this list is not its shape. Fourteen entries, and FIVE of them are
+// conditional: 1, 5 and 14 bind only under a model the scope declares, while 6, 12 and 14 bind
+// only where the primitive is offered (14 carries both gates). The remaining nine bind every
+// store. Do not partition this list as "eleven unconditional and three gated" — that count is
+// only reachable by reading "unconditional" as "not model-conditioned", which silently drops
+// the offering gate on 6 and 12.
+//
+// A suite CITING any of the five is not thereby testing it — the citation must carry the GATE
+// the entry names, or the case asserts against scopes the guarantee was never addressed to. A
+// case whose precondition is that one of these guarantees is false is testing the relaxation,
+// which is sound, and is not evidence about the guarantee.
 //
 // A conformant store keeps:
 //  1. A stable identity per resource — never changed, and under `permanent`
