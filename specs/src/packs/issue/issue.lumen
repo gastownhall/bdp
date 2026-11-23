@@ -36,10 +36,10 @@ type text is string
 /// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
 /// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
 /// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
-/// cli.edge: `--blocks TARGET` — this issue blocks TARGET: a `Blocks` edge source = this issue, target = TARGET (TARGET is the one blocked).
-/// cli.edge: `--blocked-by TARGET` — this issue is blocked by TARGET: a `Blocks` edge source = TARGET, target = this issue (this issue is the one blocked).
+/// cli.edge: `--blocks TARGET` — this issue blocks TARGET: a `Blocks` edge source = TARGET (the blocked/dependent), target = this issue (the blocker). Native: TARGET depends on this issue.
+/// cli.edge: `--blocked-by TARGET` — this issue is blocked by TARGET: a `Blocks` edge source = this issue (the blocked/dependent), target = TARGET (the blocker). Native `bd dep add <this> <TARGET>`.
 /// cli.edge: `--deps TYPE:ID` creates a dependency of the named concrete type; a bare `ID` defaults to `Blocks`.
-/// cli: `--labels`/`-l` is annotation sugar — it creates rev-neutral `IssueLabel` resources pointing at the issue, not an Issue field.
+/// cli: `--labels`/`-l` (on create) and `--add-label`/`--remove-label`/`--set-labels` (on update) are annotation sugar — they create/delete rev-neutral `IssueLabel` resources pointing at the issue; `labels` is the computed reverse-lookup projection (§1.1.3), never a written Issue field.
 /// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
 
 type Issue is Bead {
@@ -93,7 +93,7 @@ type Issue is Bead {
   // LIFECYCLE (Donna to confirm): the canonical "closed" signal is `closedAt` being
   // set — NOT the free `status` string; open ⇔ `closedAt` null (and not deferred);
   // `claimIssue` sets `status` + a lease (+ `startedAt`).
-  // isBlocked(X) = X is the TARGET of an open hard-blocking edge whose SOURCE (the blocker) is unclosed (`closedAt` null)
+  // isBlocked(X) = X is the SOURCE of an open hard-blocking edge whose TARGET (the blocker) is unclosed (`closedAt` null)
   computed isBlocked:      bool,
   computed blockedByCount: integer,
 
@@ -282,10 +282,10 @@ abstract type Dependency is unique rel<Issue, resource> {
 /// normative: Narrows the parent target from `resource` to `Issue`. (Whether a refinement may narrow a parent rel's endpoints is a Lumen-scrub question; the intent is the conformance list `is Dependency rel<Issue, Issue>`.)
 abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
 
-/// description: HardBlocking — a hard blocker (⊂ ready-affecting): an open edge from an unclosed SOURCE makes the TARGET blocked (the target depends on the source). Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
+/// description: HardBlocking — a hard dependency (⊂ ready-affecting): an open edge where the SOURCE depends on the TARGET — while the target is unclosed the source is blocked (not ready), and the target is the blocker. Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
 abstract type HardBlocking is ReadyAffecting {}
 
-/// description: Blocks — source blocks target: the TARGET is blocked (it depends on the source; not ready until the source closes), the SOURCE is the ready blocker. Concretely: `a Blocks b` ⇒ b blocked, a ready; closing a unblocks b. (Native `bd dep <blocker> --blocks <blocked>`: the `--blocks` argument is the blocked one.) The default dependency type. ACYCLIC (a cycle is a deadlock).
+/// description: Blocks — the default hard dependency: the SOURCE depends on the TARGET. `a Blocks b` ⇒ a is blocked, b is the blocker; a is not ready until b closes, and closing b unblocks a. Matches native `bd dep add <source> <target>` — source = the blocked/dependent issue (`issue_id`), target = what it depends on (`depends_on_id`). The default dependency type. ACYCLIC (a cycle is a deadlock).
 /// normative: `acyclic` restipulates `rel<Issue, Issue>`; `unique` is inherited and preserved.
 type Blocks is HardBlocking, acyclic rel<Issue, Issue> {}
 /// description: ConditionalBlocks — "B runs only if A fails"; a conditional block. ACYCLIC.
@@ -391,53 +391,137 @@ type DepAddError    = "would-cycle"
 // -----------------------------------------------------------------------------
 // §2.B  Issue operations (behaviour — pack callables)
 // -----------------------------------------------------------------------------
+// CLI MOUNT: this pack mounts at the `bd` ROOT — `cli.mount: "/"` — so its ops
+// render as `bd ready` / `bd close` / `bd dep add`, not `bd issue …`. `cli.mount`
+// is a PACK-level hint; until the pack-machinery spec ([[bdppacks.md]]) defines a
+// package-declaration anchor, it is stated here in prose rather than a structured
+// line. Each op below carries a structured `/// cli.name` (its command); where a
+// parameter is a positional / short-aliased / renamed flag it carries a
+// per-parameter `/// cli.*` hint, and an un-hinted parameter renders as `--<name>`.
 
 /// description: Ready work — the CLAIMABLE FRONTIER: issues that are open (closedAt null), unblocked, not deferred, AND not already claimed / in_progress. (Native excludes active claims — ready means claimable.) (`issue/ready`.)
-fn listReadyWork(type?: PathString, excludeType?: PathString, assignee?: string, limit?: integer) -> [ rep<Issue> ]
+/// cli.name: "ready"
+fn listReadyWork(
+    /// cli.flag: --type
+    type?:        PathString,
+    /// cli.flag: --exclude-type
+    excludeType?: PathString,
+    /// cli.alias: -a
+    assignee?:    string,
+    /// cli.alias: -n
+    limit?:       integer
+  ) -> [ rep<Issue> ]
 
 /// description: Count of ready work (the claimable frontier; see `listReadyWork`). (`issue/ready-count`.)
+/// cli.name: "ready-count"
 fn countReadyWork(type?: PathString, excludeType?: PathString) -> integer
 
 /// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
-fn listBlockedIssues(type?: PathString, limit?: integer) -> [ rep<Issue> ]
+/// cli.name: "blocked"
+fn listBlockedIssues(
+    /// cli.flag: --type
+    type?:  PathString,
+    /// cli.alias: -n
+    limit?: integer
+  ) -> [ rep<Issue> ]
 
 /// description: Work-shaping context for an actor — the standard "what should I do" projection. (`issue/context`.)
-fn getContext(assignee?: string) -> Resource
+/// cli.name: "context"
+fn getContext(
+    /// cli.alias: -a
+    assignee?: string
+  ) -> Resource
 
 /// description: Aggregate issue statistics. (`issue/stats`.)
+/// cli.name: "stats"
 fn getStats() -> Resource
 
 /// description: Claim an issue for the acting principal (the actor rides in provenance, never a parameter). (`issue/claim`.)
-command claimIssue(issue: ref<Issue>) -> Result<rep<Issue>, ClaimError>
+/// cli.name: "claim"
+command claimIssue(
+    /// cli.positional: 0
+    issue: ref<Issue>
+  ) -> Result<rep<Issue>, ClaimError>
 
 /// description: Claim the next ready issue for the acting principal. (`issue/claim-next`.)
-command claimNextIssue(type?: PathString) -> Result<rep<Issue>, ClaimNextError>
+/// cli.name: "claim-next"
+command claimNextIssue(
+    /// cli.flag: --type
+    type?: PathString
+  ) -> Result<rep<Issue>, ClaimNextError>
 
 /// description: Release a claimed issue. (`issue/unclaim`.)
-command releaseIssue(issue: ref<Issue>) -> Result<rep<Issue>, ReleaseError>
+/// cli.name: "unclaim"
+command releaseIssue(
+    /// cli.positional: 0
+    issue: ref<Issue>,
+    /// cli.flag: --if-assignee
+    ifAssignee?: string
+  ) -> Result<rep<Issue>, ReleaseError>
 
 /// description: Refresh the lease/fence on a claimed issue. (`issue/heartbeat`.)
-command heartbeatIssue(issue: ref<Issue>) -> Result<rep<Issue>, HeartbeatError>
+/// cli.name: "heartbeat"
+command heartbeatIssue(
+    /// cli.positional: 0
+    issue: ref<Issue>
+  ) -> Result<rep<Issue>, HeartbeatError>
 
 /// description: Close an issue, recording a reason. (`issue/close`.)
-command closeIssue(issue: ref<Issue>, closeReason?: text) -> Result<rep<Issue>, CloseError>
+/// cli.name: "close"
+command closeIssue(
+    /// cli.positional: 0
+    issue:        ref<Issue>,
+    /// cli.alias: -r
+    /// cli.flag: --reason
+    closeReason?: text
+  ) -> Result<rep<Issue>, CloseError>
 
-/// description: Reopen a closed issue. (`issue/reopen`.)
-command reopenIssue(issue: ref<Issue>) -> Result<rep<Issue>, ReopenError>
+/// description: Reopen a closed issue, recording a reason. (`issue/reopen`.)
+/// cli.name: "reopen"
+command reopenIssue(
+    /// cli.positional: 0
+    issue:   ref<Issue>,
+    /// cli.alias: -r
+    /// cli.flag: --reason
+    reason?: text
+  ) -> Result<rep<Issue>, ReopenError>
 
 /// description: Advance a molecule/workflow step on an issue. (`issue/advance`.)
-command advanceMolecule(issue: ref<Issue>) -> Result<rep<Issue>, AdvanceError>
+/// cli.name: "advance"
+command advanceMolecule(
+    /// cli.positional: 0
+    issue: ref<Issue>
+  ) -> Result<rep<Issue>, AdvanceError>
+
+/// description: Defer an issue out of ready work until a time (or indefinitely) — a lifecycle verb that sets `deferUntil`; `bd defer <id>`. (`issue/defer`.)
+/// cli.name: "defer"
+command deferIssue(
+    /// cli.positional: 0
+    issue:  ref<Issue>,
+    /// cli.positional: 1
+    until?: Timestamp
+  ) -> rep<Issue>
 
 /// description: Reclaim issues whose lease has expired. (`issue/reclaim`.)
+/// cli.name: "reclaim"
 command reclaimIssues(where?: Filter) -> [ rep<Issue> ]
 
-/// description: Add a comment — writes an `IssueComment` annotation pointing at the issue (rev-neutral). (`issue/comment`.)
-command addComment(issue: ref<Issue>, body: text) -> rep<IssueComment>
+/// description: Add a comment — writes an `IssueComment` annotation pointing at the issue (rev-neutral); `bd comment <id> <text>` (or read the text from `-f FILE`). (`issue/comment`.)
+/// cli.name: "comment"
+command addComment(
+    /// cli.positional: 0
+    issue: ref<Issue>,
+    /// cli.positional: 1
+    body:  text
+  ) -> rep<IssueComment>
 
 /// description: Compare-and-set a metadata value under optimistic concurrency. (`issue/metadata/compare-and-set`.)
+/// cli.name: "metadata compare-and-set"
 command compareAndSetMetadata(issue: ref<Issue>, key: string, expected?: any, value: any) -> Result<rep<Issue>, CasError>
 
 /// description: Sweep closed/stale issues — the prune/purge batch (differs only in tier defaults). (`issue/purge`, `issue/prune`.)
+/// cli.name: "purge"
+/// cli.alias: prune
 command sweepIssues(tier?: string, dryRun?: bool) -> ImportReport
 
 // Batch forms (create-many, close-many, batch-apply, delete-many, get-many) are
@@ -448,26 +532,77 @@ command sweepIssues(tier?: string, dryRun?: bool) -> ImportReport
 // §2.C  Dependency graph (edge resources + traversal)
 // -----------------------------------------------------------------------------
 
-/// description: Add a dependency edge — CREATES a Dependency resource (default concrete type `Blocks`). A same-key re-add is the upsert that `unique` already implies, not a special path. (`issue/dep/add`.)
-command addDependency(source: ref<Issue>, target: ref<resource>, type?: PathString, createdBy?: text, threadId?: text) -> Result<rep<Dependency>, DepAddError>
+/// description: Add a dependency edge — CREATES a Dependency resource (default concrete type `Blocks`). `source` = the dependent/blocked issue, `target` = what it depends on (the blocker); `bd dep add <source> <target>`. A same-key re-add is the upsert that `unique` already implies, not a special path. (`issue/dep/add`.)
+/// cli.name: "dep add"
+command addDependency(
+    /// cli.positional: 0
+    source:     ref<Issue>,
+    /// cli.positional: 1
+    target:     ref<resource>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:      PathString,
+    // Not surfaced on the CLI — native dep/add carries no flag for these; they ride
+    // in provenance/metadata. Whether to surface them is R11 (open).
+    /// cli.hidden
+    createdBy?: text,
+    /// cli.hidden
+    threadId?:  text
+  ) -> Result<rep<Dependency>, DepAddError>
 
-/// description: Remove a dependency edge — DELETES (tombstones) the Dependency resource. (`issue/dep/remove`.)
-command removeDependency(dependency: ref<Dependency>) -> Rev
+/// description: Remove a dependency edge — DELETES (tombstones) the Dependency resource, identified by its `(source, target, type)` endpoint pair (native `bd dep remove <source> <target>`), symmetric with `dep add`. (`issue/dep/remove`.)
+/// cli.name: "dep remove"
+command removeDependency(
+    /// cli.positional: 0
+    source: ref<Issue>,
+    /// cli.positional: 1
+    target: ref<resource>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:  PathString
+  ) -> Rev
 
 /// description: The dependency edges of an issue — the Dependency resources on a source. (`issue/dep/edges`.)
-fn listDependencies(source?: ref<Issue>, type?: PathString) -> [ rep<Dependency> ]
+/// cli.name: "dep edges"
+fn listDependencies(
+    /// cli.positional: 0
+    source?: ref<Issue>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:   PathString
+  ) -> [ rep<Dependency> ]
 
 /// description: Count dependency edges. (`issue/dep/count`.)
+/// cli.name: "dep count"
 fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> integer
 
 /// description: Related issues — the targets reached from a source across the dependency relations. (`issue/dep/list`.)
-fn listRelatedIssues(source: ref<Issue>, type?: PathString) -> [ rep<Issue> ]
+/// cli.name: "dep list"
+fn listRelatedIssues(
+    /// cli.positional: 0
+    source: ref<Issue>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:  PathString
+  ) -> [ rep<Issue> ]
 
 /// description: The dependency tree from a root — the transitive closure over the hard-blocking subgraph. Lowers to the traversal `root -> HardBlocking+`. (`issue/dep/tree`.)
-fn getDependencyTree(root: ref<Issue>) -> [ rep<Issue> ]
+/// cli.name: "dep tree"
+fn getDependencyTree(
+    /// cli.positional: 0
+    root:      ref<Issue>,
+    /// cli.alias: -d
+    /// cli.flag: --max-depth
+    maxDepth?: integer
+  ) -> [ rep<Issue> ]
 
 /// description: Dependency cycles — the reported blocking cycles, over `Blocks` + `ConditionalBlocks` (`WaitsFor`'s mutual waits are legitimate and excluded). (`issue/dep/cycles`.)
+/// cli.name: "dep cycles"
 fn listDependencyCycles() -> [ [ rep<Issue> ] ]
 
 /// description: Blocking annotations — the open blockers that make issues blocked. (`issue/blocking-annotations`.)
-fn listBlockingAnnotations(issue?: ref<Issue>) -> [ rep<Dependency> ]
+/// cli.name: "blocking-annotations"
+fn listBlockingAnnotations(
+    /// cli.flag: --issue
+    issue?: ref<Issue>
+  ) -> [ rep<Dependency> ]
