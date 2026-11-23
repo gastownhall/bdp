@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/specs/generated/schema/stdlib.schema.json",
+  "$defs": {
+    "text": {
+      "description": "Free text — a nominal string.",
+      "type": "string"
+    },
+    "Annotation": {
+      "description": "Annotation — a rev-neutral resource that points AT a target resource and carries its own payload. `abstract` — only the concrete annotations below are instantiated.",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "target": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            }
+          },
+          "required": [
+            "target"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Comment": {
+      "description": "Comment — free-text commentary on a target resource.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Annotation"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "string"
+            },
+            "author": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "body"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Label": {
+      "description": "Label — a named tag on a target resource. Its natural key is (`target`, `name`): at most one Label of a given `name` on a given target, and a same-key re-add is an upsert onto the one id.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Annotation"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "QueryExpr": {
+      "description": "The full query predicate — the rich form of list's flat [[core.lumen#Filter]]. A tree of boolean combinators over the same leaf conditions, plus edge traversal. `cond` reuses the base `listCondition` verbatim, so every `where: Filter` is a degenerate `all` of `cond`s — floor and capability speak ONE condition language.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "of": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/QueryExpr"
+              }
+            },
+            "kind": {
+              "const": "all"
+            }
+          },
+          "required": [
+            "kind",
+            "of"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "of": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/QueryExpr"
+              }
+            },
+            "kind": {
+              "const": "any"
+            }
+          },
+          "required": [
+            "kind",
+            "of"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "expr": {
+              "$ref": "#/$defs/QueryExpr"
+            },
+            "kind": {
+              "const": "not"
+            }
+          },
+          "required": [
+            "kind",
+            "expr"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "condition": {
+              "$ref": "core.schema.json#/$defs/listCondition"
+            },
+            "kind": {
+              "const": "cond"
+            }
+          },
+          "required": [
+            "kind",
+            "condition"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "edge": {
+              "$ref": "core.schema.json#/$defs/PathString"
+            },
+            "direction": {
+              "enum": [
+                "out",
+                "in"
+              ],
+              "default": "out"
+            },
+            "where": {
+              "$ref": "#/$defs/QueryExpr"
+            },
+            "kind": {
+              "const": "via"
+            }
+          },
+          "required": [
+            "kind",
+            "edge",
+            "direction"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "discriminator": {
+        "propertyName": "kind"
+      }
+    },
+    "Sort": {
+      "description": "One sort key over the result set; `sort` is an ordered list (the first key is primary).",
+      "type": "object",
+      "properties": {
+        "field": {
+          "$ref": "core.schema.json#/$defs/FieldPath"
+        },
+        "order": {
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "default": "asc"
+        }
+      },
+      "required": [
+        "field",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    "SearchMode": {
+      "description": "How a search matches — `lexical` (substring / full-text, the floor for any `search` service), `semantic` (embedding similarity), or `hybrid` (both, fused).",
+      "enum": [
+        "lexical",
+        "semantic",
+        "hybrid"
+      ]
+    },
+    "SearchHit": {
+      "description": "One ranked search result — the matched resource, its relevance score (higher = better; the scale is service-defined and comparable only WITHIN one response), and an optional highlighted snippet.",
+      "type": "object",
+      "properties": {
+        "resource": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "score": {
+          "type": "number"
+        },
+        "snippet": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource",
+        "score"
+      ],
+      "additionalProperties": false
+    },
+    "GraphNode": {
+      "description": "One resource reached by a traversal, with the fewest hops from any root at which it was found.",
+      "type": "object",
+      "properties": {
+        "resource": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "depth": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "resource",
+        "depth"
+      ],
+      "additionalProperties": false
+    },
+    "GraphEdge": {
+      "description": "One relationship traversed — the edge resource itself and its endpoints, denormalized so a client renders the graph without re-reading each edge.",
+      "type": "object",
+      "properties": {
+        "edge": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "type": {
+          "$ref": "core.schema.json#/$defs/PathString"
+        },
+        "source": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "target": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        }
+      },
+      "required": [
+        "edge",
+        "type",
+        "source",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "Subgraph": {
+      "description": "The result of a `graph` traversal — the reachable nodes and the edges among them. A node appears ONCE (lowest depth); an edge that closes a cycle is still reported, so the shape is the actual graph, not a spanning tree.",
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GraphEdge"
+          }
+        }
+      },
+      "required": [
+        "nodes",
+        "edges"
+      ],
+      "additionalProperties": false
+    },
+    "BatchItem": {
+      "description": "One invocation inside a `batch` — the op to run (a primitive name like `create`/`patch`/`delete`, or an operation path like `issue/claim`) and its `arguments` (the same name/value shape as [[core.lumen#Request]]), which carry EVERY input including the subject/target resource as a named value. `id` is a caller label echoed on the matching result.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "core.schema.json#/$defs/PathString"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {}
+            },
+            "required": [
+              "name",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "op",
+        "arguments"
+      ],
+      "additionalProperties": false
+    },
+    "BatchResult": {
+      "description": "The fate of one `BatchItem`, correlated by `id` — the item's own `Outcome` (success / failure / fault / canceled).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "core.schema.json#/$defs/Outcome"
+        }
+      },
+      "required": [
+        "id",
+        "outcome"
+      ],
+      "additionalProperties": false
+    },
+    "KvEntry": {
+      "description": "A general-purpose scoped key-value entry — arbitrary string data under a dotted key, outside the domain model (native `bd kv`). Modelled as a RESOURCE: `get`/`put`/`list`/`delete` are the generic primitives, and the CLI sugars `kv get/set/list/clear` (cli.name-mounted) onto them — so no new ops are needed. Distinct from ops `config` (operational settings): kv is user DATA, and the two MUST NOT share keys.",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DuplicateGroup": {
+      "description": "A set of resources sharing identical content.",
+      "type": "object",
+      "properties": {
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "core.schema.json#/$defs/ResourceRef"
+          }
+        },
+        "contentKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "members"
+      ],
+      "additionalProperties": false
+    },
+    "SimilarPair": {
+      "description": "One scored pair of similar resources.",
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "b": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "score"
+      ],
+      "additionalProperties": false
+    },
+    "LintResult": {
+      "description": "One resource's lint findings — the resource and its list of issues (missing sections, warnings).",
+      "type": "object",
+      "properties": {
+        "resource": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "resource",
+        "findings"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

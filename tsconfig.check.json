@@ -7,7 +7,6 @@
     "noEmit": true,
     "rootDir": ".",
     "paths": {
-      "@bdp/adapter-bd": ["./packages/adapter-bd/src/index.ts"],
       "@bdp/adapter-in-memory": ["./packages/adapter-in-memory/src/index.ts"],
       "@bdp/bd-domain": ["./packages/bd-domain/src/index.ts"],
       "@bdp/client": ["./packages/client/src/index.ts"],

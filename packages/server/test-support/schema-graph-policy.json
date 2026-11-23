@@ -19,7 +19,7 @@
     "packages/protocol/src/protocol-errors.ts": "630e0554f96cb31f491458bdffc02a04160f59c7e200d1b1de644fe94f079eda",
     "packages/protocol/src/schema-formats.ts": "ff5e19649d2d4b375eeebd0232199cd8c203566d4a7a8c04f9f6346bd27979c3",
     "packages/protocol/schemas/bdp-v0.schema.json": "3fa479ed21dbd07407dfbb955b987b5926d075c62f418277ba73bebd12c4e61d",
-    "pnpm-lock.yaml": "b322f11106622a0a0c2c9aee3db2bfa3b72394d02e2bc0a1e1455c2ec0d54fd2"
+    "pnpm-lock.yaml": "d1681d858eeabf922d25b8268f0f6c0c0059c1611fcb4fa6232e3d19e72f7aff"
   },
   "identityTakenRetryReview": "Donna ruled identity-taken's retry after-state-change, so its readUpdateProblem branch constant changes. The installed schema graph indexer does not interpret Problem retry values; its graph shape, resolution, closure, errors and budgets are unchanged.",
   "attributionReview": "Carried attribution now uses basis writer-supplied or unknown instead of status claimed or unknown in the public protocol and schema. The installed schema graph indexer does not interpret Resource attribution or use Bead/Link records as schema graph inputs. Its graph shape, resolution, built-in closure, budget and refusal behavior are unchanged; retain private schema-resource-index-2 while recording the new protocol source pins.",

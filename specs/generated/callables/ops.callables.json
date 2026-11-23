@@ -1,0 +1,149 @@
+{
+  "pack": "ops",
+  "callables": [
+    {
+      "path": "ops/health",
+      "operation": "health",
+      "safe": true,
+      "idempotent": false,
+      "summary": "A liveness + latency probe — resolve the scope, open the store, run a trivial read, and report status with per-stage timings",
+      "parameters": [],
+      "returns": "HealthReport"
+    },
+    {
+      "path": "ops/config/get",
+      "operation": "getConfig",
+      "safe": true,
+      "idempotent": false,
+      "summary": "Read one configuration value",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "ConfigKey",
+          "required": true
+        }
+      ],
+      "returns": "ConfigEntry?"
+    },
+    {
+      "path": "ops/config/list",
+      "operation": "listConfig",
+      "safe": true,
+      "idempotent": false,
+      "summary": "List configuration entries, optionally under a key prefix",
+      "parameters": [
+        {
+          "name": "prefix",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "[ ConfigEntry ]"
+    },
+    {
+      "path": "ops/config/set",
+      "operation": "setConfig",
+      "safe": false,
+      "idempotent": false,
+      "summary": "Set a configuration value",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "ConfigKey",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": "ConfigEntry"
+    },
+    {
+      "path": "ops/config/unset",
+      "operation": "unsetConfig",
+      "safe": false,
+      "idempotent": false,
+      "summary": "Remove a configuration value",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "ConfigKey",
+          "required": true
+        }
+      ],
+      "returns": "Rev"
+    },
+    {
+      "path": "ops/maintain",
+      "operation": "maintain",
+      "safe": false,
+      "idempotent": false,
+      "summary": "Reclaim storage and compact internal history/state — the generic maintenance sweep",
+      "parameters": [
+        {
+          "name": "dryRun",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "olderThan",
+          "type": "Duration",
+          "required": false
+        }
+      ],
+      "returns": "MaintenanceReport"
+    },
+    {
+      "path": "ops/purge",
+      "operation": "purge",
+      "safe": false,
+      "idempotent": false,
+      "summary": "HARD-delete terminal/ephemeral resources (closed + ephemeral storage-class) and their dependent edges/annotations/events, reclaiming space",
+      "parameters": [
+        {
+          "name": "dryRun",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "olderThan",
+          "type": "Duration",
+          "required": false
+        },
+        {
+          "name": "storageClass",
+          "type": "StorageClass",
+          "required": false
+        },
+        {
+          "name": "pattern",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "PurgeReport"
+    },
+    {
+      "path": "ops/recompute",
+      "operation": "recompute",
+      "safe": false,
+      "idempotent": false,
+      "summary": "Recompute a scope's denormalized / `computed` projections from their source — e.g",
+      "parameters": [
+        {
+          "name": "projection",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dryRun",
+          "type": "bool",
+          "required": false
+        }
+      ],
+      "returns": "RecomputeReport"
+    }
+  ]
+}

@@ -49,8 +49,6 @@ jobs:
         run: pnpm test:routing:shadow
       - name: Check shadow impact selector controls without running target suites
         run: node --test scripts/ci-impact-selection.node-test.mjs
-      - name: Check authored CLI flags against parser registration
-        run: node --test scripts/cli-spec-correspondence.node-test.mjs
       - name: Check current OpenAPI and Markdown projections
         run: |
           node scripts/generate-openapi.mjs --check
@@ -69,6 +67,8 @@ jobs:
           node scripts/spec-schema-fragments.mjs --check
       - name: Check canonical documents, local links and JSON examples
         run: python3 -B scripts/check-spec-editorial.py
+      - name: Check generated artifacts are current with specs/src and valid
+        run: python3 -B scripts/check-generated.py
 
   implementation:
     needs: changes
@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [read-update-matrix, transactional-matrix, transactional-set-receipts, realbd, other]
+        group: [read-update-matrix, transactional-matrix, transactional-set-receipts, other]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -146,41 +146,7 @@ jobs:
       - run: test "$(pnpm --version)" = "11.20.0"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        if: matrix.group == 'realbd'
-        with:
-          go-version: 1.26.10
-          cache: false
-      - name: Install real bd build requirements only in its consumer job
-        if: matrix.group == 'realbd'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libicu-dev
-          mkdir -p "$RUNNER_TEMP/bdp-tools"
-          GOBIN="$RUNNER_TEMP/bdp-tools" go install github.com/steveyegge/beads/cmd/bd@v1.0.5
-      - name: Verify the original pinned source-build identity
-        if: matrix.group == 'realbd'
-        run: |
-          test "$(cd "$RUNNER_TEMP/bdp-tools" && ./bd --version)" = "bd version 1.0.5 (dev)"
-          (cd "$RUNNER_TEMP/bdp-tools" && ./bd version --json) | node -e '
-            const { isDeepStrictEqual } = require("node:util");
-            let source = "";
-            process.stdin.setEncoding("utf8");
-            process.stdin.on("data", (chunk) => { source += chunk; });
-            process.stdin.on("end", () => {
-              const actual = JSON.parse(source);
-              const expected = { build: "dev", schema_version: 1, version: "1.0.5" };
-              if (!isDeepStrictEqual(actual, expected)) process.exit(1);
-            });
-          '
-      - name: Execute required real-bd file through unchanged full config
-        if: matrix.group == 'realbd'
-        run: node scripts/ci-regression-groups.mjs --run realbd
-        env:
-          BDP_BD_MATRIX_EXECUTABLE: ${{ runner.temp }}/bdp-tools/bd
-          BDP_REQUIRE_BD_MATRIX: "1"
-      - name: Execute every other selected file through unchanged full config
-        if: matrix.group != 'realbd'
+      - name: Execute every selected file through unchanged full config
         run: node scripts/ci-regression-groups.mjs --run "${{ matrix.group }}"
       - name: Retain actual per-file results, including on a failing job
         if: always()

@@ -73,7 +73,7 @@ deployments. The first patch changes only this inventory, the root README,
 the Read walkthrough and the application README. Runtime, package manifests,
 default build/test/smoke and evidence admission remain unchanged.
 
-The adapter's source and [revision declaration](../../packages/adapter-bd/README.md),
+The adapter's source and [revision declaration](../history/adapter-bd.md),
 v0 schemas, fixtures and sealed evidence keep their existing bytes and identity.
 The committed [Read cohort](evidence/read-cohort/read-v1.json) names run head
 `647d8d7b746f2b5a6136640aed4af7b7d5766146`; the two shipping target entries share
@@ -87,16 +87,41 @@ its own reviewed delta and validation receipt.
 
 | Family and actual entry points | Classification now | Required follow-up before default retirement |
 | --- | --- | --- |
-| Root [README](../../README.md), [Read walkthrough](../read-demo.md), [application README](../../apps/bdpbd/README.md) | Migrate now | State frozen legacy status and link the replacement work |
-| [Application composition](../../apps/bdpbd/src/server-composition.ts), [CLI](../../apps/bdpbd/src/main.ts), [process adapter](../../packages/adapter-bd/src/index.ts) | Preserve for compatibility coverage | Keep the old projection distinguishable; remove implementation only in a later explicit source cleanup |
+| Root [README](../../README.md), [Read walkthrough](../read-demo.md), application README (`apps/bdpbd/README.md`, retired) | Migrate now | State frozen legacy status and link the replacement work |
+| Application composition (`apps/bdpbd/src/server-composition.ts`), CLI (`apps/bdpbd/src/main.ts`), process adapter (`packages/adapter-bd/src/index.ts`) — all retired; the revision declaration is preserved at [adapter-bd](../history/adapter-bd.md) | Retired | Done: the explicit source cleanup removed the real-bd bridge; captured cohort evidence remains valid and is no longer regenerated |
 | [Workspace build references](../../tsconfig.json), [workspace globs](../../pnpm-workspace.yaml), [source typecheck aliases](../../tsconfig.check.json), app/adapter manifests and lockfile, [boundary policy](../../scripts/check-dependency-boundaries.mjs), [build cleanup](../../scripts/clean-build.mjs) | Preserve for compatibility coverage | Separate default current-contract participation from an explicit legacy validation route; remove references together rather than only deleting a directory |
 | [Default test discovery](../../vitest.config.ts), app composition/matrix/lifecycle tests, adapter tests | Preserve for compatibility coverage | Transfer the backend-independent obligations below and qualify their replacement targets before excluding legacy execution |
 | [Executable smoke](../../scripts/smoke-executables.mjs) | Preserve for compatibility coverage | Replace each applicable lifecycle/configuration/package/admission check on the real replacement executable; discovery-only smoke is insufficient mutation evidence |
-| [Readiness proof](../../scripts/e2e-ready.mjs), [demo implementation](../../scripts/demo-read.mjs), `@bdp/bd-domain` | Preserve for compatibility coverage | Keep the old real-bd oracle comparison explicit; a generic provider is not required to implement the Beads readiness domain |
-| [Harness bindings](../../scripts/read-harness-bindings.ts), [cohort generator](../../scripts/generate-read-cohort.mts), [evidence verifier](../../scripts/read-cohort-evidence.mjs), [cohort verification](../../packages/conformance/src/cohort-verification.ts), Read matrices/fixtures/manifest | Preserve for compatibility coverage | Define new retained-contract cases and evidence identities; preserve old harness/source bindings and reject stale or mismatched claims |
+| [Readiness proof](../../scripts/e2e-ready.mjs), demo implementation (`scripts/demo-read.mjs`, retired with the bridge), `@bdp/bd-domain` | Keep as frozen (ruled 2026-11-23) | Keep the old real-bd oracle comparison explicit; a generic provider is not required to implement the Beads readiness domain. Its bdpbd half names the retired app and stays in place — see the ruling below |
+| [Harness bindings](../../scripts/read-harness-bindings.ts), [cohort generator](../../scripts/generate-read-cohort.mts), [evidence verifier](../../scripts/read-cohort-evidence.mjs), [cohort verification](../../packages/conformance/src/cohort-verification.ts), Read matrices/fixtures/manifest | Keep as frozen (ruled 2026-11-23) | Do not delete. The cohort generator and [bd baseline](../../scripts/bd-baseline.mjs) became vestigial when the real-bd producer was retired, but the apparatus is kept as frozen evidence and the wire-level conformance gate does not subsume it — see the ruling below |
 | [Read admission](../../packages/server/src/read-conformance-capability.ts), [public server target admission](../../packages/server/src/index.ts) | Preserve for compatibility coverage | Replace the hardcoded two-target Read admission deliberately; do not delete only the `bdpbd` constant or make it stand for a new provider |
-| [CI](../../.github/workflows/ci.yml), including pinned legacy bd installation, real-bd matrix requirement, smoke and evidence gate | Preserve for compatibility coverage | Remove legacy-only execution/dependency only after the preceding replacements pass; preserve an honest legacy verification path |
+| [CI](../../.github/workflows/ci.yml), including smoke and the evidence gate | Partly retired | Done: the real-bd matrix lane and its pinned bd installation are gone, so CI installs no Go toolchain and builds no `bd` binary — the implementation lanes are self-contained. Smoke and the evidence gate remain and must keep an honest legacy verification path |
 | [STATUS history](../../STATUS.md), conformance matrix documentation, release/design/evidence records | Docs follow-up | Add current-status pointers where needed; preserve original claims, source/build pins and limitations |
+
+### Ruling — keep as frozen (2026-11-23)
+
+The real-Beads bridge is retired, but the Read-cohort and bd-baseline apparatus around it
+is **kept as frozen evidence, not retired**. The following are deliberately retained and
+must not be removed as dead code:
+
+- [cohort generator](../../scripts/generate-read-cohort.mts) — it spawns the retired
+  `apps/bdpbd`, so it can no longer regenerate anything;
+- [bd baseline](../../scripts/bd-baseline.mjs) and its test;
+- the bdpbd half of the [readiness proof](../../scripts/e2e-ready.mjs);
+- the bdpbd entries in [harness bindings](../../scripts/read-harness-bindings.ts);
+- the Read-cohort fixtures, [cohort verification](../../packages/conformance/src/cohort-verification.ts)
+  and the cohort tests.
+
+This is a ruling rather than an oversight, for two reasons. First, the wire-level
+conformance gate does **not** subsume the Read cohort: the gate measures operation and
+fault coverage against an in-memory reference, whereas the cohort binds a SHA-256 baseline
+to a real `bd` executable's identity. Those are different guarantees, and the gate's merge
+must not be read as retiring this apparatus. Second, a sealed cohort pins the document
+paths it cites, and there is no verify-only re-seal path — re-sealing runs the generator
+against the retired producer — so sealed evidence can only be superseded by a fresh seal,
+never edited or repointed. Editing a sealed fixture fails the evidence gate outright.
+
+Dead-code hygiene on the vestigial files above therefore needs its own explicit ruling.
 | Sybil's OpenAPI/schema/CLI mapping, Trish's Types/startup work, existing Beads implementations and global bd installation | Ignore: separate ownership | Coordinate only at the named receiving seam; no edits in this cleanup |
 
 There is no separate release workflow in this starting tree. The release-facing

@@ -350,7 +350,6 @@ export function parseOperationTables(markdown, sourceFile) {
           ...row,
           parameters: active.parameters,
           sources: [active.source],
-          cli: { file: "docs/cli-design/bdp-cli.md", line: 1 },
         });
         active = null;
       }
@@ -504,20 +503,13 @@ export function parseComposition(markdown, name = "types1") {
   return values;
 }
 
+// The CLI command an operation renders as (doc-independent — the group map, not a doc
+// back-link). The archived per-command `bdp-cli.md` sections are no longer consulted; the
+// legacy correspondence harness against the stood-down `apps/bdp` CLI is retired.
 function cliSource(id) {
   const group = commandGroups.find((entry) => entry.signatures.includes(id));
   const command = group?.command ?? (deferredSignatures.includes(id) ? null : "bd scope inspect");
-  const file = "docs/cli-design/bdp-cli.md";
-  const lines = readFileSync(resolve(root, file), "utf8").split(/\r?\n/);
-  const index = command
-    ? lines.indexOf(`#### \`${command}\``)
-    : lines.indexOf(
-        id.startsWith("historicalUpdate")
-          ? "#### Historical-update feature reads"
-          : "#### Types: `--type` and `--exact-type`",
-      );
-  assert(index >= 0, `Missing CLI correspondence for ${id}`);
-  return { file, line: index + 1 };
+  return command ? { command } : null;
 }
 
 export function operations() {
@@ -850,7 +842,6 @@ export function generateArtifacts() {
       "specs/profiles/types/types.md",
       "specs/profiles/transfer/transfer.md",
       "specs/formats/markdown-openapi.md",
-      "docs/cli-design/bdp-cli.md",
       "specs/profiles/types/types-v1.schema.json",
       "scripts/generate-openapi.mjs",
       "scripts/spec-schema-fragments.mjs",
@@ -1052,7 +1043,7 @@ export function generateArtifacts() {
         .map((x) => `[${x.file}:${x.line}](../../${x.file}#L${x.line})`)
         .join(", ");
       coverage.push(
-        `| ${op.operationId} | ${JSON.stringify(row.navigation)}; ${op["x-bdp-support"]} | ${method === "post" ? `${row.request}; Idempotency-Key; ${op["x-bdp-request-media"].contentType}` : row.parameters.map((x) => x.name).join(", ") || "none"} | ${method === "head" ? "bodyless native status" : row.response || (row.alias ? "307 Location, no body" : "200 human/204 bodyless")} | response headers: ${Object.keys(op.responses[row.alias ? "307" : "200"].headers).join(", ")}; statuses ${Object.keys(op.responses).join(", ")}; ${method === "head" ? "no Problem body" : row.projection ? "resourceProjectionProblem" : row.problem} | ${refs}; [${row.cli.file}:${row.cli.line}](../../${row.cli.file}#L${row.cli.line}) |`,
+        `| ${op.operationId} | ${JSON.stringify(row.navigation)}; ${op["x-bdp-support"]} | ${method === "post" ? `${row.request}; Idempotency-Key; ${op["x-bdp-request-media"].contentType}` : row.parameters.map((x) => x.name).join(", ") || "none"} | ${method === "head" ? "bodyless native status" : row.response || (row.alias ? "307 Location, no body" : "200 human/204 bodyless")} | response headers: ${Object.keys(op.responses[row.alias ? "307" : "200"].headers).join(", ")}; statuses ${Object.keys(op.responses).join(", ")}; ${method === "head" ? "no Problem body" : row.projection ? "resourceProjectionProblem" : row.problem} | ${refs}; ${row.cli ? `\`${row.cli.command}\`` : "—"} |`,
       );
     }
   coverage.push(

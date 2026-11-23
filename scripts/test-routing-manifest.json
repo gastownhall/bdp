@@ -64,24 +64,6 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
-      "path": "apps/bdpbd/src/read-matrix.test.ts",
-      "runner": "vitest",
-      "lane": "legacy",
-      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
-    },
-    {
-      "path": "apps/bdpbd/src/server-composition.test.ts",
-      "runner": "vitest",
-      "lane": "legacy",
-      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
-    },
-    {
-      "path": "apps/bdpbd/test-support/matrix-lifecycle.test.ts",
-      "runner": "vitest",
-      "lane": "legacy",
-      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
-    },
-    {
       "path": "apps/bdptest/src/atomic-batch-reference.test.ts",
       "runner": "vitest",
       "lane": "current",
@@ -389,12 +371,6 @@
     },
     {
       "path": "apps/bdptest/src/transactional-sse-installed.test.ts",
-      "runner": "vitest",
-      "lane": "legacy",
-      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
-    },
-    {
-      "path": "packages/adapter-bd/src/index.test.ts",
       "runner": "vitest",
       "lane": "legacy",
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
@@ -1468,12 +1444,6 @@
       "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
     },
     {
-      "path": "scripts/cli-spec-correspondence.node-test.mjs",
-      "runner": "node",
-      "lane": "artifact",
-      "reason": "Authored CLI flag tables versus actual parser registration; artifact consistency only, not behavioral or provider conformance."
-    },
-    {
       "path": "scripts/current-provider-kit-callables.node-test.mjs",
       "runner": "node",
       "lane": "current",
@@ -1487,12 +1457,6 @@
     },
     {
       "path": "scripts/demo-history.test.mjs",
-      "runner": "vitest",
-      "lane": "legacy",
-      "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
-    },
-    {
-      "path": "scripts/demo-read.test.mjs",
       "runner": "vitest",
       "lane": "legacy",
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."

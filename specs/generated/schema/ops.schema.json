@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/specs/generated/schema/ops.schema.json",
+  "$defs": {
+    "HealthReport": {
+      "description": "What `health` returns — overall status, optional per-stage timings (resolve / open / query), and an optional human detail.",
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "degraded",
+            "down"
+          ]
+        },
+        "timings": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "ConfigKey": {
+      "description": "A configuration key — a dotted namespace (`jira.url`, `claim.pools`, `storage-class.wisp`). Reserved/internal namespaces (`kv.*`, `memory.*`, `sync.*`, …) are refused here.",
+      "type": "string"
+    },
+    "ConfigEntry": {
+      "description": "One configuration entry — its key, its string value, and where the effective value comes from (the scope, or a client-side override).",
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/ConfigKey"
+        },
+        "value": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "scope",
+            "client"
+          ],
+          "default": "scope"
+        }
+      },
+      "required": [
+        "key",
+        "value",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "MaintenanceReport": {
+      "description": "What `maintain` reports — bytes reclaimed (when known), and a per-phase breakdown (each phase names what it did and whether it was skipped).",
+      "type": "object",
+      "properties": {
+        "reclaimedBytes": {
+          "type": "integer"
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MaintenancePhase"
+          }
+        }
+      },
+      "required": [
+        "phases"
+      ],
+      "additionalProperties": false
+    },
+    "MaintenancePhase": {
+      "description": "One maintenance phase's outcome.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "skipped": {
+          "type": "boolean",
+          "default": false
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "skipped"
+      ],
+      "additionalProperties": false
+    },
+    "PurgeReport": {
+      "description": "What `purge` removed — the primary count plus cascaded dependent counts.",
+      "type": "object",
+      "properties": {
+        "purged": {
+          "type": "integer"
+        },
+        "dependencies": {
+          "type": "integer"
+        },
+        "annotations": {
+          "type": "integer"
+        },
+        "events": {
+          "type": "integer"
+        },
+        "pinnedSkipped": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "purged"
+      ],
+      "additionalProperties": false
+    },
+    "RecomputeReport": {
+      "description": "How many projection rows were corrected (or would be, under `dryRun`).",
+      "type": "object",
+      "properties": {
+        "corrected": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "corrected"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

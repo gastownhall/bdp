@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gastownhall/bdp/specs/generated/schema/memory.schema.json",
+  "$defs": {
+    "markdown": {
+      "description": "Markdown text — a nominal string (lowers to a nominal over string).",
+      "type": "string"
+    },
+    "Memory": {
+      "description": "Memory — a unit of arbitrary knowledge. Plain memories exist and packs refine subtypes.",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "body": {
+              "$ref": "#/$defs/markdown"
+            },
+            "references": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              },
+              "uniqueItems": true
+            },
+            "supersededBy": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            }
+          },
+          "required": [
+            "body"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Constraint": {
+      "description": "Constraint — an obligation. Abstract: only the concrete subtypes below are instantiated.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Memory"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "requires": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              },
+              "uniqueItems": true
+            },
+            "definedBy": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            },
+            "appliesTo": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Policy": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Constraint"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Requirement": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Constraint"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Scenario": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Constraint"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Specification": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Constraint"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Evaluation": {
+      "description": "Evaluation — an assessment over a NONEMPTY group of subject resources.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Memory"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "subjects": {
+              "type": "array",
+              "items": {
+                "$ref": "core.schema.json#/$defs/ResourceRef"
+              },
+              "uniqueItems": true,
+              "minSize": 1
+            }
+          },
+          "required": [
+            "subjects"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Conformance": {
+      "description": "Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/Bead"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "constraint": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            },
+            "evaluation": {
+              "$ref": "core.schema.json#/$defs/ResourceRef"
+            }
+          },
+          "required": [
+            "constraint",
+            "evaluation"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Addresses": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Conformance"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Satisfies": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Conformance"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Violates": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Conformance"
+        },
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

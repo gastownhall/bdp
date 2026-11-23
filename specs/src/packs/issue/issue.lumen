@@ -1,0 +1,609 @@
+// =============================================================================
+// issue.lumen — the Issue pack (the resource / relationship model)
+// =============================================================================
+// An example BDP pack modelling a unit of work and its dependency graph on the
+// resource model. Issue and Spike are beads; a Dependency is a first-class
+// relationship — an edge resource, not a set of refs; the blocked facts are
+// computed projections. §2 derives the command surface from the §1 model.
+//
+// PRINCIPLES — why it is shaped this way:
+//   1. Model before commands. §1 models Issue and Dependency completely; §2's
+//      commands are a thin surface over that model, never the reverse.
+//   2. Specific before general. These are the ISSUE commands. Generalising the
+//      parts that recur across packs is a later pass — not this file.
+//   3. Verbs lower to primitives; behaviour is an operation. The generic
+//      create/show/list/update/delete verbs ARE the core primitives (§2.A); only
+//      issue-specific behaviour is a declared operation (§2.B, §2.C).
+//   4. Compat by rendering. The trained command names render over this model;
+//      output format is the orthogonal `--output-mode`, never a semantic — so no
+//      signature here mentions it.
+//   5. Dependencies are edge resources. `dep add` / `dep remove` create and
+//      delete a Dependency; the blocked facts are COMPUTED and revision-transparent.
+// =============================================================================
+
+/// description: Free text — a nominal string.
+type text is string
+
+
+// #############################################################################
+// §1. The model
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// §1.1  Issue — a unit of work
+// -----------------------------------------------------------------------------
+
+/// description: Issue — a unit of work. `owner`/`assignee` are native human strings, deliberately NOT BDP refs (outside BDP attribution).
+/// normative: An Issue holds NO dependency edges as fields — a dependency is a `Dependency` relationship resource (§1.2). The blocked facts (`isBlocked`, `blockedByCount`) are COMPUTED: derived from the Dependency graph and revision-transparent — reading or recomputing one never advances the Issue's revision, emits no change event, and never enters its content hash.
+/// normative: Labels and comments are rev-neutral annotation resources that point AT an Issue; they are not fields here.
+/// cli.edge: `--blocks TARGET` — this issue blocks TARGET: a `Blocks` edge source = TARGET (the blocked/dependent), target = this issue (the blocker). Native: TARGET depends on this issue.
+/// cli.edge: `--blocked-by TARGET` — this issue is blocked by TARGET: a `Blocks` edge source = this issue (the blocked/dependent), target = TARGET (the blocker). Native `bd dep add <this> <TARGET>`.
+/// cli.edge: `--deps TYPE:ID` creates a dependency of the named concrete type; a bare `ID` defaults to `Blocks`.
+/// cli: `--labels`/`-l` (on create) and `--add-label`/`--remove-label`/`--set-labels` (on update) are annotation sugar — they create/delete rev-neutral `IssueLabel` resources pointing at the issue; `labels` is the computed reverse-lookup projection (§1.1.3), never a written Issue field.
+/// cli: the gnarly create flows are designated operations (`cli.create`), not flag sugar — `--parent` (hierarchical child + id derivation), `--graph` (plan file), `-f`/`--file` (one issue per `##` heading).
+
+type Issue is Bead {
+  // -- required --
+  /// cli.positional: 0
+  title:    string { minLength: 1 },
+  // a built-in or provider-configured value
+  /// cli.alias: -s
+  /// cli.default: open
+  status:   string { minLength: 1 },             // free, provider-configured; canonical open/closed is `closedAt` (§lifecycle), not this label
+  // 0 = P0; never absent
+  /// cli.alias: -p
+  /// cli.default: 2
+  priority: integer { 0..4 },
+
+  // -- optional work fields --
+  /// cli.alias: -d
+  description?:        text,
+  /// cli.flag: --acceptance
+  acceptanceCriteria?: text,
+  design?:             text,
+  notes?:              text,
+  // owner/assignee are native human strings — NOT BDP refs
+  owner?:              string { maxLength: 255 },
+  /// cli.alias: -a
+  assignee?:           string { maxLength: 255 },
+  /// cli.alias: -e
+  /// cli.flag: --estimate
+  estimatedMinutes?:   integer { min: 0 },
+  /// cli.flag: --spec-id
+  specId?:             text,
+  /// cli.flag: --external-ref
+  externalRef?:        string,
+  // native federation origin — the adapter/system a cross-system import came through
+  sourceSystem?:       text,
+
+  // -- lifecycle (set by the lifecycle ops, not by patch; createdAt lives on Resource) --
+  startedAt?:   Timestamp,
+  closedAt?:    Timestamp,
+  closeReason?: text,
+  // hide from ready work until this time
+  /// cli.flag: --defer
+  deferUntil?:  Timestamp,
+  /// cli.flag: --due
+  dueAt?:       Timestamp,
+
+  // a persistent context marker, not a work item
+  pinned?: bool,
+
+  // -- computed: readiness over the dependency graph (revision-transparent) --
+  // LIFECYCLE (Donna to confirm): the canonical "closed" signal is `closedAt` being
+  // set — NOT the free `status` string; open ⇔ `closedAt` null (and not deferred);
+  // `claimIssue` sets `status` + a lease (+ `startedAt`).
+  // isBlocked(X) = X is the SOURCE of an open hard-blocking edge whose TARGET (the blocker) is unclosed (`closedAt` null)
+  computed isBlocked:      bool,
+  computed blockedByCount: integer,
+
+  // -- computed: annotation + edge projections (reverse lookups; see §1.1.3, §1.2) --
+  computed labels:       set<ref<IssueLabel>>,
+  computed comments:     [ ref<IssueComment> ],
+  computed dependencies: [ ref<Dependency> ],
+
+  // -- computed: provenance projection --
+  // createdBy is a temporary hack — the create actor, projected from provenance
+  computed createdBy: text,
+
+  // -- serviceManaged: service-stored state — not client-settable, but NOT
+  //    revision-transparent (so NOT `computed`, which is DERIVED). The reference
+  //    backend proved the distinction: a lease is stored, not recomputed. --
+  serviceManaged closedBySession:  text,
+  // arrivalSeq = commit-ordered create sequence (ephemeral-plane rows)
+  serviceManaged arrivalSeq:       integer,
+  // lease / heartbeat (ephemeral, node-local; absent when unclaimed)
+  serviceManaged leaseExpiresAt:   Timestamp,
+  serviceManaged heartbeatAt:      Timestamp,
+  serviceManaged leaseGrantedNode: text,
+  // compaction state
+  serviceManaged compactionLevel:  integer,
+  serviceManaged compactedAt:      Timestamp,
+}
+
+// Elided from the model — internal routing / hydration that never reaches the wire:
+//   contentHash, rowVersion (surfaced instead as the Resource `revision`), sourceRepo,
+//   idPrefix, prefixOverride, wispPlaneOverride, originalSize, isLitePartial.
+
+// -----------------------------------------------------------------------------
+// §1.1.1  Issue subtypes — the 13 native issue types (the `type` discriminator)
+// -----------------------------------------------------------------------------
+// Each is a kind of Issue; the native flat row's type-specific columns distribute
+// onto the subtype that uses them. Seven add no properties; four add fields; Epic
+// and Milestone add computed rollups only.
+
+/// description: Bug — a defect.
+type Bug is Issue {}
+/// description: Feature — a new capability.
+type Feature is Issue {}
+/// description: Task — a unit of work with no finer classification.
+type Task is Issue {}
+/// description: Chore — maintenance or housekeeping work.
+type Chore is Issue {}
+/// description: Decision — a decision record (often linked by `Supersedes` / `RelatesTo`).
+type Decision is Issue {}
+/// description: Spike — a timeboxed investigation to reduce uncertainty.
+type Spike is Issue {}
+/// description: Story — a user story: a feature from the user's perspective.
+type Story is Issue {}
+
+/// description: Epic — a parent that aggregates child issues. Its rollups are COMPUTED over the `ParentChild` edges, not stored columns.
+type Epic is Issue {
+  computed totalChildren:  integer,
+  computed closedChildren: integer,
+  computed closeable:      bool,      // all children closed
+}
+
+/// description: Milestone — marks completion of a set of related issues; holds no work of its own. Its completion is COMPUTED over the issues that target it.
+type Milestone is Issue {
+  computed closeable: bool,
+}
+
+/// description: Message — an inter-agent message. Carries a sender; lives on the ephemeral (wisp) plane (see §1.1.2).
+/// metadata: PLACEHOLDER `bdp.storageClass = "ephemeral"` (§1.1.2).
+type Message is Issue {
+  // native sender string — NOT a ref
+  sender?: text,
+}
+
+/// description: Molecule — a swarm/patrol/work coordination unit; `advanceMolecule` (§2.B) steps it.
+type Molecule is Issue {
+  molType?:    MolType,          // swarm | patrol | work    (empty = work)
+  workType?:   WorkType,         // mutex | open_competition (empty = mutex)
+  isTemplate?: bool,             // a read-only template molecule
+  bondedFrom?: [ BondRef ],      // compound lineage — the constituent protos
+}
+
+/// description: Gate — an async coordination primitive: it waits on a condition and clears.
+type Gate is Issue {
+  awaitType?:      text,         // condition type: gh:run | gh:pr | timer | human | mail
+  awaitId?:        text,         // condition identifier (run id, PR number, …)
+  timeout?:        Duration,     // max wait before escalation
+  waiters?:        [ text ],     // mail addresses notified when the gate clears
+  sourceFormula?:  text,         // formula where the step was defined (cooking origin)
+  sourceLocation?: text,         // path within that formula, e.g. "steps[0]"
+}
+
+/// description: Event — an operational state change (append-only); lives on the ephemeral (wisp) plane.
+/// metadata: PLACEHOLDER `bdp.storageClass = "ephemeral"` (§1.1.2).
+type Event is Issue {
+  eventKind?: text,              // namespaced, e.g. "patrol.muted", "agent.started"
+  actor?:     text,              // entity URI that caused the event
+  target?:    text,              // entity URI or issue id affected
+  payload?:   text,              // event-specific JSON
+}
+
+// Supporting nominal types for the subtype fields.
+/// description: MolType — molecule coordination kind.
+type MolType = "swarm" | "patrol" | "work"
+/// description: WorkType — assignment model.
+type WorkType = "mutex" | "open_competition"
+/// description: Duration — a time span (e.g. a gate timeout); wire form (ISO-8601 vs native span) is a small open.
+type Duration is string
+/// description: BondRef — a reference to a constituent proto in a compound molecule's lineage.
+type BondRef = ref<Issue>
+
+// -----------------------------------------------------------------------------
+// §1.1.3  As-built annotations — IssueLabel / IssueComment (rev-neutral)
+// -----------------------------------------------------------------------------
+// The as-built label and comment, as temporary self-contained types — this file
+// stays a clean as-built; any cross-pack unification is a later sweep, out of scope
+// here. Both are rev-neutral: they point AT an issue and writing one never advances
+// the issue's revision; a target's `labels` / `comments` (§1.1) are the
+// reverse-lookup projections over them.
+
+/// description: IssueLabel — a named tag on an issue (the as-built label).
+/// normative: Natural key (`issue`, `name`) — at most one Label of a given `name` per issue.
+type IssueLabel is Bead {
+  issue: ref<Issue>,     // the labelled issue
+  name:  text,           // the label string
+}
+
+/// description: IssueComment — free-text commentary on an issue (the as-built comment). Many per issue; no natural key.
+type IssueComment is Bead {
+  issue:   ref<Issue>,   // the commented issue
+  author?: text,         // native author string — NOT a ref
+  body:    text,         // the comment text
+}
+
+// -----------------------------------------------------------------------------
+// §1.1.2  Storage class — the "a wisp is ephemeral" finding
+// -----------------------------------------------------------------------------
+// `storageClass` lives on `Resource` ({ versioned | unversioned | ephemeral }).
+// The native model routes the liveness/operational chatter — heartbeats, pings,
+// patrol / GC / recovery / error / escalation reports — onto the ephemeral (wisp)
+// plane via a per-ROW flag, and that chatter surfaces as `Message` and `Event`.
+// RULING: conceptually yes, `Message`/`Event` ARE ephemeral — but it CANNOT be
+// pinned in-language. `storageClass` is a Resource-level concern, not a property
+// in the bead's properties bag, so a type-level pin would have to be modelled as a
+// metadata property. That is a genuine limitation of the "BDP on top, user data in
+// a nested value" model. PLACEHOLDER (coined now, pending the systemic fix): a type
+// pins its plane with a reserved metadata property, `bdp.storageClass`, in the
+// metadata bag — `Message` and `Event` carry `bdp.storageClass = "ephemeral"`. This
+// records the intent in-model without a language change; a systemic in-language
+// storage-class modifier replaces it later.
+
+
+
+// -----------------------------------------------------------------------------
+// §1.2  Dependency — the relationship, as an edge resource
+// -----------------------------------------------------------------------------
+
+/// description: Dependency — a relationship FROM an Issue, carried as a first-class edge resource. It has its own identity, revision history and provenance; `createdBy`/`threadId` are ordinary body properties, not a second-class metadata bag. `unique` keys the edge by its natural key (source, target); its id derives deterministically — at most one Dependency of a given concrete type between a given pair.
+/// normative: `abstract` — only the concrete subtypes below are instantiated. Creating, re-typing or deleting a Dependency does NOT touch its endpoints' revisions; the edge carries its own identity and history. Delete is a tombstone (a terminal revision), not an erasure.
+/// normative: TARGET — the parent target is `resource`, not `Issue`. Most edges point at Issues, but the attribution edges point at a PRINCIPAL (`AuthoredBy`/`AssignedTo`/`ApprovedBy`/`DelegatedFrom`), `Attests` at a skill/claim, and `CausedBy` at the triggering event. Only the homogeneous Issue→Issue subset (`ReadyAffecting` and below) narrows the target, and only a homogeneous graph can be `acyclic`.
+abstract type Dependency is unique rel<Issue, resource> {
+  createdBy?: text,     // native creator string — NOT a BDP attribution
+  threadId?:  text,     // conversation grouping carried from the native row
+}
+
+// -----------------------------------------------------------------------------
+// §1.3  Readiness capabilities as abstract types — prefix queries, not markers
+// -----------------------------------------------------------------------------
+// "Affects ready-work" and "hard-blocking" are capabilities that NEST
+// (hard-blocking ⊂ ready-affecting), so each is an intermediate abstract type and
+// a capability check is a type-path PREFIX test —
+//   ready-affecting?  →  dependency/ready-affecting/*
+//   hard-blocking?    →  dependency/ready-affecting/hard-blocking/*
+// Both ready-affecting endpoints are Issues, so the subtree narrows to Issue→Issue.
+//
+// ACYCLICITY CROSS-CUTS the hierarchy — it is NOT a prefix. The enforced-acyclic
+// set is { Blocks, ConditionalBlocks, ParentChild }:
+//   - `WaitsFor` is hard-blocking, but a MUTUAL wait is legitimate fanout-gate
+//     semantics (not a deadlock), so it is NOT acyclic;
+//   - `ParentChild` is acyclic but NOT hard-blocking.
+// So `acyclic` sits on neither `ReadyAffecting` nor `HardBlocking`; it is stated
+// per concrete type. This is the genuine cross-cutting-capability case — a marker
+// that does NOT fit the single-inheritance path, unlike the nesting ones above.
+// Per the `acyclic` rule the keyword RESTIPULATES the rel (`acyclic rel<Issue,
+// Issue>`); `unique` is inherited from Dependency and the restipulation keeps it.
+
+/// description: ReadyAffecting — an edge that affects an issue's ready-work status; both endpoints are Issues. Abstract. NOT acyclic as a whole (`WaitsFor` permits mutual waits — see §1.3).
+/// normative: Narrows the parent target from `resource` to `Issue`. (Whether a refinement may narrow a parent rel's endpoints is a Lumen-scrub question; the intent is the conformance list `is Dependency rel<Issue, Issue>`.)
+abstract type ReadyAffecting is Dependency rel<Issue, Issue> {}
+
+/// description: HardBlocking — a hard dependency (⊂ ready-affecting): an open edge where the SOURCE depends on the TARGET — while the target is unclosed the source is blocked (not ready), and the target is the blocker. Abstract. NOT acyclic as a whole — `WaitsFor` is a member and permits mutual waits.
+abstract type HardBlocking is ReadyAffecting {}
+
+/// description: Blocks — the default hard dependency: the SOURCE depends on the TARGET. `a Blocks b` ⇒ a is blocked, b is the blocker; a is not ready until b closes, and closing b unblocks a. Matches native `bd dep add <source> <target>` — source = the blocked/dependent issue (`issue_id`), target = what it depends on (`depends_on_id`). The default dependency type. ACYCLIC (a cycle is a deadlock).
+/// normative: `acyclic` restipulates `rel<Issue, Issue>`; `unique` is inherited and preserved.
+type Blocks is HardBlocking, acyclic rel<Issue, Issue> {}
+/// description: ConditionalBlocks — "B runs only if A fails"; a conditional block. ACYCLIC.
+type ConditionalBlocks is HardBlocking, acyclic rel<Issue, Issue> {}
+/// description: WaitsFor — a fanout gate: wait for dynamically-discovered children. NOT acyclic — a mutual wait is legitimate gate semantics, not a deadlock.
+type WaitsFor is HardBlocking {}
+
+/// description: ParentChild — hierarchy: `source` is the parent of `target`. Ready-affecting and structural, NOT hard-blocking; the hierarchy is ACYCLIC.
+/// normative: `acyclic` restipulates `rel<Issue, Issue>`.
+type ParentChild is ReadyAffecting, acyclic rel<Issue, Issue> {}
+
+// -----------------------------------------------------------------------------
+// §1.4  The remaining dependency types — plain edges (target stays `resource`)
+// -----------------------------------------------------------------------------
+// None affects ready-work; several point at non-Issue resources (see the TARGET note).
+
+/// description: Related — a generic relation between two issues.
+type Related is Dependency {}
+/// description: DiscoveredFrom — this issue was discovered while working the target.
+type DiscoveredFrom is Dependency {}
+/// description: RepliesTo — conversation threading: a reply to the target.
+type RepliesTo is Dependency {}
+/// description: RelatesTo — a loose knowledge-graph edge.
+type RelatesTo is Dependency {}
+/// description: Duplicates — a deduplication link: this issue duplicates the target.
+type Duplicates is Dependency {}
+/// description: Supersedes — a replacement link: the target is superseded by this issue. NOT a version relation.
+type Supersedes is Dependency {}
+/// description: AuthoredBy — creator relationship; target is a principal, not an Issue.
+type AuthoredBy is Dependency {}
+/// description: AssignedTo — assignment relationship; target is a principal.
+type AssignedTo is Dependency {}
+/// description: ApprovedBy — approval relationship; target is a principal.
+type ApprovedBy is Dependency {}
+/// description: Attests — skill attestation ("source attests target has a skill"); target is a skill/claim.
+type Attests is Dependency {}
+/// description: Tracks — a convoy→issue tracking edge; non-blocking.
+type Tracks is Dependency {}
+/// description: Until — active until the target closes (e.g. muted until an issue resolves).
+type Until is Dependency {}
+/// description: CausedBy — triggered by the target (audit trail); target is often an event.
+type CausedBy is Dependency {}
+/// description: Validates — a validation relationship.
+type Validates is Dependency {}
+/// description: DelegatedFrom — work delegated from the target (a parent/principal); completion cascades up.
+type DelegatedFrom is Dependency {}
+
+
+// #############################################################################
+// §2. The command surface — derived from §1
+// #############################################################################
+// Three tiers. §2.A is the generic verbs, which ARE core primitives and are NOT
+// redefined here. §2.B is issue behaviour. §2.C is the dependency graph. Queries
+// are `fn` (safe); batches are `command`. Full argument lists are folded from the
+// callable catalog (specs/types/issue/callables.md); the signatures below model
+// the shape — representative parameters, not every field — and are marked where
+// abbreviated.
+
+// -----------------------------------------------------------------------------
+// §2.A  Generic verbs → core primitives (rendered, never redefined)
+// -----------------------------------------------------------------------------
+//   create   → create(Issue)                 show     → get(ref<Issue>)
+//   list      → list(Issue, where?)          update   → patch(ref<Issue>, …)
+//   delete    → delete(ref<Issue>)           get-many → batch get / list
+//   count     → list(Issue, where?):count    query    → list(Issue, where)
+// The pack RENDERS the trained names; each lowers to the primitive beside it. A
+// generic verb gains no issue-specific behaviour — behaviour lives in §2.B/§2.C.
+
+
+
+// -----------------------------------------------------------------------------
+// §2.0  The error model — primitives fault; operations declare a Result<T, E>
+// -----------------------------------------------------------------------------
+// Settled (core `Outcome` / `Problem`): a PRIMITIVE returns its value or faults
+// with a `Problem` (the universal fault channel — not-found, conflict,
+// precondition), out of band; it declares no `E` and is not cancellable. An
+// OPERATION (a `call` callable) settles as `Outcome<T, E> = Result<T, E> | fault |
+// canceled`, so a command with its own domain "no" declares `Result<T, E>` — `T`
+// is the resulting `rep<Issue>`, `E` is that op's DOMAIN refusals (business rules
+// only; not-found / malformed stay Problems). Safe queries (`fn`) read-or-fault and
+// carry no domain `E`. (`Result` / `rep` / `Problem` are core types.)
+
+/// description: Domain refusals of `claimIssue`.
+type ClaimError     = "already-claimed" | "closed"
+/// description: Domain refusal of `claimNextIssue`.
+type ClaimNextError = "none-ready"
+/// description: Domain refusals of `releaseIssue`.
+type ReleaseError   = "not-claimed" | "not-owner"
+/// description: Domain refusals of `heartbeatIssue`.
+type HeartbeatError = "not-claimed" | "not-owner" | "lease-expired"
+/// description: Domain refusal of `closeIssue`.
+type CloseError     = "already-closed"
+/// description: Domain refusal of `reopenIssue`.
+type ReopenError    = "not-closed"
+/// description: Domain refusals of `advanceMolecule`.
+type AdvanceError   = "not-a-molecule" | "no-next-step" | "gate-unmet"
+/// description: Domain refusal of `compareAndSetMetadata` (optimistic concurrency).
+type CasError       = "expectation-mismatch"
+/// description: Domain refusal of `addDependency` — the edge would create a cycle in an acyclic graph.
+type DepAddError    = "would-cycle"
+
+
+// -----------------------------------------------------------------------------
+// §2.B  Issue operations (behaviour — pack callables)
+// -----------------------------------------------------------------------------
+// CLI MOUNT: this pack mounts at the `bd` ROOT — `cli.mount: "/"` — so its ops
+// render as `bd ready` / `bd close` / `bd dep add`, not `bd issue …`. `cli.mount`
+// is a PACK-level hint; until the pack-machinery spec ([[bdppacks.md]]) defines a
+// package-declaration anchor, it is stated here in prose rather than a structured
+// line. Each op below carries a structured `/// cli.name` (its command); where a
+// parameter is a positional / short-aliased / renamed flag it carries a
+// per-parameter `/// cli.*` hint, and an un-hinted parameter renders as `--<name>`.
+
+/// description: Ready work — the CLAIMABLE FRONTIER: issues that are open (closedAt null), unblocked, not deferred, AND not already claimed / in_progress. (Native excludes active claims — ready means claimable.) (`issue/ready`.)
+/// cli.name: "ready"
+fn listReadyWork(
+    /// cli.flag: --type
+    type?:        PathString,
+    /// cli.flag: --exclude-type
+    excludeType?: PathString,
+    /// cli.alias: -a
+    assignee?:    string,
+    /// cli.alias: -n
+    limit?:       integer
+  ) -> [ rep<Issue> ]
+
+/// description: Count of ready work (the claimable frontier; see `listReadyWork`). (`issue/ready-count`.)
+/// cli.name: "ready-count"
+fn countReadyWork(type?: PathString, excludeType?: PathString) -> integer
+
+/// description: Blocked issues — open issues with at least one open blocker. (`issue/blocked`.)
+/// cli.name: "blocked"
+fn listBlockedIssues(
+    /// cli.flag: --type
+    type?:  PathString,
+    /// cli.alias: -n
+    limit?: integer
+  ) -> [ rep<Issue> ]
+
+/// description: Work-shaping context for an actor — the standard "what should I do" projection. (`issue/context`.)
+/// cli.name: "context"
+fn getContext(
+    /// cli.alias: -a
+    assignee?: string
+  ) -> Resource
+
+/// description: Aggregate issue statistics. (`issue/stats`.)
+/// cli.name: "stats"
+fn getStats() -> Resource
+
+/// description: Claim an issue for the acting principal (the actor rides in provenance, never a parameter). (`issue/claim`.)
+/// cli.name: "claim"
+command claimIssue(
+    /// cli.positional: 0
+    issue: ref<Issue>
+  ) -> Result<rep<Issue>, ClaimError>
+
+/// description: Claim the next ready issue for the acting principal. (`issue/claim-next`.)
+/// cli.name: "claim-next"
+command claimNextIssue(
+    /// cli.flag: --type
+    type?: PathString
+  ) -> Result<rep<Issue>, ClaimNextError>
+
+/// description: Release a claimed issue. (`issue/unclaim`.)
+/// cli.name: "unclaim"
+command releaseIssue(
+    /// cli.positional: 0
+    issue: ref<Issue>,
+    /// cli.flag: --if-assignee
+    ifAssignee?: string
+  ) -> Result<rep<Issue>, ReleaseError>
+
+/// description: Refresh the lease/fence on a claimed issue. (`issue/heartbeat`.)
+/// cli.name: "heartbeat"
+command heartbeatIssue(
+    /// cli.positional: 0
+    issue: ref<Issue>
+  ) -> Result<rep<Issue>, HeartbeatError>
+
+/// description: Close an issue, recording a reason. (`issue/close`.)
+/// cli.name: "close"
+command closeIssue(
+    /// cli.positional: 0
+    issue:        ref<Issue>,
+    /// cli.alias: -r
+    /// cli.flag: --reason
+    closeReason?: text
+  ) -> Result<rep<Issue>, CloseError>
+
+/// description: Reopen a closed issue, recording a reason. (`issue/reopen`.)
+/// cli.name: "reopen"
+command reopenIssue(
+    /// cli.positional: 0
+    issue:   ref<Issue>,
+    /// cli.alias: -r
+    /// cli.flag: --reason
+    reason?: text
+  ) -> Result<rep<Issue>, ReopenError>
+
+/// description: Advance a molecule/workflow step on an issue. (`issue/advance`.)
+/// cli.name: "advance"
+command advanceMolecule(
+    /// cli.positional: 0
+    issue: ref<Issue>
+  ) -> Result<rep<Issue>, AdvanceError>
+
+/// description: Defer an issue out of ready work until a time (or indefinitely) — a lifecycle verb that sets `deferUntil`; `bd defer <id>`. (`issue/defer`.)
+/// cli.name: "defer"
+command deferIssue(
+    /// cli.positional: 0
+    issue:  ref<Issue>,
+    /// cli.positional: 1
+    until?: Timestamp
+  ) -> rep<Issue>
+
+/// description: Reclaim issues whose lease has expired. (`issue/reclaim`.)
+/// cli.name: "reclaim"
+command reclaimIssues(where?: Filter) -> [ rep<Issue> ]
+
+/// description: Add a comment — writes an `IssueComment` annotation pointing at the issue (rev-neutral); `bd comment <id> <text>` (or read the text from `-f FILE`). (`issue/comment`.)
+/// cli.name: "comment"
+command addComment(
+    /// cli.positional: 0
+    issue: ref<Issue>,
+    /// cli.positional: 1
+    body:  text
+  ) -> rep<IssueComment>
+
+/// description: Compare-and-set a metadata value under optimistic concurrency. (`issue/metadata/compare-and-set`.)
+/// cli.name: "metadata compare-and-set"
+command compareAndSetMetadata(issue: ref<Issue>, key: string, expected?: any, value: any) -> Result<rep<Issue>, CasError>
+
+/// description: Sweep closed/stale issues — the prune/purge batch (differs only in tier defaults). (`issue/purge`, `issue/prune`.)
+/// cli.name: "purge"
+/// cli.alias: prune
+command sweepIssues(tier?: string, dryRun?: bool) -> ImportReport
+
+// Batch forms (create-many, close-many, batch-apply, delete-many, get-many) are
+// the generic batch primitives applied to Issue; they are rendered per §2.A, not
+// issue behaviour, and are listed here only for the trained names.
+
+// -----------------------------------------------------------------------------
+// §2.C  Dependency graph (edge resources + traversal)
+// -----------------------------------------------------------------------------
+
+/// description: Add a dependency edge — CREATES a Dependency resource (default concrete type `Blocks`). `source` = the dependent/blocked issue, `target` = what it depends on (the blocker); `bd dep add <source> <target>`. A same-key re-add is the upsert that `unique` already implies, not a special path. (`issue/dep/add`.)
+/// cli.name: "dep add"
+command addDependency(
+    /// cli.positional: 0
+    source:     ref<Issue>,
+    /// cli.positional: 1
+    target:     ref<resource>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:      PathString,
+    // Not surfaced on the CLI — native dep/add carries no flag for these; they ride
+    // in provenance/metadata (createdBy is provenance-derived, not caller input), and stay
+    // reachable via the generic `--set-property`. R11 resolved: hidden (match native).
+    /// cli.hidden
+    createdBy?: text,
+    /// cli.hidden
+    threadId?:  text
+  ) -> Result<rep<Dependency>, DepAddError>
+
+/// description: Remove a dependency edge — DELETES (tombstones) the Dependency resource, identified by its `(source, target, type)` endpoint pair (native `bd dep remove <source> <target>`), symmetric with `dep add`. (`issue/dep/remove`.)
+/// cli.name: "dep remove"
+command removeDependency(
+    /// cli.positional: 0
+    source: ref<Issue>,
+    /// cli.positional: 1
+    target: ref<resource>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:  PathString
+  ) -> Rev
+
+/// description: The dependency edges of an issue — the Dependency resources on a source. (`issue/dep/edges`.)
+/// cli.name: "dep edges"
+fn listDependencies(
+    /// cli.positional: 0
+    source?: ref<Issue>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:   PathString
+  ) -> [ rep<Dependency> ]
+
+/// description: Count dependency edges. (`issue/dep/count`.)
+/// cli.name: "dep count"
+fn countDependencyEdges(source?: ref<Issue>, type?: PathString) -> integer
+
+/// description: Related issues — the targets reached from a source across the dependency relations. (`issue/dep/list`.)
+/// cli.name: "dep list"
+fn listRelatedIssues(
+    /// cli.positional: 0
+    source: ref<Issue>,
+    /// cli.alias: -t
+    /// cli.flag: --type
+    type?:  PathString
+  ) -> [ rep<Issue> ]
+
+/// description: The dependency tree from a root — the transitive closure over the hard-blocking subgraph. Lowers to the traversal `root -> HardBlocking+`. (`issue/dep/tree`.)
+/// cli.name: "dep tree"
+fn getDependencyTree(
+    /// cli.positional: 0
+    root:      ref<Issue>,
+    /// cli.alias: -d
+    /// cli.flag: --max-depth
+    maxDepth?: integer
+  ) -> [ rep<Issue> ]
+
+/// description: Dependency cycles — the reported blocking cycles, over `Blocks` + `ConditionalBlocks` (`WaitsFor`'s mutual waits are legitimate and excluded). (`issue/dep/cycles`.)
+/// cli.name: "dep cycles"
+fn listDependencyCycles() -> [ [ rep<Issue> ] ]
+
+/// description: Blocking annotations — the open blockers that make issues blocked. (`issue/blocking-annotations`.)
+/// cli.name: "blocking-annotations"
+fn listBlockingAnnotations(
+    /// cli.flag: --issue
+    issue?: ref<Issue>
+  ) -> [ rep<Dependency> ]

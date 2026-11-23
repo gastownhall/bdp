@@ -1,0 +1,141 @@
+// =============================================================================
+// ops.lumen — the operations / administration pack  (DRAFT — SPEC ONLY, NOT BUILT)
+// =============================================================================
+// The cross-cutting OPERATIONAL surface over a scope: health, scope configuration,
+// storage maintenance, hard-purge, and derived-state repair — the commands that keep
+// a deployment running but are NOT resource-data ops (those are core + stdlib) and NOT
+// domain behaviour (that is issue). An operator surface, not an authoring one.
+//
+// STATUS — this pack is SPEC ONLY; do NOT implement it yet. It is drafted from a
+// per-handler read of the Go `bd serve` admin surface (compact / compact_dolt / gc /
+// purge / prime / init / config / recompute_blocked / ping / version). `ops.lumen` is a
+// placeholder name, pending the Lumen/BDP review.
+//
+// PORTABILITY — the hard part. The native admin surface is heavily STORAGE-ENGINE
+// specific: Dolt commit-squash (`compact`), `DOLT_GC` (`compact_dolt`, `gc`), raw-SQL
+// integrity repair on a pinned conn (`recompute_blocked`, `gc`), git + filesystem
+// bootstrap (`init`). A portable protocol pack specifies the GENERIC intent and the
+// OUTCOME; each service ADVERTISES which ops it offers (à la carte, like every
+// capability) and does its engine-specific work behind them. An op a service cannot
+// honour it simply does not advertise — a read of `/sys/capabilities` shows the ops
+// surface, and an un-offered op faults `capability-not-supported`.
+//
+// OUT OF SCOPE — native commands that do NOT belong in this pack:
+//   - `init`    — scope BOOTSTRAP (creates the store / db / git repo) happens BEFORE a
+//                 scope serves BDP; a provisioning concern, not a protocol op.
+//   - `prime`   — agent session-ORIENTATION (emits workflow guidance + injects persisted
+//                 memories); an agent/memory feature, not operations. Belongs with a
+//                 future memory/agent surface, not here.
+//   - `orphans` — git-commit reconciliation (open issue IDs found in commit messages); a
+//                 product git-INTEGRATION feature, VCS/filesystem-coupled, not portable.
+//   - `version` — binary version/build is DISCOVERY: fold into `/sys/capabilities`
+//                 (scope `defaultType`-style metadata), not a standalone op.
+//
+// Core types reused: `Rev`, `integer`, `Duration` (issue), `StorageClass`, `Problem`.
+// =============================================================================
+
+// #############################################################################
+// §1. Health
+// #############################################################################
+
+/// description: A liveness + latency probe — resolve the scope, open the store, run a trivial read, and report status with per-stage timings. The operational "are you there, and how fast?" (`ops/health`; `cli.name: "health"`, alias `ping`.)
+/// normative: Read-only, side-effect-free, and cheap. `status` is `ok` when every stage succeeds, `degraded` when it answers but a stage is slow or a non-critical subsystem is down, `down` when a critical stage fails (the call still returns a report, it does not fault). Timings are milliseconds.
+fn health() -> HealthReport
+
+/// description: What `health` returns — overall status, optional per-stage timings (resolve / open / query), and an optional human detail.
+type HealthReport = {
+  status:   "ok" | "degraded" | "down",
+  timings?: { ...: integer },
+  detail?:  string
+}
+
+// #############################################################################
+// §2. Scope configuration
+// #############################################################################
+// A scope's operational SETTINGS — a namespaced string key/value store, distinct from
+// (a) the pack CATALOG (type/op definitions, served by discovery) and (b) resource
+// DATA (beads). Integration pointers, policies, custom statuses, storage-class rules.
+// The native `config` + `kv` commands are two slices of ONE key/value table; here,
+// `kv` (arbitrary user data) is a stdlib data capability (see stdlib.lumen) and
+// `config` (operational settings) is this ops surface. They MUST NOT overlap keys.
+
+/// description: A configuration key — a dotted namespace (`jira.url`, `claim.pools`, `storage-class.wisp`). Reserved/internal namespaces (`kv.*`, `memory.*`, `sync.*`, …) are refused here.
+type ConfigKey is string
+
+/// description: One configuration entry — its key, its string value, and where the effective value comes from (the scope, or a client-side override).
+type ConfigEntry = {
+  key:    ConfigKey,
+  value:  string,
+  source: "scope" | "client" = "scope"
+}
+
+/// description: Read one configuration value. (`ops/config/get`; `cli.name: "config get"`.)
+/// normative: Read-or-fault; a missing key returns absent (not a fault). A SECRET-bearing key (credentials, tokens) MUST be redacted in any non-authenticated read and never logged.
+fn getConfig(key: ConfigKey) -> ConfigEntry?
+
+/// description: List configuration entries, optionally under a key prefix. (`ops/config/list`; `cli.name: "config list"`.)
+fn listConfig(prefix?: string) -> [ ConfigEntry ]
+
+/// description: Set a configuration value. (`ops/config/set`; `cli.name: "config set"`.)
+/// normative: Mutating. A write to a reserved/protected namespace faults `config-key-protected`. A value that looks like a live secret written into a git-tracked scope SHOULD warn (a safety check), not silently persist.
+command setConfig(key: ConfigKey, value: string) -> ConfigEntry
+
+/// description: Remove a configuration value. (`ops/config/unset`; `cli.name: "config unset"`.)
+command unsetConfig(key: ConfigKey) -> Rev
+
+// #############################################################################
+// §3. Storage maintenance — the generic, capability-advertised sweep
+// #############################################################################
+// Collapses the native `compact` / `compact_dolt` / `gc` family into ONE generic
+// intent: "reclaim space and compact internal state." The outcome is specified; the
+// mechanism is the service's own (Dolt GC, log squash, vacuum, or nothing). A service
+// advertises `maintain` only if it HAS reclaimable state; a stateless/log-structured
+// backend omits it.
+
+/// description: Reclaim storage and compact internal history/state — the generic maintenance sweep. The service does its engine-specific work behind it (GC, log compaction, vacuum) and reports what moved. Idempotent; safe to schedule. (`ops/maintain`; `cli.name: "maintain"`, alias `gc`.)
+/// normative: Mutating (reclaims space; MAY rewrite internal history but NEVER changes resource content, revisions, or identities). `dryRun` previews without touching anything. Refused on a read-only scope (`read-only`). Not offered ⇒ `capability-not-supported`.
+command maintain(dryRun?: bool = false, olderThan?: Duration) -> MaintenanceReport
+
+/// description: What `maintain` reports — bytes reclaimed (when known), and a per-phase breakdown (each phase names what it did and whether it was skipped).
+type MaintenanceReport = {
+  reclaimedBytes?: integer,
+  phases:          [ MaintenancePhase ]
+}
+
+/// description: One maintenance phase's outcome.
+type MaintenancePhase = {
+  name:    string,
+  skipped: bool = false,
+  detail?: string
+}
+
+// #############################################################################
+// §4. Purge — hard, terminal deletion
+// #############################################################################
+// Beyond core `delete` (which TOMBSTONES — the id stays retired and readable as a
+// tombstone): `purge` removes the resources AND their tombstones to reclaim space,
+// scoped to terminal/ephemeral resources. The aggressive bulk counterpart to delete.
+
+/// description: HARD-delete terminal/ephemeral resources (closed + ephemeral storage-class) and their dependent edges/annotations/events, reclaiming space. The irreversible counterpart to `delete`'s tombstone. Scoped by age, storage-class, and id pattern; pinned resources are skipped. (`ops/purge`; `cli.name: "purge"`.)
+/// normative: Mutating and TERMINAL — a purged id leaves no tombstone (a later read is `404`, not `410`). `dryRun` previews the counts without deleting. Refuses to purge a non-terminal (open / live-durable) resource. Confirm-gated at the CLI; refused on a read-only scope.
+command purge(dryRun?: bool = false, olderThan?: Duration, storageClass?: StorageClass, pattern?: string) -> PurgeReport
+
+/// description: What `purge` removed — the primary count plus cascaded dependent counts.
+type PurgeReport = {
+  purged:        integer,
+  dependencies?: integer,
+  annotations?:  integer,
+  events?:       integer,
+  pinnedSkipped?: integer
+}
+
+// #############################################################################
+// §5. Recompute — derived-state repair
+// #############################################################################
+
+/// description: Recompute a scope's denormalized / `computed` projections from their source — e.g. repair a stale blocked-flag or child-count after an out-of-band change or a failed merge. Idempotent integrity repair. (`ops/recompute`; `cli.name: "recompute"`.)
+/// normative: Mutating only where it CORRECTS a divergence (a `computed` property is revision-transparent, so a correction mints no resource revision and emits no change event — it only realigns the stored projection with its derivation). `projection` absent ⇒ recompute all. `dryRun` reports the count that WOULD be corrected. Refused on a read-only scope.
+command recompute(projection?: string, dryRun?: bool = false) -> RecomputeReport
+
+/// description: How many projection rows were corrected (or would be, under `dryRun`).
+type RecomputeReport = { corrected: integer }

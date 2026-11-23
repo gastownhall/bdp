@@ -1,0 +1,355 @@
+// =============================================================================
+// stdlib.lumen — the standard-library pack (shared types + cross-cutting ops)
+// =============================================================================
+// Two parts: §1 the generalised annotation model (Annotation / Label / Comment),
+// and §2 the standard OPERATIONS — search / query / batch / graph, et al. — that
+// sit above the core primitive floor (get + list). §1:
+//
+// The generalised annotation model the issue pack's `computed labels` / `comments`
+// projections resolve against. An Annotation is a rev-neutral resource that points
+// AT a target resource and carries its own payload; Label and Comment are the two
+// concrete annotations the issue pack leans on today, each generalised from a
+// single target type to any resource.
+//
+// This refines the as-needed record landed with #403 (commit 07b65251): the §1
+// OPEN is now RESOLVED (annotations are resources that SOFT-reference their target,
+// not `rel<>` edges — see §1.0), and the rev-neutrality guarantee is stated
+// normatively (§1, PRINCIPLE 1). One question remains, and it belongs to Core, not
+// here: Core has no resource-level natural-key constraint yet (`unique` is rel-only),
+// so Label's (target, name) key is spelled as intent and flagged CORE-OPEN (§1.2).
+//
+// SCOPE — what lives here:
+//   Annotation — a rev-neutral resource that points AT a target resource and
+//   carries its own payload. Label and Comment are the two concrete annotations
+//   the issue pack leans on today.
+//
+// PRINCIPLES:
+//   1. Annotations are rev-neutral w.r.t. their target. Creating, editing or
+//      deleting an annotation NEVER advances its target's revision, emits no change
+//      event on the target, and never enters the target's content hash. The
+//      annotation carries its own identity, revision history and provenance; its
+//      OWN revision advances normally. This is not a special rule — it falls out of
+//      the target being untouched (an annotation is a separate resource; the target
+//      does not name it), under Core's revision rule: "the revision changes exactly
+//      when the resource's state changes" ([[core.lumen#Rev]]).
+//   2. Point AT, don't own — and point SOFTLY. An annotation is a first-class
+//      resource that names its target with a `target: ref<resource>` property. That
+//      reference is SOFT, not structural: it tolerates a retired target and resolves
+//      to its tombstone, and the target never cascades its retirement to the
+//      annotation (contrast a `rel<>`'s structural `source`/`target`, which a scope
+//      cascades or restricts — [[core.lumen#rel]]). The target's view of its
+//      annotations (issue.lumen `labels` / `comments`) is a COMPUTED projection.
+//   3. Projection is a reverse lookup, revision-transparent. A target's `labels` /
+//      `comments` are computed by walking the `target` reference in REVERSE from the
+//      target. Computing one never advances the target's revision, emits no event,
+//      and never enters its content hash.
+// =============================================================================
+
+/// description: Free text — a nominal string.
+type text is string
+
+
+// #############################################################################
+// §1. The model
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// §1.0  RESOLVED — annotation is a resource that SOFT-references its target,
+//       NOT a `rel<>` edge.
+// -----------------------------------------------------------------------------
+// The #403 record left open whether an Annotation is better carried as a
+// `rel<resource, …>` edge (like issue.lumen's Dependency) or as a resource with a
+// `target` property. It is a resource with a `target` property. Three reasons, each
+// grounded in Core:
+//
+//   1. A `rel<F, T>` is defined by its STRUCTURAL `source`/`target` pair — "nothing
+//      distinguishes a relationship but its structural `source`/`target` pair"
+//      ([[core.lumen#rel]]). An annotation has exactly ONE resource reference (its
+//      target) plus value payload (`body`/`author`/`name`); there is no second
+//      resource endpoint — a comment's `author` is a native string, not a ref. There
+//      is no `source` resource to put on the left of a `rel<>`. Modelling it as a rel
+//      would mean inventing a spurious endpoint.
+//
+//   2. Core already classifies this exact case. A reference that only points AT a
+//      resource — "a note, an annotation" — is a SOFT reference, opposed to the
+//      structural `source`/`target` of an edge ([[core.lumen#rel]], verbatim
+//      example). A soft reference "tolerates a retired target and resolves to its
+//      tombstone"; a structural endpoint never outlives its resource. An annotation
+//      wants the soft semantics: a comment on a deleted issue should survive and
+//      resolve to the issue's tombstone, not be cascade-retired and not pin the
+//      issue open.
+//
+//   3. The payload IS the point. A rel's `{ edge-fields }` are properties OF the
+//      relationship (Dependency's `createdBy`/`threadId`); the relationship without
+//      its endpoints is nothing. An annotation's `body`/`name` are its reason to
+//      exist; the target is the thing it is attached to. That is the shape of a
+//      resource-with-a-soft-ref, not an edge.
+//
+// Discriminator for future packs: two resources genuinely related → `rel<>` (an
+// edge, structural, keyed on the pair). One resource annotated by a free-standing
+// payload → an Annotation (a resource, soft ref, keyed on target + its own fields).
+//
+// The issue pack KEEPS `labels` / `comments` as computed projections over this
+// model (PRINCIPLE 3); it does not fold them into Issue.
+
+/// description: Annotation — a rev-neutral resource that points AT a target resource and carries its own payload. `abstract` — only the concrete annotations below are instantiated.
+/// normative: Rev-neutral w.r.t. the target. Writing, editing or removing an Annotation NEVER advances its `target`'s revision, emits NO change event on the target, and NEVER enters the target's content hash. This holds because the target is not touched by the write: the Annotation is a separate resource and the target does not name it. The Annotation has its own identity, revision history and provenance; its OWN revision advances normally, and its own write DOES emit a change event on the Annotation.
+/// normative: `target` is a SOFT reference ([[core.lumen#rel]]): it is a plain `ref<resource>` body property, NOT the structural `source`/`target` of a `rel<>`. It tolerates a retired target and resolves to the target's tombstone; the target's retirement is never cascaded or restricted by an Annotation. An Annotation is NOT a field on the target — a target's view of its annotations is a COMPUTED projection (see issue.lumen `labels` / `comments`), computed by walking `target` in reverse.
+abstract type Annotation is Bead {
+  target: ref<resource>,          // the annotated resource — a SOFT reference
+}
+
+/// description: Comment — free-text commentary on a target resource.
+/// normative: `author` is a native human/agent string — NOT a BDP attribution ref. `body` is the comment text. Two Comments on the same target are distinct resources (no natural key): a target may carry many, each with its own id and history.
+type Comment is Annotation {
+  body:    text,
+  author?: text,                  // native author string — NOT a ref
+}
+
+// -----------------------------------------------------------------------------
+// §1.2  Label — a named tag; the natural-key question is CORE-OPEN.
+// -----------------------------------------------------------------------------
+
+/// description: Label — a named tag on a target resource. Its natural key is (`target`, `name`): at most one Label of a given `name` on a given target, and a same-key re-add is an upsert onto the one id.
+/// normative: The natural key (`target`, `name`) is a RESOURCE natural-key constraint, NOT `unique` on a rel. `unique rel<F, T>` keys ONLY on the structural (`source`, `target`) pair and explicitly excludes body fields ([[core.lumen#rel]]); Label is not a rel, and `name` is a value, not a resource endpoint — so a rel's `unique` cannot express this key. The key must be carried by the resource, over one ref property (`target`) and one value property (`name`).
+/// normative: CORE-OPEN — Core has no resource-level natural-key primitive today; `unique` is defined for `rel<>` only, where it derives the id deterministically from (`source`, `target`). Spelling Label's key therefore needs ONE of: (a) Core grows a resource natural-key modifier — the resource analogue of rel `unique`, deriving the id deterministically from a declared key tuple that may mix ref and value properties (e.g. `unique(target, name)`); or (b) the at-most-one-per-(target, name) invariant is enforced at the pack/operation layer (an upsert guard on label-add), NOT by a Core-derived id. (a) is preferred — it keeps the same-key-resolves-to-one-id replica guarantee that rel `unique` already gives Dependency. The decision is the Lumen scrub's; the intent is written here with the key tuple explicit so whichever spelling lands is a mechanical substitution.
+type Label is Annotation {
+  name: text,                     // natural key with `target` (see CORE-OPEN above)
+}
+
+
+// #############################################################################
+// §2. The standard operations — search / query / batch / graph (et al.)
+// #############################################################################
+// The cross-cutting, non-domain capabilities that sit ABOVE the core primitive
+// floor. Core's floor is `get` + `list(where: Filter)` — a flat conjunction, "the
+// low bar every service supports" ([[core.lumen#list]]). These ops are the
+// à-la-carte capabilities a service MAY advertise on top of it:
+//
+//   query  — the full boolean/traversal filter Core defers to "the stdlib": the
+//            rich form of list's flat Filter (nested and/or/not + edge traversal).
+//   search — ranked text search (lexical / semantic / hybrid) over bodies.
+//   graph  — traverse rel<> edges from roots into a subgraph; the generic form of
+//            issue.lumen's getDependencyTree, over ANY relationship.
+//   batch  — bundle many invocations into one request (atomic or best-effort).
+//   count  — the aggregate reduction (a scalar, no bodies) issue.lumen §2.A's
+//            `count` verb lowers to.
+//
+// (`get-many` / `exists` from that §2.A note need no op of their own — a bulk read
+// is a `batch` of `get`s or a `list` by id-set; existence is `count … > 0`.)
+//
+// Each is an INTRINSIC operation (native, no stored implementation), addressed by
+// its well-known path under this pack (`stdlib/query`, …) and invoked through core
+// `call` ([[core.lumen#call]]). A service lists the ops it offers in discovery;
+// one it does not advertise is simply absent — a floor service offers none of
+// these and `get` + `list` still work. The pack mounts its commands at the TOP of
+// the aggregate `bd` tree (`cli.mount: "/"`), and each op carries a simple
+// `cli.name`, so the catalog renders `bd query` / `bd search` / `bd graph` /
+// `bd batch` / `bd count` directly ([[core.lumen#discovery]]). The service's bounds
+// — supported `SearchMode`s, whether `via` traversal is offered, `maxGraphDepth`,
+// `maxBatch` — ride in discovery as this pack's capability metadata.
+//
+// Error model (as §2.0 of issue.lumen): a safe query (`fn`) reads or faults with a
+// `Problem` (malformed input, an unsupported capability) and declares no domain
+// `E`; `batch` (`command`) carries each item's own `Outcome` and needs no
+// top-level `E`. (`Scope` / `Filter` / `listCondition` / `selector` / `ReadRequest`
+// / `Outcome` / `rep` / `source` / `PathString` / `FieldPath` are core types.)
+//
+// Pack fault codes (Problem `code`): `query-capability-unsupported` (a `via` traversal
+// the service does not offer), `search-mode-unsupported` (an unoffered `SearchMode`),
+// `match-mode-unsupported` (an unoffered `matches.using`, e.g. `regex`),
+// `graph-depth-exceeded` (depth past `maxGraphDepth`), `limit-exceeded` (a batch past
+// `maxBatch` — core's existing 422 static-bound code, NOT a new `batch-*` code),
+// `nested-batch-unsupported` (a batch item whose op is `stdlib/batch`),
+// `atomic-unsupported` (an atomic batch before the atomic lowering lands).
+
+// -----------------------------------------------------------------------------
+// §2.1  query — list's rich sibling
+// -----------------------------------------------------------------------------
+
+/// description: The full query predicate — the rich form of list's flat [[core.lumen#Filter]]. A tree of boolean combinators over the same leaf conditions, plus edge traversal. `cond` reuses the base `listCondition` verbatim, so every `where: Filter` is a degenerate `all` of `cond`s — floor and capability speak ONE condition language.
+/// normative: Wire encoding — internally-tagged with a `kind` discriminator (the convention of [[core.lumen#Outcome]] / [[core.lumen#listCondition]]): `{"kind":"all","of":[…]}`, `{"kind":"any","of":[…]}`, `{"kind":"not","expr":…}`, `{"kind":"cond","condition":<listCondition>}`, `{"kind":"via","edge":…,"direction":"out"|"in","where"?:…}`. `cond.condition` carries a core `listCondition` VERBATIM (same kind-tagged, root-addressed `FieldPath` array encoding). So a flat `where: Filter` [c₁, c₂] is exactly `{"kind":"all","of":[{"kind":"cond","condition":c₁},{"kind":"cond","condition":c₂}]}` — one condition language across `list` and `query`.
+type QueryExpr = union {
+  /// description: Conjunction — every sub-expression must hold (an empty `of` is vacuously true).
+  all  { of: [ QueryExpr ] }
+  /// description: Disjunction — at least one sub-expression must hold.
+  any  { of: [ QueryExpr ] }
+  /// description: Negation.
+  not  { expr: QueryExpr }
+  /// description: A leaf — one base field condition ([[core.lumen#listCondition]]).
+  cond { condition: listCondition }
+  /// description: Traverse a relationship and match on the far end — holds when a neighbor reached over `edge` (a `rel<>` type-path) in `direction` satisfies `where`. The generic "has a neighbor such that" test.
+  via  { edge: PathString, direction: "out" | "in" = "out", where?: QueryExpr }
+}
+
+/// description: One sort key over the result set; `sort` is an ordered list (the first key is primary).
+type Sort = { field: FieldPath, order: "asc" | "desc" = "asc" }
+
+/// description: The full query — list's rich sibling. The current resources in `scope` matching a boolean/traversal `QueryExpr`, ordered by `sort`, projected by `select`. The capability form of `list(where: Filter)`; a flat `Filter` is the degenerate case. Snapshot (`json`/`jsonl`; no `sse`). (`stdlib/query`; `cli.name: "query"` → `bd query`.)
+/// normative: Read-or-fault — a malformed predicate faults `malformed-query`; no domain `E`. A service advertising `query` MUST accept every boolean combinator (`all`/`any`/`not`/`cond`); `via` traversal MAY be separately capability-gated and faults `query-capability-unsupported` when the service does not offer it.
+fn query(scope: Scope, where: QueryExpr, sort?: [ Sort ], select?: selector, request?: ReadRequest) -> source<Resource>
+
+// -----------------------------------------------------------------------------
+// §2.2  search — ranked text search
+// -----------------------------------------------------------------------------
+
+/// description: How a search matches — `lexical` (substring / full-text, the floor for any `search` service), `semantic` (embedding similarity), or `hybrid` (both, fused).
+type SearchMode = "lexical" | "semantic" | "hybrid"
+
+/// description: One ranked search result — the matched resource, its relevance score (higher = better; the scale is service-defined and comparable only WITHIN one response), and an optional highlighted snippet.
+type SearchHit = {
+  resource: ref<resource>,
+  score:    number,
+  snippet?: string
+}
+
+/// description: Ranked text search over resource bodies in `scope` — the matches for `text`, best first. `where` pre-filters the corpus (the same predicate as `query`); `mode` picks lexical / semantic / hybrid; `select` expands each hit's resource inline. (`stdlib/search`; `cli.name: "search"` → `bd search`.)
+/// normative: Read-or-fault — no domain `E`. `lexical` is the floor every `search` service offers; requesting a `mode` the service does not advertise faults `search-mode-unsupported`. Scores order ONE response and are not comparable across calls or services.
+/// normative: `search` returns a ranked `[SearchHit]` bounded by `limit` — it is NOT a `source<Resource>` sequence and does NOT use the `Page` cursor envelope (a caller wants the top matches, not a resumable full stream). `graph`'s `Subgraph` is likewise a bounded STRUCTURE, not a Page. The unified `Page` read envelope ([[core.lumen#Page]]) covers only the ordered resumable reads (list / query / pull / revisions / export). Cursoring `search` is a possible future extension, not v0.
+/// cli.name: "search"
+fn search(
+    scope:   Scope,
+    /// cli.positional: 0
+    text:    string,
+    /// cli.flag: --where
+    where?:  QueryExpr,
+    /// cli.flag: --mode
+    mode?:   SearchMode = "lexical",
+    /// cli.flag: --select
+    select?: selector,
+    /// cli.alias: -n
+    limit?:  integer
+  ) -> [ SearchHit ]
+
+// -----------------------------------------------------------------------------
+// §2.3  graph — relationship traversal
+// -----------------------------------------------------------------------------
+
+/// description: One resource reached by a traversal, with the fewest hops from any root at which it was found.
+type GraphNode = { resource: ref<resource>, depth: integer }
+
+/// description: One relationship traversed — the edge resource itself and its endpoints, denormalized so a client renders the graph without re-reading each edge.
+type GraphEdge = {
+  edge:   ref<resource>,
+  type:   PathString,
+  source: ref<resource>,
+  target: ref<resource>
+}
+
+/// description: The result of a `graph` traversal — the reachable nodes and the edges among them. A node appears ONCE (lowest depth); an edge that closes a cycle is still reported, so the shape is the actual graph, not a spanning tree.
+type Subgraph = { nodes: [ GraphNode ], edges: [ GraphEdge ] }
+
+/// description: Traverse relationships from one or more roots into a `Subgraph`. `edgeTypes` restricts which `rel<>` types to follow (type-path prefix; absent = all); `direction` follows `source→target` (`out`), `target→source` (`in`), or `both`; `depth` caps the hops. The generic form of issue.lumen's `getDependencyTree`, over any `rel<>`. (`stdlib/graph`; `cli.name: "graph"` → `bd graph`.)
+/// normative: Read-or-fault — no domain `E`. Traversal is breadth-first and visits each node once, so a cyclic graph terminates and a cycle-closing edge is still emitted. `depth` is bounded by the advertised `maxGraphDepth`; a request above it faults `graph-depth-exceeded` rather than silently truncating.
+/// cli.name: "graph"
+fn graph(
+    /// cli.positional: 0
+    roots:      [ ref<resource> ],
+    /// cli.flag: --edge-types
+    edgeTypes?: [ PathString ],
+    /// cli.flag: --direction
+    direction?: "out" | "in" | "both" = "out",
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?:     integer = 1,
+    /// cli.flag: --select
+    select?:    selector
+  ) -> Subgraph
+
+// -----------------------------------------------------------------------------
+// §2.4  batch — many invocations, one request
+// -----------------------------------------------------------------------------
+
+/// description: One invocation inside a `batch` — the op to run (a primitive name like `create`/`patch`/`delete`, or an operation path like `issue/claim`) and its `arguments` (the same name/value shape as [[core.lumen#Request]]), which carry EVERY input including the subject/target resource as a named value. `id` is a caller label echoed on the matching result.
+/// normative: There is NO separate `target` field — a resource-targeted op names its subject as an ordinary argument (`{"name":"issue","value":{"id":"a"}}`), exactly as `call`'s `Request.arguments` does, so the generic router needs no per-op "which arg is the target" knowledge. The CLI MAY sugar a positional target onto the right named arg via the op's `cli` hints.
+type BatchItem = {
+  id:        string,
+  op:        PathString,
+  arguments: [ { name: string, value: any } ]
+}
+
+/// description: The fate of one `BatchItem`, correlated by `id` — the item's own `Outcome` (success / failure / fault / canceled).
+type BatchResult = { id: string, outcome: Outcome<any, any> }
+
+/// description: Run many invocations in one request. `atomic: false` (default) runs the items independently and best-effort — each result stands alone and partial success is normal. `atomic: true` runs them in one transaction — all commit or none. Items apply in array order. (`stdlib/batch`; `cli.name: "batch"` → `bd batch`.)
+/// normative: The call returns `200` with one `BatchResult` per item, keyed by `id`; the HTTP status reports the batch TRANSPORT, never an item's fate (read each item's `outcome`). ATOMIC rollback: if any item settles as other than `success`, NOTHING commits, and every result reports either the triggering `failure`/`fault` or — for the siblings rolled back — `canceled { reason: "rolled-back" }`. So "did the batch commit?" is exactly "is every outcome a success?". A whole-request fault (malformed, or past `maxBatch`) faults with a `Problem` and returns no results. v0.2: items target ONE scope; cross-scope batching is out of scope.
+/// normative: Per-item faults are OUTCOME-WRAPPED — a failing item's `outcome` is the `fault`/`failure`/`canceled` arm (`{"kind":"fault","problem":…}`), because `batch` (like `call`) reports each result as an `Outcome`. This differs from a DIRECT `fn`/primitive call, which faults out-of-band as a BARE `Problem` (no Outcome envelope). A whole-request `batch` fault is likewise a bare `Problem`: past `maxBatch` → `limit-exceeded`, a nested `stdlib/batch` item → `nested-batch-unsupported`, `atomic:true` before the atomic lowering lands → `atomic-unsupported`.
+command batch(items: [ BatchItem ], atomic?: bool = false) -> [ BatchResult ]
+
+// -----------------------------------------------------------------------------
+// §2.5  count — the aggregate reduction
+// -----------------------------------------------------------------------------
+
+/// description: The number of current resources in `scope` matching `where` — the aggregate reduction of `query`/`list`, computed service-side (no bodies returned). The op issue.lumen §2.A's `count` verb lowers to. (`stdlib/count`; `cli.name: "count"` → `bd count`.)
+/// normative: Read-or-fault — no domain `E`. `where` is the full `QueryExpr`; a service offering only base `list` MAY accept a flat `Filter` (a degenerate `all` of `cond`s) and fault `query-capability-unsupported` on richer predicates.
+/// cli.name: "count"
+fn count(
+    scope:  Scope,
+    /// cli.flag: --where
+    where?: QueryExpr
+  ) -> integer
+
+
+// #############################################################################
+// §3. Surface-coverage ops — the v0 HTTP data commands beyond core + issue
+// #############################################################################
+// Named entry points for the generic, portable DATA/analysis commands the native
+// `bd serve` surface exposes beyond core + issue, drafted from a per-handler read.
+// (Admin/ops commands — compact/gc/purge/config/… — go to ops.lumen. TWO native
+// commands are deliberately NOT here: `orphans` cross-references open issues against
+// GIT COMMIT messages — a product VCS-integration feature, backend/git-coupled, not a
+// portable op; and `prime` is an agent-memory feature.) Several of these GENERALISE an
+// issue-flavoured native command — the generic form is parameterised and the type/pack
+// supplies the specifics; each is flagged for the review's placement call.
+//
+// >Review: `Duration` is used here and in ops.lumen but currently lives in issue.lumen
+//   — it should move to CORE so the lower packs can use it without an upward dependency.
+
+// -----------------------------------------------------------------------------
+// §3.1  kv — a general key-value side-store (a RESOURCE type, no new primitives)
+// -----------------------------------------------------------------------------
+
+/// description: A general-purpose scoped key-value entry — arbitrary string data under a dotted key, outside the domain model (native `bd kv`). Modelled as a RESOURCE: `get`/`put`/`list`/`delete` are the generic primitives, and the CLI sugars `kv get/set/list/clear` (cli.name-mounted) onto them — so no new ops are needed. Distinct from ops `config` (operational settings): kv is user DATA, and the two MUST NOT share keys.
+/// normative: The `id` is the key; `value` is opaque text. Reserved key namespaces (`memory.*`, `sync.*`, `config.*`, …) are refused. A `KvEntry` is an ordinary resource (own revision + provenance), not ephemeral unless stored so.
+type KvEntry is Bead {
+  value: string,
+}
+
+// -----------------------------------------------------------------------------
+// §3.2  stale — a named time-predicate query
+// -----------------------------------------------------------------------------
+
+/// description: Resources not updated within `olderThan` — the "possibly abandoned" view (native `bd stale`). A NAMED entry point over `query`: it composes the `updatedAt`-age predicate so callers need not hand-roll it. Generic over any resource carrying an `updatedAt`. (`stdlib/stale`; `cli.name: "stale"`.)
+/// normative: Read-or-fault. The generic predicate is `updatedAt` age ONLY; a pack MAY refine it (issue additionally excludes actively-leased/claimed work and filters by status) in its own `stale`-flavoured op — those refinements do not live here. `where?` pre-filters, `limit?` caps.
+fn stale(olderThan: Duration, where?: QueryExpr, limit?: integer) -> source<Resource>
+
+// -----------------------------------------------------------------------------
+// §3.3  duplicates / similar — DETECTION only (never merge)
+// -----------------------------------------------------------------------------
+// Detection only — the resolve/merge action (re-parenting edges, closing sources) is
+// domain-specific and stays in the owning pack (issue). stdlib FINDS; the pack FIXES.
+
+/// description: Exact-content duplicate GROUPS — resources whose content (a declared `fields` set) is identical, grouped (native `bd duplicates`, detection half). `fields` names the `FieldPath` set that defines "content"; a type MAY declare a default content-key as metadata. (`stdlib/duplicates`; `cli.name: "duplicates"`.)
+/// normative: Read-only. Groups resources sharing an identical tuple over `fields` (a group has ≥2 members). Does NOT merge — merging is a pack op. `fields` is required unless the scoped type declares a content-key.
+fn duplicates(type: PathString, fields?: [ FieldPath ], where?: QueryExpr) -> [ DuplicateGroup ]
+
+/// description: A set of resources sharing identical content.
+type DuplicateGroup = { members: [ ref<resource> ], contentKey?: string }
+
+/// description: Similar (not identical) resource PAIRS, ranked — the fuzzy counterpart to `duplicates` (native `bd find-duplicates`). `mode` picks the scorer, `threshold` the floor. Capability-gated like `search`. (`stdlib/similar`; `cli.name: "similar"`.)
+/// normative: Read-only. `mode` ∈ the service's advertised `similarityModes` (`lexical` the floor; `semantic` where offered — an unoffered mode faults `similarity-mode-unsupported`). Scores order ONE response only. A `semantic` mode MAY call an external model; a service that will not simply omits the mode.
+fn similar(type: PathString, mode?: string = "lexical", threshold?: number, fields?: [ FieldPath ], where?: QueryExpr, limit?: integer) -> [ SimilarPair ]
+
+/// description: One scored pair of similar resources.
+type SimilarPair = { a: ref<resource>, b: ref<resource>, score: number, reason?: string }
+
+// -----------------------------------------------------------------------------
+// §3.4  lint — validate resources against their type's declared requirements
+// -----------------------------------------------------------------------------
+
+/// description: Validate resources against their TYPE's declared requirements and report what is missing/ill-formed — never auto-fixing (native `bd lint`, which only reports). The requirements are TYPE-declared metadata (e.g. an issue subtype's required template sections); `lint` is the generic checker that reads them. (`stdlib/lint`; `cli.name: "lint"`.)
+/// normative: Read-only — reports, never mutates; a clean resource yields no findings. The rule source is type-declared metadata (a pack ships its rules on its types) — stdlib supplies the ENGINE, not the rules. `where?` scopes the set.
+fn lint(where?: QueryExpr, limit?: integer) -> [ LintResult ]
+
+/// description: One resource's lint findings — the resource and its list of issues (missing sections, warnings).
+type LintResult = { resource: ref<resource>, findings: [ string ] }

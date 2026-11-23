@@ -71,6 +71,36 @@ keeps "which resource" and "which version" in one place instead of two.
 Two first path segments are reserved: `bdp` for the protocol's own routes, and
 `sys` for in-band system resources such as the changefeed at `/sys/changes`.
 
+A scope may also give a resource a second name — an alias. An alias is not a
+special operation; it is itself a resource, an [[core.lumen#Alias]] bead that
+lives under the reserved `sys/aliases/` root and holds the resource it points at.
+You bind one by writing it, repoint it by writing it again, remove it by deleting
+it, and find the names that point at a resource by listing that root. Because it
+is an ordinary resource, repointing it keeps a history of where the name led.
+
+Using an alias is transparent. When a scope supports aliases, a bare name resolves
+to whichever single claimant holds it — a resource or an alias — and an alias
+resolves through to its target before the operation runs. Because a name has at
+most one claimant, there is no precedence to settle. So reading, writing, or deleting through an
+alias name acts on the resource it points at, and a read comes back with the
+target's own id and revision — the alias leaves no trace in the result. The
+address of the alias record itself, under `sys/aliases/`, is the one name that
+does not resolve through: deleting the record removes the name without touching
+the resource, while deleting the bare name deletes the resource.
+
+Two questions therefore need their own answer. To ask whether a name is an alias,
+read it under the alias root; to ask which names point at a resource, list the
+root filtered by target. And because a bare name now has two possible kinds of
+claimant, it is held by at most one — a resource or an alias, never both. Creating
+a resource at a name that is already an alias is refused, binding an alias at a
+name that is already a resource is refused, and a server that mints its own id
+avoids the alias names too. An alias points at a single resource in its own scope
+— never at another alias, so there are no chains to follow and no cycles to guard
+against — and the resolved read carries `Content-Location` naming the target's
+canonical id. This was always true of ids; aliases only widen the set of names
+already taken. All of this applies only where a scope advertises that it supports
+aliases.
+
 ## 2. The resource model
 
 Everything a store holds is a [[core.lumen#Resource]]. The shape is small on
@@ -88,7 +118,7 @@ Content — a `text/plain` file, an image — is a bare resource. Its type is a 
 type, and its body is the raw bytes. A bead and a piece of content differ only in
 what names the type: a package names a bead's type; a registry such as IANA names
 a content type. The one question that classifies a resource is which of these it
-is: a `type` that is a package-defined kind-path makes a bead; a media type makes
+is: a `type` that is a package-defined type-path makes a bead; a media type makes
 content.
 
 Who named the type is the [[core.lumen#Authority]]. A caller may supply it; absent
@@ -161,7 +191,7 @@ Further modifiers constrain the relation as a whole — `acyclic` makes it a DAG
 `symmetric` and `reflexive` shape its graph. Reachability and traversal through
 relationships are a corelib surface, outside the core.
 
-Referential integrity follows the **kind** of reference, not one global rule.
+Referential integrity follows the **sort** of reference, not one global rule.
 `source` and `target` are structural: a relationship never outlives them, so
 retiring an endpoint either cascades to the relationship or is restricted while
 the relationship stands. A reference that only points at a resource — a note, an
@@ -180,14 +210,14 @@ stays the function of authored state. The protocol declares only that a property
 is computed and revision-transparent; the formula that computes it belongs to a
 package, not to Core.
 
-## 5. Types — the kind system
+## 5. Types
 
 A type is a path, and the path is its meaning. `issue/task` is a task, which is a
-kind of issue. The path is built by single refinement: `task` refines `issue`,
+subtype of issue. The path is built by single refinement: `task` refines `issue`,
 and the chain from the root to the leaf is the path. Only one parent is allowed,
 which is what keeps the path a tree and an id unique.
 
-The type path is also the resource's **kind**. Kind is not a stored field; it is
+The type path is also the resource's **type**. The type is not a stored field; it is
 the type's id. A filter that asks "is this an issue?" tests the path by prefix.
 
 Types can also be written down and published. A [[core.lumen#TypeBead]] carries a
@@ -284,12 +314,18 @@ user-defined callable. A service advertises which it offers.
 - [[core.lumen#get]], [[core.lumen#list]] and [[core.lumen#revisions]] are the
   reads — one resource, a scope's current resources, and one resource's history.
 
-The write operations take an optional `ifRevision` precondition — the HTTP
-`If-Match`. Absent, the write is unconditional. Present, the write applies only
-if it matches the current revision; a stale value changes nothing and faults with
-`revision-mismatch` (412). This is the store's optimistic-concurrency control,
-and it is the whole of it: there is no revision-keyed read cursor, and a specific
-revision is read with `get` under `?revision=`.
+The write operations take guards, and every guard rides the request line — a
+header or the query string — never the body, so a `put` body stays exactly the
+representation and a `patch` body stays exactly the JSON Patch. There are three.
+`ifRevision` (the HTTP `If-Match`) is optimistic concurrency: the write applies
+only if it matches the current revision, and a stale value faults
+`revision-mismatch` (412). `ifAbsent` (`If-None-Match: *`) is create-if-absent:
+the write applies only if nothing is there, and a collision faults
+`identity-taken` (409) — the same status as a `create` collision, so a client has
+one id-taken handler. `precondition` (`?precondition=`) is a state guard: the
+write applies only if the current resource satisfies a flat-AND filter, and a miss
+faults `precondition-failed` (412). There is no revision-keyed read cursor; a
+specific revision is read with `get` under `?revision=`.
 
 ## 9. Change events and the changefeed
 
@@ -348,10 +384,18 @@ afterthought. Each operation has a method, a path, query parameters, headers, a
 body and a set of status codes. The only type system on the wire is the media
 type.
 
-Two bindings carry the weight of the model. A stale `If-Match` faults with 412,
-which is how optimistic concurrency reaches the wire. A declared operation
-failure is a 409, which is how the outcome split reaches the wire. The reference's
-HTTP appendix lists the headers, the status table, and the Problem codes in full.
+Discovery has a floor of fixed, well-known paths a client may hardcode: `GET /`
+returns a thin service descriptor (its protocol version and typed links to the
+rest), `GET /sys/capabilities` the live capabilities, and `GET /bdp/openapi` the
+static contract. The links repeat in a `Link` header as an optional convenience,
+but the paths, not the links, are load-bearing.
+
+The guards carry the rest of the weight. A stale `If-Match` faults with 412
+(optimistic concurrency); an `If-None-Match: *` collision and a `create` collision
+both fault with 409 (`identity-taken`); a state guard that misses faults with 412
+(`precondition-failed`); and a declared operation failure is a 409, which is how
+the outcome split reaches the wire. The reference's HTTP appendix lists the
+headers, the status table, and the Problem codes in full.
 
 The context a request and reply carry — the transaction, the cause, the cursor —
 rides in `BDP-*` headers, one value each, never folded into the body.
@@ -362,7 +406,7 @@ A conformance suite is built from this specification, not from any
 implementation. Each `/// normative:` line in the formal source is a conformance
 point, and a service either meets it or does not.
 
-The rules come in two kinds. Most sit on a single form and govern it — how
+The rules come in two sorts. Most sit on a single form and govern it — how
 `delete` treats inbound references, when a revision changes, how a hidden
 resource reads. Those travel with their form in the reference. The store-wide
 guarantees — a change produces exactly one event, an id is never reused, a hidden

@@ -48,28 +48,6 @@ importers:
         specifier: 15.0.0
         version: 15.0.0
 
-  apps/bdpbd:
-    dependencies:
-      '@bdp/adapter-bd':
-        specifier: workspace:*
-        version: link:../../packages/adapter-bd
-      '@bdp/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@bdp/server':
-        specifier: workspace:*
-        version: link:../../packages/server
-    devDependencies:
-      '@bdp/bd-domain':
-        specifier: workspace:*
-        version: link:../../packages/bd-domain
-      '@bdp/client':
-        specifier: workspace:*
-        version: link:../../packages/client
-      '@bdp/conformance':
-        specifier: workspace:*
-        version: link:../../packages/conformance
-
   apps/bdptest:
     dependencies:
       '@bdp/adapter-in-memory':
@@ -94,15 +72,6 @@ importers:
       '@bdp/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-
-  packages/adapter-bd:
-    dependencies:
-      '@bdp/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@bdp/server':
-        specifier: workspace:*
-        version: link:../server
 
   packages/adapter-in-memory:
     dependencies:

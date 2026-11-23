@@ -15,7 +15,7 @@ describe.each([
   [
     "issue-package-v1.json",
     [
-      ["specs/types/issue/issue.md", "IT", "issue."],
+      ["docs/history/issue-type-v1.md", "IT", "issue."],
       ["specs/types/issue/callables.md", "IC", "issue."],
     ],
   ],

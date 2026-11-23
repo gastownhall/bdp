@@ -31,7 +31,7 @@ Both cite `core/core.lumen` by `form-id` and get their prose cherry-picked from 
 | `core.lumen` | 47 KB | the OLD Core-profile formal (superseded by `core/core.lumen`) — reference |
 | `conformance.md` | 53 KB | conformance prose |
 | `deferred.md` | 21 KB | deferred / open items |
-| `package.lumen` · `issue.lumen` · `memory.lumen` | — | pack / domain formal specs |
+| `package.lumen` | — | pack / domain formal specs (the Memory & Issue packs moved to `src/packs/`) |
 | `profiles/` · `types/` · `formats/` · `openapi/` · `generated/` · `history/` | — | supporting dirs |
 | `BASELINE-NOTES.md` · `AGENTS.md` · `README.md` | — | notes |
 

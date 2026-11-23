@@ -21,7 +21,6 @@ const heavy = [
   "apps/bdptest/src/read-update-matrix.test.ts",
   "apps/bdptest/src/transactional-matrix.test.ts",
   "apps/bdptest/src/transactional-set-receipts.test.ts",
-  "apps/bdpbd/src/read-matrix.test.ts",
 ];
 const remaining = ["packages/config/src/config.test.ts", "scripts/smoke-safety.test.mjs"];
 const inventory = [...heavy, ...remaining];
@@ -62,12 +61,11 @@ function report(files = remaining) {
     })),
   };
 }
-test("four named heavyweight files are isolated and every other full-config file remains once", () => {
+test("three named heavyweight files are isolated and every other full-config file remains once", () => {
   assert.deepEqual(groups, [
     "read-update-matrix",
     "transactional-matrix",
     "transactional-set-receipts",
-    "realbd",
     "other",
   ]);
   const manifest = fixture(),
@@ -76,7 +74,6 @@ test("four named heavyweight files are isolated and every other full-config file
     "read-update-matrix": [heavy[0]],
     "transactional-matrix": [heavy[1]],
     "transactional-set-receipts": [heavy[2]],
-    realbd: [heavy[3]],
     other: [...remaining].sort(),
   });
   assert.deepEqual(manifest, copy);
@@ -114,7 +111,7 @@ test("a newly explicitly accounted file enters remaining group without retiring 
   manifest.tests.push({ path: file, runner: "vitest", lane: "current", reason: "new fixture" });
   const selected = regressionGroups(manifest, [...sources, file], [...inventory, file]);
   assert.deepEqual(selected.other, [...remaining, file].sort());
-  assert.equal(Object.values(selected).flat().length, 7);
+  assert.equal(Object.values(selected).flat().length, 6);
 });
 test("dedicated heavy-file removal cannot silently collapse required full regression", () => {
   const manifest = fixture();
@@ -189,7 +186,6 @@ test("required CI preserves every old command and permits only legitimate editor
       "--outputFile.json",
       "--reporter",
       "--run",
-      "--version",
     ].sort(),
     "Runtime flags are closed: no retry/pool/isolation/concurrency/shard/bail or timeout changes",
   );
@@ -203,7 +199,7 @@ test("required CI preserves every old command and permits only legitimate editor
   assert.equal((workflow.match(/if: needs.changes.outputs.editorial != 'true'/g) ?? []).length, 2);
   assert(
     workflow.includes(
-      "group: [read-update-matrix, transactional-matrix, transactional-set-receipts, realbd, other]",
+      "group: [read-update-matrix, transactional-matrix, transactional-set-receipts, other]",
     ),
   );
   assert(
@@ -211,12 +207,6 @@ test("required CI preserves every old command and permits only legitimate editor
       "if: always()\n    needs: [changes, specification, implementation, regression]",
     ),
   );
-  assert.equal(
-    (workflow.match(/go install github.com\/steveyegge\/beads\/cmd\/bd@v1.0.5/g) ?? []).length,
-    1,
-  );
-  assert(workflow.includes("if: matrix.group == 'realbd'"));
-  assert(workflow.includes('BDP_REQUIRE_BD_MATRIX: "1"'));
   assert(workflow.includes("fail-fast: false"));
   for (const command of [
     "pnpm format:check",
@@ -272,8 +262,8 @@ test("required CI preserves every old command and permits only legitimate editor
   );
   assert.deepEqual(
     [...implementation.matchAll(/^\s*cache:\s*(.+)$/gm)].map((match) => match[1].trim()),
-    ["false"],
-    "Cold fragments retain only the explicit setup-go cache:false",
+    [],
+    "Cold fragments add no action cache at all once the real-bd lane is retired",
   );
   assert(!implementation.includes("ci-impact-selection"));
   assert(!workflow.includes("paths:"));
@@ -286,10 +276,6 @@ test("required CI preserves every old command and permits only legitimate editor
     "node --test scripts/spec-schema-fragments.node-test.mjs",
     "node scripts/spec-schema-fragments.mjs --check",
     "python3 -B scripts/check-spec-editorial.py",
-    "go-version: 1.26.10",
-    "libicu-dev",
-    "bd version 1.0.5 (dev)",
-    'const expected = { build: "dev", schema_version: 1, version: "1.0.5" };',
   ])
     assert(workflow.includes(check), `Missing original required check: ${check}`);
   const verify = workflow.slice(workflow.indexOf("  verify:"));
