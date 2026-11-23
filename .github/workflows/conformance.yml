@@ -26,3 +26,5 @@ jobs:
         run: cargo build --workspace --locked
       - name: Run the reference + liveness gate
         run: cargo test -p bdp-ref --locked
+      - name: Run the tier-1 conformance gate (denominator + wire cases)
+        run: cargo test -p bdp-gate --locked

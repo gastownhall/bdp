@@ -1,7 +1,10 @@
 # The BDP conformance GATE workspace (Rust, wire-level) — the lockstep merge gate.
 #
 # Self-contained: one `cargo build` / `cargo test`, mainstream deps, no Node / DB / network.
-# Pin: this repo's core spec @ca298b04 (v0.2.2) — the pin governs the CASES, not this scaffold.
+# Pin: core spec v0.2.3 = gastownhall/bdp #405 @7aaecec2 (draft; re-pin to the MERGE commit when it
+# lands). The tier-1 gate (member `gate`) derives its coverage denominator from the pinned v0.2.3
+# OpenAPI, vendored under gate/spec/. `reference` stays pin-agnostic (it serves whatever InMemScope
+# implements).
 #
 # vendor/ holds the reference-implementation crates (the in-memory BDP scope + the framework-free
 # HTTP server/client), copied in so the gate builds with no out-of-tree source. See README.md for
@@ -10,6 +13,7 @@
 resolver = "2"
 members = [
     "reference",
+    "gate",
     "vendor/bdp-primitives",
     "vendor/bdp-jsonpatch",
     "vendor/bdp-protocol",
