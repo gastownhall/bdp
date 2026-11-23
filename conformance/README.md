@@ -60,10 +60,14 @@ The remaining 34 rows are uncovered for concrete, recorded reasons:
   ("not implemented by this scope"), and `RemoteScope` has no client method for them. *Routed but
   not implemented* is a different statement from *unroutable*, and the gate can tell them apart.
   Fixing the subject is in scope (see below), so this is work rather than a blocked decision.
-- **`call`'s two remaining declared faults are not among them.** `call` declares `[409]` only, and
-  that row is covered. Its other reachable faults — an unresolvable `operation` is a pre-dispatch
-  `404` — are **undeclared**, so the gate cannot count them. That is the subset property below,
-  observed on a primitive whose producer the spec itself mandates, rather than hypothesised.
+- **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
+  covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
+  design: `call`'s dispatch rule mandates the fault's *shape* — a `Problem` with no `Outcome` — and
+  names its producers longhand (unresolvable `operation`, malformed `request`, unauthorized,
+  idempotency-key mismatch), but names no status. The 404 this subject answers is its own choice,
+  and D.8's catch-all puts a fault at its Problem's own status. So this is the open-ended fault
+  channel working as intended — distinct from a fault D.8 gives a *specific* status and producer
+  that no operation declares, which would be a genuine enumeration gap.
 - **The faults on routed ops are NOT reachable by probing — measured, not estimated.** This list
   previously claimed ~14 of them were "reachable with more raw-HTTP probing". That was speculation and
   it was wrong: every candidate was probed against the subject and **none is producible without a
