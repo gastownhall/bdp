@@ -543,7 +543,8 @@ command addDependency(
     /// cli.flag: --type
     type?:      PathString,
     // Not surfaced on the CLI — native dep/add carries no flag for these; they ride
-    // in provenance/metadata. Whether to surface them is R11 (open).
+    // in provenance/metadata (createdBy is provenance-derived, not caller input), and stay
+    // reachable via the generic `--set-property`. R11 resolved: hidden (match native).
     /// cli.hidden
     createdBy?: text,
     /// cli.hidden

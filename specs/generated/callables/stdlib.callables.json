@@ -41,6 +41,7 @@
       "operation": "search",
       "safe": true,
       "idempotent": false,
+      "cli": "search",
       "summary": "Ranked text search over resource bodies in `scope` — the matches for `text`, best first",
       "parameters": [
         {
@@ -81,6 +82,7 @@
       "operation": "graph",
       "safe": true,
       "idempotent": false,
+      "cli": "graph",
       "summary": "Traverse relationships from one or more roots into a `Subgraph`",
       "parameters": [
         {
@@ -136,6 +138,7 @@
       "operation": "count",
       "safe": true,
       "idempotent": false,
+      "cli": "count",
       "summary": "The number of current resources in `scope` matching `where` — the aggregate reduction of `query`/`list`, computed service-side (no bodies re",
       "parameters": [
         {
