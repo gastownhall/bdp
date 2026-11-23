@@ -12,7 +12,8 @@ publish = false
 # InMemScope reference and record which surface rows they cover, then the gate reports
 # covered-vs-uncovered (fail-if-no-coverage; strict mode gated by BDP_GATE_STRICT).
 #
-# Pin: gastownhall/bdp main @aa439827 — the #405 MERGE commit, where specs/generated/ lands.
+# Pin: gastownhall/bdp main @2dfc097f. The `paths` block has not moved since @aa439827
+# (sha256 770e3ccc…); the whole-file digest has (now 24d14f28…), and only `paths` matters here.
 
 [dependencies]
 serde_json = "1"

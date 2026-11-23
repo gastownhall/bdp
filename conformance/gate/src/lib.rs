@@ -11,18 +11,23 @@
 //! it and the uncovered row surfaces here. A vendored snapshot would freeze the denominator and
 //! silently stop catching spec changes, which is why it was dropped once #405 merged.
 //!
-//! Pin: `gastownhall/bdp` `main` @`aa439827` — the #405 MERGE commit (merged commits, never draft
-//! tips), where `specs/generated/` first lands. Verified: the merged catalog is byte-identical
-//! (sha256 `8eca709d…`) to the draft copy this gate was first built against, so the 52-row surface is
-//! unchanged by the merge.
+//! Pin: `gastownhall/bdp` `main` @`2dfc097f` — merged commits, never draft tips. Re-pinned from
+//! `aa439827` (the #405 merge) now that #407, #408, #410 and #412 have landed.
 //!
-//! PR #407 (`$defs/Resource` was an uncompilable self-cycle) changes this file's BYTES but not this
-//! gate's surface. Verified at its head `fc90ba6e`: only `components/schemas/Resource`'s `$ref`
-//! moves (`…/Resource` → `…/rep`), the `paths` block is byte-identical by sha256
-//! (`770e3ccc…`), and the denominator still yields 9 paths / 13 ops / 39 faults = 52. So the
-//! whole-file `8eca709d…` above is the one fact that goes stale when #407 lands; re-record it then.
-//! This gate reads only `paths`, and does NOT consume `specs/generated/schema/*.schema.json` — the
-//! self-cycle was never reachable from here.
+//! The catalog's whole-file digest is now sha256 `24d14f28…` (was `8eca709d…` at `aa439827`). It
+//! moved for #407, which repointed `components/schemas/Resource`'s `$ref` off a self-cycle. **The
+//! `paths` block did NOT move: sha256 `770e3ccc…`, byte-identical across `aa439827`, all four of
+//! #407's commits, and this merge.** 9 paths / 13 ops / 39 faults = 52, unchanged.
+//!
+//! That split is the thing to carry forward, not the digests themselves: this gate reads only
+//! `paths`, so a whole-file change is noise to it and a `paths` change is the signal. Do NOT treat
+//! `paths` stability as a standing guarantee, though — PR #411 moves it deliberately (to
+//! `4bf1225b…`, 54 rows) by declaring `put/410` and `patch/410`, and the surface tripwire will fire
+//! and be right. Quote the per-row delta, not the digest.
+//!
+//! This gate does NOT consume `specs/generated/schema/*.schema.json`, so #407's self-cycle was never
+//! reachable from here. It DOES read `specs/src/core/core.lumen` (see [`source_surface`]), so both
+//! that path and the catalog path are live dependencies: moving either fails the build.
 
 use std::collections::BTreeSet;
 use std::fmt;

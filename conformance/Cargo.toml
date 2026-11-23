@@ -1,7 +1,7 @@
 # The BDP conformance GATE workspace (Rust, wire-level) — the lockstep merge gate.
 #
 # Self-contained: one `cargo build` / `cargo test`, mainstream deps, no Node / DB / network.
-# Pin: core spec v0.2.3 = gastownhall/bdp main @aa439827 (the #405 MERGE commit). The tier-1 gate
+# Pin: core spec v0.2.3 = gastownhall/bdp main @2dfc097f (merged commits, never draft tips). The gate
 # (member `gate`) derives its coverage denominator LIVE from specs/generated/openapi/core.openapi.json,
 # so the denominator tracks the spec instead of a frozen copy. `reference` stays pin-agnostic (it
 # serves whatever InMemScope implements).

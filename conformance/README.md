@@ -1,6 +1,6 @@
 # `conformance/` — the BDP wire-level conformance gate (Rust)
 
-**Pin:** core spec **v0.2.3** = `gastownhall/bdp` `main` @`aa439827` (the #405 **merge** commit, where
+**Pin:** core spec **v0.2.3** = `gastownhall/bdp` `main` @`2dfc097f` (merged commits, never draft tips; where
 `specs/generated/` lands). This is the lockstep merge gate for the Beads Protocol.
 
 ## What this is
