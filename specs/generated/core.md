@@ -277,7 +277,7 @@ A slash-delimited path — `"issue/task"` (a bead kind) or `"text/plain"` (a con
 
 > **Normative.** Two first path segments are reserved — `bdp` (the protocol's own fixed routes and artifacts, e.g. `/bdp/openapi`) and `sys` (in-band system resources, e.g. `/sys/changes`).
 
-> **Normative.** A bare `-` segment is reserved everywhere as the ACTION FENCE: in any path the segment `-` separates a (possibly slash-bearing) resource id on its left from a protocol action or projection on its right (`/{id}/-/revisions`, `/-/list`). No resource-id segment may be exactly `-`.
+> **Normative.** A bare `-` segment is reserved everywhere as the ACTION FENCE: in any path the segment `-` separates a (possibly slash-bearing) resource id on its left from a protocol action or projection on its right (`/{id}/-/revisions`, `/-/list`). The fence is matched on the RAW path, before percent-decoding, and is the LAST `/-/` in the path; the segment(s) to its right are validated against the closed, fence-free set of protocol actions (a right side that is not a known action faults `404`). No resource-id segment may be a bare `-`: a literal hyphen-only segment inside an id MUST be percent-encoded (`%2D`), and a write that would mint an id with an unencoded bare `-` segment is refused — so a crafted `%2D` never forges the fence and the id/action split is deterministic.
 
 ```lumen
 type PathString = string
@@ -522,6 +522,8 @@ A named pointer — a second name for a resource. The alias's own id is the name
 
 > **Normative.** THE OVERLAY (resolution, not an operation). When the scope advertises `aliases`, id resolution gains one step: a bare scope-root id that names an `Alias` resolves THROUGH it to the alias's `target` before the operation runs. So `get`, `put`, `patch` and `delete` on an alias name act on the TARGET, and a read returns the target's `id`/`rev` — the alias leaves no trace in the result. The primitives are unchanged; only id resolution carries the extra hop. The binding itself is addressed directly at `sys/aliases/{name}`, never through the overlay, so `delete sys/aliases/{name}` removes the name while `delete {name}` deletes the target. Because a dereferenced read never reveals that a name was an alias, the two interrogations are explicit: a `get` on `sys/aliases/{name}` (present ⇒ it is an alias) and the filtered `list` (the names that point at a target).
 
+> **Normative.** SINGLE HOP, SAME SCOPE. `target` names a resource in the alias's own scope and MUST NOT name another `Alias` — binding an alias whose target is a live alias is refused `invalid-target`, so chains and cycles are unrepresentable. The overlay resolves by TRANSPARENT REWRITE (no `3xx`): `GET {name}` is served as `GET {target}` and the reply carries `Content-Location: /{target}` naming the canonical id (so RFC 9111 caches key on the target). The reverse lookup — `list sys/aliases` filtered on `target` — matches `target` against the canonical id string.
+
 > **Normative.** UNIQUENESS. A scope-root name is held by AT MOST ONE claimant — a resource OR an alias, never both. `create` (or an id-rooted `put`) at a name that is a live alias is refused `identity-taken`; binding an `Alias` whose name is a live resource id is refused likewise; and the id a server mints for an unrequested `create` avoids live alias names exactly as it avoids live ids. The guarantee spans both claim paths at once.
 
 ```lumen
@@ -532,7 +534,7 @@ type Alias is Bead {
 
 | Member | Type | Description |
 |---|---|---|
-| `target` | `ref<any>` | The resource this name stands for — a soft reference, so the alias tolerates a retired target. |
+| `target` | `ref<any>` | The resource this name stands for — a SOFT, SINGLE-HOP reference to a resource in the SAME scope; never another alias (no chains) and never a foreign scope. Tolerates a retired target (resolves to its tombstone). |
 
 ## 2.1  Types — the kind system, TypeDef & the value-schema
 
@@ -1186,6 +1188,8 @@ type Outcome<T, E> = union {
 
 An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.
 
+> **Normative.** `type`, `title`, `status`, `detail` and `instance` are the RFC 9457 standard members; `code` and `retry` are BDP EXTENSION members (RFC 9457 permits extension members). `type` is a stable, dereferenceable problem-type URI (`tag:bdp.dev,2026:problem/<code>`, one per `code` — Appendix D.9), not a bare token.
+
 > **Normative.** The fault model. Every primitive returns its declared value on success or faults with a Problem — delivered out of band as the HTTP non-2xx response (RFC 9457), never part of the declared return type; a fault is orthogonal to the value. Only `call` additionally carries a declared failure (`Outcome.failure`, HTTP 409) — an operation's own "no". The data primitives have none: a read returns a `rep` or faults. A Problem is the universal fault channel, not the `E` of a `Result`.
 
 ```lumen
@@ -1315,12 +1319,16 @@ asyncResult) resolves to a concrete route below. The URL space has three parts:
   • an id space — a resource is `/{id}`, where {id} is a free, slash-bearing string;
   • noun roots — `/sys/*` for in-band system RESOURCES (addressed and read with
     `get`, e.g. `/sys/changes`, `/sys/capabilities`) and `/bdp/*` for the protocol's
-    own fixed routes & artifacts (`/bdp/openapi`, `/bdp/export`, `/bdp/import`);
+    own fixed routes & artifacts (`/bdp/openapi` — static artifacts only);
   • the ACTION FENCE `/-/` — a bare `-` segment separates a resource id (left) from a
     protocol action or projection (right). The fence (NOT a `:verb` suffix) is what
     carries actions, because an id is a free string: a `:` has URL-reference scheme
     ambiguity and the fleet's ids already bear colons (timestamp ids). At the scope
     root the left side is empty, so `/-/list`, `/-/create` are scope actions.
+    The fence is parsed on the RAW path (pre-decode) as the LAST `/-/`; the right
+    side is validated against the closed, fence-free action set (else 404), and an
+    id with a literal `-`-only segment is percent-encoded (`%2D`) — a write minting
+    an unencoded bare `-` segment is refused — so no `%2D` forges the fence.
 So `GET /` is free to be the discovery signpost, and nothing collides with an id.
 ```
 
@@ -1329,7 +1337,7 @@ So `GET /` is free to be the discovery signpost, and nothing collides with an id
   discovery   GET     /                          → ServiceDescriptor (the signpost; links mirrored in a Link header)
   discovery   GET     /sys/capabilities          live, per-deployment Capabilities (a `get` on a /sys bead)
   discovery   GET     /bdp/openapi               the static OpenAPI contract (RFC 8631 service-desc)
-  get         GET     /{id}                      ?select= projection; ?revision= time-travel
+  get         GET     /{id}                      ?include=/?omit=/?expand= (or ?select=) projection; ?revision= time-travel
   list        GET     /-/list                    scope list → Page (moved off the bare root)
   create      POST    /-/create                  body = the rep (body: any); fail-if-exists → identity-taken
   put         PUT     /{id}                      If-Match (OCC) · If-None-Match:* (create-if-absent) · ?precondition= (state guard)
@@ -1340,17 +1348,17 @@ So `GET /` is free to be the discovery signpost, and nothing collides with an id
   cancel      POST    /{asyncResultId}/-/cancel  {asyncResultId} = the async Location
   pull        GET     /{channel}                 a Channel, e.g. /sys/changes (changefeed)
   push        POST    /{channel}                 append jsonl to a sink/duplex Channel
-  export      GET     /bdp/export                bulk scope serialization → JSONL
-  import      POST    /bdp/import                bulk load ← JSONL → ImportReport
+  export      GET     /-/export                  bulk scope serialization → JSONL (scope action)
+  import      POST    /-/import                  bulk load ← JSONL → ImportReport (scope action)
 ```
 
 ```
 `push` is NOT the stdlib `batch`: it appends to a Channel. A read whose query string
-overruns the URL budget re-sends under the fence as a body-form POST (`/-/list`,
-`/{id}/-/get`) carrying the `ReadRequest` in the body — see Appendix D.
+overruns the URL budget MAY re-send under the fence as a body-form POST (`/-/list`,
+`/{id}/-/get`) carrying the `ReadRequest`, and an over-budget write guard MAY spill to
+`POST /{id}/-/{put|patch|delete}` carrying an `Envelope` — body-form spill is OPTIONAL
+and advertised (a minimal scope rejects over-budget with `request-too-large`). See Appendix D.
 ```
-
-> **Open** — the bulk ops (`export`/`import`) sit under `/bdp/*` for continuity, but > the fence now carries every other scope action (`/-/list`, `/-/create`). Should they > move to `/-/export`, `/-/import` for uniformity, leaving `/bdp/*` for pure artifacts > (the OpenAPI doc)?
 
 Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à la carte. The mandatory floor is `get`, the `GET /` ServiceDescriptor, and a readable `/sys/capabilities`; every other primitive is present iff advertised. A request for an un-offered primitive is refused `capability-not-supported`.
 
@@ -1463,7 +1471,7 @@ Upsert / remember — idempotent full-state write. Create-or-replace; the lifecy
 
 > **Normative.** A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.
 
-> **Normative.** WRITE GUARDS ARE PRECONDITIONS, NEVER BODY. A guard rides the request line (a header or the query string), never the payload — so a `put` body stays exactly the resource representation and a `patch` body stays exactly the JSON Patch, unwrapped and correctly typed. Three guards, carried by `put`, `patch` and `delete` (`put` also carries the second): (1) `ifRevision` → `If-Match: <Rev>`, the optimistic-concurrency / revision guard — a stale value makes no change and faults `revision-mismatch` (412); (2) `ifAbsent` → `If-None-Match: *`, create-if-absent — the write applies only if nothing is there, else faults `identity-taken` (`put` only); (3) `precondition` → `?precondition=<Filter>`, a STATE guard — the write applies only if the current resource satisfies the Filter, else faults `precondition-failed` (412). The state guard is the same flat-AND [Filter](#Filter) grammar `list` uses, projected onto the query string exactly like a read filter; a guard too large for the URL budget spills to a `query`-tier body-form (`POST /{id}/-/{put|patch|delete}` with `{ precondition, body|patch }`), the one place an envelope appears — see Appendix D. There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
+> **Normative.** WRITE GUARDS ARE PRECONDITIONS, NEVER BODY. A guard rides the request line (a header or the query string), never the payload — so a `put` body stays exactly the resource representation and a `patch` body stays exactly the JSON Patch, unwrapped and correctly typed. Three guards, carried by `put`, `patch` and `delete` (`put` also carries the second): (1) `ifRevision` → `If-Match: <Rev>`, the optimistic-concurrency / revision guard — a stale value makes no change and faults `revision-mismatch` (412); (2) `ifAbsent` → `If-None-Match: *`, create-if-absent — the write applies only if nothing is there, else faults `identity-taken` (409 — the same status as a `create` collision, so a client has one id-taken handler) (`put` only); (3) `precondition` → `?precondition=<Filter>`, a STATE guard — the write applies only if the current resource satisfies the Filter, else faults `precondition-failed` (412). The state guard is the same flat-AND [Filter](#Filter) grammar `list` uses, projected onto the query string exactly like a read filter. A guard too large for the URL budget MAY spill to an OPTIONAL, advertised `query`-tier body-form (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`) carrying an [Envelope](#Envelope) — `{ precondition?, representation }` for put (the FULL representation, never a bare body), `{ precondition?, patch }` for patch, `{ precondition? }` for delete — the one place an envelope appears; the `If-Match`/`If-None-Match` guards keep riding their headers, and a scope that does not advertise spill rejects an over-budget guard with `request-too-large`. See Appendix D. There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
 
 ```lumen
 idempotent command put(
@@ -1483,10 +1491,10 @@ idempotent command put(
 | `resource` | `unpinned<any>` | The resource to write (its id; `rev` ignored — `put` targets the current resource). |
 | `type` | `PathString` | The bead's type path. |
 | `authority?` | `PackageRef` | The package that names `type`. Caller may supply; absent, the server resolves it from `type`. |
-| `body` | `any` | The full new body — `put` replaces state wholesale (`any` at core; typed `body: T` at the pack level). This IS the request payload; the guards below are not part of it. |
+| `body` | `any` | The full new body — `put` replaces state wholesale (`any` at core; typed `body: T` at the pack level). On the wire the request payload is the full representation (`type` + `authority?` + this `body` + `metadata?`); the guards below are request metadata, never part of it. |
 | `metadata?` | `Metadata` | Optional open sidecar the protocol does not interpret. |
 | `ifRevision?` | `Rev` | Revision guard → `If-Match`. Apply only if this matches the current revision. |
-| `ifAbsent?` | `bool` | Create-if-absent guard → `If-None-Match: *`. Apply only if no resource exists at the id; else `identity-taken`. |
+| `ifAbsent?` | `bool` | Create-if-absent guard → `If-None-Match: *`. Apply only if no resource exists at the id; else `identity-taken` (409). |
 | `precondition?` | `Filter` | State guard → `?precondition=`. Apply only if the current resource satisfies this Filter; else `precondition-failed`. Rides the query string, not the body. |
 
 **Returns** `pinned<any>`
@@ -1580,6 +1588,8 @@ fn revisions(
 
 A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `type`/`id` are never dropped.
 
+> **Normative.** Query-string encoding — the three fields lower to the baseline params `?include=`, `?omit=` (comma-separated JSON Pointers) and `?expand=` (comma-separated names), matching the CLI `--include` / `--omit` / `--expand` flags; a leading `/` on a pointer is optional. `?select=<URL-encoded selector JSON>` is the complete form (the CLI `--select` shorthand), accepted for tooling and for a pointer that contains a literal comma. `type`/`id` are never dropped.
+
 ```lumen
 type selector {
   include?: [ JsonPointer ],
@@ -1636,6 +1646,28 @@ An ordered list of JSON Patch operations — the `patch` body, and a change-even
 type JsonPatch = [ JsonPatchOp ]
 ```
 
+<a id="Envelope"></a>
+
+### `Envelope`
+
+The query-tier body-form envelope — the ONE place a write guard rides a body. Used only when an over-budget `precondition` (or representation) spills to `POST /{id}/-/{put|patch|delete}`; the direct `put`/`patch`/`delete` verbs never carry it. Media type `application/vnd.bdp.envelope+json`.
+
+> **Normative.** Support is OPTIONAL and advertised ([ScopeCapabilities](#ScopeCapabilities) `bodyFormSpill`); a scope that does not offer it rejects an over-budget guard with `request-too-large`. Exactly one payload member by verb — `representation` for `put` (the FULL representation `{ type, authority?, body, metadata? }`, never a bare body), `patch` for `patch` (the raw RFC 6902 array carried as a JSON value governed by THIS envelope's media type, not `application/json-patch+json`), and none for `delete`. `precondition` is the optional state-guard Filter; the `If-Match` / `If-None-Match` guards keep riding their headers even in body-form.
+
+```lumen
+type Envelope = {
+  precondition?:   Filter,
+  representation?: any,
+  patch?:          JsonPatch
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `precondition?` | `Filter` | The state-guard Filter (the `?precondition=` guard, relocated to the body when over-budget). |
+| `representation?` | `any` | For `put` — the full representation to write (`{ type, authority?, body, metadata? }`). |
+| `patch?` | `JsonPatch` | For `patch` — the RFC 6902 JSON Patch array, as a JSON value inside this envelope. |
+
 <a id="Filter"></a>
 
 ### `Filter`
@@ -1654,7 +1686,7 @@ One flat field condition. `isType` matches against the type-path (`type.id`): `p
 
 > **Normative.** Field paths are root-addressed `FieldPath` ARRAYS (`["body","status"]`, `["metadata","x"]`, `["type"]`) — the array disambiguates a key that itself contains a dot, and the first segment selects the root member (`body`/`metadata`/`type`/`authority`), consistent with root-addressed `patch`/`selector`. NOT a dotted string.
 
-> **Normative.** Wire encoding — every protocol DU is INTERNALLY-TAGGED with a `kind` discriminator = the arm name in kebab-case (the convention of [Outcome](#Outcome), [ChangeEvent](#ChangeEvent)), NEVER externally-tagged (`{"compare":{…}}`). A condition is `{"kind":"compare","field":["body","status"],"op":"eq","value":…}`; a flat `Filter` is a JSON array of them. list and the stdlib `query` share this one encoding.
+> **Normative.** Wire encoding — every protocol DU is INTERNALLY-TAGGED with a `kind` discriminator = the arm name in kebab-case (the convention of [Outcome](#Outcome), [ChangeEvent](#ChangeEvent)), NEVER externally-tagged (`{"compare":{…}}`). A condition is `{"kind":"compare","field":["body","status"],"op":"eq","value":…}`; a flat `Filter` is a JSON array of them. list and the stdlib `query` share this one encoding. On the query string (`?where=` and `?precondition=`) the baseline floor every scope accepts is the URL-encoded JSON of this `Filter` array; a scope MAY ALSO advertise a compact `field op value` dialect (comma-separated conditions, `/`-separated field paths) for the common `compare`/`has`/`missing` subset — a human-typable convenience, never required, with the gnarly arms (`matches`, `contains*`, array-valued `in`) staying JSON or going to the stdlib `query`.
 
 > **Normative.** v0 `compare` is LEXICAL (string) comparison — a numeric `lt`/`le`/`gt`/`ge` on a value like `priority` orders as text (`"10" < "2"`). Typed comparison by the field's declared type (now that `integer` and `number` are distinguished) is a follow-up, to land consistently across `list` and `query`.
 
@@ -2078,11 +2110,12 @@ command import(
 
 The bounded discovery signpost returned by `GET /` (a scope's base URL) — a THIN envelope that names the protocol and LINKS to the rest, never embedding it. With `get` and `/sys/capabilities`, it is the mandatory floor.
 
-> **Normative.** `GET /` returns a ServiceDescriptor, not the scope's resource collection — the scope list moved to `/-/list`. The `links` are also mirrored in a `Link` response header (RFC 8288), so a client can discover by header alone. Discovery is by RELATION, not by path: the conventional paths named here are not load-bearing.
+> **Normative.** `GET /` returns a ServiceDescriptor, not the scope's resource collection — the scope list moved to `/-/list`. The fixed well-known paths ARE the floor and ARE load-bearing: a client MAY hardcode `GET /`, `GET /sys/capabilities` and `GET /bdp/openapi`. The `links` (and their `Link`-header mirror, RFC 8288) are an OPTIONAL relation-following convenience over those paths — the body is authoritative; the `Link` header is a hint and MAY relocate the `base`.
 
 ```lumen
 type ServiceDescriptor = {
-  bdp:    string,
+  version:   SemVer,
+  revision?: Rev,
   scope?: BdpScope,
   base?:  AbsoluteHttpUrl,
   links:  ServiceLinks
@@ -2091,7 +2124,8 @@ type ServiceDescriptor = {
 
 | Member | Type | Description |
 |---|---|---|
-| `bdp` | `string` | The BDP protocol version this scope speaks (e.g. `"0.2"`). |
+| `version` | `SemVer` | The BDP protocol version this scope speaks — a full SemVer (e.g. `"0.2.3"`); negotiation reads `major.minor.patch`. |
+| `revision?` | `Rev` | The exact spec commit/tag this scope was built against — finer-grained provenance, diagnostic only, never used for compatibility. |
 | `scope?` | `BdpScope` | The scope's identity, echoed for confirmation. Absent on a base URL that fronts no single scope. |
 | `base?` | `AbsoluteHttpUrl` | The scope's base URL, echoed so a client can confirm the origin it reached. |
 | `links` | `ServiceLinks` | Typed links to the rest of the service. See [ServiceLinks](#ServiceLinks). |
@@ -2102,7 +2136,7 @@ type ServiceDescriptor = {
 
 The discovery link set — RFC 8631 web-service link relations to the service's other resources. A relation's absence means the service does not offer it. Mirrored in the `Link` header.
 
-> **Normative.** Relations — `service-desc` → `/bdp/openapi` (the static OpenAPI contract); `service-meta` → `/sys/capabilities` (live, per-deployment capabilities, which may ride the changefeed); `service-doc` → human documentation; `changes` → `/sys/changes` (the changefeed). The split is deliberate: `/bdp/openapi` is the STATIC contract, `/sys/capabilities` is LIVE per-deployment state.
+> **Normative.** Relations — `service-desc` → `/bdp/openapi` (the static OpenAPI contract) and `service-meta` → `/sys/capabilities` (live, per-deployment capabilities) are the RFC 8631 registered relations (the OpenAPI location is advertised the traditional way, `Link: </bdp/openapi>; rel="service-desc"`); `service-doc` → human documentation. The changefeed is NOT an IANA relation, so it uses the BDP extension relation URI `tag:bdp.dev,2026:rel/changes` → `/sys/changes` (a bare `changes` token is never emitted in the `Link` header). The split is deliberate: `/bdp/openapi` is the STATIC contract, `/sys/capabilities` is LIVE per-deployment state.
 
 ```lumen
 type ServiceLinks = {
@@ -2118,7 +2152,7 @@ type ServiceLinks = {
 | `serviceDesc?` | `AbsoluteHttpUrl` | RFC 8631 `service-desc` — the machine contract (the OpenAPI document, `/bdp/openapi`). |
 | `serviceMeta?` | `AbsoluteHttpUrl` | RFC 8631 `service-meta` — the scope's live `Capabilities` (`/sys/capabilities`). |
 | `serviceDoc?` | `AbsoluteHttpUrl` | RFC 8631 `service-doc` — human-readable documentation. |
-| `changes?` | `AbsoluteHttpUrl` | `changes` — the scope's changefeed Channel (`/sys/changes`). |
+| `changes?` | `AbsoluteHttpUrl` | `changes` (BDP extension relation `tag:bdp.dev,2026:rel/changes`) — the scope's changefeed Channel (`/sys/changes`). |
 
 <a id="Capabilities"></a>
 
@@ -2188,7 +2222,8 @@ A scope's scope-wide traits — the capabilities that are neither per-primitive 
 type ScopeCapabilities = {
   storageClasses: [StorageClass],
   revisionModel:  RevisionModel,
-  aliases?:       AliasCaps
+  aliases?:       AliasCaps,
+  bodyFormSpill?: bool
 }
 ```
 
@@ -2197,12 +2232,13 @@ type ScopeCapabilities = {
 | `storageClasses` | `[StorageClass]` | Which persistence classes the scope can honor — a set over `Durable` / `Ephemeral`. A resource whose class is not honored cannot be hosted. `Intrinsic` is universal and never appears here. |
 | `revisionModel` | `RevisionModel` | Whether the scope mints revisions, scope-wide. See [RevisionModel](#RevisionModel). |
 | `aliases?` | `AliasCaps` | Present iff the scope supports alias resources and the scope-root overlay. See [Alias](#Alias), [AliasCaps](#AliasCaps). |
+| `bodyFormSpill?` | `bool` | Present and `true` iff the scope accepts the OPTIONAL body-form spill ([Envelope](#Envelope)) for an over-budget read or write guard; absent/false ⇒ an over-budget request is refused `request-too-large`. There is no advertised URL-byte budget — intermediaries, not the origin, impose the limit, so a client is reactive to `414`/`431`/`400`-by-length regardless. |
 
 <a id="AliasCaps"></a>
 
 ### `AliasCaps`
 
-Advertised for `aliases` — its presence signals that `Alias` resources under `sys/aliases/` and the scope-root overlay are active.
+Advertised for `aliases` — its presence signals that `Alias` resources under `sys/aliases/` and the scope-root overlay are active. An alias is always single-hop and same-scope (no chains); any further limits (e.g. a cap on aliases per target) ride here.
 
 ```lumen
 type AliasCaps = { ...: any }
@@ -2312,43 +2348,57 @@ type CreateCaps = {
 
 ### `PutCaps`
 
-Presence advertises that `put` (idempotent full-state write) is offered; it carries no further limits.
+Limits advertised for `put` — which write guards it honors. The `precondition` operator set is ⊆ [ListCaps](#ListCaps) `conditions`.
 
 ```lumen
-type PutCaps = { }
+type PutCaps = {
+  ifMatch:      bool,
+  ifAbsent:     bool,
+  precondition: bool
+}
 ```
+
+| Member | Type | Description |
+|---|---|---|
+| `ifMatch` | `bool` | Whether the `ifRevision` (If-Match) guard is honored. |
+| `ifAbsent` | `bool` | Whether the `ifAbsent` (If-None-Match: *) create-if-absent guard is honored. |
+| `precondition` | `bool` | Whether the `?precondition=` state guard is honored. |
 
 <a id="PatchCaps"></a>
 
 ### `PatchCaps`
 
-Limits advertised for `patch`.
+Limits advertised for `patch`. The `precondition` operator set is ⊆ [ListCaps](#ListCaps) `conditions`.
 
 ```lumen
 type PatchCaps = {
-  ifMatch: bool
+  ifMatch:      bool,
+  precondition: bool
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `ifMatch` | `bool` | Whether the `ifRevision` (If-Match) precondition is honored. |
+| `precondition` | `bool` | Whether the `?precondition=` state guard is honored. |
 
 <a id="DeleteCaps"></a>
 
 ### `DeleteCaps`
 
-Limits advertised for `delete`.
+Limits advertised for `delete`. The `precondition` operator set is ⊆ [ListCaps](#ListCaps) `conditions`.
 
 ```lumen
 type DeleteCaps = {
-  ifMatch: bool
+  ifMatch:      bool,
+  precondition: bool
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `ifMatch` | `bool` | Whether the `ifRevision` (If-Match) precondition is honored. |
+| `precondition` | `bool` | Whether the `?precondition=` state guard is honored. |
 
 <a id="RevisionsCaps"></a>
 
@@ -2536,15 +2586,19 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
     • an ID space — a resource is `/{id}`, {id} a free, slash-bearing string.
     • noun roots — `/sys/*` in-band system RESOURCES (get-addressable beads:
       `/sys/changes`, `/sys/capabilities`, `/sys/aliases/*`); `/bdp/*` the
-      protocol's own fixed routes & artifacts (`/bdp/openapi`, `/bdp/export`,
-      `/bdp/import`).
+      protocol's own fixed routes & artifacts (`/bdp/openapi` — static only).
     • the ACTION FENCE `/-/` — a bare `-` segment separates a resource id
       (left) from a protocol action or projection (right): `/{id}/-/revisions`,
       `/{opPath}/-/call`, `/{asyncResultId}/-/cancel`; at the scope root the
       left side is empty, so `/-/list`, `/-/create`.
   The fence, not a `:verb` suffix, carries actions: an id is a free string, a
-  `:` has URL-reference scheme ambiguity, and real-world ids already bear
-  colons. No resource-id segment may be exactly `-`.
+  `:` has URL-reference scheme ambiguity, and real-world ids already bear colons.
+  PARSE: match the fence on the RAW path (pre-decode) as the LAST `/-/`; validate
+  the right side against the closed, fence-free action set (else 404). No id segment
+  may be a bare `-`: a literal hyphen-only segment is percent-encoded (`%2D`) and a
+  write minting an unencoded one is refused, so `%2D` never forges the fence.
+  Scope bulk actions `export`/`import` ride the fence too: `GET /-/export`,
+  `POST /-/import`. `/bdp/*` holds static artifacts only.
 ```
 
 ```
@@ -2554,11 +2608,14 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
                          `links` repeat in a `Link` header (RFC 8288).
   GET /sys/capabilities → the scope's live Capabilities (a `get` on a bead).
   GET /bdp/openapi     → the static OpenAPI contract.
-  Relations (RFC 8631, in `links` and the `Link` header): `service-desc` →
-  `/bdp/openapi`, `service-meta` → `/sys/capabilities`, `service-doc` → docs,
-  `changes` → `/sys/changes`. Discovery is by RELATION; the paths are
-  conventional, not load-bearing. The mandatory floor is `get`, `GET /` and a
-  readable `/sys/capabilities`.
+  The fixed paths ARE load-bearing: a client MAY hardcode `GET /`,
+  `GET /sys/capabilities`, `GET /bdp/openapi`. Relations are an OPTIONAL convenience
+  mirroring them, in `links` and a `Link` response header (RFC 8288, body authoritative):
+  `service-desc` → `/bdp/openapi` and `service-meta` → `/sys/capabilities` are the
+  RFC 8631 registered relations (the OpenAPI location is advertised the traditional way,
+  `Link: </bdp/openapi>; rel="service-desc"`); `service-doc` → docs; the changefeed uses
+  the BDP extension relation `tag:bdp.dev,2026:rel/changes` → `/sys/changes` (never a bare
+  `changes` token). The mandatory floor is `get`, `GET /`, and a readable `/sys/capabilities`.
 ```
 
 ```
@@ -2569,27 +2626,36 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
     create    fail-if-exists is create's nature → `identity-taken` (409).
     If-Match: <Rev>     revision / OCC guard (put/patch/delete) → stale ⇒
                         `revision-mismatch` (412).
-    If-None-Match: *    create-if-absent (put) → present ⇒ `identity-taken`.
+    If-None-Match: *    create-if-absent (put) → present ⇒ `identity-taken` (409 —
+                        one id-taken status, shared with create).
     ?precondition=<Filter>  STATE guard (put/patch/delete) → the current
                         resource must satisfy the flat-AND [[core.lumen#Filter]]
                         (the same grammar `list.where` uses, projected onto the
                         query string) → fails ⇒ `precondition-failed` (412).
-  A `precondition` too large for the URL budget spills to a `query`-tier
-  body-form (`POST /{id}/-/{put|patch|delete}` with `{ precondition, body|patch }`)
-  — the ONE place a write envelope appears. `delete` has no body, so its guard
-  always rides the request line; no body-form is needed at base.
+  A `precondition` too large for the URL budget MAY spill to an OPTIONAL, advertised
+  ([[core.lumen#ScopeCapabilities]] `bodyFormSpill`) `query`-tier body-form
+  (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`,
+  body = [[core.lumen#Envelope]]: `representation` for put — the FULL rep, never a bare
+  body — `patch` for patch, `precondition?` throughout) — the ONE place a write envelope
+  appears; the `If-Match`/`If-None-Match` guards keep riding their headers. A scope that
+  does not advertise spill refuses an over-budget guard with `request-too-large`.
+  `delete` has no body, so its guard always rides the request line.
 ```
 
 ```
 --- D.4 reads: projection & the POST spillover -----------------------------
-  `get` `?select=`, and `list` `?where=` + `?select=`, project onto the query
-  string (the flat-AND Filter + JSON-Pointer selector lower to a query dialect),
-  giving a projected read its own cacheable URL. When the query string overruns
-  the URL budget (advertised; a client also honors a `414` as the signal), the
-  read re-sends under the fence as a body-form carrying the `ReadRequest` in the
-  body: a service MUST answer `POST` (`/-/list`, `/{id}/-/get`) and MAY answer
-  the draft HTTP `QUERY` method. Same request, relocated — body for size, query
-  string for the common case.
+  `get` `?include=/?omit=/?expand=` (or the full `?select=`), and `list` `?where=`
+  + the selector params, project onto the query string (the selector lowers to the
+  CLI-matching params; the flat-AND Filter lowers to URL-encoded JSON, or an advertised
+  compact dialect), giving a projected read its own cacheable URL. When the query string
+  overruns the URL budget, the read MAY re-send under the fence as a body-form carrying
+  the `ReadRequest`: where `bodyFormSpill` is advertised a service answers `POST`
+  (`/-/list`, `/{id}/-/get`) and MAY answer the draft HTTP `QUERY` method. A body-form
+  read is SAFE and app-idempotent (it mutates nothing); it is not cached by default, so
+  a client prefers the query-string form when it fits. There is NO advertised URL-byte
+  budget: the limit is imposed by intermediaries (proxies/CDNs/browsers), not the origin,
+  so a client reacts to `414`/`431`/`400`-by-length (and MAY spill proactively above a
+  conservative built-in threshold) regardless of what the origin would accept.
 ```
 
 ```
@@ -2609,8 +2675,12 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   BDP-Cause        always present
   BDP-Transaction  present only where the request made exactly one commit
   BDP-Metadata     per-reply metadata
-  Link             discovery relations on `GET /` (RFC 8288), mirroring `links`
-  ETag             mirrors the resource's `Rev` (so `If-Match` is an ETag check)
+  Link             discovery relations (RFC 8288), mirroring `links` — on `GET /` and,
+                   for `service-desc`, advertisable on any response
+  ETag             the resource's `Rev` as a STRONG entity-tag, double-quoted
+                   (`ETag: "<Rev>"`), so `If-Match: "<Rev>"` is a conformant ETag check
+  Content-Location the canonical id on an alias rewrite, and on a body-form (POST-tunneled)
+                   read/write, so RFC 9111 caches key on the real resource
   Location         the new URL on `create` / a creating `call` / an async accept
   The body is the value alone; the context rides in the headers.
 ```
@@ -2621,7 +2691,8 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   application/jsonl             bulk stream (pull / list / export; push / import body)
   text/event-stream            live pull (SSE); the SSE event id is the cursor, so a
                                reconnect's `Last-Event-ID` resumes exactly as `after`
-  application/json-patch+json  the `patch` body (RFC 6902; paths /body and /metadata)
+  application/json-patch+json  the `patch` body (RFC 6902; REQUIRED — a `patch` with another
+                               media type faults `415`, so RFC 7396 merge-patch is never silently applied)
   application/problem+json     every failing body (RFC 9457 Problem)
 ```
 
@@ -2630,19 +2701,23 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   200  get / put / patch / list / revisions / pull success; call → outcome success
   201  create success, and a call whose Operation `creates` — Location: the new URL
   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
-  409  call → a declared failure (ruled); create fail-if-exists (`identity-taken`);
-       also some Problems
-  412  a failed precondition on put / patch / delete — a stale `If-Match`
-       (`revision-mismatch`), a present `If-None-Match: *` (`identity-taken`), or a
-       `precondition` the resource does not satisfy (`precondition-failed`)
-  414  the read's query string exceeds the URL budget — retry as a body-form POST
+  409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR
+       `put` + `If-None-Match: *` (`identity-taken`); also some Problems
+  412  a failed guard on put / patch / delete — a stale `If-Match` (`revision-mismatch`)
+       or a `precondition` the resource does not satisfy (`precondition-failed`). A
+       present `If-None-Match: *` collision is NOT 412: it is `identity-taken` (409).
+  414  the read's query string exceeds the URL budget — retry as a body-form POST;
+       intermediaries may instead surface it as `431` or a length-related `400`
+  415  a `patch` body whose media type is not `application/json-patch+json`
   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
   410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
 
 ```
---- D.9 Problem codes (RFC 9457 `code`) ------------------------------------
+--- D.9 Problem codes (BDP extension member `code`; stable `type` URIs) -----
+  `code`/`retry` are BDP extension members, not RFC 9457 core; each code has a stable
+  problem-type URI `tag:bdp.dev,2026:problem/<code>` carried in the Problem `type` member.
   malformed-request · invalid-parameter · unauthenticated · forbidden ·
   resource-not-found · resource-pruned · resource-erased · revision-mismatch ·
   precondition-failed · identity-taken · validation-failed · type-not-installed ·
