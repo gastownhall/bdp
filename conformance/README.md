@@ -19,6 +19,22 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   **52 rows** (13 ops + 39 faults). Reading it live is what makes the gate *lockstep*: when the spec's
   wire surface moves, the denominator moves with it (and a unit test tripwires on the row count so the
   change gets reviewed). A frozen vendored copy would silently stop catching spec changes.
+- **Generator witness** — `bdp_gate::source_surface()` derives the SAME surface independently, straight
+  from the normative `specs/src/core/core.lumen` `/// openapi =` annotations, and a unit test asserts the
+  two agree. `check-generated.py` validates the generation pipeline from the source side; this validates
+  it from the consumer side, in a different language, sharing no code — so agreement means the generator
+  **invents no rows and drops none**, which neither side can establish alone. A divergence is a real
+  signal: either `specs/generated/` is stale, or the lowering dropped or invented a response.
+- **Two accepted annotation shapes** — anything counting this surface must read both. 12 primitives use
+  `problem = { status = [...] }` (shorthand for "these statuses return a `Problem`"); `call` alone uses
+  the explicit `responses = [ { status = ..., schema = ... }, ... ]`, which is load-bearing rather than an
+  inconsistency — its statuses carry distinct schemas. A counter that knows only the shorthand
+  undercounts by one and reports 51 instead of 52.
+- **`call/409` is the one `>=400` row that is NOT a `Problem`** — it responds `application/json` with a
+  `Reply` (a declared domain failure; the caller branches on the arm), where every other fault row
+  responds `application/problem+json`. A case covering it must assert a `Reply`; expecting a Problem
+  there fails for the wrong reason and looks like a reference bug. A unit test tripwires on the
+  exception, so a second non-Problem row cannot be quietly assumed Problem-shaped.
 - **Cases** — `gate/tests/gate.rs` drives a `RemoteScope` against `Server(InMemScope)` over loopback
   HTTP. Each case records the `SurfaceId`s it covers (e.g. `op/get`, `op/get/fault/404`).
 - **Two signals.** A case expected to pass that FAILS always fails the gate (a real wire-level
@@ -47,6 +63,12 @@ next decision:
 - **~16 rows are faults on routed ops** reachable with more raw-HTTP probing (content negotiation
   `406`/`415`, specific `409`/`422` conditions) — or not producible against InMemScope at all (e.g.
   `delete` is idempotent, so `delete/404` never fires).
+  - **`patch/415` is a REFERENCE gap, not a case gap.** It is the entire 52-vs-51 delta against v0.2.2
+    (the "`patch` is root-addressed" change pins the request to `application/json-patch+json`), and
+    `vendor/bdp-protocol` performs **no server-side content-type check at all** — the client sends the
+    right type, the Server never validates it. Covering it is one check in the patch route, not a new
+    case. Deliberately left uncovered-with-reason until the vendor-vs-upstream question below is ruled:
+    a local edit to a vendored crate would become a divergence to unwind if the ruling is "upstream".
 
 Growing coverage = extending the reference's routed surface and adding cases; the denominator is
 fixed by the spec.

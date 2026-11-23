@@ -93,6 +93,101 @@ pub const CORE_PRIMITIVES: [&str; 13] = [
     "revisions", "export", "import",
 ];
 
+/// The NORMATIVE source the catalog is generated from, also read live. Pairing this with
+/// [`CORE_OPENAPI`] lets the gate witness the generator from the opposite side: see
+/// [`source_surface`].
+pub const CORE_LUMEN: &str = include_str!("../../../specs/src/core/core.lumen");
+
+/// Slice the balanced-delimiter region that starts at the first `open` at or after `from`.
+/// Returns the inner span, exclusive of the outer delimiters.
+fn balanced(hay: &str, from: usize, open: u8, close: u8) -> Option<&str> {
+    let bytes = hay.as_bytes();
+    let start = (from..bytes.len()).find(|&i| bytes[i] == open)?;
+    let mut depth = 0usize;
+    for i in start..bytes.len() {
+        if bytes[i] == open {
+            depth += 1;
+        } else if bytes[i] == close {
+            depth -= 1;
+            if depth == 0 {
+                return hay.get(start + 1..i);
+            }
+        }
+    }
+    None
+}
+
+/// Every status in `span`, in order. Handles BOTH spellings the annotations use:
+/// `status = 409` (the per-response form) and `status = [400,404,410]` (the `problem` shorthand).
+fn statuses(span: &str) -> Vec<u16> {
+    let mut out = Vec::new();
+    let mut rest = span;
+    while let Some(i) = rest.find("status") {
+        rest = &rest[i + "status".len()..];
+        let Some(after) = rest.trim_start().strip_prefix('=') else { continue };
+        let after = after.trim_start();
+        if let Some(arr) = after.strip_prefix('[') {
+            let end = arr.find(']').unwrap_or(arr.len());
+            out.extend(arr[..end].split(',').filter_map(|t| t.trim().parse::<u16>().ok()));
+        } else {
+            let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if let Ok(n) = digits.parse::<u16>() {
+                out.push(n);
+            }
+        }
+    }
+    out
+}
+
+/// Derive the SAME tier-1 surface straight from the normative `core.lumen` `/// openapi =` lowering
+/// annotations, independently of the generated catalog.
+///
+/// This exists to witness the generator from the other side. [`denominator`] reads the GENERATED
+/// artifact; this reads the SOURCE the artifact is generated from. If the two agree, the generator
+/// invents no rows and drops none — a property no single-sided check can establish, and one that is
+/// worth having standing rather than ad hoc (the generated schema bundle shipped an uncompilable
+/// `$defs/Resource` self-cycle at this pin precisely because its own gate only ever looked at one
+/// side of its pipeline).
+///
+/// TWO ACCEPTED ANNOTATION SHAPES, and anything counting this surface must read both:
+/// - `problem = { status = [...] }` — the shorthand for "each of these statuses returns a `Problem`".
+///   12 of the 13 primitives use it.
+/// - `responses = [ { status = ..., schema = ... }, ... ]` — the explicit, per-status form. `call`
+///   alone uses it, and that is LOAD-BEARING, not an inconsistency: its statuses carry distinct
+///   schemas, and its `409` returns a `Reply` (a declared domain failure, branch on the arm), NOT a
+///   `Problem`. Normalizing it to the shorthand would misstate the wire contract. A counter that
+///   knows only the shorthand silently undercounts by one and reports 51 instead of 52.
+pub fn source_surface() -> BTreeSet<SurfaceId> {
+    let mut out = BTreeSet::new();
+    for line in CORE_LUMEN.lines() {
+        let line = line.trim_start();
+        // A doc-comment annotation only: `//` example lines inside prose must not be picked up.
+        if !line.starts_with("///") || !line.contains("openapi") {
+            continue;
+        }
+        let Some(idx) = line.find("operationId") else { continue };
+        let Some(rest) = line[idx..].split_once('"').map(|(_, r)| r) else { continue };
+        let Some((op, _)) = rest.split_once('"') else { continue };
+        out.insert(SurfaceId::Op(op.to_string()));
+
+        let mut codes = Vec::new();
+        if let Some(p) = line.find("problem") {
+            if let Some(span) = balanced(line, p, b'{', b'}') {
+                codes.extend(statuses(span));
+            }
+        }
+        if let Some(r) = line.find("responses") {
+            if let Some(span) = balanced(line, r, b'[', b']') {
+                codes.extend(statuses(span));
+            }
+        }
+        for c in codes.into_iter().filter(|c| *c >= 400) {
+            out.insert(SurfaceId::Fault(op.to_string(), c));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +271,81 @@ mod tests {
             );
         }
         assert_eq!(actual.len(), 52, "the v0.2.3 surface is 52 rows (13 ops + 39 faults)");
+    }
+
+    /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must
+    /// equal the surface derived from the generated OpenAPI catalog.
+    ///
+    /// `check-generated.py` validates the pipeline from the source side. This validates it from the
+    /// consumer side, independently, in a different language, with no shared code — so agreement means
+    /// the generator invents no rows and drops none. A divergence here is a real signal, not noise:
+    /// either the catalog is stale against `specs/src/`, or the lowering dropped//invented a response.
+    #[test]
+    fn generated_catalog_matches_the_normative_source() {
+        let generated = denominator();
+        let source = source_surface();
+        if generated != source {
+            let only_gen: Vec<String> =
+                generated.difference(&source).map(|s| s.to_string()).collect();
+            let only_src: Vec<String> =
+                source.difference(&generated).map(|s| s.to_string()).collect();
+            panic!(
+                "the generated catalog and the normative source disagree \
+                 (generated {} rows, source {}).\n  \
+                 In the GENERATED catalog but NOT in specs/src/core/core.lumen: {}\n  \
+                 In core.lumen but MISSING from the generated catalog: {}\n\
+                 Either specs/generated/ is stale (regenerate it) or the lowering is wrong. Do not \
+                 relax this test to make it pass.",
+                generated.len(),
+                source.len(),
+                if only_gen.is_empty() { "(none)".into() } else { only_gen.join(", ") },
+                if only_src.is_empty() { "(none)".into() } else { only_src.join(", ") },
+            );
+        }
+    }
+
+    /// `call/409` is the ONE `>=400` row in the surface that does not return a `Problem`.
+    ///
+    /// Every other fault row responds `application/problem+json` with a `Problem`. `call`'s `409` is a
+    /// DECLARED DOMAIN FAILURE: it responds `application/json` with a `Reply`, and the caller branches
+    /// on the arm. A case covering that row must therefore assert a `Reply`, not a Problem — expecting
+    /// a Problem there fails for the wrong reason and looks like a reference bug.
+    ///
+    /// So this is a TRIPWIRE on the exception, not a blessing of it: if the spec grows a second
+    /// non-Problem `>=400` response, this fails and the new row gets the same scrutiny rather than
+    /// being quietly assumed Problem-shaped.
+    #[test]
+    fn call_409_is_the_only_non_problem_fault_row() {
+        let doc: serde_json::Value = serde_json::from_str(CORE_OPENAPI).unwrap();
+        let mut non_problem = BTreeSet::new();
+        for item in doc["paths"].as_object().unwrap().values() {
+            let Some(item) = item.as_object() else { continue };
+            for op in item.values() {
+                let Some(op) = op.as_object() else { continue };
+                let Some(opid) = op.get("operationId").and_then(|v| v.as_str()) else { continue };
+                let Some(resps) = op.get("responses").and_then(|r| r.as_object()) else { continue };
+                for (code, body) in resps {
+                    let Ok(status) = code.parse::<u16>() else { continue };
+                    if status < 400 {
+                        continue;
+                    }
+                    let is_problem = body
+                        .get("content")
+                        .and_then(|c| c.as_object())
+                        .map(|c| c.contains_key("application/problem+json"))
+                        .unwrap_or(false);
+                    if !is_problem {
+                        non_problem.insert(SurfaceId::Fault(opid.to_string(), status));
+                    }
+                }
+            }
+        }
+        let expected: BTreeSet<SurfaceId> = [SurfaceId::Fault("call".into(), 409)].into();
+        assert_eq!(
+            non_problem, expected,
+            "the set of >=400 rows that do NOT return application/problem+json has changed. \
+             call/409 is the sole sanctioned exception (a declared failure returning Reply). A new \
+             entry here needs a deliberate ruling and a case that asserts the right wire shape."
+        );
     }
 }
