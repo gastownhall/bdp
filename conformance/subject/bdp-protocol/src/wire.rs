@@ -685,6 +685,71 @@ impl WireCapability {
 }
 
 /// Encode a scope's advertised capabilities for the discovery response.
+/// The discovery document. It carries BOTH advertised surfaces because they answer different
+/// questions: `scope` is what the store GUARANTEES, `primitives` is what you may CALL. Before this
+/// the endpoint returned the bare primitive array, so a client had no way to read the scope's
+/// traits — which left a conformance case for a trait-dependent fault (a write's `410` under
+/// `permanent`, `delete`'s `404`) with nothing to key on, and no honest option but to assert the
+/// behaviour unconditionally.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WireDiscovery {
+    pub scope: WireScopeCapabilities,
+    pub primitives: Vec<WireCapability>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WireScopeCapabilities {
+    #[serde(rename = "storageClasses")]
+    pub storage_classes: Vec<String>,
+    #[serde(rename = "revisionModel")]
+    pub revision_model: String,
+    #[serde(rename = "idModel")]
+    pub id_model: String,
+}
+
+impl WireScopeCapabilities {
+    pub fn from_trait(c: &p::ScopeCapabilities) -> Self {
+        Self {
+            storage_classes: c.storage_classes.iter().map(|k| match k {
+                p::StorageClass::Durable => "durable",
+                p::StorageClass::Ephemeral => "ephemeral",
+                p::StorageClass::Intrinsic => "intrinsic",
+            }.to_string()).collect(),
+            revision_model: match c.revision_model {
+                p::RevisionModel::Versioned => "versioned",
+                p::RevisionModel::Unversioned => "unversioned",
+            }.to_string(),
+            id_model: match c.id_model {
+                p::IdModel::Permanent => "permanent",
+                p::IdModel::Reusable => "reusable",
+            }.to_string(),
+        }
+    }
+
+    /// Decode back to the trait form. An UNRECOGNISED value is not silently defaulted — a client
+    /// that cannot read the model must not act as though it read one, which is the same rule as
+    /// `If-None-Match` not treating an unknown value as `*`.
+    pub fn to_trait(&self) -> Result<p::ScopeCapabilities, String> {
+        let storage_classes = self.storage_classes.iter().map(|k| match k.as_str() {
+            "durable" => Ok(p::StorageClass::Durable),
+            "ephemeral" => Ok(p::StorageClass::Ephemeral),
+            "intrinsic" => Ok(p::StorageClass::Intrinsic),
+            other => Err(format!("unknown storage class {other:?}")),
+        }).collect::<Result<Vec<_>, _>>()?;
+        let revision_model = match self.revision_model.as_str() {
+            "versioned" => p::RevisionModel::Versioned,
+            "unversioned" => p::RevisionModel::Unversioned,
+            other => return Err(format!("unknown revision model {other:?}")),
+        };
+        let id_model = match self.id_model.as_str() {
+            "permanent" => p::IdModel::Permanent,
+            "reusable" => p::IdModel::Reusable,
+            other => return Err(format!("unknown id model {other:?}")),
+        };
+        Ok(p::ScopeCapabilities { storage_classes, revision_model, id_model })
+    }
+}
+
 pub fn caps_to_wire(caps: &[p::PrimitiveCapabilities]) -> Vec<WireCapability> {
     caps.iter().filter_map(WireCapability::from_trait).collect()
 }
