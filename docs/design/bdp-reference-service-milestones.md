@@ -73,7 +73,7 @@ deployments. The first patch changes only this inventory, the root README,
 the Read walkthrough and the application README. Runtime, package manifests,
 default build/test/smoke and evidence admission remain unchanged.
 
-The adapter's source and [revision declaration](../../packages/adapter-bd/README.md),
+The adapter's source and [revision declaration](../history/adapter-bd.md),
 v0 schemas, fixtures and sealed evidence keep their existing bytes and identity.
 The committed [Read cohort](evidence/read-cohort/read-v1.json) names run head
 `647d8d7b746f2b5a6136640aed4af7b7d5766146`; the two shipping target entries share
@@ -87,12 +87,12 @@ its own reviewed delta and validation receipt.
 
 | Family and actual entry points | Classification now | Required follow-up before default retirement |
 | --- | --- | --- |
-| Root [README](../../README.md), [Read walkthrough](../read-demo.md), [application README](../../apps/bdpbd/README.md) | Migrate now | State frozen legacy status and link the replacement work |
-| [Application composition](../../apps/bdpbd/src/server-composition.ts), [CLI](../../apps/bdpbd/src/main.ts), [process adapter](../../packages/adapter-bd/src/index.ts) | Preserve for compatibility coverage | Keep the old projection distinguishable; remove implementation only in a later explicit source cleanup |
+| Root [README](../../README.md), [Read walkthrough](../read-demo.md), application README (`apps/bdpbd/README.md`, retired) | Migrate now | State frozen legacy status and link the replacement work |
+| Application composition (`apps/bdpbd/src/server-composition.ts`), CLI (`apps/bdpbd/src/main.ts`), process adapter (`packages/adapter-bd/src/index.ts`) — all retired; the revision declaration is preserved at [adapter-bd](../history/adapter-bd.md) | Retired | Done: the explicit source cleanup removed the real-bd bridge; captured cohort evidence remains valid and is no longer regenerated |
 | [Workspace build references](../../tsconfig.json), [workspace globs](../../pnpm-workspace.yaml), [source typecheck aliases](../../tsconfig.check.json), app/adapter manifests and lockfile, [boundary policy](../../scripts/check-dependency-boundaries.mjs), [build cleanup](../../scripts/clean-build.mjs) | Preserve for compatibility coverage | Separate default current-contract participation from an explicit legacy validation route; remove references together rather than only deleting a directory |
 | [Default test discovery](../../vitest.config.ts), app composition/matrix/lifecycle tests, adapter tests | Preserve for compatibility coverage | Transfer the backend-independent obligations below and qualify their replacement targets before excluding legacy execution |
 | [Executable smoke](../../scripts/smoke-executables.mjs) | Preserve for compatibility coverage | Replace each applicable lifecycle/configuration/package/admission check on the real replacement executable; discovery-only smoke is insufficient mutation evidence |
-| [Readiness proof](../../scripts/e2e-ready.mjs), [demo implementation](../../scripts/demo-read.mjs), `@bdp/bd-domain` | Preserve for compatibility coverage | Keep the old real-bd oracle comparison explicit; a generic provider is not required to implement the Beads readiness domain |
+| [Readiness proof](../../scripts/e2e-ready.mjs), demo implementation (`scripts/demo-read.mjs`, retired with the bridge), `@bdp/bd-domain` | Preserve for compatibility coverage | Keep the old real-bd oracle comparison explicit; a generic provider is not required to implement the Beads readiness domain |
 | [Harness bindings](../../scripts/read-harness-bindings.ts), [cohort generator](../../scripts/generate-read-cohort.mts), [evidence verifier](../../scripts/read-cohort-evidence.mjs), [cohort verification](../../packages/conformance/src/cohort-verification.ts), Read matrices/fixtures/manifest | Preserve for compatibility coverage | Define new retained-contract cases and evidence identities; preserve old harness/source bindings and reject stale or mismatched claims |
 | [Read admission](../../packages/server/src/read-conformance-capability.ts), [public server target admission](../../packages/server/src/index.ts) | Preserve for compatibility coverage | Replace the hardcoded two-target Read admission deliberately; do not delete only the `bdpbd` constant or make it stand for a new provider |
 | [CI](../../.github/workflows/ci.yml), including pinned legacy bd installation, real-bd matrix requirement, smoke and evidence gate | Preserve for compatibility coverage | Remove legacy-only execution/dependency only after the preceding replacements pass; preserve an honest legacy verification path |

@@ -8,7 +8,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "Every Issue record's `type` is one identity of §2's Bead table; no `issue_type` member; `metadata` is an object"
         }
@@ -21,7 +21,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "Every Dependency record's `type` is one identity of §2's Link table; no `dep_type` member; `source` is an in-Scope Bead URL and `target` an in-Scope Bead URL or an opaque external URI"
         }
@@ -34,7 +34,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`createBead` with `type` of `issue/issue` or `dependency/dependency` as a Link Type is refused as `validation-failed` (abstract)"
         }
@@ -47,7 +47,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`createBead` with `type` of `issue/task` and properties lacking `title`, `status` or `priority` is refused as `validation-failed`"
         }
@@ -60,7 +60,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "A property patch to a `service-managed` member is refused as `validation-failed`"
         }
@@ -73,7 +73,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`createLink` whose endpoints are the same Bead is refused"
         }
@@ -86,7 +86,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`createLink` on an occupied ordered pair, with any Dependency Type, is refused; the diagnostic names the occupying Link"
         }
@@ -99,7 +99,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`createLink` for `blocks` A→B serves a Link with `source` A and `target` B"
         }
@@ -112,7 +112,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`deleteLink` of a pair's live Link then `createLink` with the same endpoints, Type and new metadata succeeds and serves a Link with a new `id`; a read of the first `id` answers `resource-not-found`; `createLink` supplying the first `id` is refused as `identity-taken`"
         }
@@ -125,7 +125,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`updateLink` with `metadataChange` on a live Link keeps its `id` and serves a new `revision`"
         }
@@ -138,7 +138,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`updateBead` that changes only `labels` serves a new `revision`"
         }
@@ -151,7 +151,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "`deleteBead` on an Issue with a live incident Link is refused as `incident-links-exist`"
         }
@@ -164,7 +164,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "The Bead inventory with `conformsTo` of `issue/issue` returns every Issue record of every concrete classification; with `type` of `issue/task` only tasks"
         }
@@ -177,7 +177,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "Issue records never carry `lease_expires_at`, `heartbeat_at`, `lease_granted_node` or `is_blocked`"
         }
@@ -190,7 +190,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/issue.md",
+          "source": "docs/history/issue-type-v1.md",
           "anchor": "#10-conformance-rows-for-preview-1",
           "selectedText": "A Dependency whose native target is `external:<project>:<capability>` is served as a Link whose `target` is that opaque URI, and appears in `?view=links&direction=outbound` of its source"
         }

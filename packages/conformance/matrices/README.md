@@ -56,7 +56,7 @@ been regenerated or relabeled.
   simultaneous conflicting declarations from one live Type authority. A missing
   capability alone is not the observed absence witness; an incomplete inventory is refused.
 - `read.numeric-model.declared-token-model` applies to bdpbd. The fixture binds
-  the exact [existing local discipline](../../adapter-bd/README.md), its named
+  the exact [existing local discipline](../../../docs/history/adapter-bd.md), its named
   binary64/ECMAScript number model and source pointer; tests prevent drift
   between that declaration and documentation. Independent literal-preimage
   tests validate the observer, which compares hashes with actual public Bead

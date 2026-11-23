@@ -5,7 +5,8 @@
       "**",
       "!!**/dist",
       "!!**/node_modules",
-      "!!docs/design/evidence/read-cohort/*.json"
+      "!!docs/design/evidence/read-cohort/*.json",
+      "!!specs/generated"
     ]
   },
   "formatter": {

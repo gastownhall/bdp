@@ -1,8 +1,9 @@
 # A three-minute BDP Read demo
 
 This walkthrough preserves an inherited v0 Read demonstration. Its `bdpbd`
-realization is [legacy and frozen](../apps/bdpbd/README.md); it is no longer
-recommended for new deployments. The recorded toolchain, fixture and executable
+realization is [legacy and frozen](history/adapter-bd.md) — the real-Beads bridge and
+this walkthrough's runnable script have since been retired, so the commands below no
+longer execute; they are preserved as the record of the original capture. The recorded toolchain, fixture and executable
 restrictions below belong to that capture. This is historical comparison evidence;
 selected retained v0.1 Core/Write qualification is tracked separately in the
 [implementation inventory](design/bdp-reference-service-milestones.md).
