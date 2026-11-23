@@ -1531,6 +1531,8 @@ Retire a Resource, minting a final (tombstone) revision. Idempotent. Inbound ref
 
 > **Normative.** Whether the retired id may be minted again is the scope's declared id model ([IdModel](#IdModel)), not a property of `delete`: under `permanent` the id is never reused, under `reusable` it may be. These are three separate obligations — id accounting, the tombstone revision, and id permanence — and only the second is revision-dependent.
 
+> **Normative.** A write that TARGETS a retired resource faults `410 Gone`, so `put` and `patch` both declare it alongside `get`. It is distinct from its two neighbours: a never-retired missing id is `404`, and CLAIMING a spent id through `create` or an id-rooted `put` is `identity-taken` (409, [IdModel](#IdModel)) — updating what is gone and taking an identity that is spent are different faults. `put` declares no `404` because an absent id is not an error for it: `put` creates. Like `get`'s 410, a write's 410 is reachable only under `permanent`; under `reusable` a retired id is simply absent, so the write sees `404` or creates.
+
 > **Normative.** Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
 
 ```lumen

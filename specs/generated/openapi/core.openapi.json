@@ -150,6 +150,16 @@
               }
             }
           },
+          "410": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "412": {
             "description": "problem",
             "content": {
@@ -226,6 +236,16 @@
             }
           },
           "409": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "410": {
             "description": "problem",
             "content": {
               "application/problem+json": {
