@@ -12,12 +12,12 @@ name = "bdp-ref"
 path = "src/main.rs"
 
 [dependencies]
-bdp-inmem = { path = "../vendor/bdp-inmem" }
-bdp-protocol = { path = "../vendor/bdp-protocol" }
+bdp-inmem = { path = "../subject/bdp-inmem" }
+bdp-protocol = { path = "../subject/bdp-protocol" }
 tokio = { version = "1", features = ["rt", "macros", "net", "io-util"] }
 
 [dev-dependencies]
 # For the end-to-end liveness test (tests/liveness.rs): build a CreateBody and drive the trait.
-bdp-primitives = { path = "../vendor/bdp-primitives" }
+bdp-primitives = { path = "../subject/bdp-primitives" }
 bytes = "1"
 serde_json = "1"
