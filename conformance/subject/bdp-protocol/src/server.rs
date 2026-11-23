@@ -186,14 +186,25 @@ impl<S: BdpScope> Server<S> {
     }
 
     async fn do_patch(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
-        // `patch` pins its request media type to application/json-patch+json (core.lumen: the
-        // "patch is root-addressed" change), so any other type faults 415. RFC 7396 merge-patch is
-        // the explicitly excluded case, not an accepted alternative.
+        // SPEC BASIS (cited, not inferred): core.lumen's media-type appendix —
+        //   "application/json-patch+json  the direct `patch` body (RFC 6902; REQUIRED — a direct
+        //    `patch` with another media type faults `415`, so RFC 7396 merge-patch is never
+        //    silently applied)"
+        // and the lowering annotation `request = { contentType = "application/json-patch+json" }`.
         //
         // This check is the ONLY producer of op/patch/fault/415 — the well-formed client always
         // sends the right type (client.rs), so the row is unreachable without validating here.
-        // A missing Content-Type is NOT rejected: it leaves the type unstated rather than wrong,
-        // and the body is still parsed as a JSON Patch, which is the pre-existing behaviour.
+        //
+        // AN ABSENT Content-Type IS NOT REJECTED, and that is a JUDGEMENT CALL on a spec ambiguity,
+        // not something the text settles. The fault clause above is scoped to "another media type",
+        // which an absent header is not; but "REQUIRED" can equally be read as present-or-fault.
+        // Treating absent as unstated-rather-than-wrong is the narrower reading, and it keeps this
+        // check to exactly the behaviour the fault clause names. Flagged to the spec lane; if
+        // `REQUIRED` is ruled to mean present-or-fault, this grows one condition.
+        //
+        // (Deliberately NOT justified by "it preserves existing behaviour" — the subject is
+        // implemented from the spec, never from the cases, so a case-preserving rationale would be
+        // the wrong kind of reason even where it reaches the same code.)
         const JSON_PATCH: &str = "application/json-patch+json";
         if let Some(ct) = req.header("content-type") {
             // Compare the media type only; parameters such as `; charset=utf-8` are not part of it.

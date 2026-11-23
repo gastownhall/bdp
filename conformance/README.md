@@ -129,6 +129,36 @@ similarly-named crate elsewhere is expected, not a defect to reconcile.**
 The directory was previously called `vendor/`, which was the wrong name: it implied these were
 copies tracking an upstream. They are not.
 
+### The subject is implemented from the spec, never from the cases
+
+> The subject is implemented **from the spec, never from the cases**; the cases are derived **from the
+> spec, never from the subject**. Two artifacts independently derived from the same normative text
+> remain independent even when one hand writes both — the tautology only materialises when one is
+> written by reading the other.
+
+This matters more now than it used to. The subject is owned here, so the gate and the thing it
+measures share one owner, and that erodes the property that makes a conformance suite worth running:
+that something in the loop has **no authorship stake in the artifact it checks**. The rule above
+preserves most of that independence under a single owner.
+
+What makes it worth writing down rather than merely intending is that it turns a matter of care into
+something **reviewable**. The question at review time is concrete:
+
+> Does this subject change cite normative text, or does it cite a case?
+
+A change justified by *"to make the case pass"* is the failure mode, and it is visible in a diff. So
+is a correct change for a case-shaped reason — see the `415` check in `subject/bdp-protocol`, which
+cites the media-type clause and flags the one sub-case the spec leaves ambiguous rather than settling
+it by appeal to existing behaviour.
+
+**Two limits, so this isn't oversold:**
+
+- It does **not** protect against the spec itself being wrong. That is what the independent
+  `core.lumen` witness (`source_surface()`) and cross-lane probing are for. Someone reading only the
+  discipline could conclude they are covered when they are not.
+- The mechanism is cheap **only when the checker already exists for another reason**. A discipline
+  that requires standing up a new checker for each artifact will not hold.
+
 ### Fixing the subject is in scope
 
 When a case covers a row the subject does not implement correctly, **fixing the subject is part of
