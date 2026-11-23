@@ -180,7 +180,7 @@
       ]
     },
     "References": {
-      "description": "References — a relationship from a bead to useful context, carried as a first-class edge resource. The root of this pack's relationship family and the only one that is itself unowned.",
+      "description": "References — a relationship from a bead to useful context, carried as a first-class edge resource. The instantiable root of this pack's relationship family.",
       "allOf": [
         {
           "$ref": "core.schema.json#/$defs/rel"
@@ -218,7 +218,7 @@
       "$comment": "UNLOWERED: Requires, acyclic rel<Constraint, Constraint> {}"
     },
     "SubjectTo": {
-      "description": "SubjectTo — declares that the target Constraint applies to the source bead. Source is the SUBJECT, which is the end that owns the declaration.",
+      "description": "SubjectTo — declares that the target Constraint applies to the source bead. Source is the SUBJECT, which is the end that asserts the declaration.",
       "$comment": "UNLOWERED: References rel<Bead, Constraint> {}"
     },
     "Conformance": {
