@@ -2744,9 +2744,16 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   application/jsonl             bulk stream (pull / list / export; push / import body)
   text/event-stream            live pull (SSE); the SSE event id is the cursor, so a
                                reconnect's `Last-Event-ID` resumes exactly as `after`
-  application/json-patch+json  the direct `patch` body (RFC 6902; REQUIRED — a direct `patch`
-                               with another media type faults `415`, so RFC 7396 merge-patch
-                               is never silently applied)
+  application/json-patch+json  the direct `patch` body (RFC 6902). REQUIRED means
+                               PRESENT-OR-FAULT: a direct `patch` whose `Content-Type` names
+                               another media type, OR OMITS THE HEADER, faults `415`. Absence
+                               is not the lenient case — a requirement that bites only when
+                               you declare something else can be evaded by declaring nothing,
+                               and an omission must never downgrade a guarantee. The
+                               guarantee here is that RFC 7396 merge-patch is never silently
+                               applied; one mistake gets one fault, so a wrong OR missing
+                               media type is `415` rather than 415-or-422 depending on which
+                               way the client erred.
   application/vnd.bdp.envelope+json  the OPTIONAL body-form spill body ([[core.lumen#Envelope]]):
                                a POST `/{id}/-/{put|patch|delete}` carrying an over-budget guard
   application/problem+json     every failing body (RFC 9457 Problem)
