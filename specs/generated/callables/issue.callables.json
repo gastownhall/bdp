@@ -1,0 +1,540 @@
+{
+  "pack": "issue",
+  "callables": [
+    {
+      "path": "issue/ready",
+      "operation": "listReadyWork",
+      "safe": true,
+      "idempotent": false,
+      "cli": "ready",
+      "summary": "Ready work — the CLAIMABLE FRONTIER: issues that are open (closedAt null), unblocked, not deferred, AND not already claimed / in_progress",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        },
+        {
+          "name": "excludeType",
+          "type": "PathString",
+          "required": false
+        },
+        {
+          "name": "assignee",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Issue> ]"
+    },
+    {
+      "path": "issue/ready-count",
+      "operation": "countReadyWork",
+      "safe": true,
+      "idempotent": false,
+      "cli": "ready-count",
+      "summary": "Count of ready work (the claimable frontier; see `listReadyWork`)",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        },
+        {
+          "name": "excludeType",
+          "type": "PathString",
+          "required": false
+        }
+      ],
+      "returns": "integer"
+    },
+    {
+      "path": "issue/blocked",
+      "operation": "listBlockedIssues",
+      "safe": true,
+      "idempotent": false,
+      "cli": "blocked",
+      "summary": "Blocked issues — open issues with at least one open blocker",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Issue> ]"
+    },
+    {
+      "path": "issue/context",
+      "operation": "getContext",
+      "safe": true,
+      "idempotent": false,
+      "cli": "context",
+      "summary": "Work-shaping context for an actor — the standard \"what should I do\" projection",
+      "parameters": [
+        {
+          "name": "assignee",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "Resource"
+    },
+    {
+      "path": "issue/stats",
+      "operation": "getStats",
+      "safe": true,
+      "idempotent": false,
+      "cli": "stats",
+      "summary": "Aggregate issue statistics",
+      "parameters": [],
+      "returns": "Resource"
+    },
+    {
+      "path": "issue/claim",
+      "operation": "claimIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "claim",
+      "summary": "Claim an issue for the acting principal (the actor rides in provenance, never a parameter)",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "ClaimError"
+      ]
+    },
+    {
+      "path": "issue/claim-next",
+      "operation": "claimNextIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "claim-next",
+      "summary": "Claim the next ready issue for the acting principal",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "ClaimNextError"
+      ]
+    },
+    {
+      "path": "issue/unclaim",
+      "operation": "releaseIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "unclaim",
+      "summary": "Release a claimed issue",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "ifAssignee",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "ReleaseError"
+      ]
+    },
+    {
+      "path": "issue/heartbeat",
+      "operation": "heartbeatIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "heartbeat",
+      "summary": "Refresh the lease/fence on a claimed issue",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "HeartbeatError"
+      ]
+    },
+    {
+      "path": "issue/close",
+      "operation": "closeIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "close",
+      "summary": "Close an issue, recording a reason",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "closeReason",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "CloseError"
+      ]
+    },
+    {
+      "path": "issue/reopen",
+      "operation": "reopenIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "reopen",
+      "summary": "Reopen a closed issue, recording a reason",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "ReopenError"
+      ]
+    },
+    {
+      "path": "issue/advance",
+      "operation": "advanceMolecule",
+      "safe": false,
+      "idempotent": false,
+      "cli": "advance",
+      "summary": "Advance a molecule/workflow step on an issue",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "AdvanceError"
+      ]
+    },
+    {
+      "path": "issue/defer",
+      "operation": "deferIssue",
+      "safe": false,
+      "idempotent": false,
+      "cli": "defer",
+      "summary": "Defer an issue out of ready work until a time (or indefinitely) — a lifecycle verb that sets `deferUntil`; `bd defer <id>`",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "until",
+          "type": "Timestamp",
+          "required": false
+        }
+      ],
+      "returns": "rep<Issue>"
+    },
+    {
+      "path": "issue/reclaim",
+      "operation": "reclaimIssues",
+      "safe": false,
+      "idempotent": false,
+      "cli": "reclaim",
+      "summary": "Reclaim issues whose lease has expired",
+      "parameters": [
+        {
+          "name": "where",
+          "type": "Filter",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Issue> ]"
+    },
+    {
+      "path": "issue/comment",
+      "operation": "addComment",
+      "safe": false,
+      "idempotent": false,
+      "cli": "comment",
+      "summary": "Add a comment — writes an `IssueComment` annotation pointing at the issue (rev-neutral); `bd comment <id> <text>` (or read the text from `-f",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "returns": "rep<IssueComment>"
+    },
+    {
+      "path": "issue/metadata/compare-and-set",
+      "operation": "compareAndSetMetadata",
+      "safe": false,
+      "idempotent": false,
+      "cli": "metadata compare-and-set",
+      "summary": "Compare-and-set a metadata value under optimistic concurrency",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "expected",
+          "type": "any",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "required": true
+        }
+      ],
+      "returns": "rep<Issue>",
+      "errors": [
+        "CasError"
+      ]
+    },
+    {
+      "path": "issue/sweepIssues",
+      "operation": "sweepIssues",
+      "safe": false,
+      "idempotent": false,
+      "cli": "purge",
+      "summary": "Sweep closed/stale issues — the prune/purge batch (differs only in tier defaults)",
+      "parameters": [
+        {
+          "name": "tier",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dryRun",
+          "type": "bool",
+          "required": false
+        }
+      ],
+      "returns": "ImportReport"
+    },
+    {
+      "path": "issue/dep/add",
+      "operation": "addDependency",
+      "safe": false,
+      "idempotent": false,
+      "cli": "dep add",
+      "summary": "Add a dependency edge — CREATES a Dependency resource (default concrete type `Blocks`)",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "target",
+          "type": "ref<resource>",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        },
+        {
+          "name": "createdBy",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "threadId",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "returns": "rep<Dependency>",
+      "errors": [
+        "DepAddError"
+      ]
+    },
+    {
+      "path": "issue/dep/remove",
+      "operation": "removeDependency",
+      "safe": false,
+      "idempotent": false,
+      "cli": "dep remove",
+      "summary": "Remove a dependency edge — DELETES (tombstones) the Dependency resource, identified by its `(source, target, type)` endpoint pair (native `b",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "target",
+          "type": "ref<resource>",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        }
+      ],
+      "returns": "Rev"
+    },
+    {
+      "path": "issue/dep/edges",
+      "operation": "listDependencies",
+      "safe": true,
+      "idempotent": false,
+      "cli": "dep edges",
+      "summary": "The dependency edges of an issue — the Dependency resources on a source",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Issue>",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Dependency> ]"
+    },
+    {
+      "path": "issue/dep/count",
+      "operation": "countDependencyEdges",
+      "safe": true,
+      "idempotent": false,
+      "cli": "dep count",
+      "summary": "Count dependency edges",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Issue>",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        }
+      ],
+      "returns": "integer"
+    },
+    {
+      "path": "issue/dep/list",
+      "operation": "listRelatedIssues",
+      "safe": true,
+      "idempotent": false,
+      "cli": "dep list",
+      "summary": "Related issues — the targets reached from a source across the dependency relations",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "PathString",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Issue> ]"
+    },
+    {
+      "path": "issue/dep/tree",
+      "operation": "getDependencyTree",
+      "safe": true,
+      "idempotent": false,
+      "cli": "dep tree",
+      "summary": "The dependency tree from a root — the transitive closure over the hard-blocking subgraph",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Issue>",
+          "required": true
+        },
+        {
+          "name": "maxDepth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Issue> ]"
+    },
+    {
+      "path": "issue/dep/cycles",
+      "operation": "listDependencyCycles",
+      "safe": true,
+      "idempotent": false,
+      "cli": "dep cycles",
+      "summary": "Dependency cycles — the reported blocking cycles, over `Blocks` + `ConditionalBlocks` (`WaitsFor`'s mutual waits are legitimate and excluded",
+      "parameters": [],
+      "returns": "[ [ rep<Issue> ] ]"
+    },
+    {
+      "path": "issue/blocking-annotations",
+      "operation": "listBlockingAnnotations",
+      "safe": true,
+      "idempotent": false,
+      "cli": "blocking-annotations",
+      "summary": "Blocking annotations — the open blockers that make issues blocked",
+      "parameters": [
+        {
+          "name": "issue",
+          "type": "ref<Issue>",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Dependency> ]"
+    }
+  ]
+}

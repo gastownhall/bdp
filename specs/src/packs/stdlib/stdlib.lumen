@@ -206,7 +206,20 @@ type SearchHit = {
 /// description: Ranked text search over resource bodies in `scope` — the matches for `text`, best first. `where` pre-filters the corpus (the same predicate as `query`); `mode` picks lexical / semantic / hybrid; `select` expands each hit's resource inline. (`stdlib/search`; `cli.name: "search"` → `bd search`.)
 /// normative: Read-or-fault — no domain `E`. `lexical` is the floor every `search` service offers; requesting a `mode` the service does not advertise faults `search-mode-unsupported`. Scores order ONE response and are not comparable across calls or services.
 /// normative: `search` returns a ranked `[SearchHit]` bounded by `limit` — it is NOT a `source<Resource>` sequence and does NOT use the `Page` cursor envelope (a caller wants the top matches, not a resumable full stream). `graph`'s `Subgraph` is likewise a bounded STRUCTURE, not a Page. The unified `Page` read envelope ([[core.lumen#Page]]) covers only the ordered resumable reads (list / query / pull / revisions / export). Cursoring `search` is a possible future extension, not v0.
-fn search(scope: Scope, text: string, where?: QueryExpr, mode?: SearchMode = "lexical", select?: selector, limit?: integer) -> [ SearchHit ]
+/// cli.name: "search"
+fn search(
+    scope:   Scope,
+    /// cli.positional: 0
+    text:    string,
+    /// cli.flag: --where
+    where?:  QueryExpr,
+    /// cli.flag: --mode
+    mode?:   SearchMode = "lexical",
+    /// cli.flag: --select
+    select?: selector,
+    /// cli.alias: -n
+    limit?:  integer
+  ) -> [ SearchHit ]
 
 // -----------------------------------------------------------------------------
 // §2.3  graph — relationship traversal
@@ -228,7 +241,20 @@ type Subgraph = { nodes: [ GraphNode ], edges: [ GraphEdge ] }
 
 /// description: Traverse relationships from one or more roots into a `Subgraph`. `edgeTypes` restricts which `rel<>` types to follow (type-path prefix; absent = all); `direction` follows `source→target` (`out`), `target→source` (`in`), or `both`; `depth` caps the hops. The generic form of issue.lumen's `getDependencyTree`, over any `rel<>`. (`stdlib/graph`; `cli.name: "graph"` → `bd graph`.)
 /// normative: Read-or-fault — no domain `E`. Traversal is breadth-first and visits each node once, so a cyclic graph terminates and a cycle-closing edge is still emitted. `depth` is bounded by the advertised `maxGraphDepth`; a request above it faults `graph-depth-exceeded` rather than silently truncating.
-fn graph(roots: [ ref<resource> ], edgeTypes?: [ PathString ], direction?: "out" | "in" | "both" = "out", depth?: integer = 1, select?: selector) -> Subgraph
+/// cli.name: "graph"
+fn graph(
+    /// cli.positional: 0
+    roots:      [ ref<resource> ],
+    /// cli.flag: --edge-types
+    edgeTypes?: [ PathString ],
+    /// cli.flag: --direction
+    direction?: "out" | "in" | "both" = "out",
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?:     integer = 1,
+    /// cli.flag: --select
+    select?:    selector
+  ) -> Subgraph
 
 // -----------------------------------------------------------------------------
 // §2.4  batch — many invocations, one request
@@ -256,7 +282,12 @@ command batch(items: [ BatchItem ], atomic?: bool = false) -> [ BatchResult ]
 
 /// description: The number of current resources in `scope` matching `where` — the aggregate reduction of `query`/`list`, computed service-side (no bodies returned). The op issue.lumen §2.A's `count` verb lowers to. (`stdlib/count`; `cli.name: "count"` → `bd count`.)
 /// normative: Read-or-fault — no domain `E`. `where` is the full `QueryExpr`; a service offering only base `list` MAY accept a flat `Filter` (a degenerate `all` of `cond`s) and fault `query-capability-unsupported` on richer predicates.
-fn count(scope: Scope, where?: QueryExpr) -> integer
+/// cli.name: "count"
+fn count(
+    scope:  Scope,
+    /// cli.flag: --where
+    where?: QueryExpr
+  ) -> integer
 
 
 // #############################################################################

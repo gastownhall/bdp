@@ -1,15 +1,13 @@
 import { withPackedWorkspace, withPackedChild } from "./packed-workspace.mjs";
 import { observeCanonicalReference } from "./canonical-reference-observation.mjs";
 import { observeInstalledReference } from "./installed-reference-observation.mjs";
-import { isolatedWorkspace } from "./smoke-safety.mjs";
-
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const executables = ["bdp", "bdptest", "bdpbd"];
+const executables = ["bdp", "bdptest"];
 const legacyOnly = process.argv.length === 3 && process.argv[2] === "--legacy";
 if (process.argv.length !== 2 && !legacyOnly)
   throw new Error("Usage: smoke-executables.mjs [--legacy]");
@@ -28,7 +26,6 @@ const hermeticEnv = Object.fromEntries(
 // restricts both validation and output to precisely these keys.
 const EXPECTED_SECTIONS = {
   bdptest: ["bdptest", "mode", "scope", "server"],
-  bdpbd: ["bd", "mode", "scope", "server"],
 };
 
 function parseDiagnostics(stderr, executable) {
@@ -105,24 +102,6 @@ function runServe(signal, _executable, entry, extraEnv = {}, args = ["--serve"])
   });
 }
 
-/**
- * The bdpbd admitted smoke needs an isolated workspace path and must never
- * point at the repository. An operator may supply a seeded one via
- * BDP_E2E_BD_WORKSPACE; without it the smoke mints an empty directory under
- * its own temporary root. That is sufficient by observation: the admitted
- * probe reads only discovery, which the packaged server serves without ever
- * dispatching to bd, so no seeding and no bd executable are required.
- */
-async function provideBdWorkspace(temporaryRoot) {
-  const supplied = process.env.BDP_E2E_BD_WORKSPACE;
-  if (supplied !== undefined && supplied !== "") {
-    return isolatedWorkspace(supplied, workspaceRoot);
-  }
-  const minted = path.join(temporaryRoot, "bd-smoke-workspace");
-  await mkdir(minted, { recursive: true });
-  return minted;
-}
-
 async function probeFreePort() {
   const { createServer } = await import("node:net");
   const server = createServer();
@@ -154,7 +133,7 @@ async function fetchWithRetry(url, signal, attempts = 20, delayMs = 50) {
   throw lastError ?? new Error(`no response from ${url}`);
 }
 
-function runAdmittedReadSmoke(signal, executable, entry, port, workspace) {
+function runAdmittedReadSmoke(signal, executable, entry, port) {
   let stderr = "",
     resolveStarted;
   const started = new Promise((resolve) => {
@@ -171,7 +150,6 @@ function runAdmittedReadSmoke(signal, executable, entry, port, workspace) {
         BDP_SERVER_ADVERTISED_PROFILE: "read",
         BDP_SERVER_PORT: String(port),
         BDP_SCOPE_URL: "https://public.example/local-test/",
-        ...(executable === "bdpbd" ? { BDP_BD_WORKSPACE: workspace } : {}),
       },
       stdio: ["ignore", "pipe", "pipe"],
       timeoutMs: 5_000,
@@ -284,7 +262,7 @@ await withPackedWorkspace(async (installed, signal) => {
   }
   console.log("bdp: no-argument help and unset default Scope passed");
 
-  for (const executable of ["bdptest", "bdpbd"]) {
+  for (const executable of ["bdptest"]) {
     const lifecycle = await runLifecycle(
       signal,
       executable,
@@ -312,10 +290,9 @@ await withPackedWorkspace(async (installed, signal) => {
     }
 
     // server.advertisedProfile is deliberately unset by default so no server
-    // silently claims a profile. bdpbd and bdptest share this same field on
-    // purpose — admitReadServerProfile enforces the profile-guarantee rule
-    // regardless of which adapter is behind it.
-    if (executable === "bdptest" || executable === "bdpbd") {
+    // silently claims a profile — admitReadServerProfile enforces the
+    // profile-guarantee rule regardless of which adapter is behind it.
+    if (executable === "bdptest") {
       if (Object.hasOwn(startupConfig.server, "advertisedProfile")) {
         fail(executable, "server.advertisedProfile should be unset by default");
       }
@@ -344,26 +321,13 @@ await withPackedWorkspace(async (installed, signal) => {
   }
   console.log("bdptest: server.advertisedProfile and bdptest.fixture round-trip through tarball");
 
-  const bdpbdMapped = await runLifecycle(signal, "bdpbd", installed.entry("bdpbd"), true, {
-    BDP_SERVER_ADVERTISED_PROFILE: "read-update",
-    BDP_BD_EXECUTABLE: "/opt/bd/smoke",
-  });
-  const bdpbdConfig = startupConfigFor(parseDiagnostics(bdpbdMapped.stderr, "bdpbd"));
-  if (
-    bdpbdConfig?.server?.advertisedProfile !== "read-update" ||
-    bdpbdConfig?.bd?.executable !== "/opt/bd/smoke"
-  ) {
-    fail("bdpbd", "BDP_SERVER_ADVERTISED_PROFILE / BDP_BD_EXECUTABLE did not round-trip");
-  }
-  console.log("bdpbd: server.advertisedProfile and bd.executable round-trip through tarball");
-
   const lifecycleConfig = path.join(installed.temporaryRoot, "lifecycle-config.json");
   await writeFile(
     lifecycleConfig,
     `${JSON.stringify({ server: { advertisedProfile: "read" } })}\n`,
   );
   signal.throwIfAborted();
-  for (const executable of ["bdptest", "bdpbd"]) {
+  for (const executable of ["bdptest"]) {
     const lifecycle = await runLifecycleWithConfig(
       signal,
       executable,
@@ -397,7 +361,7 @@ await withPackedWorkspace(async (installed, signal) => {
     `${JSON.stringify({ server: { advertisedProfile: "read-update" } })}\n`,
   );
   signal.throwIfAborted();
-  for (const executable of ["bdptest", "bdpbd"]) {
+  for (const executable of ["bdptest"]) {
     const refusal = await runServe(signal, executable, installed.entry(executable), {}, [
       "--serve",
       "--config",
@@ -422,7 +386,7 @@ await withPackedWorkspace(async (installed, signal) => {
   // exit before listen; the Read token admits exactly when the installed
   // payload carries evidence, and the admitted path is then proved live below.
   signal.throwIfAborted();
-  for (const executable of ["bdptest", "bdpbd"]) {
+  for (const executable of ["bdptest"]) {
     const refusedProfiles = [undefined, "read-update", "transactional"];
     if (!installed.hasReadConformanceEvidence(executable)) refusedProfiles.push("read");
     for (const advertisedProfile of refusedProfiles) {
@@ -458,7 +422,6 @@ await withPackedWorkspace(async (installed, signal) => {
         // An ephemeral port per run: a fixed number turns any colliding
         // listener on the host into a spurious smoke failure.
         await probeFreePort(),
-        executable === "bdpbd" ? await provideBdWorkspace(installed.temporaryRoot) : undefined,
       );
       console.log(`${executable}: public Read admission serves discovery and stops cleanly`);
     }

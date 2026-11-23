@@ -15,7 +15,6 @@ const documents = [
   "specs/conformance.md",
   "specs/profiles/types/types.md",
   "specs/profiles/types/README.md",
-  "specs/types/issue/issue.md",
   "docs/specs/bdp.md",
 ];
 

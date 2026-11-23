@@ -13,23 +13,18 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
+# The canonical human reference in the v0.2.3 layout is the GENERATED Markdown
+# (emitted from specs/src/core/core.lumen) plus the CLI design doc. The old
+# specs/profiles/*.md are retired (see check-generated.py for the src -> generated
+# drift/consistency gate that makes the generated reference load-bearing).
 CANONICAL = (
-    "specs/profiles/core/core.md",
-    "specs/profiles/write/write.md",
-    "specs/profiles/events/events.md",
-    "specs/profiles/types/types.md",
-    "specs/profiles/transfer/transfer.md",
+    "specs/generated/core.md",
     "docs/cli-design/bdp-cli.md",
 )
 ENTRY_POINTS = ("README.md", "specs/README.md", "docs/spec-review/README.md")
 AUTHORING_DOCS = (
     "specs/formats/README.md", "specs/formats/markdown-openapi.md",
     "specs/formats/markdown-type-definitions.md",
-    "specs/profiles/types/descriptors/README.md",
-    "specs/profiles/types/descriptors/type.md",
-    "specs/profiles/types/descriptors/bead-type.md",
-    "specs/profiles/types/descriptors/link-type.md",
-    "specs/profiles/types/descriptors/refines.md",
 )
 EDITORIAL_TOOLING = {
     ".github/workflows/ci.yml", "scripts/check-spec-editorial.py",

@@ -15,15 +15,12 @@ const allowedRuntimeInternalDependencies = new Map([
   ["@bdp/conformance", ["@bdp/protocol"]],
   ["@bdp/bd-domain", ["@bdp/client", "@bdp/protocol"]],
   ["@bdp/adapter-in-memory", ["@bdp/protocol", "@bdp/server"]],
-  ["@bdp/adapter-bd", ["@bdp/protocol", "@bdp/server"]],
   ["@bdp/bdp", ["@bdp/bd-domain", "@bdp/client", "@bdp/config", "@bdp/protocol"]],
   ["@bdp/bdptest", ["@bdp/adapter-in-memory", "@bdp/config", "@bdp/server"]],
-  ["@bdp/bdpbd", ["@bdp/adapter-bd", "@bdp/config", "@bdp/server"]],
 ]);
 
 const allowedDevInternalDependencies = new Map([
   ["@bdp/bdptest", ["@bdp/bd-domain", "@bdp/client", "@bdp/conformance", "@bdp/protocol"]],
-  ["@bdp/bdpbd", ["@bdp/bd-domain", "@bdp/client", "@bdp/conformance"]],
 ]);
 async function typescriptSources(directory) {
   const sources = [];

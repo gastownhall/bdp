@@ -8,9 +8,7 @@
     { "path": "packages/conformance" },
     { "path": "packages/bd-domain" },
     { "path": "packages/adapter-in-memory" },
-    { "path": "packages/adapter-bd" },
     { "path": "apps/bdp" },
-    { "path": "apps/bdptest" },
-    { "path": "apps/bdpbd" }
+    { "path": "apps/bdptest" }
   ]
 }

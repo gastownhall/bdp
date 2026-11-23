@@ -11,14 +11,12 @@ export const groups = Object.freeze([
   "read-update-matrix",
   "transactional-matrix",
   "transactional-set-receipts",
-  "realbd",
   "other",
 ]);
 const dedicated = Object.freeze({
   "read-update-matrix": "apps/bdptest/src/read-update-matrix.test.ts",
   "transactional-matrix": "apps/bdptest/src/transactional-matrix.test.ts",
   "transactional-set-receipts": "apps/bdptest/src/transactional-set-receipts.test.ts",
-  realbd: "apps/bdpbd/src/read-matrix.test.ts",
 });
 function paths(values) {
   assert(Array.isArray(values) && values.length > 0, "Empty or missing Vitest inventory");
@@ -129,18 +127,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   );
   if (args[0] === "--run") {
     const group = args[1];
-    if (group === "realbd") {
-      assert.equal(process.env.BDP_REQUIRE_BD_MATRIX, "1", "Real bd matrix must be required");
-      assert(
-        isAbsolute(process.env.BDP_BD_MATRIX_EXECUTABLE ?? ""),
-        "Real bd executable must be explicit and absolute",
-      );
-      const version = checked(process.env.BDP_BD_MATRIX_EXECUTABLE, ["--version"], {
-        cwd: tmpdir(),
-        encoding: "utf8",
-      });
-      assert.equal(version.stdout.trim(), "bd version 1.0.5 (dev)");
-    }
     const reportDirectory = resolve(process.env.RUNNER_TEMP ?? tmpdir(), "bdp-ci-parallel-reports");
     mkdirSync(reportDirectory, { recursive: true });
     const reportFile = resolve(reportDirectory, `${group}.json`);

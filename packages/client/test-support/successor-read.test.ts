@@ -56,7 +56,7 @@ const run = (
   })({ family: "client", operation, input, scope, signal: new AbortController().signal });
 
 describe("successor Read observations", () => {
-  it.each(["reference", "bdpbd"])(
+  it.each(["reference"])(
     "binds %s numeric declaration prose to the fixture, not an unbound document",
     (target) => {
       const f = fixture(target);
@@ -64,18 +64,25 @@ describe("successor Read observations", () => {
       const doc = readFileSync(new URL(`../../../${d.source}`, import.meta.url), "utf8");
       expect(doc).toContain(d.description);
       expect(d.description).toContain(d.name);
-      if (target === "bdpbd") {
-        expect(d.numberModel).toBe(model);
-        expect(f.oracles["numeric-model"].input.numberModel).toBe(d.numberModel);
-        expect(f.capabilities).toContain("content-derived-revisions-v1");
-      } else {
-        expect(d.numberModel).toBe("not-content-derived");
-        expect(f.oracles["numeric-model"].input.numberModel).toBe(d.numberModel);
-        expect(f.capabilities).not.toContain("content-derived-revisions-v1");
-        expect(f.beads.every((b: { revision: string }) => b.revision === "1")).toBe(true);
-      }
+      expect(d.numberModel).toBe("not-content-derived");
+      expect(f.oracles["numeric-model"].input.numberModel).toBe(d.numberModel);
+      expect(f.capabilities).not.toContain("content-derived-revisions-v1");
+      expect(f.beads.every((b: { revision: string }) => b.revision === "1")).toBe(true);
     },
   );
+  // The bdpbd cohort is frozen historical evidence. Its sealed fixture bytes pin
+  // `declaration.source` at the retired real-bd bridge's README, and re-sealing needs the
+  // retired producer, so that prose can no longer be read back through the fixture; a copy
+  // is kept at docs/history/adapter-bd.md. The fixture-internal agreement that the prose
+  // binding also guarded is still asserted here.
+  it("keeps the retired bdpbd numeric declaration internally consistent", () => {
+    const f = fixture("bdpbd");
+    const d = f.oracles["numeric-model"].declaration;
+    expect(d.description).toContain(d.name);
+    expect(d.numberModel).toBe(model);
+    expect(f.oracles["numeric-model"].input.numberModel).toBe(d.numberModel);
+    expect(f.capabilities).toContain("content-derived-revisions-v1");
+  });
   it("checks the independent writer against literal preimages, including numeric keys, nesting, zero and exponents", () => {
     // The expected preimage is authored literally, not produced by either serializer.
     const expected =

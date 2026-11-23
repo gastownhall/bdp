@@ -9,7 +9,7 @@
 // generated from this file, never hand-written.
 //
 // Source of record: gastownhall/bdp @ main. Owner: the spec owner (Lumen + BDP).
-// Version: 0.2.2 — see specs/src/CHANGELOG.md. Pre-1.0 draft; the changelog marks
+// Version: 0.2.3 — see specs/src/CHANGELOG.md. Pre-1.0 draft; the changelog marks
 // what moved so an implementer tracking the spec in parallel can diff against it.
 //
 // -----------------------------------------------------------------------------
@@ -71,7 +71,7 @@
 // open / parked (not in this file): the scheduler (deadline, timeout, graceful
 // cancel + compensation); the `/sys/` scheme beyond `/sys/changes`; capability
 // discovery; full filter / query / search / count / graph (corelib capabilities,
-// advertised, not base); aliases & Transfer; the `canceled` HTTP status;
+// advertised, not base); Transfer; the `canceled` HTTP status;
 // the deferred types pass (BeadSchema ⇄ PackageElementRef).
 //
 // Review markers: a line beginning `>DB?` is an open question for the owner;
@@ -153,7 +153,7 @@ type ref<T> = ResourceRef
 /// description: Safe point read — resolve a `ref<T>` to the current representation `rep<T>`, or a pinned revision when the ref pins `rev` (or `?revision=`). An optional `selector` projects the result (which gets its own cacheable identity). Faults 404/410 when absent or erased.
 /// normative: `get` is safe and has no declared failure — it returns a `rep<T>` (the by-value representation of the referenced resource) or faults with a Problem. A `selector`-projected read is a partial representation, cacheable under its own query-string identity.
 /// normative: A resource outside the caller's authorization view is reported exactly as a missing one — identical status, on every operation and every stream. A service never reveals that a hidden resource exists, including through an error only a hidden resource could cause.
-/// openapi = { operationId = "get", method = "GET", pathItem = "resource", tags = ["Core"], params = { revision = { in = "query", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,406,410] } }
+/// openapi = { operationId = "get", method = "GET", pathItem = "resource", tags = ["Core"], params = { revision = { in = "query", schema = "Rev", required = false }, include = { in = "query", schema = "[JsonPointer]", required = false }, omit = { in = "query", schema = "[JsonPointer]", required = false }, expand = { in = "query", schema = "[LocalName]", required = false }, select = { in = "query", schema = "selector", required = false } }, success = { status = 200 }, problem = { status = [400,404,406,410] } }
 fn get<T>(
     /// description: The reference to resolve — current revision, or the pinned one when `rev` is set (or `?revision=`).
     resource:  ref<T>,
@@ -233,7 +233,8 @@ type Content {}
 
 ## PathString
 /// description: A slash-delimited path — `"issue/task"` (a bead kind) or `"text/plain"` (a content media type).
-/// normative: Two first path segments are reserved — `bdp` (the protocol's own fixed routes) and `sys` (in-band system resources, e.g. `/sys/changes`).
+/// normative: Two first path segments are reserved — `bdp` (the protocol's own fixed routes and artifacts, e.g. `/bdp/openapi`) and `sys` (in-band system resources, e.g. `/sys/changes`).
+/// normative: A bare `-` segment is reserved everywhere as the ACTION FENCE: in any path the segment `-` separates a (possibly slash-bearing) resource id on its left from a protocol action or projection on its right (`/{id}/-/revisions`, `/-/list`). The fence is matched on the RAW path, before percent-decoding, and is the LAST `/-/` in the path; the segment(s) to its right are validated against the closed, fence-free set of protocol actions (a right side that is not a known action faults `404`). No resource-id segment may be a bare `-`: a literal hyphen-only segment inside an id MUST be percent-encoded (`%2D`), and a write that would mint an id with an unencoded bare `-` segment is refused — so a crafted `%2D` never forges the fence and the id/action split is deterministic.
 type PathString = string
 
 ## Authority
@@ -388,6 +389,26 @@ type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 
 // Content is a bare Resource — no narrowing: `type` is a media type named by a
 // registry, `body` is raw bytes/text. (See the worked examples at the end.)
+
+// -----------------------------------------------------------------------------
+// 1.9  Aliases — a second name that overlays the scope root
+// -----------------------------------------------------------------------------
+// An alias is a second name for a resource. It is itself a resource — an `Alias`
+// bead parked in the reserved `sys/aliases/` namespace — so it is bound, read,
+// repointed and removed with the ordinary primitives, and keeps its own history.
+// No alias-specific operation exists. Aliases are present only when the scope
+// advertises the `aliases` capability ([[core.lumen#AliasCaps]]).
+
+## Alias
+/// description: A named pointer — a second name for a resource. The alias's own id is the name, under the reserved `sys/aliases/` root; its `target` names the resource the name stands for.
+/// normative: An `Alias` is an ordinary Bead at `sys/aliases/{name}`. It is managed entirely through the existing primitives — `put` binds or repoints it, `delete` removes it, `get` reads it, and `list` over `sys/aliases` (filtered on `target`) enumerates the names that point at a resource. Repointing mints a revision, so an alias carries its own history. `target` is a SOFT reference: a deleted target is not rewritten, so an unpinned alias then resolves to the target's tombstone and faults `410 Gone`.
+/// normative: THE OVERLAY (resolution, not an operation). When the scope advertises `aliases`, id resolution gains one step: a bare scope-root id that names an `Alias` resolves THROUGH it to the alias's `target` before the operation runs. So `get`, `put`, `patch` and `delete` on an alias name act on the TARGET, and a read returns the target's `id`/`rev` — the alias leaves no trace in the result. The primitives are unchanged; only id resolution carries the extra hop. The binding itself is addressed directly at `sys/aliases/{name}`, never through the overlay, so `delete sys/aliases/{name}` removes the name while `delete {name}` deletes the target. Because a dereferenced read never reveals that a name was an alias, the two interrogations are explicit: a `get` on `sys/aliases/{name}` (present ⇒ it is an alias) and the filtered `list` (the names that point at a target).
+/// normative: SINGLE HOP, SAME SCOPE. `target` names a resource in the alias's own scope and MUST NOT name another `Alias` — binding an alias whose target is a live alias is refused `invalid-target`, so chains and cycles are unrepresentable. The overlay resolves by TRANSPARENT REWRITE (no `3xx`): `GET {name}` is served as `GET {target}` and the reply carries `Content-Location: /{target}` naming the target's canonical id (a cache still keys on the request target URI, not on this header; an unsafe request invalidates the named URI per RFC 9111 §4.4). The reverse lookup — `list sys/aliases` filtered on `target` — matches `target` against the canonical id string.
+/// normative: UNIQUENESS. A scope-root name is held by AT MOST ONE claimant — a resource OR an alias, never both. `create` (or an id-rooted `put`) at a name that is a live alias is refused `identity-taken`; binding an `Alias` whose name is a live resource id is refused likewise; and the id a server mints for an unrequested `create` avoids live alias names exactly as it avoids live ids. The guarantee spans both claim paths at once.
+type Alias is Bead {
+  /// description: The resource this name stands for — a SOFT, SINGLE-HOP reference to a resource in the SAME scope; never another alias (no chains) and never a foreign scope. Tolerates a retired target (resolves to its tombstone).
+  target: ref<any>
+}
 
 // -----------------------------------------------------------------------------
 // 2.1  Types — the kind system, TypeDef & the value-schema
@@ -802,6 +823,7 @@ type Outcome<T, E> = union {
 
 ## Problem
 /// description: An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.
+/// normative: `type`, `title`, `status`, `detail` and `instance` are the RFC 9457 standard members; `code` and `retry` are BDP EXTENSION members (RFC 9457 permits extension members). `type` is a stable, machine-readable problem-type URI identifier (`tag:bdp.dev,2026:problem/<code>`, one per `code` — Appendix D.9), not a bare token. A `tag:` URI (RFC 4151) identifies without being dereferenceable, which RFC 9457 §3.1.1 permits.
 /// normative: The fault model. Every primitive returns its declared value on success or faults with a Problem — delivered out of band as the HTTP non-2xx response (RFC 9457), never part of the declared return type; a fault is orthogonal to the value. Only `call` additionally carries a declared failure (`Outcome.failure`, HTTP 409) — an operation's own "no". The data primitives have none: a read returns a `rep` or faults. A Problem is the universal fault channel, not the `E` of a `Result`.
 type Problem = {
   /// description: A URI naming the problem kind.
@@ -891,37 +913,50 @@ type PackageDef is Bead {
 //
 // --- the HTTP route table (relative to a scope's base URL) ---
 // Each primitive's `openapi.pathItem` (resource / scope / channel / operation /
-// asyncResult) resolves to a concrete route below. Two first segments are reserved
-// ([[core.lumen#ResourceId]]): `/sys/*` for in-band system RESOURCES (addressed and
-// read with `get`, e.g. `/sys/changes`, `/sys/capabilities`) and `/bdp/*` for the
-// protocol's own fixed ROUTES (the bulk operations). A `:verb` suffix dispatches an
-// ACTION on a target; a `/subpath` is a projection / sub-collection read. So the
-// scope-root reads/writes never collide with the bulk ops.
+// asyncResult) resolves to a concrete route below. The URL space has three parts:
+//   • an id space — a resource is `/{id}`, where {id} is a free, slash-bearing string;
+//   • noun roots — `/sys/*` for in-band system RESOURCES (addressed and read with
+//     `get`, e.g. `/sys/changes`, `/sys/capabilities`) and `/bdp/*` for the protocol's
+//     own fixed routes & artifacts (`/bdp/openapi` — static artifacts only);
+//   • the ACTION FENCE `/-/` — a bare `-` segment separates a resource id (left) from a
+//     protocol action or projection (right). The fence (NOT a `:verb` suffix) is what
+//     carries actions, because an id is a free string: a `:` has URL-reference scheme
+//     ambiguity and the fleet's ids already bear colons (timestamp ids). At the scope
+//     root the left side is empty, so `/-/list`, `/-/create` are scope actions.
+//     The fence is parsed on the RAW path (pre-decode) as the LAST `/-/`; the right
+//     side is validated against the closed, fence-free action set (else 404), and an
+//     id with a literal `-`-only segment is percent-encoded (`%2D`) — a write minting
+//     an unencoded bare `-` segment is refused — so no `%2D` forges the fence.
+// So `GET /` is free to be the discovery signpost, and nothing collides with an id.
 //
-//   primitive   method  route                     notes
-//   discovery   GET     /sys/capabilities         the mandatory floor (a `get`)
-//   get         GET     /{id}
-//   list        GET     /                         scope root → Page
-//   create      POST    /                         scope root; body = the rep (body: any)
-//   put         PUT     /{id}                     If-Match carries --if-revision (OCC)
-//   patch       PATCH   /{id}                     root-addressed JSON-Patch body
-//   delete      DELETE  /{id}
-//   revisions   GET     /{id}:revisions           the resource's history → Page (a `:verb`, NOT /{id}/revisions — ids contain `/`, so a /subpath is ambiguous with an id segment)
-//   call        POST    /{opPath}:call            +?mode=async → 202 + AsyncResult Location
-//   cancel      POST    /{asyncResultId}:cancel   {asyncResultId} = the async Location
-//   pull        GET     /{channel}                a Channel, e.g. /sys/changes (changefeed)
-//   push        POST    /{channel}                append jsonl to a sink/duplex Channel
-//   export      GET     /bdp/export               bulk scope serialization → JSONL
-//   import      POST    /bdp/import               bulk load ← JSONL → ImportReport
+//   primitive   method  route                      notes
+//   discovery   GET     /                          → ServiceDescriptor (the signpost; links mirrored in a Link header)
+//   discovery   GET     /sys/capabilities          live, per-deployment Capabilities (a `get` on a /sys bead)
+//   discovery   GET     /bdp/openapi               the static OpenAPI contract (RFC 8631 service-desc)
+//   get         GET     /{id}                      ?include=/?omit=/?expand= (or ?select=) projection; ?revision= time-travel
+//   list        GET     /-/list                    scope list → Page (moved off the bare root)
+//   create      POST    /-/create                  body = the rep (body: any); fail-if-exists → identity-taken
+//   put         PUT     /{id}                      If-Match (OCC) · If-None-Match:* (create-if-absent) · ?precondition= (state guard)
+//   patch       PATCH   /{id}                      json-patch+json body · If-Match · ?precondition=
+//   delete      DELETE  /{id}                      If-Match · ?precondition=
+//   revisions   GET     /{id}/-/revisions          the resource's history → Page
+//   call        POST    /{opPath}/-/call           +?mode=async → 202 + AsyncResult Location
+//   cancel      POST    /{asyncResultId}/-/cancel  {asyncResultId} = the async Location
+//   pull        GET     /{channel}                 a Channel, e.g. /sys/changes (changefeed)
+//   push        POST    /{channel}                 append jsonl to a sink/duplex Channel
+//   export      GET     /-/export                  bulk scope serialization → JSONL (scope action)
+//   import      POST    /-/import                  bulk load ← JSONL → ImportReport (scope action)
 //
-// `create` (POST /) vs `import` (POST /bdp/import), and `list` (GET /) vs `export`
-// (GET /bdp/export), are disjoint — the scope-level bulk ops live under `/bdp`, never
-// on the scope root. `push` is NOT the stdlib `batch`: it appends to a Channel.
+// `push` is NOT the stdlib `batch`: it appends to a Channel. A read whose query string
+// overruns the URL budget MAY re-send under the fence as a body-form POST (`/-/list`,
+// `/{id}/-/get`) carrying the `ReadRequest`, and an over-budget write guard MAY spill to
+// `POST /{id}/-/{put|patch|delete}` carrying an `Envelope` — body-form spill is OPTIONAL
+// and advertised (a minimal scope rejects over-budget with `request-too-large`). See Appendix D.
 //
 // Discovery, not tiers (§3.3): a scope advertises WHICH primitives it offers, à la
-// carte. `get` and discovery (a readable /sys/capabilities) are the mandatory floor;
-// every other primitive is present iff advertised. A request for an un-offered
-// primitive is refused `capability-not-supported`.
+// carte. The mandatory floor is `get`, the `GET /` ServiceDescriptor, and a readable
+// `/sys/capabilities`; every other primitive is present iff advertised. A request for
+// an un-offered primitive is refused `capability-not-supported`.
 //
 // Discovery ALSO serves the connected packs' overlay: the TYPE definitions (their
 // property declarations + cli hints — cli.alias / cli.positional / cli.default /
@@ -1009,8 +1044,8 @@ type Id {
 
 ## create
 /// bdp = { kind = "primitive", primitive = "create" }
-/// description: Admit a new Bead. Caller-proposed id optional; fail-if-exists. Returns the created resource's pinned `ref` (rev = the minted revision); its URL in `Location`.
-/// normative: `create` input is closed — an envelope member Core does not define is refused, not ignored (this does not reach inside `body`/`metadata`, which Core does not interpret). An id already in use, or used and retired, is refused with `identity-taken`.
+/// description: Admit a new Bead at `POST /-/create` (under the action fence; the bare root `GET /` is the ServiceDescriptor). Caller-proposed id optional; fail-if-exists → `identity-taken` (409). Returns the created resource's pinned `ref` (rev = the minted revision); its URL in `Location`. (Create-if-absent at a known id is `put` with `ifAbsent` / `If-None-Match: *`, not `create`.)
+/// normative: `create` input is closed — an envelope member Core does not define is refused, not ignored (this does not reach inside `body`/`metadata`, which Core does not interpret). An id already in use, used and retired, or — when `aliases` is advertised — held by a live alias ([[core.lumen#Alias]]), is refused with `identity-taken`; an unrequested server-minted id likewise avoids live alias names.
 /// openapi = { operationId = "create", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 201 }, responseHeaders = { Location = { schema = "AbsoluteHttpUrl" } }, problem = { status = [400,409,422] } }
 command create(
     /// description: The scope to create the resource in.
@@ -1033,8 +1068,8 @@ command create(
 /// bdp = { kind = "primitive", primitive = "put" }
 /// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
 /// normative: A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.
-/// normative: The optimistic-concurrency precondition `ifRevision` (HTTP `If-Match`) is carried by `put`, `patch` and `delete` only. Absent, the write is unconditional; present, the write applies only if it matches the resource's current revision, and a stale value makes no change and faults `revision-mismatch` (412). There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
-/// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
+/// normative: WRITE GUARDS ARE PRECONDITIONS, NEVER BODY. A guard rides the request line (a header or the query string), never the payload — so a `put` body stays exactly the resource representation and a `patch` body stays exactly the JSON Patch, unwrapped and correctly typed. Three guards, carried by `put`, `patch` and `delete` (`put` also carries the second): (1) `ifRevision` → `If-Match: "<Rev>"` (the `Rev` as a double-quoted strong entity-tag, RFC 9110 §8.8.3), the optimistic-concurrency / revision guard — a stale value makes no change and faults `revision-mismatch` (412); (2) `ifAbsent` → `If-None-Match: *`, create-if-absent — the write applies only if nothing is there, else faults `identity-taken` (409 — the same status as a `create` collision, so a client has one id-taken handler) (`put` only); (3) `precondition` → `?precondition=<Filter>`, a STATE guard — the write applies only if the current resource satisfies the Filter, else faults `precondition-failed` (412). The state guard is the same flat-AND [[core.lumen#Filter]] grammar `list` uses, projected onto the query string exactly like a read filter. A guard too large for the URL budget MAY spill to an OPTIONAL, advertised `query`-tier body-form (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`) carrying an [[core.lumen#Envelope]] — `{ precondition?, representation }` for put (the FULL representation, never a bare body), `{ precondition?, patch }` for patch, `{ precondition? }` for delete — the one place an envelope appears; the `If-Match`/`If-None-Match` guards keep riding their headers, and a scope that does not advertise spill rejects an over-budget guard with `request-too-large`. See Appendix D. There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
+/// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, ifAbsent = { in = "header", name = "If-None-Match", schema = "\"*\"", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,409,412,422] } }
 idempotent command put(
     /// description: The resource to write (its id; `rev` ignored — `put` targets the current resource).
     resource:    unpinned<any>,
@@ -1042,31 +1077,38 @@ idempotent command put(
     type:        PathString,
     /// description: The package that names `type`. Caller may supply; absent, the server resolves it from `type`.
     authority?:  PackageRef,
-    /// description: The full new body — `put` replaces state wholesale (`any` at core; typed `body: T` at the pack level).
+    /// description: The full new body — `put` replaces state wholesale (`any` at core; typed `body: T` at the pack level). On the wire the request payload is the full representation (`type` + `authority?` + this `body` + `metadata?`); the guards below are request metadata, never part of it.
     body:        any,
     /// description: Optional open sidecar the protocol does not interpret.
     metadata?:   Metadata,
-    /// description: Optional If-Match precondition — apply only if this matches the current revision.
-    ifRevision?: Rev
+    /// description: Revision guard → `If-Match`. Apply only if this matches the current revision.
+    ifRevision?: Rev,
+    /// description: Create-if-absent guard → `If-None-Match: *`. Apply only if no resource exists at the id; else `identity-taken` (409).
+    ifAbsent?:   bool,
+    /// description: State guard → `?precondition=`. Apply only if the current resource satisfies this Filter; else `precondition-failed`. Rides the query string, not the body.
+    precondition?: Filter
   ) -> pinned<any>
-// Note: a separate id proposal was folded into the `resource` ref. `ifRevision`
-// (If-Match) is carried by put/patch/delete — see the precondition rule above.
+// Note: a separate id proposal was folded into the `resource` ref. The guards
+// (ifRevision/ifAbsent/precondition) are request metadata — headers and the query
+// string — so the body is only ever the resource. See the guard rule above.
 
 ## patch
 /// bdp = { kind = "primitive", primitive = "patch" }
-/// description: JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Optional `--if-revision` (If-Match) gives optimistic concurrency; a stale revision faults `revision-mismatch`. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
-/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,422] } }
+/// description: JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,412,415,422] } }
 command patch(
     /// description: The resource to patch (its current revision).
     resource:    unpinned<any>,
-    /// description: The JSON Patch to apply — root-addressed over the rep (`/body`, `/metadata`, `/type`, `/authority`; the rest is read-only).
+    /// description: The JSON Patch to apply — root-addressed over the rep (`/body`, `/metadata`, `/type`, `/authority`; the rest is read-only). This IS the request payload (`application/json-patch+json`); the guards below are not part of it.
 
 
 // Resolved: `type` / `authority` are mutated by patching `/type` / `/authority` at root — no distinct arguments. Root-addressing means a layout change never changes this signature.
 
     patch:       JsonPatch,
-    /// description: Optional If-Match precondition — apply only if this matches the current revision.
-    ifRevision?: Rev
+    /// description: Revision guard → `If-Match`. Apply only if this matches the current revision.
+    ifRevision?: Rev,
+    /// description: State guard → `?precondition=`. Apply only if the current resource satisfies this Filter; else `precondition-failed`. Rides the query string, not the body.
+    precondition?: Filter
   ) -> pinned<any>
 
 ## delete
@@ -1075,7 +1117,7 @@ command patch(
 /// normative: Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ "rev": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.
 /// normative: Delete is not erasure — a deleted resource's id stays accounted for, its tombstone revision is kept with the delete's provenance (naming the last live as `previousRevision`), and the id is never reused. Delete touches exactly one resource and does nothing else; it changes no identifier and no kind.
 /// normative: Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
-/// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifMatch = { in = "header", schema = "Rev", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
+/// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 idempotent command delete(
     /// description: The resource to retire (its current revision).
     resource:    unpinned<any>,
@@ -1084,8 +1126,10 @@ idempotent command delete(
 // Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create / put / patch / delete).
 
 
-    /// description: Optional If-Match precondition — delete only if this matches the current revision.
-    ifRevision?: Rev
+    /// description: Revision guard → `If-Match`. Delete only if this matches the current revision.
+    ifRevision?: Rev,
+    /// description: State guard → `?precondition=`. Delete only if the current resource satisfies this Filter; else `precondition-failed`. Direct `DELETE` carries the guard on the request line; an over-budget delete guard MAY use the advertised POST spill (an `Envelope` with `precondition` only, no body).
+    precondition?: Filter
   ) -> Rev
 // >DB? delete → bare `Rev` (your instinct) breaks the "writes return a pinned ref"
 // symmetry on purpose — a tombstone has no representation. Confirm.
@@ -1093,14 +1137,16 @@ idempotent command delete(
 ## list
 /// bdp = { kind = "primitive", primitive = "list" }
 /// description: A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability ([[stdlib.lumen#query]]). Snapshot — `--format json|jsonl`, no `sse`.
-/// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,406] } }
+/// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], params = { where = { in = "query", schema = "Filter", required = false }, include = { in = "query", schema = "[JsonPointer]", required = false }, omit = { in = "query", schema = "[JsonPointer]", required = false }, expand = { in = "query", schema = "[LocalName]", required = false }, select = { in = "query", schema = "selector", required = false } }, success = { status = 200 }, problem = { status = [400,406] } }
 fn list(
     /// description: The scope to list.
     scope:   Scope,
     /// description: The low-bar filter — a flat conjunction of field conditions (overlaps `request.filter`; see the open shape note).
 
 
-// Open: should put / patch also accept a `filter` (to scope a conditional write)?  (ListFilter is now `Filter`.)
+// Resolved: yes — put / patch / delete accept a state guard, carried as a `precondition`
+// Filter on the request line (`?precondition=`), NOT in the body; it reuses this flat-AND
+// `Filter` grammar and faults `precondition-failed`. See the guard rule on `put`.
 
     where?:  Filter,
     /// description: Projection applied to each result (overlaps `request.select`).
@@ -1126,6 +1172,7 @@ fn revisions(
 
 ## selector
 /// description: A read projection over a representation — include/omit subtrees (JSON Pointer) and expand. Query-string, so a projected read has its own cacheable identity; `type`/`id` are never dropped.
+/// normative: Query-string encoding — the three fields lower to the baseline params `?include=`, `?omit=` (comma-separated JSON Pointers) and `?expand=` (comma-separated names), matching the CLI `--include` / `--omit` / `--expand` flags; a leading `/` on a pointer is optional. `?select=<URL-encoded selector JSON>` is the complete form (the CLI `--select` shorthand), accepted for tooling and for a pointer that contains a literal comma. `type`/`id` are never dropped.
 type selector {
   /// description: Keep only these subtrees (JSON Pointer); everything else is dropped.
   include?: [ JsonPointer ],
@@ -1156,6 +1203,18 @@ type JsonPatchOp = {
 /// description: An ordered list of JSON Patch operations — the `patch` body, and a change-event patch payload.
 type JsonPatch = [ JsonPatchOp ]
 
+## Envelope
+/// description: The query-tier body-form envelope — the ONE place a write guard rides a body. Used only when an over-budget `precondition` (or representation) spills to `POST /{id}/-/{put|patch|delete}`; the direct `put`/`patch`/`delete` verbs never carry it. Media type `application/vnd.bdp.envelope+json`.
+/// normative: Support is OPTIONAL and advertised ([[core.lumen#ScopeCapabilities]] `bodyFormSpill`); a scope that does not offer it rejects an over-budget guard with `request-too-large`. Exactly one payload member by verb — `representation` for `put` (the FULL representation `{ type, authority?, body, metadata? }`, never a bare body), `patch` for `patch` (the raw RFC 6902 array carried as a JSON value governed by THIS envelope's media type, not `application/json-patch+json`), and none for `delete`. `precondition` is the optional state-guard Filter; the `If-Match` / `If-None-Match` guards keep riding their headers even in body-form.
+type Envelope = {
+  /// description: The state-guard Filter (the `?precondition=` guard, relocated to the body when over-budget).
+  precondition?:   Filter,
+  /// description: For `put` — the full representation to write (`{ type, authority?, body, metadata? }`).
+  representation?: any,
+  /// description: For `patch` — the RFC 6902 JSON Patch array, as a JSON value inside this envelope.
+  patch?:          JsonPatch
+}
+
 ## Filter
 /// description: The low-bar list filter — a flat conjunction (and) of simple field conditions, exactly the query-string-expressible set. The baseline every service supports; the full boolean/traversal predicate is a stdlib capability (`query`, [[stdlib.lumen#query]]), not base.
 type Filter = [ listCondition ]
@@ -1163,7 +1222,7 @@ type Filter = [ listCondition ]
 ## listCondition
 /// description: One flat field condition. `isType` matches against the type-path (`type.id`): `prefix` ⊑ (the "is it an issue(-ish)?" test), `exact` =.
 /// normative: Field paths are root-addressed `FieldPath` ARRAYS (`["body","status"]`, `["metadata","x"]`, `["type"]`) — the array disambiguates a key that itself contains a dot, and the first segment selects the root member (`body`/`metadata`/`type`/`authority`), consistent with root-addressed `patch`/`selector`. NOT a dotted string.
-/// normative: Wire encoding — every protocol DU is INTERNALLY-TAGGED with a `kind` discriminator = the arm name in kebab-case (the convention of [[core.lumen#Outcome]], [[core.lumen#ChangeEvent]]), NEVER externally-tagged (`{"compare":{…}}`). A condition is `{"kind":"compare","field":["body","status"],"op":"eq","value":…}`; a flat `Filter` is a JSON array of them. list and the stdlib `query` share this one encoding.
+/// normative: Wire encoding — every protocol DU is INTERNALLY-TAGGED with a `kind` discriminator = the arm name in kebab-case (the convention of [[core.lumen#Outcome]], [[core.lumen#ChangeEvent]]), NEVER externally-tagged (`{"compare":{…}}`). A condition is `{"kind":"compare","field":["body","status"],"op":"eq","value":…}`; a flat `Filter` is a JSON array of them. list and the stdlib `query` share this one encoding. On the query string the baseline floor every scope accepts is the URL-encoded JSON of this `Filter` array — for both `?where=` (list) and `?precondition=` (the write state guard). For `?where=` ONLY, a scope MAY ALSO advertise ([[core.lumen#ListCaps]] `compactFilter`) a compact `field op value` dialect (comma-separated conditions, `/`-separated field paths) for the common `compare`/`has`/`missing` subset — a human-typable convenience, never required, with the gnarly arms (`matches`, `contains*`, array-valued `in`) staying JSON or going to the stdlib `query`. `?precondition=` is JSON-only — it is machine-generated, never the compact dialect.
 /// normative: v0 `compare` is LEXICAL (string) comparison — a numeric `lt`/`le`/`gt`/`ge` on a value like `priority` orders as text (`"10" < "2"`). Typed comparison by the field's declared type (now that `integer` and `number` are distinguished) is a follow-up, to land consistently across `list` and `query`.
 type listCondition = union {
   /// description: Compare a field to a value with a scalar operator (or set membership, `in`).
@@ -1411,7 +1470,38 @@ command import(
 //   Well-known resources (addressed by convention):
 //     /sys/changes       — the scope's changefeed Channel (source; pullSchema = ChangeEvent)
 //     /sys/capabilities  — the scope's discovery resource: `get` it for the scope's
-//                          `Capabilities` (below). Together with `get`, it is the floor.
+//                          `Capabilities` (below). With `get` and the `GET /`
+//                          ServiceDescriptor, it is the floor.
+
+## ServiceDescriptor
+/// description: The bounded discovery signpost returned by `GET /` (a scope's base URL) — a THIN envelope that names the protocol and LINKS to the rest, never embedding it. With `get` and `/sys/capabilities`, it is the mandatory floor.
+/// normative: `GET /` returns a ServiceDescriptor, not the scope's resource collection — the scope list moved to `/-/list`. The fixed well-known paths ARE the floor and ARE load-bearing: a client MAY hardcode `GET /`, `GET /sys/capabilities` and `GET /bdp/openapi`. The `links` (and their `Link`-header mirror, RFC 8288) are an OPTIONAL relation-following convenience over those paths — the body is authoritative; the `Link` header is a hint and MAY relocate the `base`.
+type ServiceDescriptor = {
+  /// description: The BDP protocol version this scope speaks — a full SemVer (e.g. `"0.2.3"`); negotiation reads `major.minor.patch`.
+  version:   SemVer,
+  /// description: The exact spec commit/tag this scope was built against — finer-grained provenance, diagnostic only, never used for compatibility.
+  revision?: Rev,
+  /// description: The scope's identity, echoed for confirmation. Absent on a base URL that fronts no single scope.
+  scope?: BdpScope,
+  /// description: The scope's base URL, echoed so a client can confirm the origin it reached.
+  base?:  AbsoluteHttpUrl,
+  /// description: Typed links to the rest of the service. See [[core.lumen#ServiceLinks]].
+  links:  ServiceLinks
+}
+
+## ServiceLinks
+/// description: The discovery link set — RFC 8631 web-service link relations to the service's other resources. A relation's absence means the service does not offer it. Mirrored in the `Link` header.
+/// normative: Relations — `service-desc` → `/bdp/openapi` (the static OpenAPI contract) and `service-meta` → `/sys/capabilities` (live, per-deployment capabilities) are the RFC 8631 registered relations (the OpenAPI location is advertised the traditional way, `Link: </bdp/openapi>; rel="service-desc"`); `service-doc` → human documentation. The changefeed is NOT an IANA relation, so it uses the BDP extension relation URI `tag:bdp.dev,2026:rel/changes` → `/sys/changes` (a bare `changes` token is never emitted in the `Link` header). The split is deliberate: `/bdp/openapi` is the STATIC contract, `/sys/capabilities` is LIVE per-deployment state.
+type ServiceLinks = {
+  /// description: RFC 8631 `service-desc` — the machine contract (the OpenAPI document, `/bdp/openapi`).
+  serviceDesc?: AbsoluteHttpUrl,
+  /// description: RFC 8631 `service-meta` — the scope's live `Capabilities` (`/sys/capabilities`).
+  serviceMeta?: AbsoluteHttpUrl,
+  /// description: RFC 8631 `service-doc` — human-readable documentation.
+  serviceDoc?:  AbsoluteHttpUrl,
+  /// description: `changes` (BDP extension relation `tag:bdp.dev,2026:rel/changes`) — the scope's changefeed Channel (`/sys/changes`).
+  changes?:     AbsoluteHttpUrl
+}
 
 ## Capabilities
 /// description: What a scope advertises through discovery — read it by `get` on the well-known `/sys/capabilities` resource. Its primitive capabilities are partitioned by package (`core` is the base; other packages advertise their own), à la carte: a primitive is supported iff its capability is present. Scope-wide traits that are not per-primitive live in `scope`.
@@ -1453,13 +1543,21 @@ type CoreCapabilities = {
 }
 
 ## ScopeCapabilities
-/// description: A scope's scope-wide traits — the capabilities that are neither per-primitive nor pack-specific. Storage classes and the revision model live here.
+/// description: A scope's scope-wide traits — the capabilities that are neither per-primitive nor pack-specific. Storage classes, the revision model, and whether aliases are supported live here.
 type ScopeCapabilities = {
   /// description: Which persistence classes the scope can honor — a set over `Durable` / `Ephemeral`. A resource whose class is not honored cannot be hosted. `Intrinsic` is universal and never appears here.
   storageClasses: [StorageClass],
   /// description: Whether the scope mints revisions, scope-wide. See [[core.lumen#RevisionModel]].
-  revisionModel:  RevisionModel
+  revisionModel:  RevisionModel,
+  /// description: Present iff the scope supports alias resources and the scope-root overlay. See [[core.lumen#Alias]], [[core.lumen#AliasCaps]].
+  aliases?:       AliasCaps,
+  /// description: Present and `true` iff the scope accepts the OPTIONAL body-form spill ([[core.lumen#Envelope]]) for an over-budget read or write guard; absent/false ⇒ an over-budget request is refused `request-too-large`. There is no advertised URL-byte budget — intermediaries, not the origin, impose the limit, so a client is reactive to `414`/`431`/`400`-by-length regardless.
+  bodyFormSpill?: bool
 }
+
+## AliasCaps
+/// description: Advertised for `aliases` — its presence signals that `Alias` resources under `sys/aliases/` and the scope-root overlay are active. An alias is always single-hop and same-scope (no chains); any further limits (e.g. a cap on aliases per target) ride here.
+type AliasCaps = { ...: any }
 
 ## RevisionModel
 /// description: A scope's revision model — a scope-wide trait, stated outright (no implicit default).
@@ -1482,6 +1580,8 @@ type ListCaps = {
   selector:   bool,
   /// description: Whether server-side sort is offered.
   sort:       bool,
+  /// description: Whether the compact `?where=` dialect is accepted, in addition to the URL-encoded JSON Filter floor every scope accepts.
+  compactFilter: bool,
   /// description: The maximum page size, when capped.
   maxLimit?:  integer
 }
@@ -1513,21 +1613,32 @@ type CreateCaps = {
 }
 
 ## PutCaps
-/// description: Presence advertises that `put` (idempotent full-state write) is offered; it carries no further limits.
-type PutCaps = { }
+/// description: Limits advertised for `put` — which write guards it honors. The `precondition` operator set is ⊆ [[core.lumen#ListCaps]] `conditions`.
+type PutCaps = {
+  /// description: Whether the `ifRevision` (If-Match) guard is honored.
+  ifRevision:   bool,
+  /// description: Whether the `ifAbsent` (If-None-Match: *) create-if-absent guard is honored.
+  ifAbsent:     bool,
+  /// description: Whether the `?precondition=` state guard is honored.
+  precondition: bool
+}
 
 ## PatchCaps
-/// description: Limits advertised for `patch`.
+/// description: Limits advertised for `patch`. The `precondition` operator set is ⊆ [[core.lumen#ListCaps]] `conditions`.
 type PatchCaps = {
   /// description: Whether the `ifRevision` (If-Match) precondition is honored.
-  ifMatch: bool
+  ifRevision:   bool,
+  /// description: Whether the `?precondition=` state guard is honored.
+  precondition: bool
 }
 
 ## DeleteCaps
-/// description: Limits advertised for `delete`.
+/// description: Limits advertised for `delete`. The `precondition` operator set is ⊆ [[core.lumen#ListCaps]] `conditions`.
 type DeleteCaps = {
   /// description: Whether the `ifRevision` (If-Match) precondition is honored.
-  ifMatch: bool
+  ifRevision:   bool,
+  /// description: Whether the `?precondition=` state guard is honored.
+  precondition: bool
 }
 
 ## RevisionsCaps
@@ -1671,12 +1782,89 @@ type PushCaps = {
 
 
 // #############################################################################
-// Appendix D. HTTP binding (harvested from the prose Core, §12 / §13.2)
+// Appendix D. The HTTP/BDP binding
 // #############################################################################
-// Status caveat: in the prose only create-on-Scope, the `call` form, and
-// `failure ⇒ 409` are hard-ruled; the other status codes are settled here.
+// BDP is an HTTP protocol; this binding is normative. core.lumen is the home of
+// all normative material, HTTP included (bdp.md is the overview / transclusion
+// shell). The route table in §13.1 and the per-primitive `openapi` annotations
+// lower to a generated OpenAPI document (`/bdp/openapi`); this appendix states
+// the parts that span operations — the URL space, discovery, write guards,
+// read projection, headers, status codes and Problem codes.
 //
-// --- request context (headers — never the URL or body) ---------------------
+// --- D.1 the URL space & the action fence -----------------------------------
+//   Three parts (see [[core.lumen#PathString]] and the §13.1 route table):
+//     • an ID space — a resource is `/{id}`, {id} a free, slash-bearing string.
+//     • noun roots — `/sys/*` in-band system RESOURCES (get-addressable beads:
+//       `/sys/changes`, `/sys/capabilities`, `/sys/aliases/*`); `/bdp/*` the
+//       protocol's own fixed routes & artifacts (`/bdp/openapi` — static only).
+//     • the ACTION FENCE `/-/` — a bare `-` segment separates a resource id
+//       (left) from a protocol action or projection (right): `/{id}/-/revisions`,
+//       `/{opPath}/-/call`, `/{asyncResultId}/-/cancel`; at the scope root the
+//       left side is empty, so `/-/list`, `/-/create`.
+//   The fence, not a `:verb` suffix, carries actions: an id is a free string, a
+//   `:` has URL-reference scheme ambiguity, and real-world ids already bear colons.
+//   PARSE: match the fence on the RAW path (pre-decode) as the LAST `/-/`; validate
+//   the right side against the closed, fence-free action set (else 404). No id segment
+//   may be a bare `-`: a literal hyphen-only segment is percent-encoded (`%2D`) and a
+//   write minting an unencoded one is refused, so `%2D` never forges the fence.
+//   Scope bulk actions `export`/`import` ride the fence too: `GET /-/export`,
+//   `POST /-/import`. `/bdp/*` holds static artifacts only.
+//
+// --- D.2 discovery (the floor) ----------------------------------------------
+//   GET /                → ServiceDescriptor ([[core.lumen#ServiceDescriptor]]) —
+//                          a thin signpost: { bdp, scope?, base?, links }. The
+//                          `links` repeat in a `Link` header (RFC 8288).
+//   GET /sys/capabilities → the scope's live Capabilities (a `get` on a bead).
+//   GET /bdp/openapi     → the static OpenAPI contract.
+//   The fixed paths ARE load-bearing: a client MAY hardcode `GET /`,
+//   `GET /sys/capabilities`, `GET /bdp/openapi`. Relations are an OPTIONAL convenience
+//   mirroring them, in `links` and a `Link` response header (RFC 8288, body authoritative):
+//   `service-desc` → `/bdp/openapi` and `service-meta` → `/sys/capabilities` are the
+//   RFC 8631 registered relations (the OpenAPI location is advertised the traditional way,
+//   `Link: </bdp/openapi>; rel="service-desc"`); `service-doc` → docs; the changefeed uses
+//   the BDP extension relation `tag:bdp.dev,2026:rel/changes` → `/sys/changes` (never a bare
+//   `changes` token). The mandatory floor is `get`, `GET /`, and a readable `/sys/capabilities`.
+//
+// --- D.3 write guards (PRECONDITIONS — request line, never the body) --------
+//   A guard says what must be true to proceed; it is request metadata, carried
+//   by a header or the query string, NEVER the payload. So a `put` body is only
+//   ever the resource and a `patch` body only ever the JSON Patch. Four guards:
+//     create    fail-if-exists is create's nature → `identity-taken` (409).
+//     If-Match: "<Rev>"   revision / OCC guard (put/patch/delete) → stale ⇒
+//                         `revision-mismatch` (412). `<Rev>` in any header is the
+//                         double-quoted strong entity-tag (RFC 9110 §8.8.3).
+//     If-None-Match: *    create-if-absent (put) → present ⇒ `identity-taken` (409 —
+//                         one id-taken status, shared with create).
+//     ?precondition=<Filter>  STATE guard (put/patch/delete) → the current
+//                         resource must satisfy the flat-AND [[core.lumen#Filter]]
+//                         (the same grammar `list.where` uses, projected onto the
+//                         query string) → fails ⇒ `precondition-failed` (412).
+//   A `precondition` too large for the URL budget MAY spill to an OPTIONAL, advertised
+//   ([[core.lumen#ScopeCapabilities]] `bodyFormSpill`) `query`-tier body-form
+//   (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`,
+//   body = [[core.lumen#Envelope]]: `representation` for put — the FULL rep, never a bare
+//   body — `patch` for patch, `precondition?` throughout) — the ONE place a write envelope
+//   appears; the `If-Match`/`If-None-Match` guards keep riding their headers. A scope that
+//   does not advertise spill refuses an over-budget guard with `request-too-large`.
+//   Direct `DELETE` has no body and carries its guard on the request line; an over-budget
+//   delete guard MAY still use the advertised POST spill (an `Envelope` with `precondition`
+//   only, no body).
+//
+// --- D.4 reads: projection & the POST spillover -----------------------------
+//   `get` `?include=/?omit=/?expand=` (or the full `?select=`), and `list` `?where=`
+//   + the selector params, project onto the query string (the selector lowers to the
+//   CLI-matching params; the flat-AND Filter lowers to URL-encoded JSON, or an advertised
+//   compact dialect), giving a projected read its own cacheable URL. When the query string
+//   overruns the URL budget, the read MAY re-send under the fence as a body-form carrying
+//   the `ReadRequest`: where `bodyFormSpill` is advertised a service answers `POST`
+//   (`/-/list`, `/{id}/-/get`) and MAY answer the draft HTTP `QUERY` method. A body-form
+//   read is SAFE and app-idempotent (it mutates nothing); it is not cached by default, so
+//   a client prefers the query-string form when it fits. There is NO advertised URL-byte
+//   budget: the limit is imposed by intermediaries (proxies/CDNs/browsers), not the origin,
+//   so a client reacts to `414`/`431`/`400`-by-length (and MAY spill proactively above a
+//   conservative built-in threshold) regardless of what the origin would accept.
+//
+// --- D.5 request context (headers — never the URL or body) ------------------
 //   BDP-Cause        a bare cause token
 //   BDP-Provenance   the caller's provenance part, as JSON (ASCII, escaped)
 //   BDP-Metadata     per-request metadata, as JSON
@@ -1686,37 +1874,62 @@ type PushCaps = {
 //   never truncated. A browser EventStream reader sends no request context —
 //   allowed, since every member is optional.
 //
-// --- reply context (response headers) ---------------------------------------
+// --- D.6 reply context (response headers) -----------------------------------
 //   BDP-Cause        always present
 //   BDP-Transaction  present only where the request made exactly one commit
 //   BDP-Metadata     per-reply metadata
+//   Link             discovery relations (RFC 8288), mirroring `links` — on `GET /` and,
+//                    for `service-desc`, advertisable on any response
+//   ETag             the resource's `Rev` as a STRONG entity-tag, double-quoted
+//                    (`ETag: "<Rev>"`), so `If-Match: "<Rev>"` is a conformant ETag check
+//   Content-Location the canonical id of the returned representation — on an alias rewrite
+//                    (it names the target) and on a body-form (POST-tunneled) read/write.
+//                    A cache keys on the REQUEST target URI, not on this header; an unsafe
+//                    request invalidates the named URI per RFC 9111 §4.4
+//   Location         the new URL on `create` / a creating `call` / an async accept
 //   The body is the value alone; the context rides in the headers.
 //
-// --- content types ----------------------------------------------------------
-//   application/json              a value / one windowed page
+// --- D.7 content types ------------------------------------------------------
+//   application/json              a value / one windowed page; a ServiceDescriptor
 //   application/jsonl             bulk stream (pull / list / export; push / import body)
 //   text/event-stream            live pull (SSE); the SSE event id is the cursor, so a
 //                                reconnect's `Last-Event-ID` resumes exactly as `after`
-//   application/json-patch+json  the `patch` body (RFC 6902; paths /body and /metadata)
+//   application/json-patch+json  the direct `patch` body (RFC 6902; REQUIRED — a direct `patch`
+//                                with another media type faults `415`, so RFC 7396 merge-patch
+//                                is never silently applied)
+//   application/vnd.bdp.envelope+json  the OPTIONAL body-form spill body ([[core.lumen#Envelope]]):
+//                                a POST `/{id}/-/{put|patch|delete}` carrying an over-budget guard
 //   application/problem+json     every failing body (RFC 9457 Problem)
 //
-// --- status codes -----------------------------------------------------------
+// --- D.8 status codes -------------------------------------------------------
 //   200  get / put / patch / list / revisions / pull success; call → outcome success
 //   201  create success, and a call whose Operation `creates` — Location: the new URL
 //   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
-//   409  call → a declared failure (ruled); also some Problems (e.g. revision-mismatch)
-//   412  stale If-Match on put / patch / delete (Precondition Failed)
+//   409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR
+//        `put` + `If-None-Match: *` (`identity-taken`); also some Problems
+//   412  a failed guard on put / patch / delete — a stale `If-Match` (`revision-mismatch`)
+//        or a `precondition` the resource does not satisfy (`precondition-failed`). A
+//        present `If-None-Match: *` collision is NOT 412: it is `identity-taken` (409).
+//   413  an over-budget guard where the scope does not advertise `bodyFormSpill`
+//        (`request-too-large`)
+//   414  the read's query string exceeds the URL budget — retry as a body-form POST;
+//        intermediaries may instead surface it as `431` or a length-related `400`
+//   415  a direct `patch` body whose media type is not `application/json-patch+json` (a
+//        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
+//   404  get of an absent resource; an unknown action to the right of the `/-/` fence
 //   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
 //   410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)
 //   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 //
-// --- Problem codes (RFC 9457 `code`) ----------------------------------------
+// --- D.9 Problem codes (BDP extension member `code`; stable `type` URIs) -----
+//   `code`/`retry` are BDP extension members, not RFC 9457 core; each code has a stable
+//   problem-type URI `tag:bdp.dev,2026:problem/<code>` carried in the Problem `type` member.
 //   malformed-request · invalid-parameter · unauthenticated · forbidden ·
 //   resource-not-found · resource-pruned · resource-erased · revision-mismatch ·
-//   identity-taken · validation-failed · type-not-installed · cursor-expired ·
-//   request-too-large · limit-exceeded · rate-limited · temporarily-unavailable ·
-//   capability-not-supported · callable-not-found · callable-unavailable ·
-//   mode-not-supported · mode-refused
+//   precondition-failed · identity-taken · validation-failed · type-not-installed ·
+//   cursor-expired · request-too-large · limit-exceeded · rate-limited ·
+//   temporarily-unavailable · capability-not-supported · callable-not-found ·
+//   callable-unavailable · mode-not-supported · mode-refused
 
 
 // #############################################################################
