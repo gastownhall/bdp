@@ -339,7 +339,17 @@ pub enum WireWrite {
     #[serde(rename = "bCreate")]
     Create { draft: WireCreateRequest },
     #[serde(rename = "bPut")]
-    Put { resource: WireResourceId, body: WireCreateRequest },
+    Put {
+        resource: WireResourceId,
+        body: WireCreateRequest,
+        // The guards must round-trip here too. A batched write inside `apply` has no request line
+        // of its own, so if the wire form omitted them an `apply` would silently drop a guard —
+        // the same class of defect as a server that accepts `If-Match` and ignores it.
+        #[serde(rename = "ifMatch", skip_serializing_if = "Option::is_none", default)]
+        if_match: Option<String>,
+        #[serde(rename = "ifAbsent", default, skip_serializing_if = "std::ops::Not::not")]
+        if_absent: bool,
+    },
     #[serde(rename = "bPatch")]
     Patch {
         resource: WireResourceId,
@@ -361,9 +371,11 @@ impl WireWrite {
             p::Write::Create { id, body } => WireWrite::Create {
                 draft: WireCreateRequest::from_body(id.as_ref(), body),
             },
-            p::Write::Put { target, body } => WireWrite::Put {
+            p::Write::Put { target, body, guards } => WireWrite::Put {
                 resource: WireResourceId::from_trait(target),
                 body: WireCreateRequest::from_body(None, body),
+                if_match: guards.if_revision.as_ref().map(|r| r.0.to_string()),
+                if_absent: guards.if_absent,
             },
             p::Write::Patch { target, patch, if_rev } => WireWrite::Patch {
                 resource: WireResourceId::from_trait(target),
@@ -383,9 +395,17 @@ impl WireWrite {
                 let (id, body) = draft.into_body();
                 p::Write::Create { id, body }
             }
-            WireWrite::Put { resource, body } => {
+            WireWrite::Put { resource, body, if_match, if_absent } => {
                 let (_id, body) = body.into_body();
-                p::Write::Put { target: resource.to_trait(), body }
+                p::Write::Put {
+                    target: resource.to_trait(),
+                    body,
+                    guards: p::Guards {
+                        if_revision: if_match.map(|s| p::Rev(std::sync::Arc::from(s.as_str()))),
+                        if_absent,
+                        precondition: None,
+                    },
+                }
             }
             WireWrite::Patch { resource, patch, if_match } => p::Write::Patch {
                 target: resource.to_trait(),
@@ -540,7 +560,12 @@ pub enum WireCapability {
         #[serde(rename = "clientProposedId", default)] client_proposed_id: bool,
     },
     #[serde(rename = "put")]
-    Put {},
+    Put {
+        #[serde(rename = "ifMatch", default)]
+        if_match: bool,
+        #[serde(rename = "ifAbsent", default)]
+        if_absent: bool,
+    },
     #[serde(rename = "patch")]
     Patch { #[serde(rename = "ifMatch", default)] if_match: bool },
     #[serde(rename = "delete")]
@@ -614,7 +639,7 @@ impl WireCapability {
             C::Pull(x) => WireCapability::Pull { sse: x.sse, jsonl: x.jsonl, filter: x.filter, selector: x.selector },
             C::Export(x) => WireCapability::Export { revisions: x.revisions },
             C::Create(x) => WireCapability::Create { server_allocates_id: x.server_allocates_id, client_proposed_id: x.client_proposed_id },
-            C::Put(_) => WireCapability::Put {},
+            C::Put(c) => WireCapability::Put { if_match: c.if_match, if_absent: c.if_absent },
             C::Patch(x) => WireCapability::Patch { if_match: x.if_match },
             C::Delete(x) => WireCapability::Delete { if_match: x.if_match },
             C::Apply(x) => WireCapability::Apply { max_writes: x.max_writes, acyclicity: x.acyclicity },
@@ -644,7 +669,7 @@ impl WireCapability {
             WireCapability::Pull { sse, jsonl, filter, selector } => PrimitiveCapabilities::Pull(PullCaps { sse, jsonl, filter, selector }),
             WireCapability::Export { revisions } => PrimitiveCapabilities::Export(ExportCaps { revisions }),
             WireCapability::Create { server_allocates_id, client_proposed_id } => PrimitiveCapabilities::Create(CreateCaps { server_allocates_id, client_proposed_id }),
-            WireCapability::Put {} => PrimitiveCapabilities::Put(PutCaps {}),
+            WireCapability::Put { if_match, if_absent } => PrimitiveCapabilities::Put(PutCaps { if_match, if_absent }),
             WireCapability::Patch { if_match } => PrimitiveCapabilities::Patch(PatchCaps { if_match }),
             WireCapability::Delete { if_match } => PrimitiveCapabilities::Delete(DeleteCaps { if_match }),
             WireCapability::Apply { max_writes, acyclicity } => PrimitiveCapabilities::Apply(ApplyCaps { max_writes, acyclicity }),
@@ -660,6 +685,71 @@ impl WireCapability {
 }
 
 /// Encode a scope's advertised capabilities for the discovery response.
+/// The discovery document. It carries BOTH advertised surfaces because they answer different
+/// questions: `scope` is what the store GUARANTEES, `primitives` is what you may CALL. Before this
+/// the endpoint returned the bare primitive array, so a client had no way to read the scope's
+/// traits — which left a conformance case for a trait-dependent fault (a write's `410` under
+/// `permanent`, `delete`'s `404`) with nothing to key on, and no honest option but to assert the
+/// behaviour unconditionally.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WireDiscovery {
+    pub scope: WireScopeCapabilities,
+    pub primitives: Vec<WireCapability>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WireScopeCapabilities {
+    #[serde(rename = "storageClasses")]
+    pub storage_classes: Vec<String>,
+    #[serde(rename = "revisionModel")]
+    pub revision_model: String,
+    #[serde(rename = "idModel")]
+    pub id_model: String,
+}
+
+impl WireScopeCapabilities {
+    pub fn from_trait(c: &p::ScopeCapabilities) -> Self {
+        Self {
+            storage_classes: c.storage_classes.iter().map(|k| match k {
+                p::StorageClass::Durable => "durable",
+                p::StorageClass::Ephemeral => "ephemeral",
+                p::StorageClass::Intrinsic => "intrinsic",
+            }.to_string()).collect(),
+            revision_model: match c.revision_model {
+                p::RevisionModel::Versioned => "versioned",
+                p::RevisionModel::Unversioned => "unversioned",
+            }.to_string(),
+            id_model: match c.id_model {
+                p::IdModel::Permanent => "permanent",
+                p::IdModel::Reusable => "reusable",
+            }.to_string(),
+        }
+    }
+
+    /// Decode back to the trait form. An UNRECOGNISED value is not silently defaulted — a client
+    /// that cannot read the model must not act as though it read one, which is the same rule as
+    /// `If-None-Match` not treating an unknown value as `*`.
+    pub fn to_trait(&self) -> Result<p::ScopeCapabilities, String> {
+        let storage_classes = self.storage_classes.iter().map(|k| match k.as_str() {
+            "durable" => Ok(p::StorageClass::Durable),
+            "ephemeral" => Ok(p::StorageClass::Ephemeral),
+            "intrinsic" => Ok(p::StorageClass::Intrinsic),
+            other => Err(format!("unknown storage class {other:?}")),
+        }).collect::<Result<Vec<_>, _>>()?;
+        let revision_model = match self.revision_model.as_str() {
+            "versioned" => p::RevisionModel::Versioned,
+            "unversioned" => p::RevisionModel::Unversioned,
+            other => return Err(format!("unknown revision model {other:?}")),
+        };
+        let id_model = match self.id_model.as_str() {
+            "permanent" => p::IdModel::Permanent,
+            "reusable" => p::IdModel::Reusable,
+            other => return Err(format!("unknown id model {other:?}")),
+        };
+        Ok(p::ScopeCapabilities { storage_classes, revision_model, id_model })
+    }
+}
+
 pub fn caps_to_wire(caps: &[p::PrimitiveCapabilities]) -> Vec<WireCapability> {
     caps.iter().filter_map(WireCapability::from_trait).collect()
 }

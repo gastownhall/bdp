@@ -77,7 +77,10 @@ impl<S: BdpScope> Server<S> {
     /// `RemoteScope`) can proxy them instead of guessing. Per Donna's advertised⟹implemented ruling
     /// the wire representation of the scope must be faithful — this is what makes that possible.
     fn do_capabilities(&self) -> HttpResponse {
-        let wire = crate::wire::caps_to_wire(&self.scope.capabilities());
+        let wire = crate::wire::WireDiscovery {
+            scope: crate::wire::WireScopeCapabilities::from_trait(&self.scope.scope_capabilities()),
+            primitives: crate::wire::caps_to_wire(&self.scope.capabilities()),
+        };
         HttpResponse::json(200, serde_json::to_vec(&wire).unwrap())
     }
 
@@ -174,7 +177,18 @@ impl<S: BdpScope> Server<S> {
         };
         let target = resource_id_from(id_seg, None);
         let (_proposed, body) = wreq.into_body(); // FRICTION: body may ALSO carry `id`; URL wins for put
-        match self.scope.put(target, body).await {
+        // GUARDS RIDE THE REQUEST LINE, never the body. Read them here: before this, `do_put`
+        // read no headers at all, so an `If-Match` was accepted and ignored and the client got a
+        // `200` believing it held a concurrency guard.
+        let guards = p::Guards {
+            if_revision: req.header("if-match").map(|s| p::Rev(std::sync::Arc::from(s))),
+            // `If-None-Match: *` is the only form that means "apply only if absent". Any other
+            // value is an entity-tag precondition this scope does not implement, so it is NOT
+            // silently treated as `*` — that would be the same failure being fixed here.
+            if_absent: req.header("if-none-match").map(|v| v.trim() == "*").unwrap_or(false),
+            precondition: None,
+        };
+        match self.scope.put(target, body, guards).await {
             Ok(res) if res.not_implemented => unmapped("put not implemented by this scope"),
             Ok(res) => {
                 let (wire, _loc) = write_result_wire(&res);

@@ -283,6 +283,45 @@ pub struct CreateBody {
 /// RFC 6902 patch, limited to /properties + /metadata. Raw at this layer.
 #[derive(Clone, Debug)]
 pub struct JsonPatch(pub RawJson);
+/// The write GUARDS. **Preconditions, never body** — each rides the request line (a header or the
+/// query string), so a `put` body stays exactly the representation and a `patch` body stays exactly
+/// the JSON Patch, unwrapped and correctly typed.
+///
+/// Carried by `put` here; `patch` and `delete` still take a bare `if_rev` and are a separate,
+/// mechanical retrofit. `if_absent` is `put`-ONLY and a scope MUST refuse it elsewhere.
+///
+/// WHY THIS EXISTS: `put` previously could not carry a guard AT ALL — the trait took no `if_rev`,
+/// so a client sending `If-Match` got `200` and believed it held a concurrency guard while the
+/// write proceeded against a stale revision. That is a lost-update vector in which the unsafe
+/// operation SUCCEEDS, so the client cannot learn it from the result.
+#[derive(Clone, Debug, Default)]
+pub struct Guards {
+    /// `ifRevision` -> `If-Match: "<Rev>"` (a strong entity-tag, RFC 9110 §8.8.3). Optimistic
+    /// concurrency: a stale value makes NO change and faults `RevisionMismatch` (412).
+    pub if_revision: Option<Rev>,
+    /// `ifAbsent` -> `If-None-Match: *`. The write applies only if nothing is there, else faults
+    /// `AlreadyExists` (409) — the same fault a `create` collision raises, so a client keeps ONE
+    /// id-taken handler for the claiming path. `put` only.
+    pub if_absent: bool,
+    /// `precondition` -> `?precondition=<Filter>`. A STATE guard: the write applies only if the
+    /// current resource satisfies the filter, else faults `RevisionMismatch` (412). Reuses the same
+    /// flat-AND grammar `list` takes.
+    pub precondition: Option<ListFilter>,
+}
+
+impl Guards {
+    pub fn if_revision(rev: Rev) -> Self {
+        Self { if_revision: Some(rev), ..Default::default() }
+    }
+    pub fn if_absent() -> Self {
+        Self { if_absent: true, ..Default::default() }
+    }
+    /// True when no guard is set — the unguarded write path.
+    pub fn is_empty(&self) -> bool {
+        self.if_revision.is_none() && !self.if_absent && self.precondition.is_none()
+    }
+}
+
 
 /// One write in an `apply` write-set — 1:1 with the single-write methods (create/put/patch/delete).
 #[derive(Clone, Debug)]
@@ -290,7 +329,7 @@ pub enum Write {
     /// bCreate — server allocates the id when `id` is `None`.
     Create { id: Option<Id>, body: CreateBody },
     /// bPut — client-id full-state upsert.
-    Put { target: ResourceId, body: CreateBody },
+    Put { target: ResourceId, body: CreateBody, guards: Guards },
     /// bPatch — JSON Patch delta over /properties + /metadata.
     Patch { target: ResourceId, patch: JsonPatch, if_rev: Option<Rev> },
     /// bDelete — tombstone.
@@ -486,7 +525,7 @@ pub struct ExportCaps { pub revisions: bool }
 pub struct CreateCaps { pub server_allocates_id: bool, pub client_proposed_id: bool }
 
 #[derive(Clone, Debug, Default)]
-pub struct PutCaps {}
+pub struct PutCaps { pub if_match: bool, pub if_absent: bool }
 
 #[derive(Clone, Debug, Default)]
 pub struct PatchCaps { pub if_match: bool }
@@ -519,6 +558,77 @@ pub struct CallCaps { pub async_supported: bool }
 pub struct AliasesCaps { pub indexed: bool }
 
 /// Marker: presence in `capabilities()` means the scope is non-versioned — its write refs are
+/// How a Resource is kept — whether it is PERSISTED, not whether it is versioned (that is the
+/// scope's revision model). `Intrinsic` is computed by the service rather than stored and is
+/// universal, so it never appears in an advertised `storage_classes`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StorageClass {
+    Durable,
+    Ephemeral,
+    Intrinsic,
+}
+
+/// A scope's revision model — a scope-wide trait, **stated outright, never inferred** (no implicit
+/// default).
+///
+/// `versioned` also CONSTRAINS the id model: it REQUIRES `permanent`, since a revision chain may
+/// not span two resources under one id. So `versioned` + `reusable` is not a legal pair, and
+/// `reusable` implies `unversioned`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RevisionModel {
+    /// The scope mints revisions; write refs are pinned and a pinned-revision `get` resolves.
+    Versioned,
+    /// The scope mints no revisions; `rev` is absent everywhere and every revision-dependent
+    /// behaviour relaxes scope-wide.
+    Unversioned,
+}
+
+/// Whether an id retired by `delete` is permanently spent, scope-wide. **Stated outright, never
+/// inferred.**
+///
+/// This is the capability limitation that lets a scope project an existing system whose id
+/// allocation it does not control: such a scope states `Reusable` rather than claim a guarantee it
+/// cannot keep.
+///
+/// A client must be able to READ this to make an informed choice, which is why it is advertised
+/// rather than assumed: under `Reusable` an unpinned inbound reference may resolve to an UNRELATED
+/// resource, and pinning is not a remedy — a `Reusable` scope mints no revisions, so there is no
+/// pinned form of the reference to hold.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IdModel {
+    /// A retired id is never reused; a write targeting it faults `410`, and claiming it faults
+    /// `identity-taken`.
+    Permanent,
+    /// A retired id MAY be minted again. REQUIRES `Unversioned`.
+    Reusable,
+}
+
+/// The SCOPE-LEVEL capability document — the scope's own traits, as distinct from the per-primitive
+/// `PrimitiveCapabilities` list which says which ops it offers.
+///
+/// Both are needed and they answer different questions: the primitive list says what you may CALL,
+/// this says what the store GUARANTEES. A fault's reachability can depend on these traits rather
+/// than on the operation — a write's `410` is reachable only under `Permanent`, and `delete`'s `404`
+/// only where the scope can tell "already retired" from "never existed" — so a conformance case for
+/// such a row must key on the declared model rather than assert the behaviour unconditionally.
+#[derive(Clone, Debug)]
+pub struct ScopeCapabilities {
+    /// Which persistence classes the scope can honour. A resource whose class is not honoured
+    /// cannot be hosted. `Intrinsic` is universal and never appears here.
+    pub storage_classes: Vec<StorageClass>,
+    /// Whether the scope mints revisions, scope-wide.
+    pub revision_model: RevisionModel,
+    /// Whether a retired id is permanently spent, scope-wide.
+    pub id_model: IdModel,
+}
+
+impl ScopeCapabilities {
+    /// True when the pair is legal: `Versioned` REQUIRES `Permanent`.
+    pub fn is_consistent(&self) -> bool {
+        !(self.revision_model == RevisionModel::Versioned && self.id_model == IdModel::Reusable)
+    }
+}
+
 /// unpinned (`rev = None`). Empty for now (presence is the signal); may grow (e.g. which ops
 /// relax) without breaking advertisers.
 #[derive(Clone, Debug, Default)]
@@ -566,6 +676,10 @@ pub enum ConstraintViolation {
 pub trait BdpScope: Send + Sync {
     /// The supported ops, each with its limits. Presence = supported (`get` always present).
     fn capabilities(&self) -> Vec<PrimitiveCapabilities>;
+
+    /// The scope's own traits. REQUIRED and stated outright — a client cannot infer them, and a
+    /// conformance case for a trait-dependent fault has nothing to key on without them.
+    fn scope_capabilities(&self) -> ScopeCapabilities;
 
     // ---- MANDATORY ----
     async fn get(&self, r: &ResourceId, selector: Option<&Selector>)
@@ -619,7 +733,7 @@ pub trait BdpScope: Send + Sync {
     }
 
     /// put — client-known-id upsert / idempotent FULL-STATE write.
-    async fn put(&self, _target: ResourceId, _body: CreateBody)
+    async fn put(&self, _target: ResourceId, _body: CreateBody, _guards: Guards)
         -> Result<BdpResult<ResourceId>, BdpError> {
         Ok(BdpResult::not_implemented())
     }

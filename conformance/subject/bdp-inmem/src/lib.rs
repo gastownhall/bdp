@@ -103,14 +103,9 @@ impl Default for InMemScope {
 /// Per-SCOPE storage class (Lydia §78) — DISCOVERY METADATA, not a capability. Durability is a fact
 /// about the scope (what a hybrid-query/cache planner consumes to tell an ephemeral cache from a
 /// durable source), so it rides in discovery, distinct from the per-BEAD `storageClass` on `Bead`.
-/// Defined locally here: the shared `StorageClass` type + its trait/discovery surfacing in
-/// `bdp-primitives` is a Lydia/Portia change not owned by this backend; this is the value that
-/// surface will read for an in-memory scope.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StorageClass {
-    Durable { versioned: bool },
-    Ephemeral,
-}
+/// The local placeholder this used to define is RETIRED: `StorageClass` now lives in
+/// `bdp-primitives` alongside `ScopeCapabilities`, which is the "trait/discovery surfacing" its
+/// comment was waiting for. The value below is the one it said that surface would read.
 
 impl InMemScope {
     pub fn new(scope_name: impl Into<String>) -> Self {
@@ -134,6 +129,11 @@ impl InMemScope {
     /// The `apply` boundary: a single exclusive write guard over the whole write-set with
     /// all-or-nothing rollback. Single writes go through here as a one-element set.
     fn commit(&self, writes: &[Write]) -> Result<Vec<ResourceId>, BdpError> {
+        // Read the DECLARED id model rather than assuming one. Retirement semantics are
+        // model-dependent — under `permanent` a retired id is spent, under `reusable` it is free —
+        // so a write path that hard-coded either would be behaving on an undeclared basis, which
+        // is the defect `delete_then_erased` was built on.
+        let id_model = self.scope_capabilities().id_model;
         let txn = Uuid::new_v4().to_string();
         let mut store = self.store.write().unwrap();
 
@@ -147,7 +147,7 @@ impl InMemScope {
             let key = write_key(self, w);
             touched.entry(key.clone()).or_insert_with(|| store.by_id.get(&key).cloned());
 
-            match apply_one(&mut store, &self.scope_name, w, &txn) {
+            match apply_one(&mut store, &self.scope_name, w, &txn, id_model) {
                 Ok(r) => out.push(r),
                 Err(e) => {
                     // roll back: truncate the log and restore every touched index entry.
@@ -187,7 +187,13 @@ fn write_key(scope: &InMemScope, w: &Write) -> (String, String) {
 
 /// Apply one write to the store in place (mutating real state so later writes in the same set see
 /// it — pg's in-transaction visibility). Any `Err` leaves `commit` to roll the whole set back.
-fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Result<ResourceId, BdpError> {
+fn apply_one(
+    store: &mut Store,
+    scope_name: &str,
+    w: &Write,
+    txn: &str,
+    id_model: IdModel,
+) -> Result<ResourceId, BdpError> {
     match w {
         Write::Create { id, body } => {
             let scope = scope_name.to_string();
@@ -221,12 +227,59 @@ fn apply_one(store: &mut Store, scope_name: &str, w: &Write, txn: &str) -> Resul
             });
             Ok(ResourceId::pinned(Scope::Named(ScopeName(scope.into())), Id(id_s.into()), Rev(rev.into())))
         }
-        Write::Put { target, body } => {
+        Write::Put { target, body, guards } => {
             let scope = scope_str_of(scope_name, &target.scope);
             let id_s = target.id.0.to_string();
             let head = store.head(&scope, &id_s).cloned();
+
+            // HONOUR THE GUARDS BEFORE MINTING ANYTHING. `put` previously accepted none, so an
+            // `If-Match` was silently ignored and the write proceeded against a stale revision
+            // while reporting success — a lost-update vector the client could not detect from the
+            // result. A guard that is accepted and not enforced is worse than one that is refused.
+            //
+            // `ifRevision`: a stale value makes NO change and faults 412. A guard against a head
+            // that does not exist cannot be satisfied, so that faults too.
+            if let Some(want) = &guards.if_revision {
+                let found = head.as_ref().map(|h| Rev(h.rev.clone().into()));
+                let matches = found.as_ref().map(|f| f.0.as_ref() == want.0.as_ref()).unwrap_or(false);
+                if !matches {
+                    return Err(BdpError::RevisionMismatch {
+                        id: target.clone(),
+                        expected: want.clone(),
+                        found,
+                    });
+                }
+            }
+            // `ifAbsent`: the write applies only if nothing is there. A live resource OR a
+            // tombstone both count as present — a tombstoned id is spent, not free, so claiming it
+            // is the same fault as a `create` collision. That keeps ONE id-taken handler on the
+            // client for the whole claiming path.
+            if guards.if_absent && head.is_some() {
+                return Err(BdpError::AlreadyExists(target.clone()));
+            }
+
+            // DELETION IS TERMINAL under `permanent`: a bare `put` TARGETS the retired resource,
+            // so it faults `410 Gone` and MUST NOT resurrect it. This arm used to classify a
+            // tombstone head as a fresh "create", which revived a spent identity — the subject
+            // contradicting a merged normative rule, not merely leaving a row uncovered.
+            //
+            // The CLAIMING path is already handled above and is a different fault: a `put` under
+            // `ifAbsent` asserts the id is free, so a spent id is `identity-taken` (409). Rooting
+            // cannot discriminate the two, since every `put` is id-rooted — the guard is what does.
+            //
+            // Under `reusable` a retired id IS free, so the same write legitimately creates. Hence
+            // the branch on the declared model rather than one hard-coded answer.
+            if let Some(h) = head.as_ref().filter(|h| h.op == "delete") {
+                if id_model == IdModel::Permanent {
+                    return Err(BdpError::Erased {
+                        id: target.clone(),
+                        at: Rev(h.rev.clone().into()),
+                    });
+                }
+            }
             let (op, prev, created_at) = match &head {
                 None => ("create", None, now_rfc3339()),
+                // Reachable only under `reusable`, where a retired id is free to mint again.
                 Some(h) if h.op == "delete" => ("create", None, now_rfc3339()),
                 Some(h) => ("update", Some(h.rev.clone()), h.created_at.clone()),
             };
@@ -575,12 +628,32 @@ fn matches_condition(
 // written yet — it will be the one-spot change when the encoding is pinned.
 
 impl BdpScope for InMemScope {
+    fn scope_capabilities(&self) -> ScopeCapabilities {
+        // Declared from what this store ACTUALLY does, not from what would be convenient.
+        //
+        // `Ephemeral`, NOT `Durable`, and this scope has said so all along: `storage_class()`
+        // below has returned `Ephemeral` since before this surface existed — "volatile, local,
+        // not a durable source". An in-memory store cannot HONOUR `Durable`, which is what
+        // `storage_classes` advertises, so claiming it would be advertising a persistence
+        // guarantee that a restart disproves. (I first wrote `Durable` here because the cases
+        // write persistent-looking data; the subject's own accessor was the correction.)
+        //
+        // `Versioned`: it appends a revision row per commit. And `versioned` REQUIRES `permanent`,
+        // which is also independently true — it keeps tombstones — so the pair is legal rather
+        // than merely declared.
+        ScopeCapabilities {
+            storage_classes: vec![StorageClass::Ephemeral],
+            revision_model: RevisionModel::Versioned,
+            id_model: IdModel::Permanent,
+        }
+    }
+
     fn capabilities(&self) -> Vec<PrimitiveCapabilities> {
         vec![
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
             PrimitiveCapabilities::Resolve(ResolveCaps { selector: false, max_batch: None }),
             PrimitiveCapabilities::Create(CreateCaps { server_allocates_id: true, client_proposed_id: true }),
-            PrimitiveCapabilities::Put(PutCaps {}),
+            PrimitiveCapabilities::Put(PutCaps { if_match: true, if_absent: true }),
             PrimitiveCapabilities::Patch(PatchCaps { if_match: true }),
             PrimitiveCapabilities::Delete(DeleteCaps { if_match: true }),
             // acyclicity DEFERRED until the ref-encoding pin (honest: advertised ⟹ implemented).
@@ -644,8 +717,8 @@ impl BdpScope for InMemScope {
         Ok(one(r))
     }
 
-    async fn put(&self, target: ResourceId, body: CreateBody) -> Result<BdpResult<ResourceId>, BdpError> {
-        let r = self.commit(&[Write::Put { target, body }])?.pop().unwrap();
+    async fn put(&self, target: ResourceId, body: CreateBody, guards: Guards) -> Result<BdpResult<ResourceId>, BdpError> {
+        let r = self.commit(&[Write::Put { target, body, guards }])?.pop().unwrap();
         Ok(one(r))
     }
 
@@ -818,6 +891,8 @@ impl BdpScope for InMemScope {
                             id.id.clone(),
                         );
                         writes.push(Write::Put {
+                            // An import replays stored state; it asserts no precondition.
+                            guards: Guards::default(),
                             target,
                             body: CreateBody {
                                 kind: kind.clone(),
