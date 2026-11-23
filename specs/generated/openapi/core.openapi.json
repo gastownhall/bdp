@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "BDP Core",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "Generated from specs/src/core/core.lumen (Appendix C lowering)."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",

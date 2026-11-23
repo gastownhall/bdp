@@ -2,7 +2,7 @@
 
 This single Lumen source is the Core spec. The toolchain projects it deterministically to the JSON Schema bundle and the OpenAPI catalog (both shipped as part of this specification), plus the generated Markdown reference, Go interfaces, and the canonical CLI. The Markdown under specs/generated/ is generated from this file, never hand-written.
 
-Source of record: gastownhall/bdp @ main. Owner: the spec owner (Lumen + BDP). Version: 0.2.2 — see specs/src/CHANGELOG.md. Pre-1.0 draft; the changelog marks what moved so an implementer tracking the spec in parallel can diff against it.
+Source of record: gastownhall/bdp @ main. Owner: the spec owner (Lumen + BDP). Version: 0.2.3 — see specs/src/CHANGELOG.md. Pre-1.0 draft; the changelog marks what moved so an implementer tracking the spec in parallel can diff against it.
 
 ## What BDP is
 
