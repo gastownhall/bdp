@@ -1,0 +1,16 @@
+[package]
+name = "bdp-jsonpatch"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# The single shared RFC 6902 (JSON Patch) applier for the cleanroom. Every backend's `patch`
+# routes through this one crate so patch semantics are identical across fs/pg/terminus — divergent
+# per-backend appliers are exactly the class of bug Connie's conformance suite exists to catch.
+#
+# Deliberately NOT in bdp-primitives: primitives is the type-only, serde-free conformance boundary
+# (`RawJson(Bytes)` is opaque — primitives never interprets JSON). This crate operates on
+# `serde_json::Value`, i.e. JSON *behavior*, so it lives on its own. Backends convert
+# RawJson(Bytes) <-> serde_json::Value at their own call sites (they already depend on serde_json).
+[dependencies]
+serde_json = "1"

@@ -1,0 +1,26 @@
+[package]
+name = "bdp-gate"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+# The tier-1 conformance gate. The library is PURE: it derives the coverage DENOMINATOR (every
+# primitive op + its declared >=400 fault statuses) from the repo's generated v0.2.3 OpenAPI catalog,
+# read LIVE from specs/generated/ so the denominator tracks the spec (that is what makes this gate
+# lockstep). The wire-level CASES live in tests/gate.rs: they run black-box over HTTP against the
+# InMemScope reference and record which surface rows they cover, then the gate reports
+# covered-vs-uncovered (fail-if-no-coverage; strict mode gated by BDP_GATE_STRICT).
+#
+# Pin: gastownhall/bdp main @aa439827 — the #405 MERGE commit, where specs/generated/ lands.
+
+[dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+bdp-primitives = { path = "../vendor/bdp-primitives" }
+bdp-protocol = { path = "../vendor/bdp-protocol" }
+bdp-inmem = { path = "../vendor/bdp-inmem" }
+bytes = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "net", "io-util"] }

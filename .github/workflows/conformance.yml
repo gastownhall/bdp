@@ -1,0 +1,30 @@
+name: conformance
+
+# The BDP conformance gate. Self-contained Rust: builds the workspace and runs the wire-level
+# reference + liveness check. Uses the Rust toolchain preinstalled on GitHub runners (no external
+# setup action). Scoped to conformance/ so it does not run on unrelated changes.
+on:
+  pull_request:
+    paths:
+      - "conformance/**"
+      - ".github/workflows/conformance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "conformance/**"
+      - ".github/workflows/conformance.yml"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: conformance
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the gate workspace
+        run: cargo build --workspace --locked
+      - name: Run the reference + liveness gate
+        run: cargo test -p bdp-ref --locked
+      - name: Run the tier-1 conformance gate (denominator + wire cases)
+        run: cargo test -p bdp-gate --locked
