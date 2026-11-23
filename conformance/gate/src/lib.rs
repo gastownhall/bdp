@@ -194,6 +194,66 @@ pub fn source_surface() -> BTreeSet<SurfaceId> {
     out
 }
 
+/// The store-wide guarantees, parsed from `core.lumen`'s `// A conformant store keeps:` block.
+///
+/// THE CONFORMANCE WEIGHT RUNS BACKWARDS TO THE SYNTAX, and that is why this function has to exist
+/// separately from everything above it. `core.lumen` carries obligations in three registers:
+///
+/// | register            | force                                                            |
+/// |---------------------|------------------------------------------------------------------|
+/// | `/// normative:`    | the file says each one IS a conformance point                    |
+/// | `/// description:`  | carries real obligations ("under If-Match", "in commit order") — |
+/// |                     | and NO conformance force at all                                  |
+/// | plain `//`          | the 14 guarantees below — COUNTED as conformance points          |
+///
+/// So the weakest syntactic form carries weight and a stronger one carries none. Every other
+/// surface check in this crate keys on `///` — [`source_surface`] skips a non-`///` line by
+/// deliberate design, so a prose example is never mistaken for an annotation — which left the 14
+/// invisible to the gate **by construction**, not by oversight in any one predicate.
+///
+/// The hole that opened: a change to a guarantee moves the conformance-point count without moving
+/// a single wire row. `conformance.yml` triggers on `core.lumen`, so CI RUNS — and nothing asserts,
+/// so it passes. The interlock this crate exists to provide was absent for exactly the obligations
+/// that govern primitives it is about to cover (4 and 6 govern `revisions`, 12 governs `export`).
+pub fn store_wide_guarantees() -> Vec<(u8, String)> {
+    let mut out: Vec<(u8, String)> = Vec::new();
+    let mut inside = false;
+    for raw in CORE_LUMEN.lines() {
+        let line = raw.trim_start();
+        if line.starts_with("// A conformant store keeps:") {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        // A `///` line cannot appear in this block; reaching real code ends it.
+        if !line.starts_with("//") {
+            break;
+        }
+        let body = line.trim_start_matches('/').trim();
+        // `n. text` opens a guarantee; anything else is its continuation (4 and 6 wrap).
+        match body.split_once(". ") {
+            Some((n, rest)) if n.parse::<u8>().is_ok() => {
+                out.push((n.parse().unwrap(), rest.trim().to_string()));
+            }
+            _ => {
+                if body.is_empty() {
+                    // The blank `//` after guarantee 14 closes the list; the Discovery prose that
+                    // follows is NOT a guarantee and must not be swept in as a continuation.
+                    if !out.is_empty() {
+                        break;
+                    }
+                } else if let Some((_, text)) = out.last_mut() {
+                    text.push(' ');
+                    text.push_str(body);
+                }
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -294,6 +354,100 @@ mod tests {
     /// `check-generated.py` validates the pipeline from the source side. This validates it from the
     /// consumer side, independently, in a different language, with no shared code — so agreement means
     /// the generator invents no rows and drops none. A divergence here is a real signal, not noise:
+    /// The 14 store-wide guarantees, spelled out so a change to one cannot pass silently.
+    ///
+    /// SPELLED OUT IN FULL, and the brittleness is the point. A count-only assertion was already
+    /// proven inadequate on the wire surface: mutating a declared `415` to `416` left the count at
+    /// 52 and the old count-only test passed. The same hole applies here with less excuse, because
+    /// there are only 14 rows. Recording the text means an edit must be acknowledged IN THIS LIST,
+    /// and the acknowledgement is the diff.
+    ///
+    /// The cost is deliberate: rewording a guarantee — even fixing a typo — fails this test until
+    /// the expectation is updated. For 14 lines that the spec counts as conformance points, that is
+    /// the right trade. If this ever feels expensive, the question to ask is whether the guarantee's
+    /// MEANING moved, not how to make the test quieter.
+    const EXPECTED_GUARANTEES: &[(u8, &str)] = &[
+        (1, "A stable identity per resource — never reused, never changed; opaque local part."),
+        (2, "A type per resource — the (authority, type) pair, frozen at inception."),
+        (3, "A body and metadata it stores and does NOT interpret."),
+        (4, "A storage class per resource — Durable | Ephemeral | Intrinsic; whether revisions are kept is the scope's revisionModel, not a per-resource field."),
+        (5, "A revision per resource that changes exactly when its state changes."),
+        (6, "History where offered — prior revisions addressable; offered or not, discoverable."),
+        (7, "A transaction marker shared by everything committed together."),
+        (8, "A cause minted once per incoming request, stamped on every effect it sets off."),
+        (9, "A durable change record per resource per commit — none for a failed or no-change request."),
+        (10, "Provenance saved with the change, immutable, never invented."),
+        (11, "A changefeed at /sys/changes carrying every commit (replication included)."),
+        (12, "An export consistent with itself, with the cursor that matches it."),
+        (13, "An authorization view — a hidden resource reads exactly as a missing one."),
+        (14, "Deletion that does not erase — the id stays accounted for, the tombstone is kept."),
+    ];
+
+    /// The guarantees are conformance points this crate could not previously see.
+    ///
+    /// They live in plain `//` comments, and every other check here keys on `///` — so the gate was
+    /// blind to them by construction. A guarantee could be added, removed or rewritten and CI would
+    /// run (the workflow triggers on `core.lumen`) and pass, because nothing asserted anything.
+    /// Three of them are not hypothetical for this suite: 4 and 6 govern `revisions` and 12 governs
+    /// `export`, both primitives whose rows are next to be covered.
+    #[test]
+    fn the_store_wide_guarantees_have_not_moved() {
+        let found = store_wide_guarantees();
+        let expected: Vec<(u8, String)> =
+            EXPECTED_GUARANTEES.iter().map(|(n, t)| (*n, t.to_string())).collect();
+        if found == expected {
+            return;
+        }
+        let mut report = String::new();
+        for (n, text) in &expected {
+            match found.iter().find(|(m, _)| m == n) {
+                None => report.push_str(&format!("\n  REMOVED guarantee {n}: {text}")),
+                Some((_, got)) if got != text => report.push_str(&format!(
+                    "\n  CHANGED guarantee {n}:\n      was: {text}\n      now: {got}"
+                )),
+                Some(_) => {}
+            }
+        }
+        for (n, text) in &found {
+            if !expected.iter().any(|(m, _)| m == n) {
+                report.push_str(&format!("\n  ADDED guarantee {n}: {text}"));
+            }
+        }
+        panic!(
+            "the store-wide guarantees moved (expected {}, core.lumen now yields {}).{}\n\n\
+             These are COUNTED as conformance points despite living in plain `//` comments, so a \
+             change here moves the conformance surface without moving any wire row. Update this \
+             expectation in the SAME change as the spec edit, and say in the PR which cases cover \
+             the new or changed guarantee — or that none does, and why.",
+            expected.len(),
+            found.len(),
+            if report.is_empty() { "\n  (ordering changed)".to_string() } else { report },
+        );
+    }
+
+    /// A guarantee is only a tripwire if the parse actually found them, so prove the parse works
+    /// rather than trusting an empty result to mean "unchanged". An empty or truncated parse is the
+    /// failure mode that would make the test above vacuous — it would compare `[]` to `[]` if the
+    /// expectation were also derived, and silently pass if the block were renamed.
+    #[test]
+    fn the_guarantee_parse_is_not_vacuous() {
+        let found = store_wide_guarantees();
+        assert_eq!(found.len(), 14, "expected 14 guarantees, parsed {}", found.len());
+        let numbers: Vec<u8> = found.iter().map(|(n, _)| *n).collect();
+        assert_eq!(numbers, (1..=14).collect::<Vec<u8>>(), "guarantees are not 1..=14 in order");
+        assert!(
+            found.iter().all(|(_, t)| t.len() > 20 && t.ends_with('.')),
+            "a guarantee parsed as a fragment — the continuation handling is wrong"
+        );
+        // The Discovery paragraph follows the list and is NOT a guarantee. If the stop condition
+        // failed it would arrive glued onto 14.
+        let (_, last) = found.last().unwrap();
+        assert!(
+            !last.contains("Discovery advertises"),
+            "the Discovery prose was swept into guarantee 14: {last}"
+        );
+    }
+
     /// either the catalog is stale against `specs/src/`, or the lowering dropped//invented a response.
     #[test]
     fn generated_catalog_matches_the_normative_source() {
