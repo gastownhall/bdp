@@ -50,9 +50,6 @@ pub enum Style {
     None,
 }
 
-const SCOPE_VERBS: &[&str] = &["apply", "eval", "import", "export"];
-const RES_VERBS: &[&str] = &["revisions"];
-
 /// The CLOSED, fence-free set of protocol actions that may appear to the right of the fence.
 ///
 /// Closed on purpose: the spec validates the right-hand side against a known set and faults `404`
@@ -124,69 +121,48 @@ pub fn parse_raw(method: &str, raw_path: &str, decoded_path: &str) -> (Route, St
 pub fn parse(method: &str, path: &str) -> (Route, Style) {
     let p = path.trim_start_matches('/');
 
-    // 1) Scope root.
+    // 1) Scope root carries NOTHING. `create` is `POST /-/create` and `list` is `GET /-/list`;
+    //    both are fenced, so the bare root is not a route at all. It used to serve both, which is
+    //    why `create` rows were green against a path the spec does not define.
     if p.is_empty() {
-        return match method {
-            "GET" => (Route::ScopeList, Style::Restful),
-            "POST" => (Route::ScopeCreate, Style::Restful),
-            _ => (Route::Unroutable, Style::None),
-        };
+        return (Route::Unroutable, Style::None);
     }
 
-    // 2) Custom-method suffix anywhere in the (single) last segment: "id:verb" or ":verb".
+    // 2) Discovery and the non-core scope actions keep the `:verb` form, because the generated
+    //    OpenAPI does not bind them at all — its 9 paths cover the 13 primitives and nothing else.
+    //    These are the subject's own surface, so they stay where they are rather than being moved
+    //    to a convention the spec never chose for them.
     if !p.contains('/') {
-        if let Some((base, verb)) = p.rsplit_once(':') {
-            return parse_custom(method, base, verb);
+        if let Some(("", verb)) = p.rsplit_once(':') {
+            return match (method, verb) {
+                ("GET", "capabilities") => (Route::ScopeCapabilities, Style::CustomMethod),
+                ("GET", "resolve-alias") => (Route::ScopeResolveAlias, Style::CustomMethod),
+                ("POST", "apply") => (Route::ScopeApply, Style::CustomMethod),
+                ("POST", "eval") => (Route::ScopeEval, Style::CustomMethod),
+                _ => (Route::Unroutable, Style::None),
+            };
         }
-        // 3) Plain single segment: a resource id, OR a sub-path scope verb (the ambiguous case).
+        // 3) A plain segment is a RESOURCE ID and nothing else. `/{id}` carries get/put/patch/
+        //    delete in the generated paths; no verb is read out of it.
+        //
+        //    RETIRED HERE: `id:verb` parsing. It was the prototype's recommended convention, and
+        //    retiring it is what costs the four `/400` rows — they were produced by this function
+        //    rejecting a `:`-bearing id as an unknown verb, which is convention-specific behaviour
+        //    the spec never defines. A `:` is now an ordinary id character.
         return parse_plain(method, p);
     }
 
-    // 4) Two segments "id/rest": sub-path resource verb (ambiguous with a child resource).
-    if let Some((id, rest)) = p.split_once('/') {
-        if method == "GET" && RES_VERBS.contains(&rest) {
-            return (Route::Revisions(id.to_string()), Style::SubPath);
-        }
-    }
+    // 4) A slash-bearing path with no fence is not a route: ids may contain `/`, but then the
+    //    fence is what terminates them. Without one there is nothing to split on.
     (Route::Unroutable, Style::None)
 }
 
-fn parse_custom(method: &str, base: &str, verb: &str) -> (Route, Style) {
-    if base.is_empty() {
-        // scope-level custom method: "/:verb"
-        return match (method, verb) {
-            ("POST", "apply") => (Route::ScopeApply, Style::CustomMethod),
-            ("POST", "eval") => (Route::ScopeEval, Style::CustomMethod),
-            ("POST", "import") => (Route::ScopeImport, Style::CustomMethod),
-            ("GET", "export") => (Route::ScopeExport, Style::CustomMethod),
-            ("GET", "capabilities") => (Route::ScopeCapabilities, Style::CustomMethod),
-            ("GET", "resolve-alias") => (Route::ScopeResolveAlias, Style::CustomMethod),
-            _ => (Route::Unroutable, Style::None),
-        };
-    }
-    // resource-level custom method: "/{id}:verb"
-    match (method, verb) {
-        ("GET", "revisions") => (Route::Revisions(base.to_string()), Style::CustomMethod),
-        _ => (Route::Unroutable, Style::None),
-    }
-}
-
 fn parse_plain(method: &str, seg: &str) -> (Route, Style) {
-    // AMBIGUITY: with the sub-path convention a bare segment under a POST/GET could be a scope
-    // verb OR a resource id. We resolve verbs-first for the reserved set, which is exactly the
-    // collision: it steals the ids `apply`/`export`/… from the resource namespace.
+    // The AMBIGUITY this function used to carry is gone: the sub-path convention is retired, so no
+    // reserved word steals an id. `/{id}` is an id, full stop — a resource may now legitimately be
+    // called `export`, `apply` or `capabilities`, which the prototype's verbs-first resolution
+    // made unaddressable.
     match method {
-        "POST" if SCOPE_VERBS.contains(&seg) && seg != "export" => {
-            let r = match seg {
-                "apply" => Route::ScopeApply,
-                "eval" => Route::ScopeEval,
-                "import" => Route::ScopeImport,
-                _ => Route::Unroutable,
-            };
-            (r, Style::SubPath)
-        }
-        "GET" if seg == "export" => (Route::ScopeExport, Style::SubPath), // collides with Get("export")
-        "GET" if seg == "capabilities" => (Route::ScopeCapabilities, Style::SubPath), // collides with Get("capabilities")
         "GET" => (Route::Get(seg.to_string()), Style::Restful),
         "PUT" => (Route::Put(seg.to_string()), Style::Restful),
         "PATCH" => (Route::Patch(seg.to_string()), Style::Restful),
@@ -285,27 +261,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn both_conventions_resolve_the_same_route() {
-        assert_eq!(parse("POST", "/:apply").0, Route::ScopeApply);
-        assert_eq!(parse("POST", "/apply").0, Route::ScopeApply);
-        assert_eq!(parse("GET", "/note-1:revisions").0, Route::Revisions("note-1".into()));
-        assert_eq!(parse("GET", "/note-1/revisions").0, Route::Revisions("note-1".into()));
-        assert_eq!(parse("GET", "/:export").0, Route::ScopeExport);
-        // capabilities discovery resolves under both conventions too.
-        assert_eq!(parse("GET", "/:capabilities").0, Route::ScopeCapabilities);
-        assert_eq!(parse("GET", "/capabilities").0, Route::ScopeCapabilities);
-        // alias resolution (custom-method; name rides as ?name=). An id `resolve-alias` stays
-        // reachable via get (`GET /resolve-alias` → Get), since the verb is only the `:` suffix form.
-        assert_eq!(parse("GET", "/:resolve-alias").0, Route::ScopeResolveAlias);
-        assert_eq!(parse("GET", "/resolve-alias").0, Route::Get("resolve-alias".into()));
+    fn the_scope_root_is_not_a_route() {
+        // `create` and `list` are FENCED (`/-/create`, `/-/list`), so the bare root carries
+        // nothing. It used to serve both, which is why `create` rows were green against a path the
+        // generated OpenAPI does not define.
+        assert_eq!(parse("POST", "/").0, Route::Unroutable);
+        assert_eq!(parse("GET", "/").0, Route::Unroutable);
     }
 
     #[test]
-    fn subpath_collides_with_ids_but_custom_method_does_not() {
-        // The id "export" is UNREACHABLE for `get` under the sub-path convention...
-        assert_eq!(parse("GET", "/export").0, Route::ScopeExport); // wanted Get("export")!
-        // ...but the custom-method convention keeps the id namespace clean:
-        assert_eq!(parse("GET", "/export:revisions").0, Route::Revisions("export".into()));
-        assert_eq!(parse("GET", "/note-1").0, Route::Get("note-1".into()));
+    fn ids_the_old_conventions_stole_are_now_addressable() {
+        // RE-DERIVED from `subpath_collides_with_ids_but_custom_method_does_not`, which asserted
+        // the collision as a known defect — its own comment read `// wanted Get("export")!`. The
+        // prototype documented that its sub-path convention stole ids from the resource namespace
+        // and shipped a test pinning it. Retiring the convention RESOLVES it, so the test now
+        // asserts the resolution rather than the defect.
+        for id in ["export", "apply", "import", "eval", "capabilities", "resolve-alias"] {
+            assert_eq!(
+                parse("GET", &format!("/{id}")).0,
+                Route::Get(id.to_string()),
+                "the id {id:?} must be addressable; no reserved word may steal it"
+            );
+        }
+        // A `:` is now an ordinary id character — the `id:verb` form is gone, which is what costs
+        // the four `/400` rows that were produced by rejecting it as an unknown verb.
+        assert_eq!(parse("GET", "/note-1:revisions").0, Route::Get("note-1:revisions".into()));
+    }
+
+    #[test]
+    fn discovery_and_the_non_core_actions_keep_the_colon_form() {
+        // The generated OpenAPI's 9 paths cover the 13 primitives and nothing else, so it does not
+        // bind discovery, `apply`, `eval` or alias resolution at all. Those are the subject's own
+        // surface and stay where they were rather than being moved to a convention the spec never
+        // chose for them.
+        assert_eq!(parse("GET", "/:capabilities").0, Route::ScopeCapabilities);
+        assert_eq!(parse("GET", "/:resolve-alias").0, Route::ScopeResolveAlias);
+        assert_eq!(parse("POST", "/:apply").0, Route::ScopeApply);
+        assert_eq!(parse("POST", "/:eval").0, Route::ScopeEval);
     }
 }

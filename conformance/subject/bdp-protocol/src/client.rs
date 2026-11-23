@@ -247,7 +247,8 @@ impl BdpScope for RemoteScope {
         let wreq = WireCreateRequest::from_body(id.as_ref(), &body);
         let payload = serde_json::to_vec(&wreq).unwrap();
         let headers = vec![("content-type".into(), "application/json".into())];
-        let resp = self.request("POST", "/", headers, payload).await?;
+        // `create` is `POST /-/create` in the generated paths, not `POST /`.
+        let resp = self.request("POST", "/-/create", headers, payload).await?;
         if resp.status == 201 {
             write_result(&resp)
         } else if resp.status == 501 {

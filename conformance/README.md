@@ -42,17 +42,17 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 20/54**, across three case families:
+**Current coverage: 18/54**, across three case families:
 
 - **Typed happy-path** — `op/{create,get,put,patch,delete}` (the primitives the Server routes and
   InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
   `delete/404`, `delete/412`, `put/409`, `put/412` (triggered through the typed `RemoteScope`).
-- **Raw-HTTP protocol faults** — `get/400`, `create/400`, `put/400`, `delete/400`, `patch/415`, `patch/422`
+- **Raw-HTTP protocol faults** — `create/400`, `put/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches).
 
-The remaining 34 rows are uncovered for concrete, recorded reasons:
+The remaining 36 rows are uncovered for concrete, recorded reasons:
 
 - **~20 rows need the subject to route/implement 8 more primitives** — `list`, `export`, `import`,
   `pull`, `push`, `call`, `cancel`, `revisions` are not routed by the `Server` ("unmapped in the
@@ -89,6 +89,42 @@ The remaining 34 rows are uncovered for concrete, recorded reasons:
   — its expectation stays true under `permanent`, but asserting it unconditionally claims more than the
   spec grants, and the mechanism (a tombstone *revision*) would be wrong for an `unversioned` +
   `permanent` scope, which discharges the same obligation from retired-id accounting instead.
+
+### 44% of the declared fault surface has no normative producer
+
+**18 of the 41 fault rows are declared without any normative line naming what produces them.**
+Appendix D.8 is a status-to-producer table and it covers `404`, `405`, `409`, `410`, `412` and `415`.
+It does not cover:
+
+| status | rows | state |
+|---|---|---|
+| `400` | 11 | the only grounded `400` is length-related and attributed to **intermediaries, not the origin** |
+| `406` | 2 | **zero** prose anywhere — and a probe shows `Accept: application/xml` returns `200`, so it is declared, undefined *and* unimplemented |
+| `422` | 5 | mentioned only incidentally |
+
+So **the denominator counts rows the spec does not define.** 54 overstates the *defined* surface, and
+the useful question is not "what produces a `400`" but **does the surface declare faults the spec does
+not define, and for each, define it or undeclare it?** On the second answer the denominator drops toward
+36. That is a ruling rather than a gate change, and it follows the precedent set for `delete/404`:
+ground it in the spec, not in an implementation's behaviour.
+
+A related limit, from the same appendix: *"4xx/5xx — any fault — the body is the Problem, carried at the
+Problem's own status."* So **any operation may answer a status its own declaration omits.** The declared
+fault lists are a subset of what can occur, by design — which means this denominator measures the
+*declared* surface and cannot measure the reachable one.
+
+### Two rows retired with the legacy binding
+
+`get/400` and `delete/400` were produced by the router rejecting a `:`-bearing id as an unknown verb —
+the pre-0.2.3 `id:verb` convention the action fence replaces. A `:` is now an ordinary id character, so
+those requests are well-formed reads of absent resources and correctly answer `404`. There is no
+spec-grounded producer to move them to, per the table above, so they are recorded uncovered rather than
+kept alive by retaining a dead convention.
+
+**`create/400` and `put/400` survived the same change, and the difference is the lesson:** they malform
+the *body* on a valid route, which is a real producer. The retired two malformed the *id*, which was
+only a producer because of the convention. Four rows looked at risk; two actually were — and the way to
+tell was to run it, not to reason about it.
 
 ### Counting honestly
 

@@ -400,17 +400,10 @@ fn ctype(v: &str) -> Vec<(String, String)> {
     vec![("content-type".into(), v.into())]
 }
 
-/// A malformed resource id in the path → 400 bad-request. Covers op/get/fault/400.
-async fn get_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(host, "GET", "/a:b:c", vec![], b"").await? {
-        400 => Ok(vec![fault("get", 400)]),
-        s => Err(format!("expected 400 on a malformed id, got {s}")),
-    }
-}
 
 /// `POST /` (create) with a non-JSON body → 400 bad-request. Covers op/create/fault/400.
 async fn create_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(host, "POST", "/", ctype("application/json"), b"}{ not json").await? {
+    match raw_status(host, "POST", "/-/create", ctype("application/json"), b"}{ not json").await? {
         400 => Ok(vec![fault("create", 400)]),
         s => Err(format!("expected 400 on a bad create body, got {s}")),
     }
@@ -512,13 +505,24 @@ async fn patch_correct_media_type_is_accepted(host: &str) -> Result<Vec<SurfaceI
     }
 }
 
-/// `DELETE` of a malformed id → 400 bad-request. Covers op/delete/fault/400.
-async fn delete_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(host, "DELETE", "/a:b:c", vec![], b"").await? {
-        400 => Ok(vec![fault("delete", 400)]),
-        s => Err(format!("expected 400 on a malformed id, got {s}")),
-    }
-}
+
+/// RETIRED, not lost: `get/400` and `delete/400`.
+///
+/// Both were produced by the router rejecting a `:`-bearing id as an unknown verb — the prototype's
+/// `id:verb` convention, which the 0.2.3 action fence replaces. A `:` is now an ordinary id
+/// character, so `GET /a:b:c` is a well-formed read of an absent resource and correctly answers
+/// 404.
+///
+/// There is NO spec-grounded producer to move them to. `400` is declared on 11 of the 13 operations
+/// and Appendix D.8 — which names a producer for 404, 405, 409, 410, 412 and 415 — names none for
+/// it. The only `400` the spec grounds is a length-related one it attributes to intermediaries
+/// rather than the origin.
+///
+/// `create/400` and `put/400` SURVIVED the same change, and the difference is the point: they
+/// malform the BODY on a valid route, which is a real producer. These two malformed the ID, which
+/// was only a producer because of the convention. Four rows looked at risk; two actually were.
+///
+/// Recorded uncovered-with-reason rather than kept alive by retaining a dead convention.
 
 // ---- harness ----------------------------------------------------------------
 
@@ -610,10 +614,8 @@ async fn no_case_passes_against_a_subject_that_implements_nothing() {
 /// everything in it still does. Adding an entry to silence a failure, rather than because the row
 /// is genuinely produced pre-scope, defeats the whole test.
 const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
-    ("get", 400),
     ("create", 400),
     ("put", 400),
-    ("delete", 400),
     ("patch", 415),
 ];
 
@@ -706,7 +708,6 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("delete/412", &mut covered, &mut failures, delete_stale_412(&remote)).await;
     record("delete/404", &mut covered, &mut failures, delete_never_existed_404(&remote)).await;
     record("delete idempotent", &mut covered, &mut failures, delete_twice_is_idempotent(&remote)).await;
-    record("get/400 (raw)", &mut covered, &mut failures, get_malformed_400(&addr)).await;
     record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;
     record("put/400 (raw)", &mut covered, &mut failures, put_malformed_400(&addr)).await;
     record("patch/422 (raw)", &mut covered, &mut failures, patch_unprocessable_422(&addr)).await;
@@ -725,7 +726,6 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         patch_correct_media_type_is_accepted(&addr),
     )
     .await;
-    record("delete/400 (raw)", &mut covered, &mut failures, delete_malformed_400(&addr)).await;
 
     (covered, failures)
 }
