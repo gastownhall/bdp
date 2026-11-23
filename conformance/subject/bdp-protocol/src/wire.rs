@@ -759,6 +759,48 @@ pub fn caps_from_wire(wire: Vec<WireCapability>) -> Vec<p::PrimitiveCapabilities
     wire.into_iter().map(WireCapability::into_trait).collect()
 }
 
+/// One line of an `export` JSONL stream.
+///
+/// `Begin` and `End` are FRAMES rather than records: the cursor the export is consistent as of,
+/// and the count that closes it. A reader never infers which it holds from position in the stream.
+///
+/// EXTERNALLY TAGGED, for the same reason [`WireRepresentation`] is, documented above it: serde's
+/// internally-tagged form cannot round-trip the `RawValue` property/metadata bodies a
+/// representation carries. This enum was first written `#[serde(tag = "kind")]` and failed at run
+/// time with *"invalid type: newtype struct"* — an internally-tagged outer enum pulls its content
+/// through a buffering deserializer that `RawValue` rejects. Carries the same FRICTION as
+/// `WireRepresentation`: the spec would discriminate these structurally, not by an envelope tag.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum WireExportRecord {
+    Begin { cursor: String },
+    Record { resource: WireRepresentation },
+    End { count: u64 },
+}
+
+impl WireExportRecord {
+    pub fn from_trait(rec: &p::ExportRecord) -> Self {
+        match rec {
+            p::ExportRecord::Begin(b) => {
+                Self::Begin { cursor: String::from_utf8_lossy(&b.cursor.0).to_string() }
+            }
+            p::ExportRecord::Record(rep) => {
+                Self::Record { resource: WireRepresentation::from_trait(rep) }
+            }
+            p::ExportRecord::End(e) => Self::End { count: e.count },
+        }
+    }
+
+    pub fn into_trait(self) -> p::ExportRecord {
+        match self {
+            Self::Begin { cursor } => p::ExportRecord::Begin(p::ExportBegin {
+                cursor: p::Cursor(bytes::Bytes::from(cursor.into_bytes())),
+            }),
+            Self::Record { resource } => p::ExportRecord::Record(resource.to_trait()),
+            Self::End { count } => p::ExportRecord::End(p::ExportEnd { count }),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

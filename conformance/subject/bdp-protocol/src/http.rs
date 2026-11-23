@@ -60,6 +60,18 @@ impl HttpResponse {
         r.body = body;
         r
     }
+    /// `application/jsonl` — newline-delimited records, one JSON value per line.
+    ///
+    /// `export` is the only primitive whose success response DECLARES a content type
+    /// (`success = { status = 200, contentType = "application/jsonl" }`); every other one is
+    /// `application/json` by default. Serving an export as a JSON array would be a different wire
+    /// shape from the declared one, so this exists rather than reusing [`Self::json`].
+    pub fn jsonl(status: u16, body: Vec<u8>) -> Self {
+        let mut r = Self::new(status);
+        r.headers.push(("content-type".into(), "application/jsonl".into()));
+        r.body = body;
+        r
+    }
     pub fn header(mut self, name: &str, value: &str) -> Self {
         self.headers.push((name.into(), value.into()));
         self

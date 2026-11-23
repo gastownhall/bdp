@@ -12,7 +12,7 @@ use bdp_primitives as p;
 use bdp_primitives::BdpScope;
 
 use crate::http::{read_request, write_response, HttpRequest, HttpResponse};
-use crate::wire::{WireCreateRequest, WireProblem, WireRepresentation, WireResourceId, WireWrite};
+use crate::wire::{WireCreateRequest, WireExportRecord, WireProblem, WireRepresentation, WireResourceId, WireWrite};
 
 pub struct Server<S: BdpScope> {
     scope: S,
@@ -64,8 +64,8 @@ impl<S: BdpScope> Server<S> {
             Route::ScopeApply => self.do_apply(&req).await,
             Route::ScopeCapabilities => self.do_capabilities(),
             Route::ScopeResolveAlias => self.do_resolve_alias(&req).await,
-            Route::ScopeList => unmapped("list not mapped in the spike"),
-            Route::ScopeExport => unmapped("export not mapped in the spike"),
+            Route::ScopeList => self.do_list(&req).await,
+            Route::ScopeExport => self.do_export(&req).await,
             Route::ScopeEval => unmapped("eval not mapped in the spike"),
             Route::ScopeImport => unmapped("import not mapped in the spike"),
             Route::Revisions(id) => self.do_revisions(&req, &id).await,
@@ -184,6 +184,74 @@ impl<S: BdpScope> Server<S> {
                 let body = serde_json::to_vec(&wire).unwrap();
                 attach(HttpResponse::json(201, body).header("location", &location), &res.protocol)
             }
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// `GET /-/list` — the scope's current resources as a JSON array of refs.
+    ///
+    /// A `where` FILTER IS REFUSED, NOT IGNORED. `list` declares `where` as a query param
+    /// (`schema = "Filter"`), and `InMemScope::list` really does evaluate conditions — but this
+    /// binding has no wire encoding for a `Filter`, and the spec does not pin one. Accepting the
+    /// parameter and listing everything would hand back an unfiltered answer to a caller who
+    /// believes they filtered: the same defect as `do_put` reading no `If-Match` (#419) and as
+    /// treating an unknown `If-None-Match` as `*`. So an un-encodable filter is an un-offered
+    /// capability, and the spec is explicit that "an optional feature is never half-present".
+    ///
+    /// `RemoteScope` therefore advertises `ListCaps { conditions: [] }` over this binding, so a
+    /// client learns from discovery not to send one rather than learning from a 501.
+    async fn do_list(&self, req: &HttpRequest) -> HttpResponse {
+        if req.query.contains_key("where") {
+            return unmapped(
+                "list `where` filtering is not carried by this binding — no wire encoding for a \
+                 Filter is pinned, so the capability is not offered here rather than ignored",
+            );
+        }
+        let page = p::Page {
+            after: None,
+            from: None,
+            limit: req.query.get("limit").and_then(|s| s.parse::<u32>().ok()),
+        };
+        match self.scope.list(&p::ListFilter(vec![]), page).await {
+            Ok(res) if res.not_implemented => unmapped("list not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(ids) => {
+                    let wire: Vec<WireResourceId> = ids.iter().map(WireResourceId::from_trait).collect();
+                    let body = serde_json::to_vec(&wire).unwrap();
+                    attach(HttpResponse::json(200, body), &res.protocol)
+                }
+                None => unmapped("list returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// `GET /-/export` — the scope as JSONL. `?revisions=true` emits every revision in order.
+    ///
+    /// The declared content type is `application/jsonl`, so the body is newline-delimited records
+    /// and NOT a JSON array. Begin and End frame the stream: the cursor the export is consistent
+    /// as of, and the record count, which is what makes it a backup rather than a read.
+    async fn do_export(&self, req: &HttpRequest) -> HttpResponse {
+        if req.query.contains_key("where") {
+            return unmapped(
+                "export `where` filtering is not carried by this binding — same reason as `list`",
+            );
+        }
+        let revisions = req.query.get("revisions").map(|s| s == "true").unwrap_or(false);
+        let page = p::Page { after: None, from: None, limit: None };
+        match self.scope.export(&p::ListFilter(vec![]), None, revisions, page).await {
+            Ok(res) if res.not_implemented => unmapped("export not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(records) => {
+                    let mut body = Vec::new();
+                    for rec in &records {
+                        body.extend_from_slice(&serde_json::to_vec(&WireExportRecord::from_trait(rec)).unwrap());
+                        body.push(b'\n');
+                    }
+                    attach(HttpResponse::jsonl(200, body), &res.protocol)
+                }
+                None => unmapped("export returned no value"),
+            },
             Err(e) => problem_response(&e),
         }
     }
