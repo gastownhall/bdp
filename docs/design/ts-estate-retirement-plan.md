@@ -165,6 +165,28 @@ well-formed with every `$ref` resolving. Nothing checks their *behaviour*. The R
 core-only by construction; its own test is named
 `denominator_has_13_ops_and_matches_core_primitives`.
 
+**Sized.** The storage lane measured its own suite against this: 34 behavioural cases — 15
+`core`, 10 `errors`, 6 `query`, 3 `revision` — and **not one** references `issue`, `memory`,
+`ops`, `stdlib` or the type system. There is no pack family in its `src/cases/` at all. Set
+against the normative-line counts (re-derived here at `c511f88c`, core-only vs all-source as
+established):
+
+| | normative lines | behavioural cases |
+|---|---|---|
+| `core` | 67 + 14 store-wide guarantees = 81 | 34 |
+| **packs** | **39** (issue 8, memory 6, ops 6, stdlib 19), no store-wide list in any | **zero** |
+
+So the number for this hole is **39 normative lines with nothing behind them**. A grid reading
+321 pass / 0 fail / 66 skip across nine columns is evidence about core's primitives on three
+backends and says nothing whatever about those 39 — they are not under-reported by that grid,
+they are outside its denominator.
+
+And the pack *fault* surface is worse than unmeasured: seven Problem codes are declared in
+prose only (six in `stdlib`'s declared block, one in `ops`) and reach no generated artifact, so
+they cannot be enumerated at all. Two further names in that block are core codes deliberately
+reused, which means a pack-inclusive denominator cannot be computed by addition — it has to
+deduplicate against core's 54.
+
 So the packs and the type system have no behavioural conformance **before or after this
 retirement**. Retiring the estate does not create that gap — it makes it visible, by removing
 the large suite whose presence implied the repository was broadly verified. That is worth
