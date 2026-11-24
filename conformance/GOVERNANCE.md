@@ -156,8 +156,8 @@ edit moves the denominator, its eight new params move nothing.
 
 | pin | location |
 |---|---|
-| `EXPECTED_SURFACE` — op→fault-status membership | `conformance/gate/src/lib.rs:472` |
-| `SCOPE_INDEPENDENT_ROWS` | `conformance/gate/tests/gate.rs:1423` |
+| `EXPECTED_SURFACE` — op→fault-status membership | `conformance/gate/src/lib.rs` |
+| `SCOPE_INDEPENDENT_ROWS` | `conformance/gate/tests/gate.rs` |
 
 The gate's own failure text: *"Review the delta, then update EXPECTED_SURFACE and tests/gate.rs
 TOGETHER."* **A spec change and its re-pin cannot land separately** — either half alone leaves
@@ -197,8 +197,9 @@ join with a single space). Changing the header, the numbering form, or dropping 
 
 **`/// normative:`** — parsed anchored (prefix after `trim_start`), because the file documents that
 very annotation using it; an unanchored `grep -c` over-counts by 2. Two literal fragments
-(`lib.rs:383`) exclude the self-documentation, and the test asserts they are **absent from the parse
-and still present in the file**, so it cannot rot. **79 obligations.**
+(`SELF_DOCUMENTATION_FRAGMENTS` in `conformance/gate/src/lib.rs`) exclude the self-documentation, and
+the test asserts they are **absent from the parse and still present in the file**, so it cannot rot.
+**79 obligations.**
 
 **A worked instance.** The author of gastownhall/bdp#432 reported the obligation count going
 **81 → 87**. The anchored parse gives **79 → 85**: the *delta* was right, the absolute was two high,
