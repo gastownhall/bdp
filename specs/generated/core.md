@@ -1522,7 +1522,7 @@ Note: a separate id proposal was folded into the `resource` ref. The guards (ifR
 
 JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 
-> **Normative.** A `patch` targeting the immutable envelope (`/id`, `/provenance`, `/createdAt`) or a computed property FAULTS; they are read-only.
+> **Normative.** A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
 
 ```lumen
 command patch(
