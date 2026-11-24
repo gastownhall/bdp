@@ -75,6 +75,8 @@ type Scope =
 
 A resource-version token — opaque by definition; compared for exact equality only, never inspected.
 
+> **Normative.** A `Rev` is opaque: compared for equality only, never parsed or inspected.
+
 > **Normative.** The revision changes exactly when the resource's state changes; a write that would leave the state unchanged mints no new revision (and produces no event).
 
 ```lumen
@@ -341,7 +343,7 @@ type Provenance = {
 | Member | Type | Description |
 |---|---|---|
 | `principals` | `[ Principal ]` | The principals who took part in the change. May be empty for observed or baseline revisions. |
-| `inception` | `"create" \| "import" \| "unknown"` | How the Resource's present period began — freshly created, imported, or unknown. A deleted identity is terminal and never revived. |
+| `inception` | `"create" \| "import" \| "unknown"` | How the Resource's present period began — freshly created, imported, or unknown. Under `permanent` a deleted identity is terminal and never reused; under `reusable` a retired id MAY be reminted per the scope's id model ([IdModel](#IdModel)). |
 | `committedAt` | `Timestamp` | When this revision committed; server-supplied, never request input. |
 | `previousRevision?` | `Rev` | The before-image pointer — the basis for compensation. Null on create; structural lineage, often known even when the principals are not. |
 | `message?` | `string` | An optional free-text note describing the change. |
@@ -399,6 +401,8 @@ type IdentityBasis = union {
 
 How a Resource is kept — whether it is persisted, not whether it is versioned (that is the scope's revision model). Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
 
+> **Normative.** Export (the primitive) includes only `Durable` resources; `StorageClass` is per-resource, so a `Durable` scope MAY hold individual `Ephemeral` resources, and an `Ephemeral` resource is local state that is NEVER included in an export stream; `Intrinsic` is computed by the service, not stored.
+
 > **Normative.** Whether revisions are kept is a SCOPE-WIDE property, not per-resource: a scope's `revisionModel` ([RevisionModel](#RevisionModel), advertised in discovery) is `versioned` (mints revisions; write refs `pinned`) or `unversioned` (mints none; write refs relax to `unpinned`). StorageClass is orthogonal — it says only whether a resource is persisted.
 
 ```lumen
@@ -420,6 +424,8 @@ type StorageClass = union {
 ### `Timestamp`
 
 RFC 3339 date-time; uppercase `T` and `Z`.
+
+> **Normative.** A `Timestamp` is RFC 3339 with an uppercase `T` and `Z`.
 
 ```lumen
 type Timestamp is string
@@ -825,6 +831,8 @@ type Cursor is string
 
 The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
 
+> **Normative.** `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/export) refuses `format=sse` and faults `400`.
+
 ```lumen
 type Transport = "json" | "jsonl" | "sse"
 ```
@@ -834,6 +842,8 @@ type Transport = "json" | "jsonl" | "sse"
 ### `ReadRequest`
 
 The input to a streaming read ([pull](#pull) / [list](#list) / [revisions](#revisions)) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+
+> **Normative.** Supplying both `after` and `from` is malformed and faults `400`.
 
 ```lumen
 type ReadRequest = {
@@ -1273,6 +1283,8 @@ fn call(
 
 Kill -9 on a running AsyncResult — writes `reply.outcome = canceled`. Runs no compensation (that is the scheduler's graceful path); its effects stay findable via `causedBy`.
 
+> **Normative.** `cancel` settles an async result as `canceled` and runs NO compensation; effects already produced stay findable via `causedBy`.
+
 ```lumen
 command cancel(
     asyncResult: unpinned<AsyncResult>
@@ -1470,6 +1482,8 @@ command create(
 
 Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
 
+> **Normative.** `put` replaces resource state wholesale (a full-state write), NOT a merge.
+
 > **Normative.** A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.
 
 > **Normative.** WRITE GUARDS ARE PRECONDITIONS, NEVER BODY. A guard rides the request line (a header or the query string), never the payload — so a `put` body stays exactly the resource representation and a `patch` body stays exactly the JSON Patch, unwrapped and correctly typed. Three guards, carried by `put`, `patch` and `delete` (`put` also carries the second): (1) `ifRevision` → `If-Match: "<Rev>"` (the `Rev` as a double-quoted strong entity-tag, RFC 9110 §8.8.3), the optimistic-concurrency / revision guard — a stale value makes no change and faults `revision-mismatch` (412); (2) `ifAbsent` → `If-None-Match: *`, create-if-absent — the write applies only if nothing is there, else faults `identity-taken` (409 — the same status as a `create` collision, so a client has one id-taken handler) (`put` only); (3) `precondition` → `?precondition=<Filter>`, a STATE guard — the write applies only if the current resource satisfies the Filter, else faults `precondition-failed` (412). The state guard is the same flat-AND [Filter](#Filter) grammar `list` uses, projected onto the query string exactly like a read filter. A guard too large for the URL budget MAY spill to an OPTIONAL, advertised `query`-tier body-form (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`) carrying an [Envelope](#Envelope) — `{ precondition?, representation }` for put (the FULL representation, never a bare body), `{ precondition?, patch }` for patch, `{ precondition? }` for delete — the one place an envelope appears; the `If-Match`/`If-None-Match` guards keep riding their headers, and a scope that does not advertise spill rejects an over-budget guard with `request-too-large`. See Appendix D. There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
@@ -1507,6 +1521,8 @@ Note: a separate id proposal was folded into the `resource` ref. The guards (ifR
 ### `patch`
 
 JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+
+> **Normative.** A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
 
 ```lumen
 command patch(
@@ -1975,6 +1991,8 @@ type ExportBegin = {
 
 The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
 
+> **Normative.** An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.
+
 ```lumen
 type ExportEnd = {
   kind:  "export-end",
@@ -2058,6 +2076,8 @@ type ImportReport = {
 ### `import`
 
 The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
+
+> **Normative.** `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
 
 ```lumen
 command import(
