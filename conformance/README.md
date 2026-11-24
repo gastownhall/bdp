@@ -140,13 +140,15 @@ The remaining 25 rows are uncovered for concrete, recorded reasons:
   never reached a state the wire could report on. They are unit tests rather than gate cases because
   the reference server never writes a truncated stream, so no case driven through it can produce the
   input, and fault injection would mean a server that lies on request.
-  **Whether this discharges the spec obligation is NOT settled.** The line reads *"an export MUST end
-  with the `ExportEnd` line; a reader refuses a file ending without it (truncation detection) and MUST
-  NOT treat it as whole"*, and it does not name which reader. One reading is the `export` client
-  reading the response stream (fixed here); another is `import` consuming a previously-written export
-  file, which is under ruling. Those are not exclusive — both are readers — so this is recorded as a
-  real defect fixed and reader-side strictness gained, not as an obligation closed. If the ruling
-  names `import`, `import` needs the same guard when it is bound.
+  **RULED, and the obligation now names its subject.** When this landed, the line did not say which
+  reader was bound, so it was recorded as a defect fixed rather than an obligation discharged. #428's
+  merged text settles it: *"An export MUST end with the `ExportEnd` line. ANY reader of an export
+  stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT
+  treat it as whole."* So this refusal is **on-obligation**, not merely strictness gained — and
+  `ExportEnd` is a truncation sentinel on the FORMAT, which is why it binds every consumer rather
+  than one named primitive. The obligation is still **waived** in the tier-2 ledger, not behavioural:
+  "any reader" is not discharged while `import` — the other reader — is unbound, and `import` needs
+  the same guard when it is bound. The export half is covered by `export_truncation_tests`.
 - **The faults on routed ops are NOT reachable by probing — measured, not estimated.** This list
   previously claimed ~14 of them were "reachable with more raw-HTTP probing". That was speculation and
   it was wrong: every candidate was probed against the subject and **none is producible without a
