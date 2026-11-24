@@ -193,6 +193,13 @@ very annotation using it; an unanchored `grep -c` over-counts by 2. Two literal 
 (`lib.rs:383`) exclude the self-documentation, and the test asserts they are **absent from the parse
 and still present in the file**, so it cannot rot. **79 obligations.**
 
+**A worked instance.** The author of gastownhall/bdp#432 reported the obligation count going
+**81 → 87**. The anchored parse gives **79 → 85**: the *delta* was right, the absolute was two high,
+because the unanchored `grep` had picked up the two self-documentation lines. That is the fourth time
+this file has produced that exact off-by-two — three times for the suite lead, once for an independent
+author. The file documents its own annotation using that annotation, so the over-count is a property of
+the file's shape rather than of anyone's carelessness.
+
 ## 6. The silent trap: the obligation ledger is report-only
 
 Rewording, adding or removing a `/// normative:` line shifts the registered/unregistered partition.
