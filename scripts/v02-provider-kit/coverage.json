@@ -15,16 +15,16 @@
           "anchor": "Rev#1",
           "sha256": "4fc8357f70cae9e6d5f2f0feb1f3bc9380a2f79d266883dda6653189441dc8f8",
           "checks": [
-            "core.stability"
+            "core.stability",
+            "core.point-read"
           ]
         },
         {
           "anchor": "Rev#2",
           "sha256": "c0b86f88f570951a6ae59677c20ea73565d9420b568c1cc55741c0aa1eaadd06",
           "checks": [
-            "core.read-only"
-          ],
-          "appliesWhen": "unoffered-write"
+            "core.stability"
+          ]
         },
         {
           "anchor": "Digest#1",
@@ -67,8 +67,7 @@
           "anchor": "PathString#1",
           "sha256": "744e70110420aa9e5a93e33975c0c851e197b5395abd367c06c4662c9b8cd7a6",
           "checks": [
-            "core.discovery",
-            "core.representations"
+            "core.discovery"
           ]
         },
         {
@@ -115,7 +114,7 @@
           "anchor": "StorageClass#1",
           "sha256": "22952cd7713e5a506a8a8f4d6ffca58e37d9172924961b68a710915e313c155c",
           "checks": [
-            "core.discovery",
+            "core.export",
             "core.representations"
           ]
         },
@@ -123,7 +122,8 @@
           "anchor": "StorageClass#2",
           "sha256": "154f38f55b16d030069c09fec0352a690b48fd98964b381ef0d3b02968480044",
           "checks": [
-            "core.discovery"
+            "core.discovery",
+            "core.representations"
           ]
         },
         {
@@ -350,7 +350,6 @@
           "sha256": "99596dda2c9830a33c31f08d858195772b643c16c9c52f4651d2f59f7eac6df0",
           "checks": [
             "core.absence",
-            "core.list-filter",
             "stdlib.query-rejections"
           ]
         },
@@ -817,7 +816,7 @@
   "appendixE": [
     {
       "number": 1,
-      "statement": "A stable identity per resource — never reused, never changed; opaque local part.",
+      "statement": "A stable identity per resource — never changed, and under `permanent` never reused; opaque local part. Under `reusable` a retired id MAY be minted again, which is what that model declares.",
       "checks": [
         "core.inventory",
         "core.stability"
@@ -841,7 +840,7 @@
     },
     {
       "number": 4,
-      "statement": "A storage class per resource — Durable | Ephemeral | Intrinsic; whether",
+      "statement": "A storage class per resource — Durable | Ephemeral | Intrinsic; whether revisions are kept is the scope revisionModel, not a per-resource field.",
       "checks": [
         "core.representations",
         "core.restart"
@@ -849,7 +848,7 @@
     },
     {
       "number": 5,
-      "statement": "A revision per resource that changes exactly when its state changes.",
+      "statement": "Under `versioned`, a revision per resource that changes exactly when its state changes. Under `unversioned` no revision is minted and `rev` is absent everywhere, so this guarantee is vacuous rather than violated.",
       "checks": [
         "core.point-read",
         "core.stability"
@@ -905,7 +904,7 @@
     },
     {
       "number": 12,
-      "statement": "An export consistent with itself, with the cursor that matches it.",
+      "statement": "Where `export` is offered, an export consistent with itself, with the cursor that matches it.",
       "checks": [
         "core.export"
       ]
@@ -919,7 +918,7 @@
     },
     {
       "number": 14,
-      "statement": "Deletion that does not erase — the id stays accounted for, the tombstone is kept.",
+      "statement": "Where `delete` is offered, deletion that does not erase — under `permanent` the id stays accounted for, and where the scope is also `versioned` the tombstone revision is kept. A `reusable` scope retains neither record; that is the declared model, not a breach of this guarantee.",
       "checks": [
         "core.read-only"
       ],
