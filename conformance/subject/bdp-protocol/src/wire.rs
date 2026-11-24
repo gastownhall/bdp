@@ -502,6 +502,18 @@ impl WireProblem {
                 (422, "limit-exceeded", "Request exceeds advertised limits", Some(detail.clone()))
             }
             p::BdpError::CursorExpired(_) => (410, "cursor-expired", "Cursor expired", None),
+            // `cancel` on an already-settled `AsyncResult`. A STATE conflict, so it carries its own
+            // 409 code and never `constraint-violation` — the same separation Lydia §71 draws for
+            // `already-exists`. D.9 NAMES NO CODE for this conflict (`precondition-failed` is 412's
+            // and belongs to the `?precondition=` guard; `identity-taken` is the claiming path), so
+            // this one is coined. The declared surface counts the STATUS, which is what the gate
+            // keys on; the code is how a client tells this 409 from the other two.
+            p::BdpError::AlreadySettled { id } => (
+                409,
+                "already-settled",
+                "AsyncResult already settled",
+                Some(format!("{:?} carries a reply, so it is not running", id)),
+            ),
             p::BdpError::Backend(m) => (500, "backend", "Backend error", Some(m.clone())),
         };
         (
@@ -587,6 +599,10 @@ pub enum WireCapability {
     },
     #[serde(rename = "call")]
     Call { #[serde(rename = "asyncSupported", default)] async_supported: bool },
+    /// `cancel` carries no optional sub-capability (see `CancelCaps`), so the arm is empty and its
+    /// PRESENCE is the whole advertisement — like `unversioned`.
+    #[serde(rename = "cancel")]
+    Cancel {},
     #[serde(rename = "aliases")]
     Aliases { #[serde(default)] indexed: bool },
     #[serde(rename = "unversioned")]
@@ -648,6 +664,7 @@ impl WireCapability {
                 bdp_ast: x.bdp_ast, bdp_text: x.bdp_text, lumen_ast: x.lumen_ast, lumen_text: x.lumen_text, stg_specific: x.stg_specific,
             },
             C::Call(x) => WireCapability::Call { async_supported: x.async_supported },
+            C::Cancel(_) => WireCapability::Cancel {},
             C::Aliases(a) => WireCapability::Aliases { indexed: a.indexed },
             C::Unversioned(_) => WireCapability::Unversioned {},
             _ => return None,
@@ -678,6 +695,7 @@ impl WireCapability {
                 bdp_ast, bdp_text, lumen_ast, lumen_text, stg_specific,
             }),
             WireCapability::Call { async_supported } => PrimitiveCapabilities::Call(CallCaps { async_supported }),
+            WireCapability::Cancel {} => PrimitiveCapabilities::Cancel(CancelCaps {}),
             WireCapability::Aliases { indexed } => PrimitiveCapabilities::Aliases(AliasesCaps { indexed }),
             WireCapability::Unversioned {} => PrimitiveCapabilities::Unversioned(UnversionedCaps {}),
         }

@@ -87,6 +87,11 @@ impl Store {
     }
 }
 
+/// The bead `kind` a minted `AsyncResult` carries. `cancel`'s parameter is a TYPED ref
+/// (`unpinned<AsyncResult>`), so a target of any other kind does not resolve as a handle — which
+/// is what makes a note's id a 404 here rather than a 409.
+const ASYNC_RESULT_KIND: &str = "asyncResult";
+
 /// An opened, in-memory BDP scope, bound to one scope name (like `PgScope`). Cheap to construct;
 /// `Default` gives a scope named `"inmem"`.
 pub struct InMemScope {
@@ -124,6 +129,61 @@ impl InMemScope {
             Scope::Web => "WEB".to_string(),
             Scope::Named(n) => n.0.to_string(),
         }
+    }
+
+    /// Mint the `AsyncResult` bead a `?mode=async` call is accepted as.
+    ///
+    /// Members written are exactly `AsyncResult`'s declared ones. Two are worth stating:
+    ///
+    /// * `cause` and `callId` are STRINGS (`type Cause is string`, `type CallId is string`) and sit
+    ///   at TOP LEVEL rather than inside `reply`, because the type keeps them there *"(queryable
+    ///   while pending, before `reply`)"*. `cancel` reads them back and carries them into the Reply
+    ///   it writes, which is what makes the settlement correlatable to the call.
+    /// * `reply` is ABSENT, which is what "pending" means — *"the settlement, once it arrives
+    ///   (absent while pending)"*, and `Outcome`'s normative line is explicit that a transient
+    ///   state is NOT an arm, so there is no `running` outcome to write instead.
+    ///
+    /// **This store has no scheduler, so a minted handle stays pending forever.** That is what
+    /// makes it cancellable at all, and it is also the limit of what this subject can reach: the
+    /// race `cancel`'s 409 is really about — the operation settling on its own just before the
+    /// cancel lands — needs something that settles, and nothing here does. The 409 is reached
+    /// instead by cancelling twice, which is the same *state* (`reply` present) by a different road.
+    ///
+    /// `replyChannel: ref<Channel>` is required, so it is written — refs do not have to resolve
+    /// locally, and this one does not: it names an INTRINSIC per-call stream this store never
+    /// materializes. It is given an id derived from the handle's own (ids are free, slash-bearing
+    /// strings per D.1, so this invents no noun root), and that derivation is **this subject's own
+    /// naming with no spec basis** — flagged rather than dressed up. Nothing can observe it here:
+    /// `pull` is not offered, so there is no primitive that would read the channel. The ref
+    /// ENCODING (bare `{"id": …}`) is likewise the unpinned one the rest of this store uses.
+    fn mint_async_result(
+        &self,
+        operation: &ResourceId,
+        request: &Request,
+    ) -> Result<ResourceId, BdpError> {
+        let id = Uuid::new_v4().to_string();
+        // `request: Request` is "the original request" — stored verbatim, as an opaque value. A
+        // body that is not JSON would make the bead unstorable, so it is refused here rather than
+        // written as a string that later readers would have to guess at.
+        let request_json: serde_json::Value = serde_json::from_slice(request.0 .0.as_ref())
+            .map_err(|e| BdpError::Unprocessable(format!("call request is not json: {e}")))?;
+        let properties = serde_json::json!({
+            "operation":    { "id": operation.id.0.to_string() },
+            "cause":        format!("inmem-cause-{}", Uuid::new_v4()),
+            "callId":       format!("inmem-call-{}", Uuid::new_v4()),
+            "request":      request_json,
+            "replyChannel": { "id": format!("{id}/reply") },
+        });
+        self.commit(&[Write::Create {
+            id: Some(Id(id.into())),
+            body: CreateBody {
+                kind: Kind(ASYNC_RESULT_KIND.into()),
+                r#type: ResourceId::head(Scope::This, Id("BeadType:asyncResult".into())),
+                properties: RawJson(Bytes::from(serde_json::to_vec(&properties).unwrap())),
+                metadata: RawJson(Bytes::from_static(b"{}")),
+            },
+        }])
+        .map(|mut v| v.pop().expect("one write, one ref"))
     }
 
     /// The `apply` boundary: a single exclusive write guard over the whole write-set with
@@ -661,10 +721,14 @@ impl BdpScope for InMemScope {
             PrimitiveCapabilities::Export(ExportCaps { revisions: true }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
-            // `async_supported: false` — this store settles every call synchronously. It mints no
-            // `AsyncResult`, so `?mode=async` is unimplemented rather than merely unused, and
-            // advertising it would promise a 202 + Location this store cannot produce.
-            PrimitiveCapabilities::Call(CallCaps { async_supported: false }),
+            // `async_supported: true` — `?mode=async` now MINTS an `AsyncResult` and answers 202
+            // with it, so the promise this flag makes is one the store keeps. It went from `false`
+            // to `true` in the same change that added the minting; advertising it earlier would
+            // have promised a 202 + Location nothing produced.
+            PrimitiveCapabilities::Call(CallCaps { async_supported: true }),
+            // `cancel` — advertised separately, because §3.3 indexes `call` and `cancel` as two
+            // primitives each "present iff advertised". This store can kill a pending handle.
+            PrimitiveCapabilities::Cancel(CancelCaps {}),
             PrimitiveCapabilities::List(ListCaps {
                 conditions: vec![
                     ConditionKind::Compare,
@@ -932,7 +996,7 @@ impl BdpScope for InMemScope {
     /// So an unresolvable `operation` is an `Err` (a Problem) and a *declared* failure is an
     /// `Ok` carrying a settled `Outcome`. Collapsing the two would erase the only distinction
     /// that says whether the operation ran.
-    async fn call(&self, operation: &ResourceId, request: Request)
+    async fn call(&self, operation: &ResourceId, request: Request, mode: CallMode)
         -> Result<BdpResult<CallOutcome>, BdpError> {
         // --- PRE-dispatch: resolve the operation. Faults as a Problem, no Outcome.
         let implementation = {
@@ -956,6 +1020,16 @@ impl BdpScope for InMemScope {
             return Err(BdpError::NotFound(operation.clone()));
         };
 
+        // --- ASYNC: mint the handle INSTEAD of settling. Resolution above still happened first,
+        // because the dispatch rule's PRE-dispatch channel does not depend on the mode: an
+        // unresolvable `operation` faults as a bare Problem whether or not async was asked for.
+        // Nothing is recorded for a call that could not run, async included.
+        if mode == CallMode::Async {
+            let _ = builtin; // resolved, deliberately NOT run — that is what "async" means here.
+            let handle = self.mint_async_result(operation, &request)?;
+            return Ok(one_outcome(handle));
+        }
+
         // --- POST-dispatch: the operation ran, so whatever happened rides the Outcome.
         //
         // `Outcome` lowers INTERNALLY TAGGED — `kind` is explicit in the body precisely so a
@@ -977,9 +1051,110 @@ impl BdpScope for InMemScope {
         let reply = format!(
             // `cause` and `callId` are REQUIRED members of `Reply`; `transaction` and `metadata`
             // are optional and omitted rather than sent empty.
-            r#"{{"outcome":{outcome},"cause":{{"id":"inmem-cause"}},"callId":{{"id":"inmem-call"}}}}"#
+            //
+            // Both are STRINGS, not objects: `type Cause is string` and `type CallId is string`.
+            // This used to emit `{{"id":"inmem-cause"}}`, which no declaration supports — caught
+            // while choosing the encoding for the same two members on a minted `AsyncResult`,
+            // where they are top-level precisely so they stay queryable while `reply` is absent.
+            r#"{{"outcome":{outcome},"cause":"inmem-cause","callId":"inmem-call"}}"#
         );
         Ok(BdpResult::ok(CallOutcome::Reply(Reply(RawJson(Bytes::from(reply.into_bytes()))))))
+    }
+
+    /// `cancel` — write `reply.outcome = canceled` onto a RUNNING `AsyncResult`.
+    ///
+    /// Every branch below is read off `cancel`'s declaration — `command cancel(asyncResult:
+    /// unpinned<AsyncResult>) -> pinned<AsyncResult>` with `problem = { status = [404, 409] }` —
+    /// rather than chosen:
+    ///
+    /// * **absent id → `404`.** D.8: *"404 get of an absent resource"*. The one declared fault with
+    ///   a producer named outright.
+    /// * **resolves, but is not an `AsyncResult` → `404`.** The parameter is a TYPED ref, so a note
+    ///   is not a handle that failed, it is a handle that does not resolve. Same reading `call`
+    ///   already takes for `ref<Operation>`: *"a resource that resolves but names no built-in this
+    ///   store has is an unresolvable operation, not a failed one"* — same Problem channel, and 404
+    ///   is declared.
+    /// * **already settled → `409`.** See [`BdpError::AlreadySettled`]: derived from the declared
+    ///   set plus `Outcome`'s *"a present `outcome` means the invocation is settled, whichever arm
+    ///   it holds"*, not from a producer D.8 names.
+    /// * **a PINNED handle → refused.** The declared parameter is `unpinned`, and `cancel` declares
+    ///   no `412` while every guard-carrying primitive does. Honouring a pin would invent a
+    ///   precondition the declaration excludes; ignoring one would be the lost-update defect. Over
+    ///   HTTP this is unreachable — the route carries an id and `cancel` reads no `If-Match`, so
+    ///   there is no pin channel to carry — which is why no row, declared or otherwise, covers it.
+    ///
+    /// **A RETIRED handle faults `410`, which `cancel` does NOT declare.** Under the declared
+    /// `permanent` id model a write targeting a retired id is Gone, and a cancel is a write; D.8's
+    /// catch-all permits it (*"4xx/5xx — any fault — the body is the Problem, carried at the
+    /// Problem's own status"*). But `put` declares `410` for exactly this situation and `cancel`
+    /// does not, so either the declaration is short a row or a retired handle is meant to answer
+    /// something else. **Flagged, not resolved** — and no case asserts it either way.
+    ///
+    /// NO COMPENSATION runs: that is the scheduler's graceful path. The cancelled work's effects
+    /// stay findable via `causedBy`, so undoing them here would be wrong even where it were possible.
+    async fn cancel(&self, async_result: ResourceId) -> Result<BdpResult<ResourceId>, BdpError> {
+        if async_result.rev.is_some() {
+            return Err(BdpError::Unprocessable(
+                "cancel takes `unpinned<AsyncResult>`: it carries no revision guard, and declares \
+                 no 412 to report one failing. A pinned handle is refused rather than honoured as \
+                 a precondition the declaration excludes."
+                    .into(),
+            ));
+        }
+
+        // Read the handle's state under a read guard, then release it before committing — the
+        // write path takes its own exclusive guard (see the concurrency note at the top).
+        let (cause, call_id) = {
+            let store = self.store.read().unwrap();
+            let scope = self.scope_str(&async_result.scope);
+            let id = async_result.id.0.to_string();
+            let row = store
+                .head(&scope, &id)
+                .ok_or_else(|| BdpError::NotFound(async_result.clone()))?;
+            if row.op == "delete" {
+                return Err(BdpError::Erased {
+                    id: async_result.clone(),
+                    at: Rev(row.rev.clone().into()),
+                });
+            }
+            if row.kind != ASYNC_RESULT_KIND {
+                return Err(BdpError::NotFound(async_result.clone()));
+            }
+            let props: serde_json::Value =
+                serde_json::from_str(row.properties.as_deref().unwrap_or("{}"))
+                    .map_err(|e| BdpError::Backend(format!("asyncResult properties not json: {e}")))?;
+            if props.get("reply").map(|r| !r.is_null()).unwrap_or(false) {
+                return Err(BdpError::AlreadySettled { id: async_result.clone() });
+            }
+            // `cause` and `callId` are top-level on `AsyncResult` *"(queryable while pending,
+            // before `reply`)"*, which is exactly the read being done here: the Reply this cancel
+            // writes must carry the SAME correlation tokens the pending handle advertised, or the
+            // settlement would not be correlatable to the call it settles.
+            (
+                props.get("cause").cloned().unwrap_or(serde_json::Value::Null),
+                props.get("callId").cloned().unwrap_or(serde_json::Value::Null),
+            )
+        };
+
+        // `reply.outcome = canceled` — the write the description names, and the ONLY member added.
+        // `canceled { reason?: string }`, so the reason is optional and given.
+        let reply = serde_json::json!({
+            "outcome": { "kind": "canceled", "reason": "canceled" },
+            "cause": cause,
+            "callId": call_id,
+        });
+        let patch = serde_json::json!([
+            { "op": "add", "path": "/properties/reply", "value": reply }
+        ]);
+        let r = self
+            .commit(&[Write::Patch {
+                target: async_result,
+                patch: JsonPatch(RawJson(Bytes::from(serde_json::to_vec(&patch).unwrap()))),
+                if_rev: None,
+            }])?
+            .pop()
+            .unwrap();
+        Ok(one(r))
     }
 
     /// revisions — one resource's history, oldest first, as pinned representations.
@@ -1025,6 +1200,12 @@ impl BdpScope for InMemScope {
         }
         Ok(BdpResult::ok(out))
     }
+}
+
+/// `call` returning an async handle, with the minted revision in the envelope.
+fn one_outcome(r: ResourceId) -> BdpResult<CallOutcome> {
+    let rev = r.rev.clone();
+    BdpResult::ok(CallOutcome::Async(r)).with_protocol(ProtocolMeta { rev, ..Default::default() })
 }
 
 /// The closed built-in set. Adding an arm is a SUBJECT change and moves no row.

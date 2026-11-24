@@ -42,7 +42,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
-**Current coverage: 26/54** — measured by running the gate, not derived. Read the composition below
+**Current coverage: 29/54** — measured by running the gate, not derived. Read the composition below
 rather than the number: a count that restates a list is a second source of truth about that list, and
 this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
 this figure from one branch while hand-resolving the list it summarises, leaving them independent. The
@@ -52,11 +52,12 @@ that survives a merge is not evidence its list did.
 
 Across three case families:
 
-- **Typed happy-path** — `op/{create,get,put,patch,delete,call,revisions,list,export}` (the primitives the Server routes
-  and InMemScope implements).
+- **Typed happy-path** — `op/{create,get,put,patch,delete,call,cancel,revisions,list,export}` (the
+  primitives the Server routes and InMemScope implements).
 - **Typed semantic faults** — `create/409`, `get/404`, `get/410`, `patch/404`, `patch/412`,
-  `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410`, `call/409` (triggered
-  through the typed `RemoteScope`, which also reads the scope's declared traits).
+  `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410`, `call/409`,
+  `cancel/404`, `cancel/409` (triggered through the typed `RemoteScope`, which also reads the
+  scope's declared traits).
 - **Raw-HTTP protocol faults** — `create/400`, `put/400`, `patch/415`, `patch/422`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
   that the well-formed client never reaches). `get/400` and `delete/400` **left** this family when the
@@ -64,16 +65,13 @@ Across three case families:
   reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 28 rows are uncovered for concrete, recorded reasons:
+The remaining 25 rows are uncovered for concrete, recorded reasons:
 
-- **16 of the 28 need the subject to implement 4 more primitives** — `cancel`, `import`, `pull`,
-  `push`: the 4 `op/*` rows plus 12 of their declared faults. Counted from the gate's own uncovered
-  list, not estimated. These are ROUTED by the fence but answer `501` ("not implemented by this
-  scope"), and `RemoteScope` has no client method for them. *Routed but not implemented* is a
-  different statement from *unroutable*, and the gate can tell them apart. `cancel` is the expensive
-  one: its 3 rows are the only remaining set whose every declared fault is grounded in Appendix D.8,
-  but reaching them needs the whole `AsyncResult` lifecycle and `?mode=async` minting, which is
-  design work rather than binding work.
+- **13 of the 25 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
+  `op/*` rows plus 10 of their declared faults. Counted from the gate's own uncovered list, not
+  estimated. These are ROUTED by the fence but answer `501` ("not implemented by this scope"), and
+  `RemoteScope` has no client method for them. *Routed but not implemented* is a different
+  statement from *unroutable*, and the gate can tell them apart.
 - **The other 12 are faults on primitives already implemented** — `create/422`, `delete/400`,
   `delete/409`, `export/400`, `get/400`, `get/406`, `list/400`, `list/406`, `patch/400`,
   `patch/409`, `put/422`, `revisions/400`. Every one was probed and none is producible without a
@@ -81,7 +79,10 @@ The remaining 28 rows are uncovered for concrete, recorded reasons:
   among them share one reason: Appendix D.8 names no normative producer for either status, so the
   gate could not ground them even if the subject produced them (see the ungrounded-rows section).
   **`list` and `export` contributed their `op/*` rows and nothing else for exactly that reason** —
-  every fault they declare (`list` `[400, 406]`, `export` `[400]`) is ungrounded.
+  every fault they declare (`list` `[400, 406]`, `export` `[400]`) is ungrounded. **`cancel` is the
+  mirror image and contributed all three of its rows**: `[404, 409]` are the two statuses D.8 has
+  entries for, so neither was blocked the way a `400` or a `406` is (see the `cancel` section below
+  for which of the two producers is *named* by D.8 and which is derived from the declared set).
 - **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
   covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
   design: `call`'s dispatch rule mandates the fault's *shape* — a `Problem` with no `Outcome` — and
@@ -125,6 +126,85 @@ The remaining 28 rows are uncovered for concrete, recorded reasons:
   reason a case never checked is still worth fixing: it now reads the declared `idModel` and asserts
   `410` under `permanent` or `404` under `reusable`, so the next subject need not be versioned for the
   case to stay honest.
+
+### `cancel`: what the three rows cost, and what the spec does not settle
+
+`cancel` was the expensive primitive and the reason is structural: **there is nothing to cancel
+until an operation can be minted asynchronously.** Binding it was not binding one primitive, it was
+building the `AsyncResult` lifecycle — `?mode=async` minting a pending handle, a `CallMode` on the
+trait's `call`, a 202 carrying `rep<AsyncResult>`, and only then the three rows. Before this,
+`do_call` answered `?mode=async` with `501` and `InMemScope` advertised `asyncSupported: false`.
+
+Each row's producer, and where it comes from:
+
+| row | producer | grounding |
+|---|---|---|
+| `op/cancel` | cancel a pending handle; `reply.outcome = canceled` is then readable on it | the description names the write |
+| `cancel/404` | a handle id that was never minted | D.8 names it: *"404 get of an absent resource"* |
+| `cancel/409` | the handle is already SETTLED (`reply` present) | **derived**, see below |
+
+**The 409's status is grounded and its producer is derived, and the difference matters.** D.8 has a
+`409` entry — unlike `400`, `406` and `422`, which have none anywhere — but that entry names `call`'s
+declared failure, id collisions, and "also some Problems". It does not name this producer. The
+derivation: `cancel` declares `[404, 409]`; D.8 gives 404 to absence and this target demonstrably
+exists; `cancel` acts on a *running* handle (its description), and `Outcome`'s normative line says
+*"A present `outcome` means the invocation is settled, whichever arm it holds; a transient state
+(running/waiting) is NOT an arm"*. So settled ⇒ not running ⇒ the remaining declared status.
+
+**That same normative line settles whether `cancel` is idempotent, and the answer is no.** `delete`
+is idempotent on an existing resource and declares no `410` as a consequence; `cancel` declares a
+`409`, and "settled *whichever arm it holds*" deliberately refuses to privilege one arm — so
+"already `canceled`" is not a state distinguishable from "already failed", and reading a second
+cancel as a no-op would invent the distinction the spec flattens. Double-cancel is therefore how the
+409 is reached here. The race the spec is really about — the operation settling on its own just
+before the cancel lands — needs a scheduler, and this store has none: a minted handle stays pending
+forever, which is also what makes it cancellable at all.
+
+**An absent fault did real work again.** `cancel` takes `unpinned<AsyncResult>` and declares no
+`412`, while `put`, `patch` and `delete` each carry a revision guard (D.3) and each declare one. The
+missing parameter and the missing fault agree, which is what makes this a derivation rather than a
+preference: `cancel` has no precondition channel, so a revision on the handle is an argument its
+declared type forbids and is REFUSED rather than dropped. Dropping it is the `do_put`-ignored-
+`If-Match` defect exactly — a caller who asked "cancel only if still at this revision" gets a
+success and cannot learn from the result that nothing checked.
+
+This has a consequence worth naming, because it is forced by the types and reads like a wart:
+`call ?mode=async` answers `rep<AsyncResult>`, whose `id` is PINNED, and `cancel` takes `unpinned`.
+**The handle you are handed is not in the form the primitive that kills it accepts**, so a caller
+must unpin it — which is sound, since `cancel` declares no `412` and could not have used the
+revision anyway. The gate does that step explicitly (`unpinned()` in `gate.rs`) rather than letting
+a client do it invisibly.
+
+Three things the spec does not settle, flagged rather than resolved:
+
+- **The async disposition is declared twice.** `Request.async: bool = false` is a member of the
+  request BODY; `call`'s `openapi.params` declares `mode` on the REQUEST LINE; and Core's `call`
+  prose speaks only of the query form. No precedence rule is given. This binding carries it on the
+  request line and adds a `CallMode` parameter to the trait's `call` so there is exactly one source
+  of truth; the body's `async` member is not read. A mode mismatch in either direction is refused
+  with `mode-refused` — **at `500`, not `409`**, because `call/409` is the one `>=400` row in this
+  binding whose body is declared to be a `Reply` rather than a `Problem`, so a bare Problem at 409
+  from `call` is unrepresentable: a conformant client reads the status as a declared failure and
+  looks for an `outcome` that is not there. (Found by red-then-green, not by reading.) `500` also
+  says whose fault it is — the server checks `asyncSupported` before dispatching, so reaching a
+  mismatch means the scope advertised a mode and did not honour it.
+- **`cancel` declares no `410`.** Under the declared `permanent` id model a write targeting a retired
+  id is Gone and a cancel is a write, so this subject faults `410` there via D.8's catch-all
+  (*"any fault — the body is the Problem, carried at the Problem's own status"*). But `put` declares
+  `410` for exactly this situation and `cancel` does not, so either the declaration is short a row
+  or a retired handle is meant to answer something else. No case asserts it either way.
+- **D.9 names no problem code for the 409.** The nearest entries (`precondition-failed`,
+  `identity-taken`) are bound to other statuses and other producers, so `already-settled` is coined
+  and the gate keys on the STATUS, which is what the surface declares. This is a pre-existing
+  condition rather than a new one: the subject's whole code vocabulary already diverges from D.9
+  (`not-found` vs `resource-not-found`, `erased` vs `resource-erased`, `already-exists` vs
+  `identity-taken`). Reconciling it is its own change.
+
+One correction fell out of choosing an encoding: the sync `Reply` emitted `"cause": {"id": …}` and
+`"callId": {"id": …}`, which no declaration supports — `type Cause is string` and
+`type CallId is string`. It was caught while writing the same two members onto a minted
+`AsyncResult`, where they sit at top level precisely so they stay queryable while `reply` is absent,
+and `cancel` reads them back so the settlement it writes is correlatable to the call it settles.
 
 ### 44% of the declared fault surface has no normative producer
 
@@ -190,7 +270,7 @@ open ruling, not settled here.
 conformance/
   Cargo.toml          # the gate workspace
   gate/               # the TIER-1 gate
-    src/lib.rs        #   denominator(): the generated OpenAPI -> 52-row coverage surface
+    src/lib.rs        #   denominator(): the generated OpenAPI -> 54-row coverage surface
                       #   (include_str! of ../../specs/generated/openapi/core.openapi.json, LIVE)
     tests/gate.rs     #   wire-level cases + coverage report (BDP_GATE_STRICT to block)
   reference/          # bdp-ref: the ONE green endpoint (InMemScope over HTTP), pin-agnostic

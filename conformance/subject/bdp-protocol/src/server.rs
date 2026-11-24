@@ -1,9 +1,8 @@
 //! The SERVER: wraps any `impl BdpScope` and exposes its primitives over HTTP per the pinned
 //! wire mapping (inline `/// openapi` markers in `bdp.lumen` @ b555931c).
 //!
-//! Spike coverage = the single-resource core: get / create / put / patch / delete. The
-//! scope-level and streaming ops (list, revisions, pull, apply, eval, export, import, call,
-//! cancel) answer `501` and are logged as unmapped in `NOTES.md`.
+//! Mapped: get / create / put / patch / delete / list / export / revisions / call (sync and
+//! `?mode=async`) / cancel / apply / discovery. Still answering `501`: pull, push, eval, import.
 //!
 //! Generic over `S: BdpScope` (not `dyn`): the trait's `async fn`s are not dyn-safe without
 //! boxing, and a spike needs no runtime polymorphism.
@@ -83,8 +82,7 @@ impl<S: BdpScope> Server<S> {
                 problem_body(400, "bad-request", "a resource-id segment may not be a bare `-`"),
             ),
             Route::Call(op_path) => self.do_call(&req, &op_path).await,
-            // Routed by the fence, not yet implemented by this subject.
-            Route::Cancel(_) => unmapped("cancel not implemented by this scope"),
+            Route::Cancel(id) => self.do_cancel(&id).await,
             Route::Unroutable => {
                 HttpResponse::json(400, problem_body(400, "bad-request", "Unroutable request"))
             }
@@ -307,25 +305,140 @@ impl<S: BdpScope> Server<S> {
     /// `Outcome` is the one sanctioned OPEN union, so an arm this binding does not recognise is
     /// not an error — it is a settled outcome that is not `success`, which is what 409 says.
     async fn do_call(&self, req: &HttpRequest, op_path: &str) -> HttpResponse {
-        // `mode` is a declared query param (`"sync" | "async"`). Asking for a mode the scope does
-        // not advertise is unimplemented, not malformed — so 501, not 400.
-        if req.query.get("mode").map(|s| s.as_str()) == Some("async") {
-            return unmapped("async call (?mode=async) not implemented by this scope");
+        // `mode` is a declared query param (`"sync" | "async"`), and THE REQUEST LINE IS WHERE
+        // THIS BINDING CARRIES THE DISPOSITION. The body's `Request.async` member declares the
+        // same thing and is deliberately not read here — see `p::CallMode` for which of the two
+        // spec declarations this follows and why the other reading stays live. An unrecognised
+        // value is a malformed parameter rather than an un-offered mode, so it is 400.
+        let mode = match req.query.get("mode").map(|s| s.as_str()) {
+            None | Some("sync") => p::CallMode::Sync,
+            Some("async") => p::CallMode::Async,
+            Some(other) => {
+                return HttpResponse::json(
+                    400,
+                    problem_body(
+                        400,
+                        "bad-request",
+                        &format!("mode must be \"sync\" or \"async\", got {other:?}"),
+                    ),
+                )
+            }
+        };
+        // Asking for a mode the scope does not ADVERTISE is unimplemented, not malformed — so 501,
+        // not 400. Read off `capabilities()` rather than hard-coded: this is the same
+        // advertised⟹implemented rule the rest of the binding follows, applied in the direction
+        // that matters here (not-advertised ⟹ refused), so a scope that cannot mint a handle never
+        // has to answer a request for one.
+        if mode == p::CallMode::Async && !self.scope_supports_async_call() {
+            return unmapped("async call (?mode=async) is not advertised by this scope");
         }
         let operation = resource_id_from(op_path, None);
         let request = p::Request(p::RawJson(bytes::Bytes::from(req.body.clone())));
-        match self.scope.call(&operation, request).await {
+        match self.scope.call(&operation, request, mode).await {
             Ok(res) if res.not_implemented => unmapped("call not implemented by this scope"),
             Ok(res) => match res.value {
+                // A SYNC answer to an ASYNC request is refused, not relabelled. The caller asked
+                // for a handle it could later `cancel`; a 200 would tell it the call is done while
+                // it believes it holds a running operation. D.9 names the code —
+                // `mode-refused`, the mode was understood and not honoured — as distinct from
+                // `mode-not-supported` (the 501 above), where the scope never offered it.
+                //
+                // **NOT 409, and that is forced rather than preferred.** `call/409` is the one
+                // `>=400` row in this whole binding whose body is declared to be a `Reply` and not
+                // a `Problem` — it is the operation's own "no", which a caller branches on. So a
+                // bare Problem at 409 from `call` is unrepresentable here: a conformant client
+                // reads the status as a declared failure and looks for an `outcome` that is not
+                // there. (Found by removing the minting and watching this branch come back through
+                // the client as a `Reply` with no arm.) D.8 gives `mode-refused` no status, so the
+                // catch-all applies — *"any fault — the body is the Problem, carried at the
+                // Problem's own status"* — and the status says WHOSE fault it is: the server
+                // already checked `asyncSupported` above, so reaching here means the scope
+                // advertised a mode and did not honour it. The request was fine; the subject
+                // contradicted its own discovery, and no change the caller could make would help.
+                Some(p::CallOutcome::Reply(_)) if mode == p::CallMode::Async => HttpResponse::json(
+                    500,
+                    problem_body(
+                        500,
+                        "mode-refused",
+                        "?mode=async was requested and the scope settled synchronously; it \
+                         advertises asyncSupported and did not mint an AsyncResult",
+                    ),
+                ),
                 Some(p::CallOutcome::Reply(reply)) => {
                     let status = status_for_outcome(&reply.0 .0);
                     attach(HttpResponse::json(status, reply.0 .0.to_vec()), &res.protocol)
                 }
-                // An async accept is 202 + the AsyncResult's Location; no scope mints one yet.
-                Some(p::CallOutcome::Async(_)) => unmapped("async call not implemented by this scope"),
+                // An ASYNC answer to a SYNC request is refused for the mirror-image reason: the
+                // request line asked for a settled Reply and the caller would otherwise read a
+                // 202 it never asked for. The request line is authoritative in BOTH directions,
+                // which is what makes it a single source of truth rather than a hint.
+                Some(p::CallOutcome::Async(_)) if mode == p::CallMode::Sync => HttpResponse::json(
+                    500,
+                    problem_body(
+                        500,
+                        "mode-refused",
+                        "the scope minted an AsyncResult for a sync call; ?mode=async was not \
+                         requested",
+                    ),
+                ),
+                // THE ASYNC ACCEPT. D.8: *"202 call ?mode=async — Location: the AsyncResult URL;
+                // body: no outcome yet"*, and the declared response schema is `rep<AsyncResult>` —
+                // so the body is the handle's REPRESENTATION, not a `Reply` and not a bare ref.
+                // The scope hands back the minted ref, so the representation is read back through
+                // `get`; a handle that cannot be read straight after minting would not be a handle.
+                Some(p::CallOutcome::Async(reference)) => {
+                    let rep = match self.scope.get(&reference, None).await {
+                        Ok(r) => match r.value {
+                            Some(rep) => rep,
+                            None => return unmapped("the minted AsyncResult is not readable"),
+                        },
+                        Err(e) => return problem_response(&e),
+                    };
+                    let body = serde_json::to_vec(&WireRepresentation::from_trait(&rep)).unwrap();
+                    let loc = format!("/{}", reference.id.0);
+                    let location = match &self.public_base {
+                        Some(base) => format!("{base}{loc}"),
+                        None => loc,
+                    };
+                    attach(
+                        HttpResponse::json(202, body).header("location", &location),
+                        &res.protocol,
+                    )
+                }
                 None => unmapped("call returned no outcome"),
             },
             // A bare Problem with NO Outcome — the pre-dispatch channel. The operation never ran.
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// Does the wrapped scope ADVERTISE async `call`? Read from `capabilities()`, never assumed.
+    fn scope_supports_async_call(&self) -> bool {
+        self.scope
+            .capabilities()
+            .iter()
+            .any(|c| matches!(c, p::PrimitiveCapabilities::Call(c) if c.async_supported))
+    }
+
+    /// `POST /{asyncResultId}/-/cancel`.
+    ///
+    /// The route carries AN ID AND NOTHING ELSE, which is the whole wire surface `cancel` declares:
+    /// `command cancel(asyncResult: unpinned<AsyncResult>)` takes no guard, no mode and no
+    /// projection, and D.3 gives the three write guards to `put`/`patch`/`delete` only. So there is
+    /// no header or query parameter to read here — and no `If-Match` is read deliberately rather
+    /// than by omission: reading one would accept a precondition that `cancel`, alone among the
+    /// writes, declares no `412` to report failing.
+    ///
+    /// Success is `200` carrying the bare pinned ref, the same body shape `put`/`patch`/`delete`
+    /// return — `-> pinned<AsyncResult>` is a ref type, so there is no representation to send.
+    async fn do_cancel(&self, id_seg: &str) -> HttpResponse {
+        let target = resource_id_from(id_seg, None);
+        match self.scope.cancel(target).await {
+            Ok(res) if res.not_implemented => unmapped("cancel not implemented by this scope"),
+            Ok(res) => {
+                let (wire, _loc) = write_result_wire(&res);
+                attach(HttpResponse::json(200, serde_json::to_vec(&wire).unwrap()), &res.protocol)
+            }
             Err(e) => problem_response(&e),
         }
     }
