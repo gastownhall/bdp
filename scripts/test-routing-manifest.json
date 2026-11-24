@@ -1456,6 +1456,12 @@
       "reason": "Current Core/ordinary Write provider-kit controls: real public HTTP reference adapter, independently authored assertions, explicit fixture conditions and lifecycle failures; incomplete coverage is not full provider qualification."
     },
     {
+      "path": "scripts/v02-provider-kit.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Current v0.2 read-only endpoint qualification, applicability and independent wire negative controls; re-homed on the Core 0.2.3 generated surface."
+    },
+    {
       "path": "scripts/demo-history.test.mjs",
       "runner": "vitest",
       "lane": "legacy",
