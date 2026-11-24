@@ -254,6 +254,180 @@ pub fn store_wide_guarantees() -> Vec<(u8, String)> {
     out
 }
 
+// =============================================================================
+// TIER 2 — the normative obligation ledger
+// =============================================================================
+
+/// How one `/// normative:` obligation is discharged. Exactly one applies.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Disposition {
+    /// Maps onto tier-1 rows already in [`denominator`] — the wire carries it, so coverage of
+    /// those rows IS coverage of this obligation.
+    SurfaceBearing,
+    /// Exercised by a tier-2 case with no wire status of its own (no fault code to key on).
+    Behavioural,
+    /// Not yet covered. XFAIL plus a tracking issue, so the gap is named rather than absent.
+    Waived,
+}
+
+/// One registered obligation: its text, how it is discharged, and the evidence for that claim.
+#[derive(Clone, Copy, Debug)]
+pub struct Registration {
+    /// The obligation text EXACTLY as `core.lumen` carries it, minus the `/// normative:` prefix.
+    /// This is the key, so a reworded obligation reads as CHANGED and must be re-registered — the
+    /// same choice `EXPECTED_GUARANTEES` makes, and for the same reason.
+    pub text: &'static str,
+    pub disposition: Disposition,
+    /// Surface-bearing: the tier-1 rows it grounds. Behavioural: the case. Waived: the issue.
+    pub evidence: &'static str,
+}
+
+/// THE LEDGER PINS EACH OBLIGATION'S RESOLUTION, NEVER THE CARDINALITY.
+///
+/// A count cannot be pinned coherently here and the reason is concrete: PR #428 takes the
+/// obligations from 67 to 79. A ledger asserting 67 breaks the moment it lands; one asserting 79
+/// cannot be built before it does. Pinning dispositions instead makes this correct from either side
+/// of that merge, and a new or reworded line then surfaces as an UNREGISTERED OBLIGATION naming the
+/// line — which is also an error a spec author can act on, where a count mismatch is not.
+///
+/// Registered ahead of the spec change is a legitimate state, reported as PENDING: #428's twelve are
+/// registered here and are pending until #428 merges.
+pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
+    // THE LEDGER'S FIRST PRE-EXISTING FIND: normative on `main` all along, no case, no
+    // waiver, and invisible until the ledger enumerated the register. Registered against its
+    // own issue rather than #430, which is scoped to #428's cohort.
+    Registration {
+        text: "The revision changes exactly when the resource's state changes; a write that would leave the state unchanged mints no new revision (and produces no event).",
+        // WAIVED, not Behavioural: there is no case yet, and `Behavioural` asserts that a case
+        // exercises it. Registering it as behavioural "with a waiver note" was the first thing I
+        // wrote, and it is precisely the half-true registration this ledger exists to stop —
+        // caught by reading the disposition against its own evidence.
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#433",
+    },
+    Registration {
+        text: "A `Rev` is opaque: compared for equality only, never parsed or inspected.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 1",
+    },
+    Registration {
+        text: "`displayName` is never identity and never a matching/resolution key.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 2",
+    },
+    Registration {
+        text: "Export (the primitive) includes only `Durable` resources; `StorageClass` is per-resource, so a `Durable` scope MAY hold individual `Ephemeral` resources, and an `Ephemeral` resource is local state that is NEVER included in an export stream; `Intrinsic` is computed by the service, not stored.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 3",
+    },
+    Registration {
+        text: "A `Timestamp` is RFC 3339 with an uppercase `T` and `Z`.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 4",
+    },
+    Registration {
+        text: "An `abstract` type is not directly instantiable; a bead MUST use a concrete (leaf) type.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 5",
+    },
+    Registration {
+        text: "`sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/export) refuses `format=sse` and faults `400`.",
+        disposition: Disposition::SurfaceBearing,
+        evidence: "op/list/fault/400, op/export/fault/400",
+    },
+    Registration {
+        text: "Supplying both `after` and `from` is malformed and faults `400`.",
+        disposition: Disposition::SurfaceBearing,
+        evidence: "op/pull/fault/400, op/list/fault/400, op/revisions/fault/400",
+    },
+    Registration {
+        text: "`cancel` settles an async result as `canceled` and runs NO compensation; effects already produced stay findable via `causedBy`.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 6",
+    },
+    Registration {
+        text: "`put` replaces resource state wholesale (a full-state write), NOT a merge.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 7",
+    },
+    Registration {
+        text: "A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`\"\"`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 8",
+    },
+    Registration {
+        // RULED since this was first registered: the obligation now says ANY reader of an export
+        // stream MUST refuse a truncated file. So #431's `parse_export_jsonl` refusal, with its five
+        // unit tests, IS on-obligation rather than the "reader-side strictness" it was shipped as.
+        // Still WAIVED, not Behavioural: "any reader" is not fully discharged while `import` — the
+        // other reader — is unbound. The export half is covered by `export_truncation_tests`.
+        text: "An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 9",
+    },
+    Registration {
+        text: "`import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 10",
+    },
+];
+
+/// The two lines in `core.lumen` that contain `/// normative:` WITHOUT being obligations: the file
+/// documents its own annotation syntax using that syntax, and Appendix E refers to it in prose.
+///
+/// They are listed because they are the live form of a hazard that has now bitten this file three
+/// times — an unanchored `grep -c '/// normative:'` counts them, giving 69 where the answer is 67,
+/// exactly as it once gave 61 for 59 and 15 for 13. [`normative_surface`] anchors instead, and
+/// `the_normative_parse_excludes_the_self_documentation` asserts these never enter the set, so the
+/// mistake is structurally impossible rather than left to whoever runs the count.
+pub const SELF_DOCUMENTATION_FRAGMENTS: [&str; 2] = [
+    "one numbered MUST / SHOULD / MAY line in the generated",
+    "line above is a conformance point; the list below gathers the",
+];
+
+/// Every `/// normative:` obligation in `core.lumen`, in file order, prefix stripped.
+///
+/// ANCHORED on the first non-whitespace token, which is the whole method: a substring match also
+/// catches the file documenting this very annotation (see [`SELF_DOCUMENTATION_FRAGMENTS`]).
+/// Indentation is allowed, because obligations inside a type body are indented.
+pub fn normative_surface() -> Vec<String> {
+    CORE_LUMEN
+        .lines()
+        .map(|l| l.trim_start())
+        .filter(|l| l.starts_with("/// normative:"))
+        .map(|l| l["/// normative:".len()..].trim().to_string())
+        .collect()
+}
+
+/// The ledger: every obligation partitioned by whether it is registered, and every registration by
+/// whether the spec carries it yet.
+#[derive(Debug, Default)]
+pub struct Ledger {
+    /// Present in `core.lumen` AND registered.
+    pub registered: Vec<(String, Disposition, &'static str)>,
+    /// Present in `core.lumen`, NOT registered — the backlog this ledger exists to burn down.
+    pub unregistered: Vec<String>,
+    /// Registered but NOT yet in `core.lumen` — a registration landed ahead of its spec change.
+    pub pending: Vec<&'static Registration>,
+}
+
+pub fn obligation_ledger() -> Ledger {
+    let found = normative_surface();
+    let mut l = Ledger::default();
+    for text in &found {
+        match EXPECTED_OBLIGATIONS.iter().find(|r| r.text == text.as_str()) {
+            Some(r) => l.registered.push((text.clone(), r.disposition, r.evidence)),
+            None => l.unregistered.push(text.clone()),
+        }
+    }
+    for r in EXPECTED_OBLIGATIONS {
+        if !found.iter().any(|t| t == r.text) {
+            l.pending.push(r);
+        }
+    }
+    l
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,6 +449,20 @@ mod tests {
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
     /// fault statuses. 13 ops + 41 faults = 54.
     ///
+    /// RE-PINNED for the fault-surface reconciliation (rulings #2/#3): 7 rows left and 7 arrived
+    /// while the TOTAL STAYED AT 54, which is precisely the case a count-only tripwire cannot see.
+    /// The comment below about `patch/415` was written as a hypothetical; this is it happening.
+    ///
+    /// | out | why | in | why |
+    /// |---|---|---|---|
+    /// | `get/400`, `delete/400` | producer died with the retired `id:verb` convention | `put/413`, `patch/413`, `delete/413` | D.8 names the producer: an over-budget guard where the scope does not advertise `bodyFormSpill` |
+    /// | `patch/400`, `push/400`, `import/400` | no normative producer — PROBED: a malformed patch body answers `422`, `push` is unrouted, `import` is `501` | `get/414`, `list/414`, `revisions/414`, `export/414` | D.8 names the producer: the read's query string exceeds the URL budget |
+    /// | `get/406`, `list/406` | the genuine orphans — no content negotiation in Core | | |
+    ///
+    /// The incoming rows are GROUNDED where the outgoing ones were not, which changes what the
+    /// uncovered set means: these are rows the subject has not implemented, not rows the spec cannot
+    /// ground.
+    ///
     /// Spelled out rather than counted on purpose. A count alone asserts a WEAKER property than the
     /// one that matters: `patch/415` silently becoming `patch/416` keeps the total at 52, so a
     /// count-only tripwire passes while the surface has moved underneath the cases. That failure mode
@@ -285,29 +473,24 @@ mod tests {
         ("call", &[409]),
         ("cancel", &[404, 409]),
         ("create", &[400, 409, 422]),
-        ("delete", &[400, 404, 409, 412]),
-        ("export", &[400]),
-        ("get", &[400, 404, 406, 410]),
-        ("import", &[400, 409, 422]),
-        ("list", &[400, 406]),
-        // 415 is v0.2.3-only: the "patch is root-addressed" change pins the request media type to
-        // application/json-patch+json, so any other type faults. It is the ENTIRE 52-vs-51 delta
-        // against v0.2.2 @ca298b04 — and it is not producible against the current reference, which
-        // performs no server-side content-type check at all.
+        ("delete", &[404, 409, 412, 413]),
+        ("export", &[400, 414]),
+        ("get", &[404, 410, 414]),
+        ("import", &[409, 422]),
+        ("list", &[400, 414]),
+        // 415 pins the request media type to application/json-patch+json, so any other type faults.
         //
-        // 410 is the 52-vs-54 delta: a write that TARGETS a retired resource faults Gone, so `put`
-        // and `patch` declare it alongside `get`. UNCOVERABLE here, and for the same reason as
-        // `get/410` — a write's 410 is reachable only under `idModel: permanent`, and this subject
-        // declares no scope-level id model at all, so a case has nothing to key on. Recorded
-        // uncovered rather than asserted unconditionally, which would claim more than the spec
-        // grants. `put` deliberately declares no 404: an absent id is not an error for `put`, which
-        // creates. On `put` the 409 belongs to the `ifAbsent` guard (claiming a spent id), never to
-        // the bare operation (updating what is gone) — two neighbours of the same row.
-        ("patch", &[400, 404, 409, 410, 412, 415, 422]),
+        // 410: a write that TARGETS a retired resource faults Gone, so `put` and `patch` declare it
+        // alongside `get`. UNCOVERABLE here for the same reason as `get/410` — a write's 410 is
+        // reachable only under `idModel: permanent`, and this subject declares no scope-level id
+        // model, so a case has nothing to key on. `put` deliberately declares no 404: an absent id
+        // is not an error for `put`, which creates. On `put` the 409 belongs to the `ifAbsent` guard
+        // (claiming a spent id), never to the bare operation (updating what is gone).
+        ("patch", &[404, 409, 410, 412, 413, 415, 422]),
         ("pull", &[400, 405, 410]),
-        ("push", &[400, 405, 409, 422]),
-        ("put", &[400, 409, 410, 412, 422]),
-        ("revisions", &[400, 404]),
+        ("push", &[405, 409, 422]),
+        ("put", &[400, 409, 410, 412, 413, 422]),
+        ("revisions", &[400, 404, 414]),
     ];
 
     fn expected_surface() -> BTreeSet<SurfaceId> {
@@ -512,9 +695,13 @@ mod tests {
             surface.contains(&SurfaceId::Fault("call".into(), 409)),
             "call/409 comes from the `responses = [...]` form; losing it undercounts the surface by one"
         );
+        // The off-by-one canary. It was `get/400`, which the fault-surface reconciliation removed —
+        // so the canary FAILED when that landed, correctly: its witness has to be a row that is
+        // genuinely first in some op's `problem` list, and asserting a row that no longer exists
+        // would make it fail forever while testing nothing. `get`'s list is now [404, 410, 414].
         assert!(
-            surface.contains(&SurfaceId::Fault("get".into(), 400)),
-            "get/400 is the FIRST entry of get's `problem` status list — the off-by-one canary"
+            surface.contains(&SurfaceId::Fault("get".into(), 404)),
+            "get/404 is the FIRST entry of get's `problem` status list — the off-by-one canary"
         );
     }
 
@@ -562,4 +749,163 @@ mod tests {
              entry here needs a deliberate ruling and a case that asserts the right wire shape."
         );
     }
+
+    // ---- tier 2: the normative obligation ledger ---------------------------
+
+    /// Parse a row name as the report prints it (`op/list/fault/400`, `op/get`).
+    fn row(s: &str) -> SurfaceId {
+        let p: Vec<&str> = s.trim().split('/').collect();
+        match p.as_slice() {
+            ["op", name] => SurfaceId::Op((*name).to_string()),
+            ["op", name, "fault", code] => {
+                SurfaceId::Fault((*name).to_string(), code.parse().expect("fault status parses"))
+            }
+            _ => panic!("not a row name: {s}"),
+        }
+    }
+
+    /// The ledger is only a tripwire if the parse found the obligations, so prove the parse works
+    /// rather than trusting an empty result to mean "nothing changed".
+    #[test]
+    fn the_normative_parse_is_not_vacuous() {
+        let found = normative_surface();
+        assert!(
+            found.len() >= 60,
+            "parsed only {} obligations — the anchor or the prefix is wrong",
+            found.len()
+        );
+        assert!(
+            found.iter().all(|t| t.len() > 20),
+            "an obligation parsed as a fragment — check the prefix strip"
+        );
+        assert!(
+            found.iter().all(|t| !t.starts_with("///")),
+            "the `/// normative:` prefix was not stripped"
+        );
+    }
+
+    /// THE STRUCTURAL GUARD. `core.lumen` documents its own annotation syntax USING that syntax, so
+    /// a substring match counts the documentation of an obligation as an obligation. That hazard has
+    /// hit this file three times (69-for-67 here, 61-for-59 and 15-for-13 before). Anchoring fixes
+    /// it; this test is what stops anyone un-fixing it, and it is why the count is trustworthy at
+    /// all.
+    #[test]
+    fn the_normative_parse_excludes_the_self_documentation() {
+        let found = normative_surface();
+        for frag in SELF_DOCUMENTATION_FRAGMENTS {
+            assert!(
+                !found.iter().any(|t| t.contains(frag)),
+                "a self-documentation line entered the obligation set: {frag:?}\n\nThis is the \
+                 unanchored-grep hazard reappearing. The parse must anchor on the first \
+                 non-whitespace token, never match `/// normative:` as a substring."
+            );
+        }
+        // And prove the fragments are REAL — a guard against text that no longer exists would pass
+        // forever while guarding nothing.
+        for frag in SELF_DOCUMENTATION_FRAGMENTS {
+            assert!(
+                CORE_LUMEN.contains(frag),
+                "SELF_DOCUMENTATION_FRAGMENTS is stale: {frag:?} is no longer in core.lumen, so \
+                 this test now guards nothing. Re-derive it from the file."
+            );
+        }
+    }
+
+    /// THE TIER-1/TIER-2 INTERLOCK: a surface-bearing obligation claims specific wire rows, and
+    /// those rows must exist in the denominator. A registration naming a row that was undeclared, or
+    /// misspelled, is a silent lie about where the obligation is discharged — so it fails here.
+    #[test]
+    fn every_surface_bearing_registration_names_real_rows() {
+        let den = denominator();
+        for r in EXPECTED_OBLIGATIONS {
+            match r.disposition {
+                Disposition::SurfaceBearing => {
+                    let rows: Vec<SurfaceId> = r.evidence.split(',').map(row).collect();
+                    assert!(!rows.is_empty(), "surface-bearing with no rows: {}", r.text);
+                    for id in rows {
+                        assert!(
+                            den.contains(&id),
+                            "obligation claims row `{id}`, which is NOT in the denominator:\n  {}\n\n\
+                             Either the row was undeclared by a spec change (re-register the \
+                             obligation as behavioural or waived) or the evidence is misspelled.",
+                            r.text
+                        );
+                    }
+                }
+                Disposition::Waived => assert!(
+                    r.evidence.contains('#'),
+                    "a waived obligation must name a tracking issue: {}",
+                    r.text
+                ),
+                // A behavioural obligation CLAIMS a case exercises it, so its evidence must name
+                // one — never an issue reference, which would be a waiver wearing a stronger
+                // disposition. This caught a registration of mine that said `Behavioural` while its
+                // evidence read "no case yet".
+                Disposition::Behavioural => {
+                    assert!(
+                        !r.evidence.is_empty(),
+                        "a behavioural obligation must name its case: {}",
+                        r.text
+                    );
+                    assert!(
+                        !r.evidence.contains('#') && !r.evidence.contains("waiv"),
+                        "obligation is registered Behavioural but its evidence is a WAIVER, not a \
+                         case — use Disposition::Waived:\n  {}\n  evidence: {}",
+                        r.text,
+                        r.evidence
+                    );
+                }
+            }
+        }
+    }
+
+    /// REPORT-ONLY, staged exactly like tier-1's `fail-if-no-coverage`: the backlog is expected to be
+    /// non-empty today, so an unregistered obligation prints rather than fails. `BDP_GATE_STRICT`
+    /// flips it to blocking once the backlog is burnt down.
+    #[test]
+    fn the_obligation_ledger_report() {
+        let l = obligation_ledger();
+        let total = l.registered.len() + l.unregistered.len();
+        println!("\nobligation ledger: {total} normative obligations in core.lumen");
+        println!(
+            "  registered: {}  (surface-bearing {}, behavioural {}, waived {})",
+            l.registered.len(),
+            l.registered.iter().filter(|(_, d, _)| *d == Disposition::SurfaceBearing).count(),
+            l.registered.iter().filter(|(_, d, _)| *d == Disposition::Behavioural).count(),
+            l.registered.iter().filter(|(_, d, _)| *d == Disposition::Waived).count(),
+        );
+        println!("  UNREGISTERED (backlog): {}", l.unregistered.len());
+        for t in &l.unregistered {
+            println!("    - {}", &t[..t.len().min(100)]);
+        }
+        println!("  PENDING (registered, not yet in the spec): {}", l.pending.len());
+        for r in &l.pending {
+            println!("    - [{:?}] {}", r.disposition, &r.text[..r.text.len().min(90)]);
+        }
+
+        if std::env::var("BDP_GATE_STRICT").is_ok() && !l.unregistered.is_empty() {
+            panic!(
+                "{} normative obligations are UNREGISTERED. Every `/// normative:` line is a \
+                 conformance obligation, so each must resolve to surface-bearing, behavioural or \
+                 waived-with-an-issue.",
+                l.unregistered.len()
+            );
+        }
+    }
+
+    /// Pending is legitimate but must stay EXPLAINABLE: every pending registration today belongs to
+    /// #428's cohort, and once #428 merges there should be none. A pending entry nobody can account
+    /// for is a registration whose obligation was reworded or dropped.
+    #[test]
+    fn pending_registrations_are_accounted_for() {
+        let l = obligation_ledger();
+        assert!(
+            l.pending.len() <= 12,
+            "{} pending registrations — more than #428's cohort, so one no longer matches the \
+             spec text. Pending means 'registered ahead of the spec change'; a reworded obligation \
+             shows up here and must be re-registered against its new text.",
+            l.pending.len()
+        );
+    }
+
 }

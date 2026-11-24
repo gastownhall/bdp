@@ -42,6 +42,47 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
+## The tier-2 obligation ledger (`gate/src/lib.rs`)
+
+Tier 1 measures the **wire surface**. It cannot see an obligation with no wire status, and most of
+`core.lumen`'s obligations have none. Under the conformance-plumbing policy every `/// normative:`
+line IS a conformance obligation, so the ledger enumerates them and makes each one resolve to exactly
+one disposition:
+
+| disposition | meaning | evidence it must carry |
+|---|---|---|
+| **surface-bearing** | the wire carries it; covering those tier-1 rows covers it | the rows, which must exist in `denominator()` |
+| **behavioural** | a tier-2 case exercises it; no wire status to key on | the case |
+| **waived** | not covered yet | a tracking issue |
+
+- **It pins each obligation's RESOLUTION, never the cardinality.** A count cannot be pinned coherently
+  here: #428 takes the obligations from 67 to 79, so a ledger asserting 67 breaks when it lands and
+  one asserting 79 cannot be built before it does. Pinning dispositions is correct from either side of
+  that merge — verified by running it against both `origin/main` (67 obligations, 12 pending) and
+  `refs/pull/428/head` (79, 12 registered, 0 pending). A new or reworded line surfaces as an
+  **unregistered obligation naming the line**, which is an error a spec author can act on; a count
+  mismatch is not.
+- **Registered-ahead-of-the-spec is a real state, reported as `pending`.** That is what lets #428's
+  twelve be registered before #428 merges, which is what its merge gate needs.
+- **Report-only, staged exactly like tier-1.** The backlog is expected to be non-empty today, so an
+  unregistered obligation prints; `BDP_GATE_STRICT=1` makes it fail. Current ledger: **67
+  obligations, 1 registered, 66 backlog** on `main`.
+- **The parse is ANCHORED, and a test enforces that.** `core.lumen` documents its own annotation
+  syntax *using that syntax*, so an unanchored `grep -c '/// normative:'` counts two lines that are
+  not obligations and reports 69 where the answer is 67. That hazard has now hit this file three times
+  (it previously gave 61 for 59, and 15 for 13). `the_normative_parse_excludes_the_self_documentation`
+  asserts those two lines never enter the set **and** that they still exist in the file, so the guard
+  cannot rot into one that guards nothing. The weakened, unanchored implementation passes 11 of the
+  12 lib tests and is caught only by that one — the vacuity check passes too, because 69 is a
+  plausible count.
+- **The 14 store-wide guarantees are NOT in the ledger.** They live in a plain `//` block, so
+  `normative_surface()` cannot pick them up, and `EXPECTED_GUARANTEES` already checks them. One
+  obligation, one checker: the ledger references an existing checker rather than re-counting it.
+- **First pre-existing find.** The ledger immediately surfaced an obligation normative on `main` all
+  along with no case and no waiver — *"a write that would leave the state unchanged mints no new
+  revision"*, guarded for `delete` only (#412) and not on `put`/`patch`. Tracked separately in
+  gastownhall/bdp#433, because it predates #428's cohort.
+
 **Current coverage: 29/54** — measured by running the gate, not derived. Read the composition below
 rather than the number: a count that restates a list is a second source of truth about that list, and
 this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
@@ -65,24 +106,68 @@ Across three case families:
   reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 25 rows are uncovered for concrete, recorded reasons:
+The remaining 25 rows are uncovered for concrete, recorded reasons — and after the fault-surface
+reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
 
-- **13 of the 25 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
-  `op/*` rows plus 10 of their declared faults. Counted from the gate's own uncovered list, not
+- **EVERY UNCOVERED ROW NOW HAS A NORMATIVE PRODUCER.** Checked row by row, not assumed. Before the
+  reconciliation, a large part of the uncovered set was blocked on something no subject change could
+  fix: Appendix D.8 named no producer for `400` or `406` at all, so the gate could not have grounded
+  those rows even if the subject produced them. That category is gone. The uncovered set is now
+  entirely *rows this subject has not implemented* rather than *rows the spec cannot ground*, which
+  is the difference between work and a blocked question.
+
+  | status | how it is grounded |
+  |---|---|
+  | `400` (`export`, `list`, `pull`, `revisions`) | the two normative pins: `format=sse` on a snapshot read, and `after` + `from` together on a `ReadRequest` |
+  | `405` (`pull`, `push`) | D.8 — pull/push on the wrong channel direction |
+  | `409` (`delete`, `import`, `patch`, `push`) | D.8 — id collision / declared failure |
+  | `410` (`pull`) | D.8 — below the retention floor (`cursor-expired`) |
+  | `413` (`put`, `patch`, `delete`) | D.8 — an over-budget guard where the scope does not advertise `bodyFormSpill` |
+  | `414` (`get`, `list`, `revisions`, `export`) | D.8 — the read's query string exceeds the URL budget |
+  | `422` (`create`, `import`, `push`, `put`) | `limit-exceeded`, which D.8 omitted as a row but the spec grounds |
+
+- **11 of the 25 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
+  `op/*` rows plus 8 of their declared faults. Counted from the gate's own uncovered list, not
   estimated. These are ROUTED by the fence but answer `501` ("not implemented by this scope"), and
-  `RemoteScope` has no client method for them. *Routed but not implemented* is a different
-  statement from *unroutable*, and the gate can tell them apart.
-- **The other 12 are faults on primitives already implemented** — `create/422`, `delete/400`,
-  `delete/409`, `export/400`, `get/400`, `get/406`, `list/400`, `list/406`, `patch/400`,
-  `patch/409`, `put/422`, `revisions/400`. Every one was probed and none is producible without a
-  subject change; the measured table below says what each probe returned. The `400`s and `406`s
-  among them share one reason: Appendix D.8 names no normative producer for either status, so the
-  gate could not ground them even if the subject produced them (see the ungrounded-rows section).
-  **`list` and `export` contributed their `op/*` rows and nothing else for exactly that reason** —
-  every fault they declare (`list` `[400, 406]`, `export` `[400]`) is ungrounded. **`cancel` is the
-  mirror image and contributed all three of its rows**: `[404, 409]` are the two statuses D.8 has
-  entries for, so neither was blocked the way a `400` or a `406` is (see the `cancel` section below
-  for which of the two producers is *named* by D.8 and which is derived from the declared set).
+  `RemoteScope` has no client method for them. *Routed but not implemented* is a different statement
+  from *unroutable*, and the gate can tell them apart.
+- **The other 14 are faults on primitives already implemented** — `create/422`, `delete/409`,
+  `delete/413`, `export/400`, `export/414`, `get/414`, `list/400`, `list/414`, `patch/409`,
+  `patch/413`, `put/413`, `put/422`, `revisions/400`, `revisions/414`. Each needs a subject change
+  rather than a ruling: the `413`s need an over-budget guard, the `414`s need a URL-budget check on
+  the read path. **The `400`s are different, and GROUNDED IS NOT REACHABLE** — see below.
+
+- **`list/400`, `export/400` and `revisions/400` are grounded but NOT REACHABLE over this binding,
+  and that is a principled gap rather than unfinished work.** Both pins that ground them act on
+  `ReadRequest` members — `format=sse` on a snapshot read, and `after` together with `from` — and the
+  `/// openapi =` annotations bind **no** such parameter on `list`, `revisions` or `export`. Only
+  `pull` declares `after`/`from`/`format` in the query string. Checked at the source, not just in the
+  generated catalog, so this is faithful lowering rather than a generator gap.
+
+  The one path that *can* express them is the **body-form read** (`POST /-/list`, `POST /{id}/-/get`
+  carrying a `ReadRequest`), and that is an **OPTIONAL capability, advertised as `bodyFormSpill`**,
+  which this subject does not advertise. So a client cannot send the malformed input at all, and the
+  rows are uncoverable for the same kind of reason `get/410` is: the subject declines a capability the
+  row depends on, which a conformant implementation may do. Covering them would mean implementing an
+  optional feature, not fixing an omission.
+
+  **This matters for `BDP_GATE_STRICT`.** "Uncovered means unimplemented" is true of most of the set,
+  but not of these: tier-1 can never reach 54/54 for a subject that declines `bodyFormSpill`, so a
+  blocking flip needs a notion of *rows unreachable because of a declared capability* — which the
+  suite already applies informally to `get/410` and the write `410`s. Flipping STRICT without it
+  would set a bar no conformant subject can clear.
+
+- **THE TWO ROWS STILL UNGROUNDED ARE THE TWO WE COVER.** `create/400` and `put/400` are the whole
+  remainder of the ungrounded-fault problem, and they are not in the list above because they are
+  *covered* — by the raw-HTTP family, which malforms the request body on a valid route. D.8 still has
+  no `400` entry, and `malformed-request` appears only in D.9's code list, which assigns no statuses:
+  **the spec contains no mapping from a Problem code to an HTTP status.** So those two cases assert a
+  `400` that this subject chose, exactly as `call`'s pre-dispatch `404` is the subject's choice rather
+  than a mandated status. Covering a row is not the same as the spec grounding it, and these two are
+  the only place in the surface where the suite is on the wrong side of that distinction. A
+  code→status mapping (`malformed-request` → `400`) would close it; that is a spec ruling, not gate
+  work.
+
 - **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
   covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
   design: `call`'s dispatch rule mandates the fault's *shape* — a `Problem` with no `Outcome` — and
@@ -99,13 +184,15 @@ The remaining 25 rows are uncovered for concrete, recorded reasons:
   never reached a state the wire could report on. They are unit tests rather than gate cases because
   the reference server never writes a truncated stream, so no case driven through it can produce the
   input, and fault injection would mean a server that lies on request.
-  **Whether this discharges the spec obligation is NOT settled.** The line reads *"an export MUST end
-  with the `ExportEnd` line; a reader refuses a file ending without it (truncation detection) and MUST
-  NOT treat it as whole"*, and it does not name which reader. One reading is the `export` client
-  reading the response stream (fixed here); another is `import` consuming a previously-written export
-  file, which is under ruling. Those are not exclusive — both are readers — so this is recorded as a
-  real defect fixed and reader-side strictness gained, not as an obligation closed. If the ruling
-  names `import`, `import` needs the same guard when it is bound.
+  **RULED, and the obligation now names its subject.** When this landed, the line did not say which
+  reader was bound, so it was recorded as a defect fixed rather than an obligation discharged. #428's
+  merged text settles it: *"An export MUST end with the `ExportEnd` line. ANY reader of an export
+  stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT
+  treat it as whole."* So this refusal is **on-obligation**, not merely strictness gained — and
+  `ExportEnd` is a truncation sentinel on the FORMAT, which is why it binds every consumer rather
+  than one named primitive. The obligation is still **waived** in the tier-2 ledger, not behavioural:
+  "any reader" is not discharged while `import` — the other reader — is unbound, and `import` needs
+  the same guard when it is bound. The export half is covered by `export_truncation_tests`.
 - **The faults on routed ops are NOT reachable by probing — measured, not estimated.** This list
   previously claimed ~14 of them were "reachable with more raw-HTTP probing". That was speculation and
   it was wrong: every candidate was probed against the subject and **none is producible without a
