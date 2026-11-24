@@ -39,16 +39,17 @@ The ledger records each obligation's state, not a count. A new normative line th
 # Part II — The gate contract
 
 **Authored by Connie (conformance-suite lead).** Derived from the gate code at `gastownhall/bdp` main
-`50c509ab`, 2026-11-24 — the pin where the figures below are measured, with #428/#434/#435/#437/#432 all
-landed. The fault-table rulings have moved the denominator in steps: 54 → 47 (ruling D, #437) → 48
-(`import/400`, #432), and it is still moving — read §7 for how to re-derive the current figures rather
-than trusting this date. Everything lives under `conformance/`. Written for a spec author who needs to
-know **what the gate will reject**, so they learn it before CI rather than after.
+`07ca0bed`, 2026-11-24 — the pin where the figures below are measured, with #428/#434/#435/#437/#432/#438
+all landed. The fault-table rulings have moved the denominator in steps: 54 → 47 (ruling D, #437) → 48
+(`import/400`, #432) → 50 (`patch/400` + `delete/400`, #438), and it is still moving — read §7 for how to
+re-derive the current figures rather than trusting this date. Everything lives under `conformance/`.
+Written for a spec author who needs to know **what the gate will reject**, so they learn it before CI
+rather than after.
 
 ## 1. Only a `problem = [...]` edit moves the denominator
 
 `denominator()` parses `specs/generated/openapi/core.openapi.json` into
-`SurfaceId::Op(op)` and `SurfaceId::Fault(op, status)` — **48 rows** (13 ops + 35 faults).
+`SurfaceId::Op(op)` and `SurfaceId::Fault(op, status)` — **50 rows** (13 ops + 37 faults).
 
 - Params are **not** in the surface model.
 - D.8 (the prose status table) is **never parsed**.
@@ -59,7 +60,9 @@ So declaring params, or adding a D.8 status row, cannot move the denominator. On
 **A worked instance.** Ruling D (#437) was the first live case: it edited seven `problem = [...]`
 arrays to undeclare the `413`/`414` rows and the denominator moved, while the D.8 prose reframe in the
 same PR moved nothing — the gate never parses D.8. `import/400` in #432 was the second: the array
-edit moved the denominator 47 → 48, its eight new params moved nothing.
+edit moved the denominator 47 → 48, its eight new params moved nothing. `patch/400` and `delete/400` in
+#438 were the third and fourth, taking it to 50 — their rule landed in D.8's `400`-row prose, which the
+gate never parses, so again only the `problem = [...]` edits moved anything.
 
 ## 2. Two pins, one commit
 
@@ -152,15 +155,27 @@ Manifest is `conformance/Cargo.toml`, **not** the repo root. `cargo` may need
 cargo test --manifest-path conformance/Cargo.toml
 ```
 
-**70 tests green** on `50c509ab`; coverage **29/48**; ledger **85 / 19 registered / 66 backlog / 0
-pending** — the backlog held at 66 because the +6 obligations since the last pin all registered. These
+**70 tests green** on `07ca0bed`; coverage **30/50**, uncovered 20; ledger **85 / 19 registered / 66
+backlog / 0 pending** — unchanged across #438, because #438 moved the fault surface, not the obligation
+ledger: the two are independent, and `patch/400` + `delete/400` added no `/// normative:` lines. These
 figures are a snapshot of one command, not an authority: re-derive the ledger and coverage blocks with
 `cd conformance && cargo test -p bdp-gate -- --nocapture` and read the numbers here as its illustration
 — the same move as citing `EXPECTED_SURFACE` over a line number. They shift with the surface; the next
 fault-row PR moves them again.
 
+**What `30/50` does and does not say.** *Covered* means a case exercised the row, not that the
+obligation is discharged. A row is `(op, status)`: `op/patch/fault/400` has two independent producers —
+a non-array patch document, and `If-None-Match` on an op whose capability record carries no `ifAbsent` —
+so breaking either leaves the figure at 30/50 while the other case still holds the row covered. A row can
+even read covered for the *wrong* reason: `op/patch/fault/422` once showed covered by a case sending a
+body D.8 names under `400`, which never touched a capability bound at all — the status alone could not
+show it, and a single-subject suite could not catch it (it surfaced on an independent multi-backend grid;
+the fix makes the cases assert the D.9 `code`, not the status, and `patch/422` is now honestly
+uncovered). Of the 20 uncovered rows, **12** wait on `import`/`pull`/`push` being implemented (3 `op/*` +
+9 faults); the other **8** are faults on implemented primitives.
+
 `BDP_GATE_STRICT=1` additionally fails on uncovered rows **and** the ledger backlog. It is expected to
-fail today — 19 rows, 66 obligations — so do not chase it. The STRICT flip is not close, and the
+fail today — 20 rows, 66 obligations — so do not chase it. The STRICT flip is not close, and the
 "third category" of unreachable rows was never what stood in its way.
 
 ## 8. Three levels, not two
@@ -177,5 +192,5 @@ imposed by intermediaries, not the origin, so no origin-side case could force on
 made them a denominator defect rather than a coverage gap.
 
 **Resolved at `b56281ed`.** Ruling D (#437) has now undeclared all seven of those rows, so this example
-is discharged — they are no longer in the denominator (54 → 47, then 48 with #432's `import/400`). The three-level principle above is
+is discharged — they are no longer in the denominator (54 → 47, then 48 with #432's `import/400`, then 50 with #438's `patch/400` + `delete/400`). The three-level principle above is
 unchanged; only the status of its worked example moved. It is the principle executed, not revised.
