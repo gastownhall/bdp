@@ -747,7 +747,7 @@ type ChannelRef   = PackageElementRef
 
 ## 2.2  Channels & the streaming model — pull, push
 
-A channel carries a sequence of events; `pull` reads it and `push` writes it. A read of any sequence (a channel, a scope listing, a resource's history, an export) is a `source<T>` — and BDP offers one streaming convention over it.
+A channel carries a sequence of events; `pull` reads it and `push` writes it. A read of a sequence is one of two natures: a LIVE feed (`pull` a channel) is a `source<T>`; a FINITE cut (a scope listing, a resource's history, an export) is a `snapshot<T>`. BDP offers one streaming convention over both; the nature decides which transport forms are valid (see the streaming model below).
 
 <a id="Channel"></a>
 
@@ -797,13 +797,41 @@ type Retention = union {
 | `Window` | `{ by: "time" \| "count" \| "size", amount: integer }` | Resumable within a trailing window, bounded by time, count, or size. |
 | `Compacted` | `{ window?: Retention }` | Compacted to latest-per-key; an optional window bounds the compacted tail. |
 
---- the streaming model: source<T>, the three forms, cursors, windows --- A `source<T>` is a finite, resumable, ordered sequence of `T`. Four reads produce one: `pull` (a Channel), `list` (a scope's current resources), `revisions` (one resource's history), `export` (a scope backup). A reader consumes it in one of three transport forms (the `--format` / Accept arm):
+--- the streaming model: two natures, three encodings, cursors, windows --- A read of an ordered, resumable sequence of `T` has one of two NATURES, and the nature — not the reader — decides which transport encodings are valid:
 
-| form | wire | valid on | notes |
-|---|---|---|---|
-| windowed | application/json | pull · list · export | one request → one Page (default) |
-| bulk | application/jsonl | pull · list · export | whole source, one T per line |
-| live | text/event-stream | pull only (live) | follow the source as it grows |
+```
+  • `source<T>`   = a LIVE feed: a changefeed or declared stream, `pull`ed from a
+                    Channel. It has a live edge that keeps growing.
+  • `snapshot<T>` = a FINITE cut: `list` (a scope's current resources), `revisions`
+                    (one resource's history), `export` (a scope backup), and the
+                    stdlib `query`. Taken as of a cursor; nothing follows it.
+```
+
+A reader consumes either in one of three transport encodings — each a typed projection the nature declares support for (the `--format` / Accept arm):
+
+| encoding | type | wire | valid on | notes |
+|---|---|---|---|---|
+| windowed | page<T> | application/json | source · snapshot | one request → one Page<T> |
+| bulk | jsonl<T> | application/jsonl | source · snapshot | the whole sequence, T/line |
+| live | sse<T> | text/event-stream | source only | follow the feed as it grows |
+
+`page<T>` and `jsonl<T>` are PULL/drainable, so they fit either nature. `sse<T>` is the only PUSH encoding — it follows a live edge — so it is LIVE-ONLY: a `source` may select it; a `snapshot` has nothing to follow and the encoding is not in its support set (so the invalid cell is unrepresentable in the type, not merely a runtime fault; the `400` survives only as the raw-wire guard for a client that hand-forges `?format=sse`). `page<T>` is NOT a new type — it is the existing `Page` window ([Page](#Page)) parameterized on `T` (shorthand for `Page<T>`).
+
+```
+One Cursor spans all three encodings of a `source`: page in json, catch up in jsonl,
+hand the same cursor to sse to go live.
+The transport enum is `Transport`, the response window is `Page`, and the request
+bundle is `ReadRequest` — ONE request type, shared by every read; its valid `format`
+set is DERIVED from the nature (a `source` admits `sse`, a `snapshot` does not).
+RESOLVED (return unified): EVERY read — `pull` (source) / `list` · `revisions` · the
+stdlib `query` · `export` (snapshot) — wire-returns a `Page` window `{ items, cursor,
+head? }`. The nature is the logical sequence; `Page` is its one-request window, the
+universal read envelope, so `list`/`query` return a Page, NOT a bare array. `cursor`
+resumes AFTER its last item (exclusive, opaque; null/absent once `head`). With `limit`
+absent a read returns the whole current set in one Page, BOUNDED by the service's
+advertised `maxLimit` — a larger set returns `maxLimit` items + a resume `cursor`, never
+unbounded. One Cursor spans the page / jsonl / sse transports.
+```
 
 <a id="Ordinal"></a>
 
@@ -829,21 +857,23 @@ type Cursor is string
 
 ### `Transport`
 
-The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
+The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
 
-> **Normative.** `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/export) refuses `format=sse` and faults `400`.
+> **Normative.** `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`.
 
 ```lumen
-type Transport = "json" | "jsonl" | "sse"
+type Transport = "page" | "jsonl" | "sse"
 ```
 
 <a id="ReadRequest"></a>
 
 ### `ReadRequest`
 
-The input to a streaming read ([pull](#pull) / [list](#list) / [revisions](#revisions)) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+The input to a streaming read — where to resume, how much, the transport, and per-item shaping. ONE request type for every read, `source` ([pull](#pull)) and `snapshot` ([list](#list) / [revisions](#revisions) / [export](#export) / stdlib `query`) alike; the valid `format` set is DERIVED from the read's nature (a `source` admits `sse`, a `snapshot` does not). `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
 
 > **Normative.** Supplying both `after` and `from` is malformed and faults `400`.
+
+> **Normative.** A service offering a read MUST HONOR the floor controls it accepts — not merely declare them: `after` (resume from the cursor), `limit` (window the result), and `format` (encode in the selected transport) — and MUST fault `400` on a malformed value. Silently ignoring a resume cursor or a transport selector — returning the whole set from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT (the silent-failure class, like a dropped `where`). A declared floor param is a promise to act on it.
 
 ```lumen
 type ReadRequest = {
@@ -861,7 +891,7 @@ type ReadRequest = {
 | `after?` | `Cursor` | Resume at an opaque cursor (exact). |
 | `from?` | `Ordinal` | Start at a known ordinal (xor `after`). |
 | `limit?` | `integer` | Cap the window size. |
-| `format?` | `Transport` | The transport form. |
+| `format?` | `Transport` | The transport encoding (`page`/`jsonl`/`sse`); `sse` only on a `source`. |
 | `filter?` | `Filter` | Filter the stream. |
 | `select?` | `selector` | Project each event. |
 
@@ -889,7 +919,7 @@ type Page = {
 
 ### `pull`
 
-Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` events. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three.
+Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a `source<T>` (a LIVE feed) of its `pullSchema` events. `--format` picks the transport (`page` windowed / `jsonl` bulk / `sse` live); one Cursor spans all three. `sse` is valid here because `pull` is the one live-feed read.
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 
@@ -1362,7 +1392,7 @@ So `GET /` is free to be the discovery signpost, and nothing collides with an id
   pull        GET     /{channel}                 a Channel, e.g. /sys/changes (changefeed)
   push        POST    /{channel}                 append jsonl to a sink/duplex Channel
   export      GET     /-/export                  bulk scope serialization → JSONL (scope action)
-  import      POST    /-/import                  bulk load ← JSONL → ImportReport (scope action)
+  import      POST    /-/import                  bulk load ← JSONL → ImportAck (resumable; scope action)
 ```
 
 ```
@@ -1572,7 +1602,7 @@ Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create 
 
 ### `list`
 
-A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability (query). Snapshot — `--format json|jsonl`, no `sse`.
+A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability (query). Snapshot — `--format page|jsonl`, no `sse`.
 
 ```lumen
 fn list(
@@ -1596,16 +1626,16 @@ fn revisions(
     resource: unpinned<any>,
     select?:  selector,
     request?: ReadRequest
-  ) -> source<Resource>
+  ) -> snapshot<Resource>
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
 | `resource` | `unpinned<any>` | The resource whose history to read. |
 | `select?` | `selector` | Projection per revision — ids-only vs full representations. |
-| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`). |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`). |
 
-**Returns** `source<Resource>` — An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
+**Returns** `snapshot<Resource>` — An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
 
 **read-shaping & patch bodies (shared by the reads above)**
 
@@ -1953,7 +1983,7 @@ type ChangeContent = union {
 
 ### `ExportRecord`
 
-One line of an export.
+One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.
 
 ```lumen
 type ExportRecord = ExportBegin | Resource | ExportEnd
@@ -1991,7 +2021,9 @@ type ExportBegin = {
 
 The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
 
-> **Normative.** An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.
+> **Normative.** The completed read is the truncation conformance point: a whole export — a one-shot reader's entire file, or a resumable import AT the call that consumes `ExportEnd` (the ack bearing `complete`) — MUST end with an `ExportEnd`, and a reader that takes a whole export lacking it refuses it (`400`). An intermediate resume chunk is a PREFIX by design: it is acked (`acceptedThrough`, not `complete`) and re-offered from, never refused for want of a terminator.
+
+> **Normative.** A reader refuses (`400`) an `ExportEnd` whose `count` disagrees with the Resource records it closes over — this is what tells a whole file from two exports concatenated (each ending in its own `ExportEnd`), which the implicit record-ordinal (stream position) cannot distinguish.
 
 ```lumen
 type ExportEnd = {
@@ -2017,7 +2049,7 @@ fn export(
     where?:     Filter,
     select?:    selector,
     revisions?: bool
-  ) -> source<ExportRecord>
+  ) -> snapshot<ExportRecord>
 ```
 
 | Parameter | Type | Description |
@@ -2027,7 +2059,7 @@ fn export(
 | `select?` | `selector` | Project each exported resource. |
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
 
-**Returns** `source<ExportRecord>` — One line of an export.
+**Returns** `snapshot<ExportRecord>` — One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.
 
 <a id="ImportStrategy"></a>
 
@@ -2055,7 +2087,7 @@ type ImportStrategy = {
 
 ### `ImportReport`
 
-What `import` reports — counts and any skipped/conflicted records.
+The import tally — counts and any conflicted records. It is the `tallies` of the final [ImportAck](#ImportAck) (the call that consumes `ExportEnd`); the old terminal whole-batch report folds here. Also returned directly by pack ops that summarize a bulk load.
 
 ```lumen
 type ImportReport = {
@@ -2068,32 +2100,88 @@ type ImportReport = {
 | Member | Type | Description |
 |---|---|---|
 | `imported` | `integer` | How many records were written. |
-| `skipped` | `integer` | How many were skipped (already present, under `dedup`). |
+| `skipped` | `integer` | How many records were skipped as already present (content `dedup`). |
 | `conflicts` | `[ { id: ref<any>, reason: string } ]` | Rejected records, each by its id and the reason. |
+
+<a id="ImportResult"></a>
+
+### `ImportResult`
+
+The fate of one offered export record, in stream order — mirrors [PushResult](#PushResult) with an added hard-reject arm. The record is identified by its stream ordinal (its position in the export).
+
+```lumen
+type ImportResult = union {
+  Accepted   { ordinal: Ordinal }
+  Deduped    { ordinal: Ordinal }
+  Deferred
+  Conflicted { ordinal: Ordinal, reason: string }
+}
+```
+
+| Variant | Payload | Description |
+|---|---|---|
+| `Accepted` | `{ ordinal: Ordinal }` | Applied (written) at this ordinal. |
+| `Deduped` | `{ ordinal: Ordinal }` | A benign no-op — EITHER an idempotent resume re-offer (ordinal ≤ `acceptedThrough`), OR a content `dedup` skip (the resource is already present). Two distinct mechanisms, one fate (see the import normative notes). |
+| `Deferred` | — | Not processed on this call (backpressure); re-offer the tail from `acceptedThrough + 1` after `retryAfter`. |
+| `Conflicted` | `{ ordinal: Ordinal, reason: string }` | Hard per-record reject — the record was PROCESSED (it counts toward `acceptedThrough`) but not applied; resume never re-offers it. |
+
+<a id="ImportAck"></a>
+
+### `ImportAck`
+
+What [import](#import) returns — the push-style acknowledgement for a resumable, backpressured bulk load, mirroring [PushAck](#PushAck). `acceptedThrough` is the high-water record ordinal PROCESSED by this call; the importer re-offers the deferred tail from `acceptedThrough + 1`. The call that consumes `ExportEnd` sets `complete: true` and carries the final `tallies`; a one-shot (non-resumable) import returns a single ack already `complete`.
+
+```lumen
+type ImportAck = {
+  acceptedThrough: Ordinal,
+  credit:          integer,
+  retryAfter?:     integer,
+  results:         [ImportResult],
+  complete?:       bool,
+  tallies:         ImportReport
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `acceptedThrough` | `Ordinal` | The high-water record ordinal PROCESSED (applied-or-rejected) by this call; the importer re-offers from `acceptedThrough + 1`. |
+| `credit` | `integer` | How many more records the scope will accept right now (admission credit); `0` means hold and retry. |
+| `retryAfter?` | `integer` | How long to wait before re-offering the deferred tail (seconds; maps to HTTP `Retry-After`). |
+| `results` | `[ImportResult]` | Per offered record, in stream order — applied, deduped, deferred, or conflicted. |
+| `complete?` | `bool` | Present and `true` on the call that consumed `ExportEnd` — the import is whole. |
+| `tallies` | `ImportReport` | The folded tally ([ImportReport](#ImportReport)) — authoritative on the final (`complete`) ack. |
 
 <a id="import"></a>
 
 ### `import`
 
-The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
+The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op. Push-style and resumable: the importer offers the export stream, the scope accepts a prefix and defers the rest under backpressure, acks `acceptedThrough`, and the importer re-offers from `acceptedThrough + 1`. Resume is an advertised capability ([ImportCaps](#ImportCaps) `window`); a minimal scope keeps one-shot import (one ack, already `complete`).
 
 > **Normative.** `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
+
+> **Normative.** Import is RESUMABLE over the export's implicit record ordinals ([ExportRecord](#ExportRecord)). `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1`; re-offering a record at or below `acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.
+
+> **Normative.** `acceptedThrough` is the last PROCESSED record — applied OR rejected — NOT the last success. A `Conflicted` record counts toward `acceptedThrough`, so resume SKIPS it and never re-offers it; a dropped-and-resumed import converges to the same per-record fates as one uninterrupted call.
+
+> **Normative.** TWO idempotencies ride import and MUST NOT be conflated. Resume-idempotency is protocol-level: a re-offered ordinal ≤ `acceptedThrough` is a no-op, independent of content. Content `dedup` ([ImportStrategy](#ImportStrategy)) is a merge strategy: a record whose resource is already present is skipped. Both surface as `Deduped`, but the first is keyed on the stream ordinal and the second on resource presence — they coincide only by accident.
+
+> **Normative.** Backpressure — an `ImportAck` carrying `credit: 0` and a deferred tail — is soft and temporal, not an error, exactly as [push](#push). It is distinct from `limit-exceeded` (422), the hard rejection of a request that exceeds a static capability bound, fixed by shrinking the request. `dryRun` ([ImportStrategy](#ImportStrategy)) is inherently one-shot — nothing durable is written, so nothing can be resumed — and returns a single `complete` ack.
 
 ```lumen
 command import(
     scope:     Scope,
-    source:    source<ExportRecord>,
+    source:    snapshot<ExportRecord>,
     strategy?: ImportStrategy
-  ) -> ImportReport
+  ) -> ImportAck
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
 | `scope` | `Scope` | The scope to import into. |
-| `source` | `source<ExportRecord>` | The export stream to replay — begin, resources, end (see [ExportRecord](#ExportRecord)). |
+| `source` | `snapshot<ExportRecord>` | The export stream to replay — begin, resources, end (see [ExportRecord](#ExportRecord)); a resumed call re-offers from `acceptedThrough + 1`. |
 | `strategy?` | `ImportStrategy` | How to merge, and whether to remap ids (see [ImportStrategy](#ImportStrategy)). |
 
-**Returns** `ImportReport` — What `import` reports — counts and any skipped/conflicted records.
+**Returns** `ImportAck` — What [import](#import) returns — the push-style acknowledgement for a resumable, backpressured bulk load, mirroring [PushAck](#PushAck). `acceptedThrough` is the high-water record ordinal PROCESSED by this call; the importer re-offers the deferred tail from `acceptedThrough + 1`. The call that consumes `ExportEnd` sets `complete: true` and carries the final `tallies`; a one-shot (non-resumable) import returns a single ack already `complete`.
 
 ## 3.3  Discovery & capabilities — the primitive set, advertised à la carte
 
@@ -2487,13 +2575,15 @@ Limits advertised for `import`.
 
 ```lumen
 type ImportCaps = {
-  historyRestore: bool
+  historyRestore: bool,
+  window?:        integer
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `historyRestore` | `bool` | Whether importing prior revisions (history restore) is honored. |
+| `window?` | `integer` | The admission window — how many export records the scope will accept before backpressure, when bounded. Its PRESENCE advertises resumable/backpressured import ([ImportAck](#ImportAck)); absent ⇒ one-shot import only (a single `complete` ack, no resume). Mirrors [PushCaps](#PushCaps) `window`. |
 
 <a id="PushCaps"></a>
 
@@ -2788,6 +2878,11 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   200  get / put / patch / list / revisions / pull success; call → outcome success
   201  create success, and a call whose Operation `creates` — Location: the new URL
   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
+  400  `malformed-request` / `invalid-parameter` — a malformed or invalid request: a bad
+       body (unparseable JSON, a patch that is not a JSON-Patch array, a truncated export)
+       or an invalid parameter value. DISTINCT from `422` (a request exceeding an advertised
+       capability bound — `limit-exceeded` — fixed by shrinking). Both `malformed-request`
+       and `invalid-parameter` resolve here.
   409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR
        `put` + `If-None-Match: *` (`identity-taken`); also some Problems
   412  a failed guard on put / patch / delete — a stale `If-Match` (`revision-mismatch`)

@@ -542,8 +542,10 @@ type ChannelRef   = PackageElementRef
 // 2.2  Channels & the streaming model — pull, push
 // -----------------------------------------------------------------------------
 // A channel carries a sequence of events; `pull` reads it and `push` writes it. A
-// read of any sequence (a channel, a scope listing, a resource's history, an
-// export) is a `source<T>` — and BDP offers one streaming convention over it.
+// read of a sequence is one of two natures: a LIVE feed (`pull` a channel) is a
+// `source<T>`; a FINITE cut (a scope listing, a resource's history, an export) is a
+// `snapshot<T>`. BDP offers one streaming convention over both; the nature decides
+// which transport forms are valid (see the streaming model below).
 
 
 ## Channel
@@ -574,32 +576,45 @@ type Retention = union {
   Compacted { window?: Retention }
 }
 
-// --- the streaming model: source<T>, the three forms, cursors, windows ---
-// A `source<T>` is a finite, resumable, ordered sequence of `T`. Four reads
-// produce one: `pull` (a Channel), `list` (a scope's current resources),
-// `revisions` (one resource's history), `export` (a scope backup). A reader
-// consumes it in one of three transport forms (the `--format` / Accept arm):
+// --- the streaming model: two natures, three encodings, cursors, windows ---
+// A read of an ordered, resumable sequence of `T` has one of two NATURES, and the
+// nature — not the reader — decides which transport encodings are valid:
 //
-//   | form     | wire               | valid on             | notes                            |
-//   | windowed | application/json   | pull · list · export | one request → one Page (default) |
-//   | bulk     | application/jsonl  | pull · list · export | whole source, one T per line     |
-//   | live     | text/event-stream  | pull only (live)     | follow the source as it grows    |
+//   • `source<T>`   = a LIVE feed: a changefeed or declared stream, `pull`ed from a
+//                     Channel. It has a live edge that keeps growing.
+//   • `snapshot<T>` = a FINITE cut: `list` (a scope's current resources), `revisions`
+//                     (one resource's history), `export` (a scope backup), and the
+//                     stdlib `query`. Taken as of a cursor; nothing follows it.
 //
-// One Cursor spans all three: page in json, catch up in jsonl, hand the same
-// cursor to sse to go live. `sse` is gated to a live source (pull); a snapshot
-// (list / export / revisions) has nothing to follow and refuses it.
+// A reader consumes either in one of three transport encodings — each a typed
+// projection the nature declares support for (the `--format` / Accept arm):
+//
+//   | encoding | type       | wire               | valid on          | notes                        |
+//   | windowed | page<T>     | application/json   | source · snapshot | one request → one Page<T>    |
+//   | bulk     | jsonl<T>    | application/jsonl  | source · snapshot | the whole sequence, T/line   |
+//   | live     | sse<T>      | text/event-stream  | source only       | follow the feed as it grows  |
+//
+// `page<T>` and `jsonl<T>` are PULL/drainable, so they fit either nature. `sse<T>` is
+// the only PUSH encoding — it follows a live edge — so it is LIVE-ONLY: a `source` may
+// select it; a `snapshot` has nothing to follow and the encoding is not in its support
+// set (so the invalid cell is unrepresentable in the type, not merely a runtime fault;
+// the `400` survives only as the raw-wire guard for a client that hand-forges `?format=sse`).
+// `page<T>` is NOT a new type — it is the existing `Page` window ([[core.lumen#Page]])
+// parameterized on `T` (shorthand for `Page<T>`).
+//
+// One Cursor spans all three encodings of a `source`: page in json, catch up in jsonl,
+// hand the same cursor to sse to go live.
 // The transport enum is `Transport`, the response window is `Page`, and the request
-// bundle is `ReadRequest` (shared by pull / list / revisions).
-// >DB? shape (still open for your read): list/revisions take `where?`/`select?` and a
-//   `ReadRequest` whose `filter`/`select` overlap them — collapse to one? (Still open.)
-// RESOLVED (return unified): EVERY `source<T>` read — pull / list / revisions / the stdlib
-// `query` / export — wire-returns a `Page` window `{ items, cursor, head? }`. `source<T>`
-// is the logical sequence; `Page` is its one-request window, the universal read envelope,
-// so `list`/`query` return a Page, NOT a bare array. `cursor` resumes AFTER its last item
-// (exclusive, opaque; null/absent once `head`). With `limit` absent a read returns the
-// whole current set in one Page, BOUNDED by the service's advertised `maxLimit` — a larger
-// set returns `maxLimit` items + a resume `cursor`, never unbounded. One Cursor spans the
-// json / jsonl / sse transports.
+// bundle is `ReadRequest` — ONE request type, shared by every read; its valid `format`
+// set is DERIVED from the nature (a `source` admits `sse`, a `snapshot` does not).
+// RESOLVED (return unified): EVERY read — `pull` (source) / `list` · `revisions` · the
+// stdlib `query` · `export` (snapshot) — wire-returns a `Page` window `{ items, cursor,
+// head? }`. The nature is the logical sequence; `Page` is its one-request window, the
+// universal read envelope, so `list`/`query` return a Page, NOT a bare array. `cursor`
+// resumes AFTER its last item (exclusive, opaque; null/absent once `head`). With `limit`
+// absent a read returns the whole current set in one Page, BOUNDED by the service's
+// advertised `maxLimit` — a larger set returns `maxLimit` items + a resume `cursor`, never
+// unbounded. One Cursor spans the page / jsonl / sse transports.
 
 ## Ordinal
 /// description: An event's position in its stream; monotone within one Channel.
@@ -610,13 +625,14 @@ type Ordinal is integer
 type Cursor is string
 
 ## Transport
-/// description: The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
-/// normative: `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/export) refuses `format=sse` and faults `400`.
-type Transport = "json" | "jsonl" | "sse"
+/// description: The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
+/// normative: `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`.
+type Transport = "page" | "jsonl" | "sse"
 
 ## ReadRequest
-/// description: The input to a streaming read ([[core.lumen#pull]] / [[core.lumen#list]] / [[core.lumen#revisions]]) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+/// description: The input to a streaming read — where to resume, how much, the transport, and per-item shaping. ONE request type for every read, `source` ([[core.lumen#pull]]) and `snapshot` ([[core.lumen#list]] / [[core.lumen#revisions]] / [[core.lumen#export]] / stdlib `query`) alike; the valid `format` set is DERIVED from the read's nature (a `source` admits `sse`, a `snapshot` does not). `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
 /// normative: Supplying both `after` and `from` is malformed and faults `400`.
+/// normative: A service offering a read MUST HONOR the floor controls it accepts — not merely declare them: `after` (resume from the cursor), `limit` (window the result), and `format` (encode in the selected transport) — and MUST fault `400` on a malformed value. Silently ignoring a resume cursor or a transport selector — returning the whole set from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT (the silent-failure class, like a dropped `where`). A declared floor param is a promise to act on it.
 type ReadRequest = {
   /// description: Resume at an opaque cursor (exact).
   after?:  Cursor,
@@ -624,7 +640,7 @@ type ReadRequest = {
   from?:   Ordinal,
   /// description: Cap the window size.
   limit?:  integer,
-  /// description: The transport form.
+  /// description: The transport encoding (`page`/`jsonl`/`sse`); `sse` only on a `source`.
   format?: Transport,
   /// description: Filter the stream.
   filter?: Filter,
@@ -645,7 +661,7 @@ type Page = {
 
 ## pull
 /// bdp = { kind = "primitive", primitive = "pull" }
-/// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` events. `--format` picks the transport (json windowed / jsonl bulk / sse live); one Cursor spans all three.
+/// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a `source<T>` (a LIVE feed) of its `pullSchema` events. `--format` picks the transport (`page` windowed / `jsonl` bulk / `sse` live); one Cursor spans all three. `sse` is valid here because `pull` is the one live-feed read.
 /// normative: Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 /// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,405,410] } }
 fn pull(
@@ -955,7 +971,7 @@ type PackageDef is Bead {
 //   pull        GET     /{channel}                 a Channel, e.g. /sys/changes (changefeed)
 //   push        POST    /{channel}                 append jsonl to a sink/duplex Channel
 //   export      GET     /-/export                  bulk scope serialization → JSONL (scope action)
-//   import      POST    /-/import                  bulk load ← JSONL → ImportReport (scope action)
+//   import      POST    /-/import                  bulk load ← JSONL → ImportAck (resumable; scope action)
 //
 // `push` is NOT the stdlib `batch`: it appends to a Channel. A read whose query string
 // overruns the URL budget MAY re-send under the fence as a body-form POST (`/-/list`,
@@ -1165,8 +1181,8 @@ idempotent command delete(
 
 ## list
 /// bdp = { kind = "primitive", primitive = "list" }
-/// description: A collection of current resources in a scope, as a source<Resource>. `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability ([[stdlib.lumen#query]]). Snapshot — `--format json|jsonl`, no `sse`.
-/// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], params = { where = { in = "query", schema = "Filter", required = false }, include = { in = "query", schema = "[JsonPointer]", required = false }, omit = { in = "query", schema = "[JsonPointer]", required = false }, expand = { in = "query", schema = "[LocalName]", required = false }, select = { in = "query", schema = "selector", required = false } }, success = { status = 200 }, problem = { status = [400] } }
+/// description: A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability ([[stdlib.lumen#query]]). Snapshot — `--format page|jsonl`, no `sse`.
+/// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], params = { where = { in = "query", schema = "Filter", required = false }, include = { in = "query", schema = "[JsonPointer]", required = false }, omit = { in = "query", schema = "[JsonPointer]", required = false }, expand = { in = "query", schema = "[LocalName]", required = false }, select = { in = "query", schema = "selector", required = false }, after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400] } }
 fn list(
     /// description: The scope to list.
     scope:   Scope,
@@ -1180,22 +1196,22 @@ fn list(
     where?:  Filter,
     /// description: Projection applied to each result (overlaps `request.select`).
     select?: selector,
-    /// description: Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`).
+    /// description: Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`).
     request?: ReadRequest
-  ) -> source<Resource>
+  ) -> snapshot<Resource>
 
 ## revisions
 /// bdp = { kind = "primitive", primitive = "revisions" }
 /// description: The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
-/// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], success = { status = 200 }, problem = { status = [400,404] } }
+/// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,404] } }
 fn revisions(
     /// description: The resource whose history to read.
     resource: unpinned<any>,
     /// description: Projection per revision — ids-only vs full representations.
     select?:  selector,
-    /// description: Streaming controls — resume cursor, limit, transport (`json`/`jsonl`; no `sse`).
+    /// description: Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`).
     request?: ReadRequest
-  ) -> source<Resource>
+  ) -> snapshot<Resource>
 
 // --- read-shaping & patch bodies (shared by the reads above) ---
 
@@ -1393,7 +1409,7 @@ type ChangeContent = union {
 // A reader refuses a file that ends without the end record.
 
 ## ExportRecord
-/// description: One line of an export.
+/// description: One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([[core.lumen#import]]). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.
 type ExportRecord = ExportBegin | Resource | ExportEnd
 
 ## ExportBegin
@@ -1409,7 +1425,8 @@ type ExportBegin = {
 
 ## ExportEnd
 /// description: The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
-/// normative: An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.
+/// normative: The completed read is the truncation conformance point: a whole export — a one-shot reader's entire file, or a resumable import AT the call that consumes `ExportEnd` (the ack bearing `complete`) — MUST end with an `ExportEnd`, and a reader that takes a whole export lacking it refuses it (`400`). An intermediate resume chunk is a PREFIX by design: it is acked (`acceptedThrough`, not `complete`) and re-offered from, never refused for want of a terminator.
+/// normative: A reader refuses (`400`) an `ExportEnd` whose `count` disagrees with the Resource records it closes over — this is what tells a whole file from two exports concatenated (each ending in its own `ExportEnd`), which the implicit record-ordinal (stream position) cannot distinguish.
 type ExportEnd = {
   /// description: The discriminator that marks the closing line.
   kind:  "export-end",
@@ -1420,7 +1437,7 @@ type ExportEnd = {
 ## export
 /// bdp = { kind = "primitive", primitive = "export" }
 /// description: Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
-/// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
+/// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], params = { format = { in = "header", schema = "Transport", required = false } }, success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
 fn export(
     /// description: The scope to back up.
     scope:      Scope,
@@ -1430,7 +1447,7 @@ fn export(
     select?:    selector,
     /// description: Emit every revision in order (a true backup) instead of current state.
     revisions?: bool
-  ) -> source<ExportRecord>
+  ) -> snapshot<ExportRecord>
 
 ## ImportStrategy
 /// description: How `import` merges — strategy and id remap.
@@ -1446,29 +1463,63 @@ type ImportStrategy = {
 }
 
 ## ImportReport
-/// description: What `import` reports — counts and any skipped/conflicted records.
+/// description: The import tally — counts and any conflicted records. It is the `tallies` of the final [[core.lumen#ImportAck]] (the call that consumes `ExportEnd`); the old terminal whole-batch report folds here. Also returned directly by pack ops that summarize a bulk load.
 type ImportReport = {
   /// description: How many records were written.
   imported:  integer,
-  /// description: How many were skipped (already present, under `dedup`).
+  /// description: How many records were skipped as already present (content `dedup`).
   skipped:   integer,
   /// description: Rejected records, each by its id and the reason.
   conflicts: [ { id: ref<any>, reason: string } ]
 }
 
+## ImportResult
+/// description: The fate of one offered export record, in stream order — mirrors [[core.lumen#PushResult]] with an added hard-reject arm. The record is identified by its stream ordinal (its position in the export).
+type ImportResult = union {
+  /// description: Applied (written) at this ordinal.
+  Accepted   { ordinal: Ordinal }
+  /// description: A benign no-op — EITHER an idempotent resume re-offer (ordinal ≤ `acceptedThrough`), OR a content `dedup` skip (the resource is already present). Two distinct mechanisms, one fate (see the import normative notes).
+  Deduped    { ordinal: Ordinal }
+  /// description: Not processed on this call (backpressure); re-offer the tail from `acceptedThrough + 1` after `retryAfter`.
+  Deferred
+  /// description: Hard per-record reject — the record was PROCESSED (it counts toward `acceptedThrough`) but not applied; resume never re-offers it.
+  Conflicted { ordinal: Ordinal, reason: string }
+}
+
+## ImportAck
+/// description: What [[core.lumen#import]] returns — the push-style acknowledgement for a resumable, backpressured bulk load, mirroring [[core.lumen#PushAck]]. `acceptedThrough` is the high-water record ordinal PROCESSED by this call; the importer re-offers the deferred tail from `acceptedThrough + 1`. The call that consumes `ExportEnd` sets `complete: true` and carries the final `tallies`; a one-shot (non-resumable) import returns a single ack already `complete`.
+type ImportAck = {
+  /// description: The high-water record ordinal PROCESSED (applied-or-rejected) by this call; the importer re-offers from `acceptedThrough + 1`.
+  acceptedThrough: Ordinal,
+  /// description: How many more records the scope will accept right now (admission credit); `0` means hold and retry.
+  credit:          integer,
+  /// description: How long to wait before re-offering the deferred tail (seconds; maps to HTTP `Retry-After`).
+  retryAfter?:     integer,
+  /// description: Per offered record, in stream order — applied, deduped, deferred, or conflicted.
+  results:         [ImportResult],
+  /// description: Present and `true` on the call that consumed `ExportEnd` — the import is whole.
+  complete?:       bool,
+  /// description: The folded tally ([[core.lumen#ImportReport]]) — authoritative on the final (`complete`) ack.
+  tallies:         ImportReport
+}
+
 ## import
 /// bdp = { kind = "primitive", primitive = "import" }
-/// description: The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
+/// description: The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op. Push-style and resumable: the importer offers the export stream, the scope accepts a prefix and defers the rest under backpressure, acks `acceptedThrough`, and the importer re-offers from `acceptedThrough + 1`. Resume is an advertised capability ([[core.lumen#ImportCaps]] `window`); a minimal scope keeps one-shot import (one ack, already `complete`).
 /// normative: `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
-/// openapi = { operationId = "import", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [409,422] } }
+/// normative: Import is RESUMABLE over the export's implicit record ordinals ([[core.lumen#ExportRecord]]). `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1`; re-offering a record at or below `acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.
+/// normative: `acceptedThrough` is the last PROCESSED record — applied OR rejected — NOT the last success. A `Conflicted` record counts toward `acceptedThrough`, so resume SKIPS it and never re-offers it; a dropped-and-resumed import converges to the same per-record fates as one uninterrupted call.
+/// normative: TWO idempotencies ride import and MUST NOT be conflated. Resume-idempotency is protocol-level: a re-offered ordinal ≤ `acceptedThrough` is a no-op, independent of content. Content `dedup` ([[core.lumen#ImportStrategy]]) is a merge strategy: a record whose resource is already present is skipped. Both surface as `Deduped`, but the first is keyed on the stream ordinal and the second on resource presence — they coincide only by accident.
+/// normative: Backpressure — an `ImportAck` carrying `credit: 0` and a deferred tail — is soft and temporal, not an error, exactly as [[core.lumen#push]]. It is distinct from `limit-exceeded` (422), the hard rejection of a request that exceeds a static capability bound, fixed by shrinking the request. `dryRun` ([[core.lumen#ImportStrategy]]) is inherently one-shot — nothing durable is written, so nothing can be resumed — and returns a single `complete` ack.
+/// openapi = { operationId = "import", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,422] } }
 command import(
     /// description: The scope to import into.
     scope:     Scope,
-    /// description: The export stream to replay — begin, resources, end (see [[core.lumen#ExportRecord]]).
-    source:    source<ExportRecord>,
+    /// description: The export stream to replay — begin, resources, end (see [[core.lumen#ExportRecord]]); a resumed call re-offers from `acceptedThrough + 1`.
+    source:    snapshot<ExportRecord>,
     /// description: How to merge, and whether to remap ids (see [[core.lumen#ImportStrategy]]).
     strategy?: ImportStrategy
-  ) -> ImportReport
+  ) -> ImportAck
 
 // -----------------------------------------------------------------------------
 // 3.3  Discovery & capabilities — the primitive set, advertised à la carte
@@ -1697,7 +1748,9 @@ type ExportCaps = {
 /// description: Limits advertised for `import`.
 type ImportCaps = {
   /// description: Whether importing prior revisions (history restore) is honored.
-  historyRestore: bool
+  historyRestore: bool,
+  /// description: The admission window — how many export records the scope will accept before backpressure, when bounded. Its PRESENCE advertises resumable/backpressured import ([[core.lumen#ImportAck]]); absent ⇒ one-shot import only (a single `complete` ack, no resume). Mirrors [[core.lumen#PushCaps]] `window`.
+  window?:        integer
 }
 
 ## PushCaps
@@ -1968,6 +2021,11 @@ type PushCaps = {
 //   200  get / put / patch / list / revisions / pull success; call → outcome success
 //   201  create success, and a call whose Operation `creates` — Location: the new URL
 //   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
+//   400  `malformed-request` / `invalid-parameter` — a malformed or invalid request: a bad
+//        body (unparseable JSON, a patch that is not a JSON-Patch array, a truncated export)
+//        or an invalid parameter value. DISTINCT from `422` (a request exceeding an advertised
+//        capability bound — `limit-exceeded` — fixed by shrinking). Both `malformed-request`
+//        and `invalid-parameter` resolve here.
 //   409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR
 //        `put` + `If-None-Match: *` (`identity-taken`); also some Problems
 //   412  a failed guard on put / patch / delete — a stale `If-Match` (`revision-mismatch`)
