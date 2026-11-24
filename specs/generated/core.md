@@ -2799,6 +2799,8 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        intermediaries may instead surface it as `431` or a length-related `400`
   415  a direct `patch` body whose media type is not `application/json-patch+json` (a
        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
+  422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
+       or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
   404  get of an absent resource; an unknown action to the right of the `/-/` fence
   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
   410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)

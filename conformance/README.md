@@ -106,24 +106,68 @@ Across three case families:
   reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 25 rows are uncovered for concrete, recorded reasons:
+The remaining 25 rows are uncovered for concrete, recorded reasons — and after the fault-surface
+reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
 
-- **13 of the 25 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
-  `op/*` rows plus 10 of their declared faults. Counted from the gate's own uncovered list, not
+- **EVERY UNCOVERED ROW NOW HAS A NORMATIVE PRODUCER.** Checked row by row, not assumed. Before the
+  reconciliation, a large part of the uncovered set was blocked on something no subject change could
+  fix: Appendix D.8 named no producer for `400` or `406` at all, so the gate could not have grounded
+  those rows even if the subject produced them. That category is gone. The uncovered set is now
+  entirely *rows this subject has not implemented* rather than *rows the spec cannot ground*, which
+  is the difference between work and a blocked question.
+
+  | status | how it is grounded |
+  |---|---|
+  | `400` (`export`, `list`, `pull`, `revisions`) | the two normative pins: `format=sse` on a snapshot read, and `after` + `from` together on a `ReadRequest` |
+  | `405` (`pull`, `push`) | D.8 — pull/push on the wrong channel direction |
+  | `409` (`delete`, `import`, `patch`, `push`) | D.8 — id collision / declared failure |
+  | `410` (`pull`) | D.8 — below the retention floor (`cursor-expired`) |
+  | `413` (`put`, `patch`, `delete`) | D.8 — an over-budget guard where the scope does not advertise `bodyFormSpill` |
+  | `414` (`get`, `list`, `revisions`, `export`) | D.8 — the read's query string exceeds the URL budget |
+  | `422` (`create`, `import`, `push`, `put`) | `limit-exceeded`, which D.8 omitted as a row but the spec grounds |
+
+- **11 of the 25 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
+  `op/*` rows plus 8 of their declared faults. Counted from the gate's own uncovered list, not
   estimated. These are ROUTED by the fence but answer `501` ("not implemented by this scope"), and
-  `RemoteScope` has no client method for them. *Routed but not implemented* is a different
-  statement from *unroutable*, and the gate can tell them apart.
-- **The other 12 are faults on primitives already implemented** — `create/422`, `delete/400`,
-  `delete/409`, `export/400`, `get/400`, `get/406`, `list/400`, `list/406`, `patch/400`,
-  `patch/409`, `put/422`, `revisions/400`. Every one was probed and none is producible without a
-  subject change; the measured table below says what each probe returned. The `400`s and `406`s
-  among them share one reason: Appendix D.8 names no normative producer for either status, so the
-  gate could not ground them even if the subject produced them (see the ungrounded-rows section).
-  **`list` and `export` contributed their `op/*` rows and nothing else for exactly that reason** —
-  every fault they declare (`list` `[400, 406]`, `export` `[400]`) is ungrounded. **`cancel` is the
-  mirror image and contributed all three of its rows**: `[404, 409]` are the two statuses D.8 has
-  entries for, so neither was blocked the way a `400` or a `406` is (see the `cancel` section below
-  for which of the two producers is *named* by D.8 and which is derived from the declared set).
+  `RemoteScope` has no client method for them. *Routed but not implemented* is a different statement
+  from *unroutable*, and the gate can tell them apart.
+- **The other 14 are faults on primitives already implemented** — `create/422`, `delete/409`,
+  `delete/413`, `export/400`, `export/414`, `get/414`, `list/400`, `list/414`, `patch/409`,
+  `patch/413`, `put/413`, `put/422`, `revisions/400`, `revisions/414`. Each needs a subject change
+  rather than a ruling: the `413`s need an over-budget guard, the `414`s need a URL-budget check on
+  the read path. **The `400`s are different, and GROUNDED IS NOT REACHABLE** — see below.
+
+- **`list/400`, `export/400` and `revisions/400` are grounded but NOT REACHABLE over this binding,
+  and that is a principled gap rather than unfinished work.** Both pins that ground them act on
+  `ReadRequest` members — `format=sse` on a snapshot read, and `after` together with `from` — and the
+  `/// openapi =` annotations bind **no** such parameter on `list`, `revisions` or `export`. Only
+  `pull` declares `after`/`from`/`format` in the query string. Checked at the source, not just in the
+  generated catalog, so this is faithful lowering rather than a generator gap.
+
+  The one path that *can* express them is the **body-form read** (`POST /-/list`, `POST /{id}/-/get`
+  carrying a `ReadRequest`), and that is an **OPTIONAL capability, advertised as `bodyFormSpill`**,
+  which this subject does not advertise. So a client cannot send the malformed input at all, and the
+  rows are uncoverable for the same kind of reason `get/410` is: the subject declines a capability the
+  row depends on, which a conformant implementation may do. Covering them would mean implementing an
+  optional feature, not fixing an omission.
+
+  **This matters for `BDP_GATE_STRICT`.** "Uncovered means unimplemented" is true of most of the set,
+  but not of these: tier-1 can never reach 54/54 for a subject that declines `bodyFormSpill`, so a
+  blocking flip needs a notion of *rows unreachable because of a declared capability* — which the
+  suite already applies informally to `get/410` and the write `410`s. Flipping STRICT without it
+  would set a bar no conformant subject can clear.
+
+- **THE TWO ROWS STILL UNGROUNDED ARE THE TWO WE COVER.** `create/400` and `put/400` are the whole
+  remainder of the ungrounded-fault problem, and they are not in the list above because they are
+  *covered* — by the raw-HTTP family, which malforms the request body on a valid route. D.8 still has
+  no `400` entry, and `malformed-request` appears only in D.9's code list, which assigns no statuses:
+  **the spec contains no mapping from a Problem code to an HTTP status.** So those two cases assert a
+  `400` that this subject chose, exactly as `call`'s pre-dispatch `404` is the subject's choice rather
+  than a mandated status. Covering a row is not the same as the spec grounding it, and these two are
+  the only place in the surface where the suite is on the wrong side of that distinction. A
+  code→status mapping (`malformed-request` → `400`) would close it; that is a spec ruling, not gate
+  work.
+
 - **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
   covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
   design: `call`'s dispatch rule mandates the fault's *shape* — a `Problem` with no `Outcome` — and
