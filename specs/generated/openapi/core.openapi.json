@@ -73,16 +73,6 @@
                 }
               }
             }
-          },
-          "414": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
           }
         }
       },
@@ -151,16 +141,6 @@
             }
           },
           "412": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "413": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -255,16 +235,6 @@
               }
             }
           },
-          "413": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
           "415": {
             "description": "problem",
             "content": {
@@ -336,16 +306,6 @@
             }
           },
           "412": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "413": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -708,16 +668,6 @@
                 }
               }
             }
-          },
-          "414": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
           }
         }
       }
@@ -752,16 +702,6 @@
                 }
               }
             }
-          },
-          "414": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
           }
         }
       }
@@ -778,16 +718,6 @@
             "description": "success"
           },
           "400": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "414": {
             "description": "problem",
             "content": {
               "application/problem+json": {

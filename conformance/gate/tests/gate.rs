@@ -1412,11 +1412,22 @@ async fn no_case_passes_against_a_subject_that_implements_nothing() {
 /// Rows the `Server` produces **before the scope is ever consulted**, so a null scope cannot and
 /// should not make their cases fail. These are protocol-level faults, not store behaviour:
 ///
-/// - the four `400`s are malformed-id rejections decided in route parsing (`Route::Unroutable`);
+/// - `create/400` and `put/400` are JSON **body-parse** failures, raised in `do_create` / `do_put`
+///   after routing has already succeeded (`bad CreateRequest: …`) — NOT malformed-id rejections.
+///   The route-parsing `400`s (`Route::Unroutable`, and a bare `-` id segment) are real but no case
+///   in this list uses them.
 /// - `patch/415` is the request media-type check at the top of `do_patch`.
 ///
+/// This comment previously said "the four `400`s are malformed-id rejections decided in route
+/// parsing" and "5 of the covered rows" — wrong on the count (there are two `400`s and three
+/// entries) and wrong on the mechanism. It mattered because this prose is the ONLY record of why a
+/// row is allowlisted: the tuple is `(&str, u16)` and cannot hold a reason, while the failure
+/// message tells an author to "add it to SCOPE_INDEPENDENT_ROWS with the reason". An audit trail
+/// that is already wrong about its own contents cannot show whether an entry is legitimate or was
+/// added to silence a failure — which this comment itself calls defeating the whole test.
+///
 /// This list is a statement about the gate's own composition, surfaced by the anti-vacuity test
-/// rather than assumed: **5 of the covered rows exercise the protocol layer, not the store.** The
+/// rather than assumed: **3 of the covered rows exercise the protocol layer, not the store.** The
 /// test asserts this set exactly — both that nothing outside it survives a null scope, and that
 /// everything in it still does. Adding an entry to silence a failure, rather than because the row
 /// is genuinely produced pre-scope, defeats the whole test.
