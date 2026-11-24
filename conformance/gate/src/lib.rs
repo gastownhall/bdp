@@ -996,19 +996,49 @@ mod tests {
         }
     }
 
-    /// Pending is legitimate but must stay EXPLAINABLE: every pending registration today belongs to
-    /// #428's cohort, and once #428 merges there should be none. A pending entry nobody can account
-    /// for is a registration whose obligation was reworded or dropped.
+    /// Pending is legitimate but must stay EXPLAINABLE: a registration may be written before the
+    /// spec change that carries its text, and until that change lands it has no matching line.
+    ///
+    /// ASSERTED AS A SET, NOT A CEILING, and the ceiling it replaces was a live hole. This test read
+    /// `l.pending.len() <= 12` — sized for #428's cohort — while its own doc comment said "once
+    /// #428 merges there should be none". #428 merged. Pending has been 0 since, and the ceiling
+    /// still permitted twelve, so **a reworded obligation would have gone PENDING and passed.**
+    ///
+    /// That matters because `obligation_ledger` matches registered text by EXACT string equality
+    /// (`r.text == text`). Any spec PR that rewords a registered `/// normative:` line silently
+    /// de-registers it: the obligation reappears in the backlog, the registration drops to pending,
+    /// and under a ceiling of twelve nothing goes red. The ledger would report one fewer registered
+    /// obligation and no test would say why.
+    ///
+    /// This was found by asking what a specific incoming spec edit would do to the ledger — the
+    /// access-mode cleanup rewords the registered `#430 item 8` line — rather than by reading the
+    /// test. An assertion that passes on a COUNT UNDER A CEILING is checking the shape of the
+    /// evidence, not the thing: the property wanted here is "every registration still matches a
+    /// line in the spec, except these named ones, for these reasons".
+    const EXPECTED_PENDING: &[&str] = &[
+        // Empty by design. #428's cohort has landed, so every registration should match a live
+        // `/// normative:` line. To register ahead of a spec change, add its `evidence` string
+        // here with the PR that will carry the text, and remove it when that PR merges.
+    ];
+
     #[test]
     fn pending_registrations_are_accounted_for() {
         let l = obligation_ledger();
-        assert!(
-            l.pending.len() <= 12,
-            "{} pending registrations — more than #428's cohort, so one no longer matches the \
-             spec text. Pending means 'registered ahead of the spec change'; a reworded obligation \
-             shows up here and must be re-registered against its new text.",
-            l.pending.len()
-        );
+        let actual: BTreeSet<&str> = l.pending.iter().map(|r| r.evidence).collect();
+        let expected: BTreeSet<&str> = EXPECTED_PENDING.iter().copied().collect();
+        if actual != expected {
+            let unexpected: Vec<&str> = actual.difference(&expected).copied().collect();
+            let stale: Vec<&str> = expected.difference(&actual).copied().collect();
+            panic!(
+                "the pending set moved.\n  \
+                 PENDING but not expected — the spec text was reworded or dropped under a live \
+                 registration, so re-register it against its new text: {}\n  \
+                 EXPECTED pending but now matching — its spec change has landed, so remove it from \
+                 EXPECTED_PENDING: {}",
+                if unexpected.is_empty() { "(none)".into() } else { unexpected.join(", ") },
+                if stale.is_empty() { "(none)".into() } else { stale.join(", ") },
+            );
+        }
     }
 
 }
