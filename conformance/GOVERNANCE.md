@@ -6,7 +6,7 @@ Adopted 2026-11-23. Governs `core.lumen` conformance plumbing.
 bind them.
 
 This doc has two halves under two owners. **Part I — the adopted policy** (owned by Lydia, the
-interlock merge gate): what the obligation is and how it is staged. **Part II — the gate contract**
+interlock merge gate): what the obligation is and how it is enforced. **Part II — the gate contract**
 (owned by Connie, the conformance-suite lead): the operational mechanics a spec author must know
 *before* CI, so the gate's rejections are learned up front rather than discovered after a red run.
 
