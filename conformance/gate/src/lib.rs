@@ -316,7 +316,7 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         evidence: "gastownhall/bdp#430 item 2",
     },
     Registration {
-        text: "A `Durable` resource is exported; an `Ephemeral` resource is local and is NEVER exported; `Intrinsic` is computed by the service, not stored.",
+        text: "Export (the primitive) includes only `Durable` resources; `StorageClass` is per-resource, so a `Durable` scope MAY hold individual `Ephemeral` resources, and an `Ephemeral` resource is local state that is NEVER included in an export stream; `Intrinsic` is computed by the service, not stored.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 3",
     },
@@ -351,12 +351,17 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         evidence: "gastownhall/bdp#430 item 7",
     },
     Registration {
-        text: "A `patch` targeting the immutable envelope (`/id`, `/provenance`, `/createdAt`) or a computed property FAULTS; they are read-only.",
+        text: "A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`\"\"`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 8",
     },
     Registration {
-        text: "An export MUST end with the `ExportEnd` line; a reader refuses a file ending without it (truncation detection) and MUST NOT treat it as whole.",
+        // RULED since this was first registered: the obligation now says ANY reader of an export
+        // stream MUST refuse a truncated file. So #431's `parse_export_jsonl` refusal, with its five
+        // unit tests, IS on-obligation rather than the "reader-side strictness" it was shipped as.
+        // Still WAIVED, not Behavioural: "any reader" is not fully discharged while `import` — the
+        // other reader — is unbound. The export half is covered by `export_truncation_tests`.
+        text: "An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 9",
     },
