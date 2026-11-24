@@ -1677,7 +1677,10 @@ function parseSelection(argv, env) {
   return parsed;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv.includes("--spec")) {
+  const { main } = await import("./v02-provider-kit.mjs");
+  process.exitCode = await main();
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const parsed = parseKitArguments(process.argv.slice(2), process.env);
   if (parsed === null) {
     process.stderr.write(USAGE);
