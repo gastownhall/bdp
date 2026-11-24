@@ -12,8 +12,12 @@ publish = false
 # InMemScope reference and record which surface rows they cover, then the gate reports
 # covered-vs-uncovered (fail-if-no-coverage; strict mode gated by BDP_GATE_STRICT).
 #
-# Pin: gastownhall/bdp main @488a2d01 — surface 54 rows (13 ops + 41 faults), `paths` sha256
-# 4bf1225b…. Only `paths` matters here; quote the per-row delta, never a digest.
+# NO PINNED ROW COUNT HERE, ON PURPOSE. This comment used to read "Pin: gastownhall/bdp main
+# @488a2d01 — surface 54 rows (13 ops + 41 faults)". The surface has since been 47, 48 and 50, and
+# this line said 54 throughout, because nothing reads it. The row-by-row expectation that IS
+# checked lives in `EXPECTED_SURFACE` (src/lib.rs), asserted against the generated OpenAPI on every
+# run — grep that name to find it, and read the count from the gate's own output. A number restated
+# where no test can reach it is a second source of truth that only ever goes stale.
 
 [dependencies]
 serde_json = "1"

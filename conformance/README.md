@@ -1,7 +1,16 @@
 # `conformance/` — the BDP wire-level conformance gate (Rust)
 
-**Pin:** core spec **v0.2.3** = `gastownhall/bdp` `main` @`488a2d01` (merged commits, never draft tips; where
-`specs/generated/` lands). This is the lockstep merge gate for the Beads Protocol.
+**Spec:** core **v0.2.3**, read from `specs/generated/` in this working tree (merged commits, never
+draft tips). This is the lockstep merge gate for the Beads Protocol.
+
+This line used to pin a commit — `main` @`488a2d01` — and the figures below have since moved four
+times under it. A pin on a tree the gate reads **live** cannot be a pin; `git rev-parse HEAD` names
+what you are reading, and no commit written here can be more current than that. Every count in this
+file is reproducible in one command, so prefer running it to trusting the prose:
+
+```
+cd conformance && cargo test -p bdp-gate -- --nocapture
+```
 
 ## What this is
 
@@ -16,7 +25,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
 - **Denominator** — `bdp_gate::denominator()` parses the repo's generated v0.2.3 OpenAPI catalog, read
   **live** from `specs/generated/openapi/core.openapi.json`, into the tier-1 coverage surface: every
   primitive operation plus each of its declared `>=400` fault statuses. The v0.2.3 surface is
-  **48 rows** (13 ops + 35 faults). Reading it live is what makes the gate *lockstep*: when the spec's
+  **50 rows** (13 ops + 37 faults). Reading it live is what makes the gate *lockstep*: when the spec's
   wire surface moves, the denominator moves with it (and a unit test tripwires on the row count so the
   change gets reviewed). A frozen vendored copy would silently stop catching spec changes.
 - **Generator witness** — `bdp_gate::source_surface()` derives the SAME surface independently, straight
@@ -101,7 +110,7 @@ obligation is reachable".
   revision"*, guarded for `delete` only (#412) and not on `put`/`patch`. Tracked separately in
   gastownhall/bdp#433, because it predates #428's cohort.
 
-**Current coverage: 29/48** — measured by running the gate, not derived. Read the composition below
+**Current coverage: 30/50** — measured by running the gate, not derived. Read the composition below
 rather than the number: a count that restates a list is a second source of truth about that list, and
 this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
 this figure from one branch while hand-resolving the list it summarises, leaving them independent. The
@@ -117,14 +126,26 @@ Across three case families:
   `delete/404`, `delete/412`, `put/409`, `put/410`, `put/412`, `patch/410`, `call/409`,
   `cancel/404`, `cancel/409` (triggered through the typed `RemoteScope`, which also reads the
   scope's declared traits).
-- **Raw-HTTP protocol faults** — `create/400`, `put/400`, `patch/415`, `patch/422`
+- **Raw-HTTP protocol faults** — `create/400`, `put/400`, `patch/400`, `delete/400`, `patch/415`
   (crafted malformed requests via `bdp_protocol::http::send`, exercising the Server's wire validation
-  that the well-formed client never reaches). `get/400` and `delete/400` **left** this family when the
-  pre-0.2.3 binding was retired: both malformed the *id*, which only the retired convention made
-  reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
+  that the well-formed client never reaches). `get/400` **left** this family when the pre-0.2.3
+  binding was retired: it malformed the *id*, which only the retired convention made reachable.
+  `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 19 rows are uncovered for concrete, recorded reasons — and after the fault-surface
+  **`patch/422` LEFT this family, and `patch/400` and `delete/400` joined it.** The case that claimed
+  `patch/422` sent a non-array patch body, which D.8 names under `400`, while `422` is the fault for a
+  request past an ADVERTISED capability bound — so the row was recorded covered by a case that never
+  exercised a capability bound. `patch/422` is now honestly uncovered. See *The malformed-vs-capability
+  line* below; it is the only entry in this file where the numerator went DOWN on a row that had
+  looked green for two merges.
+
+  **`patch/400` carries two independent producers under one row** — a non-array body, and
+  `If-None-Match` on an op whose capability record has no `ifAbsent` field. A row is `(op, status)`,
+  so one case covering it does not discharge the other; both exist, and breaking either leaves the
+  coverage figure at 30/50 while a real producer goes untested. Measured, not assumed.
+
+The remaining 20 rows are uncovered for concrete, recorded reasons — and after the fault-surface
 reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
 
 - **EVERY UNCOVERED ROW NOW HAS A NORMATIVE PRODUCER.** Checked row by row, not assumed. Before the
@@ -136,25 +157,36 @@ reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
 
   | status | how it is grounded |
   |---|---|
-  | `400` (`export`, `list`, `pull`, `revisions`) | the two normative pins: `format=sse` on a snapshot read, and `after` + `from` together on a `ReadRequest` |
+  | `400` (`export`, `import`, `list`, `pull`, `revisions`) | the two normative pins: `format=sse` on a snapshot read, and `after` + `from` together on a `ReadRequest` |
   | `405` (`pull`, `push`) | D.8 — pull/push on the wrong channel direction |
   | `409` (`delete`, `import`, `patch`, `push`) | D.8 — id collision / declared failure |
   | `410` (`pull`) | D.8 — below the retention floor (`cursor-expired`) |
   | `413` (`put`, `patch`, `delete`) | D.8 — an over-budget guard where the scope does not advertise `bodyFormSpill` |
-  | `422` (`create`, `import`, `push`, `put`) | `limit-exceeded`, which D.8 omitted as a row but the spec grounds |
+  | `422` (`create`, `import`, `patch`, `push`, `put`) | `limit-exceeded`, which D.8 omitted as a row but the spec grounds |
+
+  `delete/400` left this table when it was re-declared and covered. `patch/422` joined it, and the
+  `422` row's grounding is what makes that correction legible: `limit-exceeded` is a bound this
+  subject never advertises, so the row has a normative producer and no reachable one *here* — which
+  is a different statement from the "covered" it used to carry.
 
   The `413` and `414` rows that used to appear in this table were **undeclared by ruling D** — see
   *Ruling D* below. They were grounded in D.8 and declared on their ops, yet no origin was ever
   obliged to emit them.
 
-- **11 of the 18 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
-  `op/*` rows plus 8 of their declared faults. Counted from the gate's own uncovered list, not
+- **12 of the 20 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
+  `op/*` rows plus 9 of their declared faults. Counted from the gate's own uncovered list, not
   estimated. These are ROUTED by the fence but answer `501` ("not implemented by this scope"), and
   `RemoteScope` has no client method for them. *Routed but not implemented* is a different statement
   from *unroutable*, and the gate can tell them apart.
-- **The other 7 are faults on primitives already implemented** — `create/422`, `delete/409`,
-  `export/400`, `list/400`, `patch/409`, `put/422`, `revisions/400`. Each needs a subject change
-  rather than a ruling. **The `400`s are different, and GROUNDED IS NOT REACHABLE** — see below.
+
+  This bullet read **"11 of the 18 … plus 8 of their declared faults"** until now, and it was stale
+  from the moment `import/400` was re-declared: that merge moved the uncovered total to 19 in one
+  sentence of this file and left 18 standing in another. A count restated in two places is a count
+  that will disagree with itself.
+- **The other 8 are faults on primitives already implemented** — `create/422`, `delete/409`,
+  `export/400`, `list/400`, `patch/409`, `patch/422`, `put/422`, `revisions/400`. Each needs a
+  subject change rather than a ruling. **The `400`s are different, and GROUNDED IS NOT REACHABLE** —
+  see below.
 
   This bullet read *"the other 14"* and listed seven `413`/`414` rows as needing "an over-budget
   guard" and "a URL-budget check on the read path". Ruling D removed them: there was no budget to
@@ -175,7 +207,7 @@ reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
   optional feature, not fixing an omission.
 
   **This matters for `BDP_GATE_STRICT`.** "Uncovered means unimplemented" is true of most of the set,
-  but not of these: tier-1 can never reach 47/47 for a subject that declines `bodyFormSpill`, so a
+  but not of these: tier-1 can never reach 50/50 for a subject that declines `bodyFormSpill`, so a
   blocking flip needs a notion of *rows unreachable because of a declared capability* — which the
   suite already applies informally to `get/410` and the write `410`s. Flipping STRICT without it
   would set a bar no conformant subject can clear.
@@ -359,9 +391,9 @@ DECLARED, so it counts rows nobody owes.** Before calling an uncovered row work-
 that says who must emit it — if the answer is an intermediary or the environment, the row is
 misfiled, not missing.
 
-### 14% of the declared fault surface has no normative producer
+### Five declared fault rows have no normative producer
 
-**5 of the 35 fault rows are declared without any normative line naming what produces them.**
+**5 of the 37 fault rows are declared without any normative line naming what produces them.**
 Appendix D.8 is a status-to-producer table and it covers `404`, `405`, `409`, `410`, `412` and `415`.
 It does not cover:
 
@@ -369,15 +401,16 @@ It does not cover:
 |---|---|---|
 | `422` | 5 | mentioned only incidentally |
 
-  The six `400` rows left this table when ruling B added a D.8 `400` entry —
+  The `400` rows left this table when ruling B added a D.8 `400` entry —
   `malformed-request` / `invalid-parameter`, naming an unparseable body, a non-array JSON Patch, a
   truncated export, or an invalid parameter value. That is the mapping D.9's code list never
-  carried, and it grounds the whole `400` family including the new `import/400`.
+  carried, and it grounds the whole `400` family, now nine rows including `import/400`,
+  `patch/400` and `delete/400`.
 
 (`406` held 2 rows with **zero** prose anywhere — a probe showed `Accept: application/xml` returning
 `200`, so it was declared, undefined *and* unimplemented. Rulings #2/#3 undeclared both.)
 
-So **the denominator counts rows the spec does not define.** 47 overstates the *defined* surface, and
+So **the denominator counts rows the spec does not define.** 50 overstates the *defined* surface, and
 the useful question is not "what produces a `400`" but **does the surface declare faults the spec does
 not define, and for each, define it or undeclare it?** On the second answer the denominator drops toward
 36. That is a ruling rather than a gate change, and it follows the precedent set for `delete/404`:
@@ -388,18 +421,70 @@ Problem's own status."* So **any operation may answer a status its own declarati
 fault lists are a subset of what can occur, by design — which means this denominator measures the
 *declared* surface and cannot measure the reachable one.
 
-### Two rows retired with the legacy binding
+### Two rows retired with the legacy binding — and one of them came back
 
 `get/400` and `delete/400` were produced by the router rejecting a `:`-bearing id as an unknown verb —
 the pre-0.2.3 `id:verb` convention the action fence replaces. A `:` is now an ordinary id character, so
-those requests are well-formed reads of absent resources and correctly answer `404`. There is no
-spec-grounded producer to move them to, per the table above, so they are recorded uncovered rather than
-kept alive by retaining a dead convention.
+those requests are well-formed reads of absent resources and correctly answer `404`.
 
 **`create/400` and `put/400` survived the same change, and the difference is the lesson:** they malform
 the *body* on a valid route, which is a real producer. The retired two malformed the *id*, which was
 only a producer because of the convention. Four rows looked at risk; two actually were — and the way to
 tell was to run it, not to reason about it.
+
+**`delete/400` has since been re-declared, and the reason the retirement held for two merges is worth
+more than the row.** The finding above — "its producer died with the convention" — was true. It was
+also incomplete, and nothing in it was wrong enough to re-open. A second producer sat in the spec the
+whole time: `If-None-Match` on `delete`, where `DeleteCaps` declares `ifRevision` and `precondition`
+and no `ifAbsent` at all. That producer is **a shape, not a sentence** — it lives in a capability
+record's field list rather than in D.8's prose — so searching the prose for a producer could not find
+it, and finding no sentence read as finding no producer.
+
+`get/400` stays retired, and checking why is what keeps this from being a convenient rule. The
+distinction is scoped to **write guards**: `GetCaps` is `{ selector: bool }`, a projection and not a
+guard, so a `get` has no guard vocabulary for a request to fall outside of. **What is NOT settled is
+whether the same reasoning reaches an unknown read PARAMETER** — `?precondition=` on a `get`, say.
+If it does, `get/400` is reachable again by the identical argument, and so are rows on `list`,
+`revisions` and `export`. That is a ruling, not gate work, and it is recorded here rather than
+resolved in whichever direction suits the numerator.
+
+### The malformed-vs-capability line
+
+`patch/400` and `delete/400` are both grounded on one distinction, and stating it is what made them
+re-declarable:
+
+| the request carries | the operation's answer |
+|---|---|
+| a guard **in** its capability record, advertised false | a decline it can state — `limit-exceeded`, `422` |
+| a guard **absent from** its capability record | `malformed-request`, `400` |
+
+`ifAbsent` is a field of `PutCaps` and of neither `PatchCaps` nor `DeleteCaps`. So `If-None-Match` on
+a `put` is an advertised option, and on a `patch` or a `delete` it is an input the operation does not
+define — malformed rather than declined, because **no field exists that could advertise it either
+way**. A `422` there would claim a bound was exceeded when no bound was ever published.
+
+Two things follow that are easy to get backwards:
+
+- **The line is drawn by the capability record, not by the status table.** D.8's prose does not
+  mention guards at all; the three capability types do, by what they omit. An argument about which
+  status is right that only reads D.8 cannot reach the answer.
+- **`patch/400` is now one row with two producers** — a non-array body and the out-of-vocabulary
+  guard. `SurfaceId` is `(op, status)` and cannot hold that, so "covered" for this row means *a*
+  trigger was exercised. Both cases exist; removing either leaves 30/50 unchanged with a live
+  producer untested, which was verified by removing each in turn rather than argued.
+
+The same unit retired a case that had read green since it was written. `patch_unprocessable_422` sent
+a non-array patch body and asserted `422`, because the body fell through to the applier — and D.8
+names that body under `400`. The row `op/patch/fault/422` was therefore recorded covered by a case
+that never touched a capability bound. **A single-subject suite cannot find this class of defect**: the
+subject and the case agreed, and nothing else had a vote. It surfaced only when a peer ran three
+independent backends and the grid disagreed with itself.
+
+The fix generalises past this one row: the cases for these faults assert the D.9 **`code`**, not only
+the status. `malformed-request` and `limit-exceeded` both answered `422` here, so a case checking the
+number alone could not say which obligation it had exercised. Asserting the code was verified to bite
+— emitting the right status with the wrong code fails the case, with both codes named in the
+diagnostic.
 
 ### Counting honestly
 
@@ -409,9 +494,17 @@ Those are different properties, and conflating them is how a suite comes to over
 - `delete+erased` was **vacuous** — it passed with its seed `put` never having run, because the
   subject minted a tombstone for an id that never existed, so both `op/delete` and
   `op/get/fault/410` were falsely claimed. Fixed in the subject and the case.
-- **5 of the covered rows do not depend on the scope at all** (the four malformed-id `400`s and
-  `patch/415`): the `Server` produces them in route parsing and media-type validation, before the
-  scope is consulted. The anti-vacuity test names that set exactly — see `SCOPE_INDEPENDENT_ROWS`.
+- **5 of the covered rows do not depend on the scope at all** — `create/400`, `put/400`,
+  `patch/400`, `delete/400` and `patch/415`: the `Server` decides each from the request alone, before
+  the scope is consulted. The anti-vacuity test names that set exactly — see
+  `SCOPE_INDEPENDENT_ROWS`.
+
+  This bullet read **"(the four malformed-id `400`s and `patch/415`)"**, which was wrong on the
+  mechanism and on the count, and had already been corrected in the code's own comment — where the
+  record of the correction still sits — while this copy went on asserting it. The number is 5 again
+  today, by coincidence and not because the old text was right: a figure that happens to be correct
+  beside a reason that is not is harder to catch than a wrong figure, because spot-checking the
+  number passes.
 - A case that has **never been seen to fail is not yet evidence.** Each fix here was verified
   red-then-green: the fix removed, the case observed failing with the right diagnostic, the fix
   restored.
@@ -429,7 +522,7 @@ open ruling, not settled here.
 conformance/
   Cargo.toml          # the gate workspace
   gate/               # the TIER-1 gate
-    src/lib.rs        #   denominator(): the generated OpenAPI -> 48-row coverage surface
+    src/lib.rs        #   denominator(): the generated OpenAPI -> the coverage surface
                       #   (include_str! of ../../specs/generated/openapi/core.openapi.json, LIVE)
     tests/gate.rs     #   wire-level cases + coverage report (BDP_GATE_STRICT to block)
   reference/          # bdp-ref: the ONE green endpoint (InMemScope over HTTP), pin-agnostic

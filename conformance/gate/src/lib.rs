@@ -423,8 +423,10 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
 /// documents its own annotation syntax using that syntax, and Appendix E refers to it in prose.
 ///
 /// They are listed because they are the live form of a hazard that has now bitten this file three
-/// times — an unanchored `grep -c '/// normative:'` counts them, giving 69 where the answer is 67,
-/// exactly as it once gave 61 for 59 and 15 for 13. [`normative_surface`] anchors instead, and
+/// times — an unanchored `grep -c '/// normative:'` counts them, giving 87 where the answer is 85,
+/// exactly as it once gave 69 for 67, 61 for 59 and 15 for 13. A `^`-anchored grep is not the fix
+/// either: it now UNDER-counts at 83, because two obligations sit indented inside a type body. The
+/// unit is the first non-whitespace token, which is what [`normative_surface`] anchors on, and
 /// `the_normative_parse_excludes_the_self_documentation` asserts these never enter the set, so the
 /// mistake is structurally impossible rather than left to whoever runs the count.
 pub const SELF_DOCUMENTATION_FRAGMENTS: [&str; 2] = [
@@ -494,11 +496,12 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 35 faults = 48.
+    /// fault statuses. 13 ops + 37 faults = 50.
     ///
-    /// RE-PINNED TWICE, and the second re-pin corrects the first.
+    /// RE-PINNED FOUR TIMES. Each re-pin corrects the one before it, and the corrections are the
+    /// argument for spelling the surface out row by row instead of asserting a total.
     ///
-    /// **Rulings #2/#3 (#435)** moved 7 rows out and 7 in while the TOTAL STAYED AT 54 — precisely
+    /// **1. Rulings #2/#3 (#435)** moved 7 rows out and 7 in while the TOTAL STAYED AT 54 — precisely
     /// the case a count-only tripwire cannot see. The comment below about `patch/415` was written as
     /// a hypothetical; that was it happening.
     ///
@@ -508,7 +511,7 @@ mod tests {
     /// | `patch/400`, `push/400`, `import/400` | no normative producer — PROBED: a malformed patch body answers `422`, `push` is unrouted, `import` is `501` | `get/414`, `list/414`, `revisions/414`, `export/414` | believed grounded: D.8 names the read's query string exceeding the URL budget |
     /// | `get/406`, `list/406` | the genuine orphans — no content negotiation in Core | | |
     ///
-    /// **Ruling D** then UNDECLARED all 7 of those incoming rows, taking 54 → 47. They were
+    /// **2. Ruling D (#437)** then UNDECLARED all 7 of those incoming rows, taking 54 → 47. They were
     /// grounded and declared but never **OBLIGED**, and the gate had no way to tell the difference:
     ///
     /// - `414` — the spec says the URL-byte limit "is imposed by intermediaries (proxies/CDNs/
@@ -525,6 +528,34 @@ mod tests {
     /// first and called 7 unreachable rows "GROUNDED where the outgoing ones were not". Undeclaring
     /// them strands no grounding, because they had no origin producer to strand.
     ///
+    /// **3. #432** re-declared `import/400`, 47 → 48, once `import` had a routed producer.
+    ///
+    /// **4. The malformed-vs-capability line** re-declared `patch/400` and `delete/400`, 48 → 50,
+    /// and this one RETRACTS A REASON GIVEN IN RE-PIN 1 rather than reacting to a new ruling.
+    ///
+    /// Re-pin 1 dropped `patch/400` on the evidence *"PROBED: a malformed patch body answers
+    /// `422`"*. That is an observation about the SUBJECT offered as a finding about the SPEC. D.8
+    /// names "a patch that is not a JSON-Patch array" under `400`, and defines `422` as a request
+    /// past an ADVERTISED capability bound; the subject was simply wrong, and its `422` was being
+    /// recorded as coverage of `patch/422` — a row the suite had never exercised. Probing an
+    /// implementation to decide what the spec obliges inverts the direction of evidence, and the
+    /// wrong answer then looked confirmed by a green case.
+    ///
+    /// `delete/400` is the same shape with a different cause. Re-pin 1's reason — its producer died
+    /// with the retired `id:verb` convention — was true and incomplete: a second producer was in the
+    /// spec throughout, carried by `DeleteCaps`'s FIELD LIST rather than by any sentence.
+    /// `ifAbsent` is a field of `PutCaps` and of neither `PatchCaps` nor `DeleteCaps`, so
+    /// `If-None-Match` on a patch or a delete is not an advertised option with a bad value but an
+    /// input the operation does not define — malformed, not a capability decline, because no field
+    /// exists that could advertise it either way. A search of the prose for a producer cannot find
+    /// a producer that is a SHAPE.
+    ///
+    /// **`patch/400` now has TWO independent triggers and is ONE row.** `SurfaceId` is
+    /// `(op, status)`, so "covered" for that row means one trigger exercised, not the obligation
+    /// discharged, and deleting either case would leave the coverage figure unchanged while a real
+    /// producer went untested. Both cases exist, the limitation is stated where they live, and the
+    /// ledger carries the distinction nowhere — which is the honest position, not an oversight.
+    ///
     /// Spelled out rather than counted on purpose. A count alone asserts a WEAKER property than the
     /// one that matters: `patch/415` silently becoming `patch/416` keeps the total at 52, so a
     /// count-only tripwire passes while the surface has moved underneath the cases. That failure mode
@@ -535,12 +566,22 @@ mod tests {
         ("call", &[409]),
         ("cancel", &[404, 409]),
         ("create", &[400, 409, 422]),
-        ("delete", &[404, 409, 412]),
+        // 400: `If-None-Match` on an op whose `DeleteCaps` carries no `ifAbsent` field — an
+        // out-of-vocabulary guard, so malformed rather than a capability decline.
+        ("delete", &[400, 404, 409, 412]),
         ("export", &[400]),
         ("get", &[404, 410]),
         ("import", &[400, 409, 422]),
         ("list", &[400]),
         // 415 pins the request media type to application/json-patch+json, so any other type faults.
+        //
+        // 400 has TWO triggers for this one row: a body that is not a JSON-Patch array, and
+        // `If-None-Match` on an op whose `PatchCaps` carries no `ifAbsent` field. One case each; a
+        // row cannot say that, so neither case discharges the other.
+        //
+        // 422 is UNCOVERED and that is the correction, not a regression: it is the
+        // capability-bound fault, this subject advertises no bound a request can exceed, and the
+        // case that used to claim the row sent a malformed body — which is a 400.
         //
         // 410: a write that TARGETS a retired resource faults Gone, so `put` and `patch` declare it
         // alongside `get`. UNCOVERABLE here for the same reason as `get/410` — a write's 410 is
@@ -548,7 +589,7 @@ mod tests {
         // model, so a case has nothing to key on. `put` deliberately declares no 404: an absent id
         // is not an error for `put`, which creates. On `put` the 409 belongs to the `ifAbsent` guard
         // (claiming a spent id), never to the bare operation (updating what is gone).
-        ("patch", &[404, 409, 410, 412, 415, 422]),
+        ("patch", &[400, 404, 409, 410, 412, 415, 422]),
         ("pull", &[400, 405, 410]),
         ("push", &[405, 409, 422]),
         ("put", &[400, 409, 410, 412, 422]),
@@ -590,7 +631,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 48, "the v0.2.3 surface is 48 rows (13 ops + 35 faults)");
+        assert_eq!(actual.len(), 50, "the v0.2.3 surface is 50 rows (13 ops + 37 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must
@@ -955,19 +996,49 @@ mod tests {
         }
     }
 
-    /// Pending is legitimate but must stay EXPLAINABLE: every pending registration today belongs to
-    /// #428's cohort, and once #428 merges there should be none. A pending entry nobody can account
-    /// for is a registration whose obligation was reworded or dropped.
+    /// Pending is legitimate but must stay EXPLAINABLE: a registration may be written before the
+    /// spec change that carries its text, and until that change lands it has no matching line.
+    ///
+    /// ASSERTED AS A SET, NOT A CEILING, and the ceiling it replaces was a live hole. This test read
+    /// `l.pending.len() <= 12` — sized for #428's cohort — while its own doc comment said "once
+    /// #428 merges there should be none". #428 merged. Pending has been 0 since, and the ceiling
+    /// still permitted twelve, so **a reworded obligation would have gone PENDING and passed.**
+    ///
+    /// That matters because `obligation_ledger` matches registered text by EXACT string equality
+    /// (`r.text == text`). Any spec PR that rewords a registered `/// normative:` line silently
+    /// de-registers it: the obligation reappears in the backlog, the registration drops to pending,
+    /// and under a ceiling of twelve nothing goes red. The ledger would report one fewer registered
+    /// obligation and no test would say why.
+    ///
+    /// This was found by asking what a specific incoming spec edit would do to the ledger — the
+    /// access-mode cleanup rewords the registered `#430 item 8` line — rather than by reading the
+    /// test. An assertion that passes on a COUNT UNDER A CEILING is checking the shape of the
+    /// evidence, not the thing: the property wanted here is "every registration still matches a
+    /// line in the spec, except these named ones, for these reasons".
+    const EXPECTED_PENDING: &[&str] = &[
+        // Empty by design. #428's cohort has landed, so every registration should match a live
+        // `/// normative:` line. To register ahead of a spec change, add its `evidence` string
+        // here with the PR that will carry the text, and remove it when that PR merges.
+    ];
+
     #[test]
     fn pending_registrations_are_accounted_for() {
         let l = obligation_ledger();
-        assert!(
-            l.pending.len() <= 12,
-            "{} pending registrations — more than #428's cohort, so one no longer matches the \
-             spec text. Pending means 'registered ahead of the spec change'; a reworded obligation \
-             shows up here and must be re-registered against its new text.",
-            l.pending.len()
-        );
+        let actual: BTreeSet<&str> = l.pending.iter().map(|r| r.evidence).collect();
+        let expected: BTreeSet<&str> = EXPECTED_PENDING.iter().copied().collect();
+        if actual != expected {
+            let unexpected: Vec<&str> = actual.difference(&expected).copied().collect();
+            let stale: Vec<&str> = expected.difference(&actual).copied().collect();
+            panic!(
+                "the pending set moved.\n  \
+                 PENDING but not expected — the spec text was reworded or dropped under a live \
+                 registration, so re-register it against its new text: {}\n  \
+                 EXPECTED pending but now matching — its spec change has landed, so remove it from \
+                 EXPECTED_PENDING: {}",
+                if unexpected.is_empty() { "(none)".into() } else { unexpected.join(", ") },
+                if stale.is_empty() { "(none)".into() } else { stale.join(", ") },
+            );
+        }
     }
 
 }

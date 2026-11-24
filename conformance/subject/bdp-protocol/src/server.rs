@@ -512,6 +512,47 @@ impl<S: BdpScope> Server<S> {
                 ),
             );
         }
+        // OUT-OF-VOCABULARY GUARD → 400, not 422. `ifAbsent` (`If-None-Match: *`) is a field of
+        // `PutCaps` and of NEITHER `PatchCaps` NOR `DeleteCaps` (core.lumen) — so on a patch it is
+        // not an advertised option carrying a bad value, it is an input the operation does not
+        // define, and no capability field exists that could ever advertise it either way. A 422
+        // here would claim `limit-exceeded`, which means a request past an ADVERTISED bound.
+        //
+        // This is the SECOND independent producer of op/patch/fault/400; the non-array body below
+        // is the first. `SurfaceId` is `(op, status)` and cannot tell them apart, so neither case
+        // discharges the other — see the coverage note in gate/src/lib.rs.
+        if req.header("if-none-match").is_some() {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "malformed-request",
+                    "patch defines no `ifAbsent` guard: `If-None-Match` is not a patch parameter",
+                ),
+            );
+        }
+        // A JSON-Patch document is an ARRAY of operations (RFC 6902 §3). Anything else is a bad
+        // body, which D.8 names as a `400` trigger in as many words ("a patch that is not a
+        // JSON-Patch array"). This check is the first producer of op/patch/fault/400.
+        //
+        // WHAT THIS REPLACES, and why the old behaviour read as sound: the body fell through to
+        // the applier, which answered 422 — and a case recorded that 422 as coverage of
+        // op/patch/fault/422, the CAPABILITY-BOUND fault (`limit-exceeded`, a request past an
+        // advertised bound). A malformed body is never that. The row was covered for the wrong
+        // reason, and the status alone could not show it.
+        match serde_json::from_slice::<serde_json::Value>(&req.body) {
+            Ok(serde_json::Value::Array(_)) => {}
+            _ => {
+                return HttpResponse::json(
+                    400,
+                    problem_body(
+                        400,
+                        "malformed-request",
+                        "a JSON Patch document must be an array of operations (RFC 6902)",
+                    ),
+                )
+            }
+        }
         let target = resource_id_from(id_seg, None);
         let patch = p::JsonPatch(p::RawJson(bytes::Bytes::copy_from_slice(&req.body)));
         let if_rev = req.header("if-match").map(|s| p::Rev(std::sync::Arc::from(s)));
@@ -526,6 +567,24 @@ impl<S: BdpScope> Server<S> {
     }
 
     async fn do_delete(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
+        // OUT-OF-VOCABULARY GUARD → 400. `DeleteCaps` carries `ifRevision` and `precondition` and
+        // no `ifAbsent`, so `If-None-Match` is an input `delete` does not define. Same rule as
+        // `patch` above, and the producer of op/delete/fault/400.
+        //
+        // This row was undeclared by rulings #2/#3 because its ORIGINAL producer — a malformed id
+        // under the retired `id:verb` convention — died with that convention. That was true and
+        // incomplete: a second producer was in the spec the whole time, in the shape of the
+        // capability record rather than of a sentence, so reading D.8's prose could not find it.
+        if req.header("if-none-match").is_some() {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "malformed-request",
+                    "delete defines no `ifAbsent` guard: `If-None-Match` is not a delete parameter",
+                ),
+            );
+        }
         let target = resource_id_from(id_seg, None);
         let if_rev = req.header("if-match").map(|s| p::Rev(std::sync::Arc::from(s)));
         match self.scope.delete(target, if_rev).await {
