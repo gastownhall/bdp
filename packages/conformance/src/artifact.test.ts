@@ -1394,7 +1394,7 @@ describe("checked-in Read matrix artifacts", () => {
 
   it("resolves every checked-in schema assertion against the canonical bundle", () => {
     const manifest = loadManifest();
-    const schema = JSON.parse(readText("specs/profiles/core/bdp-v0.schema.json")) as Record<
+    const schema = JSON.parse(readText("docs/history/profiles/core/bdp-v0.schema.json")) as Record<
       string,
       unknown
     >;

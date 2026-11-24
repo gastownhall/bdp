@@ -1,8 +1,8 @@
 # BDP specification moved
 
 This file is non-normative navigation only. The sole specification authority is
-[specs/](../../specs/README.md). Read [Core and Read](../../specs/profiles/core/core.md) and
-[Write](../../specs/profiles/write/write.md); the [conformance index](../../specs/conformance.md) is shared.
+[specs/](../../specs/README.md). Read [Core and Read](../../docs/history/profiles/core/core.md) and
+[Write](../../docs/history/profiles/write/write.md); the [conformance index](../../specs/conformance.md) is shared.
 
 Old section links below lead to the historical pre-canonical corpus. They do not
 add a competing current authority. Historical citation tests use separately pinned

@@ -89,7 +89,7 @@ describe("the static Issue catalog", () => {
 
   it("names each section of the Issue document, in the document's order of the name table", async () => {
     const document = readFileSync(
-      new URL("../../../specs/types/issue/callables.md", import.meta.url),
+      new URL("../../../docs/history/types/issue/callables.md", import.meta.url),
       "utf8",
     );
     const start = document.indexOf("## 1. Names");

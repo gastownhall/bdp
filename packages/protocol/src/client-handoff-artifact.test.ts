@@ -10,7 +10,7 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 const root = new URL("../../../", import.meta.url);
 const schemaBytes = historicalArtifactSchema();
 const schema = JSON.parse(
-  readFileSync(new URL("specs/profiles/core/bdp-v0.1.schema.json", root), "utf8"),
+  readFileSync(new URL("docs/history/profiles/core/bdp-v0.1.schema.json", root), "utf8"),
 );
 const table = JSON.parse(readFileSync(new URL("fixtures/client-handoff/cases.json", root), "utf8"));
 const ajv = withBdpSourceAnnotations(

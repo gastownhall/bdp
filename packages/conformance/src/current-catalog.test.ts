@@ -11,12 +11,12 @@ const conformanceRows = (source: string, prefix: string) =>
   );
 
 describe.each([
-  ["callables-v1.json", [["specs/profiles/callables/callables.md", "CB", "callables."]]],
+  ["callables-v1.json", [["docs/history/profiles/callables/callables.md", "CB", "callables."]]],
   [
     "issue-package-v1.json",
     [
       ["docs/history/issue-type-v1.md", "IT", "issue."],
-      ["specs/types/issue/callables.md", "IC", "issue."],
+      ["docs/history/types/issue/callables.md", "IC", "issue."],
     ],
   ],
 ] as const)("current catalog %s", (file, sources) => {

@@ -9,8 +9,8 @@ const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
-const candidate = JSON.parse(read("specs/profiles/core/bdp-v0.1.schema.json"));
-const legacy = JSON.parse(read("specs/profiles/core/bdp-v0.schema.json"));
+const candidate = JSON.parse(read("docs/history/profiles/core/bdp-v0.1.schema.json"));
+const legacy = JSON.parse(read("docs/history/profiles/core/bdp-v0.schema.json"));
 const cases = JSON.parse(read("fixtures/affiliations/candidate.json"));
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });

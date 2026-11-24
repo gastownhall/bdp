@@ -1,5 +1,5 @@
 /**
- * The Callables profile mechanism (`specs/profiles/callables/callables.md`), preview-1.
+ * The Callables profile mechanism (`docs/history/profiles/callables/callables.md`), preview-1.
  * Generic: it knows declarations, mounts, argument checking, results and problems, and
  * nothing of what any operation means. A provider binds a name to its implementation;
  * that binding is no part of a declaration (§6) and is not stored.

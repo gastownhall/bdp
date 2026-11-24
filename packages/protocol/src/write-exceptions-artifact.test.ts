@@ -6,7 +6,7 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const root = new URL("../../../", import.meta.url);
 const common = JSON.parse(
-  readFileSync(new URL("specs/profiles/core/bdp-v0.1.schema.json", root), "utf8"),
+  readFileSync(new URL("docs/history/profiles/core/bdp-v0.1.schema.json", root), "utf8"),
 );
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 formatsPlugin.default(ajv, { mode: "full" });

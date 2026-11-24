@@ -9,9 +9,9 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, root), "utf8"));
 const fixture = (name: string) => read(`fixtures/markdown-types/${name}`);
-const common = read("specs/profiles/core/bdp-v0.1.schema.json");
-const types = read("specs/profiles/types/types-v1.schema.json");
-const intrinsic = "specs/profiles/types/intrinsic-2/";
+const common = read("docs/history/profiles/core/bdp-v0.1.schema.json");
+const types = read("docs/history/profiles/types/types-v1.schema.json");
+const intrinsic = "docs/history/profiles/types/intrinsic-2/";
 const descriptor = read(`${intrinsic}type-definition.properties.schema.json`);
 const bead = read(`${intrinsic}bead-type-definition.properties.schema.json`);
 const link = read(`${intrinsic}link-type-definition.properties.schema.json`);
@@ -103,8 +103,8 @@ describe("Type authoring examples against current descriptor artifacts; no Type-
 });
 
 // Fixed canonical-document custody checks, not a general Type-format parser.
-const publication = read("specs/profiles/types/intrinsic-2.json");
-const descriptorDocs = "specs/profiles/types/descriptors/";
+const publication = read("docs/history/profiles/types/intrinsic-2.json");
+const descriptorDocs = "docs/history/profiles/types/descriptors/";
 const compact = (value: unknown) => JSON.stringify(value);
 function document(name: string) {
   return readFileSync(new URL(`${descriptorDocs}${name}.md`, root), "utf8");

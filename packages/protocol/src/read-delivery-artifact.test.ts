@@ -8,7 +8,7 @@ const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), "utf8");
-const native = JSON.parse(read("specs/profiles/core/bdp-v0.1.schema.json"));
+const native = JSON.parse(read("docs/history/profiles/core/bdp-v0.1.schema.json"));
 const framing = JSON.parse(read("docs/cli-design/read-framing.schema.json"));
 const paper = JSON.parse(read("fixtures/read-delivery/candidate.json"));
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));

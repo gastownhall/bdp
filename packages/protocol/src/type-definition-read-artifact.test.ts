@@ -10,7 +10,7 @@ const addFormats = formatsPlugin.default;
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => JSON.parse(readFileSync(new URL(p, root), "utf8"));
 const schema = JSON.parse(historicalArtifactSchema().toString("utf8"));
-const old = read("specs/profiles/core/bdp-v0.schema.json");
+const old = read("docs/history/profiles/core/bdp-v0.schema.json");
 const paper = read("fixtures/type-definition-read/candidate.json");
 const discovery = read("fixtures/read-delivery/candidate.json").finite.find(
   (x: { id: string }) => x.id === "scope-descriptor",
@@ -193,7 +193,7 @@ describe("historical accepted exact-definition carriers, without current lookup 
 it("does not qualify historical missing-metadata definitions under current Core", () => {
   const current = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
   addFormats(current, { mode: "full" });
-  const bundle = read("specs/profiles/core/bdp-v0.1.schema.json");
+  const bundle = read("docs/history/profiles/core/bdp-v0.1.schema.json");
   current.addSchema(bundle);
   const validate = current.getSchema(`${bundle.$id}#/$defs/typeDefinitionReadResult`)!;
   expect(validate(paper.response)).toBe(false);

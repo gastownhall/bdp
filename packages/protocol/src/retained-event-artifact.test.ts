@@ -8,7 +8,7 @@ const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => JSON.parse(readFileSync(new URL(p, root), "utf8"));
-const schema = read("specs/profiles/core/bdp-v0.1.schema.json");
+const schema = read("docs/history/profiles/core/bdp-v0.1.schema.json");
 const paper = read("fixtures/retained-events/candidate.json");
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });

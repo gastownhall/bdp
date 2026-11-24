@@ -286,7 +286,7 @@ describe("numeric-model vectors", () => {
       ["packages", "conformance", "fixtures", "read-bdpbd-v1.json"],
       ["fixtures", "reference-domain", "reference-domain.json"],
       ["docs", "design", "evidence", "read-cohort", "read-v1.json"],
-      ["specs", "profiles", "core", "bdp-v0.schema.json"],
+      ["docs", "history", "profiles", "core", "bdp-v0.schema.json"],
     ] as const;
     let total = 0;
     for (const segments of artifacts) {

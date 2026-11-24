@@ -26,7 +26,7 @@ const types = [parseTypeDescriptor({ id: type, name: "Bead", describes: "bead", 
 const receiptValidators = (() => {
   const schema = JSON.parse(
     readFileSync(
-      new URL("../../../specs/profiles/core/bdp-v0.schema.json", import.meta.url),
+      new URL("../../../docs/history/profiles/core/bdp-v0.schema.json", import.meta.url),
       "utf8",
     ),
   );

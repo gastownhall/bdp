@@ -8,8 +8,8 @@ const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
-const schema = JSON.parse(read("specs/profiles/core/bdp-v0.1.schema.json"));
-const legacy = JSON.parse(read("specs/profiles/core/bdp-v0.schema.json"));
+const schema = JSON.parse(read("docs/history/profiles/core/bdp-v0.1.schema.json"));
+const legacy = JSON.parse(read("docs/history/profiles/core/bdp-v0.schema.json"));
 const cases = JSON.parse(read("fixtures/atomic-batch/candidate.json"));
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 addFormats(ajv, { mode: "full" });
@@ -95,7 +95,7 @@ describe("optional atomic batch artifacts; no compiler/provider execution", () =
     for (const pair of cases.pairs) expect(valid("batchRequest", pair.request), pair.id).toBe(true);
     for (const path of [
       "docs/cli-design/atomic-batch.md",
-      "specs/profiles/write/atomic-batch.md",
+      "docs/history/profiles/write/atomic-batch.md",
     ]) {
       for (const match of read(path).matchAll(/```json\n([\s\S]*?)\n```/g)) {
         const value = JSON.parse(match[1] ?? "null");
