@@ -68,7 +68,7 @@ impl<S: BdpScope> Server<S> {
             Route::ScopeExport => unmapped("export not mapped in the spike"),
             Route::ScopeEval => unmapped("eval not mapped in the spike"),
             Route::ScopeImport => unmapped("import not mapped in the spike"),
-            Route::Revisions(_) => unmapped("revisions not mapped in the spike"),
+            Route::Revisions(id) => self.do_revisions(&req, &id).await,
             // The fence split succeeded but named no known action, or named one with the wrong
             // method / id-ness. 404 rather than 400: the request is well-formed and simply names
             // nothing, which is what the spec says.
@@ -184,6 +184,38 @@ impl<S: BdpScope> Server<S> {
                 let body = serde_json::to_vec(&wire).unwrap();
                 attach(HttpResponse::json(201, body).header("location", &location), &res.protocol)
             }
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// `GET /{id}/-/revisions` — one resource's history as a JSON array of representations.
+    ///
+    /// The id is taken from the path and NOT from a `?revision=` pin: a pinned read is `get`'s job
+    /// and asking for the history *of one revision* is incoherent. So `revisions` deliberately
+    /// ignores that query parameter rather than honouring it.
+    ///
+    /// `limit` is the one `ReadRequest` control wired here. `after` / `from` (cursor resumption)
+    /// are not: this scope's history is a snapshot read out of RAM in one pass, and a cursor that
+    /// cannot expire is not a cursor. Returning one would advertise resumability that nothing
+    /// backs, which is the same mistake as `storage_classes: [Durable]` on an in-memory store.
+    async fn do_revisions(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
+        let rid = resource_id_from(id_seg, None);
+        let page = p::Page {
+            after: None,
+            from: None,
+            limit: req.query.get("limit").and_then(|s| s.parse::<u32>().ok()),
+        };
+        match self.scope.revisions(&rid, None, page).await {
+            Ok(res) if res.not_implemented => unmapped("revisions not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(reps) => {
+                    let wire: Vec<WireRepresentation> =
+                        reps.iter().map(WireRepresentation::from_trait).collect();
+                    let body = serde_json::to_vec(&wire).unwrap();
+                    attach(HttpResponse::json(200, body), &res.protocol)
+                }
+                None => unmapped("revisions returned no value"),
+            },
             Err(e) => problem_response(&e),
         }
     }
