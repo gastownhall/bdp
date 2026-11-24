@@ -54,16 +54,6 @@
           "200": {
             "description": "success"
           },
-          "400": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
           "404": {
             "description": "problem",
             "content": {
@@ -74,7 +64,7 @@
               }
             }
           },
-          "406": {
+          "410": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -84,7 +74,7 @@
               }
             }
           },
-          "410": {
+          "414": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -170,6 +160,16 @@
               }
             }
           },
+          "413": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "problem",
             "content": {
@@ -215,16 +215,6 @@
           "200": {
             "description": "success"
           },
-          "400": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
           "404": {
             "description": "problem",
             "content": {
@@ -256,6 +246,16 @@
             }
           },
           "412": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -315,16 +315,6 @@
           "200": {
             "description": "success"
           },
-          "400": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
           "404": {
             "description": "problem",
             "content": {
@@ -346,6 +336,16 @@
             }
           },
           "412": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -449,16 +449,6 @@
         "responses": {
           "200": {
             "description": "success"
-          },
-          "400": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
           },
           "405": {
             "description": "problem",
@@ -719,7 +709,7 @@
               }
             }
           },
-          "406": {
+          "414": {
             "description": "problem",
             "content": {
               "application/problem+json": {
@@ -762,6 +752,16 @@
                 }
               }
             }
+          },
+          "414": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -786,6 +786,16 @@
                 }
               }
             }
+          },
+          "414": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -800,16 +810,6 @@
         "responses": {
           "200": {
             "description": "success"
-          },
-          "400": {
-            "description": "problem",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
           },
           "409": {
             "description": "problem",
