@@ -64,7 +64,7 @@ semantic obligation in the prose.
 
 The visible OpenAPI tables are the current operation authoring source. The
 [notation](../../specs/formats/markdown-openapi.md) projects discovered-URL families
-and shared Core HTTP rules into [one current catalog](../../specs/openapi/README.md).
+and shared Core HTTP rules into [one current catalog](../../specs/generated/openapi/core.openapi.json).
 Synthetic fixture routes live under fixtures, not as a second API specification.
 Types composes existing operations; Transfer has no selected native wire binding.
 The obsolete catalog and historical OpenAPI document are removed from live source;

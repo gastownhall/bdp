@@ -31,7 +31,10 @@ describe("staged contract artifact binding, without a runtime upgrade", () => {
     expect(manifest.exports["./schemas/bdp-v0.1.schema.json"]).toEqual({
       default: "./schemas/bdp-v0.1.schema.json",
     });
-    for (const path of ["docs/history/profiles/core/core.md", "docs/history/profiles/write/write.md"]) {
+    for (const path of [
+      "docs/history/profiles/core/core.md",
+      "docs/history/profiles/write/write.md",
+    ]) {
       const text = read(path);
       expect(text).toContain(cases.binding.specification);
       expect(text).toContain(cases.binding.jsonMediaType);

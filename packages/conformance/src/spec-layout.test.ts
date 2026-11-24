@@ -12,11 +12,7 @@ const map = JSON.parse(read("docs/design/spec-path-map.json")) as {
 // documents were relocated wholesale to docs/history/; as frozen historical snapshots
 // their internal links reflect the former specs/profiles/ layout and are not kept
 // current, so they are not deep-link validated here.
-const documents = [
-  "specs/README.md",
-  "specs/conformance.md",
-  "docs/specs/bdp.md",
-];
+const documents = ["specs/README.md", "specs/conformance.md", "docs/specs/bdp.md"];
 
 describe("single specification authority and physical layout", () => {
   it("preserves every legacy protocol anchor at its explicit historical/current navigation target", () => {

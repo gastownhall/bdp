@@ -24,7 +24,9 @@ describe("historical citation cutline 692d is a separate test source", () => {
       "The Read discovery document requires `bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types`.";
     expect(historical.replace(/\s+/g, " ")).toContain(old);
     expect(readSpecificationSource("docs/specs/bdp.md").replace(/\s+/g, " ")).not.toContain(old);
-    expect(readSpecificationSource("docs/history/profiles/core/core.md").replace(/\s+/g, " ")).toContain(
+    expect(
+      readSpecificationSource("docs/history/profiles/core/core.md").replace(/\s+/g, " "),
+    ).toContain(
       "These discovery objects are closed; there is no required or guessed `beads` or `links` member.",
     );
     expect(isProtocolSpecificationSource("docs/history/core-v0-types.md")).toBe(false);

@@ -20,7 +20,10 @@ const limits = {
   cursorTtlMilliseconds: 1000,
 };
 const required = JSON.parse(
-  readFileSync(new URL("../../../docs/history/profiles/core/bdp-v0.schema.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("../../../docs/history/profiles/core/bdp-v0.schema.json", import.meta.url),
+    "utf8",
+  ),
 ).$defs.transactionalDiscovery.required as string[];
 const literalDirectory = {
   createBead: "create-bead",

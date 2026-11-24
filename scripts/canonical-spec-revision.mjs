@@ -8,10 +8,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 // source (core.lumen) and the authored protocol narrative (bdp.md). The pre-consolidation
 // per-profile sources have been retired to docs/history/ and no longer define the protocol
 // the reference server stamps.
-const canonicalSources = [
-  "specs/src/core/core.lumen",
-  "specs/src/bdp.md",
-];
+const canonicalSources = ["specs/src/core/core.lumen", "specs/src/bdp.md"];
 export function canonicalSpecRevision(repositoryRoot = root) {
   const dirty = execFileSync("git", ["status", "--porcelain", "--", ...canonicalSources], {
     cwd: repositoryRoot,
