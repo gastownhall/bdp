@@ -201,8 +201,26 @@ def lower_inline_record(body):
     sch["additionalProperties"] = True if additional else False
     return sch
 
-MODIFIERS = ('computed', 'serviceManaged', 'service-managed', 'init-only',
-             'read-only', 'unique', 'acyclic', 'abstract')
+# The access modes EXACTLY as `PropertyDeclaration` declares them in core.lumen, camelCase.
+#
+# THIS LIST USED TO CARRY THE HYPHENATED SPELLINGS and silently deleted fields because of it. It
+# read `'service-managed', 'init-only', 'read-only'` — the spelling in core.lumen's own §1.8
+# comment — while the declaration uses `initOnly` / `serviceManaged` / `readOnly`. A modifier that
+# is not in this list is never popped, so `parse_field`'s regex then sees `readOnly foo: T`, binds
+# `readOnly` as the field NAME, demands a colon, finds `foo`, and returns None — and the caller
+# drops the field. The result is a property missing from the generated schema, with no error: the
+# drift gate regenerates and compares against what is committed, so a self-consistent commit
+# passes, and a schema short a property still compiles.
+#
+# `serviceManaged` was listed in BOTH spellings, which is the only reason it worked, and why the
+# asymmetry survived unnoticed — `readOnly` and `initOnly` have zero field usages corpus-wide, so
+# nothing ever exercised the broken half.
+#
+# The hyphenated spellings are REMOVED rather than kept as aliases: no field in any of the six
+# `.lumen` sources uses one (verified, with a positive control), and accepting a spelling the spec
+# does not declare is a divergence that no test covers.
+MODIFIERS = ('computed', 'serviceManaged', 'readOnly', 'initOnly',
+             'unique', 'acyclic', 'abstract')
 def parse_field(field):
     toks = field.split()                          # strip leading access modifiers
     while toks and toks[0] in MODIFIERS:
