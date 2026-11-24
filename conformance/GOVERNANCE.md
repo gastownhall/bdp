@@ -14,117 +14,25 @@ interlock merge gate): what the obligation is and how it is staged. **Part II �
 
 # Part I — The adopted policy
 
-## The gap this closes — PR #428 is the live example
+**The principle.** Every `/// normative:` line in `core.lumen` is a conformance obligation, and no change to `core.lumen` may add or alter one without CI accounting for it — just as the wire surface already is. The surface gate alone cannot enforce this: a change can add binding requirements with no change to the generated OpenAPI, pass that gate green, and leave the requirements untested. Most normative lines are behavioural, not wire rows, so a surface-keyed gate structurally cannot see them.
 
-The tier-1 gate's denominator is the **OpenAPI wire surface**, read **live** from
-`specs/generated/openapi/core.openapi.json` (`bdp_gate::denominator()`) — at #428, 54 rows (13 ops + 41
-faults). It is lockstep on the **wire**: move an op or a fault status and the denominator moves with it;
-under `BDP_GATE_STRICT` an uncovered row fails CI (`fail-if-no-coverage`). (That count is #428-era; the
-fault-table rulings have since moved it — read the current figure from Part II §7, dated to the gate pin.)
+**The reader is the conformance point.** Where `core.lumen` says a reader or service *refuses* something, the obligation is on the reader — the party that must reject bad input — not on the writer. A test that only checks a well-behaved writer never exercises the guarantee the line makes.
 
-A `/// normative:` line is **not** that denominator. Ruling-1's **PR #428 added 12 new `/// normative:`
-lines and the OpenAPI/JSON-Schema projections regenerated to NO diff** — so the denominator didn't move
-and **the gate stayed green**, while 12 binding requirements entered core with zero coverage obligation.
-A green gate there proves the *wire surface* is unchanged; it says nothing about whether the new
-normative points are tested.
+**How an obligation is accounted for.** Each `/// normative:` line is tracked as an obligation, and each resolves to exactly one of three states:
 
-The gap is real because most of ruling-1's promotions are **behavioural, not wire-surface**: "`cancel`
-runs no compensation", "`Ephemeral` is never exported", "`Rev` is opaque", "`displayName` is never a
-matching key" — none is an op or fault row, so the surface-keyed gate structurally cannot see them.
+- **surface-bearing** — it maps to a wire operation or fault the surface gate already covers; nothing new is needed.
+- **behavioural** — it is a guarantee with no distinct wire status (for example, *`cancel` runs no compensation*, or *`Ephemeral` is never exported*); it needs a behavioural test against the implementation.
+- **waived** — it is a registered waiver: a skipped test carrying a tracking-issue id, so the obligation sits on the ledger as *known-uncovered* rather than silently missing.
 
-## Principle
+The ledger records each obligation's state, not a count. A new normative line that resolves to none of the three is what this policy catches. Part II is the mechanism.
 
-**Every `/// normative:` line in `core.lumen` is a conformance obligation**, and no `core.lumen` change
-may add or alter one without CI accounting for it — exactly as the wire surface is already accounted for.
+**Two enforcement states, and the condition that moves between them.** The gate runs **report-only** by default: it lists every obligation and flags any new normative line that has no resolution, but blocks nothing. Under `BDP_GATE_STRICT` it runs **blocking**: that same unresolved obligation fails CI. Blocking turns on once the coverage backlog is cleared — and clearing it is continuing work, behavioural cases and implementation landing over time, not a dated milestone. The gate flips when the backlog reaches zero, whenever that is; until then it reports, and coverage fills.
 
-## The conformance point is the reader
+**The ledger catches drift in both directions.** Mapping normative lines against the wire surface catches a normative line with no test (the gap above) *and* a declared wire fault with no normative line defining it (a status the surface counts but the spec does not ground). The second is the ongoing fault-table work. One ledger is the single source of truth for both. Part II §8 names the model: *grounded*, *reachable* and *obliged* are three separate properties, and a declared-but-not-obliged row is a surface defect, not a coverage gap.
 
-Wherever `core.lumen` says a reader or service **refuses** X, the **reader** is the conformance point,
-not the writer. An obligation of this shape is grounded against the party that must reject the input,
-not the party that must avoid emitting it — a case that only checks a well-behaved writer never
-exercises the guarantee the line makes.
+**A watcher's exit code is not a verdict.** When CI or a merge gate reads a watcher's result, the exit code alone does not certify the obligations passed. Confirm the watched head matches the PR head and the completed-check count is the full set: a *cancelled* run reads as not-pending and passes for success, and the absence of a pending signal is not a pass.
 
-## Mechanism — extends what exists, stands up no new checker
-
-The gate already derives the wire surface two independent ways and asserts they agree: `denominator()`
-(from the generated OpenAPI) and `source_surface()` (from `core.lumen`'s `/// openapi =` annotations).
-Mirror that for normative points:
-
-1. **`normative_surface()`** — parse every `/// normative:` line in `core.lumen` into a
-   normative-obligation ledger (today: **85 obligations**; an unanchored `grep` over-counts by two — see
-   Part II §5). The second denominator. The ledger pins each obligation's **resolution**, not a
-   cardinality.
-2. **Each obligation resolves to exactly one of:**
-   - **surface-bearing** — maps to a tier-1 OpenAPI row already in `denominator()`. Coverage is the
-     existing wire case; no new machinery.
-   - **behavioural** — a semantic guarantee with no distinct wire status (`cancel` no-compensation,
-     `Ephemeral` never-exported, `Rev` opaque). Needs a **tier-2 behavioural case** exercising the
-     guarantee against the subject.
-   - **waived** — a registered waiver: an `XFAIL` carrying a tracking-issue id, so the obligation is on
-     the ledger as *known-uncovered*, never silently absent.
-
-   Each obligation records its resolution the way a case records its `SurfaceId`s today.
-3. **The gate blocks** (under the same `BDP_GATE_STRICT` flag that governs tier-1) a `core.lumen` change
-   that adds a `/// normative:` resolving to none of the three.
-
-## Rollout — reuse the tier-1 staging exactly
-
-Tier-1 is **non-blocking** today (STRICT off) while coverage fills in, then flips to blocking once the
-surface is covered. Same for the normative ledger:
-
-- **Phase 0 (now):** `normative_surface()` reports the ledger (surface-bearing + behavioural + waived).
-  Non-blocking.
-- **Phase 1:** a new `/// normative:` must register a resolution (case or waiver-with-issue).
-  Report-only — nothing blocked, but an unregistered addition shows in the gate output and at review.
-- **Phase 2:** flip to blocking (STRICT) once the backlog is burned down.
-
-## A watcher's exit code is not a verdict
-
-When a merge gate or CI consumes a watcher run, the watcher's **exit code alone does not certify** the
-obligations passed. Before treating a watcher as a green verdict, confirm both: (a) the **watched head
-matches the PR head**, and (b) the **completed-context count equals the full obligation set**. A
-**CANCELLED** run reads as *not-pending* and will masquerade as success — the absence of a pending
-signal is not the presence of a pass.
-
-## Free dividend — it catches the inverse drift too
-
-A full **normative ⇄ surface cross-map** catches both directions:
-
-- **normative → no surface/case** — the new gap, PR #428.
-- **surface → no normative producer** — the gate documents the fault rows declared with no normative
-  line naming their producer ("the denominator counts rows the spec does not define"). These are the
-  open **fault-table rulings** (#2/#3/D), which are progressively grounding or undeclaring those rows,
-  so the count is a moving target by design — read the current measured figure from Part II §7 (dated to
-  the gate pin), not a number restated here. The cross-map ledger becomes the interlock's single source
-  of truth for BOTH drifts.
-
-Part II §8 gives the precise model the ledger classifies these with: a row is **grounded**, **reachable**
-and **obliged** as three separate properties, and a denominator defect (declared-but-not-obliged) is a
-different thing from a coverage gap.
-
-## Roles & placement
-
-- **Lydia** gates core merges (the interlock) and owns this policy; **Connie** owns the suite, authors
-  behavioural cases, and owns the gate contract (Part II); **Britt** coordinates rollout; **Audrey**
-  oversees; **Donna** rules this policy and its scope.
-- **Scope: `core.lumen` only.** Packs are looser by design; this strict interlock does not bind them.
-- **Home:** this doc (`conformance/GOVERNANCE.md`) lives next to the gate it governs, with a one-line
-  pointer from the fleet `RULES.md`. The policy lives with the mechanism it governs.
-
-## First application — PR #428
-
-#428 is the first change under this policy. Before it merges, its 12 new normative points register their
-resolution:
-
-- **#5 (`sse` on a snapshot → 400) and #9 (`after` + `from` → 400) are surface-bearing** — and notably
-  they do NOT add surface rows (hence the no-diff): they supply **normative PRODUCERS for 400 rows that
-  already existed but were ungrounded** (`list/400`, `export/400`, read-400). So they partly discharge
-  the ungrounded-fault problem — the inverse-drift remedy, in the same PR. (Part II §6 records a gate-side
-  caveat on the `after`/`from` evidence: surface-bearing evidence is author-asserted, not machine-checked.)
-- **The other ~10 are behavioural** → register as **waived-with-issue**, tracked for Connie's lane. The
-  *"Bind cancel in the conformance suite"* work already in flight closes one.
-
-This keeps #428's coverage ledger honest instead of silently diluting it.
+**Roles and scope.** Lydia owns this policy and gates `core.lumen` merges; Connie owns the conformance suite, its behavioural cases, and the gate contract (Part II); Donna rules the policy. It governs `core.lumen` only — the packs are looser by design — and it lives next to the gate it governs.
 
 ---
 
