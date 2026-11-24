@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { runV02Provider, parseV02Arguments } from "./v02-provider-kit.mjs";
 import { serveFixture } from "./test-support/v02-kit-provider.mjs";
 import { harvest, loadCoverage, qualify } from "./v02-provider-kit/specification.mjs";
-import { resource, reply, descriptor } from "./v02-provider-kit/contract.mjs";
+import { resource, reply, descriptor, capabilities } from "./v02-provider-kit/contract.mjs";
 import { condition, query } from "./v02-provider-kit/evaluate.mjs";
 import { parseJson } from "./v02-provider-kit/transport.mjs";
 test("latest pinned normative census has executable coverage plus Appendix E", async () => {
@@ -176,6 +176,30 @@ test("descriptor schemas are checked as JSON Schema, not accepted as arbitrary o
     type: "type-def",
     body: { properties: [{ name: "data", type: { type: "object", additionalProperties: true } }] },
   });
+});
+
+test("ListCaps requires a boolean compactFilter, rejecting both omission and a non-boolean", () => {
+  // core.lumen declares `ListCaps.compactFilter: bool` (required). Reported by Chris Sells
+  // against his staged Worker (#442 comment 7142885377): the checker omitted it from the
+  // ListCaps key arrays, so a valid `compactFilter: false` threw "undefined member" and a
+  // scope omitting the required field was wrongly accepted. Both are now correct.
+  const caps = () => ({
+    core: {
+      get: { selector: true },
+      list: { conditions: [], selector: true, sort: false, compactFilter: false },
+    },
+    scope: { storageClasses: [], revisionModel: "versioned" },
+  });
+  // The spec-required field, present and boolean, is accepted (threw before the fix).
+  capabilities(caps());
+  // Omitting the required field is rejected (was silently accepted before the fix).
+  const omitted = caps();
+  delete omitted.core.list.compactFilter;
+  assert.throws(() => capabilities(omitted));
+  // A non-boolean value is rejected by the boolean check.
+  const stringly = caps();
+  stringly.core.list.compactFilter = "false";
+  assert.throws(() => capabilities(stringly));
 });
 
 test("current-provider-kit CLI selects the v0.2 runner and returns its real exit-zero report", async () => {
