@@ -9,8 +9,8 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 const root = new URL("../../../", import.meta.url);
 const bytes = (path: string) => readFileSync(new URL(path, root));
 const read = (path: string) => JSON.parse(bytes(path).toString("utf8"));
-const common = read("specs/profiles/core/bdp-v0.1.schema.json");
-const feature = read("specs/profiles/write/id-root-v1.schema.json");
+const common = read("docs/history/profiles/core/bdp-v0.1.schema.json");
+const feature = read("docs/history/profiles/write/id-root-v1.schema.json");
 const paper = read("fixtures/id-root/candidate.json");
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 formatsPlugin.default(ajv, { mode: "full" });
@@ -33,14 +33,14 @@ describe("fixed id-root1 separate Write artifact", () => {
 
   it("keeps the transitional v0 mirror aligned and the canonical v0.1 artifact generated", () => {
     expect(bytes("packages/protocol/schemas/bdp-v0.schema.json")).toEqual(
-      bytes("specs/profiles/core/bdp-v0.schema.json"),
+      bytes("docs/history/profiles/core/bdp-v0.schema.json"),
     );
     const canonical = historicalArtifactSchema();
     expect(createHash("sha256").update(canonical).digest("hex")).toBe(
       "e0de70f5d1da926bedb4fac0343e0f561e91136511c4949cffd56ba5b6c60b8f",
     );
     expect(bytes("packages/protocol/schemas/bdp-v0.1.schema.json")).toEqual(
-      bytes("specs/profiles/core/bdp-v0.1.schema.json"),
+      bytes("docs/history/profiles/core/bdp-v0.1.schema.json"),
     );
   });
 

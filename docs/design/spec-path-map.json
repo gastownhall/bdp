@@ -152,18 +152,18 @@
     "deferred-model-features": "specs/conformance.md"
   },
   "files": {
-    "specs/types.md": "specs/profiles/types/types.md",
-    "specs/schemas/README.md": "specs/profiles/types/README.md",
-    "specs/schemas/examples/type-foundation.json": "specs/profiles/types/definitions.json",
+    "specs/types.md": "docs/history/profiles/types/types.md",
+    "specs/schemas/README.md": "docs/history/profiles/types/README.md",
+    "specs/schemas/examples/type-foundation.json": "docs/history/profiles/types/definitions.json",
     "specs/schemas/examples/domain-property-cases.json": "fixtures/specs/issue/domain-property-cases.json",
     "specs/schemas/check_examples.py": "scripts/check_type_examples.py",
-    "schemas/bdp-v0.schema.json": "specs/profiles/core/bdp-v0.schema.json",
-    "specs/schemas/conforms-to.properties.schema.json": "specs/profiles/types/conforms-to.properties.schema.json",
-    "specs/schemas/type-definition.properties.schema.json": "specs/profiles/types/type-definition.properties.schema.json",
-    "specs/schemas/dependency.properties.schema.json": "specs/types/issue/dependency.properties.schema.json",
-    "specs/schemas/bead-type-definition.properties.schema.json": "specs/profiles/types/bead-type-definition.properties.schema.json",
-    "specs/schemas/issue.properties.schema.json": "specs/types/issue/issue.properties.schema.json",
-    "specs/schemas/link-type-definition.properties.schema.json": "specs/profiles/types/link-type-definition.properties.schema.json"
+    "schemas/bdp-v0.schema.json": "docs/history/profiles/core/bdp-v0.schema.json",
+    "specs/schemas/conforms-to.properties.schema.json": "docs/history/profiles/types/conforms-to.properties.schema.json",
+    "specs/schemas/type-definition.properties.schema.json": "docs/history/profiles/types/type-definition.properties.schema.json",
+    "specs/schemas/dependency.properties.schema.json": "docs/history/types/issue/dependency.properties.schema.json",
+    "specs/schemas/bead-type-definition.properties.schema.json": "docs/history/profiles/types/bead-type-definition.properties.schema.json",
+    "specs/schemas/issue.properties.schema.json": "docs/history/types/issue/issue.properties.schema.json",
+    "specs/schemas/link-type-definition.properties.schema.json": "docs/history/profiles/types/link-type-definition.properties.schema.json"
   },
   "meaning": "Historical section relocation; canonical current entry points are specs/README.md and the six direct review documents."
 }

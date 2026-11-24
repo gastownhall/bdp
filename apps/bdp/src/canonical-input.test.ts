@@ -141,13 +141,12 @@ describe("canonical ordinary mutation compilation", () => {
       `${scope}types/issue/spike`,
     );
   });
-  // RETIRED: this assertion walked specs/types/ + specs/profiles/ and compared the published
-  // type-URLs to BDP_PUBLISHED_TYPE_NAMES. That layout is the pre-restructure one — superseded
-  // by specs/src/ and being retired to history — so the walk no longer describes how types are
-  // published, and a partial deletion already made the inventory diverge. The full
-  // profiles/types -> history migration (porting this suite and the editorial checker onto
-  // specs/src/ generated schemas) is tracked as its own v0.2-conformance effort.
-  // BDP_PUBLISHED_TYPE_NAMES remains the runtime source (canonical-input.ts / canonical-output.ts).
+  // RETIRED: this assertion walked the pre-restructure per-profile layout and compared the
+  // published type-URLs to BDP_PUBLISHED_TYPE_NAMES. That layout was superseded by specs/src/
+  // and has since been relocated to docs/history/, so the walk no longer describes how types
+  // are published. BDP_PUBLISHED_TYPE_NAMES remains the runtime source
+  // (canonical-input.ts / canonical-output.ts); re-porting a walk onto the specs/src/ generated
+  // schemas is tracked as its own v0.2-conformance effort.
   it("creates with full IDs, exact Type pin, explicit null/presence and literal nested data", async () => {
     expect(
       await body(

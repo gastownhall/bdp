@@ -18,7 +18,7 @@ import {
 } from "./index.js";
 
 const CITATION = {
-  source: "specs/profiles/core/core.md",
+  source: "docs/history/profiles/core/core.md",
   anchor: "#resource-views",
   selectedText: "The default `GET` of a Bead or Link URL returns its complete Resource record.",
 };

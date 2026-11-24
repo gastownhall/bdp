@@ -8,15 +8,11 @@ const read = (source: string) => readFileSync(new URL(source, root), "utf8");
 const map = JSON.parse(read("docs/design/spec-path-map.json")) as {
   anchors: Record<string, string>;
 };
-const documents = [
-  "specs/README.md",
-  "specs/profiles/core/core.md",
-  "specs/profiles/write/write.md",
-  "specs/conformance.md",
-  "specs/profiles/types/types.md",
-  "specs/profiles/types/README.md",
-  "docs/specs/bdp.md",
-];
+// Live documents whose relative links must still resolve. The retired per-profile
+// documents were relocated wholesale to docs/history/; as frozen historical snapshots
+// their internal links reflect the former specs/profiles/ layout and are not kept
+// current, so they are not deep-link validated here.
+const documents = ["specs/README.md", "specs/conformance.md", "docs/specs/bdp.md"];
 
 describe("single specification authority and physical layout", () => {
   it("preserves every legacy protocol anchor at its explicit historical/current navigation target", () => {
@@ -64,7 +60,7 @@ describe("single specification authority and physical layout", () => {
     expect(() => readSpecificationSource("file:///etc/hosts")).toThrow(
       "escapes the repository root",
     );
-    expect(readSpecificationSource("specs/profiles/core/core.md")).toContain(
+    expect(readSpecificationSource("docs/history/profiles/core/core.md")).toContain(
       "## Resource reads and views",
     );
   });

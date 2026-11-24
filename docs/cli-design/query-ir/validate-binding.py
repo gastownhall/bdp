@@ -16,7 +16,7 @@ AST_ADMIT = static['admit']
 AST_KIND = static['collection_kind']
 formats = FormatChecker()
 assert 'uri' in formats.checkers
-paths = [HERE / 'read-binding.schema.json', HERE / 'query.schema.json', ROOT / 'specs/profiles/core/bdp-v0.1.schema.json']
+paths = [HERE / 'read-binding.schema.json', HERE / 'query.schema.json', ROOT / 'docs/history/profiles/core/bdp-v0.1.schema.json']
 schemas = [json.loads(p.read_text()) for p in paths]
 registry = Registry().with_resources((s['$id'], Resource.from_contents(s)) for s in schemas)
 wire = schemas[0]

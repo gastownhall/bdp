@@ -1,6 +1,6 @@
 /**
  * The Types BDP publishes under `https://github.com/gastownhall/bdp/types/`, by short name,
- * as far as this client knows them: the Issue and Dependency package (`specs/types/issue`),
+ * as far as this client knows them: the Issue and Dependency package (`docs/history/types/issue`),
  * the Callable Types and the type system. A client reads a short name against this table
  * first and the bound Scope's `types/` second, so nothing here is fetched, and the server
  * still judges every expansion.

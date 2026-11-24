@@ -17,6 +17,8 @@ Core works without the packs; a pack adds its stated responsibilities without ch
 
 ## Superseded — not the source of truth
 
-**[`profiles/`](profiles/)** and **[`types/`](types/)** are an earlier per-profile
-structure, now consolidated into `src/`. They are retained only until they are removed
-from `specs/`, carry no authority, and must not be read as current. Prefer `src/`.
+The earlier per-profile structure (`profiles/` and `types/`) has been consolidated into
+`src/` and relocated to **[`../docs/history/profiles/`](../docs/history/profiles/)** and
+**[`../docs/history/types/`](../docs/history/types/)**. It carries no authority, is retained
+for history only, and must not be read as current. Prefer `src/`. (The live v0.2 Types draft
+remains at [`types.md`](types.md).)

@@ -9,8 +9,8 @@ const addFormats = formatsPlugin.default;
 
 const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), "utf8");
-const legacyText = read("specs/profiles/core/bdp-v0.schema.json");
-const candidateText = read("specs/profiles/core/bdp-v0.1.schema.json");
+const legacyText = read("docs/history/profiles/core/bdp-v0.schema.json");
+const candidateText = read("docs/history/profiles/core/bdp-v0.1.schema.json");
 const candidate = JSON.parse(candidateText);
 const cases = JSON.parse(read("fixtures/contract-binding/candidate.json"));
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
@@ -31,7 +31,10 @@ describe("staged contract artifact binding, without a runtime upgrade", () => {
     expect(manifest.exports["./schemas/bdp-v0.1.schema.json"]).toEqual({
       default: "./schemas/bdp-v0.1.schema.json",
     });
-    for (const path of ["specs/profiles/core/core.md", "specs/profiles/write/write.md"]) {
+    for (const path of [
+      "docs/history/profiles/core/core.md",
+      "docs/history/profiles/write/write.md",
+    ]) {
       const text = read(path);
       expect(text).toContain(cases.binding.specification);
       expect(text).toContain(cases.binding.jsonMediaType);

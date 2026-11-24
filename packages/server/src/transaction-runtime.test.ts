@@ -209,7 +209,7 @@ const authorizationSeed = (ids: readonly string[]) =>
 const authorizationValidators = (() => {
   const schema = JSON.parse(
     readFileSync(
-      new URL("../../../specs/profiles/core/bdp-v0.schema.json", import.meta.url),
+      new URL("../../../docs/history/profiles/core/bdp-v0.schema.json", import.meta.url),
       "utf8",
     ),
   );

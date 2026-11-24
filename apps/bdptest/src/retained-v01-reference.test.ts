@@ -25,7 +25,7 @@ const navigation = fixedNavigation(scope, `${scope}names/`);
 const validator = createJsonSchemaValidator(
   JSON.parse(
     readFileSync(
-      new URL("../../../specs/profiles/core/bdp-v0.1.schema.json", import.meta.url),
+      new URL("../../../docs/history/profiles/core/bdp-v0.1.schema.json", import.meta.url),
       "utf8",
     ),
   ),

@@ -1444,18 +1444,6 @@
       "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
     },
     {
-      "path": "scripts/current-provider-kit-callables.node-test.mjs",
-      "runner": "node",
-      "lane": "current",
-      "reason": "Callables and Issue package rows of the provider kit: the real reference over public HTTP, and mutants of its answers proving each row's independent assertions fire."
-    },
-    {
-      "path": "scripts/current-provider-kit.node-test.mjs",
-      "runner": "node",
-      "lane": "current",
-      "reason": "Current Core/ordinary Write provider-kit controls: real public HTTP reference adapter, independently authored assertions, explicit fixture conditions and lifecycle failures; incomplete coverage is not full provider qualification."
-    },
-    {
       "path": "scripts/v02-provider-kit.node-test.mjs",
       "runner": "node",
       "lane": "current",
@@ -1480,25 +1468,7 @@
       "reason": "Historical or mixed-purpose suite retained conservatively; promotion requires obligation/import review, not a declaration of obsolescence."
     },
     {
-      "path": "scripts/generate-callable-catalog.node-test.mjs",
-      "runner": "node",
-      "lane": "artifact",
-      "reason": "Offline artifact/generator controls; no provider qualification."
-    },
-    {
-      "path": "scripts/markdown-contracts.node-test.mjs",
-      "runner": "node",
-      "lane": "artifact",
-      "reason": "Offline artifact/generator controls; no provider qualification."
-    },
-    {
       "path": "scripts/markdown-schema.node-test.mjs",
-      "runner": "node",
-      "lane": "artifact",
-      "reason": "Offline artifact/generator controls; no provider qualification."
-    },
-    {
-      "path": "scripts/openapi.node-test.mjs",
       "runner": "node",
       "lane": "artifact",
       "reason": "Offline artifact/generator controls; no provider qualification."
@@ -1544,12 +1514,6 @@
       "runner": "node",
       "lane": "current",
       "reason": "Owned installed review workstation lifecycle and private CLI relay controls; not arbitrary-provider conformance."
-    },
-    {
-      "path": "scripts/spec-schema-fragments.node-test.mjs",
-      "runner": "node",
-      "lane": "artifact",
-      "reason": "Offline artifact/generator controls; no provider qualification."
     },
     {
       "path": "scripts/test-routing.node-test.mjs",

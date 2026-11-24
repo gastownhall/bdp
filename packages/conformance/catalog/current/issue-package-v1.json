@@ -203,7 +203,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/callables.md",
+          "source": "docs/history/types/issue/callables.md",
           "anchor": "#8-conformance-rows-for-preview-1",
           "selectedText": "Every name of §1 is invocable"
         }
@@ -216,7 +216,7 @@
       "requiredProfile": "read",
       "requirements": [
         {
-          "source": "specs/types/issue/callables.md",
+          "source": "docs/history/types/issue/callables.md",
           "anchor": "#8-conformance-rows-for-preview-1",
           "selectedText": "Each invocation's arguments and result validate against its declaration"
         }

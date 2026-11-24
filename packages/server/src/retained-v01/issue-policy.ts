@@ -1,5 +1,5 @@
 /**
- * The Issue and Dependency Types package (`specs/types/issue/issue.md`), preview-1, enforced
+ * The Issue and Dependency Types package (`docs/history/types/issue/issue.md`), preview-1, enforced
  * as native Scope policy under Core. A fixed catalog; no Types1 activation and no Callables.
  */
 import { type JsonObject, problem, referenceUri, type RetainedLink } from "./contract.js";

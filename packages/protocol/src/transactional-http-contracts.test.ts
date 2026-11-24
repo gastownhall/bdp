@@ -97,7 +97,7 @@ const fixture = JSON.parse(read("fixtures/transactional/http-contracts.json")) a
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
-ajv.addSchema(JSON.parse(read("specs/profiles/core/bdp-v0.schema.json")));
+ajv.addSchema(JSON.parse(read("docs/history/profiles/core/bdp-v0.schema.json")));
 const sourceExchangeFor = (example: Example) => {
   if (example.source === undefined) throw new Error("This case has no source exchange");
   const reference = example.source;

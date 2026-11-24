@@ -6,8 +6,8 @@ import { withBdpSourceAnnotations } from "./schema-source-annotations.js";
 
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, root), "utf8"));
-const common = read("specs/profiles/core/bdp-v0.1.schema.json");
-const feature = read("specs/profiles/write/delete-modes-v1.schema.json");
+const common = read("docs/history/profiles/core/bdp-v0.1.schema.json");
+const feature = read("docs/history/profiles/write/delete-modes-v1.schema.json");
 const paper = read("fixtures/delete-modes/candidate.json");
 const ajv = withBdpSourceAnnotations(new Ajv2020({ strict: true, allErrors: true }));
 formatsPlugin.default(ajv, { mode: "full" });

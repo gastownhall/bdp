@@ -4,12 +4,11 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const canonicalSources = [
-  "specs/profiles/core/core.md",
-  "specs/profiles/write/write.md",
-  "specs/profiles/types/types.md",
-  "specs/profiles/events/events.md",
-];
+// The canonical-protocol source in the v0.2.3 layout: the normative Core authoring
+// source (core.lumen) and the authored protocol narrative (bdp.md). The pre-consolidation
+// per-profile sources have been retired to docs/history/ and no longer define the protocol
+// the reference server stamps.
+const canonicalSources = ["specs/src/core/core.lumen", "specs/src/bdp.md"];
 export function canonicalSpecRevision(repositoryRoot = root) {
   const dirty = execFileSync("git", ["status", "--porcelain", "--", ...canonicalSources], {
     cwd: repositoryRoot,

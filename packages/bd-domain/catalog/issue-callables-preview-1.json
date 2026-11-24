@@ -1,5 +1,5 @@
 {
-  "$comment": "Generated from specs/types/issue/callables.md and its issue-callables bundle under Issue K-7. Do not edit; run scripts/generate-callable-catalog.mjs.",
+  "$comment": "Generated from docs/history/types/issue/callables.md and its issue-callables bundle under Issue K-7. Do not edit; run scripts/generate-callable-catalog.mjs.",
   "declarations": [
     {
       "name": "issue/context",

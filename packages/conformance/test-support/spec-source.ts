@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 const root = new URL("../../../", import.meta.url);
 export const PROTOCOL_SPECIFICATION_PATHS = [
-  "specs/profiles/core/core.md",
-  "specs/profiles/write/write.md",
-  "specs/profiles/types/types.md",
-  "specs/profiles/events/events.md",
+  "docs/history/profiles/core/core.md",
+  "docs/history/profiles/write/write.md",
+  "docs/history/profiles/types/types.md",
+  "docs/history/profiles/events/events.md",
 ];
 /** Read the actual named current document. Old cumulative citations use the
  * separate pinned historical reader, never an in-memory replacement monolith.

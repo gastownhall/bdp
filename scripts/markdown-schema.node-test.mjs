@@ -29,7 +29,7 @@ const fence = String.fromCharCode(96).repeat(3);
 // Source projection only: no JSON Schema instance evaluator, provider, HTTP,
 // Type admission, schema fetch, storage engine or protocol runtime is exercised.
 test("complete current common218-definition bundle projects losslessly", () => {
-  const path = "specs/profiles/core/bdp-v0.1.schema.json";
+  const path = "docs/history/profiles/core/bdp-v0.1.schema.json";
   const before = text(path);
   const schema = JSON.parse(before);
   assert.equal(Object.keys(schema.$defs).length, 218);
@@ -43,7 +43,7 @@ test("complete current common218-definition bundle projects losslessly", () => {
 
 for (const name of ["bead-type-definition", "link-type-definition", "refines", "type-definition"])
   test("intrinsic2 " + name + " preserves comments, resources and external references", () => {
-    roundTrip(load("specs/profiles/types/intrinsic-2/" + name + ".properties.schema.json"));
+    roundTrip(load("docs/history/profiles/types/intrinsic-2/" + name + ".properties.schema.json"));
   });
 
 test("hand-authored field table has exact lowering and canonical rendering", () => {

@@ -6,11 +6,11 @@ version: 0
 
 # BDP Conformance index
 
-This index accompanies [Core and Read](profiles/core/core.md) and
-[Write](profiles/write/write.md). Requirements apply only to their stated profile.
+This index accompanies [Core and Read](../docs/history/profiles/core/core.md) and
+[Write](../docs/history/profiles/write/write.md). Requirements apply only to their stated profile.
 The common draft status and requirement-language rules are defined in Core.
 
-The selected v0.1 [Core](profiles/core/retained-core.md)/[Write](profiles/write/retained-write.md)
+The selected v0.1 [Core](../docs/history/profiles/core/retained-core.md)/[Write](../docs/history/profiles/write/retained-write.md)
 entry and [finite source cutline](../docs/design/bdp-v0.1-retained-cutline.md)
 do not inherit a PASS from this v0 cumulative matrix. Catalog IDs/profile tags
 and historical reports remain bound to their actual inputs; final retained
@@ -52,7 +52,7 @@ complete acceptance evidence.
 Every Core implementation is tested through its public HTTP boundary with a
 valid Selector on both discovered Bead and Link inventories. Use a fixture with
 at least two visible records in each collection and select one by its canonical
-`id`, using the minimal expression from [Core Selection](profiles/core/core.md#selection).
+`id`, using the minimal expression from [Core Selection](../docs/history/profiles/core/core.md#selection).
 The response MUST be a successful collection page containing exactly the
 selected record, with no other record. This check establishes that `selector`
 is an implemented Core parameter, rather than merely checking that malformed
