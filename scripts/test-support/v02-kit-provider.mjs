@@ -32,6 +32,13 @@ export async function serveFixture(mutation = "none") {
   // A scope advertising the alias overlay: the kit must FLAG the unexercised read
   // obligation (Alias#2 -> not-run), never silently qualify it.
   if (mutation === "aliases-advertised") caps.scope.aliases = {};
+  // A reusable/unversioned scope (reusable requires unversioned): the model-gated
+  // Appendix E guarantees relax here (E1 "never reused" and E5 "revision changes"
+  // are vacuous), so the kit must NOT fail them by model, only by offering.
+  if (mutation === "reusable") {
+    caps.scope.revisionModel = "unversioned";
+    caps.scope.idModel = "reusable";
+  }
   const wrap = (id, type, body) => ({
     id: { id, rev: "1" },
     type,
@@ -55,6 +62,8 @@ export async function serveFixture(mutation = "none") {
       cardinality: "broadcast",
     }),
   ];
+  // Under `unversioned` a resource carries no `rev` (RevisionModel#1 / resource contract).
+  if (mutation === "reusable") for (const r of data) delete r.id.rev;
   if (extended) {
     a.body.text = "Alpha reference content ".repeat(6);
     b.body.text = "Beta reference content ".repeat(6);
@@ -485,9 +494,7 @@ export async function serveFixture(mutation = "none") {
           }
           value = select(
             found,
-            url.searchParams.has("select")
-              ? JSON.parse(url.searchParams.get("select"))
-              : undefined,
+            url.searchParams.has("select") ? JSON.parse(url.searchParams.get("select")) : undefined,
           );
         }
       }

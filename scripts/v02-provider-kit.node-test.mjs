@@ -113,6 +113,25 @@ for (const mutation of [
     assert.notEqual(report.state, "pass");
     assert.equal(JSON.stringify(report).includes("DO_NOT_REPORT_SERVER_VALUE"), false);
   });
+test("model-gated Appendix E guarantees relax under a reusable/unversioned scope, not fail", async () => {
+  const r = await runV02Provider(await serveFixture("reusable"), {
+    allowRefusalProbes: true,
+    maxPages: 100,
+  });
+  const g = (id) => r.normative.find((p) => p.id === id)?.state;
+  // E1 "never reused" and E5 "revision changes on state change" are model-gated: a
+  // reusable/unversioned scope must not fail them (the gated half is unasserted read-only).
+  assert.equal(g("appendix-e:1"), "pass");
+  assert.equal(g("appendix-e:5"), "pass");
+  assert.equal(g("appendix-e:14"), "not-applicable");
+  // E1's "never reused" overlaps IdModel#1 (id-remint): both leave it unasserted, no conflict.
+  assert.equal(g("core:IdModel#1"), "not-applicable");
+  assert.equal(
+    r.normative.some((p) => p.state === "fail"),
+    false,
+  );
+  assert.equal(r.qualificationComplete, true);
+});
 test("a scope advertising the alias overlay flags the unexercised read obligation, not a pass", async () => {
   const r = await runV02Provider(await serveFixture("aliases-advertised"), {
     allowRefusalProbes: true,

@@ -259,7 +259,10 @@ export async function runV02Provider(target, options = {}) {
       // GET / is the discovery signpost (a ServiceDescriptor), not the scope's
       // resource collection — the scope list moved to /-/list (core.lumen ServiceDescriptor#1).
       const signpost = await request("");
-      serviceDescriptor(decoded(signpost), { scope: target.scope, linkHeader: signpost.headers.link });
+      serviceDescriptor(decoded(signpost), {
+        scope: target.scope,
+        linkHeader: signpost.headers.link,
+      });
       discovery = decoded(await request("sys/capabilities"));
       resource(discovery);
       caps = capabilities(discovery.body);

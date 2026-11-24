@@ -207,10 +207,7 @@ export function capabilities(value) {
     "Invalid scope revision model",
   );
   if (value.scope.idModel !== undefined) {
-    requireThat(
-      ["permanent", "reusable"].includes(value.scope.idModel),
-      "Invalid scope id model",
-    );
+    requireThat(["permanent", "reusable"].includes(value.scope.idModel), "Invalid scope id model");
     // core.lumen ScopeCapabilities#1: versioned+reusable is forbidden (versioned ⇒ permanent).
     requireThat(
       !(value.scope.revisionModel === "versioned" && value.scope.idModel === "reusable"),
