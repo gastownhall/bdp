@@ -212,9 +212,6 @@ test("required CI preserves every old command and permits only legitimate editor
     "pnpm format:check",
     "pnpm lint",
     "pnpm check:boundaries",
-    "pnpm openapi:check",
-    "pnpm test:openapi",
-    "pnpm markdown:check",
     "pnpm test:markdown",
     "pnpm typecheck",
     "pnpm build",
@@ -234,12 +231,9 @@ test("required CI preserves every old command and permits only legitimate editor
     .sort();
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(pkg.scripts["test:cli:built"], "node --test scripts/canonical-cli.node-test.mjs");
-  assert(
-    pkg.scripts["test:markdown"]
-      .split(/\s+/)
-      .includes("scripts/spec-schema-fragments.node-test.mjs"),
-    "Baseline Markdown controls must retain schema-fragment extraction controls",
-  );
+  // The retired v0.1 OpenAPI/Markdown/callable projection toolchain no longer runs here;
+  // test:markdown now carries only the live Markdown-schema parser controls.
+  assert.equal(pkg.scripts["test:markdown"], "node --test scripts/markdown-schema.node-test.mjs");
   const command = workflow.split("\n").find((line) => line.includes("run: pnpm test:cli:built "));
   assert(command, "Baseline must extend the built Node entry with remaining current controls");
   assert.deepEqual(
@@ -273,8 +267,7 @@ test("required CI preserves every old command and permits only legitimate editor
     "scripts/check-spec-editorial.py --classify",
     "scripts/check-spec-editorial-test.py",
     "bash -n docs/cli-design/overview/examples/csv-failure.sh docs/cli-design/overview/examples/csv-review.sh",
-    "node --test scripts/spec-schema-fragments.node-test.mjs",
-    "node scripts/spec-schema-fragments.mjs --check",
+    "node --test scripts/markdown-schema.node-test.mjs",
     "python3 -B scripts/check-spec-editorial.py",
   ])
     assert(workflow.includes(check), `Missing original required check: ${check}`);
