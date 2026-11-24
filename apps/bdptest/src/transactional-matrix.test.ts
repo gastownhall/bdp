@@ -16,7 +16,7 @@ import {
   assertSameServedProfileConfiguration,
 } from "@bdp/conformance/testing";
 import { installedTransactionBinding } from "../test-support/transactional-execution-binding.js";
-import schema from "../../../specs/profiles/core/bdp-v0.schema.json" with { type: "json" };
+import schema from "../../../docs/history/profiles/core/bdp-v0.schema.json" with { type: "json" };
 import {
   launchInstalledTransaction,
   scope,

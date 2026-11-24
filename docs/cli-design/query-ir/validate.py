@@ -168,11 +168,11 @@ def admit(request):
 
 def check_documents():
     files = [
-        ROOT / "specs/profiles/core/query.md",
-        ROOT / "specs/profiles/core/read-operations.md",
+        ROOT / "docs/history/profiles/core/query.md",
+        ROOT / "docs/history/profiles/core/read-operations.md",
         ROOT / "docs/cli-design/query-language.md",
         ROOT / "docs/cli-design/read-review.md",
-        ROOT / "specs/profiles/core/resource-projection.md",
+        ROOT / "docs/history/profiles/core/resource-projection.md",
         ROOT / "docs/cli-design/query-ir.md",
         ROOT / "docs/cli-design/reads-and-paging.md",
         ROOT / "docs/cli-design/read-output.md",

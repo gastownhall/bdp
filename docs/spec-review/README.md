@@ -5,11 +5,11 @@ assembled from main commit `692d801231c78e12b456d8c5213bdf137a6b534d`.
 
 ## Open these files
 
-1. [Core](../../specs/profiles/core/core.md)
-2. [Write](../../specs/profiles/write/write.md)
-3. [Types](../../specs/profiles/types/types.md)
-4. [Events](../../specs/profiles/events/events.md)
-5. [Transfer — proposed](../../specs/profiles/transfer/transfer.md)
+1. [Core](../history/profiles/core/core.md)
+2. [Write](../history/profiles/write/write.md)
+3. [Types](../history/profiles/types/types.md)
+4. [Events](../history/profiles/events/events.md)
+5. [Transfer — proposed](../history/profiles/transfer/transfer.md)
 6. [CLI](../cli-design/bdp-cli.md)
 
 Each rule belongs directly in its canonical document. Core owns Resources,

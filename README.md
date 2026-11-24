@@ -19,9 +19,9 @@ Core works without the packs. A pack adds its stated responsibilities without ch
 
 The Core and pack references under **[`specs/generated/`](specs/generated/)**, together with the JSON Schema bundle and the OpenAPI catalog, are **generated** from the authoring sources in **[`specs/src/`](specs/src/)** — `core/core.lumen` and `packs/*.lumen`, alongside the authored `bdp.md`. Read the generated references; the `.lumen` files are the authoring form and are not meant to be read directly. **[`specs/formats/`](specs/formats/)** holds the Markdown ↔ JSON Schema / OpenAPI conventions the generated documents follow, and **[`docs/history/`](docs/history/)** preserves the historical inputs. Nothing under `specs/generated/` is hand-edited.
 
-## Consolidation in progress
+## Consolidation complete
 
-The per-profile documents under `specs/profiles/` and the type documents under `specs/types/` are an **earlier structure being consolidated into `bdp.md`, `core.lumen`, and the packs**. They are retained only until that migration completes, are not the current source of truth, and will be removed. Prefer `specs/src/`.
+The earlier per-profile documents and type documents have been **consolidated into `bdp.md`, `core.lumen`, and the packs** under `specs/src/`, and the retired per-profile structure has been relocated to `docs/history/profiles/` and `docs/history/types/`. It is kept for history only, is not the current source of truth, and must not be read as current. Prefer `specs/src/`.
 
 ## Building and checking
 

@@ -257,7 +257,7 @@ it("preserves one allocated effect and receipt across same-key singleton and bat
     ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
     ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
     const bundle = JSON.parse(
-      readFileSync(path.join(root, "specs/profiles/core/bdp-v0.schema.json"), "utf8"),
+      readFileSync(path.join(root, "docs/history/profiles/core/bdp-v0.schema.json"), "utf8"),
     );
     ajv.addSchema(bundle);
     const validators = Object.fromEntries(

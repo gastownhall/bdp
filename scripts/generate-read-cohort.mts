@@ -234,7 +234,7 @@ async function runPackagedTarget(
   const faultResource = new URL(requireBinding(fixture, "bead.demo-a"), SCOPE).href;
   const schemaValidator = createJsonSchemaValidator(
     JSON.parse(
-      new TextDecoder().decode(readRepoBytes("specs/profiles/core/bdp-v0.schema.json")),
+      new TextDecoder().decode(readRepoBytes("docs/history/profiles/core/bdp-v0.schema.json")),
     ) as Record<string, unknown>,
   );
   const descriptors = fixture.typeDescriptors;
@@ -329,7 +329,7 @@ function loadBundle(fixtureRelativePath: string): ConformanceArtifactBundle {
  * provenance checked for format alone.
  */
 const BINDING_SOURCES = {
-  schema: "specs/profiles/core/bdp-v0.schema.json",
+  schema: "docs/history/profiles/core/bdp-v0.schema.json",
   validator: "packages/conformance/src/schema-validator.ts",
   runner: "packages/conformance/src/runner.ts",
 } as const;

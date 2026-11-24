@@ -25,7 +25,7 @@ const type = { uri: "https://types.invalid/Record", revision: "definition-exact"
 const validate = createJsonSchemaValidator(
   JSON.parse(
     readFileSync(
-      new URL("../../../specs/profiles/core/bdp-v0.1.schema.json", import.meta.url),
+      new URL("../../../docs/history/profiles/core/bdp-v0.1.schema.json", import.meta.url),
       "utf8",
     ),
   ),

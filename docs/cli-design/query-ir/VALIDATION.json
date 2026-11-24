@@ -20,11 +20,11 @@
   ],
   "artifacts": [
     {
-      "path": "specs/profiles/core/query.md",
+      "path": "docs/history/profiles/core/query.md",
       "sha256": "45b74378021a5591ff5914f07c94fff4c41fce35bce985591eb99ae153046f30"
     },
     {
-      "path": "specs/profiles/core/read-operations.md",
+      "path": "docs/history/profiles/core/read-operations.md",
       "sha256": "f97b776866a2ac52ddef8764df6a6b6fe24f5c5c86c33f70504f2e673e78d276"
     },
     {
@@ -36,7 +36,7 @@
       "sha256": "3edf6cc40dbfe9ec9def9c6699b536f1d5ff40995c427e84cefc1b61001af3d3"
     },
     {
-      "path": "specs/profiles/core/resource-projection.md",
+      "path": "docs/history/profiles/core/resource-projection.md",
       "sha256": "934d607e30f48813de6a1ff0b863add9e515c948d70ec9013bb62e683bcb4e9e"
     },
     {

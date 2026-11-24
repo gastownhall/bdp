@@ -76,7 +76,7 @@ const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 const schema = JSON.parse(
-  readFileSync(path.join(root, "specs/profiles/core/bdp-v0.schema.json"), "utf8"),
+  readFileSync(path.join(root, "docs/history/profiles/core/bdp-v0.schema.json"), "utf8"),
 );
 ajv.addSchema(schema);
 const validators = Object.fromEntries(
