@@ -135,7 +135,27 @@ reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
   `delete/413`, `export/400`, `export/414`, `get/414`, `list/400`, `list/414`, `patch/409`,
   `patch/413`, `put/413`, `put/422`, `revisions/400`, `revisions/414`. Each needs a subject change
   rather than a ruling: the `413`s need an over-budget guard, the `414`s need a URL-budget check on
-  the read path, and the `400`s need the two pinned malformed-request cases to be enforced.
+  the read path. **The `400`s are different, and GROUNDED IS NOT REACHABLE** — see below.
+
+- **`list/400`, `export/400` and `revisions/400` are grounded but NOT REACHABLE over this binding,
+  and that is a principled gap rather than unfinished work.** Both pins that ground them act on
+  `ReadRequest` members — `format=sse` on a snapshot read, and `after` together with `from` — and the
+  `/// openapi =` annotations bind **no** such parameter on `list`, `revisions` or `export`. Only
+  `pull` declares `after`/`from`/`format` in the query string. Checked at the source, not just in the
+  generated catalog, so this is faithful lowering rather than a generator gap.
+
+  The one path that *can* express them is the **body-form read** (`POST /-/list`, `POST /{id}/-/get`
+  carrying a `ReadRequest`), and that is an **OPTIONAL capability, advertised as `bodyFormSpill`**,
+  which this subject does not advertise. So a client cannot send the malformed input at all, and the
+  rows are uncoverable for the same kind of reason `get/410` is: the subject declines a capability the
+  row depends on, which a conformant implementation may do. Covering them would mean implementing an
+  optional feature, not fixing an omission.
+
+  **This matters for `BDP_GATE_STRICT`.** "Uncovered means unimplemented" is true of most of the set,
+  but not of these: tier-1 can never reach 54/54 for a subject that declines `bodyFormSpill`, so a
+  blocking flip needs a notion of *rows unreachable because of a declared capability* — which the
+  suite already applies informally to `get/410` and the write `410`s. Flipping STRICT without it
+  would set a bar no conformant subject can clear.
 
 - **THE TWO ROWS STILL UNGROUNDED ARE THE TWO WE COVER.** `create/400` and `put/400` are the whole
   remainder of the ungrounded-fault problem, and they are not in the list above because they are
