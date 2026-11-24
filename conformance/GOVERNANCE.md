@@ -90,10 +90,12 @@ signal is not the presence of a pass.
 A full **normative ⇄ surface cross-map** catches both directions:
 
 - **normative → no surface/case** — the new gap, PR #428.
-- **surface → no normative producer** — the gate already documents **18 of 41 fault rows declared with
-  no normative line naming their producer** ("the denominator counts rows the spec does not define").
-  That is the open fault-table rulings. The cross-map ledger becomes the interlock's single source of
-  truth for BOTH drifts.
+- **surface → no normative producer** — the gate documents the fault rows declared with no normative
+  line naming their producer ("the denominator counts rows the spec does not define"). These are the
+  open **fault-table rulings** (#2/#3/D), which are progressively grounding or undeclaring those rows,
+  so the count is a moving target by design — read the current measured figure from Part II §7 (dated to
+  the gate pin), not a number restated here. The cross-map ledger becomes the interlock's single source
+  of truth for BOTH drifts.
 
 Part II §8 gives the precise model the ledger classifies these with: a row is **grounded**, **reachable**
 and **obliged** as three separate properties, and a denominator defect (declared-but-not-obliged) is a
