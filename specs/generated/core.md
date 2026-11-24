@@ -2878,9 +2878,17 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   200  get / put / patch / list / revisions / pull success; call → outcome success
   201  create success, and a call whose Operation `creates` — Location: the new URL
   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
-  400  `malformed-request` / `invalid-parameter` — a malformed or invalid request: a bad
-       body (unparseable JSON, a patch that is not a JSON-Patch array, a truncated export)
-       or an invalid parameter value. DISTINCT from `422` (a request exceeding an advertised
+  400  `malformed-request` / `invalid-parameter` — a malformed or invalid request. Three
+       shapes reach it. A BAD BODY: unparseable JSON, a patch that is not a JSON-Patch array,
+       a truncated export. AN INVALID PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES
+       NOT DEFINE — `If-None-Match: *` on `patch` or `delete`, whose [[core.lumen#PatchCaps]]
+       and [[core.lumen#DeleteCaps]] carry no `ifAbsent` field at all (only
+       [[core.lumen#PutCaps]] does). The last is `malformed-request` and not a capability
+       decline because no field exists that could advertise it either way: an out-of-vocabulary
+       guard is not an advertised option carrying a bad value, it is an input the operation
+       does not have. The line is therefore drawn by the caps record, not by the sentence —
+       in an operation's vocabulary and advertised false is a decline it can state, outside its
+       vocabulary is malformed. DISTINCT from `422` (a request exceeding an advertised
        capability bound — `limit-exceeded` — fixed by shrinking). Both `malformed-request`
        and `invalid-parameter` resolve here.
   409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR

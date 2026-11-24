@@ -1207,6 +1207,67 @@ fn ctype(v: &str) -> Vec<(String, String)> {
     vec![("content-type".into(), v.into())]
 }
 
+/// Like [`raw_status`], but also reads the Problem `code` out of the body.
+///
+/// ASSERTING THE STATUS ALONE IS WHAT LET THE OLD `patch/422` CASE LOOK SOUND. Two unrelated
+/// obligations — `malformed-request` (a bad request) and `limit-exceeded` (a request past an
+/// ADVERTISED capability bound) — were both answered `422` by this subject, so a case that checked
+/// only the number could not say which of the two it had exercised, and it had exercised the wrong
+/// one. D.9 gives every fault a stable `code`; naming it is what stops a fault satisfying a case it
+/// has nothing to do with. A row is `(op, status)`, so the ledger cannot carry this distinction —
+/// only the case can, which is why it belongs here and not in the denominator.
+async fn raw_problem(
+    host: &str,
+    method: &str,
+    target: &str,
+    headers: Vec<(String, String)>,
+    body: &[u8],
+) -> Result<(u16, String), String> {
+    let resp = send(Outgoing {
+        method,
+        host,
+        target,
+        headers,
+        body: body.to_vec(),
+    })
+    .await
+    .map_err(|e| format!("raw send: {e:?}"))?;
+    // THE STATUS IS CHECKED BEFORE THE BODY IS PARSED, and that ordering is the whole value of
+    // this branch. Parsing first and reporting a missing `code` member is what this helper did at
+    // first, and when the guard it tests was removed it answered "the Problem body carries no
+    // `code` member" over a perfectly good success body — telling a reader the response was a
+    // malformed Problem when in truth the request had SUCCEEDED. A diagnostic that names the wrong
+    // failure costs more than no diagnostic, because it sends the reader to the wrong file.
+    if resp.status < 400 {
+        return Err(format!(
+            "expected a fault, but the request SUCCEEDED with {} — the producer under test is \
+             absent, not merely wrong",
+            resp.status
+        ));
+    }
+    let doc: serde_json::Value = serde_json::from_slice(&resp.body)
+        .map_err(|e| format!("a Problem body must be JSON (status {}): {e}", resp.status))?;
+    let code = doc
+        .get("code")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            format!("the {} Problem body carries no `code` member: {doc}", resp.status)
+        })?
+        .to_string();
+    Ok((resp.status, code))
+}
+
+/// Assert a fault answered BOTH the expected status and the expected D.9 `code`.
+fn expect_problem(got: (u16, String), status: u16, code: &str, what: &str) -> Result<(), String> {
+    if got.0 != status || got.1 != code {
+        return Err(format!(
+            "expected {status} `{code}` on {what}, got {} `{}`",
+            got.0, got.1
+        ));
+    }
+    Ok(())
+}
+
 
 /// `POST /` (create) with a non-JSON body → 400 bad-request. Covers op/create/fault/400.
 async fn create_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
@@ -1224,22 +1285,92 @@ async fn put_malformed_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     }
 }
 
-/// `PATCH /{id}` of an existing resource with an unprocessable patch body → 422. Covers
-/// op/patch/fault/422. Targets `/patch-target` (seeded by the typed `patch` case earlier in the run)
-/// so the handler passes the existence check and reaches patch validation.
-async fn patch_unprocessable_422(host: &str) -> Result<Vec<SurfaceId>, String> {
-    match raw_status(
+/// `PATCH /{id}` whose body is not a JSON-Patch array → 400 `malformed-request`. Covers
+/// op/patch/fault/400. Targets `/patch-target` (seeded by the typed `patch` case earlier in the run)
+/// so the handler passes the existence check and reaches body validation.
+///
+/// WHAT THIS CASE REPLACES, AND WHY ITS PREDECESSOR PASSED FOR TWO MERGES. The same request used to
+/// be sent as `patch_unprocessable_422` and asserted `422`, because the body fell through to the
+/// applier. D.8 defines `422` as a request past an ADVERTISED capability bound (`limit-exceeded`,
+/// fixed by shrinking the request) and names "a patch that is not a JSON-Patch array" under `400`.
+/// So the row op/patch/fault/422 was recorded covered by a case that never exercised a capability
+/// bound at all — the one species of defect a single-subject suite structurally cannot find, since
+/// the subject and the case agreed and nothing else had a vote. It took a peer's three-backend grid
+/// to surface it.
+///
+/// op/patch/fault/422 is now HONESTLY UNCOVERED: this subject advertises no bound a request can
+/// exceed, so nothing here can produce it. That is a smaller numerator and a truer one.
+async fn patch_non_array_body_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let got = raw_problem(
         host,
         "PATCH",
         "/patch-target",
         ctype("application/json-patch+json"),
         b"not a patch",
     )
-    .await?
-    {
-        422 => Ok(vec![fault("patch", 422)]),
-        s => Err(format!("expected 422 on an unprocessable patch, got {s}")),
-    }
+    .await?;
+    expect_problem(got, 400, "malformed-request", "a patch body that is not an array")?;
+    Ok(vec![fault("patch", 400)])
+}
+
+/// `PATCH /{id}` carrying `If-None-Match: *` → 400 `malformed-request`. Also covers
+/// op/patch/fault/400 — a SECOND, independent producer of the same row.
+///
+/// `ifAbsent` is a field of `PutCaps` and of neither `PatchCaps` nor `DeleteCaps`, so on a patch
+/// `If-None-Match` is not an advertised option carrying a bad value but an input the operation does
+/// not define, and no capability field exists that could advertise it either way. In the
+/// operation's vocabulary and advertised false is a decline the operation can state; outside its
+/// vocabulary is malformed. That line is drawn by the capability record, not by D.8's prose, which
+/// is why reading the prose alone missed it.
+///
+/// THIS CASE AND THE ONE ABOVE DO NOT DISCHARGE EACH OTHER, and the ledger cannot say so. A row is
+/// `(op, status)`; op/patch/fault/400 has two triggers and is counted once, so "covered" here means
+/// one trigger exercised, not the obligation discharged. The same trap applies to the S1/S3 split
+/// on the read pins, and it is recorded in both places deliberately.
+///
+/// NOT ASSERTED BUT MEASURED. Breaking each trigger in turn showed it: removing the guard check
+/// from the subject failed this case while the non-array case still passed and the row still read
+/// COVERED, and emitting the wrong Problem code from the non-array branch failed that case while
+/// this one held the row covered — **30/50 both times.** So a row with two triggers can lose one
+/// and the coverage figure does not move. The cases are what caught each regression; the count
+/// could not have.
+async fn patch_out_of_vocabulary_guard_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let mut headers = ctype("application/json-patch+json");
+    headers.push(("if-none-match".into(), "*".into()));
+    let got = raw_problem(
+        host,
+        "PATCH",
+        "/patch-target",
+        headers,
+        br#"[{"op":"replace","path":"/properties/text","value":"guarded"}]"#,
+    )
+    .await?;
+    expect_problem(got, 400, "malformed-request", "`If-None-Match` on a patch")?;
+    Ok(vec![fault("patch", 400)])
+}
+
+/// `DELETE /{id}` carrying `If-None-Match: *` → 400 `malformed-request`. Covers
+/// op/delete/fault/400.
+///
+/// This row was undeclared by rulings #2/#3 on the finding that its producer — a malformed id under
+/// the retired `id:verb` convention — had died with that convention. True, and incomplete: a second
+/// producer was in the spec the whole time, carried by `DeleteCaps`'s field list rather than by any
+/// sentence. A reading that searches the prose for a producer cannot find a producer that is a
+/// SHAPE, which is the general lesson and not a fact about `delete`.
+///
+/// The body is deliberately present and well-formed: the guard alone must decide the fault, or the
+/// case would not distinguish the guard rule from a body rule.
+async fn delete_out_of_vocabulary_guard_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let got = raw_problem(
+        host,
+        "DELETE",
+        "/patch-target",
+        vec![("if-none-match".into(), "*".into())],
+        b"",
+    )
+    .await?;
+    expect_problem(got, 400, "malformed-request", "`If-None-Match` on a delete")?;
+    Ok(vec![fault("delete", 400)])
 }
 
 /// `PATCH` with a media type other than `application/json-patch+json` → 415.
@@ -1417,6 +1548,11 @@ async fn no_case_passes_against_a_subject_that_implements_nothing() {
 ///   The route-parsing `400`s (`Route::Unroutable`, and a bare `-` id segment) are real but no case
 ///   in this list uses them.
 /// - `patch/415` is the request media-type check at the top of `do_patch`.
+/// - `patch/400` and `delete/400` are the two new pre-scope rejections: the out-of-vocabulary
+///   `If-None-Match` guard on either op, and a `patch` body that is not a JSON-Patch array. All
+///   three are decided from the request alone — a guard the operation does not define, or a body
+///   that is not the declared document shape, is malformed whatever the store holds — so they
+///   belong here on the same ground as `create/400`, not as an exception to it.
 ///
 /// This comment previously said "the four `400`s are malformed-id rejections decided in route
 /// parsing" and "5 of the covered rows" — wrong on the count (there are two `400`s and three
@@ -1427,14 +1563,16 @@ async fn no_case_passes_against_a_subject_that_implements_nothing() {
 /// added to silence a failure — which this comment itself calls defeating the whole test.
 ///
 /// This list is a statement about the gate's own composition, surfaced by the anti-vacuity test
-/// rather than assumed: **3 of the covered rows exercise the protocol layer, not the store.** The
+/// rather than assumed: **5 of the covered rows exercise the protocol layer, not the store.** The
 /// test asserts this set exactly — both that nothing outside it survives a null scope, and that
 /// everything in it still does. Adding an entry to silence a failure, rather than because the row
 /// is genuinely produced pre-scope, defeats the whole test.
 const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
     ("create", 400),
-    ("put", 400),
+    ("delete", 400),
+    ("patch", 400),
     ("patch", 415),
+    ("put", 400),
 ];
 
 /// A subject that ADVERTISES every primitive and IMPLEMENTS none. `get` is the one mandatory trait
@@ -1487,8 +1625,16 @@ async fn run_cases(addr: String) {
     let uncovered: Vec<&SurfaceId> = denom.difference(&covered).collect();
 
     eprintln!("\n=== BDP tier-1 gate ===");
-    eprintln!("pin: gastownhall/bdp main @488a2d01 (v0.2.3; paths block sha256 4bf1225b…)");
+    // DELIBERATELY NO COMMIT AND NO ROW COUNT HERE. This line used to read "pin: gastownhall/bdp
+    // main @488a2d01 (v0.2.3; paths block sha256 4bf1225b…) — surface 54 rows", and every part of
+    // that went stale: the surface has since been 47, 48 and 50, while the line kept printing 54
+    // above a coverage figure computed live from the same file. A stale provenance claim on top of
+    // a live measurement is worse than no claim, because it reads as the measurement's source.
+    // The denominator is read from the working tree at run time, so the tree IS the pin; `git
+    // rev-parse HEAD` names it, and nothing hand-written here can be more current than that.
+    eprintln!("spec version: v0.2.3 (tier-1 surface)");
     eprintln!("denominator source: specs/generated/openapi/core.openapi.json (live, drift-gated)");
+    eprintln!("surface: {} rows, derived at run time, not pinned here", denom.len());
     eprintln!("coverage: {}/{} surface rows", covered_in_denom.len(), denom.len());
     let mut covered_sorted: Vec<&SurfaceId> = covered_in_denom.iter().copied().collect();
     covered_sorted.sort();
@@ -1600,7 +1746,20 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     .await;
     record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;
     record("put/400 (raw)", &mut covered, &mut failures, put_malformed_400(&addr)).await;
-    record("patch/422 (raw)", &mut covered, &mut failures, patch_unprocessable_422(&addr)).await;
+    record(
+        "patch/400 non-array body (raw)",
+        &mut covered,
+        &mut failures,
+        patch_non_array_body_400(&addr),
+    )
+    .await;
+    record(
+        "patch/400 out-of-vocabulary guard (raw)",
+        &mut covered,
+        &mut failures,
+        patch_out_of_vocabulary_guard_400(&addr),
+    )
+    .await;
     record("patch/415 (raw)", &mut covered, &mut failures, patch_wrong_media_type_415(&addr)).await;
     record(
         "patch/415 absent ctype (raw)",
@@ -1614,6 +1773,17 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         patch_correct_media_type_is_accepted(&addr),
+    )
+    .await;
+    // LAST ON PURPOSE. It targets `/patch-target` so that a `400` there proves the GUARD fired
+    // rather than a `404` standing in for it — but if the guard check were ever removed, the
+    // request would succeed and retire the id. Running it after the last case that needs that id
+    // keeps the failure to this one case instead of cascading.
+    record(
+        "delete/400 out-of-vocabulary guard (raw)",
+        &mut covered,
+        &mut failures,
+        delete_out_of_vocabulary_guard_400(&addr),
     )
     .await;
 

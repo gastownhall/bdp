@@ -1123,7 +1123,7 @@ idempotent command put(
 /// bdp = { kind = "primitive", primitive = "patch" }
 /// description: JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 /// normative: A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
-/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [404,409,410,412,415,422] } }
+/// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,410,412,415,422] } }
 command patch(
     /// description: The resource to patch (its current revision).
     resource:    unpinned<any>,
@@ -1149,7 +1149,7 @@ command patch(
 /// normative: `delete`'s idempotency is UNCONDITIONAL; only its `404`'s reachability varies, and it varies with whether the scope can tell the two cases apart. A `permanent` scope retains a record of every retirement (the retired-id accounting, [[core.lumen#IdModel]]) and MUST fault `404` for an id that never existed. A `reusable` scope retains no such record — and keeps no tombstone revision either, since `reusable` ⇒ `unversioned` ([[core.lumen#ScopeCapabilities]]) — so for it "already retired" and "never existed" are the same state: it answers the idempotent success, and its `404` is simply unreachable, exactly as a write's `410` is unreachable under `reusable`. Idempotency sits on the unconditional side because a fault that no scope can produce costs nothing, while a guarantee that varies by model forces every client to learn a scope's models before it can act. It is NOT justified by retry safety, and must not be read as making a `delete` retry safe.
 /// normative: A write that TARGETS a retired resource faults `410 Gone`, so `put` and `patch` both declare it alongside `get`. It is distinct from its two neighbours: a never-retired missing id is `404`, and CLAIMING a spent id is `identity-taken` (409). On `put` the 409 is the **`ifAbsent` guard's** fault, never the operation's — every `put` is id-rooted (`PUT /{id}`), so rooting cannot discriminate and the guard is what does: a bare `put` targets the resource, so a retired target is `410`, while a `put` under `If-None-Match: *` asserts the id is free, so a spent id is `409` — the same status as a `create` collision, keeping one id-taken handler for the claiming path. Updating what is gone and claiming an identity that is spent are different faults, and on `put` the guard is what tells them apart. `put` declares no `404` because an absent id is not an error for it: `put` creates. Like `get`'s 410, a write's 410 is reachable only under `permanent`; under `reusable` a retired id is simply absent, so the write sees `404` or creates.
 /// normative: Delete does not rewrite any other resource, so inbound references may dangle. A reference that pins a revision (`rev` present) still resolves — revisions are immutable, and a deleted resource's history is kept — so only an unpinned inbound reference dangles: resolving it (`get`) returns the current state, now the tombstone, and faults `410 Gone`. Enforcing referential integrity (faulting a delete whose target still has inbound pins) is an advertised capability, not base.
-/// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [404,409,412] } }
+/// openapi = { operationId = "delete", method = "DELETE", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,404,409,412] } }
 idempotent command delete(
     /// description: The resource to retire (its current revision).
     resource:    unpinned<any>,
@@ -2021,9 +2021,17 @@ type PushCaps = {
 //   200  get / put / patch / list / revisions / pull success; call → outcome success
 //   201  create success, and a call whose Operation `creates` — Location: the new URL
 //   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
-//   400  `malformed-request` / `invalid-parameter` — a malformed or invalid request: a bad
-//        body (unparseable JSON, a patch that is not a JSON-Patch array, a truncated export)
-//        or an invalid parameter value. DISTINCT from `422` (a request exceeding an advertised
+//   400  `malformed-request` / `invalid-parameter` — a malformed or invalid request. Three
+//        shapes reach it. A BAD BODY: unparseable JSON, a patch that is not a JSON-Patch array,
+//        a truncated export. AN INVALID PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES
+//        NOT DEFINE — `If-None-Match: *` on `patch` or `delete`, whose [[core.lumen#PatchCaps]]
+//        and [[core.lumen#DeleteCaps]] carry no `ifAbsent` field at all (only
+//        [[core.lumen#PutCaps]] does). The last is `malformed-request` and not a capability
+//        decline because no field exists that could advertise it either way: an out-of-vocabulary
+//        guard is not an advertised option carrying a bad value, it is an input the operation
+//        does not have. The line is therefore drawn by the caps record, not by the sentence —
+//        in an operation's vocabulary and advertised false is a decline it can state, outside its
+//        vocabulary is malformed. DISTINCT from `422` (a request exceeding an advertised
 //        capability bound — `limit-exceeded` — fixed by shrinking). Both `malformed-request`
 //        and `invalid-parameter` resolve here.
 //   409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR

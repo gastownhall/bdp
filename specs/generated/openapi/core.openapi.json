@@ -195,6 +195,16 @@
           "200": {
             "description": "success"
           },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "404": {
             "description": "problem",
             "content": {
@@ -284,6 +294,16 @@
         "responses": {
           "200": {
             "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "404": {
             "description": "problem",
