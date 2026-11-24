@@ -16,7 +16,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
 - **Denominator** — `bdp_gate::denominator()` parses the repo's generated v0.2.3 OpenAPI catalog, read
   **live** from `specs/generated/openapi/core.openapi.json`, into the tier-1 coverage surface: every
   primitive operation plus each of its declared `>=400` fault statuses. The v0.2.3 surface is
-  **47 rows** (13 ops + 34 faults). Reading it live is what makes the gate *lockstep*: when the spec's
+  **48 rows** (13 ops + 35 faults). Reading it live is what makes the gate *lockstep*: when the spec's
   wire surface moves, the denominator moves with it (and a unit test tripwires on the row count so the
   change gets reviewed). A frozen vendored copy would silently stop catching spec changes.
 - **Generator witness** — `bdp_gate::source_surface()` derives the SAME surface independently, straight
@@ -95,7 +95,7 @@ obligation is reachable".
   revision"*, guarded for `delete` only (#412) and not on `put`/`patch`. Tracked separately in
   gastownhall/bdp#433, because it predates #428's cohort.
 
-**Current coverage: 29/47** — measured by running the gate, not derived. Read the composition below
+**Current coverage: 29/48** — measured by running the gate, not derived. Read the composition below
 rather than the number: a count that restates a list is a second source of truth about that list, and
 this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
 this figure from one branch while hand-resolving the list it summarises, leaving them independent. The
@@ -118,7 +118,7 @@ Across three case families:
   reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 18 rows are uncovered for concrete, recorded reasons — and after the fault-surface
+The remaining 19 rows are uncovered for concrete, recorded reasons — and after the fault-surface
 reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
 
 - **EVERY UNCOVERED ROW NOW HAS A NORMATIVE PRODUCER.** Checked row by row, not assumed. Before the
@@ -174,16 +174,18 @@ reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
   suite already applies informally to `get/410` and the write `410`s. Flipping STRICT without it
   would set a bar no conformant subject can clear.
 
-- **THE TWO ROWS STILL UNGROUNDED ARE THE TWO WE COVER.** `create/400` and `put/400` are the whole
-  remainder of the ungrounded-fault problem, and they are not in the list above because they are
-  *covered* — by the raw-HTTP family, which malforms the request body on a valid route. D.8 still has
-  no `400` entry, and `malformed-request` appears only in D.9's code list, which assigns no statuses:
-  **the spec contains no mapping from a Problem code to an HTTP status.** So those two cases assert a
-  `400` that this subject chose, exactly as `call`'s pre-dispatch `404` is the subject's choice rather
-  than a mandated status. Covering a row is not the same as the spec grounding it, and these two are
-  the only place in the surface where the suite is on the wrong side of that distinction. A
-  code→status mapping (`malformed-request` → `400`) would close it; that is a spec ruling, not gate
-  work.
+- **THE UNGROUNDED-FAULT PROBLEM IS CLOSED — ruling B supplied the missing mapping.** This bullet
+  used to read "the two rows still ungrounded are the two we cover": `create/400` and `put/400` were
+  covered by the raw-HTTP family while D.8 had no `400` entry at all, and `malformed-request`
+  appeared only in D.9's code list, which assigns no statuses. **The spec contained no mapping from a
+  Problem code to an HTTP status**, so those two cases asserted a `400` the subject had *chosen* —
+  the one place in the surface where the suite sat on the wrong side of "covering a row is not the
+  same as the spec grounding it".
+
+  Ruling B added the D.8 entry — `malformed-request` / `invalid-parameter`, naming an unparseable
+  body, a non-array JSON Patch, a truncated export, or an invalid parameter value — which grounds
+  every `400` row, the two covered ones and the new `import/400` alike. It was a spec ruling rather
+  than gate work, exactly as this bullet predicted.
 
 - **`call` contributes nothing to the uncovered list.** It declares `[409]` only, and that row is
   covered. Its other reachable faults **structurally cannot have a declared row**, and that is by
@@ -351,16 +353,20 @@ DECLARED, so it counts rows nobody owes.** Before calling an uncovered row work-
 that says who must emit it — if the answer is an intermediary or the environment, the row is
 misfiled, not missing.
 
-### 32% of the declared fault surface has no normative producer
+### 14% of the declared fault surface has no normative producer
 
-**11 of the 34 fault rows are declared without any normative line naming what produces them.**
+**5 of the 35 fault rows are declared without any normative line naming what produces them.**
 Appendix D.8 is a status-to-producer table and it covers `404`, `405`, `409`, `410`, `412` and `415`.
 It does not cover:
 
 | status | rows | state |
 |---|---|---|
-| `400` | 6 | no D.8 entry; `malformed-request` sits in D.9's code list, which assigns no statuses |
 | `422` | 5 | mentioned only incidentally |
+
+  The six `400` rows left this table when ruling B added a D.8 `400` entry —
+  `malformed-request` / `invalid-parameter`, naming an unparseable body, a non-array JSON Patch, a
+  truncated export, or an invalid parameter value. That is the mapping D.9's code list never
+  carried, and it grounds the whole `400` family including the new `import/400`.
 
 (`406` held 2 rows with **zero** prose anywhere — a probe showed `Accept: application/xml` returning
 `200`, so it was declared, undefined *and* unimplemented. Rulings #2/#3 undeclared both.)
@@ -417,7 +423,7 @@ open ruling, not settled here.
 conformance/
   Cargo.toml          # the gate workspace
   gate/               # the TIER-1 gate
-    src/lib.rs        #   denominator(): the generated OpenAPI -> 47-row coverage surface
+    src/lib.rs        #   denominator(): the generated OpenAPI -> 48-row coverage surface
                       #   (include_str! of ../../specs/generated/openapi/core.openapi.json, LIVE)
     tests/gate.rs     #   wire-level cases + coverage report (BDP_GATE_STRICT to block)
   reference/          # bdp-ref: the ONE green endpoint (InMemScope over HTTP), pin-agnostic

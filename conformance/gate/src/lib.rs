@@ -12,7 +12,7 @@
 //! silently stop catching spec changes, which is why it was dropped once #405 merged.
 //!
 //! Pin: `gastownhall/bdp` `main` @`488a2d01` — merged commits, never draft tips. The surface is
-//! **47 rows (13 ops + 34 faults)** over 9 paths.
+//! **48 rows (13 ops + 35 faults)** over 9 paths.
 //!
 //! **The `paths` block HAS moved, and that is the point of recording it.** It was `770e3ccc…` and
 //! byte-identical from `aa439827` through #407, #408, #410 and #412 — a stability that made it
@@ -162,7 +162,7 @@ fn statuses(span: &str) -> Vec<u16> {
 ///   alone uses it, and that is LOAD-BEARING, not an inconsistency: its statuses carry distinct
 ///   schemas, and its `409` returns a `Reply` (a declared domain failure, branch on the arm), NOT a
 ///   `Problem`. Normalizing it to the shorthand would misstate the wire contract. A counter that
-///   knows only the shorthand silently undercounts by one and reports 46 instead of 47.
+///   knows only the shorthand silently undercounts by one and reports 47 instead of 48.
 pub fn source_surface() -> BTreeSet<SurfaceId> {
     let mut out = BTreeSet::new();
     for line in CORE_LUMEN.lines() {
@@ -455,7 +455,7 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 34 faults = 47.
+    /// fault statuses. 13 ops + 35 faults = 48.
     ///
     /// RE-PINNED TWICE, and the second re-pin corrects the first.
     ///
@@ -499,7 +499,7 @@ mod tests {
         ("delete", &[404, 409, 412]),
         ("export", &[400]),
         ("get", &[404, 410]),
-        ("import", &[409, 422]),
+        ("import", &[400, 409, 422]),
         ("list", &[400]),
         // 415 pins the request media type to application/json-patch+json, so any other type faults.
         //
@@ -551,7 +551,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 47, "the v0.2.3 surface is 47 rows (13 ops + 34 faults)");
+        assert_eq!(actual.len(), 48, "the v0.2.3 surface is 48 rows (13 ops + 35 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must
