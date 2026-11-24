@@ -491,7 +491,7 @@ type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 
 ## 1.8  Computed properties — derived, and revision-transparent
 
-`computed` is a body-property modifier, NOT a type — it sits with the access-mode modifiers (`initOnly` / `serviceManaged` / `readOnly`). A field marked `computed` is DERIVED — a pure function of the store's authored state, not authored input — and carries one rule: a derived value leaves no trace in the revision stream. It never contributes to the revision (a change in a computed value alone mints no new Rev and emits no ChangeEvent — the state-unchanged rule already excludes it), it is excluded from any content hash, and it surfaces read-only (a write that sets it is ignored, never authored). Its storage is unspecified — recompute on read, or cache — provided the authoritative value stays the function of authored state and the cache never appears in the revision stream. Core declares only the category and this contract; the derivation itself is supplied by a pack, never by Core.
+`computed` is a body-property modifier, NOT a type — it sits with the access-mode family, whose one other member is `serviceManaged`. A field marked `computed` is DERIVED — a pure function of the store's authored state, not authored input — and carries one rule: a derived value leaves no trace in the revision stream. It never contributes to the revision (a change in a computed value alone mints no new Rev and emits no ChangeEvent — the state-unchanged rule already excludes it), it is excluded from any content hash, and it surfaces read-only (a write that sets it is ignored, never authored). Its storage is unspecified — recompute on read, or cache — provided the authoritative value stays the function of authored state and the cache never appears in the revision stream. Core declares only the category and this contract; the derivation itself is supplied by a pack, never by Core.
 
 > **Open** — the exact grammar by which `computed` and the access-mode > modifiers attach to a field is settled with that modifier family in the > Lumen scrub.
 
@@ -597,16 +597,15 @@ type TypeDef is Bead {
 
 ### `PropertyDeclaration`
 
-One property in a type's body — its name, its type, and its access mode. `computed` marks a derived, revision-transparent property (see §1.8); `initOnly` / `serviceManaged` / `readOnly` are the sibling write-access modes. Property optionality rides the property's `type`.
+One property in a type's body — its name, its type, and its access mode. `computed` marks a derived, revision-transparent property (see §1.8); `serviceManaged` is the sibling write-access mode. Property optionality rides the property's `type`.
 
-> **Normative.** At most one access mode applies. `computed` ⇒ derived and revision-transparent (never authored, never advances the revision, hash-excluded, surfaces read-only). `initOnly` ⇒ writable only at create. `serviceManaged` ⇒ set by the service, never a writer. `readOnly` ⇒ not writable through this surface. All absent ⇒ an ordinary authored property. A read-only member (`computed`, `serviceManaged` or `readOnly`) supplied on a write (`create` / `put` / `patch`) is IGNORED, never faulted — so a `get` → `put` round-trip of a whole representation is safe.
+> **Normative.** At most one access mode applies. `computed` ⇒ derived and revision-transparent (never authored, never advances the revision, hash-excluded, surfaces read-only). `serviceManaged` ⇒ set by the service, never a writer. All absent ⇒ an ordinary authored property. A read-only member (`computed` or `serviceManaged`) supplied on a write (`create` / `put`) is IGNORED, never faulted — so a `get` → `put` round-trip of a whole representation is safe.
 
 ```lumen
 type PropertyDeclaration = {
   name:            string,
   type:            BeadSchema,
   computed?:       bool,
-  initOnly?:       bool,
 ```
 
 | Member | Type | Description |
@@ -614,7 +613,6 @@ type PropertyDeclaration = {
 | `name` | `string` |  |
 | `type` | `BeadSchema` |  |
 | `computed?` | `bool` |  |
-| `initOnly?` | `bool` |  |
 
 <a id="ParameterDeclaration"></a>
 
@@ -1550,9 +1548,9 @@ Note: a separate id proposal was folded into the `resource` ref. The guards (ifR
 
 ### `patch`
 
-JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and any property declared `computed` or `serviceManaged` are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 
-> **Normative.** A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
+> **Normative.** A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a property declared `computed` or `serviceManaged` faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
 
 ```lumen
 command patch(

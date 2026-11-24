@@ -1192,7 +1192,7 @@
         ]
       },
       "PropertyDeclaration": {
-        "description": "One property in a type's body — its name, its type, and its access mode. `computed` marks a derived, revision-transparent property (see §1.8); `initOnly` / `serviceManaged` / `readOnly` are the sibling write-access modes. Property optionality rides the property's `type`.",
+        "description": "One property in a type's body — its name, its type, and its access mode. `computed` marks a derived, revision-transparent property (see §1.8); `serviceManaged` is the sibling write-access mode. Property optionality rides the property's `type`.",
         "type": "object",
         "properties": {
           "name": {
@@ -1204,13 +1204,7 @@
           "computed": {
             "type": "boolean"
           },
-          "initOnly": {
-            "type": "boolean"
-          },
           "serviceManaged": {
-            "type": "boolean"
-          },
-          "readOnly": {
             "type": "boolean"
           }
         },

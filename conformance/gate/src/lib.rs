@@ -359,7 +359,7 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         evidence: "gastownhall/bdp#430 item 7",
     },
     Registration {
-        text: "A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`\"\"`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.",
+        text: "A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`\"\"`), or a property declared `computed` or `serviceManaged` faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 8",
     },
