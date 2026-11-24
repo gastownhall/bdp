@@ -42,6 +42,47 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
   (`fail-if-no-coverage`) — kept non-blocking while tier-1 is filled in, flipped to blocking once the
   surface is covered.
 
+## The tier-2 obligation ledger (`gate/src/lib.rs`)
+
+Tier 1 measures the **wire surface**. It cannot see an obligation with no wire status, and most of
+`core.lumen`'s obligations have none. Under the conformance-plumbing policy every `/// normative:`
+line IS a conformance obligation, so the ledger enumerates them and makes each one resolve to exactly
+one disposition:
+
+| disposition | meaning | evidence it must carry |
+|---|---|---|
+| **surface-bearing** | the wire carries it; covering those tier-1 rows covers it | the rows, which must exist in `denominator()` |
+| **behavioural** | a tier-2 case exercises it; no wire status to key on | the case |
+| **waived** | not covered yet | a tracking issue |
+
+- **It pins each obligation's RESOLUTION, never the cardinality.** A count cannot be pinned coherently
+  here: #428 takes the obligations from 67 to 79, so a ledger asserting 67 breaks when it lands and
+  one asserting 79 cannot be built before it does. Pinning dispositions is correct from either side of
+  that merge — verified by running it against both `origin/main` (67 obligations, 12 pending) and
+  `refs/pull/428/head` (79, 12 registered, 0 pending). A new or reworded line surfaces as an
+  **unregistered obligation naming the line**, which is an error a spec author can act on; a count
+  mismatch is not.
+- **Registered-ahead-of-the-spec is a real state, reported as `pending`.** That is what lets #428's
+  twelve be registered before #428 merges, which is what its merge gate needs.
+- **Report-only, staged exactly like tier-1.** The backlog is expected to be non-empty today, so an
+  unregistered obligation prints; `BDP_GATE_STRICT=1` makes it fail. Current ledger: **67
+  obligations, 1 registered, 66 backlog** on `main`.
+- **The parse is ANCHORED, and a test enforces that.** `core.lumen` documents its own annotation
+  syntax *using that syntax*, so an unanchored `grep -c '/// normative:'` counts two lines that are
+  not obligations and reports 69 where the answer is 67. That hazard has now hit this file three times
+  (it previously gave 61 for 59, and 15 for 13). `the_normative_parse_excludes_the_self_documentation`
+  asserts those two lines never enter the set **and** that they still exist in the file, so the guard
+  cannot rot into one that guards nothing. The weakened, unanchored implementation passes 11 of the
+  12 lib tests and is caught only by that one — the vacuity check passes too, because 69 is a
+  plausible count.
+- **The 14 store-wide guarantees are NOT in the ledger.** They live in a plain `//` block, so
+  `normative_surface()` cannot pick them up, and `EXPECTED_GUARANTEES` already checks them. One
+  obligation, one checker: the ledger references an existing checker rather than re-counting it.
+- **First pre-existing find.** The ledger immediately surfaced an obligation normative on `main` all
+  along with no case and no waiver — *"a write that would leave the state unchanged mints no new
+  revision"*, guarded for `delete` only (#412) and not on `put`/`patch`. Tracked separately in
+  gastownhall/bdp#433, because it predates #428's cohort.
+
 **Current coverage: 29/54** — measured by running the gate, not derived. Read the composition below
 rather than the number: a count that restates a list is a second source of truth about that list, and
 this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
