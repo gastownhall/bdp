@@ -275,6 +275,20 @@ mod tests {
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
     /// fault statuses. 13 ops + 41 faults = 54.
     ///
+    /// RE-PINNED for the fault-surface reconciliation (rulings #2/#3): 7 rows left and 7 arrived
+    /// while the TOTAL STAYED AT 54, which is precisely the case a count-only tripwire cannot see.
+    /// The comment below about `patch/415` was written as a hypothetical; this is it happening.
+    ///
+    /// | out | why | in | why |
+    /// |---|---|---|---|
+    /// | `get/400`, `delete/400` | producer died with the retired `id:verb` convention | `put/413`, `patch/413`, `delete/413` | D.8 names the producer: an over-budget guard where the scope does not advertise `bodyFormSpill` |
+    /// | `patch/400`, `push/400`, `import/400` | no normative producer — PROBED: a malformed patch body answers `422`, `push` is unrouted, `import` is `501` | `get/414`, `list/414`, `revisions/414`, `export/414` | D.8 names the producer: the read's query string exceeds the URL budget |
+    /// | `get/406`, `list/406` | the genuine orphans — no content negotiation in Core | | |
+    ///
+    /// The incoming rows are GROUNDED where the outgoing ones were not, which changes what the
+    /// uncovered set means: these are rows the subject has not implemented, not rows the spec cannot
+    /// ground.
+    ///
     /// Spelled out rather than counted on purpose. A count alone asserts a WEAKER property than the
     /// one that matters: `patch/415` silently becoming `patch/416` keeps the total at 52, so a
     /// count-only tripwire passes while the surface has moved underneath the cases. That failure mode
@@ -285,29 +299,24 @@ mod tests {
         ("call", &[409]),
         ("cancel", &[404, 409]),
         ("create", &[400, 409, 422]),
-        ("delete", &[400, 404, 409, 412]),
-        ("export", &[400]),
-        ("get", &[400, 404, 406, 410]),
-        ("import", &[400, 409, 422]),
-        ("list", &[400, 406]),
-        // 415 is v0.2.3-only: the "patch is root-addressed" change pins the request media type to
-        // application/json-patch+json, so any other type faults. It is the ENTIRE 52-vs-51 delta
-        // against v0.2.2 @ca298b04 — and it is not producible against the current reference, which
-        // performs no server-side content-type check at all.
+        ("delete", &[404, 409, 412, 413]),
+        ("export", &[400, 414]),
+        ("get", &[404, 410, 414]),
+        ("import", &[409, 422]),
+        ("list", &[400, 414]),
+        // 415 pins the request media type to application/json-patch+json, so any other type faults.
         //
-        // 410 is the 52-vs-54 delta: a write that TARGETS a retired resource faults Gone, so `put`
-        // and `patch` declare it alongside `get`. UNCOVERABLE here, and for the same reason as
-        // `get/410` — a write's 410 is reachable only under `idModel: permanent`, and this subject
-        // declares no scope-level id model at all, so a case has nothing to key on. Recorded
-        // uncovered rather than asserted unconditionally, which would claim more than the spec
-        // grants. `put` deliberately declares no 404: an absent id is not an error for `put`, which
-        // creates. On `put` the 409 belongs to the `ifAbsent` guard (claiming a spent id), never to
-        // the bare operation (updating what is gone) — two neighbours of the same row.
-        ("patch", &[400, 404, 409, 410, 412, 415, 422]),
+        // 410: a write that TARGETS a retired resource faults Gone, so `put` and `patch` declare it
+        // alongside `get`. UNCOVERABLE here for the same reason as `get/410` — a write's 410 is
+        // reachable only under `idModel: permanent`, and this subject declares no scope-level id
+        // model, so a case has nothing to key on. `put` deliberately declares no 404: an absent id
+        // is not an error for `put`, which creates. On `put` the 409 belongs to the `ifAbsent` guard
+        // (claiming a spent id), never to the bare operation (updating what is gone).
+        ("patch", &[404, 409, 410, 412, 413, 415, 422]),
         ("pull", &[400, 405, 410]),
-        ("push", &[400, 405, 409, 422]),
-        ("put", &[400, 409, 410, 412, 422]),
-        ("revisions", &[400, 404]),
+        ("push", &[405, 409, 422]),
+        ("put", &[400, 409, 410, 412, 413, 422]),
+        ("revisions", &[400, 404, 414]),
     ];
 
     fn expected_surface() -> BTreeSet<SurfaceId> {
@@ -512,9 +521,13 @@ mod tests {
             surface.contains(&SurfaceId::Fault("call".into(), 409)),
             "call/409 comes from the `responses = [...]` form; losing it undercounts the surface by one"
         );
+        // The off-by-one canary. It was `get/400`, which the fault-surface reconciliation removed —
+        // so the canary FAILED when that landed, correctly: its witness has to be a row that is
+        // genuinely first in some op's `problem` list, and asserting a row that no longer exists
+        // would make it fail forever while testing nothing. `get`'s list is now [404, 410, 414].
         assert!(
-            surface.contains(&SurfaceId::Fault("get".into(), 400)),
-            "get/400 is the FIRST entry of get's `problem` status list — the off-by-one canary"
+            surface.contains(&SurfaceId::Fault("get".into(), 404)),
+            "get/404 is the FIRST entry of get's `problem` status list — the off-by-one canary"
         );
     }
 
