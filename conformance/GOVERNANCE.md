@@ -131,19 +131,26 @@ This keeps #428's coverage ledger honest instead of silently diluting it.
 # Part II — The gate contract
 
 **Authored by Connie (conformance-suite lead).** Derived from the gate code at `gastownhall/bdp` main
-`3b7b371a`, 2026-11-24. Everything lives under `conformance/`. Written for a spec author who needs to
+`b56281ed`, 2026-11-24 — the post-ruling-D pin, where the figures below are measured. Ruling D (#437)
+landed here, taking the denominator 54 → 47; when #432 lands it adds `import/400`, moving the
+denominator to 48. Everything lives under `conformance/`. Written for a spec author who needs to
 know **what the gate will reject**, so they learn it before CI rather than after.
 
 ## 1. Only a `problem = [...]` edit moves the denominator
 
 `denominator()` parses `specs/generated/openapi/core.openapi.json` into
-`SurfaceId::Op(op)` and `SurfaceId::Fault(op, status)` — **54 rows** (13 ops + 41 faults).
+`SurfaceId::Op(op)` and `SurfaceId::Fault(op, status)` — **47 rows** (13 ops + 34 faults).
 
 - Params are **not** in the surface model.
 - D.8 (the prose status table) is **never parsed**.
 
 So declaring params, or adding a D.8 status row, cannot move the denominator. Only editing a
 `problem = [...]` array can. Touching one requires coordinating the re-pin.
+
+**A worked instance.** Ruling D (#437) was the first live case: it edited seven `problem = [...]`
+arrays to undeclare the `413`/`414` rows and the denominator moved, while the D.8 prose reframe in the
+same PR moved nothing — the gate never parses D.8. `import/400` in #432 will be the second: the array
+edit moves the denominator, its eight new params move nothing.
 
 ## 2. Two pins, one commit
 
@@ -231,11 +238,11 @@ Manifest is `conformance/Cargo.toml`, **not** the repo root. `cargo` may need
 cargo test --manifest-path conformance/Cargo.toml
 ```
 
-**70 tests green** on `3b7b371a`; coverage **29/54**; ledger **79 / 13 registered / 66 backlog / 0
+**70 tests green** on `b56281ed`; coverage **29/47**; ledger **79 / 13 registered / 66 backlog / 0
 pending**.
 
 `BDP_GATE_STRICT=1` additionally fails on uncovered rows **and** the ledger backlog. It is expected to
-fail today — 25 rows, 66 obligations — so do not chase it. The STRICT flip is not close, and the
+fail today — 18 rows, 66 obligations — so do not chase it. The STRICT flip is not close, and the
 "third category" of unreachable rows was never what stood in its way.
 
 ## 8. Three levels, not two
@@ -247,6 +254,10 @@ A row can be:
 3. **obliged** — *this party* must produce it
 
 They are routinely conflated, in both directions, including by the gate's own evidence strings. The
-414 rows are grounded and declared but **not obliged** — the spec says the URL-byte limit is imposed
-by intermediaries, not the origin, so no origin-side case can force one at any length. That makes
-them a denominator defect rather than a coverage gap.
+`413`/`414` rows were grounded and declared but **not obliged** — the spec says the URL-byte limit is
+imposed by intermediaries, not the origin, so no origin-side case could force one at any length. That
+made them a denominator defect rather than a coverage gap.
+
+**Resolved at `b56281ed`.** Ruling D (#437) has now undeclared all seven of those rows, so this example
+is discharged — they are no longer in the denominator (54 → 47). The three-level principle above is
+unchanged; only the status of its worked example moved. It is the principle executed, not revised.
