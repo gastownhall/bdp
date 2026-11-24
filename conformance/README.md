@@ -77,12 +77,18 @@ obligation is reachable".
 - **Registered-ahead-of-the-spec is a real state, reported as `pending`.** That is what lets #428's
   twelve be registered before #428 merges, which is what its merge gate needs.
 - **Report-only, staged exactly like tier-1.** The backlog is expected to be non-empty today, so an
-  unregistered obligation prints; `BDP_GATE_STRICT=1` makes it fail. Current ledger: **67
-  obligations, 1 registered, 66 backlog** on `main`.
+  unregistered obligation prints; `BDP_GATE_STRICT=1` makes it fail. Current ledger: **85
+  obligations, 19 registered (2 surface-bearing, 17 waived), 66 backlog, 0 pending**.
+
+  That line previously read "67 obligations, 1 registered, 66 backlog" — stale by two merges, and
+  note the **backlog figure was accidentally still correct**, which is how a stale number passes for
+  a current one. Re-read it from the gate rather than trusting the part that looks familiar.
 - **The parse is ANCHORED, and a test enforces that.** `core.lumen` documents its own annotation
   syntax *using that syntax*, so an unanchored `grep -c '/// normative:'` counts two lines that are
-  not obligations and reports 69 where the answer is 67. That hazard has now hit this file three times
-  (it previously gave 61 for 59, and 15 for 13). `the_normative_parse_excludes_the_self_documentation`
+  not obligations and reports 87 where the answer is 85. That hazard has now hit this file four times
+  (it previously gave 61 for 59, and 15 for 13) — and the fourth was an INDEPENDENT author, not the
+  suite lead: #432's author reported 81 → 87 where the anchored parse gives 79 → 85. So it is a
+  property of the file's shape rather than of one person's habits. `the_normative_parse_excludes_the_self_documentation`
   asserts those two lines never enter the set **and** that they still exist in the file, so the guard
   cannot rot into one that guards nothing. The weakened, unanchored implementation passes 11 of the
   12 lib tests and is caught only by that one — the vacuity check passes too, because 69 is a
