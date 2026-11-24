@@ -91,6 +91,21 @@ The remaining 25 rows are uncovered for concrete, recorded reasons:
   and D.8's catch-all puts a fault at its Problem's own status. So this is the open-ended fault
   channel working as intended — distinct from a fault D.8 gives a *specific* status and producer
   that no operation declares, which would be a genuine enumeration gap.
+- **`export` now REFUSES a stream that does not end with `ExportEnd` — a fix, claiming no row.**
+  `RemoteScope::export` parsed the body line by line and returned `Ok` with whatever it accumulated,
+  never checking the final record was the terminator, so a truncated backup read as successful and
+  whole. The refusal lives in `parse_export_jsonl` with five unit tests, which claim **no surface
+  row**: there is no declared fault for a truncated body and there should not be, because the stream
+  never reached a state the wire could report on. They are unit tests rather than gate cases because
+  the reference server never writes a truncated stream, so no case driven through it can produce the
+  input, and fault injection would mean a server that lies on request.
+  **Whether this discharges the spec obligation is NOT settled.** The line reads *"an export MUST end
+  with the `ExportEnd` line; a reader refuses a file ending without it (truncation detection) and MUST
+  NOT treat it as whole"*, and it does not name which reader. One reading is the `export` client
+  reading the response stream (fixed here); another is `import` consuming a previously-written export
+  file, which is under ruling. Those are not exclusive — both are readers — so this is recorded as a
+  real defect fixed and reader-side strictness gained, not as an obligation closed. If the ruling
+  names `import`, `import` needs the same guard when it is bound.
 - **The faults on routed ops are NOT reachable by probing — measured, not estimated.** This list
   previously claimed ~14 of them were "reachable with more raw-HTTP probing". That was speculation and
   it was wrong: every candidate was probed against the subject and **none is producible without a

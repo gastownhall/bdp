@@ -19,6 +19,54 @@ use bdp_primitives::BdpScope;
 use crate::http::{pct_encode, send, Outgoing};
 use crate::wire::{WireCreateRequest, WireExportRecord, WireProblem, WireRepresentation, WireResourceId, WireWrite};
 
+/// Parse an `application/jsonl` export body, REFUSING a stream that does not end with `ExportEnd`.
+///
+/// The obligation is a READER obligation, and it is the half that carries the safety property:
+///
+/// > An export MUST end with the `ExportEnd` line; a reader refuses a file ending without it
+/// > (truncation detection) and MUST NOT treat it as whole.
+///
+/// Emitting a correct terminator buys nothing from a reader that never demands one — a truncated
+/// backup would come back `Ok` and apparently whole, which is precisely what the line forbids. This
+/// is the third instance in this suite of accepting input the spec says must be refused (`do_put`
+/// ignoring `If-Match`; `list` silently ignoring a `where` it could not carry), so the refusal lives
+/// here, on the reading side, and not only in the case that checks what the server writes.
+///
+/// DELIBERATELY NOT CHECKED HERE, because the line does not say it:
+/// - that the stream OPENS with `Begin`. The gate case asserts it against the reference server,
+///   which is where an expectation about what this binding writes belongs.
+/// - that `End.count` matches the records carried. Also asserted in the gate case. Checking it here
+///   would make one reading of the count's semantics (frames excluded) load-bearing in a second
+///   place, and the spec pins no reading — raised as a question rather than settled by code.
+///
+/// Parsed LINE BY LINE because the declared content type is `application/jsonl`, not a JSON array.
+/// A blank trailing line is skipped rather than treated as a record: the writer ends every line with
+/// `\n`, so a well-formed stream has one.
+fn parse_export_jsonl(body: &[u8]) -> Result<Vec<p::ExportRecord>, p::BdpError> {
+    let text = String::from_utf8_lossy(body);
+    let mut out = Vec::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let rec: WireExportRecord = serde_json::from_str(line)
+            .map_err(|e| p::BdpError::Backend(format!("bad export line: {e}")))?;
+        out.push(rec.into_trait());
+    }
+    match out.last() {
+        Some(p::ExportRecord::End(_)) => Ok(out),
+        // An empty body is the degenerate truncation: a well-formed export is never zero lines,
+        // because the frames alone are two.
+        None => Err(p::BdpError::Backend(
+            "export carried no lines at all; a whole export is framed by Begin and End, so this \
+             stream is truncated and MUST NOT be treated as whole"
+                .into(),
+        )),
+        Some(_) => Err(p::BdpError::Backend(format!(
+            "export does not end with ExportEnd ({} lines read, last is not the terminator); the \
+             stream is truncated and MUST NOT be treated as whole",
+            out.len()
+        ))),
+    }
+}
+
 pub struct RemoteScope {
     host: String, // "127.0.0.1:PORT"
     /// The backing scope's advertised capabilities, fetched once at `connect`. `capabilities()`
@@ -453,16 +501,7 @@ impl BdpScope for RemoteScope {
         let resp = self.request("GET", target, vec![], vec![]).await?;
         match resp.status {
             501 => Ok(p::BdpResult::not_implemented()),
-            200 => {
-                let text = String::from_utf8_lossy(&resp.body);
-                let mut out = Vec::new();
-                for line in text.lines().filter(|l| !l.trim().is_empty()) {
-                    let rec: WireExportRecord = serde_json::from_str(line)
-                        .map_err(|e| p::BdpError::Backend(format!("bad export line: {e}")))?;
-                    out.push(rec.into_trait());
-                }
-                Ok(p::BdpResult::ok(out))
-            }
+            200 => Ok(p::BdpResult::ok(parse_export_jsonl(&resp.body)?)),
             _ => Err(error_from(resp.status, &resp.body, &p::ResourceId::head(p::Scope::This, p::Id(Arc::from(""))))),
         }
     }
@@ -558,5 +597,71 @@ impl BdpScope for RemoteScope {
             200 => write_result(&resp),
             _ => Err(error_from(resp.status, &resp.body, &async_result)),
         }
+    }
+}
+
+/// Truncation detection on the READING side of `export`.
+///
+/// These are unit tests rather than gate cases on purpose: the obligation is that a reader refuses a
+/// truncated stream, and the reference server never writes one, so no case driven through it can
+/// produce the input. Fault injection would mean a server that lies on request — a second subject to
+/// keep honest. Testing the parser directly exercises the real refusal with no such machinery, the
+/// same split already used for `status_for_outcome` in `server.rs`.
+///
+/// They claim NO surface row. There is no declared fault for a truncated body, and there should not
+/// be: the stream never reached a state the wire could report on.
+#[cfg(test)]
+mod export_truncation_tests {
+    use super::parse_export_jsonl;
+
+    const BEGIN: &str = r#"{"Begin":{"cursor":"c0"}}"#;
+    const END: &str = r#"{"End":{"count":0}}"#;
+
+    #[test]
+    fn a_whole_export_is_accepted() {
+        let body = format!("{BEGIN}\n{END}\n");
+        let out = parse_export_jsonl(body.as_bytes()).expect("a framed export must be accepted");
+        assert_eq!(out.len(), 2, "both frames must survive the parse");
+    }
+
+    #[test]
+    fn a_blank_trailing_line_is_still_whole() {
+        // The writer ends every line with `\n`, so a well-formed stream has a trailing blank. If
+        // this regressed, every honest export would be rejected as truncated — the inverse defect,
+        // and the reason the accepting cases are here at all.
+        let body = format!("{BEGIN}\n{END}\n\n\n");
+        let out = parse_export_jsonl(body.as_bytes()).expect("a trailing newline is not truncation");
+        assert_eq!(out.len(), 2);
+    }
+
+    #[test]
+    fn a_stream_without_the_terminator_is_refused() {
+        // THE DEFECT THIS FIXES: before, this returned Ok and the caller received a truncated
+        // backup as though it were whole.
+        let body = format!("{BEGIN}\n");
+        let err = parse_export_jsonl(body.as_bytes())
+            .expect_err("a stream with no ExportEnd must be refused, not returned as whole");
+        let msg = format!("{err:?}");
+        assert!(
+            msg.contains("truncated"),
+            "the refusal must say the stream is truncated, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn an_empty_body_is_refused() {
+        let err = parse_export_jsonl(b"")
+            .expect_err("an empty body is the degenerate truncation: the frames alone are two");
+        assert!(format!("{err:?}").contains("truncated"));
+    }
+
+    #[test]
+    fn a_terminator_that_is_not_last_is_refused() {
+        // This is the case that discriminates. An implementation asking "does the stream CONTAIN an
+        // End" passes every test above and fails this one; the obligation is that the stream ENDS
+        // with it, which is what makes it truncation detection rather than a presence check.
+        let body = format!("{END}\n{BEGIN}\n");
+        parse_export_jsonl(body.as_bytes())
+            .expect_err("an ExportEnd that is not the final line does not make a stream whole");
     }
 }
