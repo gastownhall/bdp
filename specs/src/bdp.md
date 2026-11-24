@@ -1,6 +1,6 @@
 ---
 title: BDP Protocol
-version: "0.2.2"
+version: "0.2.3"
 status: draft
 owner: lydia
 normative-source: core/core.lumen
