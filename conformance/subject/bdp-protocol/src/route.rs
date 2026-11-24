@@ -15,13 +15,16 @@
 /// A resolved route. `{id}` segments are percent-decoded by the HTTP layer before parsing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
-    ScopeCreate,            // POST /
-    ScopeList,              // GET  /
-    ScopeApply,             // POST /:apply   | POST /apply
-    ScopeEval,              // POST /:eval    | POST /eval
-    ScopeImport,            // POST /:import  | POST /import
-    ScopeExport,            // GET  /:export  | GET  /export
-    ScopeCapabilities,      // GET  /:capabilities | GET /capabilities  (discovery)
+    // The four the generated OpenAPI binds at the scope root, all behind the action fence.
+    ScopeCreate,            // POST /-/create
+    ScopeList,              // GET  /-/list
+    ScopeImport,            // POST /-/import
+    ScopeExport,            // GET  /-/export
+    // NOT bound by the OpenAPI's nine paths, so these stay on `:verb` as this subject's own
+    // surface. Moving them to the fence would invent spec; see `BINDING.md`.
+    ScopeApply,             // POST /:apply
+    ScopeEval,              // POST /:eval
+    ScopeCapabilities,      // GET  /:capabilities   (discovery)
     ScopeResolveAlias,      // GET  /:resolve-alias?name=NAME  (aliases capability)
     Call(String),           // POST   /{opPath}/-/call
     Cancel(String),         // POST   /{asyncResultId}/-/cancel

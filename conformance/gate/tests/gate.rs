@@ -20,7 +20,8 @@ use bdp_inmem::InMemScope;
 use bdp_primitives::{
     BdpError, BdpResult, BdpScope, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id,
     IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation,
-    Page, Request, ResourceId, Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
+    ExportRecord, FieldPath, ListCondition, ListFilter, Page, Request, ResourceId, Rev, RevisionModel,
+    Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
@@ -382,6 +383,129 @@ async fn put_unguarded_still_updates(r: &RemoteScope) -> Result<Vec<SurfaceId>, 
         .map_err(|e| format!("an UNGUARDED put at a live id must update, not fault: {e:?}"))?;
     if res.not_implemented {
         return Err("put advertised but not_implemented".into());
+    }
+    Ok(vec![])
+}
+
+// ---- list / export ----------------------------------------------------------
+
+/// `list` returns the scope's current resources. Covers op/list.
+///
+/// Asserts the seeded ids are PRESENT rather than asserting the exact set: other cases share this
+/// server, so the scope holds their resources too. A case that demanded an exact list would pass
+/// or fail depending on which cases ran before it, which is a test of the harness, not the subject.
+async fn list_the_scopes_resources(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let a = ResourceId::head(Scope::This, Id("list-a".into()));
+    let b = ResourceId::head(Scope::This, Id("list-b".into()));
+    seed(r, &a, "a").await?;
+    seed(r, &b, "b").await?;
+
+    let res = r
+        .list(&ListFilter(vec![]), Page::default())
+        .await
+        .map_err(|e| format!("list transport: {e:?}"))?;
+    if res.not_implemented {
+        return Err("list advertised but not_implemented".into());
+    }
+    let ids: BTreeSet<String> =
+        res.value.ok_or("list returned Ok with no ids")?.iter().map(|r| r.id.0.to_string()).collect();
+    for want in ["list-a", "list-b"] {
+        if !ids.contains(want) {
+            return Err(format!("`{want}` was seeded but is absent from list (got {} ids)", ids.len()));
+        }
+    }
+    Ok(vec![op("list")])
+}
+
+/// A filtered `list` must be REFUSED, not silently unfiltered. Claims no row.
+///
+/// `capabilities()` advertises `ListCaps { conditions: [] }` over this binding because no `Filter`
+/// wire encoding is pinned. This is the enforcement behind that advertisement: returning every
+/// resource to a caller who asked for a subset is the `do_put`-ignored-`If-Match` defect in a
+/// different primitive — accepting a constraint and not honouring it.
+async fn a_filtered_list_is_refused_not_ignored(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let filter = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["properties".to_string(), "text".to_string()]) }]);
+    match r.list(&filter, Page::default()).await {
+        Err(_) => Ok(vec![]),
+        Ok(res) => Err(format!(
+            "a filtered `list` must not be answered over a binding that cannot carry the filter; \
+             got {} ids, which the caller would read as the filtered set",
+            res.value.map(|v| v.len()).unwrap_or(0)
+        )),
+    }
+}
+
+/// `export` returns a JSONL-framed backup. Covers op/export.
+///
+/// The declared success response is `contentType = "application/jsonl"` — the only primitive that
+/// declares one — so this asserts the FRAMING, which is what distinguishes an export from a read:
+/// a Begin carrying the cursor it is consistent as of, the records, and an End whose count closes
+/// it. A JSON array would carry the same data and not be the declared shape.
+async fn export_is_jsonl_framed(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("export-target".into()));
+    seed(r, &target, "exported").await?;
+
+    let res = r
+        .export(&ListFilter(vec![]), None, false, Page::default())
+        .await
+        .map_err(|e| format!("export transport: {e:?}"))?;
+    if res.not_implemented {
+        return Err("export advertised but not_implemented".into());
+    }
+    let records = res.value.ok_or("export returned Ok with no records")?;
+
+    match records.first() {
+        Some(ExportRecord::Begin(_)) => {}
+        other => return Err(format!("an export must open with Begin (the cut cursor), got {other:?}")),
+    }
+    let (count, resources) = match records.last() {
+        Some(ExportRecord::End(e)) => (e.count, records.len().saturating_sub(2)),
+        other => return Err(format!("an export must close with End (the count), got {other:?}")),
+    };
+    if count as usize != resources {
+        return Err(format!(
+            "End declares {count} records but the stream carried {resources} — the count that \
+             closes a backup must match what it contains"
+        ));
+    }
+    if resources == 0 {
+        return Err("the export is empty though a resource was seeded".into());
+    }
+    Ok(vec![op("export")])
+}
+
+/// The client must ADVERTISE every primitive it forwards. Claims no row.
+///
+/// This exists because of a defect it would have caught: `call` was bound in the binding port and
+/// never added to `remote_forwards`, so `RemoteScope` forwarded it and discovery denied it for two
+/// PRs. **Nothing in the gate could catch that** — every case invokes the trait method directly, so
+/// no row depends on advertisement and a subject advertising nothing would still claim every row.
+///
+/// Under-advertising is safer than over-advertising and still wrong: discovery is the contract a
+/// client reads before calling, and the spec has it stating which primitives are offered.
+async fn the_client_advertises_what_it_forwards(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    use PrimitiveCapabilities as C;
+    let caps = r.capabilities();
+    for (name, present) in [
+        ("list", caps.iter().any(|c| matches!(c, C::List(_)))),
+        ("export", caps.iter().any(|c| matches!(c, C::Export(_)))),
+        ("call", caps.iter().any(|c| matches!(c, C::Call(_)))),
+    ] {
+        if !present {
+            return Err(format!(
+                "`{name}` is forwarded by this client but absent from its advertised capabilities"
+            ));
+        }
+    }
+    // And the narrowing holds: conditions are cleared because this binding carries no `where`.
+    if let Some(C::List(l)) = caps.iter().find(|c| matches!(c, C::List(_))) {
+        if !l.conditions.is_empty() {
+            return Err(format!(
+                "ListCaps advertises {} condition kinds, but this binding carries no `where` \
+                 encoding — an optional feature is never half-present",
+                l.conditions.len()
+            ));
+        }
     }
     Ok(vec![])
 }
@@ -1055,6 +1179,22 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     record("delete/412", &mut covered, &mut failures, delete_stale_412(&remote)).await;
     record("delete/404", &mut covered, &mut failures, delete_never_existed_404(&remote)).await;
     record("delete idempotent", &mut covered, &mut failures, delete_twice_is_idempotent(&remote)).await;
+    record("list", &mut covered, &mut failures, list_the_scopes_resources(&remote)).await;
+    record(
+        "filtered list refused",
+        &mut covered,
+        &mut failures,
+        a_filtered_list_is_refused_not_ignored(&remote),
+    )
+    .await;
+    record("export", &mut covered, &mut failures, export_is_jsonl_framed(&remote)).await;
+    record(
+        "advertises what it forwards",
+        &mut covered,
+        &mut failures,
+        the_client_advertises_what_it_forwards(&remote),
+    )
+    .await;
     record("revisions", &mut covered, &mut failures, revisions_history_is_addressable(&remote)).await;
     record("revisions/404", &mut covered, &mut failures, revisions_never_existed_404(&remote)).await;
     record(

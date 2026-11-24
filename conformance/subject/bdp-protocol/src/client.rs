@@ -17,7 +17,7 @@ use bdp_primitives as p;
 use bdp_primitives::BdpScope;
 
 use crate::http::{pct_encode, send, Outgoing};
-use crate::wire::{WireCreateRequest, WireProblem, WireRepresentation, WireResourceId, WireWrite};
+use crate::wire::{WireCreateRequest, WireExportRecord, WireProblem, WireRepresentation, WireResourceId, WireWrite};
 
 pub struct RemoteScope {
     host: String, // "127.0.0.1:PORT"
@@ -38,8 +38,39 @@ fn remote_forwards(cap: &p::PrimitiveCapabilities) -> bool {
     use p::PrimitiveCapabilities as C;
     matches!(
         cap,
-        C::Get(_) | C::Create(_) | C::Put(_) | C::Patch(_) | C::Delete(_) | C::Apply(_) | C::Aliases(_) | C::Unversioned(_)
+        C::Get(_)
+            | C::Create(_)
+            | C::Put(_)
+            | C::Patch(_)
+            | C::Delete(_)
+            | C::Apply(_)
+            | C::Aliases(_)
+            | C::Unversioned(_)
+            | C::List(_)
+            | C::Export(_)
+            // `Call` was MISSING since the binding port bound `call`: the client forwarded it and
+            // never advertised it. Under-advertising is safer than over-advertising and still
+            // wrong -- discovery is meant to say which primitives are offered. Nothing in the gate
+            // caught it, because every case invokes the trait method directly and no row depends
+            // on advertisement: a subject could advertise nothing and still claim every row.
+            | C::Call(_)
     )
+}
+
+/// Rewrite a forwarded capability to what THIS BINDING can actually honour.
+///
+/// `remote_forwards` answers "does the client forward this primitive"; that is not the same
+/// question as "can it honour every sub-capability the backing scope advertises". `InMemScope`
+/// evaluates `list` conditions, but no wire encoding for a `Filter` is pinned, so conditions do
+/// not survive the hop. Forwarding `ListCaps` verbatim would advertise filtering that this
+/// binding silently drops -- and the spec is explicit that "an optional feature is never
+/// half-present". So the conditions are cleared here, where the limitation actually is.
+fn narrow_to_binding(cap: &p::PrimitiveCapabilities) -> p::PrimitiveCapabilities {
+    use p::PrimitiveCapabilities as C;
+    match cap {
+        C::List(l) => C::List(p::ListCaps { conditions: vec![], ..l.clone() }),
+        other => other.clone(),
+    }
 }
 
 impl RemoteScope {
@@ -185,7 +216,7 @@ impl BdpScope for RemoteScope {
     fn capabilities(&self) -> Vec<p::PrimitiveCapabilities> {
         // Proxy the backing scope's advertised caps (incl. the Unversioned flag), filtered to the
         // ops this client forwards — never advertise what RemoteScope itself can't do.
-        self.caps.iter().filter(|c| remote_forwards(c)).cloned().collect()
+        self.caps.iter().filter(|c| remote_forwards(c)).map(narrow_to_binding).collect()
     }
 
     async fn get(
@@ -363,6 +394,68 @@ impl BdpScope for RemoteScope {
     /// only the other non-2xx statuses are Problems. `Outcome` is an OPEN union, and the arm is
     /// read from the body's `kind`, never from the status — so this client does not enumerate
     /// arms at all and an arm added later passes through untouched.
+    /// `GET /-/list` — the scope's current resources.
+    ///
+    /// A NON-EMPTY FILTER IS REFUSED HERE rather than dropped on the way out. This binding carries
+    /// no `Filter` encoding, so sending the request without `where` would return everything to a
+    /// caller who asked for a subset. `capabilities()` already advertises `conditions: []` for the
+    /// same reason; this is the enforcement behind that advertisement.
+    async fn list(&self, filter: &p::ListFilter, page: p::Page)
+        -> Result<p::BdpResult<Vec<p::ResourceId>>, p::BdpError> {
+        if !filter.0.is_empty() {
+            return Err(p::BdpError::Backend(
+                "this binding carries no `where` encoding, so a filtered `list` cannot be \
+                 forwarded; `capabilities()` advertises `conditions: []`"
+                    .into(),
+            ));
+        }
+        let mut target = "/-/list".to_string();
+        if let Some(limit) = page.limit {
+            target.push_str(&format!("?limit={limit}"));
+        }
+        let resp = self.request("GET", &target, vec![], vec![]).await?;
+        match resp.status {
+            501 => Ok(p::BdpResult::not_implemented()),
+            200 => {
+                let wire: Vec<WireResourceId> = serde_json::from_slice(&resp.body)
+                    .map_err(|e| p::BdpError::Backend(format!("bad list response: {e}")))?;
+                Ok(p::BdpResult::ok(wire.iter().map(|w| w.to_trait()).collect()))
+            }
+            _ => Err(error_from(resp.status, &resp.body, &p::ResourceId::head(p::Scope::This, p::Id(Arc::from(""))))),
+        }
+    }
+
+    /// `GET /-/export` — the scope as JSONL.
+    ///
+    /// Parsed LINE BY LINE because the declared content type is `application/jsonl`, not a JSON
+    /// array. A blank trailing line is skipped rather than treated as a record: the writer ends
+    /// every line with `\n`, so a well-formed stream has one.
+    async fn export(&self, filter: &p::ListFilter, _selector: Option<&p::Selector>, revisions: bool, _page: p::Page)
+        -> Result<p::BdpResult<Vec<p::ExportRecord>>, p::BdpError> {
+        if !filter.0.is_empty() {
+            return Err(p::BdpError::Backend(
+                "this binding carries no `where` encoding, so a filtered `export` cannot be forwarded"
+                    .into(),
+            ));
+        }
+        let target = if revisions { "/-/export?revisions=true" } else { "/-/export" };
+        let resp = self.request("GET", target, vec![], vec![]).await?;
+        match resp.status {
+            501 => Ok(p::BdpResult::not_implemented()),
+            200 => {
+                let text = String::from_utf8_lossy(&resp.body);
+                let mut out = Vec::new();
+                for line in text.lines().filter(|l| !l.trim().is_empty()) {
+                    let rec: WireExportRecord = serde_json::from_str(line)
+                        .map_err(|e| p::BdpError::Backend(format!("bad export line: {e}")))?;
+                    out.push(rec.into_trait());
+                }
+                Ok(p::BdpResult::ok(out))
+            }
+            _ => Err(error_from(resp.status, &resp.body, &p::ResourceId::head(p::Scope::This, p::Id(Arc::from(""))))),
+        }
+    }
+
     /// `GET /{id}/-/revisions`.
     ///
     /// A 404 here means the id never existed in this scope. It does NOT mean "retired" — that is
