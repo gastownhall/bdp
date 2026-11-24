@@ -113,6 +113,7 @@ type Scope =
 
 ## Rev
 /// description: A resource-version token — opaque by definition; compared for exact equality only, never inspected.
+/// normative: A `Rev` is opaque: compared for equality only, never parsed or inspected.
 /// normative: The revision changes exactly when the resource's state changes; a write that would leave the state unchanged mints no new revision (and produces no event).
 type Rev is string
 
@@ -261,7 +262,7 @@ type Metadata = { ...: any }
 type Provenance = {
   /// description: The principals who took part in the change. May be empty for observed or baseline revisions.
   principals:        [ Principal ],
-  /// description: How the Resource's present period began — freshly created, imported, or unknown. A deleted identity is terminal and never revived.
+  /// description: How the Resource's present period began — freshly created, imported, or unknown. Under `permanent` a deleted identity is terminal and never reused; under `reusable` a retired id MAY be reminted per the scope's id model ([[core.lumen#IdModel]]).
   inception:         "create" | "import" | "unknown",
   /// description: When this revision committed; server-supplied, never request input.
   committedAt:       Timestamp,
@@ -279,6 +280,7 @@ type Principal = {
   /// description: The principal's identity URI. Need not be resolvable.
   id:           AbsoluteUri,
   /// description: A saved human label — never identity, never a matching key.
+  /// normative: `displayName` is never identity and never a matching/resolution key.
   displayName?: string,
   /// description: Open set of roles this principal played in the change (initiator, contributor, submitter, …). A role grants no permission.
   roles?:       [ string ],
@@ -302,6 +304,7 @@ type IdentityBasis = union {
 
 ## StorageClass
 /// description: How a Resource is kept — whether it is persisted, not whether it is versioned (that is the scope's revision model). Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
+/// normative: Export (the primitive) includes only `Durable` resources; `StorageClass` is per-resource, so a `Durable` scope MAY hold individual `Ephemeral` resources, and an `Ephemeral` resource is local state that is NEVER included in an export stream; `Intrinsic` is computed by the service, not stored.
 /// normative: Whether revisions are kept is a SCOPE-WIDE property, not per-resource: a scope's `revisionModel` ([[core.lumen#RevisionModel]], advertised in discovery) is `versioned` (mints revisions; write refs `pinned`) or `unversioned` (mints none; write refs relax to `unpinned`). StorageClass is orthogonal — it says only whether a resource is persisted.
 type StorageClass = union {
   /// description: Replicated and exported (persisted). Whether its revisions are kept is the scope's `revisionModel`, not a property of the resource.
@@ -314,6 +317,7 @@ type StorageClass = union {
 
 ## Timestamp
 /// description: RFC 3339 date-time; uppercase `T` and `Z`.
+/// normative: A `Timestamp` is RFC 3339 with an uppercase `T` and `Z`.
 /// jsonschema = { format = "date-time" }
 type Timestamp is string
 
@@ -454,6 +458,7 @@ type TypeDef is Bead {
   /// description: Cross-package parent only; a same-package parent is the path prefix. Null + no prefix ⇒ root.
   refines?:   TypeRef
   /// description: True ⇒ not directly instantiable; a bead must use a leaf.
+  /// normative: An `abstract` type is not directly instantiable; a bead MUST use a concrete (leaf) type.
   abstract?:  bool
   /// description: The body properties of resources of this type; inherited properties merge per the §2.1 rules.
   properties: [ PropertyDeclaration ]
@@ -606,10 +611,12 @@ type Cursor is string
 
 ## Transport
 /// description: The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.
+/// normative: `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/export) refuses `format=sse` and faults `400`.
 type Transport = "json" | "jsonl" | "sse"
 
 ## ReadRequest
 /// description: The input to a streaming read ([[core.lumen#pull]] / [[core.lumen#list]] / [[core.lumen#revisions]]) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.
+/// normative: Supplying both `after` and `from` is malformed and faults `400`.
 type ReadRequest = {
   /// description: Resume at an opaque cursor (exact).
   after?:  Cursor,
@@ -880,6 +887,7 @@ fn call(
 ## cancel
 /// bdp = { kind = "primitive", primitive = "cancel" }
 /// description: Kill -9 on a running AsyncResult — writes `reply.outcome = canceled`. Runs no compensation (that is the scheduler's graceful path); its effects stay findable via `causedBy`.
+/// normative: `cancel` settles an async result as `canceled` and runs NO compensation; effects already produced stay findable via `causedBy`.
 /// openapi = { operationId = "cancel", method = "POST", pathItem = "asyncResult", tags = ["Core"], success = { status = 200 }, problem = { status = [404,409] } }
 command cancel(
     /// description: The running async handle to stop (see [[core.lumen#AsyncResult]]).
@@ -1069,6 +1077,7 @@ command create(
 ## put
 /// bdp = { kind = "primitive", primitive = "put" }
 /// description: Upsert / remember — idempotent full-state write. Create-or-replace; the lifecycle effect (create vs update) is what the changefeed reports. Returns the written pinned `ref` (rev = the new revision).
+/// normative: `put` replaces resource state wholesale (a full-state write), NOT a merge.
 /// normative: A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.
 /// normative: WRITE GUARDS ARE PRECONDITIONS, NEVER BODY. A guard rides the request line (a header or the query string), never the payload — so a `put` body stays exactly the resource representation and a `patch` body stays exactly the JSON Patch, unwrapped and correctly typed. Three guards, carried by `put`, `patch` and `delete` (`put` also carries the second): (1) `ifRevision` → `If-Match: "<Rev>"` (the `Rev` as a double-quoted strong entity-tag, RFC 9110 §8.8.3), the optimistic-concurrency / revision guard — a stale value makes no change and faults `revision-mismatch` (412); (2) `ifAbsent` → `If-None-Match: *`, create-if-absent — the write applies only if nothing is there, else faults `identity-taken` (409 — the same status as a `create` collision, so a client has one id-taken handler) (`put` only); (3) `precondition` → `?precondition=<Filter>`, a STATE guard — the write applies only if the current resource satisfies the Filter, else faults `precondition-failed` (412). The state guard is the same flat-AND [[core.lumen#Filter]] grammar `list` uses, projected onto the query string exactly like a read filter. A guard too large for the URL budget MAY spill to an OPTIONAL, advertised `query`-tier body-form (`POST /{id}/-/{put|patch|delete}`, media type `application/vnd.bdp.envelope+json`) carrying an [[core.lumen#Envelope]] — `{ precondition?, representation }` for put (the FULL representation, never a bare body), `{ precondition?, patch }` for patch, `{ precondition? }` for delete — the one place an envelope appears; the `If-Match`/`If-None-Match` guards keep riding their headers, and a scope that does not advertise spill rejects an over-budget guard with `request-too-large`. See Appendix D. There is no revision-keyed read cursor: streaming reads resume by `after` (Cursor) xor `from` (Ordinal); a specific revision is read by `get` under `?revision=`.
 /// openapi = { operationId = "put", method = "PUT", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, ifAbsent = { in = "header", name = "If-None-Match", schema = "\"*\"", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, success = { status = 200 }, problem = { status = [400,409,410,412,422] } }
@@ -1097,6 +1106,7 @@ idempotent command put(
 ## patch
 /// bdp = { kind = "primitive", primitive = "patch" }
 /// description: JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and computed properties are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+/// normative: A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a computed property faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
 /// openapi = { operationId = "patch", method = "PATCH", pathItem = "resource", tags = ["Core"], params = { ifRevision = { in = "header", name = "If-Match", schema = "Rev", required = false }, precondition = { in = "query", name = "precondition", schema = "Filter", required = false } }, request = { contentType = "application/json-patch+json" }, success = { status = 200 }, problem = { status = [400,404,409,410,412,415,422] } }
 command patch(
     /// description: The resource to patch (its current revision).
@@ -1399,6 +1409,7 @@ type ExportBegin = {
 
 ## ExportEnd
 /// description: The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
+/// normative: An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.
 type ExportEnd = {
   /// description: The discriminator that marks the closing line.
   kind:  "export-end",
@@ -1448,6 +1459,7 @@ type ImportReport = {
 ## import
 /// bdp = { kind = "primitive", primitive = "import" }
 /// description: The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op.
+/// normative: `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
 /// openapi = { operationId = "import", method = "POST", pathItem = "scope", tags = ["Core"], success = { status = 200 }, problem = { status = [400,409,422] } }
 command import(
     /// description: The scope to import into.
