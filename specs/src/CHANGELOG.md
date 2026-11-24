@@ -41,6 +41,33 @@ Draft changes toward the next release (pre-1.0, status: draft).
   malformed stay Problems). Documented the `call` dispatch rule: a pre-dispatch
   failure is a bare `Problem` (no `Outcome`); a post-dispatch failure rides the
   `Outcome`.
+- **Transport split — `source<T>` vs `snapshot<T>`, and resumable `import`.** A read's
+  transport is typed by its nature: `source<T>` is a live, open-ended feed (`pull` and
+  channels — `page`/`jsonl`/`sse`), `snapshot<T>` is a finite point-in-time cut
+  (`page`/`jsonl`, never `sse`). `list`, `revisions`, `export` and the stdlib
+  `query`/`stale` are snapshots; `import` consumes `snapshot<ExportRecord>`; `pull`
+  stays a source. A snapshot asked for `format=sse` faults `400` (the refusal now also
+  names `revisions`), and the wire `--format` token `json` becomes `page`. `import`
+  gains a resume protocol: it returns `ImportAck { acceptedThrough, credit, retryAfter?,
+  results[], complete?, tallies }` with `ImportResult = Accepted | Deduped | Deferred |
+  Conflicted(reason)`, resumes from `acceptedThrough` (the last *processed* record; the
+  record ordinal is the export-stream position), advertises resumability via
+  `ImportCaps.window`, and declares `400` for a truncated or malformed stream
+  (`ImportReport` is retained as the folded `tallies`). A declared read-floor param
+  (`after`/`limit`/`format`) MUST be honored and faults `400` on a malformed value —
+  silently ignoring it is non-conformant.
+- **Fault surface reconciled with its producers.** Declared faults were re-examined
+  against *which party must emit them* — grounded (the spec says the fault exists),
+  reachable (a case can construct it) and obliged (this party must produce it) are
+  three separate properties. The seven `413`/`414` rows were undeclared: `414` on
+  `get`/`list`/`revisions`/`export` is a URL-byte limit imposed by intermediaries, not
+  the origin, and `413` on `put`/`patch`/`delete` has no advertised budget, so no
+  origin is obliged to emit them. `patch` and `delete` re-declare `400`: a guard the
+  operation's capability record does not define (e.g. `If-None-Match`, since `ifAbsent`
+  is a `PutCaps` field only) is `malformed-request` (`400`), not a `422` capability
+  decline — the line is drawn by the capability record, not D.8 prose. Eleven ruled
+  obligations were promoted to `/// normative:`, and an id-model contradiction in the
+  `put`/identity sentence was fixed.
 - **Smaller core edits.** `ListFilter` → `Filter`; `BeadSchema`'s `Opaque` arm →
   an inline `JsonSchema { text }` (dropped the redundant standalone type); `create`
   / `put` body is `any` (the typed `body: T` is the pack-level view).
