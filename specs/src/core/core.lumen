@@ -357,7 +357,7 @@ type rel<F, T> is Bead { source: ref<F>, target: ref<T>, ...: any }
 // 1.8  Computed properties — derived, and revision-transparent
 // -----------------------------------------------------------------------------
 // `computed` is a body-property modifier, NOT a type — it sits with the
-// access-mode modifiers (`init-only` / `service-managed` / `read-only`). A field
+// access-mode modifiers (`initOnly` / `serviceManaged` / `readOnly`). A field
 // marked `computed` is DERIVED — a pure function of the store's authored state,
 // not authored input — and carries one rule: a derived value leaves no trace in
 // the revision stream. It never contributes to the revision (a change in a
