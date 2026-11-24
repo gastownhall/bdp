@@ -1973,10 +1973,18 @@ type PushCaps = {
 //   412  a failed guard on put / patch / delete — a stale `If-Match` (`revision-mismatch`)
 //        or a `precondition` the resource does not satisfy (`precondition-failed`). A
 //        present `If-None-Match: *` collision is NOT 412: it is `identity-taken` (409).
-//   413  an over-budget guard where the scope does not advertise `bodyFormSpill`
-//        (`request-too-large`)
-//   414  the read's query string exceeds the URL budget — retry as a body-form POST;
-//        intermediaries may instead surface it as `431` or a length-related `400`
+//   413  CLIENT-REACTIVE, never origin-declared (`request-too-large`): a request refused as too
+//        large. NO operation declares it — ruling D undeclared it from `put`/`patch`/`delete` —
+//        because the threshold it would fire at is advertised nowhere. The URL-guard budget is
+//        undeclared, and the request-context max promised in D.5 has no capability field to carry
+//        it, while D.5's 4096-byte floor is a size a Scope MUST ACCEPT. A client handles this
+//        reactively; no portable conformance case can construct the boundary.
+//   414  CLIENT-REACTIVE, never origin-declared: the read's query string exceeds the URL budget —
+//        retry as a body-form POST. NO operation declares it — ruling D undeclared it from
+//        `get`/`list`/`revisions`/`export` — because the limit is imposed by intermediaries
+//        (proxies/CDNs/browsers), not the origin, so the origin is not the conformance point and
+//        cannot be made to emit one at any length; intermediaries may instead surface it as `431`
+//        or a length-related `400`.
 //   415  a direct `patch` body whose media type is not `application/json-patch+json` (a
 //        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
 //   422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
