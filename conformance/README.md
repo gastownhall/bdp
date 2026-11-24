@@ -16,7 +16,7 @@ purpose: a spec change that alters a wire shape **with no covering case fails CI
 - **Denominator** — `bdp_gate::denominator()` parses the repo's generated v0.2.3 OpenAPI catalog, read
   **live** from `specs/generated/openapi/core.openapi.json`, into the tier-1 coverage surface: every
   primitive operation plus each of its declared `>=400` fault statuses. The v0.2.3 surface is
-  **54 rows** (13 ops + 41 faults). Reading it live is what makes the gate *lockstep*: when the spec's
+  **47 rows** (13 ops + 34 faults). Reading it live is what makes the gate *lockstep*: when the spec's
   wire surface moves, the denominator moves with it (and a unit test tripwires on the row count so the
   change gets reviewed). A frozen vendored copy would silently stop catching spec changes.
 - **Generator witness** — `bdp_gate::source_surface()` derives the SAME surface independently, straight
@@ -55,6 +55,18 @@ one disposition:
 | **behavioural** | a tier-2 case exercises it; no wire status to key on | the case |
 | **waived** | not covered yet | a tracking issue |
 
+**Surface-bearing evidence is AUTHOR-ASSERTED, not machine-checked — read the green accordingly.**
+`every_surface_bearing_registration_names_real_rows` verifies that each cited row **exists in the
+denominator**. It does not, and structurally cannot, verify that the obligation's trigger can
+actually **reach** that op: `SurfaceId` is `Op | Fault` and carries no parameters, so the gate has
+nothing to reason about reachability with.
+
+That gap was not hypothetical. The `after`/`from` registration cited `op/list/fault/400` and
+`op/revisions/fault/400`, but those parameters are declared only on `pull` — so for two of its three
+rows the evidence named a trigger no client could send, and the test passed it. Corrected here to
+cite `op/pull/fault/400` alone. Treat a passing ledger as "the rows are real", never as "the
+obligation is reachable".
+
 - **It pins each obligation's RESOLUTION, never the cardinality.** A count cannot be pinned coherently
   here: #428 takes the obligations from 67 to 79, so a ledger asserting 67 breaks when it lands and
   one asserting 79 cannot be built before it does. Pinning dispositions is correct from either side of
@@ -83,7 +95,7 @@ one disposition:
   revision"*, guarded for `delete` only (#412) and not on `put`/`patch`. Tracked separately in
   gastownhall/bdp#433, because it predates #428's cohort.
 
-**Current coverage: 29/54** — measured by running the gate, not derived. Read the composition below
+**Current coverage: 29/47** — measured by running the gate, not derived. Read the composition below
 rather than the number: a count that restates a list is a second source of truth about that list, and
 this one has drifted from it four times. One drift was produced *mechanically* — a merge auto-resolved
 this figure from one branch while hand-resolving the list it summarises, leaving them independent. The
@@ -106,7 +118,7 @@ Across three case families:
   reachable. `create/400` and `put/400` survive because they malform the *body* on a valid route —
   *malformed body* and *malformed id* look like one producer class and are two.
 
-The remaining 25 rows are uncovered for concrete, recorded reasons — and after the fault-surface
+The remaining 18 rows are uncovered for concrete, recorded reasons — and after the fault-surface
 reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
 
 - **EVERY UNCOVERED ROW NOW HAS A NORMATIVE PRODUCER.** Checked row by row, not assumed. Before the
@@ -123,19 +135,24 @@ reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
   | `409` (`delete`, `import`, `patch`, `push`) | D.8 — id collision / declared failure |
   | `410` (`pull`) | D.8 — below the retention floor (`cursor-expired`) |
   | `413` (`put`, `patch`, `delete`) | D.8 — an over-budget guard where the scope does not advertise `bodyFormSpill` |
-  | `414` (`get`, `list`, `revisions`, `export`) | D.8 — the read's query string exceeds the URL budget |
   | `422` (`create`, `import`, `push`, `put`) | `limit-exceeded`, which D.8 omitted as a row but the spec grounds |
 
-- **11 of the 25 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
+  The `413` and `414` rows that used to appear in this table were **undeclared by ruling D** — see
+  *Ruling D* below. They were grounded in D.8 and declared on their ops, yet no origin was ever
+  obliged to emit them.
+
+- **11 of the 18 need the subject to implement 3 more primitives** — `import`, `pull`, `push`: the 3
   `op/*` rows plus 8 of their declared faults. Counted from the gate's own uncovered list, not
   estimated. These are ROUTED by the fence but answer `501` ("not implemented by this scope"), and
   `RemoteScope` has no client method for them. *Routed but not implemented* is a different statement
   from *unroutable*, and the gate can tell them apart.
-- **The other 14 are faults on primitives already implemented** — `create/422`, `delete/409`,
-  `delete/413`, `export/400`, `export/414`, `get/414`, `list/400`, `list/414`, `patch/409`,
-  `patch/413`, `put/413`, `put/422`, `revisions/400`, `revisions/414`. Each needs a subject change
-  rather than a ruling: the `413`s need an over-budget guard, the `414`s need a URL-budget check on
-  the read path. **The `400`s are different, and GROUNDED IS NOT REACHABLE** — see below.
+- **The other 7 are faults on primitives already implemented** — `create/422`, `delete/409`,
+  `export/400`, `list/400`, `patch/409`, `put/422`, `revisions/400`. Each needs a subject change
+  rather than a ruling. **The `400`s are different, and GROUNDED IS NOT REACHABLE** — see below.
+
+  This bullet read *"the other 14"* and listed seven `413`/`414` rows as needing "an over-budget
+  guard" and "a URL-budget check on the read path". Ruling D removed them: there was no budget to
+  check against, which is why the work never got specified rather than never got done.
 
 - **`list/400`, `export/400` and `revisions/400` are grounded but NOT REACHABLE over this binding,
   and that is a principled gap rather than unfinished work.** Both pins that ground them act on
@@ -152,7 +169,7 @@ reconciliation (rulings #2/#3) the REASON CHANGED CHARACTER for all of them:
   optional feature, not fixing an omission.
 
   **This matters for `BDP_GATE_STRICT`.** "Uncovered means unimplemented" is true of most of the set,
-  but not of these: tier-1 can never reach 54/54 for a subject that declines `bodyFormSpill`, so a
+  but not of these: tier-1 can never reach 47/47 for a subject that declines `bodyFormSpill`, so a
   blocking flip needs a notion of *rows unreachable because of a declared capability* — which the
   suite already applies informally to `get/410` and the write `410`s. Flipping STRICT without it
   would set a bar no conformant subject can clear.
@@ -308,19 +325,47 @@ One correction fell out of choosing an encoding: the sync `Reply` emitted `"caus
 `AsyncResult`, where they sit at top level precisely so they stay queryable while `reply` is absent,
 and `cancel` reads them back so the settlement it writes is correlatable to the call it settles.
 
-### 44% of the declared fault surface has no normative producer
+### Ruling D — 7 rows undeclared, 54 → 47
 
-**18 of the 41 fault rows are declared without any normative line naming what produces them.**
+**Declared is not obliged, and the gate could not tell the difference.** Seven fault rows were
+declared on their ops and grounded in D.8, yet no origin was ever obliged to emit any of them. They
+were undeclared rather than defined, and the denominator went **54 → 47** with coverage reading
+**29/47** for unchanged work.
+
+| rows | why no origin owes them |
+|---|---|
+| `414` on `get`, `list`, `revisions`, `export` | the spec says the URL-byte limit "is imposed by intermediaries (proxies/CDNs/browsers), not the origin", and advertises no origin-side budget. The origin is not the conformance point, so no direct-to-origin case can force a `414` at any length. |
+| `413` on `put`, `patch`, `delete` | unreachable on BOTH triggers. The over-budget URL guard has no declared budget. The request-context header path says "its max is advertised" — but **no capability field carries it** (`ScopeCapabilities` is `{ storageClasses, revisionModel, idModel, aliases?, bodyFormSpill? }`), and D.5's 4096 is a floor a Scope MUST ACCEPT, so a case at 4096 must *succeed*. No portable threshold exists. |
+
+**Three levels, not two.** A row can be **grounded** (the spec says the fault exists), **reachable**
+(a case can construct the trigger), and **obliged** (*this party* must produce it). These seven were
+the first two and never the third. Rulings #2/#3 brought them in on the strength of "D.8 names the
+producer" — true, and irrelevant, because the producer D.8 names is not the origin.
+
+**Undeclaring strands no grounding**, since there was no origin producer to strand, and costs no case
+rework: all seven were uncovered, so the numerator stayed at 29. The off-by-one canary survived too
+(`get` went `[404, 410, 414]` → `[404, 410]`, so `404` is still first).
+
+The lesson is about the instrument, not the spec: **the denominator is built from where a status is
+DECLARED, so it counts rows nobody owes.** Before calling an uncovered row work-to-do, find the prose
+that says who must emit it — if the answer is an intermediary or the environment, the row is
+misfiled, not missing.
+
+### 32% of the declared fault surface has no normative producer
+
+**11 of the 34 fault rows are declared without any normative line naming what produces them.**
 Appendix D.8 is a status-to-producer table and it covers `404`, `405`, `409`, `410`, `412` and `415`.
 It does not cover:
 
 | status | rows | state |
 |---|---|---|
-| `400` | 11 | the only grounded `400` is length-related and attributed to **intermediaries, not the origin** |
-| `406` | 2 | **zero** prose anywhere — and a probe shows `Accept: application/xml` returns `200`, so it is declared, undefined *and* unimplemented |
+| `400` | 6 | no D.8 entry; `malformed-request` sits in D.9's code list, which assigns no statuses |
 | `422` | 5 | mentioned only incidentally |
 
-So **the denominator counts rows the spec does not define.** 54 overstates the *defined* surface, and
+(`406` held 2 rows with **zero** prose anywhere — a probe showed `Accept: application/xml` returning
+`200`, so it was declared, undefined *and* unimplemented. Rulings #2/#3 undeclared both.)
+
+So **the denominator counts rows the spec does not define.** 47 overstates the *defined* surface, and
 the useful question is not "what produces a `400`" but **does the surface declare faults the spec does
 not define, and for each, define it or undeclare it?** On the second answer the denominator drops toward
 36. That is a ruling rather than a gate change, and it follows the precedent set for `delete/404`:
@@ -372,7 +417,7 @@ open ruling, not settled here.
 conformance/
   Cargo.toml          # the gate workspace
   gate/               # the TIER-1 gate
-    src/lib.rs        #   denominator(): the generated OpenAPI -> 54-row coverage surface
+    src/lib.rs        #   denominator(): the generated OpenAPI -> 47-row coverage surface
                       #   (include_str! of ../../specs/generated/openapi/core.openapi.json, LIVE)
     tests/gate.rs     #   wire-level cases + coverage report (BDP_GATE_STRICT to block)
   reference/          # bdp-ref: the ONE green endpoint (InMemScope over HTTP), pin-agnostic

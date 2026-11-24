@@ -12,7 +12,7 @@
 //! silently stop catching spec changes, which is why it was dropped once #405 merged.
 //!
 //! Pin: `gastownhall/bdp` `main` @`488a2d01` — merged commits, never draft tips. The surface is
-//! **54 rows (13 ops + 41 faults)** over 9 paths.
+//! **47 rows (13 ops + 34 faults)** over 9 paths.
 //!
 //! **The `paths` block HAS moved, and that is the point of recording it.** It was `770e3ccc…` and
 //! byte-identical from `aa439827` through #407, #408, #410 and #412 — a stability that made it
@@ -162,7 +162,7 @@ fn statuses(span: &str) -> Vec<u16> {
 ///   alone uses it, and that is LOAD-BEARING, not an inconsistency: its statuses carry distinct
 ///   schemas, and its `409` returns a `Reply` (a declared domain failure, branch on the arm), NOT a
 ///   `Problem`. Normalizing it to the shorthand would misstate the wire contract. A counter that
-///   knows only the shorthand silently undercounts by one and reports 53 instead of 54.
+///   knows only the shorthand silently undercounts by one and reports 46 instead of 47.
 pub fn source_surface() -> BTreeSet<SurfaceId> {
     let mut out = BTreeSet::new();
     for line in CORE_LUMEN.lines() {
@@ -338,7 +338,15 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
     Registration {
         text: "Supplying both `after` and `from` is malformed and faults `400`.",
         disposition: Disposition::SurfaceBearing,
-        evidence: "op/pull/fault/400, op/list/fault/400, op/revisions/fault/400",
+        // CORRECTED: this cited `op/list/fault/400` and `op/revisions/fault/400` too, which was
+        // wrong when written — `after`/`from` are declared ONLY on `pull`, so the trigger could not
+        // reach those ops. The ledger test passed it because it checks the cited rows are REAL
+        // denominator rows, not that the trigger REACHES them, and it cannot check the latter: the
+        // surface model is `Op | Fault` with no params in it. Same grounded-vs-reachable error that
+        // was corrected in the README and left live here, because nobody grepped for its other home.
+        // gastownhall/bdp#432 declares `after` on list/revisions/export; re-add those two rows in
+        // the same unit that lands it, not before.
+        evidence: "op/pull/fault/400",
     },
     Registration {
         text: "`cancel` settles an async result as `canceled` and runs NO compensation; effects already produced stay findable via `causedBy`.",
@@ -447,21 +455,36 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 41 faults = 54.
+    /// fault statuses. 13 ops + 34 faults = 47.
     ///
-    /// RE-PINNED for the fault-surface reconciliation (rulings #2/#3): 7 rows left and 7 arrived
-    /// while the TOTAL STAYED AT 54, which is precisely the case a count-only tripwire cannot see.
-    /// The comment below about `patch/415` was written as a hypothetical; this is it happening.
+    /// RE-PINNED TWICE, and the second re-pin corrects the first.
+    ///
+    /// **Rulings #2/#3 (#435)** moved 7 rows out and 7 in while the TOTAL STAYED AT 54 — precisely
+    /// the case a count-only tripwire cannot see. The comment below about `patch/415` was written as
+    /// a hypothetical; that was it happening.
     ///
     /// | out | why | in | why |
     /// |---|---|---|---|
-    /// | `get/400`, `delete/400` | producer died with the retired `id:verb` convention | `put/413`, `patch/413`, `delete/413` | D.8 names the producer: an over-budget guard where the scope does not advertise `bodyFormSpill` |
-    /// | `patch/400`, `push/400`, `import/400` | no normative producer — PROBED: a malformed patch body answers `422`, `push` is unrouted, `import` is `501` | `get/414`, `list/414`, `revisions/414`, `export/414` | D.8 names the producer: the read's query string exceeds the URL budget |
+    /// | `get/400`, `delete/400` | producer died with the retired `id:verb` convention | `put/413`, `patch/413`, `delete/413` | believed grounded: D.8 names an over-budget guard where the scope does not advertise `bodyFormSpill` |
+    /// | `patch/400`, `push/400`, `import/400` | no normative producer — PROBED: a malformed patch body answers `422`, `push` is unrouted, `import` is `501` | `get/414`, `list/414`, `revisions/414`, `export/414` | believed grounded: D.8 names the read's query string exceeding the URL budget |
     /// | `get/406`, `list/406` | the genuine orphans — no content negotiation in Core | | |
     ///
-    /// The incoming rows are GROUNDED where the outgoing ones were not, which changes what the
-    /// uncovered set means: these are rows the subject has not implemented, not rows the spec cannot
-    /// ground.
+    /// **Ruling D** then UNDECLARED all 7 of those incoming rows, taking 54 → 47. They were
+    /// grounded and declared but never **OBLIGED**, and the gate had no way to tell the difference:
+    ///
+    /// - `414` — the spec says the URL-byte limit "is imposed by intermediaries (proxies/CDNs/
+    ///   browsers), not the origin", and advertises no origin-side budget. The origin is not the
+    ///   conformance point, so no direct-to-origin case can force a `414` at any length.
+    /// - `413` — unreachable on BOTH triggers. The over-budget URL guard has no declared budget;
+    ///   the request-context header path promises "its max is advertised" but **no capability field
+    ///   carries it**, and D.5's 4096 is a floor a Scope MUST ACCEPT, so a case at 4096 must
+    ///   succeed. There is no portable threshold.
+    ///
+    /// Reading a status off an op's `problem` list is NOT the same as that op owing it. Three
+    /// levels, not two: **grounded** (the spec says it) → **reachable** (a case can construct it)
+    /// → **obliged** (this party must produce it). The first re-pin conflated the third with the
+    /// first and called 7 unreachable rows "GROUNDED where the outgoing ones were not". Undeclaring
+    /// them strands no grounding, because they had no origin producer to strand.
     ///
     /// Spelled out rather than counted on purpose. A count alone asserts a WEAKER property than the
     /// one that matters: `patch/415` silently becoming `patch/416` keeps the total at 52, so a
@@ -473,11 +496,11 @@ mod tests {
         ("call", &[409]),
         ("cancel", &[404, 409]),
         ("create", &[400, 409, 422]),
-        ("delete", &[404, 409, 412, 413]),
-        ("export", &[400, 414]),
-        ("get", &[404, 410, 414]),
+        ("delete", &[404, 409, 412]),
+        ("export", &[400]),
+        ("get", &[404, 410]),
         ("import", &[409, 422]),
-        ("list", &[400, 414]),
+        ("list", &[400]),
         // 415 pins the request media type to application/json-patch+json, so any other type faults.
         //
         // 410: a write that TARGETS a retired resource faults Gone, so `put` and `patch` declare it
@@ -486,11 +509,11 @@ mod tests {
         // model, so a case has nothing to key on. `put` deliberately declares no 404: an absent id
         // is not an error for `put`, which creates. On `put` the 409 belongs to the `ifAbsent` guard
         // (claiming a spent id), never to the bare operation (updating what is gone).
-        ("patch", &[404, 409, 410, 412, 413, 415, 422]),
+        ("patch", &[404, 409, 410, 412, 415, 422]),
         ("pull", &[400, 405, 410]),
         ("push", &[405, 409, 422]),
-        ("put", &[400, 409, 410, 412, 413, 422]),
-        ("revisions", &[400, 404, 414]),
+        ("put", &[400, 409, 410, 412, 422]),
+        ("revisions", &[400, 404]),
     ];
 
     fn expected_surface() -> BTreeSet<SurfaceId> {
@@ -528,7 +551,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 54, "the v0.2.3 surface is 54 rows (13 ops + 41 faults)");
+        assert_eq!(actual.len(), 47, "the v0.2.3 surface is 47 rows (13 ops + 34 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must
