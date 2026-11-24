@@ -16,10 +16,11 @@ interlock merge gate): what the obligation is and how it is staged. **Part II �
 
 ## The gap this closes — PR #428 is the live example
 
-The tier-1 gate's denominator is the **OpenAPI wire surface** — 54 rows (13 ops + 41 faults), read
-**live** from `specs/generated/openapi/core.openapi.json` (`bdp_gate::denominator()`). It is lockstep on
-the **wire**: move an op or a fault status and the denominator moves with it; under `BDP_GATE_STRICT`
-an uncovered row fails CI (`fail-if-no-coverage`).
+The tier-1 gate's denominator is the **OpenAPI wire surface**, read **live** from
+`specs/generated/openapi/core.openapi.json` (`bdp_gate::denominator()`) — at #428, 54 rows (13 ops + 41
+faults). It is lockstep on the **wire**: move an op or a fault status and the denominator moves with it;
+under `BDP_GATE_STRICT` an uncovered row fails CI (`fail-if-no-coverage`). (That count is #428-era; the
+fault-table rulings have since moved it — read the current figure from Part II §7, dated to the gate pin.)
 
 A `/// normative:` line is **not** that denominator. Ruling-1's **PR #428 added 12 new `/// normative:`
 lines and the OpenAPI/JSON-Schema projections regenerated to NO diff** — so the denominator didn't move
