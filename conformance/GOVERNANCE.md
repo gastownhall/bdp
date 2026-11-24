@@ -51,7 +51,7 @@ The gate already derives the wire surface two independent ways and asserts they 
 Mirror that for normative points:
 
 1. **`normative_surface()`** — parse every `/// normative:` line in `core.lumen` into a
-   normative-obligation ledger (today: **79 obligations**; an unanchored `grep` over-counts by two — see
+   normative-obligation ledger (today: **85 obligations**; an unanchored `grep` over-counts by two — see
    Part II §5). The second denominator. The ledger pins each obligation's **resolution**, not a
    cardinality.
 2. **Each obligation resolves to exactly one of:**
@@ -131,15 +131,16 @@ This keeps #428's coverage ledger honest instead of silently diluting it.
 # Part II — The gate contract
 
 **Authored by Connie (conformance-suite lead).** Derived from the gate code at `gastownhall/bdp` main
-`b56281ed`, 2026-11-24 — the post-ruling-D pin, where the figures below are measured. Ruling D (#437)
-landed here, taking the denominator 54 → 47; when #432 lands it adds `import/400`, moving the
-denominator to 48. Everything lives under `conformance/`. Written for a spec author who needs to
+`50c509ab`, 2026-11-24 — the pin where the figures below are measured, with #428/#434/#435/#437/#432 all
+landed. The fault-table rulings have moved the denominator in steps: 54 → 47 (ruling D, #437) → 48
+(`import/400`, #432), and it is still moving — read §7 for how to re-derive the current figures rather
+than trusting this date. Everything lives under `conformance/`. Written for a spec author who needs to
 know **what the gate will reject**, so they learn it before CI rather than after.
 
 ## 1. Only a `problem = [...]` edit moves the denominator
 
 `denominator()` parses `specs/generated/openapi/core.openapi.json` into
-`SurfaceId::Op(op)` and `SurfaceId::Fault(op, status)` — **47 rows** (13 ops + 34 faults).
+`SurfaceId::Op(op)` and `SurfaceId::Fault(op, status)` — **48 rows** (13 ops + 35 faults).
 
 - Params are **not** in the surface model.
 - D.8 (the prose status table) is **never parsed**.
@@ -149,8 +150,8 @@ So declaring params, or adding a D.8 status row, cannot move the denominator. On
 
 **A worked instance.** Ruling D (#437) was the first live case: it edited seven `problem = [...]`
 arrays to undeclare the `413`/`414` rows and the denominator moved, while the D.8 prose reframe in the
-same PR moved nothing — the gate never parses D.8. `import/400` in #432 will be the second: the array
-edit moves the denominator, its eight new params move nothing.
+same PR moved nothing — the gate never parses D.8. `import/400` in #432 was the second: the array
+edit moved the denominator 47 → 48, its eight new params moved nothing.
 
 ## 2. Two pins, one commit
 
@@ -195,11 +196,15 @@ Discovery prose after it must not be swept in as a continuation. Rewrapping is s
 join with a single space). Changing the header, the numbering form, or dropping the terminator breaks
 `the_store_wide_guarantees_have_not_moved`. **14 items pinned.**
 
-**`/// normative:`** — parsed anchored (prefix after `trim_start`), because the file documents that
-very annotation using it; an unanchored `grep -c` over-counts by 2. Two literal fragments
+**`/// normative:`** — parsed anchored on the first non-whitespace token (`trim_start()` then
+`starts_with`), **not** on column 0, because obligations inside a type body are indented. The anchor
+cuts both ways against a naive `grep`: an unanchored `grep -c '/// normative:'` over-counts by 2 (it
+sweeps in the two self-documentation lines — the file documents that very annotation using it), while a
+column-anchored `grep -c '^/// normative:'` under-counts by 2 (it misses the two indented obligations).
+The gate's own count is `grep -cE '^[[:space:]]*/// normative:'`. Two literal fragments
 (`SELF_DOCUMENTATION_FRAGMENTS` in `conformance/gate/src/lib.rs`) exclude the self-documentation, and
 the test asserts they are **absent from the parse and still present in the file**, so it cannot rot.
-**79 obligations.**
+**85 obligations.**
 
 **A worked instance.** The author of gastownhall/bdp#432 reported the obligation count going
 **81 → 87**. The anchored parse gives **79 → 85**: the *delta* was right, the absolute was two high,
@@ -217,7 +222,7 @@ while registrations go stale.**
 This already happened: **#434 merged carrying 3 stale registrations** because the texts were reworded
 after they were extracted, and nothing failed.
 
-**Any spec PR touching `/// normative:` lines must list them.** There are 13 registered obligations.
+**Any spec PR touching `/// normative:` lines must list them.** There are 19 registered obligations.
 
 ### Known defect in the ledger (gate-side, not spec-side)
 
@@ -239,11 +244,15 @@ Manifest is `conformance/Cargo.toml`, **not** the repo root. `cargo` may need
 cargo test --manifest-path conformance/Cargo.toml
 ```
 
-**70 tests green** on `b56281ed`; coverage **29/47**; ledger **79 / 13 registered / 66 backlog / 0
-pending**.
+**70 tests green** on `50c509ab`; coverage **29/48**; ledger **85 / 19 registered / 66 backlog / 0
+pending** — the backlog held at 66 because the +6 obligations since the last pin all registered. These
+figures are a snapshot of one command, not an authority: re-derive the ledger and coverage blocks with
+`cd conformance && cargo test -p bdp-gate -- --nocapture` and read the numbers here as its illustration
+— the same move as citing `EXPECTED_SURFACE` over a line number. They shift with the surface; the next
+fault-row PR moves them again.
 
 `BDP_GATE_STRICT=1` additionally fails on uncovered rows **and** the ledger backlog. It is expected to
-fail today — 18 rows, 66 obligations — so do not chase it. The STRICT flip is not close, and the
+fail today — 19 rows, 66 obligations — so do not chase it. The STRICT flip is not close, and the
 "third category" of unreachable rows was never what stood in its way.
 
 ## 8. Three levels, not two
@@ -260,5 +269,5 @@ imposed by intermediaries, not the origin, so no origin-side case could force on
 made them a denominator defect rather than a coverage gap.
 
 **Resolved at `b56281ed`.** Ruling D (#437) has now undeclared all seven of those rows, so this example
-is discharged — they are no longer in the denominator (54 → 47). The three-level principle above is
+is discharged — they are no longer in the denominator (54 → 47, then 48 with #432's `import/400`). The three-level principle above is
 unchanged; only the status of its worked example moved. It is the principle executed, not revised.
