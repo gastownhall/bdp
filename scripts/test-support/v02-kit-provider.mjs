@@ -21,6 +21,7 @@ export async function serveFixture(mutation = "none") {
         ],
         selector: true,
         sort: false,
+        compactFilter: false,
         maxLimit: 2,
       },
       pull: { sse: false, jsonl: true, filter: false, selector: false },

@@ -145,8 +145,8 @@ export function capabilities(value) {
   boolean(value.core.get.selector);
   const specs = {
     list: [
-      ["conditions", "selector", "sort", "maxLimit"],
-      ["conditions", "selector", "sort"],
+      ["conditions", "selector", "sort", "compactFilter", "maxLimit"],
+      ["conditions", "selector", "sort", "compactFilter"],
     ],
     pull: [
       ["sse", "jsonl", "filter", "selector"],
@@ -171,6 +171,7 @@ export function capabilities(value) {
       for (const k of [
         "selector",
         "sort",
+        "compactFilter",
         "sse",
         "jsonl",
         "filter",
