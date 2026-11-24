@@ -401,7 +401,7 @@ type IdentityBasis = union {
 
 How a Resource is kept — whether it is persisted, not whether it is versioned (that is the scope's revision model). Durable is replicated and exported; ephemeral is local and never exported; intrinsic is computed by the service, not stored (capability beads are intrinsic).
 
-> **Normative.** A `Durable` resource is exported; an `Ephemeral` resource is local and is NEVER exported; `Intrinsic` is computed by the service, not stored.
+> **Normative.** Export (the primitive) includes only `Durable` resources; `StorageClass` is per-resource, so a `Durable` scope MAY hold individual `Ephemeral` resources, and an `Ephemeral` resource is local state that is NEVER included in an export stream; `Intrinsic` is computed by the service, not stored.
 
 > **Normative.** Whether revisions are kept is a SCOPE-WIDE property, not per-resource: a scope's `revisionModel` ([RevisionModel](#RevisionModel), advertised in discovery) is `versioned` (mints revisions; write refs `pinned`) or `unversioned` (mints none; write refs relax to `unpinned`). StorageClass is orthogonal — it says only whether a resource is persisted.
 
@@ -1991,7 +1991,7 @@ type ExportBegin = {
 
 The closing line — a count of the Resource records, so a truncated file (one ending without this line) is detectable and never taken for whole.
 
-> **Normative.** An export MUST end with the `ExportEnd` line; a reader refuses a file ending without it (truncation detection) and MUST NOT treat it as whole.
+> **Normative.** An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.
 
 ```lumen
 type ExportEnd = {
