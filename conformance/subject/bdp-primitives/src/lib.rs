@@ -425,6 +425,29 @@ pub enum CallOutcome {
     Async(ResourceId),
 }
 
+/// The async disposition a caller asks `call` for.
+///
+/// THE SPEC DECLARES THIS DISPOSITION TWICE and gives no precedence rule between them:
+/// `Request.async: bool = false` is a member of the request BODY, while `call`'s
+/// `openapi.params` declares `mode = { in = "query", schema = "\"sync\" | \"async\"" }` on the
+/// REQUEST LINE. Core's own `call` prose then speaks only of the query form — *"`?mode=async`
+/// returns 202 + the AsyncResult at Location"*.
+///
+/// So this parameter exists to give the trait ONE source of truth. The binding carries the
+/// disposition on the request line, which is the form the generated wire surface declares and the
+/// one the prose uses, and the server does NOT read the body's `async` member. Honouring both
+/// would need a rule for the case where they disagree, and the spec does not give one — so this is
+/// flagged rather than settled, and the alternative reading (the body member is authoritative and
+/// `mode` is its projection) stays live.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum CallMode {
+    /// The default (`Request.async = false`, `?mode=sync`): the call settles before responding.
+    #[default]
+    Sync,
+    /// `?mode=async`: the scope mints an `AsyncResult` and answers 202 with it at `Location`.
+    Async,
+}
+
 #[derive(Clone, Debug)]
 pub struct Reply(pub RawJson);
 
@@ -478,6 +501,12 @@ pub enum PrimitiveCapabilities {
     Import(ImportCaps),
     Evaluate(EvaluateCaps),
     Call(CallCaps),
+    /// `cancel` — the scope can kill a running `AsyncResult` (§2.3). ADVERTISED SEPARATELY FROM
+    /// `Call`: §3.3 indexes `call` and `cancel` as two primitives, each "present iff advertised",
+    /// so a scope that mints async handles it cannot kill is a legal (if unhelpful) scope and a
+    /// scope offering `cancel` without async `call` could not be described at all if the two
+    /// shared one flag.
+    Cancel(CancelCaps),
     /// `aliases` — the scope resolves a scope-unique alias NAME to the stored target ref
     /// (`resolve_alias`, resource-model.md §65). Advertised per ability; ABSENT ⇒ callers use the
     /// universal above-trait fallback (`list` kind=alias + `get`). Storage is alias-as-bead via the
@@ -550,6 +579,15 @@ pub struct EvaluateCaps {
 
 #[derive(Clone, Debug, Default)]
 pub struct CallCaps { pub async_supported: bool }
+
+/// `cancel`'s limits — EMPTY, and the emptiness is read off the declaration rather than deferred.
+///
+/// `cancel`'s whole parameter list is `asyncResult: unpinned<AsyncResult>`: no guard (D.3 carries
+/// the three write guards on `put`/`patch`/`delete` only), no `mode`, no selector, no paging. There
+/// is no optional sub-capability for a scope to half-offer, so presence in `capabilities()` is the
+/// entire statement — the same shape as `Unversioned`. It may grow if the declaration does.
+#[derive(Clone, Debug, Default)]
+pub struct CancelCaps {}
 
 /// `aliases` resolution. Presence ⇒ the scope implements `resolve_alias`. `indexed` advertises a
 /// name-index backing (pg/dolt) vs an index-or-scan (fs), so a caller can prefer the advertised
@@ -658,6 +696,24 @@ pub enum BdpError {
     /// `bdp-protocol/LIMIT-EXCEEDED.md`). `capability`/`limit` name the bound, e.g. "apply"/"maxWrites".
     LimitExceeded { capability: String, limit: String, detail: String },
     CursorExpired(Cursor),
+    /// `cancel` was aimed at an `AsyncResult` that is ALREADY SETTLED — its `reply` is present.
+    ///
+    /// DERIVED from the declared fault set, not chosen. `cancel` declares `[404, 409]`; 404 is
+    /// grounded in D.8 as *"get of an absent resource"*, and this target demonstrably exists. What
+    /// remains is 409, and `Outcome`'s normative line supplies the condition: *"A present `outcome`
+    /// means the invocation is settled, whichever arm it holds; a transient state (running/waiting)
+    /// is NOT an arm."* `cancel` acts on a *running* handle, so a settled one is a state conflict.
+    ///
+    /// D.8 HAS a 409 entry — unlike 400, 406 and 422, which have none anywhere — but it does not
+    /// name THIS producer. The status is grounded; the producer is derived. Kept as its own variant
+    /// rather than folded into `Conflict`, per Lydia §71: `Conflict` is the declared-Types
+    /// constraint family and an existence/state conflict carries its own code.
+    ///
+    /// Wire: 409 `already-settled`. **D.9 names no code for this conflict** — the nearest entries
+    /// (`precondition-failed`, `identity-taken`) are bound to other statuses and other producers —
+    /// so the code is coined here and the gate keys on the STATUS, which is what the surface
+    /// declares.
+    AlreadySettled { id: ResourceId },
     Backend(String),
 }
 
@@ -789,9 +845,47 @@ pub trait BdpScope: Send + Sync {
         Ok(BdpResult::not_implemented())
     }
 
-    /// call — invoke an Operation bead. Sync -> `Reply`; async -> an `AsyncResult` ref.
-    async fn call(&self, _operation: &ResourceId, _request: Request)
+    /// call — invoke an Operation bead. `CallMode::Sync` -> a settled `Reply`; `CallMode::Async`
+    /// -> a minted `AsyncResult` ref the caller settles (or `cancel`s) later.
+    ///
+    /// `mode` IS A PARAMETER RATHER THAN A BODY MEMBER on purpose — see [`CallMode`] for which of
+    /// the spec's two declarations of the disposition this binding follows and why the other
+    /// reading is still live.
+    ///
+    /// A scope that does not advertise `CallCaps { async_supported: true }` MUST REFUSE
+    /// `CallMode::Async` rather than quietly settle synchronously: the caller asked for a handle it
+    /// could later `cancel`, and a 200 would tell it the call is done while it believes it holds a
+    /// running operation. *"An optional feature is never half-present"* (§3.3).
+    async fn call(&self, _operation: &ResourceId, _request: Request, _mode: CallMode)
         -> Result<BdpResult<CallOutcome>, BdpError> {
+        Ok(BdpResult::not_implemented())
+    }
+
+    /// `cancel` — kill -9 on a RUNNING `AsyncResult`: write `reply.outcome = canceled`.
+    ///
+    /// Signature read straight off the declaration,
+    /// `command cancel(asyncResult: unpinned<AsyncResult>) -> pinned<AsyncResult>`:
+    ///
+    /// * **The target is `unpinned`, so there is NO guard parameter — and that is why no `412` is
+    ///   declared.** D.3 lists three write guards and gives them to `put`/`patch`/`delete`; all
+    ///   three of those declare `412` and `cancel` does not. The absence of the parameter and the
+    ///   absence of the fault agree, which is what makes this a derivation rather than a guess. A
+    ///   caller that supplies a PINNED handle must therefore be REFUSED, never silently honoured as
+    ///   if it were a precondition — accepting a guard and not enforcing it is the lost-update
+    ///   defect [`Guards`] exists to document.
+    /// * **It returns `pinned`**, so the answer is the ref at the revision the cancel minted. A
+    ///   caller holds proof of which revision carries the `canceled` outcome.
+    ///
+    /// `cancel` IS NOT IDEMPOTENT, unlike `delete`. A second cancel faults
+    /// [`BdpError::AlreadySettled`], because `Outcome`'s normative line says a present `outcome`
+    /// means settled *"whichever arm it holds"* — which deliberately refuses to privilege one arm,
+    /// so "already `canceled`" is not a distinguishable state from "already failed". Reading it as
+    /// idempotent would invent the distinction the spec flattens.
+    ///
+    /// It runs NO COMPENSATION (that is the scheduler's graceful path) and the cancelled work's
+    /// effects stay findable via `causedBy`, so a scope must not try to undo them here.
+    async fn cancel(&self, _async_result: ResourceId)
+        -> Result<BdpResult<ResourceId>, BdpError> {
         Ok(BdpResult::not_implemented())
     }
 }

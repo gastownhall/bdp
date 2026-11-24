@@ -54,6 +54,12 @@ fn remote_forwards(cap: &p::PrimitiveCapabilities) -> bool {
             // caught it, because every case invokes the trait method directly and no row depends
             // on advertisement: a subject could advertise nothing and still claim every row.
             | C::Call(_)
+            // `Cancel` is listed HERE in the same change that added the client method below. The
+            // `Call` entry above was missing for two PRs after `call` was bound, and nothing in
+            // the gate could catch it, because every case invokes the trait method directly and no
+            // row depends on advertisement. The checklist for binding a primitive is: trait method,
+            // subject impl, server dispatch, client method, THIS function, and `capabilities()`.
+            | C::Cancel(_)
     )
 }
 
@@ -170,6 +176,11 @@ fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
         // Lydia §71: create-fail-if-exists is an existence conflict with its own code, distinct from
         // a declared constraint.
         (409, Some("already-exists")) => p::BdpError::AlreadyExists(rid.clone()),
+        // `cancel` on a handle that already carries a `reply`. Reconstructed from the code rather
+        // than from the status, because three different conditions answer 409 in this binding
+        // (`already-exists`, a declared `call` failure, and this) and a caller that could not tell
+        // them apart would have one handler for three unrelated situations.
+        (409, Some("already-settled")) => p::BdpError::AlreadySettled { id: rid.clone() },
         (409, _) => p::BdpError::Conflict(p::ConstraintViolation::Cardinality {
             fromprop: String::new(),
             detail: format!("server returned 409 {:?}", code),
@@ -481,9 +492,15 @@ impl BdpScope for RemoteScope {
         }
     }
 
-    async fn call(&self, operation: &p::ResourceId, request: p::Request)
+    async fn call(&self, operation: &p::ResourceId, request: p::Request, mode: p::CallMode)
         -> Result<p::BdpResult<p::CallOutcome>, p::BdpError> {
-        let target = format!("/{}/-/call", pct_encode(&operation.id.0));
+        let mut target = format!("/{}/-/call", pct_encode(&operation.id.0));
+        // The disposition rides the REQUEST LINE (see `p::CallMode`). `sync` is the declared
+        // default, so it is left off rather than sent explicitly — a default that is also spelled
+        // out is a second thing to keep in step with the first.
+        if mode == p::CallMode::Async {
+            target.push_str("?mode=async");
+        }
         let headers = vec![("content-type".into(), "application/json".into())];
         let resp = self.request("POST", &target, headers, request.0 .0.to_vec()).await?;
         match resp.status {
@@ -491,9 +508,55 @@ impl BdpScope for RemoteScope {
             200 | 201 | 409 => Ok(p::BdpResult::ok(p::CallOutcome::Reply(p::Reply(p::RawJson(
                 bytes::Bytes::from(resp.body.clone()),
             ))))),
-            // 202 would carry an `AsyncResult` ref in `Location`, not a `Reply`; no scope mints
-            // one yet, so decoding it is left to the increment that implements `cancel`.
+            // THE ASYNC ACCEPT. The declared schema is `rep<AsyncResult>`, so the handle's own
+            // identity is read out of the BODY — not out of `Location`, which D.6 lists as the
+            // response header carrying "the new URL" and is the addressing convenience. Parsing
+            // the id back out of a URL would also have to undo the server's choice between an
+            // absolute and a relative form; the representation carries the ref directly.
+            202 => {
+                let wire: WireRepresentation = serde_json::from_slice(&resp.body)
+                    .map_err(|e| p::BdpError::Backend(format!("bad async accept body: {e}")))?;
+                let rep = wire.to_trait();
+                let reference = rep.id().clone();
+                let mut res = p::BdpResult::ok(p::CallOutcome::Async(reference));
+                res.protocol = crate::wire::protocol_from_headers(&resp);
+                Ok(res)
+            }
             _ => Err(error_from(resp.status, &resp.body, operation)),
+        }
+    }
+
+    /// `POST /{asyncResultId}/-/cancel`.
+    ///
+    /// A PINNED HANDLE IS REFUSED HERE rather than sent with its revision dropped. The declared
+    /// parameter is `unpinned<AsyncResult>` and `cancel` declares no `412`, while every primitive
+    /// that does carry a revision guard declares one — so there is no pin channel on this route to
+    /// put a revision on, and sending the id alone would let a caller who asked for
+    /// "cancel only if still at this revision" believe the condition was checked.
+    ///
+    /// This is the same refusal `list` makes for a filter this binding cannot encode, in the same
+    /// place and for the same reason: *"an optional feature is never half-present"*. The difference
+    /// worth noting is that a pin is not an optional feature of `cancel` at all — it is an argument
+    /// the declared type forbids — so there is no capability to narrow in `narrow_to_binding`,
+    /// and `CancelCaps` stays empty.
+    async fn cancel(&self, async_result: p::ResourceId)
+        -> Result<p::BdpResult<p::ResourceId>, p::BdpError> {
+        if async_result.rev.is_some() {
+            return Err(p::BdpError::Unprocessable(
+                "cancel takes `unpinned<AsyncResult>`; this route carries no revision guard and \
+                 `cancel` declares no 412, so a pinned handle is refused rather than silently \
+                 cancelled at whatever revision is current"
+                    .into(),
+            ));
+        }
+        let target = format!("/{}/-/cancel", pct_encode(&async_result.id.0));
+        let resp = self.request("POST", &target, vec![], vec![]).await?;
+        match resp.status {
+            501 => Ok(p::BdpResult::not_implemented()),
+            // `-> pinned<AsyncResult>` is a ref type, so the body is the bare pinned ref — the
+            // same shape `put`/`patch`/`delete` return, hence the same decoder.
+            200 => write_result(&resp),
+            _ => Err(error_from(resp.status, &resp.body, &async_result)),
         }
     }
 }

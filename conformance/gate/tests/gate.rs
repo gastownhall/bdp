@@ -18,10 +18,10 @@ use std::future::Future;
 use bdp_gate::{denominator, SurfaceId};
 use bdp_inmem::InMemScope;
 use bdp_primitives::{
-    BdpError, BdpResult, BdpScope, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps, Guards, Id,
-    IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson, Representation,
-    ExportRecord, FieldPath, ListCondition, ListFilter, Page, Request, ResourceId, Rev, RevisionModel,
-    Scope, ScopeCapabilities, Selector, StorageClass,
+    BdpError, BdpResult, BdpScope, CallMode, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps,
+    Guards, Id, IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson,
+    Representation, ExportRecord, FieldPath, ListCondition, ListFilter, Page, Request, ResourceId,
+    Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
 use bdp_protocol::{RemoteScope, Server};
@@ -490,6 +490,7 @@ async fn the_client_advertises_what_it_forwards(r: &RemoteScope) -> Result<Vec<S
         ("list", caps.iter().any(|c| matches!(c, C::List(_)))),
         ("export", caps.iter().any(|c| matches!(c, C::Export(_)))),
         ("call", caps.iter().any(|c| matches!(c, C::Call(_)))),
+        ("cancel", caps.iter().any(|c| matches!(c, C::Cancel(_)))),
     ] {
         if !present {
             return Err(format!(
@@ -667,7 +668,7 @@ async fn seed_and_call(
         return Err("seeding the Operation bead returned not_implemented".into());
     }
     let outcome = r
-        .call(&target, Request(RawJson(Bytes::from(args.as_bytes().to_vec()))))
+        .call(&target, Request(RawJson(Bytes::from(args.as_bytes().to_vec()))), CallMode::Sync)
         .await
         .map_err(|e| {
             format!(
@@ -741,7 +742,7 @@ async fn call_declared_failure_409(r: &RemoteScope) -> Result<Vec<SurfaceId>, St
 /// would satisfy `call/409`, and one that answered 200 to every call would satisfy `op/call`.
 async fn call_unresolvable_operation_never_ran(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let absent = ResourceId::head(Scope::This, Id("op-does-not-exist".into()));
-    match r.call(&absent, Request(RawJson(Bytes::from_static(b"{}")))).await {
+    match r.call(&absent, Request(RawJson(Bytes::from_static(b"{}"))), CallMode::Sync).await {
         Err(BdpError::NotFound(_)) => Ok(vec![]),
         Ok(res) => Err(format!(
             "calling an unresolvable operation must fault with a bare Problem (the operation never \
@@ -750,6 +751,355 @@ async fn call_unresolvable_operation_never_ran(r: &RemoteScope) -> Result<Vec<Su
         )),
         Err(other) => Err(format!("expected NotFound for an unresolvable operation, got {other:?}")),
     }
+}
+
+
+// ---- cancel -----------------------------------------------------------------
+//
+// `cancel` is the expensive primitive, because there is nothing to cancel until an operation can
+// be minted asynchronously: `command cancel(asyncResult: unpinned<AsyncResult>) -> pinned<AsyncResult>`
+// targets a handle, and a handle only exists once `call ?mode=async` has made one. So every case
+// below opens with a minted handle, and the mint is verified before anything is asserted about the
+// cancel — the `delete+erased` lesson, where a case passed with its seed never having run.
+
+/// Does this subject ADVERTISE async `call`? Keyed, not assumed: §3.3 makes every primitive beyond
+/// the floor "present iff advertised", and `CallCaps.async_supported` is the sub-capability that
+/// says whether a handle can be minted at all. A scope without it cannot reach any `cancel` row,
+/// and answering `501` is conformant rather than deficient.
+fn async_call_offered(r: &RemoteScope) -> bool {
+    use PrimitiveCapabilities as C;
+    r.capabilities().iter().any(|c| matches!(c, C::Call(c) if c.async_supported))
+}
+
+/// Does this subject ADVERTISE `cancel`? Same reading, one level up: `cancel` is its own primitive
+/// in the §3.3 index, so it is advertised (and refusable) independently of `call`.
+fn cancel_offered(r: &RemoteScope) -> bool {
+    use PrimitiveCapabilities as C;
+    r.capabilities().iter().any(|c| matches!(c, C::Cancel(_)))
+}
+
+/// A bead representation's `properties`, decoded. Faults loudly rather than returning an empty
+/// object: a case that read `{}` for an unparseable body would assert against the wrong thing.
+fn bead_properties(rep: &Representation) -> Result<serde_json::Value, String> {
+    match rep {
+        Representation::Bead { properties, .. } => serde_json::from_slice(&properties.0)
+            .map_err(|e| format!("the bead's properties are not JSON: {e}")),
+        other => Err(format!("expected a Bead representation, got {other:?}")),
+    }
+}
+
+/// Drop a handle's revision, so it can be handed to `cancel`.
+///
+/// THIS STEP IS FORCED BY THE TYPES AND IT IS WORTH NAMING. `call ?mode=async` answers with
+/// `rep<AsyncResult>`, whose `id` is PINNED — a representation always carries the revision it is
+/// of. `cancel` takes `unpinned<AsyncResult>`. So the handle a caller is handed is not in the form
+/// the primitive that kills it accepts, and the caller must unpin it.
+///
+/// That is not an inconvenience to paper over: `cancel` declares no `412`, so there is nothing it
+/// could have done with the revision even if it took one. Unpinning here is the caller doing
+/// explicitly what a client that quietly dropped the `rev` would do invisibly — and the invisible
+/// version is the one that lets a caller believe a revision was checked.
+fn unpinned(r: &ResourceId) -> ResourceId {
+    ResourceId::head(r.scope.clone(), r.id.clone())
+}
+
+/// Seed an Operation bead and `call` it with `CallMode::Async`, returning the minted handle's ref.
+///
+/// VERIFIES THE MINT, because every `cancel` case depends on it: a `not_implemented` is an `Ok`
+/// signal, so an unguarded async call "succeeds" against a subject that mints nothing and the
+/// cancel case then fails naming the wrong thing — or passes.
+async fn mint_handle(r: &RemoteScope, op_id: &str) -> Result<ResourceId, String> {
+    let target = ResourceId::head(Scope::This, Id(op_id.into()));
+    let seeded = r
+        .put(target.clone(), operation_body("echo"), Guards::default())
+        .await
+        .map_err(|e| format!("seeding the Operation bead failed: {e:?}"))?;
+    if seeded.not_implemented {
+        return Err("seeding the Operation bead returned not_implemented".into());
+    }
+    let res = r
+        .call(&target, Request(RawJson(Bytes::from_static(b"{}"))), CallMode::Async)
+        .await
+        .map_err(|e| format!("the async `call` faulted instead of minting a handle: {e:?}"))?;
+    if res.not_implemented {
+        return Err(
+            "`call` advertises `asyncSupported` but answered not_implemented for ?mode=async — an \
+             optional feature is never half-present"
+                .into(),
+        );
+    }
+    match res.value {
+        Some(CallOutcome::Async(reference)) => Ok(reference),
+        Some(CallOutcome::Reply(_)) => Err(
+            "?mode=async settled synchronously. A 200 tells the caller the call is done while it \
+             believes it holds a running operation it could still cancel"
+                .into(),
+        ),
+        None => Err("the async call returned Ok with no CallOutcome".into()),
+    }
+}
+
+/// `call ?mode=async` mints a handle that is PENDING. Claims no row.
+///
+/// `op/call` is ONE denominator row and the sync case already covers it, so claiming it here would
+/// let this case hold the row green if `call_success` broke. What this case is for is the
+/// precondition every `cancel` case rests on, and the one assertion that makes "running" mean
+/// anything: `AsyncResult.reply` is *"the settlement, once it arrives (absent while pending)"*, and
+/// `Outcome`'s normative line is explicit that *"a transient state (running/waiting) is NOT an
+/// arm"* — so a pending handle carries NO outcome at all, rather than a `running` one. A subject
+/// that minted an already-settled handle would have nothing cancellable and every `cancel` row
+/// below would be unreachable for a reason no case would name.
+async fn an_async_call_mints_a_pending_handle(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if !async_call_offered(r) {
+        return Ok(vec![]);
+    }
+    let handle = mint_handle(r, "op-async-pending").await?;
+    let got = r
+        .get(&unpinned(&handle), None)
+        .await
+        .map_err(|e| format!("the minted handle is not readable: {e:?}"))?;
+    let rep = got.value.ok_or("the minted handle read back with no representation")?;
+    let props = bead_properties(&rep)?;
+    if !props["reply"].is_null() {
+        return Err(format!(
+            "a just-minted handle already carries a `reply` ({}), so it is settled and there is \
+             nothing for `cancel` to kill",
+            props["reply"]
+        ));
+    }
+    // The members `cancel` has to carry into the settlement it writes. They are top-level on
+    // `AsyncResult` *"(queryable while pending, before `reply`)"*, which is this read exactly.
+    for required in ["operation", "cause", "callId", "request", "replyChannel"] {
+        if props[required].is_null() {
+            return Err(format!("`AsyncResult.{required}` is a required member and is absent"));
+        }
+    }
+    Ok(vec![])
+}
+
+/// `cancel` a running handle. Covers op/cancel.
+///
+/// The assertion is NOT that the call returned 200 — it is that the handle now carries
+/// `reply.outcome = canceled`, which is what `cancel`'s description says the primitive writes. A
+/// subject that answered 200 and wrote nothing would satisfy a status check and have cancelled
+/// nothing, and it is the same subject a caller could not distinguish from a working one.
+///
+/// Keyed on the declared capabilities twice over: on `Cancel` being advertised (§3.3 — an
+/// un-offered primitive is legitimately refused) and, for the pinned return, on the declared
+/// `revision_model`, because an `unversioned` scope mints no revisions and relaxes every pinned
+/// return to unpinned scope-wide. Asserting a `rev` outright would fail such a scope for a
+/// guarantee it never made.
+async fn cancel_a_running_handle(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if !async_call_offered(r) || !cancel_offered(r) {
+        return Ok(vec![]);
+    }
+    let handle = mint_handle(r, "op-async-cancel").await?;
+    let res = r
+        .cancel(unpinned(&handle))
+        .await
+        .map_err(|e| format!("cancel of a running handle faulted: {e:?}"))?;
+    if res.not_implemented {
+        return Err("`cancel` is advertised but answered not_implemented".into());
+    }
+    let pinned = res.value.ok_or("cancel returned Ok with no ref")?;
+    if pinned.id != handle.id {
+        return Err(format!(
+            "cancel returned a ref to {:?}, not to the handle it was given ({:?})",
+            pinned.id, handle.id
+        ));
+    }
+    if r.scope_capabilities().revision_model == RevisionModel::Versioned && pinned.rev.is_none() {
+        return Err(
+            "`cancel -> pinned<AsyncResult>` must return the revision the cancel minted; a \
+             `versioned` scope mints one, so an unpinned answer loses the caller's proof of WHICH \
+             revision carries the canceled outcome"
+                .into(),
+        );
+    }
+
+    // THE SUBSTANCE: read the handle back and check what was written. The read is UNPINNED on
+    // purpose — the cancel minted a new revision, so a pinned read of the handle as it was handed
+    // out would show the state before the cancel and this assertion would always fail.
+    let got = r
+        .get(&unpinned(&handle), None)
+        .await
+        .map_err(|e| format!("the handle is not readable after cancel: {e:?}"))?;
+    let rep = got.value.ok_or("the cancelled handle read back with no representation")?;
+    let props = bead_properties(&rep)?;
+    let kind = props["reply"]["outcome"]["kind"].as_str().ok_or(
+        "the cancelled handle carries no `reply.outcome.kind`. `cancel` *writes* \
+         `reply.outcome = canceled`, and the arm must be explicit in the body — a reader never \
+         infers it from a status",
+    )?;
+    if kind != "canceled" {
+        return Err(format!("expected the `canceled` arm after cancel, got {kind:?}"));
+    }
+    // `canceled` is a non-domain fate, NOT a domain `Result`. A `failure` here would say the
+    // operation ran and returned its declared `E`; a `fault` would say it ran and broke. Both
+    // claim it DISPATCHED, and the whole point of a cancel is that it did not finish.
+    if !props["reply"]["outcome"]["error"].is_null() || !props["reply"]["outcome"]["problem"].is_null()
+    {
+        return Err(
+            "the `canceled` arm must carry neither `error` (the domain failure arm) nor `problem` \
+             (the fault arm) — those say the operation ran to a verdict"
+                .into(),
+        );
+    }
+    Ok(vec![op("cancel")])
+}
+
+/// `cancel` an asyncResult id the subject never minted → 404. Covers op/cancel/fault/404.
+///
+/// D.8 grounds this one outright: *"404 get of an absent resource"*. Its anti-vacuity guard is
+/// `cancel_a_running_handle` above — without a case proving a real handle IS cancellable, a subject
+/// that answered 404 to every cancel would claim this row.
+async fn cancel_absent_handle_404(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if !cancel_offered(r) {
+        return Ok(vec![]);
+    }
+    let absent = ResourceId::head(Scope::This, Id("async-never-minted".into()));
+    match r.cancel(absent).await {
+        Err(BdpError::NotFound(_)) => Ok(vec![fault("cancel", 404)]),
+        other => Err(format!("expected NotFound for a handle that was never minted, got {other:?}")),
+    }
+}
+
+/// `cancel` a handle that is ALREADY SETTLED → 409. Covers op/cancel/fault/409.
+///
+/// DERIVED from the declared fault set rather than chosen. `cancel` declares `[404, 409]`; D.8
+/// grounds 404 in absence, and this target demonstrably exists. `Outcome`'s normative line supplies
+/// the condition: *"A present `outcome` means the invocation is settled, whichever arm it holds; a
+/// transient state (running/waiting) is NOT an arm"* — and `cancel` acts on a *running* handle. So a
+/// settled handle is the 409.
+///
+/// **It also settles whether `cancel` is idempotent, and the answer is NO** — which is why
+/// cancelling twice is the way this case reaches the row. `delete` is idempotent on an existing
+/// resource and declares no `410` because of it; `cancel` declares a `409` and the same normative
+/// line that makes "settled" terminal says it is settled *whichever arm it holds*. That phrase
+/// deliberately refuses to privilege one arm, so "already `canceled`" is not a state distinguishable
+/// from "already failed", and reading the second cancel as idempotent would invent the distinction
+/// the spec flattens.
+///
+/// The race the spec is really about — the operation settling on its own just before the cancel
+/// lands — needs a scheduler, and this subject has none: a minted handle stays pending forever.
+/// Double-cancel reaches the same STATE (`reply` present) by the only road available here, and the
+/// case keys on that state rather than on how it was arrived at.
+///
+/// The first cancel is this case's own anti-vacuity guard: if it does not take, there is no settled
+/// handle and the case says so instead of asserting 409 against a running one.
+async fn cancel_a_settled_handle_409(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if !async_call_offered(r) || !cancel_offered(r) {
+        return Ok(vec![]);
+    }
+    let handle = mint_handle(r, "op-async-settled").await?;
+    let first = r
+        .cancel(unpinned(&handle))
+        .await
+        .map_err(|e| format!("the first cancel faulted, so nothing is settled to re-cancel: {e:?}"))?;
+    if first.not_implemented {
+        return Err("`cancel` is advertised but answered not_implemented — the 409 precondition never ran".into());
+    }
+    match r.cancel(unpinned(&handle)).await {
+        Err(BdpError::AlreadySettled { .. }) => Ok(vec![fault("cancel", 409)]),
+        Ok(res) => Err(format!(
+            "cancelling a settled handle must fault 409, not succeed. `cancel` is not idempotent: \
+             a present `outcome` means settled whichever arm it holds, so there is no state in \
+             which a second kill is a no-op. Got Ok({:?})",
+            res.value.is_some()
+        )),
+        Err(other) => Err(format!("expected AlreadySettled (409) for a settled handle, got {other:?}")),
+    }
+}
+
+/// `cancel` of a live resource that is NOT an AsyncResult does not resolve. Claims no row.
+///
+/// The declared parameter is a TYPED ref, `unpinned<AsyncResult>`. A note's id is therefore not a
+/// handle that failed — it is a handle that does not resolve, and 404 is the declared fault for a
+/// target that does not resolve. This is the reading `call` already takes one primitive over, for
+/// `ref<Operation>`: *"a resource that resolves but names no built-in this store has is an
+/// unresolvable operation, not a failed one"*.
+///
+/// **The alternative reading is live**: that the resource exists makes this a conflict with the
+/// current state, which would be the declared 409. Nothing normative distinguishes them — D.8's
+/// 404 line says *"get of an absent resource"* and this one is not absent. The case claims no row
+/// precisely so that a ruling the other way moves no coverage; it is here because the two readings
+/// differ in what a caller does next (re-resolve the handle, versus wait and retry), and silently
+/// picking one without writing it down is how that choice stops being reviewable.
+async fn cancel_of_a_non_handle_does_not_resolve(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if !cancel_offered(r) {
+        return Ok(vec![]);
+    }
+    let note = ResourceId::head(Scope::This, Id("cancel-not-a-handle".into()));
+    seed(r, &note, "an ordinary note").await?;
+    match r.cancel(note).await {
+        Err(BdpError::NotFound(_)) => Ok(vec![]),
+        Ok(res) => Err(format!(
+            "cancelling an ordinary resource must not succeed — `cancel` writes \
+             `reply.outcome = canceled` onto an AsyncResult, and a note has no reply to write. \
+             Got Ok({:?})",
+            res.value.is_some()
+        )),
+        Err(other) => Err(format!(
+            "expected the typed ref not to resolve as a handle (404); got {other:?}. If this is \
+             ruled a 409 instead, that row is declared and this case should claim it"
+        )),
+    }
+}
+
+/// A PINNED handle is refused, not silently cancelled at whatever revision is current. Claims no row.
+///
+/// DERIVED FROM AN ABSENT FAULT. `cancel` takes `unpinned<AsyncResult>` and declares no `412`,
+/// while `put`, `patch` and `delete` each carry a revision guard (D.3) and each declare one. The
+/// missing parameter and the missing fault agree, and together they say `cancel` has no
+/// precondition channel — so a revision on the handle is an argument its declared type forbids,
+/// not a guard to honour.
+///
+/// Which leaves refusing it as the only honest answer. Accepting it and dropping the revision is
+/// the `do_put`-ignored-`If-Match` defect exactly: the caller asked for "cancel only if still at
+/// this revision", gets a success, and cannot learn from the result that nothing checked. That
+/// defect was a lost-update vector in which the unsafe operation SUCCEEDS, which is why this is
+/// asserted rather than left to the type system of a client that may not be this one.
+///
+/// Claims no row because there is no row: the fault is undeclared, and over HTTP it is unreachable
+/// — the route carries an id and `cancel` reads no `If-Match`, so there is no pin channel on the
+/// wire to carry a revision in the first place.
+async fn cancel_refuses_a_pinned_handle(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    if !async_call_offered(r) || !cancel_offered(r) {
+        return Ok(vec![]);
+    }
+    let handle = mint_handle(r, "op-async-pinned").await?;
+    // THE PINNED FORM IS THE ONE THE WIRE HANDED BACK — `rep<AsyncResult>` carries the revision it
+    // is of, so no revision has to be invented to make this case. Under `unversioned` there is no
+    // revision anywhere, so there is nothing to refuse and the case has nothing to say.
+    if handle.rev.is_none() {
+        if r.scope_capabilities().revision_model == RevisionModel::Versioned {
+            return Err("a `versioned` scope's minted handle must carry its revision".into());
+        }
+        return Ok(vec![]);
+    }
+    match r.cancel(handle.clone()).await {
+        Err(_) => {}
+        Ok(res) => {
+            return Err(format!(
+                "a pinned handle must be refused: `cancel` takes `unpinned<AsyncResult>` and \
+                 declares no 412, so there is no precondition for a revision to be checked \
+                 against. Answering it hands back a success to a caller who believes a guard \
+                 held. Got Ok({:?})",
+                res.value.is_some()
+            ))
+        }
+    }
+    // And the refusal must not have cancelled it anyway — a guard that is refused AND applied is
+    // worse than either.
+    let got = r
+        .get(&unpinned(&handle), None)
+        .await
+        .map_err(|e| format!("the handle is not readable after the refused cancel: {e:?}"))?;
+    let rep = got.value.ok_or("the handle read back with no representation")?;
+    if !bead_properties(&rep)?["reply"].is_null() {
+        return Err("the pinned cancel was refused and the handle was cancelled anyway".into());
+    }
+    Ok(vec![])
 }
 
 /// An RFC-6902-subset JSON Patch as the wire body.
@@ -1211,6 +1561,30 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         call_unresolvable_operation_never_ran(&remote),
+    )
+    .await;
+    record(
+        "async call mints a pending handle",
+        &mut covered,
+        &mut failures,
+        an_async_call_mints_a_pending_handle(&remote),
+    )
+    .await;
+    record("cancel", &mut covered, &mut failures, cancel_a_running_handle(&remote)).await;
+    record("cancel/404", &mut covered, &mut failures, cancel_absent_handle_404(&remote)).await;
+    record("cancel/409", &mut covered, &mut failures, cancel_a_settled_handle_409(&remote)).await;
+    record(
+        "cancel of a non-handle",
+        &mut covered,
+        &mut failures,
+        cancel_of_a_non_handle_does_not_resolve(&remote),
+    )
+    .await;
+    record(
+        "cancel refuses a pinned handle",
+        &mut covered,
+        &mut failures,
+        cancel_refuses_a_pinned_handle(&remote),
     )
     .await;
     record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;
