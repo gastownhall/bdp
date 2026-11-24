@@ -185,9 +185,9 @@ type QueryExpr = union {
 /// description: One sort key over the result set; `sort` is an ordered list (the first key is primary).
 type Sort = { field: FieldPath, order: "asc" | "desc" = "asc" }
 
-/// description: The full query — list's rich sibling. The current resources in `scope` matching a boolean/traversal `QueryExpr`, ordered by `sort`, projected by `select`. The capability form of `list(where: Filter)`; a flat `Filter` is the degenerate case. Snapshot (`json`/`jsonl`; no `sse`). (`stdlib/query`; `cli.name: "query"` → `bd query`.)
+/// description: The full query — list's rich sibling. The current resources in `scope` matching a boolean/traversal `QueryExpr`, ordered by `sort`, projected by `select`. The capability form of `list(where: Filter)`; a flat `Filter` is the degenerate case. snapshot<Resource> — a FINITE cut (`--format page|jsonl`; no `sse`). (`stdlib/query`; `cli.name: "query"` → `bd query`.)
 /// normative: Read-or-fault — a malformed predicate faults `malformed-query`; no domain `E`. A service advertising `query` MUST accept every boolean combinator (`all`/`any`/`not`/`cond`); `via` traversal MAY be separately capability-gated and faults `query-capability-unsupported` when the service does not offer it.
-fn query(scope: Scope, where: QueryExpr, sort?: [ Sort ], select?: selector, request?: ReadRequest) -> source<Resource>
+fn query(scope: Scope, where: QueryExpr, sort?: [ Sort ], select?: selector, request?: ReadRequest) -> snapshot<Resource>
 
 // -----------------------------------------------------------------------------
 // §2.2  search — ranked text search
@@ -321,7 +321,7 @@ type KvEntry is Bead {
 
 /// description: Resources not updated within `olderThan` — the "possibly abandoned" view (native `bd stale`). A NAMED entry point over `query`: it composes the `updatedAt`-age predicate so callers need not hand-roll it. Generic over any resource carrying an `updatedAt`. (`stdlib/stale`; `cli.name: "stale"`.)
 /// normative: Read-or-fault. The generic predicate is `updatedAt` age ONLY; a pack MAY refine it (issue additionally excludes actively-leased/claimed work and filters by status) in its own `stale`-flavoured op — those refinements do not live here. `where?` pre-filters, `limit?` caps.
-fn stale(olderThan: Duration, where?: QueryExpr, limit?: integer) -> source<Resource>
+fn stale(olderThan: Duration, where?: QueryExpr, limit?: integer) -> snapshot<Resource>
 
 // -----------------------------------------------------------------------------
 // §3.3  duplicates / similar — DETECTION only (never merge)

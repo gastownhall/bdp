@@ -12,7 +12,7 @@
 //! silently stop catching spec changes, which is why it was dropped once #405 merged.
 //!
 //! Pin: `gastownhall/bdp` `main` @`488a2d01` — merged commits, never draft tips. The surface is
-//! **47 rows (13 ops + 34 faults)** over 9 paths.
+//! **48 rows (13 ops + 35 faults)** over 9 paths.
 //!
 //! **The `paths` block HAS moved, and that is the point of recording it.** It was `770e3ccc…` and
 //! byte-identical from `aa439827` through #407, #408, #410 and #412 — a stability that made it
@@ -162,7 +162,7 @@ fn statuses(span: &str) -> Vec<u16> {
 ///   alone uses it, and that is LOAD-BEARING, not an inconsistency: its statuses carry distinct
 ///   schemas, and its `409` returns a `Reply` (a declared domain failure, branch on the arm), NOT a
 ///   `Problem`. Normalizing it to the shorthand would misstate the wire contract. A counter that
-///   knows only the shorthand silently undercounts by one and reports 46 instead of 47.
+///   knows only the shorthand silently undercounts by one and reports 47 instead of 48.
 pub fn source_surface() -> BTreeSet<SurfaceId> {
     let mut out = BTreeSet::new();
     for line in CORE_LUMEN.lines() {
@@ -331,9 +331,9 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         evidence: "gastownhall/bdp#430 item 5",
     },
     Registration {
-        text: "`sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/export) refuses `format=sse` and faults `400`.",
+        text: "`sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`.",
         disposition: Disposition::SurfaceBearing,
-        evidence: "op/list/fault/400, op/export/fault/400",
+        evidence: "op/list/fault/400, op/export/fault/400, op/revisions/fault/400",
     },
     Registration {
         text: "Supplying both `after` and `from` is malformed and faults `400`.",
@@ -369,7 +369,7 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         // unit tests, IS on-obligation rather than the "reader-side strictness" it was shipped as.
         // Still WAIVED, not Behavioural: "any reader" is not fully discharged while `import` — the
         // other reader — is unbound. The export half is covered by `export_truncation_tests`.
-        text: "An export MUST end with the `ExportEnd` line. ANY reader of an export stream MUST refuse a file that does not end with `ExportEnd` (truncation detection) and MUST NOT treat it as whole.",
+        text: "The completed read is the truncation conformance point: a whole export — a one-shot reader's entire file, or a resumable import AT the call that consumes `ExportEnd` (the ack bearing `complete`) — MUST end with an `ExportEnd`, and a reader that takes a whole export lacking it refuses it (`400`). An intermediate resume chunk is a PREFIX by design: it is acked (`acceptedThrough`, not `complete`) and re-offered from, never refused for want of a terminator.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 9",
     },
@@ -377,6 +377,45 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         text: "`import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 10",
+    },
+    Registration {
+        text: "Import is RESUMABLE over the export's implicit record ordinals ([[core.lumen#ExportRecord]]). `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1`; re-offering a record at or below `acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 11",
+    },
+    Registration {
+        text: "`acceptedThrough` is the last PROCESSED record — applied OR rejected — NOT the last success. A `Conflicted` record counts toward `acceptedThrough`, so resume SKIPS it and never re-offers it; a dropped-and-resumed import converges to the same per-record fates as one uninterrupted call.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 12",
+    },
+    Registration {
+        text: "TWO idempotencies ride import and MUST NOT be conflated. Resume-idempotency is protocol-level: a re-offered ordinal ≤ `acceptedThrough` is a no-op, independent of content. Content `dedup` ([[core.lumen#ImportStrategy]]) is a merge strategy: a record whose resource is already present is skipped. Both surface as `Deduped`, but the first is keyed on the stream ordinal and the second on resource presence — they coincide only by accident.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 13",
+    },
+        // Re-points to SurfaceBearing at the impl PR that binds the params: that is what makes
+        // list/export/revisions `400` reachable. Waived until then -- there is no case to name.
+    Registration {
+        text: "A service offering a read MUST HONOR the floor controls it accepts — not merely declare them: `after` (resume from the cursor), `limit` (window the result), and `format` (encode in the selected transport) — and MUST fault `400` on a malformed value. Silently ignoring a resume cursor or a transport selector — returning the whole set from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT (the silent-failure class, like a dropped `where`). A declared floor param is a promise to act on it.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 14",
+    },
+        // A DISTINCT trigger from item 9's missing terminator, and deliberately NOT SurfaceBearing
+        // on `op/import/fault/400`: one truncation case citing that row would discharge this
+        // obligation too while the count-mismatch trigger never fires. `(op, status)` cannot tell
+        // two triggers apart, and this test only checks the row exists.
+    Registration {
+        text: "A reader refuses (`400`) an `ExportEnd` whose `count` disagrees with the Resource records it closes over — this is what tells a whole file from two exports concatenated (each ending in its own `ExportEnd`), which the implicit record-ordinal (stream position) cannot distinguish.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 15",
+    },
+        // Covering `op/import/fault/422` would prove only that the HARD bound faults. The content
+        // here is the DISTINCTION from it, so the row says nothing about the soft path. Re-points
+        // to Behavioural when a case proves credit:0 + Deferred exists and is not a 422.
+    Registration {
+        text: "Backpressure — an `ImportAck` carrying `credit: 0` and a deferred tail — is soft and temporal, not an error, exactly as [[core.lumen#push]]. It is distinct from `limit-exceeded` (422), the hard rejection of a request that exceeds a static capability bound, fixed by shrinking the request. `dryRun` ([[core.lumen#ImportStrategy]]) is inherently one-shot — nothing durable is written, so nothing can be resumed — and returns a single `complete` ack.",
+        disposition: Disposition::Waived,
+        evidence: "gastownhall/bdp#430 item 16",
     },
 ];
 
@@ -455,7 +494,7 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 34 faults = 47.
+    /// fault statuses. 13 ops + 35 faults = 48.
     ///
     /// RE-PINNED TWICE, and the second re-pin corrects the first.
     ///
@@ -499,7 +538,7 @@ mod tests {
         ("delete", &[404, 409, 412]),
         ("export", &[400]),
         ("get", &[404, 410]),
-        ("import", &[409, 422]),
+        ("import", &[400, 409, 422]),
         ("list", &[400]),
         // 415 pins the request media type to application/json-patch+json, so any other type faults.
         //
@@ -551,7 +590,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 47, "the v0.2.3 surface is 47 rows (13 ops + 34 faults)");
+        assert_eq!(actual.len(), 48, "the v0.2.3 surface is 48 rows (13 ops + 35 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must

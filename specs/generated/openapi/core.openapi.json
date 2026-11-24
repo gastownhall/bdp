@@ -321,7 +321,7 @@
     "/{channel}": {
       "get": {
         "operationId": "pull",
-        "summary": "Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a source of its `pullSchema` event",
+        "summary": "Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a `source<T>` (a LIVE feed) of its",
         "tags": [
           "Core"
         ],
@@ -615,7 +615,7 @@
     "/-/list": {
       "get": {
         "operationId": "list",
-        "summary": "A collection of current resources in a scope, as a source<Resource>",
+        "summary": "A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut)",
         "tags": [
           "Core"
         ],
@@ -653,6 +653,30 @@
             "schema": {
               "$ref": "#/components/schemas/selector"
             }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "format",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Transport"
+            }
           }
         ],
         "responses": {
@@ -678,6 +702,32 @@
         "summary": "The history of one resource — id-targeted like `get`, list-shaped like `list`",
         "tags": [
           "Core"
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "format",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Transport"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -713,6 +763,16 @@
         "tags": [
           "Core"
         ],
+        "parameters": [
+          {
+            "name": "format",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Transport"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "success"
@@ -740,6 +800,16 @@
         "responses": {
           "200": {
             "description": "success"
+          },
+          "400": {
+            "description": "problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "409": {
             "description": "problem",
@@ -1515,15 +1585,15 @@
         "type": "string"
       },
       "Transport": {
-        "description": "The transport projection a caller selects (the `--format` arm): windowed JSON pages, bulk JSONL, or live SSE. `sse` is valid only on a live source (pull); a snapshot (list/export) refuses it.",
+        "description": "The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.",
         "enum": [
-          "json",
+          "page",
           "jsonl",
           "sse"
         ]
       },
       "ReadRequest": {
-        "description": "The input to a streaming read ([[core.lumen#pull]] / [[core.lumen#list]] / [[core.lumen#revisions]]) — where to resume, how much, the transport, and per-item shaping. `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.",
+        "description": "The input to a streaming read — where to resume, how much, the transport, and per-item shaping. ONE request type for every read, `source` ([[core.lumen#pull]]) and `snapshot` ([[core.lumen#list]] / [[core.lumen#revisions]] / [[core.lumen#export]] / stdlib `query`) alike; the valid `format` set is DERIVED from the read's nature (a `source` admits `sse`, a `snapshot` does not). `after` (a cursor) xor `from` (a fresh ordinal) are mutually exclusive. The target is the op's first parameter, not restated here.",
         "type": "object",
         "properties": {
           "after": {
@@ -2478,7 +2548,7 @@
         }
       },
       "ExportRecord": {
-        "description": "One line of an export.",
+        "description": "One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([[core.lumen#import]]). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.",
         "oneOf": [
           {
             "$ref": "#/components/schemas/ExportBegin"
@@ -2550,7 +2620,7 @@
         "additionalProperties": false
       },
       "ImportReport": {
-        "description": "What `import` reports — counts and any skipped/conflicted records.",
+        "description": "The import tally — counts and any conflicted records. It is the `tallies` of the final [[core.lumen#ImportAck]] (the call that consumes `ExportEnd`); the old terminal whole-batch report folds here. Also returned directly by pack ops that summarize a bulk load.",
         "type": "object",
         "properties": {
           "imported": {
@@ -2583,6 +2653,103 @@
           "imported",
           "skipped",
           "conflicts"
+        ],
+        "additionalProperties": false
+      },
+      "ImportResult": {
+        "description": "The fate of one offered export record, in stream order — mirrors [[core.lumen#PushResult]] with an added hard-reject arm. The record is identified by its stream ordinal (its position in the export).",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ordinal": {
+                "$ref": "#/components/schemas/Ordinal"
+              },
+              "kind": {
+                "const": "accepted"
+              }
+            },
+            "required": [
+              "kind",
+              "ordinal"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ordinal": {
+                "$ref": "#/components/schemas/Ordinal"
+              },
+              "kind": {
+                "const": "deduped"
+              }
+            },
+            "required": [
+              "kind",
+              "ordinal"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "const": "deferred"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ordinal": {
+                "$ref": "#/components/schemas/Ordinal"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "conflicted"
+              }
+            },
+            "required": [
+              "kind",
+              "ordinal",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "ImportAck": {
+        "description": "What [[core.lumen#import]] returns — the push-style acknowledgement for a resumable, backpressured bulk load, mirroring [[core.lumen#PushAck]]. `acceptedThrough` is the high-water record ordinal PROCESSED by this call; the importer re-offers the deferred tail from `acceptedThrough + 1`. The call that consumes `ExportEnd` sets `complete: true` and carries the final `tallies`; a one-shot (non-resumable) import returns a single ack already `complete`.",
+        "type": "object",
+        "properties": {
+          "acceptedThrough": {
+            "$ref": "#/components/schemas/Ordinal"
+          },
+          "credit": {
+            "type": "integer"
+          },
+          "retryAfter": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportResult"
+            }
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "tallies": {
+            "$ref": "#/components/schemas/ImportReport"
+          }
+        },
+        "required": [
+          "acceptedThrough",
+          "credit",
+          "results",
+          "tallies"
         ],
         "additionalProperties": false
       },
@@ -2930,6 +3097,9 @@
         "properties": {
           "historyRestore": {
             "type": "boolean"
+          },
+          "window": {
+            "type": "integer"
           }
         },
         "required": [

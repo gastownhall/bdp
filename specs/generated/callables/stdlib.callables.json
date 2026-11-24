@@ -34,7 +34,7 @@
           "required": false
         }
       ],
-      "returns": "source<Resource>"
+      "returns": "snapshot<Resource>"
     },
     {
       "path": "stdlib/search",
@@ -177,7 +177,7 @@
           "required": false
         }
       ],
-      "returns": "source<Resource>"
+      "returns": "snapshot<Resource>"
     },
     {
       "path": "stdlib/duplicates",
