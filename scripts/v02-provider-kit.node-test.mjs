@@ -113,6 +113,16 @@ for (const mutation of [
     assert.notEqual(report.state, "pass");
     assert.equal(JSON.stringify(report).includes("DO_NOT_REPORT_SERVER_VALUE"), false);
   });
+test("a scope advertising the alias overlay flags the unexercised read obligation, not a pass", async () => {
+  const r = await runV02Provider(await serveFixture("aliases-advertised"), {
+    allowRefusalProbes: true,
+    maxPages: 100,
+  });
+  const alias = r.normative.find((p) => p.id === "core:Alias#2");
+  assert.equal(alias?.state, "not-run");
+  assert.equal(r.qualificationComplete, false);
+  assert.equal(r.claimEligible, false);
+});
 test("missing refusal authorization remains incomplete, not a pass or an automatic mutation", async () => {
   const r = await runV02Provider(await serveFixture(), { maxPages: 100 });
   assert.equal(r.state, "incomplete");

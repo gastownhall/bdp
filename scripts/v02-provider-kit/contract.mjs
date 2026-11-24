@@ -196,9 +196,12 @@ export function capabilities(value) {
     }
   record(
     value.scope,
-    ["storageClasses", "revisionModel", "idModel"],
+    ["storageClasses", "revisionModel", "idModel", "aliases"],
     ["storageClasses", "revisionModel"],
   );
+  // ScopeCapabilities.aliases (AliasCaps) — presence signals the scope-root alias overlay.
+  if (value.scope.aliases !== undefined)
+    requireThat(object(value.scope.aliases), "AliasCaps must be a record when advertised");
   requireThat(
     ["versioned", "unversioned"].includes(value.scope.revisionModel),
     "Invalid scope revision model",

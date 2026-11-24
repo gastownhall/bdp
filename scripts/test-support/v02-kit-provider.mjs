@@ -29,6 +29,9 @@ export async function serveFixture(mutation = "none") {
     scope: { storageClasses: [], revisionModel: "versioned", idModel: "permanent" },
     packs: { stdlib: { query: { via: true }, count: {} } },
   };
+  // A scope advertising the alias overlay: the kit must FLAG the unexercised read
+  // obligation (Alias#2 -> not-run), never silently qualify it.
+  if (mutation === "aliases-advertised") caps.scope.aliases = {};
   const wrap = (id, type, body) => ({
     id: { id, rev: "1" },
     type,

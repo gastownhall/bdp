@@ -171,9 +171,9 @@
           "anchor": "Alias#2",
           "sha256": "278822abd673923f705f9e5e9d43fa8f4508eb2d47aba237892fc9a7c5e9e7f1",
           "checks": [
-            "core.read-only"
+            "core.discovery"
           ],
-          "appliesWhen": "unoffered-write"
+          "appliesWhen": "aliases"
         },
         {
           "anchor": "Alias#3",
@@ -471,7 +471,7 @@
           "checks": [
             "core.read-only"
           ],
-          "appliesWhen": "unoffered-write"
+          "appliesWhen": "unreachable-read-only"
         },
         {
           "anchor": "delete#7",
@@ -479,7 +479,7 @@
           "checks": [
             "core.read-only"
           ],
-          "appliesWhen": "unoffered-write"
+          "appliesWhen": "unreachable-read-only"
         },
         {
           "anchor": "selector#1",
@@ -635,7 +635,7 @@
           "checks": [
             "core.read-only"
           ],
-          "appliesWhen": "unoffered-write"
+          "appliesWhen": "unreachable-read-only"
         },
         {
           "anchor": "IdModel#2",
@@ -925,5 +925,8 @@
       ],
       "appliesWhen": "unoffered-write"
     }
-  ]
+  ],
+  "trackingIssues": {
+    "gastownhall/bdp#443": "Untracked read-coverage cases: Alias#2 resolution overlay (aliases-gated) and selector#1 baseline params (?include/?omit/?expand)."
+  }
 }

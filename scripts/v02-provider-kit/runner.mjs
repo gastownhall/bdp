@@ -1004,6 +1004,26 @@ export async function runV02Provider(target, options = {}) {
           state: done.get("core.read-only")?.state === "pass" ? "not-applicable" : "not-run",
           reason: "Mutation semantics are outside this explicitly read-only profile",
         };
+      if (p.appliesWhen === "unreachable-read-only")
+        return {
+          ...p,
+          state: done.get("core.read-only")?.state === "pass" ? "not-applicable" : "not-run",
+          reason:
+            "Reader obligation unreachable by a pure read-only client (the read fault needs a prior delete to stage the tombstone)",
+        };
+      if (p.appliesWhen === "aliases")
+        return caps?.scope?.aliases
+          ? {
+              ...p,
+              state: "not-run",
+              reason:
+                "Alias read-resolution overlay is advertised but has no qualification case yet (tracked)",
+            }
+          : {
+              ...p,
+              state: "not-applicable",
+              reason: "The alias resolution overlay is not advertised",
+            };
       if (p.appliesWhen?.startsWith("stdlib:") && !hasStdlib(p.appliesWhen.slice(7)))
         return {
           ...p,
