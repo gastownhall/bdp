@@ -477,9 +477,396 @@ pub fn obligation_ledger() -> Ledger {
     l
 }
 
+// ---- the INPUT lowering: can the generated contract say how to INVOKE each op? ----------------
+
+/// One primitive's input lowering — what its `core.lumen` signature DECLARES, against what the
+/// generated OpenAPI can actually CARRY.
+///
+/// THE DENOMINATOR ABOVE CANNOT SEE THIS, which is the whole reason this exists. [`denominator`]
+/// counts ops and their declared `>=400` statuses, and both are present and correct for all 13
+/// primitives. So the contract can be complete in every row this gate counts and still not say how
+/// to INVOKE the operation — no request body, no parameter, nowhere for a declared input to ride.
+///
+/// The tier-1 cases do not catch it either, and that is worth stating plainly: they drive a
+/// reference that carries inputs the contract never declared, so they pass over a wire the contract
+/// cannot describe. A green gate over an unusable contract is the exact failure the two-sided
+/// generator witness ([`source_surface`]) was added for, one level further in — there the two sides
+/// were the generated catalog and the source it comes from; here they are an operation's signature
+/// and the `/// openapi =` annotation hand-written three lines above it, with nothing comparing
+/// them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputLowering {
+    pub op: String,
+    /// The signature parameter the path carries, named by the annotation's `pathItem`.
+    pub path_param: Option<String>,
+    /// Signature parameters that must therefore ride a param or the request body.
+    pub declared: Vec<String>,
+    /// The `params = { … }` KEYS from the annotation. The key is the Lumen parameter name; a
+    /// nested `name = "If-Match"` is its wire spelling, so the keys are what a signature compares
+    /// against.
+    pub carried: Vec<String>,
+    /// Whether the annotation declares `request = { contentType = … }`.
+    pub has_request_body: bool,
+    /// Declared parameters with nowhere on the wire to ride: not the path, not a param, and no
+    /// request body to fall back on.
+    pub uncarried: Vec<String>,
+}
+
+/// Signature parameters the annotation lowers under a DIFFERENT name.
+///
+/// Each needs a reason, because an unexplained alias and a dropped parameter look identical from
+/// here — and reading one as the other is how this check would acquire a false positive and then be
+/// widened to silence it.
+pub const LOWERED_UNDER_ANOTHER_NAME: &[(&str, &str, &str)] = &[(
+    "get",
+    "selector",
+    "lowered as the `select` query param. `get`'s annotation also carries `revision`, `include`, \
+     `omit` and `expand`, none of which has a signature counterpart at all — so this annotation is \
+     MORE complete than its signature, not less, and the mismatch is a spelling rather than a gap.",
+)];
+
+/// Declared inputs that the generated contract CANNOT carry, registered with what each costs.
+///
+/// THIS IS A REGISTER, NOT A SUPPRESSION LIST, and the test below asserts it in BOTH directions: an
+/// unregistered uncarried input fails, and a registered one that becomes carriable fails too. So
+/// closing any of these turns the gate red until its entry is removed in the same change, and no
+/// entry can quietly outlive the gap it describes.
+///
+/// WHY THESE ARE REGISTERED RATHER THAN FIXED. A plausible ruling makes the current annotations
+/// correct: that the OpenAPI lowering is a ROUTE and FAULT surface, with inputs specified by the
+/// Lumen signature and the prose, and never intended as a complete client contract. On that reading
+/// nothing here is a defect and the fix would be to say so in the spec. The opposite ruling — that
+/// the lowering is the machine-readable contract — makes every row below a blocker, because an
+/// implementer handed `core.openapi.json` cannot create, write or call at all. The evidence leans
+/// the second way (`list` carries all eight of its params, `put` carries its three guards, and
+/// `patch`/`import`/`push` all declare a `request` body, so the vocabulary is used completely where
+/// an author filled it in) but leaning is not a ruling, and authoring the fix would decide it.
+pub const UNCARRIED_INPUTS: &[(&str, &str, &str)] = &[
+    (
+        "call",
+        "request",
+        "the invocation payload. `call` is POST with one `mode` query param and no request body, so \
+         there is no channel for the argument of the call.",
+    ),
+    (
+        "create",
+        "requestedId",
+        "`create` declares NO params and NO request body — its annotation carries only `success`, \
+         `responseHeaders` and `problem`. All five non-path inputs are uncarriable, so the \
+         generated contract describes no way to create a resource.",
+    ),
+    ("create", "type", "see `create`/`requestedId`."),
+    ("create", "authority", "see `create`/`requestedId`."),
+    ("create", "body", "see `create`/`requestedId`."),
+    ("create", "metadata", "see `create`/`requestedId`."),
+    (
+        "put",
+        "type",
+        "`put` carries its three GUARDS (`If-Match`, `If-None-Match`, `precondition`) and declares \
+         no request body, so the representation it writes has nowhere to ride. The guards being \
+         present is what makes this an omission rather than a policy: the annotation is used, just \
+         not finished.",
+    ),
+    ("put", "authority", "see `put`/`type`."),
+    ("put", "body", "see `put`/`type`."),
+    ("put", "metadata", "see `put`/`type`."),
+    (
+        "export",
+        "where",
+        "`export`'s own filter. Its normative line REQUIRES this parameter to exist — it rejects \
+         `request.filter` with `400` precisely because \"filtering and projection are the op's own \
+         `where`/`select`\" — so the annotation contradicts the obligation three lines above it.",
+    ),
+    (
+        "export",
+        "select",
+        "`export`'s own projection, required to exist by the same normative line as \
+         `export`/`where`. Also the open question on `ExportCaps`, which has no selector field, so \
+         a scope cannot advertise this either way.",
+    ),
+    (
+        "export",
+        "revisions",
+        "the `--revisions` flag the description leans on (\"`--revisions` emits every revision in \
+         order (a true backup)\"). Uncarried, so the generated contract offers no way to ask for \
+         the backup form of an export.",
+    ),
+    (
+        "revisions",
+        "select",
+        "declared `select?: selector` with the description \"Projection per revision — ids-only vs \
+         full representations\", and absent from the annotation's params. `list` — the sibling this \
+         op's own description compares it to (\"list-shaped like `list`\") — carries its `select`, \
+         which is what makes this a drop rather than a design.",
+    ),
+];
+
+/// Derive the input lowering for every primitive carrying an `/// openapi =` annotation.
+///
+/// Parses two things the file keeps three lines apart and never cross-checks:
+///   * the annotation — `pathItem`, the `params` keys, and whether a `request` body is declared;
+///   * the signature — `fn`, `command` or `idempotent command`, one parameter per line at four
+///     spaces, up to the `) ->` return.
+///
+/// A `request?: ReadRequest` parameter is EXCLUDED as the documented expansion into
+/// `after`/`from`/`limit`/`format`. The type is what decides that, never the name: `call` also has
+/// a parameter called `request` and its type is `Request`, the invocation payload, which has to be
+/// carried like any other input. Matching on the name alone hid `call` when this was first written.
+pub fn input_lowering() -> Vec<InputLowering> {
+    let mut out: Vec<InputLowering> = Vec::new();
+
+    for line in CORE_LUMEN.lines() {
+        let l = line.trim_start();
+        if !l.starts_with("///") || !l.contains("openapi") {
+            continue;
+        }
+        let Some(idx) = l.find("operationId") else { continue };
+        let Some(rest) = l[idx..].split_once('"').map(|(_, r)| r) else { continue };
+        let Some((op, _)) = rest.split_once('"') else { continue };
+
+        let path_param = l.find("pathItem").and_then(|i| {
+            l[i..].split_once('"').and_then(|(_, r)| r.split_once('"').map(|(v, _)| v.to_string()))
+        });
+
+        let carried: Vec<String> = match l.find("params = {") {
+            Some(i) => balanced(l, i, b'{', b'}').map(keys_of).unwrap_or_default(),
+            None => Vec::new(),
+        };
+
+        let has_request_body = l.contains("request = {");
+        let sig = signature_params(op);
+        assert!(
+            !sig.is_empty(),
+            "no signature parameters parsed for `{op}`. Every primitive declares at least its own \
+             target, so an empty list means the parse missed the declaration form — and a parse \
+             that reports nothing reports every op as clean. Teach `signature_params` the form \
+             rather than letting this return an empty verdict.",
+        );
+
+        let declared: Vec<String> = sig
+            .iter()
+            .filter(|(n, t)| {
+                Some(n.as_str()) != path_param.as_deref() && !(n == "request" && t.contains("ReadRequest"))
+            })
+            .map(|(n, _)| n.clone())
+            .collect();
+
+        let uncarried: Vec<String> = if has_request_body {
+            Vec::new()
+        } else {
+            declared
+                .iter()
+                .filter(|n| {
+                    !carried.contains(n)
+                        && !LOWERED_UNDER_ANOTHER_NAME
+                            .iter()
+                            .any(|(o, p, _)| *o == op && *p == n.as_str())
+                })
+                .cloned()
+                .collect()
+        };
+
+        out.push(InputLowering {
+            op: op.to_string(),
+            path_param,
+            declared,
+            carried,
+            has_request_body,
+            uncarried,
+        });
+    }
+    out
+}
+
+/// The `word = {` keys of a `params = { … }` span, in order.
+fn keys_of(span: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = span.as_bytes();
+    let mut i = 0usize;
+    while let Some(eq) = span[i..].find(" = {").map(|p| i + p) {
+        let key_end = eq;
+        let mut key_start = key_end;
+        while key_start > 0 && (bytes[key_start - 1].is_ascii_alphanumeric() || bytes[key_start - 1] == b'_') {
+            key_start -= 1;
+        }
+        if key_start < key_end {
+            out.push(span[key_start..key_end].to_string());
+        }
+        // Skip the whole nested record, so an inner `name = { … }` is never read as a param key.
+        match balanced(span, eq, b'{', b'}') {
+            Some(inner) => {
+                let after = inner.as_ptr() as usize - span.as_ptr() as usize + inner.len();
+                i = (after + 1).min(span.len());
+            }
+            None => i = (eq + 4).min(span.len()),
+        }
+    }
+    out
+}
+
+/// One primitive's signature parameters as `(name, type)`, in declaration order.
+///
+/// Accepts all three declaration forms `core.lumen` uses — `fn op(`, `command op(` and
+/// `idempotent command op(`, with optional generics (`fn get<T>(`). Reads only parameters at
+/// exactly four spaces, so a nested record field inside a parameter's type is never mistaken for a
+/// parameter.
+fn signature_params(op: &str) -> Vec<(String, String)> {
+    let mut lines = CORE_LUMEN.lines();
+    while let Some(l) = lines.next() {
+        let head = l
+            .strip_prefix("idempotent ")
+            .unwrap_or(l)
+            .strip_prefix("fn ")
+            .or_else(|| l.strip_prefix("idempotent ").unwrap_or(l).strip_prefix("command "));
+        let Some(head) = head else { continue };
+        let name: String = head.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+        if name != op {
+            continue;
+        }
+        let after = &head[name.len()..];
+        // `(` directly, or after a generic parameter list.
+        let opens = after.starts_with('(')
+            || (after.starts_with('<') && after.split_once('>').is_some_and(|(_, r)| r.starts_with('(')));
+        if !opens {
+            continue;
+        }
+        let mut out = Vec::new();
+        for body in lines.by_ref() {
+            let t = body.trim_start();
+            if t.starts_with(") ->") || t.starts_with(")->") {
+                break;
+            }
+            if t.starts_with("///") || t.starts_with("//") {
+                continue;
+            }
+            let Some(decl) = body.strip_prefix("    ") else { continue };
+            if decl.starts_with(' ') {
+                continue;
+            }
+            let Some((lhs, rhs)) = decl.split_once(':') else { continue };
+            let pname = lhs.trim().trim_end_matches('?');
+            if pname.is_empty() || !pname.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                continue;
+            }
+            out.push((pname.to_string(), rhs.trim().trim_end_matches(',').to_string()));
+        }
+        return out;
+    }
+    Vec::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every declared input must have somewhere on the wire to ride, or be REGISTERED as not
+    /// having one. Asserted in both directions, so neither the gap nor the register can rot.
+    #[test]
+    fn every_declared_input_is_carriable_or_registered() {
+        let lowering = input_lowering();
+        assert_eq!(
+            lowering.len(),
+            CORE_PRIMITIVES.len(),
+            "input lowering must cover all 13 primitives; got {}",
+            lowering.len()
+        );
+
+        let observed: BTreeSet<(String, String)> = lowering
+            .iter()
+            .flat_map(|l| l.uncarried.iter().map(|p| (l.op.clone(), p.clone())))
+            .collect();
+        let declared: BTreeSet<(String, String)> =
+            UNCARRIED_INPUTS.iter().map(|(o, p, _)| (o.to_string(), p.to_string())).collect();
+
+        let unregistered: Vec<&(String, String)> = observed.difference(&declared).collect();
+        assert!(
+            unregistered.is_empty(),
+            "{} declared input(s) have NOWHERE on the wire to ride and are not registered: {:?}.\n\
+             The generated contract cannot say how to supply them, so an implementer working from \
+             `core.openapi.json` alone cannot invoke the operation. Either lower the parameter in \
+             the `/// openapi =` annotation, or add it to UNCARRIED_INPUTS with what it costs.",
+            unregistered.len(),
+            unregistered
+        );
+
+        // The other direction: an entry that is no longer needed is a claim that has expired.
+        let stale: Vec<&(String, String)> = declared.difference(&observed).collect();
+        assert!(
+            stale.is_empty(),
+            "UNCARRIED_INPUTS registers {} input(s) that ARE now carriable: {:?}. The gap closed \
+             and the entry outlived it — remove it in the change that closed it.",
+            stale.len(),
+            stale
+        );
+    }
+
+    /// The alias register must stay honest the same way: an alias that stops being needed is an
+    /// unexplained exemption, and an alias for a parameter that is NOT in the signature is a stale
+    /// name nobody is lowering.
+    #[test]
+    fn the_alias_register_names_only_live_aliases() {
+        let lowering = input_lowering();
+        for (op, param, _) in LOWERED_UNDER_ANOTHER_NAME {
+            let l = lowering
+                .iter()
+                .find(|l| l.op == *op)
+                .unwrap_or_else(|| panic!("alias register names `{op}`, which is not a primitive"));
+            assert!(
+                l.declared.iter().any(|d| d == param),
+                "alias register claims `{op}` declares `{param}`, but its signature does not. \
+                 The parameter was renamed or removed and this entry now lowers nothing."
+            );
+            assert!(
+                !l.carried.iter().any(|c| c == param),
+                "`{op}`'s annotation now carries `{param}` under its OWN name, so the alias entry \
+                 is obsolete — remove it."
+            );
+        }
+    }
+
+    /// THE PARSE MUST NOT BE VACUOUS. Both checks above are clean if `signature_params` returns
+    /// nothing, so the parse is asserted directly: a form it cannot read reports every op as
+    /// carrying every input.
+    #[test]
+    fn the_signature_parse_reaches_every_primitive() {
+        for op in CORE_PRIMITIVES {
+            let ps = signature_params(op);
+            assert!(
+                !ps.is_empty(),
+                "`signature_params(\"{op}\")` found nothing. `core.lumen` declares primitives as \
+                 `fn`, `command` and `idempotent command`, with optional generics — a form this \
+                 parser cannot read makes the lowering checks pass by measuring nothing."
+            );
+        }
+        // And it must find the three declaration forms, not just one: `get` is `fn get<T>(`,
+        // `push` is `command push(`, `put` is `idempotent command put(`. If a future rewrite
+        // collapses them this still holds; if the parser regresses to one form, it fails.
+        assert!(signature_params("get").iter().any(|(n, _)| n == "resource"));
+        assert!(signature_params("push").iter().any(|(n, _)| n == "events"));
+        assert!(signature_params("put").iter().any(|(n, _)| n == "body"));
+    }
+
+    /// `call`'s `request` is the invocation payload, NOT a `ReadRequest` expansion, and the
+    /// lowering must keep them apart. Written as its own test because excluding `request` by NAME
+    /// is the obvious implementation and it silently hid `call` when this was first built.
+    #[test]
+    fn a_read_request_expansion_is_not_confused_with_a_payload() {
+        let lowering = input_lowering();
+        let call = lowering.iter().find(|l| l.op == "call").expect("call");
+        assert!(
+            call.declared.iter().any(|d| d == "request"),
+            "`call`'s `request: Request` is the argument of the call and must be treated as an \
+             input needing a channel, not dropped as a ReadRequest expansion"
+        );
+        for op in ["list", "pull", "export", "revisions"] {
+            let l = lowering.iter().find(|l| l.op == op).expect(op);
+            assert!(
+                !l.declared.iter().any(|d| d == "request"),
+                "`{op}`'s `request?: ReadRequest` lowers to after/from/limit/format and must not \
+                 be counted as an uncarried input"
+            );
+        }
+    }
 
     #[test]
     fn denominator_has_13_ops_and_matches_core_primitives() {
