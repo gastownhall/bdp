@@ -213,6 +213,8 @@ The representation of a versioned resource — the protocol envelope around a ty
 
 > **Normative.** The envelope members are fixed and closed — a domain type contributes only `body`, never a new envelope member. `id`, `type` and `body` are always present; the rest is optional. On a representation `id.rev` is the resolved revision; a reference floats to the current revision when its `rev` is absent.
 
+> **Normative.** A TOMBSTONE — the final revision [delete](#delete) mints — carries `retired: true` and a `null` body, so it is an untyped [Resource](#Resource) (`rep<any>`), never a typed representation. It is a real, pinnable revision: it appears in [revisions](#revisions) (which yields `Resource`) and resolves through a pinned reference. A live revision has `retired` absent or false and a non-null body. An UNPINNED read of a retired resource faults `410 Gone`; the tombstone is still reachable by pinning its `rev`, so retirement is observable, not merely an error.
+
 ```lumen
 type rep<T> = {
   id:            ResourceId
@@ -223,6 +225,7 @@ type rep<T> = {
   provenance?:   Provenance
   createdAt?:    Timestamp
   storageClass?: StorageClass
+  retired?:      bool
 }
 ```
 
@@ -236,6 +239,7 @@ type rep<T> = {
 | `provenance?` | `Provenance` | Who caused this revision, how its period began, and when. |
 | `createdAt?` | `Timestamp` | The resource's birth time, denormalized onto every revision. |
 | `storageClass?` | `StorageClass` | How the resource is kept — durable, ephemeral, or intrinsic. |
+| `retired?` | `bool` | True on a tombstone — the final, retired revision ([delete](#delete)); its `body` is `null`. Absent or false on a live revision. |
 
 <a id="Resource"></a>
 
@@ -1592,7 +1596,9 @@ idempotent command delete(
 |---|---|---|
 | `resource` | `unpinned<any>` | The resource to retire (its current revision). |
 
-Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create / put / patch / delete).
+Cascade and dry-run are NOT flags on the core primitive — they live in the stdlib facade deleteResource (0.2.3 ruling: `bd delete` has one wire manifestation, and the richer shape goes to stdlib), keeping `delete` minimal and the core wire frozen. 0.2.4 may fold the facade's generic shape back into `delete`.
+
+`delete` returns the bare tombstone `Rev`, not a pinned ref — intentionally breaking the "writes return a pinned ref" symmetry, because a tombstone has no typed representation to return (`retired: true`, `body: null`); the tombstone is reachable by pinning that `Rev`.
 
 > **Open** — the CLIENT side of the recycled-id retry. A `reusable` scope must now > advertise a guard on `delete` ([IdModel](#IdModel)), so the mechanism is always > there; what is not yet stated is whether a client retrying a `delete` under `reusable` > MUST use it. Offering a guard does not oblige anyone to reach for it, and an unguarded > retry stays unsafe: A deletes X, the response is lost, B legitimately takes the freed > id, and A's retry destroys B's resource — reporting success, so A cannot learn it from > the result. `delete`'s idempotency makes the STATUS stable, never the effect. The > obligation would sit beside the reference rule in [IdModel](#IdModel). Note that on a > `reusable` scope the guard is the ONLY such instrument: the parallel safety net for a > reference, a pinned revision, does not exist there, because `reusable` requires > `unversioned` ([ScopeCapabilities](#ScopeCapabilities)). That makes the question sharper, not > softer — there is nothing else for a careful client to reach for.
 

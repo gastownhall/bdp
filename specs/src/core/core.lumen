@@ -195,6 +195,7 @@ type unpinned<T> is ref<T> { rev: null }
 ## rep
 /// description: The representation of a versioned resource — the protocol envelope around a typed `body: T`. The by-value form a read returns; `ref<T>` is the by-reference form. `Resource` is `rep<any>`, an untyped representation.
 /// normative: The envelope members are fixed and closed — a domain type contributes only `body`, never a new envelope member. `id`, `type` and `body` are always present; the rest is optional. On a representation `id.rev` is the resolved revision; a reference floats to the current revision when its `rev` is absent.
+/// normative: A TOMBSTONE — the final revision [[core.lumen#delete]] mints — carries `retired: true` and a `null` body, so it is an untyped [[core.lumen#Resource]] (`rep<any>`), never a typed representation. It is a real, pinnable revision: it appears in [[core.lumen#revisions]] (which yields `Resource`) and resolves through a pinned reference. A live revision has `retired` absent or false and a non-null body. An UNPINNED read of a retired resource faults `410 Gone`; the tombstone is still reachable by pinning its `rev`, so retirement is observable, not merely an error.
 type rep<T> = {
   /// description: The resource's identity (scope + id); on a representation `rev` is the resolved revision, on a reference the optional pin.
   id:            ResourceId
@@ -212,6 +213,8 @@ type rep<T> = {
   createdAt?:    Timestamp
   /// description: How the resource is kept — durable, ephemeral, or intrinsic.
   storageClass?: StorageClass
+  /// description: True on a tombstone — the final, retired revision ([[core.lumen#delete]]); its `body` is `null`. Absent or false on a live revision.
+  retired?:      bool
 }
 
 ## Resource
@@ -1156,7 +1159,10 @@ idempotent command delete(
     resource:    unpinned<any>,
 
 
-// Todo: restore the cascade-delete flag (on delete) and a dry-run flag (on create / put / patch / delete).
+// Cascade and dry-run are NOT flags on the core primitive — they live in the stdlib facade
+// [[stdlib.lumen#deleteResource]] (0.2.3 ruling: `bd delete` has one wire manifestation, and
+// the richer shape goes to stdlib), keeping `delete` minimal and the core wire frozen. 0.2.4
+// may fold the facade's generic shape back into `delete`.
 
 
     /// description: Revision guard → `If-Match`. Delete only if this matches the current revision.
@@ -1164,8 +1170,9 @@ idempotent command delete(
     /// description: State guard → `?precondition=`. Delete only if the current resource satisfies this Filter; else `precondition-failed`. Direct `DELETE` carries the guard on the request line; an over-budget delete guard MAY use the advertised POST spill (an `Envelope` with `precondition` only, no body).
     precondition?: Filter
   ) -> Rev
-// >DB? delete → bare `Rev` (your instinct) breaks the "writes return a pinned ref"
-// symmetry on purpose — a tombstone has no representation. Confirm.
+// `delete` returns the bare tombstone `Rev`, not a pinned ref — intentionally breaking the
+// "writes return a pinned ref" symmetry, because a tombstone has no typed representation to
+// return (`retired: true`, `body: null`); the tombstone is reachable by pinning that `Rev`.
 
 // > **Open** — the CLIENT side of the recycled-id retry. A `reusable` scope must now
 // > advertise a guard on `delete` ([[core.lumen#IdModel]]), so the mechanism is always

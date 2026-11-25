@@ -120,6 +120,9 @@
         },
         "storageClass": {
           "$ref": "#/$defs/StorageClass"
+        },
+        "retired": {
+          "type": "boolean"
         }
       },
       "required": [

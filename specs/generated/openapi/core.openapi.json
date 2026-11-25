@@ -980,6 +980,9 @@
           },
           "storageClass": {
             "$ref": "#/components/schemas/StorageClass"
+          },
+          "retired": {
+            "type": "boolean"
           }
         },
         "required": [
