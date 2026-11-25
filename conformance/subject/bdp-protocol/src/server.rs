@@ -208,7 +208,10 @@ impl<S: BdpScope> Server<S> {
         let page = p::Page {
             after: None,
             from: None,
-            limit: req.query.get("limit").and_then(|s| s.parse::<u32>().ok()),
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
         };
         match self.scope.list(&p::ListFilter(vec![]), page).await {
             Ok(res) if res.not_implemented => unmapped("list not implemented by this scope"),
@@ -304,8 +307,45 @@ impl<S: BdpScope> Server<S> {
                 "export `where` filtering is not carried by this binding — same reason as `list`",
             );
         }
+
+        // rc2 NAMES THIS FAULT, which is what makes it a producer rather than a guess: "`export`
+        // honors only `after`, `limit` and `format` of `request`; `request.filter`,
+        // `request.select` and `request.from` are rejected `400` — filtering and projection are the
+        // op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal."
+        //
+        // `from` IS THE UNAMBIGUOUS ONE and the only one asserted here. `select` and `filter` as
+        // query names are ambiguous over this binding: export ALSO declares its own `select?` and
+        // `where?`, and those are not lowered into the generated params at all
+        // (gastownhall/bdp#450), so a `?select=` could be either the rejected `request.select` or
+        // the op's own parameter arriving by a spelling nobody declared. `from` has no such
+        // double: export declares no ordinal parameter of its own, and a snapshot resumes by cut
+        // cursor, so `?from=` can only be `request.from`.
+        if req.query.contains_key("from") {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "bad-request",
+                    "export rejects `request.from`: a snapshot resumes by cut Cursor (`after`), \
+                     not by a fresh ordinal",
+                ),
+            );
+        }
+
         let revisions = req.query.get("revisions").map(|s| s == "true").unwrap_or(false);
-        let page = p::Page { after: None, from: None, limit: None };
+
+        // HONORED, NOT IGNORED. These were all three `None`, so export accepted `?after=` and
+        // `?limit=` and silently dropped them — the caller's window vanished with a 200, which is
+        // the same defect as a silently dropped selector and worse than refusing. Rejecting `from`
+        // above while continuing to drop its two neighbours would have been incoherent.
+        let page = p::Page {
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
+            from: None,
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
+        };
         match self.scope.export(&p::ListFilter(vec![]), None, revisions, page).await {
             Ok(res) if res.not_implemented => unmapped("export not implemented by this scope"),
             Ok(res) => match res.value {
@@ -338,7 +378,10 @@ impl<S: BdpScope> Server<S> {
         let page = p::Page {
             after: None,
             from: None,
-            limit: req.query.get("limit").and_then(|s| s.parse::<u32>().ok()),
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
         };
         match self.scope.revisions(&rid, None, page).await {
             Ok(res) if res.not_implemented => unmapped("revisions not implemented by this scope"),
@@ -776,6 +819,33 @@ fn parse_import_jsonl(body: &[u8]) -> Result<Vec<p::ExportRecord>, String> {
         Some(_) => Err("the import stream does not end with ExportEnd, so it is truncated and \
                         MUST NOT be applied as whole"
             .into()),
+    }
+}
+
+/// `?limit=` as a number, or the D.8 `invalid-parameter` fault.
+///
+/// AN INVALID PARAMETER VALUE IS A 400, and D.8 says so in as many words: "`malformed-request` /
+/// `invalid-parameter` — a malformed or invalid request. Three shapes reach it. A BAD BODY … AN
+/// INVALID PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES NOT DEFINE".
+///
+/// EVERY CALLER USED `.and_then(|s| s.parse().ok())`, which SILENTLY DROPPED a bad value and
+/// answered 200 over the caller's whole collection. That is the same defect as a silently dropped
+/// selector and worse than refusing: `?limit=abc` meant "give me everything" instead of "that is
+/// not a number". It also left `list/400` and `revisions/400` with no producer — two declared fault
+/// rows whose only reachable path had been turned into a success.
+fn parse_limit(req: &HttpRequest) -> Result<Option<u32>, HttpResponse> {
+    match req.query.get("limit") {
+        None => Ok(None),
+        Some(raw) => raw.parse::<u32>().map(Some).map_err(|_| {
+            HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "invalid-parameter",
+                    &format!("`limit` must be a non-negative integer; got `{raw}`"),
+                ),
+            )
+        }),
     }
 }
 

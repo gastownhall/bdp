@@ -1575,6 +1575,98 @@ fn p_import_set_current() -> bdp_primitives::ImportStrategy {
 }
 
 
+/// `GET /-/export?from=…` → 400. Covers op/export/fault/400.
+///
+/// GROUNDED IN rc2's OWN WORDS, and that is the whole reason this row has a producer now. #448 added
+/// the normative line: "`export` honors only `after`, `limit` and `format` of `request`;
+/// `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and
+/// projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh
+/// ordinal." Before rc2 this row was in the same position as the retired `get/400` and `delete/400`:
+/// declared on the op with no producer anywhere in the spec.
+///
+/// `from` AND NOT `select`, because only one of the three is unambiguous over this binding. `export`
+/// also declares its own `select?` and `where?`, and neither is lowered into the generated params
+/// (gastownhall/bdp#450) — so a `?select=` could be the REJECTED `request.select` or the op's own
+/// parameter arriving under a spelling nobody declared, and a case cannot tell which it exercised.
+/// `export` declares no ordinal parameter of its own, so `?from=` can only be `request.from`.
+///
+/// THE POSITIVE HALF IS ASSERTED TOO: a guard that refused every query string would satisfy the
+/// first half while breaking the route, and `after`/`limit` are the two fields the same sentence
+/// says export MUST honor.
+async fn export_rejects_an_ordinal_resume_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(host, "GET", "/-/export?from=1", Vec::new(), b"").await? {
+        400 => {}
+        s => return Err(format!("expected 400 for `request.from` on export, got {s}")),
+    }
+    // The neighbours in the same sentence must still work.
+    for target in ["/-/export", "/-/export?after=c0", "/-/export?limit=1"] {
+        match raw_status(host, "GET", target, Vec::new(), b"").await? {
+            200 => {}
+            s => {
+                return Err(format!(
+                    "`{target}` answered {s}; rc2 says export HONORS after and limit, so a guard \
+                     that refuses them is as wrong as one that drops them"
+                ))
+            }
+        }
+    }
+    Ok(vec![fault("export", 400)])
+}
+
+
+/// An invalid `?limit=` on a read → 400 `invalid-parameter`. Covers op/list/fault/400 and
+/// op/revisions/fault/400.
+///
+/// THE RETIRED-ROWS NOTE BELOW SAYS D.8 NAMES NO PRODUCER FOR `400`. That was true when it was
+/// written and rc2 (#448) has overtaken it: D.8 now names three shapes — "A BAD BODY … AN INVALID
+/// PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES NOT DEFINE". `create/400` and `put/400`
+/// are the first shape, `patch/400` and `delete/400` the third, and these two are the second. So
+/// two rows that looked permanently unreachable were a stale reading of the appendix, not a gap in
+/// the spec.
+///
+/// THE BINDING HAD TURNED THE PRODUCER INTO A SUCCESS, which is why nobody could reach the row:
+/// every `?limit=` parse was `.and_then(|s| s.parse().ok())`, so `?limit=abc` silently meant "give
+/// me everything" and answered 200 over the caller's whole collection. The case and the fix landed
+/// together; the row was uncoverable because the behaviour was wrong, not because the spec was
+/// silent.
+///
+/// BOTH ROWS IN ONE CASE, because it is one obligation: `limit` is a `ReadRequest` field and every
+/// read lowers it the same way. Splitting them would imply a reader could legitimately differ.
+async fn an_invalid_limit_is_an_invalid_parameter_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("limit-400".into()));
+    let mut covered = Vec::new();
+
+    for (op_name, path) in [("list", "/-/list"), ("revisions", "/limit-400/-/revisions")] {
+        let (status, code) =
+            raw_problem(host, "GET", &format!("{path}?limit=abc"), Vec::new(), b"").await?;
+        if status != 400 {
+            return Err(format!(
+                "`{path}?limit=abc` answered {status}; an invalid parameter VALUE is a 400 (D.8), \
+                 and silently ignoring it answers 200 over the whole collection"
+            ));
+        }
+        if code != "invalid-parameter" {
+            return Err(format!(
+                "`{path}` faulted 400 with code `{code}`; D.8 names `invalid-parameter` for a bad \
+                 parameter value, and the code is what tells it from a bad BODY"
+            ));
+        }
+        covered.push(fault(op_name, 400));
+    }
+
+    // THE POSITIVE HALF: a guard that refused every `limit` would satisfy the loop above while
+    // breaking paging on both reads.
+    let _ = target;
+    for path in ["/-/list?limit=1", "/limit-400/-/revisions?limit=1", "/-/list", "/-/export?limit=1"] {
+        match raw_status(host, "GET", path, Vec::new(), b"").await? {
+            200 | 404 => {}
+            s => return Err(format!("`{path}` answered {s}; a VALID limit must be honored")),
+        }
+    }
+    Ok(covered)
+}
+
+
 /// RETIRED, not lost: `get/400` and `delete/400`.
 ///
 /// Both were produced by the router rejecting a `:`-bearing id as an unknown verb — the prototype's
@@ -1582,10 +1674,24 @@ fn p_import_set_current() -> bdp_primitives::ImportStrategy {
 /// character, so `GET /a:b:c` is a well-formed read of an absent resource and correctly answers
 /// 404.
 ///
-/// There is NO spec-grounded producer to move them to. `400` is declared on 11 of the 13 operations
-/// and Appendix D.8 — which names a producer for 404, 405, 409, 410, 412 and 415 — names none for
-/// it. The only `400` the spec grounds is a length-related one it attributes to intermediaries
-/// rather than the origin.
+/// There was NO spec-grounded producer to move them to. `400` is declared on 11 of the 13
+/// operations and Appendix D.8 — which named a producer for 404, 405, 409, 410, 412 and 415 —
+/// named none for it; the only `400` the spec grounded was a length-related one it attributed to
+/// intermediaries rather than the origin.
+///
+/// THAT PARAGRAPH IS NOW OUT OF DATE, and it is left standing with this correction because the
+/// reasoning it records is what made the correction findable. rc2 (#448) gives D.8's `400` three
+/// named shapes: "A BAD BODY: unparseable JSON, a patch that is not a JSON-Patch array, a truncated
+/// export. AN INVALID PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES NOT DEFINE." So the
+/// appendix now grounds `400` on the origin in three different ways, and four rows that had been
+/// recorded unreachable are not: `import/400` is the first shape, `list/400` and `revisions/400`
+/// the second, `delete/400` the third.
+///
+/// `get/400` STILL HAS NONE, which is why these two are not simply un-retired. `get` takes no body,
+/// and its parameters (`revision`, `include`, `omit`, `expand`, `select`) have no value this
+/// binding can call invalid — a bad `?revision=` names a revision that does not exist, which is
+/// `404`, not a malformed parameter. So the row stays uncovered, now for a reason that names what
+/// would be needed rather than claiming the appendix is silent.
 ///
 /// `create/400` and `put/400` SURVIVED the same change, and the difference is the point: they
 /// malform the BODY on a valid route, which is a real producer. These two malformed the ID, which
@@ -1882,6 +1988,20 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         cancel_refuses_a_pinned_handle(&remote),
+    )
+    .await;
+    record(
+        "list+revisions/400 invalid limit",
+        &mut covered,
+        &mut failures,
+        an_invalid_limit_is_an_invalid_parameter_400(&addr),
+    )
+    .await;
+    record(
+        "export/400 ordinal resume",
+        &mut covered,
+        &mut failures,
+        export_rejects_an_ordinal_resume_400(&addr),
     )
     .await;
     record("import", &mut covered, &mut failures, import_round_trips_an_export(&remote)).await;
