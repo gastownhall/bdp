@@ -1,8 +1,8 @@
 {
-  "commit": "33dc2f2eca11503812e181dbdeed10c1c1387d0a",
+  "commit": "247c02ac1b4a95d57e95805a1f56b06a09a00acd",
   "files": {
     "specs/src/core/core.lumen": {
-      "sha256": "228bdd30e9d8b020b0945f27b91d5db5a45a0db625ad793db307c76c03b3a435",
+      "sha256": "2b774dba7e511b679322b68e40da5cb05e6e83ac2530739ee3787ec6ca74d585",
       "points": [
         {
           "anchor": "Scope#1",
@@ -43,6 +43,12 @@
           "anchor": "rep#1",
           "sha256": "76f78c30e56230501eba9a9f4bfaf23163f43df760756438089f86c4a82c6d21",
           "checks": ["core.representations"]
+        },
+        {
+          "anchor": "rep#2",
+          "sha256": "d6fab21c06a2bd1c76e58407f8e3b756f06efdb7a661536aa6c22f8518d69ab4",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unreachable-read-only"
         },
         {
           "anchor": "PathString#1",
@@ -286,7 +292,7 @@
         },
         {
           "anchor": "patch#1",
-          "sha256": "10afe74648b1fcd718e49ed3e60fcef5bf82b58e9870f7d3b5ea76f7553094bf",
+          "sha256": "610877690a4f7a14e0fa4e42082b8ee59935bddb6a391286d4989408425f29a1",
           "checks": ["core.read-only"],
           "appliesWhen": "unoffered-write"
         },
@@ -380,6 +386,11 @@
           "checks": ["core.export"]
         },
         {
+          "anchor": "export#1",
+          "sha256": "27cc436b2222941bd2527d3026be69c5f7f15db9f3803caaaf1e840586cf510a",
+          "checks": ["core.export"]
+        },
+        {
           "anchor": "import#1",
           "sha256": "da1ef7b1e980cadd3bf74d8c82ff6ed09ef741c488b5807abe106bf115a505ca",
           "checks": ["core.read-only"],
@@ -387,7 +398,7 @@
         },
         {
           "anchor": "import#2",
-          "sha256": "6e93c80a48c4cfcd86886800b65ad7db2044af1cb0eca2f8f31e3c00580c4199",
+          "sha256": "3c9707fa4d39f1d9e648e6230c812c1864bc3c3afb503ac56c391bab26e926b5",
           "checks": ["core.read-only"],
           "appliesWhen": "unoffered-write"
         },
@@ -406,6 +417,18 @@
         {
           "anchor": "import#5",
           "sha256": "fc78675a85c41ca031bbe15b8eda0a73d1e3a4916f51f08a96388082c1579b5d",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "import#6",
+          "sha256": "2d49dd132a5ac7f2edcb045e722633dfc660d0313eb102c7c84dacaac9f59e5c",
+          "checks": ["core.read-only"],
+          "appliesWhen": "unoffered-write"
+        },
+        {
+          "anchor": "import#7",
+          "sha256": "a5dc8e1f48a75b4c7a3093e9be4f8a3ed0e378e812c0b8c4c8148bc53e0a3385",
           "checks": ["core.read-only"],
           "appliesWhen": "unoffered-write"
         },
@@ -454,7 +477,7 @@
       ]
     },
     "specs/src/packs/stdlib/stdlib.lumen": {
-      "sha256": "d6d811b97b7ddb5dfdbe81d07d6da00f143fabe539de0c93d21e55d8ce07420e",
+      "sha256": "8b37426d4c3ba556b958e1cd94904c7d2436464d0e93451f88149b7c4922f0ee",
       "points": [
         {
           "anchor": "#1",
@@ -542,33 +565,63 @@
         },
         {
           "anchor": "#15",
+          "sha256": "92e0e9d8415c67da75b4b95dee290ee0a9d4702de4b7674e4b7deac8c686ca15",
+          "checks": ["coverage.unsupported-stdlib-getmany"],
+          "appliesWhen": "stdlib:getMany"
+        },
+        {
+          "anchor": "#16",
+          "sha256": "d5b9b9dbdf4d4483c7236097cbbb989df86fc040c03cb708a881d1f6eb6b96de",
+          "checks": ["coverage.unsupported-stdlib-getmany"],
+          "appliesWhen": "stdlib:getMany"
+        },
+        {
+          "anchor": "#17",
           "sha256": "60b9441f459a395e3ad29d19892fb1f8c866341853180693e42893067ec7d5b6",
           "checks": ["coverage.unsupported-stdlib-kv"],
           "appliesWhen": "stdlib:kv"
         },
         {
-          "anchor": "#16",
+          "anchor": "#18",
           "sha256": "82e970d6b2a682f43e42bfe618e09977b25ca27a0651352e93268b30b4dc0f85",
           "checks": ["coverage.unsupported-stdlib-stale"],
           "appliesWhen": "stdlib:stale"
         },
         {
-          "anchor": "#17",
+          "anchor": "#19",
           "sha256": "ce5fbf2ea301bc2d12e30bb9615f9497a9c9c2172452891385d2e0ea0b50b36f",
           "checks": ["stdlib.duplicates"],
           "appliesWhen": "stdlib:duplicates"
         },
         {
-          "anchor": "#18",
+          "anchor": "#20",
           "sha256": "3316ab7141dcfdf27ab1ab92c6f573d0a0f5cbc6736a6e1d52b8386399a421d2",
           "checks": ["stdlib.similar"],
           "appliesWhen": "stdlib:similar"
         },
         {
-          "anchor": "#19",
+          "anchor": "#21",
           "sha256": "a02665591a820600d5fe2fab243656760e3d7a2680953346193906ed74905e4f",
           "checks": ["stdlib.lint"],
           "appliesWhen": "stdlib:lint"
+        },
+        {
+          "anchor": "#22",
+          "sha256": "e64b3a4315e92cac223eb8960dc72daac26b8b05e00cfeab1408fcfae0455dff",
+          "checks": ["coverage.unsupported-stdlib-deleteresource"],
+          "appliesWhen": "stdlib:deleteResource"
+        },
+        {
+          "anchor": "#23",
+          "sha256": "d9f98f9b5a505a73c3c0264ddceaec63ea2e7428e650163d5d02b6feceda9453",
+          "checks": ["coverage.unsupported-stdlib-deleteresource"],
+          "appliesWhen": "stdlib:deleteResource"
+        },
+        {
+          "anchor": "#24",
+          "sha256": "5e3374479df09dc694cc0ac085b1723c1c2f9d276b7c6cca9603867e39d546a8",
+          "checks": ["coverage.unsupported-stdlib-deleteresource"],
+          "appliesWhen": "stdlib:deleteResource"
         }
       ]
     }
