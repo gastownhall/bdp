@@ -155,6 +155,27 @@
       "returns": "integer"
     },
     {
+      "path": "stdlib/getMany",
+      "operation": "getMany",
+      "safe": true,
+      "idempotent": false,
+      "cli": "get",
+      "summary": "Miss-partitioned bulk point-read — resolve many refs in ONE consistent snapshot, returned as `found` + `missing`",
+      "parameters": [
+        {
+          "name": "refs",
+          "type": "[ ref<any> ]",
+          "required": true
+        },
+        {
+          "name": "select",
+          "type": "selector",
+          "required": false
+        }
+      ],
+      "returns": "GetManyResult"
+    },
+    {
       "path": "stdlib/stale",
       "operation": "stale",
       "safe": true,
@@ -263,6 +284,42 @@
         }
       ],
       "returns": "[ LintResult ]"
+    },
+    {
+      "path": "stdlib/deleteResource",
+      "operation": "deleteResource",
+      "safe": false,
+      "idempotent": false,
+      "cli": "delete",
+      "summary": "Multi-id retire with a chosen inbound-reference disposition and an optional dry run — the stdlib facade over the core [[core.lumen#delete]] ",
+      "parameters": [
+        {
+          "name": "refs",
+          "type": "[ ref<any> ]",
+          "required": true
+        },
+        {
+          "name": "onIncident",
+          "type": "OnIncident",
+          "required": false
+        },
+        {
+          "name": "dryRun",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "ifRevision",
+          "type": "Rev",
+          "required": false
+        },
+        {
+          "name": "precondition",
+          "type": "Filter",
+          "required": false
+        }
+      ],
+      "returns": "[ DeleteOutcome ]"
     }
   ]
 }
