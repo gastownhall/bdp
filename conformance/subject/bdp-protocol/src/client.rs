@@ -190,6 +190,19 @@ fn target_for(id: &p::Id, rev: Option<&p::Rev>) -> String {
 }
 
 /// Decode a non-2xx response into a `BdpError`, using the Problem `code` when present.
+/// Lift a `Page` envelope's cursor and head back into `ProtocolMeta`.
+///
+/// THE ENVELOPE IS THE WIRE'S FORM OF WHAT `ProtocolMeta` CARRIES IN PROCESS, so a wire client that
+/// read the items and dropped the envelope would present a `BdpScope` whose walks cannot terminate
+/// — the one place a correct scope becomes an incorrect one purely by being remote.
+fn page_protocol(cursor: &Option<String>, head: Option<bool>) -> p::ProtocolMeta {
+    p::ProtocolMeta {
+        cursor: cursor.as_ref().map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
+        head,
+        ..Default::default()
+    }
+}
+
 fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
     let prob = serde_json::from_slice::<WireProblem>(body).ok();
     let code = prob.as_ref().map(|pb| pb.code.as_str());
@@ -468,17 +481,41 @@ impl BdpScope for RemoteScope {
                     .into(),
             ));
         }
-        let mut target = "/-/list".to_string();
+        // THE CURSOR MUST BE SENT, and it was not. This read forwarded `limit` and dropped
+        // `after`, so a caller resuming a walk got PAGE ONE every time with a 200 — the same
+        // silent-failure the store had, one layer out, and invisible for the same reason: page one
+        // is a correct-looking answer.
+        //
+        // THREE LAYERS HAD TO AGREE on this one read and none of them did: the store ignored
+        // `after`, the client never sent it, and there was no envelope to carry the position back.
+        // Fixing any one alone leaves a walk broken, which is why only a case that WALKS TO
+        // EXHAUSTION found it.
+        let mut q: Vec<String> = Vec::new();
+        if let Some(c) = &page.after {
+            q.push(format!("after={}", String::from_utf8_lossy(&c.0)));
+        }
         if let Some(limit) = page.limit {
-            target.push_str(&format!("?limit={limit}"));
+            q.push(format!("limit={limit}"));
+        }
+        let mut target = "/-/list".to_string();
+        if !q.is_empty() {
+            target.push('?');
+            target.push_str(&q.join("&"));
         }
         let resp = self.request("GET", &target, vec![], vec![]).await?;
         match resp.status {
             501 => Ok(p::BdpResult::not_implemented()),
             200 => {
-                let wire: Vec<WireResourceId> = serde_json::from_slice(&resp.body)
+                // THE PAGE ENVELOPE, not a bare array — see `wire::WirePage`. The envelope's
+                // cursor and head are lifted back into `protocol`, so a caller driving
+                // `RemoteScope` as a `BdpScope` resumes exactly as it would in-process. Dropping
+                // them here would make the wire client the one place a walk cannot terminate.
+                let page: crate::wire::WirePage<WireResourceId> = serde_json::from_slice(&resp.body)
                     .map_err(|e| p::BdpError::Backend(format!("bad list response: {e}")))?;
-                Ok(p::BdpResult::ok(wire.iter().map(|w| w.to_trait()).collect()))
+                let ids = page.items.iter().map(|w| w.to_trait()).collect();
+                let mut res = p::BdpResult::ok(ids);
+                res.protocol = page_protocol(&page.cursor, page.head);
+                Ok(res)
             }
             _ => Err(error_from(resp.status, &resp.body, &p::ResourceId::head(p::Scope::This, p::Id(Arc::from(""))))),
         }
@@ -541,14 +578,15 @@ impl BdpScope for RemoteScope {
         let target = format!("/{}/-/pull{qs}", channel.id.0);
         let resp = self.request("GET", &target, Vec::new(), Vec::new()).await?;
         if resp.status == 200 {
-            let text = String::from_utf8_lossy(&resp.body);
-            let events: Vec<p::RawJson> = text
-                .lines()
-                .filter(|l| !l.trim().is_empty())
-                .map(|l| p::RawJson(bytes::Bytes::from(l.as_bytes().to_vec())))
+            let page: crate::wire::WirePage<serde_json::Value> = serde_json::from_slice(&resp.body)
+                .map_err(|e| p::BdpError::Backend(format!("bad pull response: {e}")))?;
+            let events: Vec<p::RawJson> = page
+                .items
+                .iter()
+                .map(|v| p::RawJson(bytes::Bytes::from(serde_json::to_vec(v).unwrap())))
                 .collect();
             let mut res = p::BdpResult::ok(events);
-            res.protocol = crate::wire::protocol_from_headers(&resp);
+            res.protocol = page_protocol(&page.cursor, page.head);
             Ok(res)
         } else if resp.status == 501 {
             Ok(p::BdpResult::not_implemented())
@@ -617,18 +655,30 @@ impl BdpScope for RemoteScope {
     /// invent a distinction the wire does not carry.
     async fn revisions(&self, resource: &p::ResourceId, _selector: Option<&p::Selector>, page: p::Page)
         -> Result<p::BdpResult<Vec<p::Representation>>, p::BdpError> {
-        let mut target = format!("/{}/-/revisions", pct_encode(&resource.id.0));
+        // Same omission as `list` had: `after` was dropped, so paging a long history re-read the
+        // oldest revisions for ever.
+        let mut q: Vec<String> = Vec::new();
+        if let Some(c) = &page.after {
+            q.push(format!("after={}", String::from_utf8_lossy(&c.0)));
+        }
         if let Some(limit) = page.limit {
-            target.push_str(&format!("?limit={limit}"));
+            q.push(format!("limit={limit}"));
+        }
+        let mut target = format!("/{}/-/revisions", pct_encode(&resource.id.0));
+        if !q.is_empty() {
+            target.push('?');
+            target.push_str(&q.join("&"));
         }
         let resp = self.request("GET", &target, vec![], vec![]).await?;
         match resp.status {
             501 => Ok(p::BdpResult::not_implemented()),
             200 => {
-                let wire: Vec<WireRepresentation> = serde_json::from_slice(&resp.body)
+                let page: crate::wire::WirePage<WireRepresentation> = serde_json::from_slice(&resp.body)
                     .map_err(|e| p::BdpError::Backend(format!("bad revisions response: {e}")))?;
-                let reps = wire.into_iter().map(|w| w.to_trait()).collect();
-                Ok(p::BdpResult::ok(reps))
+                let reps = page.items.into_iter().map(|w| w.to_trait()).collect();
+                let mut res = p::BdpResult::ok(reps);
+                res.protocol = page_protocol(&page.cursor, page.head);
+                Ok(res)
             }
             _ => Err(error_from(resp.status, &resp.body, resource)),
         }

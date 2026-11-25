@@ -220,7 +220,12 @@ impl<S: BdpScope> Server<S> {
             );
         }
         let page = p::Page {
-            after: None,
+            // `?after=` IS READ, and it was pinned to `None` here. That made the cursor
+            // undeliverable no matter what the store or the client did: FOUR layers had to agree on
+            // this one read — the store honoring `after`, the server parsing it, the client sending
+            // it, and an envelope to hand the position back — and none of them did. Each failure
+            // looked like a correct first page.
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
             from: None,
             limit: match parse_limit(req) {
                 Ok(l) => l,
@@ -231,9 +236,11 @@ impl<S: BdpScope> Server<S> {
             Ok(res) if res.not_implemented => unmapped("list not implemented by this scope"),
             Ok(res) => match res.value {
                 Some(ids) => {
-                    let wire: Vec<WireResourceId> = ids.iter().map(WireResourceId::from_trait).collect();
-                    let body = serde_json::to_vec(&wire).unwrap();
-                    attach(HttpResponse::json(200, body), &res.protocol)
+                    // THE PAGE ENVELOPE, not a bare array. See `WirePage` for the ruling and why
+                    // emitting it is catch-up against a rule in force at the frozen tag.
+                    let items: Vec<WireResourceId> = ids.iter().map(WireResourceId::from_trait).collect();
+                    let page = crate::wire::WirePage::of(items, &res.protocol);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&page).unwrap()), &res.protocol)
                 }
                 None => unmapped("list returned no value"),
             },
@@ -281,9 +288,23 @@ impl<S: BdpScope> Server<S> {
     /// one live-feed read"), so a `400` would be a false statement about the spec. 501 says this
     /// binding does not do it yet, which is true.
     async fn do_pull(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
+        // `page` IS THE DEFAULT AND THE ONLY FRAMING SERVED, which is the ruling rather than a
+        // preference: every read "wire-returns a `Page` window", so the envelope is the response
+        // shape and a transport is how it is encoded.
+        //
+        // `jsonl` IS REFUSED, and this is the one place with no conformant answer — the spec does
+        // not say how a `Page` is framed as newline-delimited records, so the choices are to invent
+        // framing, to serve page bytes under a jsonl request, or to refuse a declared floor param.
+        // All three are wrong; refusing is wrong LOUDLY and names the gap (Lydia has it as RC3
+        // item 1). A case asserting "a declared `format` is honored" should still fail here.
         match req.header("format").map(|f| f.trim().to_ascii_lowercase()).as_deref() {
-            None | Some("") | Some("jsonl") => {}
-            Some("page") => return unmapped("pull `format=page` is not implemented by this binding"),
+            None | Some("") | Some("page") => {}
+            Some("jsonl") => {
+                return unmapped(
+                    "pull `format=jsonl` is not served: the spec does not frame a `Page` as \
+                     newline-delimited records, so this binding refuses rather than inventing it",
+                )
+            }
             Some("sse") => return unmapped("pull `format=sse` is not implemented by this binding"),
             Some(other) => {
                 return HttpResponse::json(
@@ -309,12 +330,14 @@ impl<S: BdpScope> Server<S> {
             Ok(res) if res.not_implemented => unmapped("pull not implemented by this scope"),
             Ok(res) => match res.value {
                 Some(events) => {
-                    let mut body = Vec::new();
-                    for e in &events {
-                        body.extend_from_slice(e.0.as_ref());
-                        body.push(b'\n');
-                    }
-                    attach(HttpResponse::jsonl(200, body), &res.protocol)
+                    // The events are already JSON values, so they ride as raw items inside the
+                    // envelope rather than being re-encoded as strings.
+                    let items: Vec<serde_json::Value> = events
+                        .iter()
+                        .map(|e| serde_json::from_slice(e.0.as_ref()).unwrap_or(serde_json::Value::Null))
+                        .collect();
+                    let page = crate::wire::WirePage::of(items, &res.protocol);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&page).unwrap()), &res.protocol)
                 }
                 None => unmapped("pull returned no value"),
             },
@@ -517,7 +540,7 @@ impl<S: BdpScope> Server<S> {
     async fn do_revisions(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
         let rid = resource_id_from(id_seg, None);
         let page = p::Page {
-            after: None,
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
             from: None,
             limit: match parse_limit(req) {
                 Ok(l) => l,
@@ -528,10 +551,10 @@ impl<S: BdpScope> Server<S> {
             Ok(res) if res.not_implemented => unmapped("revisions not implemented by this scope"),
             Ok(res) => match res.value {
                 Some(reps) => {
-                    let wire: Vec<WireRepresentation> =
+                    let items: Vec<WireRepresentation> =
                         reps.iter().map(WireRepresentation::from_trait).collect();
-                    let body = serde_json::to_vec(&wire).unwrap();
-                    attach(HttpResponse::json(200, body), &res.protocol)
+                    let page = crate::wire::WirePage::of(items, &res.protocol);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&page).unwrap()), &res.protocol)
                 }
                 None => unmapped("revisions returned no value"),
             },

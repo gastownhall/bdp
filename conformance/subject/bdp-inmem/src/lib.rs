@@ -963,10 +963,39 @@ impl BdpScope for InMemScope {
                 ));
             }
         }
+        // RESUME AFTER THE CURSOR, which this read used to IGNORE. `page.after` was never looked
+        // at: only `limit` was, so a caller walking the collection got PAGE ONE AGAIN, FOREVER,
+        // with a 200 each time — indistinguishable from a correct first page, which is why neither
+        // a test nor a grid row could see it. rc2 names exactly this: "Silently ignoring a resume
+        // cursor … is NON-CONFORMANT (the silent-failure class)".
+        //
+        // THE CURSOR IS THE LAST ID EMITTED, and the encoding is sound because the result is
+        // ordered BY ID — so the id IS the position, and no side table is needed to interpret it.
+        // rc2 leaves the encoding to the scope and fixes only the semantics. Found by Shelly in the
+        // sibling stores; this binding had the same defect, so applying her finding rather than
+        // assuming it stopped at her tree is what caught it.
+        if let Some(c) = &page.after {
+            let resume_after = String::from_utf8_lossy(&c.0).into_owned();
+            out.retain(|r| r.id.0.as_ref() > resume_after.as_str());
+        }
+
+        let total_after_cursor = out.len();
         if let Some(n) = page.limit {
             out.truncate(n as usize);
         }
-        Ok(BdpResult::ok(out))
+        // `head` IS COMPUTED, NOT GUESSED. The tempting heuristic — `out.len() < limit` — is FALSE
+        // on a final page that exactly fills the limit, so it would claim "more remains" at the end
+        // of a walk and a caller looping on `head` would never terminate. The scope knows whether
+        // anything is left; that is the authoritative signal and it is the one reported.
+        let head = out.len() == total_after_cursor;
+        let cursor = out.last().map(|r| Cursor(Bytes::from(r.id.0.as_ref().to_owned().into_bytes())));
+        Ok(BdpResult::ok(out).with_protocol(ProtocolMeta {
+            // `cursor` is null once `head`: there is nothing further to resume from, and handing
+            // back a position that yields an empty page invites an endless poll.
+            cursor: if head { None } else { cursor },
+            head: Some(head),
+            ..Default::default()
+        }))
     }
 
     /// changes — the scope's changefeed: the append-log tailed by a cursor. Resume `after` a cursor
@@ -1187,7 +1216,22 @@ impl BdpScope for InMemScope {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        Ok(BdpResult::ok(out))
+
+        // THE WINDOW'S OWN POSITION, so a reader can resume without tracking ordinals itself. The
+        // cursor is the last ordinal delivered, in the same decimal encoding `after` parses, and
+        // `head` is whether anything remains beyond it — computed from the log, never from whether
+        // the window filled.
+        let last_delivered = after + out.len() as u64;
+        let remaining = store
+            .channels
+            .get(&key)
+            .map(|log| log.events.iter().any(|(o, _)| *o > last_delivered))
+            .unwrap_or(false);
+        Ok(BdpResult::ok(out).with_protocol(ProtocolMeta {
+            cursor: if remaining { Some(Cursor(Bytes::from(last_delivered.to_string()))) } else { None },
+            head: Some(!remaining),
+            ..Default::default()
+        }))
     }
 
     /// push — append events to a channel (core.lumen#push).
@@ -1471,10 +1515,35 @@ impl BdpScope for InMemScope {
             }
             out.push(bead_from_row(&resource.scope, &resource.id, row));
         }
+        // THE SAME CURSOR OBLIGATION AS `list`, and it was missing here too. `page.after` was
+        // ignored, so a caller paging a long history re-read the oldest revisions for ever.
+        //
+        // THE POSITION IS THE REVISION, so the cursor is the last `rev` emitted and resuming means
+        // dropping everything up to and including it. History is ordered oldest-first, so index
+        // order IS revision order and a scan to the cursor is unambiguous.
+        if let Some(c) = &page.after {
+            let resume_after = String::from_utf8_lossy(&c.0).into_owned();
+            if let Some(i) = out.iter().position(|r| {
+                r.id().rev.as_ref().map(|rv| rv.0.as_ref()) == Some(resume_after.as_str())
+            }) {
+                out.drain(..=i);
+            }
+        }
+
+        let total_after_cursor = out.len();
         if let Some(limit) = page.limit {
             out.truncate(limit as usize);
         }
-        Ok(BdpResult::ok(out))
+        let head = out.len() == total_after_cursor;
+        let cursor = out
+            .last()
+            .and_then(|r| r.id().rev.clone())
+            .map(|rv| Cursor(Bytes::from(rv.0.as_ref().to_owned().into_bytes())));
+        Ok(BdpResult::ok(out).with_protocol(ProtocolMeta {
+            cursor: if head { None } else { cursor },
+            head: Some(head),
+            ..Default::default()
+        }))
     }
 }
 

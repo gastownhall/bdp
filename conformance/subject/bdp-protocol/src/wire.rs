@@ -813,6 +813,43 @@ pub fn caps_from_wire(wire: Vec<WireCapability>) -> Vec<p::PrimitiveCapabilities
 /// time with *"invalid type: newtype struct"* — an internally-tagged outer enum pulls its content
 /// through a buffering deserializer that `RawValue` rejects. Carries the same FRICTION as
 /// `WireRepresentation`: the spec would discriminate these structurally, not by an envelope tag.
+/// THE UNIVERSAL READ ENVELOPE — core.lumen's `Page` window, `{ items, cursor, head? }`.
+///
+/// RULED, AND IN FORCE AT THE FROZEN TAG, which is what makes emitting it catch-up rather than a
+/// wire change during a freeze. core.lumen (present at `bdp-core-0.2.3-rc1`, untouched by #448):
+/// "RESOLVED (return unified): EVERY read — `pull` (source) / `list` · `revisions` · the stdlib
+/// `query` · `export` (snapshot) — wire-returns a `Page` window `{ items, cursor, head? }` … so
+/// `list`/`query` return a Page, NOT a bare array."
+///
+/// `cursor` IS SERIALIZED AS NULL, NOT OMITTED, when there is nothing further to resume from. The
+/// `Page` type declares the field and the prose says "null/absent", so present-but-null satisfies
+/// both — and it distinguishes "this read has an envelope and the walk is done" from "this
+/// response has no envelope at all", which is the state this type exists to end.
+///
+/// `head` IS OPTIONAL IN THE SPEC and is therefore OMITTED when the scope does not say, rather than
+/// inferred. The tempting heuristic — `items.len() < limit` — is FALSE on a final page that exactly
+/// fills the limit, so it reports "more remains" at the end of a walk and a caller looping on it
+/// never terminates.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WirePage<T> {
+    pub items: Vec<T>,
+    /// Null once the walk is complete. NOT `skip_serializing_if`: see the type's own docs.
+    pub cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub head: Option<bool>,
+}
+
+impl<T> WirePage<T> {
+    /// Wrap a window using the scope's OWN cursor/head, never a heuristic over `items`.
+    pub fn of(items: Vec<T>, protocol: &p::ProtocolMeta) -> Self {
+        Self {
+            items,
+            cursor: protocol.cursor.as_ref().map(|c| String::from_utf8_lossy(&c.0).into_owned()),
+            head: protocol.head,
+        }
+    }
+}
+
 /// One offered event on the wire — `{"ordinal": 7, "body": {...}}`, one per line.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WirePushEvent {

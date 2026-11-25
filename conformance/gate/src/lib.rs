@@ -396,9 +396,13 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
     },
         // Re-points to SurfaceBearing at the impl PR that binds the params: that is what makes
         // list/export/revisions `400` reachable. Waived until then -- there is no case to name.
-    // THE FIRST OBLIGATION THIS LEDGER CANNOT HONESTLY TYPE, and it carries three clauses in three
-    // different states: the malformed-value clause is COVERED, "MUST HONOR after/limit" is PARTIAL
-    // (export yes, list and revisions still pin `after: None`), and `format` is NOT COVERED AT ALL
+    // THE FIRST OBLIGATION THIS LEDGER CANNOT HONESTLY TYPE, and the clause states have MOVED since
+    // it was written, which is the argument for recording them on the row. The malformed-value
+    // clause is COVERED; "MUST HONOR after/limit" was PARTIAL and is now COVERED -- typing it
+    // partial is what sent me looking, and `after` turned out to be dropped at FOUR layers of this
+    // binding (the store ignored it, the server never parsed it, the client never sent it, and
+    // there was no envelope to return the position), each failure looking like a correct first
+    // page. `format` is still NOT COVERED AT ALL
     // — read nowhere in this binding, and riding as a HEADER on all four reads, which is why it was
     // easy to miss while every other control sits on the request line.
     //
@@ -409,7 +413,7 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
     Registration {
         text: "A service offering a read MUST HONOR the floor controls it accepts — not merely declare them: `after` (resume from the cursor), `limit` (window the result), and `format` (encode in the selected transport) — and MUST fault `400` on a malformed value. Silently ignoring a resume cursor or a transport selector — returning the whole set from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT (the silent-failure class, like a dropped `where`). A declared floor param is a promise to act on it.",
         disposition: Disposition::Waived,
-        evidence: "PARTIAL, and tracked in two places: gastownhall/bdp#430 item 14 for the obligation, gastownhall/bdp#451 for the `format` encoding question that blocks the rest. The malformed-value clause IS covered (an_invalid_limit_is_an_invalid_parameter_400 drives `?limit=abc` on list and revisions and asserts the `invalid-parameter` code, grounding op/list/fault/400 and op/revisions/fault/400) and `export` honors after+limit; `format` is read NOWHERE in the binding and list/revisions serve a bare array matching neither snapshot transport",
+        evidence: "PARTIAL, and tracked in two places: gastownhall/bdp#430 item 14 for the obligation, gastownhall/bdp#451 for the `format` encoding question that blocks the rest. TWO of three clauses are now covered -- the malformed-value clause by an_invalid_limit_is_an_invalid_parameter_400 (grounding op/list/fault/400 and op/revisions/fault/400), and MUST-HONOR-after/limit by every_read_returns_a_page_and_a_walk_terminates, which walks list to exhaustion and asserts the pages reconstruct the set exactly. `format` remains uncovered: list and revisions refuse `jsonl` 501 because the spec does not frame a `Page` as newline-delimited records (#451, Lydia has it as RC3 item 1)",
     },
         // A DISTINCT trigger from item 9's missing terminator, and deliberately NOT SurfaceBearing
         // on `op/import/fault/400`: one truncation case citing that row would discharge this

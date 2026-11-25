@@ -1737,6 +1737,136 @@ async fn seed_channel(
     Ok(target)
 }
 
+/// EVERY READ WIRE-RETURNS A PAGE, and a walk over it terminates and loses nothing.
+///
+/// CLAIMS NO SURFACE ROW, deliberately, and that is the point rather than a shortcoming. `op/list`
+/// and `op/revisions` are already covered, and conforming the body shape adds no fault status — so
+/// this obligation is invisible to the denominator and to any pass/fail total. It is the clearest
+/// case of "the gate counts faults, not obligations" (gastownhall/bdp#451): the response shape of
+/// the two most-used reads can change completely without moving a single number the gate reports.
+/// Only a case asserting the envelope can see it.
+///
+/// RULED, AND IN FORCE AT THE FROZEN TAG — which I verified rather than took, because conforming
+/// looks like a wire change during a freeze. core.lumen at `bdp-core-0.2.3-rc1`, untouched by #448:
+/// "RESOLVED (return unified): EVERY read … wire-returns a `Page` window `{ items, cursor, head? }`
+/// … so `list`/`query` return a Page, NOT a bare array." The rule predates the freeze, so emitting
+/// it is catch-up.
+///
+/// THE WALK IS THE TEST. Page one looks IDENTICAL whether the cursor is honored or ignored, so a
+/// single windowed read proves nothing — a scope that ignores `after` returns page one for ever
+/// with a 200 each time. Only walking to exhaustion and asserting the pages reconstruct the set
+/// exactly separates them, and the loop is bounded so an ignored cursor fails instead of hanging.
+/// Both `list` and `revisions` had exactly that defect in this binding until now.
+async fn every_read_returns_a_page_and_a_walk_terminates(
+    r: &RemoteScope,
+    host: &str,
+) -> Result<Vec<SurfaceId>, String> {
+    // Four resources with ids that sort predictably, so the cursor's meaning is checkable.
+    for n in 1..=4 {
+        let t = ResourceId::head(Scope::This, Id(format!("page-walk-{n}").into()));
+        seed(r, &t, &format!("v{n}")).await?;
+    }
+
+    // THE ENVELOPE ITSELF, read raw so the assertion is about the BYTES and not about what a
+    // client chose to parse. A client that tolerated both shapes would hide this.
+    for target in ["/-/list?limit=2", "/page-walk-1/-/revisions"] {
+        let resp = send(Outgoing { method: "GET", host, target, headers: Vec::new(), body: Vec::new() })
+            .await
+            .map_err(|e| format!("raw {target}: {e:?}"))?;
+        let v: serde_json::Value = serde_json::from_slice(&resp.body)
+            .map_err(|e| format!("{target} body is not JSON: {e}"))?;
+        if v.is_array() {
+            return Err(format!(
+                "`{target}` returned a BARE ARRAY. core.lumen (at the frozen tag): every read \
+                 wire-returns a `Page` window `{{ items, cursor, head? }}`, \"NOT a bare array\""
+            ));
+        }
+        if !v.get("items").map(|i| i.is_array()).unwrap_or(false) {
+            return Err(format!("`{target}` has no `items` array: {v}"));
+        }
+        if !v.as_object().map(|o| o.contains_key("cursor")).unwrap_or(false) {
+            return Err(format!(
+                "`{target}` omits `cursor` entirely. The `Page` type declares the field, so it is \
+                 present-and-null when the walk is done — omitting it is indistinguishable from a \
+                 response with no envelope at all: {v}"
+            ));
+        }
+    }
+
+    // THE WALK, bounded so an ignored cursor FAILS rather than hangs.
+    //
+    // THE BOUND IS DERIVED FROM THE COLLECTION, not from my four seeds. `list` returns the whole
+    // scope — every other case's resources too — so a bound of "4 resources in pages of 2" was
+    // wrong by a factor of ten and failed this case on its first run. That was the test's error and
+    // not the binding's, which is exactly the kind of thing a hand-picked constant hides: it would
+    // have passed had the suite been smaller, and broken again as the suite grew.
+    let whole = r
+        .list(&ListFilter(vec![]), Page { after: None, from: None, limit: None })
+        .await
+        .map_err(|e| format!("unpaged list: {e:?}"))?
+        .value
+        .ok_or("unpaged list returned no value")?;
+    let max_steps = whole.len() / 2 + 3;
+
+    let mut seen: Vec<String> = Vec::new();
+    let mut after: Option<Cursor> = None;
+    for step in 0..max_steps {
+        let res = r
+            .list(&ListFilter(vec![]), Page { after: after.clone(), from: None, limit: Some(2) })
+            .await
+            .map_err(|e| format!("list step {step}: {e:?}"))?;
+        let ids = res.value.ok_or("list returned no value")?;
+        for id in &ids {
+            let s = id.id.0.to_string();
+            if s.starts_with("page-walk-") {
+                if seen.contains(&s) {
+                    return Err(format!(
+                        "`{s}` came back twice at step {step}; the cursor is being ignored, so the \
+                         walk is re-reading page one — a 200 each time and no way for a caller to \
+                         tell"
+                    ));
+                }
+                seen.push(s);
+            }
+        }
+        if res.protocol.head == Some(true) {
+            if res.protocol.cursor.is_some() {
+                return Err("head is true but a cursor was still handed back; there is nothing \
+                            further to resume from, and a position that yields an empty page \
+                            invites an endless poll"
+                    .into());
+            }
+            break;
+        }
+        match res.protocol.cursor {
+            Some(c) => after = Some(c),
+            None => {
+                return Err(format!(
+                    "step {step} reported head=false with NO cursor, so the walk cannot continue — \
+                     the two signals have to agree or a caller is stranded mid-collection"
+                ))
+            }
+        }
+        if step + 1 == max_steps {
+            return Err(format!(
+                "the walk did not terminate in {max_steps} steps over {} resources in pages of 2; \
+                 an ignored cursor returns page one for ever, which is what the bound catches",
+                whole.len()
+            ));
+        }
+    }
+
+    if seen.len() != 4 {
+        return Err(format!(
+            "the walk reconstructed {} of the 4 seeded resources ({seen:?}); a cursor exists so \
+             that paging loses nothing",
+            seen.len()
+        ));
+    }
+    Ok(vec![])
+}
+
+
 // ---- the channel pair: pull and push ----------------------------------------------------------
 
 /// A duplex channel ROUND-TRIPS: push appends, pull reads back, in order. Covers op/push and
@@ -2446,6 +2576,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         export_rejects_an_ordinal_resume_400(&addr),
+    )
+    .await;
+    record(
+        "page envelope + walk",
+        &mut covered,
+        &mut failures,
+        every_read_returns_a_page_and_a_walk_terminates(&remote, &addr),
     )
     .await;
     record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;
