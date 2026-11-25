@@ -171,6 +171,18 @@ impl<S: BdpScope> Server<S> {
             Err(e) => return HttpResponse::json(400, problem_body(400, "bad-request", &format!("bad CreateRequest: {e}"))),
         };
         let (proposed, body) = wreq.into_body();
+        // THE DUAL ON `clientProposedId`. A scope advertising it false mints its own ids, so a
+        // caller-supplied one is refused rather than quietly overwritten -- a create that silently
+        // allocated a DIFFERENT id than the one asked for would hand back a Location the caller
+        // did not request and could not predict.
+        if proposed.is_some() && self.create_caps().is_some_and(|cc| !cc.client_proposed_id) {
+            return unadvertised(
+                "create",
+                "clientProposedId",
+                "this scope advertises `clientProposedId: false`; omit the id and read it from the \
+                 response",
+            );
+        }
         match self.scope.create(proposed, body).await {
             Ok(res) if res.not_implemented => unmapped("create not implemented by this scope"),
             Ok(res) => {
@@ -232,6 +244,28 @@ impl<S: BdpScope> Server<S> {
     /// The declared content type is `application/jsonl`, so the body is newline-delimited records
     /// and NOT a JSON array. Begin and End frame the stream: the cursor the export is consistent
     /// as of, and the record count, which is what makes it a backup rather than a read.
+    /// This scope's `PutCaps` / `PatchCaps` / `CreateCaps`, if advertised at all.
+    fn put_caps(&self) -> Option<p::PutCaps> {
+        self.scope.capabilities().into_iter().find_map(|c| match c {
+            p::PrimitiveCapabilities::Put(pc) => Some(pc),
+            _ => None,
+        })
+    }
+
+    fn patch_caps(&self) -> Option<p::PatchCaps> {
+        self.scope.capabilities().into_iter().find_map(|c| match c {
+            p::PrimitiveCapabilities::Patch(pc) => Some(pc),
+            _ => None,
+        })
+    }
+
+    fn create_caps(&self) -> Option<p::CreateCaps> {
+        self.scope.capabilities().into_iter().find_map(|c| match c {
+            p::PrimitiveCapabilities::Create(cc) => Some(cc),
+            _ => None,
+        })
+    }
+
     /// `POST /-/import` — the bulk WRITE side, and the last declared primitive this binding left
     /// unmapped. The reference has implemented `import` all along and `route.rs` has parsed the
     /// path all along; only the handler was missing, so `op/import` and its three fault rows were
@@ -573,6 +607,22 @@ impl<S: BdpScope> Server<S> {
             if_absent: req.header("if-none-match").map(|v| v.trim() == "*").unwrap_or(false),
             precondition: None,
         };
+        if let Some(pc) = self.put_caps() {
+            if guards.if_revision.is_some() && !pc.if_match {
+                return unadvertised(
+                    "put",
+                    "ifMatch",
+                    "this scope advertises `ifMatch: false`; retry without `If-Match`",
+                );
+            }
+            if guards.if_absent && !pc.if_absent {
+                return unadvertised(
+                    "put",
+                    "ifAbsent",
+                    "this scope advertises `ifAbsent: false`; retry without `If-None-Match: *`",
+                );
+            }
+        }
         match self.scope.put(target, body, guards).await {
             Ok(res) if res.not_implemented => unmapped("put not implemented by this scope"),
             Ok(res) => {
@@ -668,6 +718,13 @@ impl<S: BdpScope> Server<S> {
         let target = resource_id_from(id_seg, None);
         let patch = p::JsonPatch(p::RawJson(bytes::Bytes::copy_from_slice(&req.body)));
         let if_rev = req.header("if-match").map(|s| p::Rev(std::sync::Arc::from(s)));
+        if if_rev.is_some() && self.patch_caps().is_some_and(|pc| !pc.if_match) {
+            return unadvertised(
+                "patch",
+                "ifMatch",
+                "this scope advertises `ifMatch: false` on patch; retry without `If-Match`",
+            );
+        }
         match self.scope.patch(target, patch, if_rev).await {
             Ok(res) if res.not_implemented => unmapped("patch not implemented by this scope"),
             Ok(res) => {
@@ -847,6 +904,28 @@ fn parse_limit(req: &HttpRequest) -> Result<Option<u32>, HttpResponse> {
             )
         }),
     }
+}
+
+/// The ENFORCE side of the capability dual, read off `capabilities()` and never hard-coded.
+///
+/// core.lumen states the rule on `CoreCapabilities`: "Each limit record is the advertise side of a
+/// dual: the matching `limit-exceeded` (422) is the enforce side." So a guard whose field is
+/// advertised FALSE must be refused, and refused as `422 limit-exceeded` naming the bound — not
+/// honored anyway, and not answered `501`, which says the whole op is absent.
+///
+/// THIS IS NOT THE SAME FAULT AS AN OUT-OF-VOCABULARY GUARD, and the two sit a few lines apart in
+/// this file deliberately. `If-None-Match` on `patch` is `400`: `ifAbsent` is not a field of
+/// `PatchCaps` at all, so no advertisement could have offered or refused it and the request names
+/// something the operation does not define. `If-Match` on a `put` advertising `ifMatch: false` is
+/// `422`: the field EXISTS, this scope says it does not support it, and the caller fixes the
+/// request by dropping the guard. A binding that collapsed them would tell a client to stop using
+/// a parameter that is simply unavailable here.
+fn unadvertised(op: &str, limit: &str, detail: &str) -> HttpResponse {
+    problem_response(&p::BdpError::LimitExceeded {
+        capability: op.into(),
+        limit: limit.into(),
+        detail: detail.into(),
+    })
 }
 
 fn unmapped(detail: &str) -> HttpResponse {

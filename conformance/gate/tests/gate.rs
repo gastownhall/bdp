@@ -1699,6 +1699,118 @@ async fn an_invalid_limit_is_an_invalid_parameter_400(host: &str) -> Result<Vec<
 ///
 /// Recorded uncovered-with-reason rather than kept alive by retaining a dead convention.
 
+// ---- the capability duals, against a subject that advertises a BOUND ---------------------------
+
+/// `create/422`, `put/422` and `patch/422` — the enforce side of three capability duals.
+///
+/// THESE WERE NOT UNCOVERED FOR WANT OF A CASE. They were unreachable against the permissive
+/// reference, which advertises `ifMatch`, `ifAbsent` and `clientProposedId` all TRUE: there was
+/// nothing for it to refuse, so no request could produce the fault. That is a property of the
+/// SUBJECT, not of the suite — and the fix is a second subject, not a cleverer request.
+///
+/// `InMemScope::restricted` narrows the ADVERTISEMENT and keeps the behaviour, which is what makes
+/// the pair honest: the store still honors a guard handed to it directly, so a 422 here proves the
+/// BINDING read the capability record rather than that the store lost a feature.
+///
+/// NOT THE SAME FAULT AS AN OUT-OF-VOCABULARY GUARD, and the codes are asserted to keep them
+/// apart. `If-None-Match` on `patch` is `400`: `ifAbsent` is not a field of `PatchCaps` at all, so
+/// no advertisement could offer or refuse it. `If-Match` on a `put` advertising `ifMatch: false` is
+/// `422`: the field exists, this scope declines it, and the caller fixes the request by dropping
+/// the guard. Status alone cannot tell those apart on an op that declares both — the `code` can.
+async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let mut covered = Vec::new();
+
+    // A proposed id against `clientProposedId: false`.
+    // THE PROPOSED ID RIDES THE BODY, not a query param — `WireCreateRequest.id`. The first
+    // version of this case sent `?id=proposed`, which the binding ignores, so the create SUCCEEDED
+    // with 201 and the anti-vacuity guard in `record()` caught it: "the producer under test is
+    // absent, not merely wrong". That guard exists for exactly this, and it is the second time
+    // today a hand-written wire shape cost a run.
+    let (status, code) = raw_problem(
+        host,
+        "POST",
+        "/-/create",
+        ctype("application/json"),
+        br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"id":{"scope":"this","id":"proposed"},"properties":{},"metadata":{}}"#,
+    )
+    .await?;
+    match (status, code.as_str()) {
+        (422, "limit-exceeded") => covered.push(fault("create", 422)),
+        (201, _) => {
+            return Err("a caller-proposed id was ACCEPTED by a scope advertising \
+                        `clientProposedId: false`; the dual requires it refused, and silently \
+                        minting a different id hands back a Location the caller never asked for"
+                .into())
+        }
+        (s, c) => return Err(format!("expected 422 limit-exceeded for a proposed id, got {s} / {c}")),
+    }
+
+    // Seed through the path that the restricted scope DOES advertise, so the put/patch cases are
+    // about the guard and not about a missing resource.
+    let seeded = raw_status(
+        host,
+        "PUT",
+        "/dual-target",
+        ctype("application/json"),
+        br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"properties":{},"metadata":{}}"#,
+    )
+    .await?;
+    if seeded != 200 {
+        return Err(format!("seed put answered {seeded}; an UNGUARDED put must still work"));
+    }
+
+    // `If-Match` against `ifMatch: false`, on put and on patch.
+    for (op_name, method, target, ct, body) in [
+        ("put", "PUT", "/dual-target", "application/json",
+         br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"properties":{},"metadata":{}}"#.as_slice()),
+        ("patch", "PATCH", "/dual-target", "application/json-patch+json",
+         br#"[{"op":"replace","path":"/properties/text","value":"x"}]"#.as_slice()),
+    ] {
+        let mut headers = ctype(ct);
+        headers.push(("if-match".into(), "some-rev".into()));
+        let (status, code) = raw_problem(host, method, target, headers, body).await?;
+        match (status, code.as_str()) {
+            (422, "limit-exceeded") => covered.push(fault(op_name, 422)),
+            (412, _) => {
+                return Err(format!(
+                    "{op_name} answered 412 for an If-Match against `ifMatch: false`. 412 says the \
+                     guard was EVALUATED and failed, so the caller retries with a fresher rev for \
+                     ever; the dual requires 422, which says the guard is not offered here"
+                ))
+            }
+            (s, c) => {
+                return Err(format!(
+                    "expected 422 limit-exceeded for If-Match on {op_name}, got {s} / {c}"
+                ))
+            }
+        }
+    }
+
+    // THE OUT-OF-VOCABULARY GUARD STILL ANSWERS 400 ON THE SAME SUBJECT, which is what stops this
+    // case being satisfied by a binding that 422s every header it does not like.
+    let mut headers = ctype("application/json-patch+json");
+    headers.push(("if-none-match".into(), "*".into()));
+    let (status, _) = raw_problem(
+        host,
+        "PATCH",
+        "/dual-target",
+        headers,
+        br#"[{"op":"replace","path":"/properties/text","value":"x"}]"#,
+    )
+    .await?;
+    if status != 400 {
+        return Err(format!(
+            "`If-None-Match` on patch answered {status}; `ifAbsent` is not a field of `PatchCaps` \
+             at all, so it is an input patch does not define (400) and NOT an unadvertised bound \
+             (422). Collapsing them tells a client to stop using a parameter that is merely \
+             unavailable here"
+        ));
+    }
+
+    Ok(covered)
+}
+
+
 // ---- harness ----------------------------------------------------------------
 
 #[tokio::test(flavor = "current_thread")]
@@ -1707,9 +1819,19 @@ async fn tier1_gate() {
     let addr = listener.local_addr().expect("local addr").to_string();
     let server = Server::new(InMemScope::new("gate"));
 
+    // A SECOND SUBJECT, because three declared rows are unreachable against the first. The
+    // permissive reference advertises every guard as supported, so a `limit-exceeded` has nothing
+    // to refuse; `InMemScope::restricted` advertises `ifMatch`, `ifAbsent` and `clientProposedId`
+    // as false while implementing the same store. Coverage is the UNION over both, because a row
+    // is a row about the binding and not about which subject provoked it.
+    let rlistener = TcpListener::bind("127.0.0.1:0").await.expect("bind loopback (restricted)");
+    let raddr = rlistener.local_addr().expect("local addr").to_string();
+    let rserver = Server::new(InMemScope::restricted("gate-restricted"));
+
     tokio::select! {
         r = server.serve(listener) => panic!("server stopped before cases finished: {r:?}"),
-        () = run_cases(addr) => {}
+        r = rserver.serve(rlistener) => panic!("restricted server stopped early: {r:?}"),
+        () = run_cases(addr, raddr) => {}
     }
 }
 
@@ -1862,8 +1984,15 @@ impl BdpScope for NullScope {
     }
 }
 
-async fn run_cases(addr: String) {
-    let (covered, failures) = collect_cases(addr).await;
+async fn run_cases(addr: String, restricted_addr: String) {
+    let (mut covered, mut failures) = collect_cases(addr).await;
+    record(
+        "capability duals (restricted subject)",
+        &mut covered,
+        &mut failures,
+        the_capability_duals_are_refused_422(&restricted_addr),
+    )
+    .await;
 
     // ---- coverage report ----
     let denom = denominator();

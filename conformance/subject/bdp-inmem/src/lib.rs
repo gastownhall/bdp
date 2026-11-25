@@ -97,6 +97,21 @@ const ASYNC_RESULT_KIND: &str = "asyncResult";
 pub struct InMemScope {
     store: RwLock<Store>,
     scope_name: String,
+    /// NARROW THE ADVERTISEMENT, never the behaviour. A scope constructed with
+    /// [`InMemScope::restricted`] advertises `ifMatch`, `ifAbsent` and `clientProposedId` as
+    /// FALSE while implementing exactly what it did before.
+    ///
+    /// WHY THE REFERENCE NEEDS THIS AT ALL. Three declared fault rows -- `create/422`, `put/422`,
+    /// `patch/422` -- are the enforce side of a capability dual, and a subject that advertises
+    /// every guard as supported can never produce one: there is nothing for it to refuse. The
+    /// rows were not uncovered for want of a case; they were unreachable against a permissive
+    /// subject, which is a property of the SUBJECT and not of the suite.
+    ///
+    /// Narrowing the advertisement rather than removing the implementation is what keeps the pair
+    /// honest: the restricted scope still HONORS a guard it is handed directly, so a case proving
+    /// the binding refuses one is proving the binding read the capability record, not that the
+    /// store lost a feature.
+    restricted_guards: bool,
 }
 
 impl Default for InMemScope {
@@ -114,7 +129,17 @@ impl Default for InMemScope {
 
 impl InMemScope {
     pub fn new(scope_name: impl Into<String>) -> Self {
-        Self { store: RwLock::new(Store::default()), scope_name: scope_name.into() }
+        Self {
+            store: RwLock::new(Store::default()),
+            scope_name: scope_name.into(),
+            restricted_guards: false,
+        }
+    }
+
+    /// The same store, advertising `ifMatch: false`, `ifAbsent: false` and
+    /// `clientProposedId: false`. See [`InMemScope::restricted_guards`].
+    pub fn restricted(scope_name: impl Into<String>) -> Self {
+        Self { restricted_guards: true, ..Self::new(scope_name) }
     }
 
     /// This scope's storage class — `Ephemeral` (volatile, local, not a durable source). The
@@ -712,9 +737,17 @@ impl BdpScope for InMemScope {
         vec![
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
             PrimitiveCapabilities::Resolve(ResolveCaps { selector: false, max_batch: None }),
-            PrimitiveCapabilities::Create(CreateCaps { server_allocates_id: true, client_proposed_id: true }),
-            PrimitiveCapabilities::Put(PutCaps { if_match: true, if_absent: true }),
-            PrimitiveCapabilities::Patch(PatchCaps { if_match: true }),
+            PrimitiveCapabilities::Create(CreateCaps {
+                // A scope that mints no id of its own would be unusable, so only the
+                // caller-proposed half narrows.
+                server_allocates_id: true,
+                client_proposed_id: !self.restricted_guards,
+            }),
+            PrimitiveCapabilities::Put(PutCaps {
+                if_match: !self.restricted_guards,
+                if_absent: !self.restricted_guards,
+            }),
+            PrimitiveCapabilities::Patch(PatchCaps { if_match: !self.restricted_guards }),
             PrimitiveCapabilities::Delete(DeleteCaps { if_match: true }),
             // acyclicity DEFERRED until the ref-encoding pin (honest: advertised ⟹ implemented).
             PrimitiveCapabilities::Apply(ApplyCaps { max_writes: None, acyclicity: false }),
