@@ -293,6 +293,7 @@ pub struct Registration {
 /// Registered ahead of the spec change is a legitimate state, reported as PENDING: #428's twelve are
 /// registered here and are pending until #428 merges.
 pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
+
     // THE LEDGER'S FIRST PRE-EXISTING FIND: normative on `main` all along, no case, no
     // waiver, and invisible until the ledger enumerated the register. Registered against its
     // own issue rather than #430, which is scoped to #428's cohort.
@@ -395,10 +396,20 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
     },
         // Re-points to SurfaceBearing at the impl PR that binds the params: that is what makes
         // list/export/revisions `400` reachable. Waived until then -- there is no case to name.
+    // THE FIRST OBLIGATION THIS LEDGER CANNOT HONESTLY TYPE, and it carries three clauses in three
+    // different states: the malformed-value clause is COVERED, "MUST HONOR after/limit" is PARTIAL
+    // (export yes, list and revisions still pin `after: None`), and `format` is NOT COVERED AT ALL
+    // — read nowhere in this binding, and riding as a HEADER on all four reads, which is why it was
+    // easy to miss while every other control sits on the request line.
+    //
+    // `Waived` is the least wrong of three bad fits, not a verdict. `Behavioural` would claim a case
+    // exercises it, true of one clause in three; `SurfaceBearing` would claim tier-1 rows ground it,
+    // true of clause 1 alone. A PARTIALLY DISCHARGED obligation is a real state and this ledger has
+    // no word for it. Recorded rather than rounded to whichever bucket flattered the count.
     Registration {
         text: "A service offering a read MUST HONOR the floor controls it accepts — not merely declare them: `after` (resume from the cursor), `limit` (window the result), and `format` (encode in the selected transport) — and MUST fault `400` on a malformed value. Silently ignoring a resume cursor or a transport selector — returning the whole set from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT (the silent-failure class, like a dropped `where`). A declared floor param is a promise to act on it.",
         disposition: Disposition::Waived,
-        evidence: "gastownhall/bdp#430 item 14",
+        evidence: "PARTIAL, and tracked in two places: gastownhall/bdp#430 item 14 for the obligation, gastownhall/bdp#451 for the `format` encoding question that blocks the rest. The malformed-value clause IS covered (an_invalid_limit_is_an_invalid_parameter_400 drives `?limit=abc` on list and revisions and asserts the `invalid-parameter` code, grounding op/list/fault/400 and op/revisions/fault/400) and `export` honors after+limit; `format` is read NOWHERE in the binding and list/revisions serve a bare array matching neither snapshot transport",
     },
         // A DISTINCT trigger from item 9's missing terminator, and deliberately NOT SurfaceBearing
         // on `op/import/fault/400`: one truncation case citing that row would discharge this
@@ -1304,6 +1315,44 @@ mod tests {
     /// THE TIER-1/TIER-2 INTERLOCK: a surface-bearing obligation claims specific wire rows, and
     /// those rows must exist in the denominator. A registration naming a row that was undeclared, or
     /// misspelled, is a silent lie about where the obligation is discharged — so it fails here.
+    #[test]
+    /// NO TWO REGISTRATIONS MAY CARRY THE SAME TEXT, and this exists because I added a duplicate.
+    ///
+    /// The obligation above was already on the ledger, waived against #430 item 14. I registered it
+    /// a second time without checking, and NOTHING COMPLAINED: `obligation_ledger` resolves each
+    /// obligation with `find`, which takes the first match, so my entry silently shadowed the
+    /// original and the original became unreachable. The counts could not show it either — 20
+    /// entries resolved to "registered: 19, pending: 0", and the only trace was that 20 ≠ 19 + 0.
+    ///
+    /// THE SHADOWING IS THE DANGER, not the redundancy. Two entries for one obligation means one
+    /// disposition and one piece of evidence are live and the other is dead text that still reads
+    /// as current — so a reader can find the stale one, trust it, and act on a tracking issue that
+    /// the live entry has already superseded.
+    #[test]
+    fn no_obligation_is_registered_twice() {
+        let mut seen: BTreeSet<&str> = BTreeSet::new();
+        for r in EXPECTED_OBLIGATIONS {
+            assert!(
+                seen.insert(r.text),
+                "two registrations carry the same obligation text, so one SHADOWS the other and \
+                 its disposition and evidence are dead text that still reads as current:\n  {}",
+                r.text
+            );
+        }
+        // And the partition must account for every entry: anything neither registered nor pending
+        // has been swallowed, which is exactly how the duplicate hid.
+        let l = obligation_ledger();
+        assert_eq!(
+            l.registered.len() + l.pending.len(),
+            EXPECTED_OBLIGATIONS.len(),
+            "{} registrations resolved to {} registered + {} pending; the difference is entries \
+             the ledger silently dropped",
+            EXPECTED_OBLIGATIONS.len(),
+            l.registered.len(),
+            l.pending.len()
+        );
+    }
+
     #[test]
     fn every_surface_bearing_registration_names_real_rows() {
         let den = denominator();
