@@ -817,6 +817,11 @@
         "tags": [
           "Core"
         ],
+        "requestBody": {
+          "content": {
+            "application/jsonl": {}
+          }
+        },
         "responses": {
           "200": {
             "description": "success"

@@ -2153,7 +2153,7 @@ type ImportAck = {
 
 ### `import`
 
-The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op. Push-style and resumable: the importer offers the export stream, the scope accepts a prefix and defers the rest under backpressure, acks `acceptedThrough`, and the importer re-offers from `acceptedThrough + 1`. Resume is an advertised capability ([ImportCaps](#ImportCaps) `window`); a minimal scope keeps one-shot import (one ack, already `complete`).
+The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op. Push-style and resumable: the importer sends the records, the scope accepts a prefix and defers the rest under backpressure, acks `acceptedThrough`, and the importer re-offers the deferred tail from `acceptedThrough + 1`. Resume is an advertised capability ([ImportCaps](#ImportCaps) `window`); a minimal scope keeps one-shot import (one ack, already `complete`).
 
 > **Normative.** `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
 
@@ -2165,10 +2165,12 @@ The bulk write path — put/create under If-Match with id remap; a history file 
 
 > **Normative.** Backpressure — an `ImportAck` carrying `credit: 0` and a deferred tail — is soft and temporal, not an error, exactly as [push](#push). It is distinct from `limit-exceeded` (422), the hard rejection of a request that exceeds a static capability bound, fixed by shrinking the request. `dryRun` ([ImportStrategy](#ImportStrategy)) is inherently one-shot — nothing durable is written, so nothing can be resumed — and returns a single `complete` ack.
 
+> **Normative.** `import` is CALLER-DRIVEN exactly as [push](#push) is pusher-driven — the caller DELIVERS the records in the request body; the scope reads nothing from a caller-supplied source and issues no call back to the caller. Backpressure rides the `ImportAck` (`credit`/`acceptedThrough`), and the caller re-offers the deferred tail as the next request: there is no service-initiated pull, and no stream, cursor or channel reference is handed to the scope to drain.
+
 ```lumen
 command import(
     scope:     Scope,
-    source:    snapshot<ExportRecord>,
+    records:   [ExportRecord],
     strategy?: ImportStrategy
   ) -> ImportAck
 ```
@@ -2176,7 +2178,7 @@ command import(
 | Parameter | Type | Description |
 |---|---|---|
 | `scope` | `Scope` | The scope to import into. |
-| `source` | `snapshot<ExportRecord>` | The export stream to replay — begin, resources, end (see [ExportRecord](#ExportRecord)); a resumed call re-offers from `acceptedThrough + 1`. |
+| `records` | `[ExportRecord]` | The export records to apply — `ExportBegin`, the `Resource`s, `ExportEnd` (see [ExportRecord](#ExportRecord)) — delivered in stream order. The caller SENDS this batch in the request, as [push](#push) sends its `events`; a resumed call re-offers the deferred tail from `acceptedThrough + 1`. |
 | `strategy?` | `ImportStrategy` | How to merge, and whether to remap ids (see [ImportStrategy](#ImportStrategy)). |
 
 **Returns** `ImportAck` — What [import](#import) returns — the push-style acknowledgement for a resumable, backpressured bulk load, mirroring [PushAck](#PushAck). `acceptedThrough` is the high-water record ordinal PROCESSED by this call; the importer re-offers the deferred tail from `acceptedThrough + 1`. The call that consumes `ExportEnd` sets `complete: true` and carries the final `tallies`; a one-shot (non-resumable) import returns a single ack already `complete`.
