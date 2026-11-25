@@ -804,11 +804,7 @@
         "ordinal": {
           "$ref": "#/$defs/Ordinal"
         },
-        "body": {
-          "type": "object",
-          "properties": {},
-          "additionalProperties": true
-        }
+        "body": {}
       },
       "required": [
         "body"

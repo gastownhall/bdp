@@ -900,8 +900,8 @@ type ReadRequest = {
 One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
 
 ```lumen
-type Page = {
-  items:  [ any ],
+type Page<T> = {
+  items:  [T],
   cursor: Cursor,
   head?:  bool
 }
@@ -909,7 +909,7 @@ type Page = {
 
 | Member | Type | Description |
 |---|---|---|
-| `items` | `[ any ]` | The items in this window (a Channel's E — ChangeEvent for the changefeed; items generally). |
+| `items` | `[T]` | The items in this window (the stream's element type `T` — `ChangeEvent` for the changefeed, `Resource` for a `list`). |
 | `cursor` | `Cursor` | Where to resume; opaque, bound to this stream + selection. |
 | `head?` | `bool` | Caught up to the live edge? |
 
@@ -925,7 +925,7 @@ Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stre
 fn pull(
     channel: unpinned<Channel>,
     request: ReadRequest
-  ) -> Page
+  ) -> Page<any>
 ```
 
 | Parameter | Type | Description |
@@ -933,7 +933,7 @@ fn pull(
 | `channel` | `unpinned<Channel>` | The channel to read — the changefeed or a declared stream. |
 | `request` | `ReadRequest` | Where to resume, how much, and the transport (see [ReadRequest](#ReadRequest)). |
 
-**Returns** `Page` — One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
+**Returns** `Page<any>` — One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
 
 <a id="push"></a>
 
@@ -952,14 +952,14 @@ Append one or more events to a Channel. The pusher offers a batch and the channe
 ```lumen
 command push(
     channel: unpinned<Channel>,
-    events:  [PushEvent]
+    events:  [PushEvent<any>]
   ) -> PushAck
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
 | `channel` | `unpinned<Channel>` | The channel to append to — must accept writes (`sink`/`duplex`). |
-| `events` | `[PushEvent]` | One or more events to append, in order; each the channel's `pushSchema` type. A keyed event carries a pusher-assigned `ordinal`. |
+| `events` | `[PushEvent<any>]` | One or more events to append, in order; each the channel's `pushSchema` type. A keyed event carries a pusher-assigned `ordinal`. |
 
 **Returns** `PushAck` — What [push](#push) returns — the high-water ordinal accepted, a per-event result, and the backpressure signal (`credit` + optional `retryAfter`). A short `results` with `credit: 0` and a deferred tail is normal flow, not an error.
 
@@ -972,16 +972,16 @@ Single-writer assumption (v0.2): a channel has one logical writer, so pusher-ass
 One event offered to [push](#push). `body` is the payload (the channel's `pushSchema` type); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.
 
 ```lumen
-type PushEvent = {
+type PushEvent<T> = {
   ordinal?: Ordinal,
-  body:     { ...: any }
+  body:     T
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `ordinal?` | `Ordinal` | The pusher-assigned position, for a keyed (idempotent) append; absent, the channel assigns one. |
-| `body` | `{ ...: any }` | The event payload — the channel's `pushSchema` type. |
+| `body` | `T` | The event payload — the channel's `pushSchema` type. |
 
 <a id="PushAck"></a>
 

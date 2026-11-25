@@ -1664,11 +1664,7 @@
           "ordinal": {
             "$ref": "#/components/schemas/Ordinal"
           },
-          "body": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          }
+          "body": {}
         },
         "required": [
           "body"

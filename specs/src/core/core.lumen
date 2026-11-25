@@ -651,9 +651,9 @@ type ReadRequest = {
 
 ## Page
 /// description: One finite page of a stream — the windowed floor every service offers: one request, one page, nothing held open.
-type Page = {
-  /// description: The items in this window (a Channel's E — ChangeEvent for the changefeed; items generally).
-  items:  [ any ],
+type Page<T> = {
+  /// description: The items in this window (the stream's element type `T` — `ChangeEvent` for the changefeed, `Resource` for a `list`).
+  items:  [T],
   /// description: Where to resume; opaque, bound to this stream + selection.
   cursor: Cursor,
   /// description: Caught up to the live edge?
@@ -670,7 +670,7 @@ fn pull(
     channel: unpinned<Channel>,
     /// description: Where to resume, how much, and the transport (see [[core.lumen#ReadRequest]]).
     request: ReadRequest
-  ) -> Page
+  ) -> Page<any>
 
 ## push
 /// bdp = { kind = "primitive", primitive = "push" }
@@ -684,7 +684,7 @@ command push(
     /// description: The channel to append to — must accept writes (`sink`/`duplex`).
     channel: unpinned<Channel>,
     /// description: One or more events to append, in order; each the channel's `pushSchema` type. A keyed event carries a pusher-assigned `ordinal`.
-    events:  [PushEvent]
+    events:  [PushEvent<any>]
   ) -> PushAck
 // Single-writer assumption (v0.2): a channel has one logical writer, so
 // pusher-assigned ordinals are collision-free and `(channel, ordinal)` idempotency
@@ -694,11 +694,11 @@ command push(
 
 ## PushEvent
 /// description: One event offered to [[core.lumen#push]]. `body` is the payload (the channel's `pushSchema` type); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.
-type PushEvent = {
+type PushEvent<T> = {
   /// description: The pusher-assigned position, for a keyed (idempotent) append; absent, the channel assigns one.
   ordinal?: Ordinal,
   /// description: The event payload — the channel's `pushSchema` type.
-  body:     { ...: any }
+  body:     T
 }
 
 ## PushAck
