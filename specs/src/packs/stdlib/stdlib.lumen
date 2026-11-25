@@ -135,8 +135,9 @@ type Label is Annotation {
 //   count  — the aggregate reduction (a scalar, no bodies) issue.lumen §2.A's
 //            `count` verb lowers to.
 //
-// (`get-many` / `exists` from that §2.A note need no op of their own — a bulk read
-// is a `batch` of `get`s or a `list` by id-set; existence is `count … > 0`.)
+// (`exists` needs no op of its own — `count … > 0`. `get-many` now DOES have a
+// dedicated op, §2.6 `getMany`: a `batch` of `get`s loses which ids were absent,
+// and native `bd get <id>...` wants one miss-partitioned snapshot.)
 //
 // Each is an INTRINSIC operation (native, no stored implementation), addressed by
 // its well-known path under this pack (`stdlib/query`, …) and invoked through core
@@ -161,7 +162,10 @@ type Label is Annotation {
 // `graph-depth-exceeded` (depth past `maxGraphDepth`), `limit-exceeded` (a batch past
 // `maxBatch` — core's existing 422 static-bound code, NOT a new `batch-*` code),
 // `nested-batch-unsupported` (a batch item whose op is `stdlib/batch`),
-// `atomic-unsupported` (an atomic batch before the atomic lowering lands).
+// `atomic-unsupported` (an atomic batch before the atomic lowering lands),
+// `referential-integrity` (a `deleteResource onIncident: fail` would leave an inbound soft
+// reference dangling), `capability-not-supported` (a `deleteResource` mode needing
+// inbound-reference tracking the scope does not advertise).
 
 // -----------------------------------------------------------------------------
 // §2.1  query — list's rich sibling
@@ -289,6 +293,43 @@ fn count(
     where?: QueryExpr
   ) -> integer
 
+// -----------------------------------------------------------------------------
+// §2.6  getMany — the miss-partitioned bulk point-read
+// -----------------------------------------------------------------------------
+
+/// description: Miss-partitioned bulk point-read — resolve many refs within one scope against a single consistent snapshot, returned as `found` + `missing`. A plain batch of `get`s loses which ids were absent and the alias→target correlation; `getMany` returns the miss set explicitly and tags each hit with the ref the caller passed. Each ref resolves exactly as [[core.lumen#get]] (the alias overlay, a pinned `rev`), and `select` projects each hit. (`stdlib/getMany`; `cli.name: "get"` → `bd get <id>...`.)
+/// normative: A ref is partitioned by how it RESOLVES (as [[core.lumen#get]]): a ref that resolves — including a pinned `rev` naming a tombstone revision, or a pinned earlier live revision — is a `found` hit; an UNPINNED ref whose target is retired is `missing` with `retired: true` (the 410 case); a ref that does not resolve (never existed, or a pinned `rev` that does not exist) is `missing` without `retired` (the 404 case). On a `reusable`/`unversioned` scope retired and never-existed collapse, so `retired` is unreachable there, exactly as core `get`'s 410 is.
+/// normative: Read-or-fault — a `Problem` is raised only for a WHOLE-request error: malformed, past `maxBatch` → `limit-exceeded`, or a ref naming a scope other than the call's (`getMany` is single-scope). An absent or retired ref is NEVER a whole-request fault. `found` and `missing` preserve request order; a duplicate ref resolves once and appears once. Every hit is read against ONE consistent snapshot; the read is non-resumable and `maxBatch`-bounded.
+/// cli.name: "get"
+fn getMany(
+    refs:    [ ref<any> ],
+    select?: selector
+  ) -> GetManyResult
+
+/// description: The result of [[stdlib.lumen#getMany]] — the hits (each tagged with the ref the caller passed) and the refs that did not resolve.
+type GetManyResult = {
+  /// description: The resolved hits, in request order.
+  found:   [ GetManyHit ],
+  /// description: The refs that did not resolve — absent, or retired (unpinned).
+  missing: [ MissingRef ]
+}
+
+/// description: One resolved hit in [[stdlib.lumen#getMany]] — the input ref (so an alias resolves back to its name) and the resolved representation.
+type GetManyHit = {
+  /// description: The ref the caller passed (an alias name is preserved here, though `resource.id` is the canonical target).
+  ref:      ref<any>,
+  /// description: The resolved representation, projected by `select`.
+  resource: Resource
+}
+
+/// description: One ref that did not resolve in [[stdlib.lumen#getMany]].
+type MissingRef = {
+  /// description: The ref that did not resolve.
+  ref:      ref<any>,
+  /// description: True when the target is retired (a tombstone, unpinned 410); absent when the target or pinned revision does not exist (404).
+  retired?: bool
+}
+
 
 // #############################################################################
 // §3. Surface-coverage ops — the v0 HTTP data commands beyond core + issue
@@ -353,3 +394,49 @@ fn lint(where?: QueryExpr, limit?: integer) -> [ LintResult ]
 
 /// description: One resource's lint findings — the resource and its list of issues (missing sections, warnings).
 type LintResult = { resource: ref<resource>, findings: [ string ] }
+
+// -----------------------------------------------------------------------------
+// §3.5  deleteResource — the multi-id delete facade (cascade / sever / dry-run)
+// -----------------------------------------------------------------------------
+
+/// description: Multi-id retire with a chosen inbound-reference disposition and an optional dry run — the stdlib facade over the core [[core.lumen#delete]] primitive (the generic form of native `bd delete <id>...`, and of v0's issue-flavoured bulk delete). `delete` retires ONE resource and lets inbound refs dangle; `deleteResource` adds the array request shape and the cascade / sever / fail dispositions the CLI needs, while the wire `delete` stays minimal. Guards and modes ride as call ARGUMENTS (it is a callable, not an HTTP method), not conditional headers. (`stdlib/deleteResource`; `cli.name: "delete"` → `bd delete`.)
+/// normative: Each target is retired as by [[core.lumen#delete]] — a tombstone revision (`retired: true`, `body: null`), idempotent. `onIncident` governs SOFT inbound references (a `ref<T>` body property that points AT a retired resource, e.g. an Annotation); STRUCTURAL `rel<>` endpoints are NOT governed here — a relationship's own cascade/restrict on its `source`/`target` is core behaviour ([[core.lumen#rel]]) and runs regardless. `dangle` leaves soft refs to resolve to the tombstone (the core default); `fail` refuses when a soft ref would be left dangling; `sever` retires the resources that HOLD the inbound soft ref (listed in `severed`); `cascade` transitively retires resources reachable by inbound soft refs (listed per target in `retired`). `fail`/`sever`/`cascade` require inbound-reference tracking (an advertised capability, [[core.lumen#delete]]); a scope offering `deleteResource` without it faults `capability-not-supported` on those modes.
+/// normative: Guards match the `delete` primitive and apply to the explicitly requested `refs`, not to cascaded dependents: `precondition` filters each target; `ifRevision` is SINGLE-ref only — supplied with `len(refs) ≠ 1` it faults `400` malformed. A target failing `precondition` or `ifRevision` settles `blocked`, not a whole-request fault.
+/// normative: The call settles per-ref as a `DeleteOutcome` (`200`, one per requested target in request order). Non-`fail` modes are BEST-EFFORT: a `blocked`/`not-found` target does not abort its siblings (partial commit is normal — read each outcome's `status`), unlike the sibling [[stdlib.lumen#batch]] whose `atomic` arm is all-or-nothing; `DeleteOutcome` is a deliberate per-ref lifecycle shape, not an `Outcome`. `onIncident: fail` is the ONE whole-request mode: if any target would leave an inbound soft ref dangling, the call faults `referential-integrity` and NOTHING commits. `dryRun: true` computes the full outcome WITHOUT committing — a target that would be retired reports `would-delete`, others report `blocked`/`skipped`/`not-found`; a dry run under `onIncident: fail` reports the would-block targets as `blocked` and does NOT raise `referential-integrity`, so the preview stays usable. A never-existed target settles `not-found` (on a `reusable`/`unversioned` scope, indistinguishable from `skipped`, as core `delete`'s 404 is unreachable there).
+/// cli.name: "delete"
+command deleteResource(
+    refs:          [ unpinned<any> ],
+    /// description: Disposition for SOFT inbound references when a target is retired — `dangle` (leave them to resolve to the tombstone, the core default), `fail` (refuse the whole request if any soft ref would be left dangling), `sever` (retire the resources holding the inbound soft ref), `cascade` (transitively retire resources reachable by inbound soft refs).
+    onIncident?:   OnIncident = "dangle",
+    /// description: Compute the full outcome — every tombstone and affected reference — without committing.
+    dryRun?:       bool = false,
+    /// description: Revision guard; SINGLE-ref only (faults `400` when `len(refs) ≠ 1`). Retire only if the one target still matches this revision; else that target is `blocked`.
+    ifRevision?:   Rev,
+    /// description: State guard. Retire a target only if it satisfies this Filter; else that target is `blocked`.
+    precondition?: Filter
+  ) -> [ DeleteOutcome ]
+
+/// description: Inbound-reference disposition for [[stdlib.lumen#deleteResource]]; see the op's normative for each mode.
+type OnIncident = "dangle" | "fail" | "sever" | "cascade"
+
+/// description: The fate of one requested target in [[stdlib.lumen#deleteResource]].
+type DeleteOutcome = {
+  /// description: The target this outcome is for.
+  ref:      ref<any>,
+  /// description: `deleted` (tombstone minted), `would-delete` (a `dryRun` projection of a real retirement), `skipped` (idempotent — already retired), `not-found` (never existed), or `blocked` (a guard or an `onIncident` disposition refused it).
+  status:   "deleted" | "would-delete" | "skipped" | "not-found" | "blocked",
+  /// description: The tombstone revision — minted now on `deleted`, or the existing one on `skipped` (matching `delete`'s idempotent return).
+  rev?:     Rev,
+  /// description: Every id retired for this target — the target itself plus, under `cascade`, its transitive soft-ref dependents; in a `dryRun`, what WOULD be retired (unpinned refs, since no rev is minted).
+  retired?: [ ref<any> ],
+  /// description: The resources retired under `sever` because they held an inbound soft reference to this target.
+  severed?: [ ref<any> ],
+  /// description: Why, when `blocked`, `skipped`, or `not-found`.
+  reason?:  string
+}
+
+// CLI arity-dispatch: `bd get` / `bd delete` route a SINGLE id to the core primitive
+// (`get` → `rep`, `delete` → `Rev`) and MULTIPLE ids to these stdlib ops (`getMany` →
+// `GetManyResult`, `deleteResource` → `[DeleteOutcome]`); the output shape follows the
+// arity. A client whose scope does not advertise stdlib fans the multi-id form out to N
+// core primitives and synthesizes the partition / outcome list itself.

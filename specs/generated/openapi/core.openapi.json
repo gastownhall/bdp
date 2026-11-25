@@ -779,11 +779,27 @@
     "/-/export": {
       "get": {
         "operationId": "export",
-        "summary": "Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: cr",
+        "summary": "Bulk read of a scope — `jsonl` the bulk default, `page` windows where `request.format` asks (a snapshot, like `list`); c",
         "tags": [
           "Core"
         ],
         "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
           {
             "name": "format",
             "in": "header",
@@ -817,6 +833,29 @@
         "tags": [
           "Core"
         ],
+        "parameters": [
+          {
+            "name": "importId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ImportId"
+            }
+          },
+          {
+            "name": "fromOrdinal",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Ordinal"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/jsonl": {}
+          }
+        },
         "responses": {
           "200": {
             "description": "success"
@@ -975,6 +1014,9 @@
           },
           "storageClass": {
             "$ref": "#/components/schemas/StorageClass"
+          },
+          "retired": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1653,17 +1695,13 @@
         "additionalProperties": false
       },
       "PushEvent": {
-        "description": "One event offered to [[core.lumen#push]]. `body` is the payload (the channel's `pushSchema` type); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.",
+        "description": "One event offered to [[core.lumen#push]]. `body` is the payload (the channel's `pushSchema` type — which MAY be any value, not only a record, so `body: T` is deliberately unconstrained); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.",
         "type": "object",
         "properties": {
           "ordinal": {
             "$ref": "#/components/schemas/Ordinal"
           },
-          "body": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          }
+          "body": {}
         },
         "required": [
           "body"
@@ -2562,7 +2600,7 @@
         }
       },
       "ExportRecord": {
-        "description": "One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([[core.lumen#import]]). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.",
+        "description": "One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its ordinal — the resume key a resumable `import` acks against ([[core.lumen#import]]). No ordinal field is added to the record: its position carries it, anchored on import by the request's `fromOrdinal` when the stream is chunked across requests. `ExportBegin` carries the changefeed cut the export was taken at.",
         "oneOf": [
           {
             "$ref": "#/components/schemas/ExportBegin"
@@ -2766,6 +2804,10 @@
           "tallies"
         ],
         "additionalProperties": false
+      },
+      "ImportId": {
+        "description": "A caller-minted token identifying one resumable import across its requests. Opaque to the scope; its only job is to correlate a resumed batch with the `acceptedThrough` the scope is tracking, and to keep concurrent imports into one scope from crossing.",
+        "type": "string"
       },
       "ServiceDescriptor": {
         "description": "The bounded discovery signpost returned by `GET /` (a scope's base URL) — a THIN envelope that names the protocol and LINKS to the rest, never embedding it. With `get` and `/sys/capabilities`, it is the mandatory floor.",

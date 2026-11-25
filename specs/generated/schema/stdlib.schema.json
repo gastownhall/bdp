@@ -340,6 +340,62 @@
       ],
       "additionalProperties": false
     },
+    "GetManyResult": {
+      "description": "The result of [[stdlib.lumen#getMany]] — the hits (each tagged with the ref the caller passed) and the refs that did not resolve.",
+      "type": "object",
+      "properties": {
+        "found": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GetManyHit"
+          }
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MissingRef"
+          }
+        }
+      },
+      "required": [
+        "found",
+        "missing"
+      ],
+      "additionalProperties": false
+    },
+    "GetManyHit": {
+      "description": "One resolved hit in [[stdlib.lumen#getMany]] — the input ref (so an alias resolves back to its name) and the resolved representation.",
+      "type": "object",
+      "properties": {
+        "ref": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "resource": {
+          "$ref": "core.schema.json#/$defs/Resource"
+        }
+      },
+      "required": [
+        "ref",
+        "resource"
+      ],
+      "additionalProperties": false
+    },
+    "MissingRef": {
+      "description": "One ref that did not resolve in [[stdlib.lumen#getMany]].",
+      "type": "object",
+      "properties": {
+        "ref": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "retired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "additionalProperties": false
+    },
     "KvEntry": {
       "description": "A general-purpose scoped key-value entry — arbitrary string data under a dotted key, outside the domain model (native `bd kv`). Modelled as a RESOURCE: `get`/`put`/`list`/`delete` are the generic primitives, and the CLI sugars `kv get/set/list/clear` (cli.name-mounted) onto them — so no new ops are needed. Distinct from ops `config` (operational settings): kv is user DATA, and the two MUST NOT share keys.",
       "allOf": [
@@ -420,6 +476,56 @@
       "required": [
         "resource",
         "findings"
+      ],
+      "additionalProperties": false
+    },
+    "OnIncident": {
+      "description": "Inbound-reference disposition for [[stdlib.lumen#deleteResource]]; see the op's normative for each mode.",
+      "enum": [
+        "dangle",
+        "fail",
+        "sever",
+        "cascade"
+      ]
+    },
+    "DeleteOutcome": {
+      "description": "The fate of one requested target in [[stdlib.lumen#deleteResource]].",
+      "type": "object",
+      "properties": {
+        "ref": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "status": {
+          "enum": [
+            "deleted",
+            "would-delete",
+            "skipped",
+            "not-found",
+            "blocked"
+          ]
+        },
+        "rev": {
+          "$ref": "core.schema.json#/$defs/Rev"
+        },
+        "retired": {
+          "type": "array",
+          "items": {
+            "$ref": "core.schema.json#/$defs/ResourceRef"
+          }
+        },
+        "severed": {
+          "type": "array",
+          "items": {
+            "$ref": "core.schema.json#/$defs/ResourceRef"
+          }
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "status"
       ],
       "additionalProperties": false
     }

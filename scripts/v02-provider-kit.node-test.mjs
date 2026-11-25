@@ -8,8 +8,8 @@ import { condition, query } from "./v02-provider-kit/evaluate.mjs";
 import { parseJson } from "./v02-provider-kit/transport.mjs";
 test("latest pinned normative census has executable coverage plus Appendix E", async () => {
   const c = await loadCoverage();
-  assert.equal(c.points.length, 116);
-  assert.equal(new Set(c.points.map((p) => p.id)).size, 116);
+  assert.equal(c.points.length, 125);
+  assert.equal(new Set(c.points.map((p) => p.id)).size, 125);
   assert.equal(harvest("## X\n/// normative: Test\ntype X = string")[0].anchor, "X#1");
 });
 test("incomplete, failed and cleanup-error reports cannot qualify", () => {

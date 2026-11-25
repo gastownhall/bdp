@@ -359,7 +359,7 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         evidence: "gastownhall/bdp#430 item 7",
     },
     Registration {
-        text: "A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`\"\"`), or a property declared `computed` or `serviceManaged` faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.",
+        text: "A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`, `/retired`), the whole-document root (`\"\"`), or a property declared `computed` or `serviceManaged` faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 8",
     },
@@ -379,7 +379,7 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         evidence: "gastownhall/bdp#430 item 10",
     },
     Registration {
-        text: "Import is RESUMABLE over the export's implicit record ordinals ([[core.lumen#ExportRecord]]). `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1`; re-offering a record at or below `acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.",
+        text: "Import is RESUMABLE over ABSOLUTE record ordinals. A record's ordinal is `fromOrdinal + its index` in the delivered `records` array (`fromOrdinal` omitted ⇒ `1`), so the stream position survives chunking across requests even though each array restarts at index 0; `importId` names the session the scope keys `acceptedThrough` on, and a one-shot import omits both. `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1` (`fromOrdinal = acceptedThrough + 1`); a record whose absolute ordinal is `≤ acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.",
         disposition: Disposition::Waived,
         evidence: "gastownhall/bdp#430 item 11",
     },
