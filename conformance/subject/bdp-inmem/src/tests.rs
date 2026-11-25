@@ -416,8 +416,24 @@ async fn honest_unadvertised_ops_are_not_implemented() {
     let s = scope();
     // ops this backend doesn't implement answer not_implemented (advertised ⟹ implemented).
     assert!(s.evaluate(Expr::BdpText("anything")).await.unwrap().not_implemented);
-    assert!(s.pull(&ResourceId::head(Scope::This, Id("ch".into())), Page::default(), None, None).await.unwrap().not_implemented);
     assert!(s.resolve_alias("some-name").await.unwrap().not_implemented);
+
+    // `pull` LEFT THIS LIST, and the test is where that transition shows. It used to assert
+    // `pull -> not_implemented`; this scope now advertises `PrimitiveCapabilities::Pull` and
+    // implements it, so the SAME line would now be asserting that an advertised op is absent —
+    // the exact breach the `advertised ⟹ implemented` rule in the comment above forbids.
+    //
+    // So the assertion flips rather than disappearing: pull against a channel that does not exist
+    // must be a real fault, NOT the not-implemented signal. Deleting the line would have left the
+    // op untested from this direction, and a scope that regressed to `not_implemented` would then
+    // pass both halves of the suite.
+    match s.pull(&ResourceId::head(Scope::This, Id("ch-absent".into())), Page::default(), None, None).await {
+        Err(BdpError::NotFound(_)) => {}
+        Ok(r) if r.not_implemented => {
+            panic!("pull is advertised now, so `not_implemented` is a breach, not an answer")
+        }
+        other => panic!("expected NotFound pulling a channel that does not exist, got {other:?}"),
+    }
 }
 
 /// AN UNADVERTISED MODE OF A PRESENT OP IS NOT AN ABSENT OP, and this test exists because the one

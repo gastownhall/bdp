@@ -67,6 +67,8 @@ impl<S: BdpScope> Server<S> {
             Route::ScopeExport => self.do_export(&req).await,
             Route::ScopeEval => unmapped("eval not mapped in the spike"),
             Route::ScopeImport => self.do_import(&req).await,
+            Route::Pull(ref id) => self.do_pull(&req, id).await,
+            Route::Push(ref id) => self.do_push(&req, id).await,
             Route::Revisions(id) => self.do_revisions(&req, &id).await,
             // The fence split succeeded but named no known action, or named one with the wrong
             // method / id-ness. 404 rather than 400: the request is well-formed and simply names
@@ -264,6 +266,111 @@ impl<S: BdpScope> Server<S> {
             p::PrimitiveCapabilities::Create(cc) => Some(cc),
             _ => None,
         })
+    }
+
+    /// `GET /{channel}/-/pull` — read a channel's events.
+    ///
+    /// `format` IS ACTED ON RATHER THAN IGNORED, which is the whole point of rc2's silent-failure
+    /// clause: "Silently ignoring a resume cursor or a transport selector — returning the whole set
+    /// from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT."
+    /// This binding implements `jsonl` and REFUSES the two it does not implement, by name. A
+    /// refusal is not silence; returning jsonl to a caller who asked for `page` would be.
+    ///
+    /// `sse` IS REFUSED AS UNIMPLEMENTED, NOT AS INVALID, and the difference matters: `pull` is the
+    /// one read where `sse` is legal (core.lumen#pull: "`sse` is valid here because `pull` is the
+    /// one live-feed read"), so a `400` would be a false statement about the spec. 501 says this
+    /// binding does not do it yet, which is true.
+    async fn do_pull(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
+        match req.header("format").map(|f| f.trim().to_ascii_lowercase()).as_deref() {
+            None | Some("") | Some("jsonl") => {}
+            Some("page") => return unmapped("pull `format=page` is not implemented by this binding"),
+            Some("sse") => return unmapped("pull `format=sse` is not implemented by this binding"),
+            Some(other) => {
+                return HttpResponse::json(
+                    400,
+                    problem_body(
+                        400,
+                        "invalid-parameter",
+                        &format!("`format` must be page | jsonl | sse; got `{other}`"),
+                    ),
+                )
+            }
+        }
+        let page = p::Page {
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
+            from: None,
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
+        };
+        let channel = resource_id_from(channel_seg, None);
+        match self.scope.pull(&channel, page, None, None).await {
+            Ok(res) if res.not_implemented => unmapped("pull not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(events) => {
+                    let mut body = Vec::new();
+                    for e in &events {
+                        body.extend_from_slice(e.0.as_ref());
+                        body.push(b'\n');
+                    }
+                    attach(HttpResponse::jsonl(200, body), &res.protocol)
+                }
+                None => unmapped("pull returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// `POST /{channel}/-/push` — append events to a channel.
+    ///
+    /// `application/jsonl` IS FIXED on the request, exactly as on `import`: core.lumen#push carries
+    /// `request = { contentType = "application/jsonl" }`. A wrong media type is `400` and not `415`
+    /// for the same reason as import — `push` declares `[405, 409, 422]` and names no 415, so
+    /// answering one would put a status on the wire that no denominator row carries.
+    async fn do_push(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
+        const JSONL: &str = "application/jsonl";
+        let media_type = req
+            .header("content-type")
+            .and_then(|ct| ct.split(';').next().map(|m| m.trim().to_ascii_lowercase()))
+            .unwrap_or_default();
+        if media_type != JSONL {
+            let got = if media_type.is_empty() { "no Content-Type" } else { &media_type };
+            return HttpResponse::json(
+                400,
+                problem_body(400, "bad-request", &format!("push requires {JSONL}, got {got}")),
+            );
+        }
+
+        let text = String::from_utf8_lossy(&req.body);
+        let mut events = Vec::new();
+        for line in text.lines().filter(|l| !l.trim().is_empty()) {
+            match serde_json::from_str::<crate::wire::WirePushEvent>(line) {
+                Ok(w) => events.push(p::PushEvent {
+                    ordinal: w.ordinal,
+                    body: p::RawJson(bytes::Bytes::from(w.body.get().as_bytes().to_vec())),
+                }),
+                Err(e) => {
+                    return HttpResponse::json(
+                        400,
+                        problem_body(400, "bad-request", &format!("bad push event line: {e}")),
+                    )
+                }
+            }
+        }
+
+        let channel = resource_id_from(channel_seg, None);
+        match self.scope.push(&channel, &events).await {
+            Ok(res) if res.not_implemented => unmapped("push not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(ack) => {
+                    let wire = crate::wire::WirePushAck::from_trait(&ack);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&wire).unwrap()), &res.protocol)
+                }
+                None => unmapped("push returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
     }
 
     /// `POST /-/import` — the bulk WRITE side, and the last declared primitive this binding left

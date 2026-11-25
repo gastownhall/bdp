@@ -60,6 +60,34 @@ struct Row {
 struct Store {
     log: Vec<Row>,
     by_id: HashMap<(String, String), Vec<usize>>,
+    /// Per-channel event streams, keyed `(scope, channel id)`.
+    ///
+    /// A SEPARATE LOG FROM `log`, and core.lumen says why in as many words: "A Channel bead's
+    /// revision does NOT change when events arrive — the bead is not the stream. Appended events
+    /// ride the channel's own stream, never the changefeed." Putting events in `log` would mint a
+    /// revision per event on the channel resource and leak them into `/sys/changes`, which is the
+    /// one thing that sentence forbids.
+    channels: HashMap<(String, String), ChannelLog>,
+}
+
+/// A channel's declared facts, read from its bead.
+struct ChannelDescriptor {
+    direction: String,
+    /// The lowest ordinal still resumable; a cursor below it faults `cursor-expired`.
+    floor: u64,
+    /// Terminal (closed/failed).
+    closed: bool,
+}
+
+/// One channel's stream: its events by ordinal.
+#[derive(Clone, Default)]
+struct ChannelLog {
+    /// `(ordinal, body)`, append-only and ordinal-ascending.
+    ///
+    /// EVENTS ARE NOT DROPPED when the retention floor rises. Retention governs what a READER may
+    /// resume from, and discarding the events behind it would make the floor unobservable: a case
+    /// could not then tell "expired cursor" from "nothing was ever there".
+    events: Vec<(u64, String)>,
 }
 
 impl Store {
@@ -146,6 +174,54 @@ impl InMemScope {
     /// inherent accessor that feeds discovery (Lydia §78); nothing about the versioned core changes.
     pub fn storage_class(&self) -> StorageClass {
         StorageClass::Ephemeral
+    }
+
+    /// A channel's declared descriptor — `direction` and its retention floor — read from the
+    /// channel RESOURCE's body.
+    ///
+    /// THE DESCRIPTOR IS THE BEAD, not scope configuration, which is what core.lumen#Channel means
+    /// by `Channel is Bead`: "A channel-descriptor bead body — its two event schemas, direction,
+    /// and delivery characteristics. Its resource is `rep<Channel>`." So a test declares a channel
+    /// by CREATING one, and `pull`/`push` read what it declared. Holding direction in scope state
+    /// instead would let the two disagree with the resource a client can read.
+    ///
+    /// SIMPLIFIED IN ONE PLACE, and said so rather than implied: the spec's `retention: Retention`
+    /// is modelled here as an optional `retentionFloor` ordinal, which is the only part of
+    /// retention `pull` has an observable obligation about (a cursor below it faults). The schemas
+    /// (`pushSchema`/`pullSchema`) are not modelled: this store validates no event payloads, so
+    /// carrying them would be declaring a check that does not exist.
+    fn channel_descriptor(&self, channel: &ResourceId) -> Result<ChannelDescriptor, BdpError> {
+        let store = self.store.read().unwrap();
+        let scope = self.scope_str(&channel.scope);
+        let row = store
+            .head(&scope, channel.id.0.as_ref())
+            .ok_or_else(|| BdpError::NotFound(channel.clone()))?;
+        if row.op == "delete" {
+            return Err(BdpError::Erased {
+                id: channel.clone(),
+                at: Rev(row.rev.clone().into()),
+            });
+        }
+        let body: serde_json::Value = row
+            .properties
+            .as_deref()
+            .and_then(|p| serde_json::from_str(p).ok())
+            .unwrap_or(serde_json::Value::Null);
+        // A resource that declares no direction is not a channel. `405` would claim it is a channel
+        // facing the wrong way; `404` says there is no channel here, which is what is true.
+        let direction = body
+            .get("direction")
+            .and_then(|d| d.as_str())
+            .ok_or_else(|| BdpError::NotFound(channel.clone()))?
+            .to_string();
+        let floor = body.get("retentionFloor").and_then(|f| f.as_u64()).unwrap_or(0);
+        // TERMINAL STATE IS DECLARED ON THE BEAD TOO, for the same reason as direction and for one
+        // more: a `closed` flag on the in-memory event log would be set by NOTHING, since this
+        // store has no close operation — a branch no request can reach, which reads as implemented
+        // while being dead. Reading it from the descriptor makes the state something a client can
+        // both set (by writing the channel) and observe (by reading it).
+        let closed = body.get("closed").and_then(|c| c.as_bool()).unwrap_or(false);
+        Ok(ChannelDescriptor { direction, floor, closed })
     }
 
     fn scope_str(&self, s: &Scope) -> String {
@@ -751,6 +827,21 @@ impl BdpScope for InMemScope {
             PrimitiveCapabilities::Delete(DeleteCaps { if_match: true }),
             // acyclicity DEFERRED until the ref-encoding pin (honest: advertised ⟹ implemented).
             PrimitiveCapabilities::Apply(ApplyCaps { max_writes: None, acyclicity: false }),
+            // THE TWO CHANNEL SIDES ARE ADVERTISED SEPARATELY, because a channel's direction makes
+            // them independent — this scope offers both and each individual channel declares which
+            // of them IT admits.
+            PrimitiveCapabilities::Pull(PullCaps {
+                sse: false,
+                jsonl: false,
+                filter: false,
+                selector: false,
+            }),
+            // SMALL BOUNDS ON PURPOSE. `max_batch: 4` is the hard bound whose breach is
+            // `limit-exceeded` (422); `window: 2` is the soft admission credit, whose breach is
+            // backpressure and NOT an error. Keeping them different numbers is what lets a case
+            // prove the binding does not conflate them: a batch of 3 is deferred-in-part and
+            // SUCCEEDS, a batch of 5 is refused.
+            PrimitiveCapabilities::Push(PushCaps { max_batch: Some(4), window: Some(2) }),
             PrimitiveCapabilities::Export(ExportCaps { revisions: true }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
@@ -1045,6 +1136,142 @@ impl BdpScope for InMemScope {
     /// So an unresolvable `operation` is an `Err` (a Problem) and a *declared* failure is an
     /// `Ok` carrying a settled `Outcome`. Collapsing the two would erase the only distinction
     /// that says whether the operation ran.
+    /// pull — read a channel's events (core.lumen#pull).
+    async fn pull(&self, channel: &ResourceId, page: Page, _filter: Option<&ListFilter>, selector: Option<&Selector>)
+        -> Result<BdpResult<Vec<RawJson>>, BdpError> {
+        let d = self.channel_descriptor(channel)?;
+        let (direction, floor) = (d.direction, d.floor);
+        // DIRECTION FIRST, before the cursor is even parsed. A `sink` has no readable stream at
+        // all, so a malformed cursor on one is not the interesting fault.
+        if direction == "sink" {
+            return Err(BdpError::ChannelNotPullable { channel: channel.clone(), direction });
+        }
+        if selector.is_some() {
+            return Err(BdpError::LimitExceeded {
+                capability: "pull".into(),
+                limit: "selector".into(),
+                detail: "this scope advertises `selector: false` on pull".into(),
+            });
+        }
+
+        let after: u64 = match (&page.after, &page.from) {
+            (Some(c), _) => String::from_utf8_lossy(&c.0)
+                .parse()
+                .map_err(|_| BdpError::CursorExpired(c.clone()))?,
+            (None, Some(Ordinal(o))) => o.saturating_sub(1),
+            _ => 0,
+        };
+
+        // BELOW THE RETENTION FLOOR. Resuming "after N" delivers N+1 onwards, so the cursor is
+        // valid exactly when `N + 1 >= floor` — off-by-one in the other direction would expire a
+        // cursor that names the last event BEFORE the floor, which is the oldest legal resume
+        // point rather than an illegal one.
+        if after + 1 < floor {
+            return Err(BdpError::CursorExpired(
+                page.after.clone().unwrap_or_else(|| Cursor(Bytes::from(after.to_string()))),
+            ));
+        }
+
+        let store = self.store.read().unwrap();
+        let key = (self.scope_str(&channel.scope), channel.id.0.to_string());
+        let limit = page.limit.unwrap_or(u32::MAX) as usize;
+        let out = store
+            .channels
+            .get(&key)
+            .map(|log| {
+                log.events
+                    .iter()
+                    .filter(|(o, _)| *o > after)
+                    .take(limit)
+                    .map(|(_, body)| RawJson(Bytes::from(body.clone().into_bytes())))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        Ok(BdpResult::ok(out))
+    }
+
+    /// push — append events to a channel (core.lumen#push).
+    async fn push(&self, channel: &ResourceId, events: &[PushEvent])
+        -> Result<BdpResult<PushAck>, BdpError> {
+        let d = self.channel_descriptor(channel)?;
+        let direction = d.direction;
+        if direction == "source" {
+            return Err(BdpError::ChannelNotPushable { channel: channel.clone(), direction });
+        }
+
+        // READ OFF THIS SCOPE'S OWN ADVERTISEMENT rather than hard-coded, so narrowing the
+        // capability record narrows the behaviour with it and the two cannot drift.
+        let (max_batch, window) = BdpScope::capabilities(self)
+            .into_iter()
+            .find_map(|c| match c {
+                PrimitiveCapabilities::Push(pc) => Some((pc.max_batch, pc.window)),
+                _ => None,
+            })
+            .unwrap_or((None, None));
+
+        // THE HARD BOUND, and it is checked BEFORE anything is appended: `limit-exceeded` means
+        // the request is refused whole, so a partial append would make the fault a lie.
+        if let Some(mb) = max_batch {
+            if events.len() as u64 > mb {
+                return Err(BdpError::LimitExceeded {
+                    capability: "push".into(),
+                    limit: "maxBatch".into(),
+                    detail: format!("this channel accepts at most {mb} events per batch; offered {}", events.len()),
+                });
+            }
+        }
+
+        let mut store = self.store.write().unwrap();
+        let key = (self.scope_str(&channel.scope), channel.id.0.to_string());
+        if d.closed {
+            return Err(BdpError::ChannelClosed { channel: channel.clone() });
+        }
+        let log = store.channels.entry(key).or_default();
+
+        let mut high = log.events.last().map(|(o, _)| *o).unwrap_or(0);
+        let mut taken: u64 = 0;
+        let mut results = Vec::with_capacity(events.len());
+        for ev in events {
+            // THE SOFT BOUND. Once the admission window is full the REST is deferred, and that is
+            // a success: rc2 is explicit that backpressure "is soft and temporal, not an error".
+            if window.is_some_and(|w| taken >= w) {
+                results.push(PushResult::Deferred);
+                continue;
+            }
+            let body = String::from_utf8_lossy(ev.body.0.as_ref()).into_owned();
+            match ev.ordinal {
+                // KEYED AND ALREADY PRESENT: first-write-wins and immutable, so this is a benign
+                // no-op reported `Deduped` and NEVER a fault — and it does not consume credit,
+                // because nothing was admitted.
+                Some(o) if log.events.iter().any(|(x, _)| *x == o) => results.push(PushResult::Deduped(o)),
+                Some(o) => {
+                    log.events.push((o, body));
+                    high = high.max(o);
+                    taken += 1;
+                    results.push(PushResult::Accepted(o));
+                }
+                None => {
+                    let o = high + 1;
+                    log.events.push((o, body));
+                    high = o;
+                    taken += 1;
+                    results.push(PushResult::Accepted(o));
+                }
+            }
+        }
+        log.events.sort_by_key(|(o, _)| *o);
+
+        let deferred = results.iter().any(|r| matches!(r, PushResult::Deferred));
+        Ok(BdpResult::ok(PushAck {
+            accepted_through: high,
+            results,
+            // `credit: 0` is the hold signal and must accompany a deferred tail, or the pusher
+            // re-offers immediately into the same full window.
+            credit: if deferred { 0 } else { window.unwrap_or(0) },
+            retry_after: if deferred { Some(1) } else { None },
+        }))
+    }
+
     async fn call(&self, operation: &ResourceId, request: Request, mode: CallMode)
         -> Result<BdpResult<CallOutcome>, BdpError> {
         // --- PRE-dispatch: resolve the operation. Faults as a Problem, no Outcome.

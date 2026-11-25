@@ -523,6 +523,75 @@ impl BdpScope for RemoteScope {
         }
     }
 
+    /// pull — read a channel's events, as `application/jsonl`.
+    ///
+    /// NO `format` HEADER IS SENT, deliberately: `jsonl` is the only transport this binding
+    /// implements, and asking for one it would refuse would make the client the reason a case
+    /// fails. When `page` lands, this is where the header goes.
+    async fn pull(&self, channel: &p::ResourceId, page: p::Page, _filter: Option<&p::ListFilter>, _selector: Option<&p::Selector>)
+        -> Result<p::BdpResult<Vec<p::RawJson>>, p::BdpError> {
+        let mut q = Vec::new();
+        if let Some(c) = &page.after {
+            q.push(format!("after={}", String::from_utf8_lossy(&c.0)));
+        }
+        if let Some(l) = page.limit {
+            q.push(format!("limit={l}"));
+        }
+        let qs = if q.is_empty() { String::new() } else { format!("?{}", q.join("&")) };
+        let target = format!("/{}/-/pull{qs}", channel.id.0);
+        let resp = self.request("GET", &target, Vec::new(), Vec::new()).await?;
+        if resp.status == 200 {
+            let text = String::from_utf8_lossy(&resp.body);
+            let events: Vec<p::RawJson> = text
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+                .map(|l| p::RawJson(bytes::Bytes::from(l.as_bytes().to_vec())))
+                .collect();
+            let mut res = p::BdpResult::ok(events);
+            res.protocol = crate::wire::protocol_from_headers(&resp);
+            Ok(res)
+        } else if resp.status == 501 {
+            Ok(p::BdpResult::not_implemented())
+        } else {
+            Err(error_from(resp.status, &resp.body, channel))
+        }
+    }
+
+    /// push — append events to a channel, as `application/jsonl`.
+    async fn push(&self, channel: &p::ResourceId, events: &[p::PushEvent])
+        -> Result<p::BdpResult<p::PushAck>, p::BdpError> {
+        let mut payload = Vec::new();
+        for ev in events {
+            let line = serde_json::json!({
+                "ordinal": ev.ordinal,
+                "body": serde_json::from_slice::<serde_json::Value>(ev.body.0.as_ref())
+                    .unwrap_or(serde_json::Value::Null),
+            });
+            // `ordinal: null` would be sent for an unkeyed event; drop the key instead, because
+            // the wire type distinguishes ABSENT (the channel assigns) from a value.
+            let line = match ev.ordinal {
+                Some(_) => line,
+                None => serde_json::json!({ "body": line.get("body").cloned().unwrap_or(serde_json::Value::Null) }),
+            };
+            payload.extend_from_slice(&serde_json::to_vec(&line).unwrap());
+            payload.push(b'\n');
+        }
+        let headers = vec![("content-type".into(), "application/jsonl".into())];
+        let target = format!("/{}/-/push", channel.id.0);
+        let resp = self.request("POST", &target, headers, payload).await?;
+        if resp.status == 200 {
+            let wire: crate::wire::WirePushAck = serde_json::from_slice(&resp.body)
+                .map_err(|e| p::BdpError::Backend(format!("bad push ack: {e}")))?;
+            let mut res = p::BdpResult::ok(wire.to_trait());
+            res.protocol = crate::wire::protocol_from_headers(&resp);
+            Ok(res)
+        } else if resp.status == 501 {
+            Ok(p::BdpResult::not_implemented())
+        } else {
+            Err(error_from(resp.status, &resp.body, channel))
+        }
+    }
+
    async fn export(&self, filter: &p::ListFilter, _selector: Option<&p::Selector>, revisions: bool, _page: p::Page)
         -> Result<p::BdpResult<Vec<p::ExportRecord>>, p::BdpError> {
         if !filter.0.is_empty() {

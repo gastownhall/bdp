@@ -493,6 +493,31 @@ impl WireProblem {
                 };
                 (409, "constraint-violation", "Constraint violation", Some(msg))
             }
+            // THE WRONG CHANNEL DIRECTION IS 405, and the spec names both codes. D.8: "405 pull /
+            // push on the wrong channel direction". Not 422: the direction is a property of the
+            // CHANNEL, not an advertised bound of the operation, so no smaller request succeeds —
+            // which is the test `limit-exceeded` exists for.
+            p::BdpError::ChannelNotPullable { channel, direction } => (
+                405,
+                "channel-not-pullable",
+                "Channel is not pullable",
+                Some(format!("{channel:?} declares direction `{direction}`; pull needs source or duplex")),
+            ),
+            p::BdpError::ChannelNotPushable { channel, direction } => (
+                405,
+                "channel-not-pushable",
+                "Channel is not pushable",
+                Some(format!("{channel:?} declares direction `{direction}`; push needs sink or duplex")),
+            ),
+            // DERIVED, not cited — see `BdpError::ChannelClosed`. core.lumen says a terminal channel
+            // "faults" without naming a status; 405 and 422 are both spoken for on `push`, so 409 is
+            // what remains of its declared set.
+            p::BdpError::ChannelClosed { channel } => (
+                409,
+                "channel-closed",
+                "Channel is terminal",
+                Some(format!("{channel:?} is closed or failed and accepts no further events")),
+            ),
             p::BdpError::Unprocessable(m) => (422, "unprocessable", "Unprocessable request", Some(m.clone())),
             // Donna-ruled: advertised op, request over its advertised limits → 422 `limit-exceeded`
             // (NOT 501/not-implemented). Distinct from generic `unprocessable` by the problem code.
@@ -788,6 +813,71 @@ pub fn caps_from_wire(wire: Vec<WireCapability>) -> Vec<p::PrimitiveCapabilities
 /// time with *"invalid type: newtype struct"* — an internally-tagged outer enum pulls its content
 /// through a buffering deserializer that `RawValue` rejects. Carries the same FRICTION as
 /// `WireRepresentation`: the spec would discriminate these structurally, not by an envelope tag.
+/// One offered event on the wire — `{"ordinal": 7, "body": {...}}`, one per line.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WirePushEvent {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ordinal: Option<u64>,
+    pub body: Box<RawValue>,
+}
+
+/// `push`'s acknowledgement on the wire.
+///
+/// `results` IS EXTERNALLY TAGGED like every other union here, so the three fates read
+/// `{"Accepted":{"ordinal":1}}`, `{"Deduped":{"ordinal":1}}`, `"Deferred"`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum WirePushResult {
+    Accepted { ordinal: u64 },
+    Deduped { ordinal: u64 },
+    Deferred,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WirePushAck {
+    #[serde(rename = "acceptedThrough")]
+    pub accepted_through: u64,
+    pub results: Vec<WirePushResult>,
+    pub credit: u64,
+    #[serde(rename = "retryAfter", skip_serializing_if = "Option::is_none", default)]
+    pub retry_after: Option<u64>,
+}
+
+impl WirePushAck {
+    pub fn from_trait(a: &p::PushAck) -> Self {
+        Self {
+            accepted_through: a.accepted_through,
+            results: a
+                .results
+                .iter()
+                .map(|r| match r {
+                    p::PushResult::Accepted(o) => WirePushResult::Accepted { ordinal: *o },
+                    p::PushResult::Deduped(o) => WirePushResult::Deduped { ordinal: *o },
+                    p::PushResult::Deferred => WirePushResult::Deferred,
+                })
+                .collect(),
+            credit: a.credit,
+            retry_after: a.retry_after,
+        }
+    }
+
+    pub fn to_trait(&self) -> p::PushAck {
+        p::PushAck {
+            accepted_through: self.accepted_through,
+            results: self
+                .results
+                .iter()
+                .map(|r| match r {
+                    WirePushResult::Accepted { ordinal } => p::PushResult::Accepted(*ordinal),
+                    WirePushResult::Deduped { ordinal } => p::PushResult::Deduped(*ordinal),
+                    WirePushResult::Deferred => p::PushResult::Deferred,
+                })
+                .collect(),
+            credit: self.credit,
+            retry_after: self.retry_after,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum WireExportRecord {
     Begin { cursor: String },

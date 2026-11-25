@@ -20,7 +20,8 @@ use bdp_inmem::InMemScope;
 use bdp_primitives::{
     BdpError, BdpResult, BdpScope, CallMode, CallOutcome, CreateBody, CreateCaps, DeleteCaps, GetCaps,
     Guards, Id, IdModel, JsonPatch, Kind, PatchCaps, PrimitiveCapabilities, PutCaps, RawJson,
-    Representation, ExportRecord, FieldPath, ListCondition, ListFilter, Page, Request, ResourceId,
+    Representation, ExportRecord, FieldPath, ListCondition, ListFilter, Page, PushEvent, PushResult,
+    Request, ResourceId, Cursor,
     Rev, RevisionModel, Scope, ScopeCapabilities, Selector, StorageClass,
 };
 use bdp_protocol::http::{send, Outgoing};
@@ -1699,6 +1700,320 @@ async fn an_invalid_limit_is_an_invalid_parameter_400(host: &str) -> Result<Vec<
 ///
 /// Recorded uncovered-with-reason rather than kept alive by retaining a dead convention.
 
+/// A CHANNEL-DESCRIPTOR bead — the resource `pull`/`push` read their facts from.
+///
+/// `Channel is Bead` in core.lumen, so a channel is DECLARED by creating one and its direction,
+/// retention floor and terminal state live in its body. That is what lets these cases set up every
+/// fault below through the ordinary write path, with no test-only door into the scope.
+fn channel_body(direction: &str, extra: serde_json::Value) -> CreateBody {
+    let mut props = serde_json::json!({ "direction": direction });
+    if let (Some(o), Some(e)) = (props.as_object_mut(), extra.as_object()) {
+        for (k, v) in e {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+    CreateBody {
+        kind: Kind("channel".into()),
+        r#type: ResourceId::head(Scope::This, Id("BeadType:channel".into())),
+        properties: RawJson(Bytes::from(serde_json::to_vec(&props).unwrap())),
+        metadata: RawJson(Bytes::from_static(b"{}")),
+    }
+}
+
+async fn seed_channel(
+    r: &RemoteScope,
+    id: &str,
+    direction: &str,
+    extra: serde_json::Value,
+) -> Result<ResourceId, String> {
+    let target = ResourceId::head(Scope::This, Id(id.into()));
+    let w = r
+        .put(target.clone(), channel_body(direction, extra), Guards::default())
+        .await
+        .map_err(|e| format!("seed channel {id}: {e:?}"))?;
+    if w.not_implemented {
+        return Err("put advertised but returned not_implemented seeding a channel".into());
+    }
+    Ok(target)
+}
+
+// ---- the channel pair: pull and push ----------------------------------------------------------
+
+/// A duplex channel ROUND-TRIPS: push appends, pull reads back, in order. Covers op/push and
+/// op/pull.
+///
+/// ONE CASE FOR TWO ROWS, because neither op is observable without the other on this subject.
+/// Asserting push alone could only check an ack it was handed; asserting pull alone needs events
+/// that only push can put there. Pairing them means a push that acknowledged without appending,
+/// or a pull that answered from somewhere other than the stream, fails — which neither half
+/// catches alone.
+///
+/// THE ACK IS ASSERTED, not just the status. `accepted_through` must reach the last ordinal and
+/// each event must come back `Accepted`, because a scope could return an empty `results` with a
+/// 200 and satisfy a status check while appending nothing.
+async fn a_duplex_channel_round_trips(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let ch = seed_channel(r, "ch-duplex", "duplex", serde_json::json!({})).await?;
+
+    let events = vec![
+        PushEvent { ordinal: None, body: RawJson(Bytes::from_static(br#"{"n":1}"#)) },
+        PushEvent { ordinal: None, body: RawJson(Bytes::from_static(br#"{"n":2}"#)) },
+    ];
+    let ack = r.push(&ch, &events).await.map_err(|e| format!("push: {e:?}"))?;
+    if ack.not_implemented {
+        return Err("push advertised but returned not_implemented".into());
+    }
+    let ack = ack.value.ok_or("push returned no ack")?;
+    if ack.accepted_through != 2 {
+        return Err(format!(
+            "acceptedThrough is {}, expected 2 — the ack must name the high-water ordinal durably \
+             appended, or a pusher cannot know where to re-offer from",
+            ack.accepted_through
+        ));
+    }
+    if ack.results != vec![PushResult::Accepted(1), PushResult::Accepted(2)] {
+        return Err(format!(
+            "results are {:?}; two unkeyed events offered into an empty window-2 channel must both \
+             be Accepted at 1 and 2",
+            ack.results
+        ));
+    }
+
+    let pulled = r
+        .pull(&ch, Page { after: None, from: None, limit: None }, None, None)
+        .await
+        .map_err(|e| format!("pull: {e:?}"))?;
+    if pulled.not_implemented {
+        return Err("pull advertised but returned not_implemented".into());
+    }
+    let got = pulled.value.ok_or("pull returned no value")?;
+    let bodies: Vec<String> =
+        got.iter().map(|e| String::from_utf8_lossy(e.0.as_ref()).into_owned()).collect();
+    if bodies.len() != 2 || !bodies[0].contains("\"n\":1") || !bodies[1].contains("\"n\":2") {
+        return Err(format!("pull returned {bodies:?}; expected the two pushed events in order"));
+    }
+
+    // RESUMING FROM A CURSOR delivers only what follows it — the property a cursor exists for, and
+    // one a single unpaged read cannot see.
+    let after_first = r
+        .pull(
+            &ch,
+            Page { after: Some(Cursor(Bytes::from_static(b"1"))), from: None, limit: None },
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| format!("pull after=1: {e:?}"))?
+        .value
+        .ok_or("pull after=1 returned no value")?;
+    if after_first.len() != 1 {
+        return Err(format!(
+            "pull after=1 returned {} events, expected 1; a cursor that is accepted and ignored is \
+             the silent-failure class rc2 forbids",
+            after_first.len()
+        ));
+    }
+
+    Ok(vec![op("push"), op("pull")])
+}
+
+/// `pull` on a `sink`-only channel → 405 `channel-not-pullable`. Covers op/pull/fault/405.
+///
+/// NAMED BY THE SPEC, both the status and the code: core.lumen#pull says "Valid on a
+/// `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`", and D.8 grounds
+/// the status — "405 pull / push on the wrong channel direction".
+///
+/// NOT 422, and the case asserts the code to hold that line. A direction is a property of the
+/// CHANNEL, not an advertised bound of the operation, so no smaller request would succeed — which
+/// is exactly what `limit-exceeded` is for.
+async fn pull_on_a_sink_is_not_pullable_405(r: &RemoteScope, host: &str) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-sink", "sink", serde_json::json!({})).await?;
+    let (status, code) = raw_problem(host, "GET", "/ch-sink/-/pull", Vec::new(), b"").await?;
+    match (status, code.as_str()) {
+        (405, "channel-not-pullable") => Ok(vec![fault("pull", 405)]),
+        (405, c) => Err(format!("405 but the code was `{c}`, not channel-not-pullable")),
+        (422, _) => Err("a sink answered 422; the direction is the channel's, not an advertised \
+                         bound of pull, so there is no smaller request that would work"
+            .into()),
+        (s, c) => Err(format!("expected 405 channel-not-pullable on a sink, got {s} / {c}")),
+    }
+}
+
+/// `push` on a `source`-only channel → 405 `channel-not-pushable`. Covers op/push/fault/405.
+async fn push_on_a_source_is_not_pushable_405(r: &RemoteScope, host: &str) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-source", "source", serde_json::json!({})).await?;
+    let (status, code) = raw_problem(
+        host,
+        "POST",
+        "/ch-source/-/push",
+        ctype("application/jsonl"),
+        br#"{"body":{"n":1}}
+"#,
+    )
+    .await?;
+    match (status, code.as_str()) {
+        (405, "channel-not-pushable") => Ok(vec![fault("push", 405)]),
+        (405, c) => Err(format!("405 but the code was `{c}`, not channel-not-pushable")),
+        (s, c) => Err(format!("expected 405 channel-not-pushable on a source, got {s} / {c}")),
+    }
+}
+
+/// A cursor below the retention floor → 410 `cursor-expired`. Covers op/pull/fault/410.
+///
+/// core.lumen#pull: "Faults `cursor-expired` below the retention floor", and D.8: "410 … pull below
+/// the retention floor (cursor-expired)".
+///
+/// THE BOUNDARY IS ASSERTED, not just the far side. Resuming "after N" delivers N+1 onwards, so a
+/// cursor is valid exactly when `N + 1 >= floor` — the cursor naming the last event BEFORE the
+/// floor is the OLDEST LEGAL resume point, not an illegal one. An off-by-one in the forgiving
+/// direction loses data silently; in the strict direction it refuses a conformant reader. Checking
+/// only `after=1` against floor 5 would pass either way.
+async fn a_cursor_below_the_retention_floor_expires_410(
+    r: &RemoteScope,
+    host: &str,
+) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-retained", "duplex", serde_json::json!({ "retentionFloor": 5 })).await?;
+    let _ = r;
+
+    let (status, code) =
+        raw_problem(host, "GET", "/ch-retained/-/pull?after=1", Vec::new(), b"").await?;
+    match (status, code.as_str()) {
+        (410, "cursor-expired") => {}
+        (410, c) => return Err(format!("410 but the code was `{c}`, not cursor-expired")),
+        (s, c) => return Err(format!("expected 410 cursor-expired below the floor, got {s} / {c}")),
+    }
+
+    // `after=4` resumes at 5, which IS the floor — the oldest legal resume point.
+    match raw_status(host, "GET", "/ch-retained/-/pull?after=4", Vec::new(), b"").await? {
+        200 => {}
+        410 => {
+            return Err("`after=4` against floor 5 faulted; resuming after 4 delivers 5 onwards, \
+                        which is exactly the floor, so this is the oldest LEGAL cursor and \
+                        refusing it turns a conformant reader away"
+                .into())
+        }
+        s => return Err(format!("`after=4` answered {s}, expected 200")),
+    }
+    Ok(vec![fault("pull", 410)])
+}
+
+/// A batch over the advertised `maxBatch` → 422 `limit-exceeded`. Covers op/push/fault/422.
+///
+/// THE TWO BOUNDS MUST NOT BE CONFLATED, and this case asserts both sides of that. `maxBatch` is
+/// the HARD bound: exceeding it is `limit-exceeded`, fixed by shrinking the request. `window` is
+/// the SOFT admission credit, and rc2 is explicit that exceeding it "is soft and temporal, not an
+/// error" — it rides the ack as `credit: 0` and a `Deferred` tail. This subject advertises
+/// `maxBatch: 4` and `window: 2`, so a batch of 3 must SUCCEED with a deferred tail while a batch
+/// of 5 is refused. A binding that answered 422 for a full window would turn normal flow into a
+/// fault, and only the three-event half of this case would catch it.
+async fn a_batch_over_max_batch_is_limit_exceeded_422(
+    r: &RemoteScope,
+    host: &str,
+) -> Result<Vec<SurfaceId>, String> {
+    let ch = seed_channel(r, "ch-bounded", "duplex", serde_json::json!({})).await?;
+
+    let five = (1..=5)
+        .map(|n| format!("{{\"body\":{{\"n\":{n}}}}}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let (status, code) = raw_problem(
+        host,
+        "POST",
+        "/ch-bounded/-/push",
+        ctype("application/jsonl"),
+        five.as_bytes(),
+    )
+    .await?;
+    match (status, code.as_str()) {
+        (422, "limit-exceeded") => {}
+        (422, c) => return Err(format!("422 but the code was `{c}`, not limit-exceeded")),
+        (s, c) => return Err(format!("expected 422 limit-exceeded for a batch of 5 over maxBatch 4, got {s} / {c}")),
+    }
+
+    // AND THE SOFT BOUND IS NOT A FAULT: three events into a window of two is a success with a
+    // deferred tail and `credit: 0`.
+    let three: Vec<PushEvent> = (1..=3)
+        .map(|n| PushEvent {
+            ordinal: None,
+            body: RawJson(Bytes::from(format!(r#"{{"n":{n}}}"#).into_bytes())),
+        })
+        .collect();
+    let ack = r
+        .push(&ch, &three)
+        .await
+        .map_err(|e| format!("a batch of 3 within maxBatch must not fault: {e:?}"))?
+        .value
+        .ok_or("push of 3 returned no ack")?;
+    if !ack.results.contains(&PushResult::Deferred) {
+        return Err(format!(
+            "three events into a window of 2 returned {:?}; the third must be Deferred, which is \
+             backpressure and not an error",
+            ack.results
+        ));
+    }
+    if ack.credit != 0 {
+        return Err(format!(
+            "a deferred tail came back with credit {}; `credit: 0` is the hold signal, and without \
+             it the pusher re-offers straight into the same full window",
+            ack.credit
+        ));
+    }
+    Ok(vec![fault("push", 422)])
+}
+
+/// `push` to a TERMINAL channel → 409. Covers op/push/fault/409.
+///
+/// THE STATUS IS DERIVED AND THE CASE SAYS SO. core.lumen#push states only "A terminal
+/// (closed/failed) channel faults" — no status, no code. `push` declares `[405, 409, 422]`; 405 is
+/// the direction fault and 422 the `maxBatch` bound, both named outright, so a terminal channel can
+/// only be the 409. The code `channel-closed` is this binding's own naming for the same reason, and
+/// deliberately NOT `constraint-violation`, which models uniqueness, cycles and cardinality — a
+/// closed channel is none of those.
+///
+/// So this case asserts the STATUS and not the code: the status is reachable by elimination from
+/// the spec, and asserting a code the spec does not name would pin a guess as though it were
+/// ruled.
+async fn push_to_a_terminal_channel_409(r: &RemoteScope, host: &str) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-closed", "duplex", serde_json::json!({ "closed": true })).await?;
+    let _ = r;
+    match raw_status(
+        host,
+        "POST",
+        "/ch-closed/-/push",
+        ctype("application/jsonl"),
+        br#"{"body":{"n":1}}
+"#,
+    )
+    .await?
+    {
+        409 => Ok(vec![fault("push", 409)]),
+        200 => Err("a terminal channel ACCEPTED an event; rc2 says a closed/failed channel faults"
+            .into()),
+        s => Err(format!("expected 409 pushing to a terminal channel, got {s}")),
+    }
+}
+
+/// An invalid `?limit=` on `pull` → 400 `invalid-parameter`. Covers op/pull/fault/400.
+///
+/// The same D.8 shape as `list` and `revisions` — "AN INVALID PARAMETER VALUE" — reached through
+/// the one `parse_limit` every read shares, which is why it needs no separate producer.
+async fn pull_with_an_invalid_limit_400(r: &RemoteScope, host: &str) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-limit", "duplex", serde_json::json!({})).await?;
+    let _ = r;
+    let (status, code) =
+        raw_problem(host, "GET", "/ch-limit/-/pull?limit=abc", Vec::new(), b"").await?;
+    match (status, code.as_str()) {
+        (400, "invalid-parameter") => {}
+        (s, c) => return Err(format!("expected 400 invalid-parameter on pull, got {s} / {c}")),
+    }
+    // A VALID limit must still be honored, or a guard that refused every limit would pass above.
+    match raw_status(host, "GET", "/ch-limit/-/pull?limit=1", Vec::new(), b"").await? {
+        200 => Ok(vec![fault("pull", 400)]),
+        s => Err(format!("`?limit=1` on pull answered {s}; a valid limit must be honored")),
+    }
+}
+
+
 // ---- the capability duals, against a subject that advertises a BOUND ---------------------------
 
 /// `create/422`, `put/422` and `patch/422` — the enforce side of three capability duals.
@@ -2131,6 +2446,49 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         export_rejects_an_ordinal_resume_400(&addr),
+    )
+    .await;
+    record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;
+    record(
+        "pull/405 sink",
+        &mut covered,
+        &mut failures,
+        pull_on_a_sink_is_not_pullable_405(&remote, &addr),
+    )
+    .await;
+    record(
+        "push/405 source",
+        &mut covered,
+        &mut failures,
+        push_on_a_source_is_not_pushable_405(&remote, &addr),
+    )
+    .await;
+    record(
+        "pull/410 retention floor",
+        &mut covered,
+        &mut failures,
+        a_cursor_below_the_retention_floor_expires_410(&remote, &addr),
+    )
+    .await;
+    record(
+        "push/422 maxBatch",
+        &mut covered,
+        &mut failures,
+        a_batch_over_max_batch_is_limit_exceeded_422(&remote, &addr),
+    )
+    .await;
+    record(
+        "push/409 terminal channel",
+        &mut covered,
+        &mut failures,
+        push_to_a_terminal_channel_409(&remote, &addr),
+    )
+    .await;
+    record(
+        "pull/400 invalid limit",
+        &mut covered,
+        &mut failures,
+        pull_with_an_invalid_limit_400(&remote, &addr),
     )
     .await;
     record("import", &mut covered, &mut failures, import_round_trips_an_export(&remote)).await;
