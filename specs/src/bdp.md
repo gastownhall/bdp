@@ -163,8 +163,8 @@ version it exactly as you do an issue or a document.
 A relationship type is declared with the [[core.lumen#rel]] form and refined with
 `is`:
 
-    type Dependency is unique rel<Issue, Issue> { note?: string }
-    type Blocks     is acyclic Dependency
+    type Dependency is unique acyclic rel<Issue, Issue> { note?: string }
+    type Blocks     is Dependency
 
 The trailing record is the relationship's body — ordinary properties, not a
 second "edge metadata" bag — and the prefix modifiers carry its constraints. The

@@ -213,7 +213,7 @@ The representation of a versioned resource — the protocol envelope around a ty
 
 > **Normative.** The envelope members are fixed and closed — a domain type contributes only `body`, never a new envelope member. `id`, `type` and `body` are always present; the rest is optional. On a representation `id.rev` is the resolved revision; a reference floats to the current revision when its `rev` is absent.
 
-> **Normative.** A TOMBSTONE — the final revision [delete](#delete) mints — carries `retired: true` and a `null` body, so it is an untyped [Resource](#Resource) (`rep<any>`), never a typed representation. It is a real, pinnable revision: it appears in [revisions](#revisions) (which yields `Resource`) and resolves through a pinned reference. A live revision has `retired` absent or false and a non-null body. An UNPINNED read of a retired resource faults `410 Gone`; the tombstone is still reachable by pinning its `rev`, so retirement is observable, not merely an error.
+> **Normative.** A TOMBSTONE — the final revision [delete](#delete) mints — carries `retired: true` and a `null` body, so it is an untyped [Resource](#Resource) (`rep<any>`), never a typed representation. It is a real, pinnable revision: it appears in [revisions](#revisions) (which yields `Resource`) and resolves through a pinned reference. A live revision has `retired` absent or false and a non-null body. An UNPINNED read of a retired resource faults `410 Gone`; the tombstone is still reachable by pinning its `rev`, so retirement is observable, not merely an error. `retired` is SERVICE-MANAGED — minted only by `delete`, refused on `create` and ignored on `put`, and read-only to `patch` ([patch](#patch)); a write can neither forge nor clear a tombstone.
 
 ```lumen
 type rep<T> = {
@@ -1552,9 +1552,9 @@ Note: a separate id proposal was folded into the `resource` ref. The guards (ifR
 
 ### `patch`
 
-JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`) and any property declared `computed` or `serviceManaged` are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
+JSON Patch over the resource representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`). The immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) and any property declared `computed` or `serviceManaged` are read-only — a patch that touches one faults. Guards ride the request line (`If-Match` for `ifRevision`; `?precondition=` for a state guard), so the body stays exactly the JSON Patch. Returns the patched resource's pinned `ref`. (JSON Patch is the base format; a richer patch format is an advertised capability.)
 
-> **Normative.** A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`), the whole-document root (`""`), or a property declared `computed` or `serviceManaged` faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
+> **Normative.** A patch whose path names an envelope member (`/id`, `/provenance`, `/createdAt`, `/retired`), the whole-document root (`""`), or a property declared `computed` or `serviceManaged` faults — for ANY JSON Patch operation, and for the `from` pointer of `move`/`copy` — whatever the implementation's patch document contains.
 
 ```lumen
 command patch(
