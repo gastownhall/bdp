@@ -66,7 +66,7 @@ impl<S: BdpScope> Server<S> {
             Route::ScopeList => self.do_list(&req).await,
             Route::ScopeExport => self.do_export(&req).await,
             Route::ScopeEval => unmapped("eval not mapped in the spike"),
-            Route::ScopeImport => unmapped("import not mapped in the spike"),
+            Route::ScopeImport => self.do_import(&req).await,
             Route::Revisions(id) => self.do_revisions(&req, &id).await,
             // The fence split succeeded but named no known action, or named one with the wrong
             // method / id-ness. 404 rather than 400: the request is well-formed and simply names
@@ -229,6 +229,75 @@ impl<S: BdpScope> Server<S> {
     /// The declared content type is `application/jsonl`, so the body is newline-delimited records
     /// and NOT a JSON array. Begin and End frame the stream: the cursor the export is consistent
     /// as of, and the record count, which is what makes it a backup rather than a read.
+    /// `POST /-/import` — the bulk WRITE side, and the last declared primitive this binding left
+    /// unmapped. The reference has implemented `import` all along and `route.rs` has parsed the
+    /// path all along; only the handler was missing, so `op/import` and its three fault rows were
+    /// uncoverable against a scope that implements the op.
+    ///
+    /// THE MEDIA TYPE IS FIXED, NOT NEGOTIATED. rc2 (#448) added the `request = { contentType =
+    /// "application/jsonl" }` that core.lumen was missing, so there is now exactly one acceptable
+    /// request type and no lenient-reading rationale left.
+    ///
+    /// A WRONG MEDIA TYPE IS `400`, NOT `415`, and the declared fault set is what decides that:
+    /// `import` declares `[400, 409, 422]` and names no 415. `patch` declares 415 and gets it (see
+    /// `do_patch`). Answering an undeclared status would put a row on the wire that no denominator
+    /// carries, which is worse than a coarse one — so a request that is not `application/jsonl` is
+    /// malformed against a fixed contract.
+    async fn do_import(&self, req: &HttpRequest) -> HttpResponse {
+        const JSONL: &str = "application/jsonl";
+        let media_type = req
+            .header("content-type")
+            .and_then(|ct| ct.split(';').next().map(|m| m.trim().to_ascii_lowercase()))
+            .unwrap_or_default();
+        if media_type != JSONL {
+            let got = if media_type.is_empty() { "no Content-Type" } else { &media_type };
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "bad-request",
+                    &format!("import requires {JSONL} (rc2 fixes it on the request), got {got}"),
+                ),
+            );
+        }
+
+        let records = match parse_import_jsonl(&req.body) {
+            Ok(r) => r,
+            Err(detail) => {
+                return HttpResponse::json(400, problem_body(400, "bad-request", &detail))
+            }
+        };
+
+        // `?strategy=` carries the merge mode. An unknown value is malformed rather than
+        // unsupported: the vocabulary is closed, so a third name is not a capability question.
+        let strategy = match req.query.get("strategy").map(|s| s.as_str()) {
+            None | Some("set-current") => p::ImportStrategy::SetCurrent,
+            Some("history-restore") => p::ImportStrategy::HistoryRestore,
+            Some(other) => {
+                return HttpResponse::json(
+                    400,
+                    problem_body(
+                        400,
+                        "bad-request",
+                        &format!(
+                            "unknown import strategy `{other}`; the vocabulary is \
+                             set-current | history-restore"
+                        ),
+                    ),
+                )
+            }
+        };
+
+        match self.scope.import(&records, strategy).await {
+            Ok(res) if res.not_implemented => unmapped("import not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(report) => attach(HttpResponse::json(200, report.0 .0.to_vec()), &res.protocol),
+                None => unmapped("import returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
+    }
+
     async fn do_export(&self, req: &HttpRequest) -> HttpResponse {
         if req.query.contains_key("where") {
             return unmapped(
@@ -674,6 +743,39 @@ fn status_for_outcome(reply_body: &[u8]) -> u16 {
         Some("fault") => outcome["problem"]["status"].as_u64().unwrap_or(500) as u16,
         // `failure`, `canceled`, and any arm added later: settled, and not success.
         _ => 409,
+    }
+}
+
+/// Read an `application/jsonl` import body, REFUSING a stream that is not whole.
+///
+/// SERVER-SIDE AND SEPARATE from the client's `parse_export_jsonl`, deliberately. The client parses
+/// what it RECEIVES and the server parses what it is SENT; sharing one function would make a single
+/// leniency apply to both directions at once, and these two have different obligations — a reader
+/// that takes a truncated export must refuse it (core.lumen `ExportEnd`: "a reader that takes a
+/// whole export lacking it refuses it (`400`)"), while an importer additionally has to accept
+/// rc2's CHUNKED form, where `ExportBegin` appears only in the first batch and `ExportEnd` only in
+/// the last.
+///
+/// CHUNKING IS NOT IMPLEMENTED HERE AND SO IS NOT PRETENDED AT: this binding accepts only the
+/// one-shot form, which is the whole stream, and rejects a stream lacking its terminator. When
+/// `importId`/`fromOrdinal` resume lands, the terminator check becomes conditional on being the
+/// final batch — and until then a conditional check would be a branch nothing takes.
+fn parse_import_jsonl(body: &[u8]) -> Result<Vec<p::ExportRecord>, String> {
+    let text = String::from_utf8_lossy(body);
+    let mut out = Vec::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let rec: WireExportRecord = serde_json::from_str(line)
+            .map_err(|e| format!("bad import line: {e}"))?;
+        out.push(rec.into_trait());
+    }
+    match out.last() {
+        Some(p::ExportRecord::End(_)) => Ok(out),
+        None => Err("import carried no lines at all; a whole export is framed by Begin and End, \
+                     so this stream is truncated"
+            .into()),
+        Some(_) => Err("the import stream does not end with ExportEnd, so it is truncated and \
+                        MUST NOT be applied as whole"
+            .into()),
     }
 }
 

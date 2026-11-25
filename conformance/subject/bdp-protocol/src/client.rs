@@ -489,7 +489,41 @@ impl BdpScope for RemoteScope {
     /// Parsed LINE BY LINE because the declared content type is `application/jsonl`, not a JSON
     /// array. A blank trailing line is skipped rather than treated as a record: the writer ends
     /// every line with `\n`, so a well-formed stream has one.
-    async fn export(&self, filter: &p::ListFilter, _selector: Option<&p::Selector>, revisions: bool, _page: p::Page)
+     /// import — the bulk WRITE side, sent as `application/jsonl`.
+    ///
+    /// SERIALIZED LINE BY LINE, matching `export`'s reader on the other side: rc2 fixes
+    /// `application/jsonl` on the request, so the body is newline-delimited records and never a
+    /// JSON array. The frames ride as records like any other, because `ExportBegin`/`ExportEnd` are
+    /// `ExportRecord` variants rather than envelope sugar.
+    ///
+    /// THE STRATEGY RIDES THE QUERY, not the body. The body is the stream; a merge mode is a
+    /// request parameter, and putting it in the stream would make it re-offered on every resumed
+    /// chunk once rc2's `importId`/`fromOrdinal` resume lands.
+    async fn import(&self, records: &[p::ExportRecord], strategy: p::ImportStrategy)
+        -> Result<p::BdpResult<p::ImportReport>, p::BdpError> {
+        let mut payload = Vec::new();
+        for rec in records {
+            payload.extend_from_slice(&serde_json::to_vec(&WireExportRecord::from_trait(rec)).unwrap());
+            payload.push(b'\n');
+        }
+        let headers = vec![("content-type".into(), "application/jsonl".into())];
+        let path = match strategy {
+            p::ImportStrategy::SetCurrent => "/-/import?strategy=set-current",
+            p::ImportStrategy::HistoryRestore => "/-/import?strategy=history-restore",
+        };
+        let resp = self.request("POST", path, headers, payload).await?;
+        if resp.status == 200 {
+            let mut res = p::BdpResult::ok(p::ImportReport(p::RawJson(bytes::Bytes::from(resp.body.clone()))));
+            res.protocol = crate::wire::protocol_from_headers(&resp);
+            Ok(res)
+        } else if resp.status == 501 {
+            Ok(p::BdpResult::not_implemented())
+        } else {
+            Err(error_from(resp.status, &resp.body, &p::ResourceId::head(p::Scope::This, p::Id(Arc::from("")))))
+        }
+    }
+
+   async fn export(&self, filter: &p::ListFilter, _selector: Option<&p::Selector>, revisions: bool, _page: p::Page)
         -> Result<p::BdpResult<Vec<p::ExportRecord>>, p::BdpError> {
         if !filter.0.is_empty() {
             return Err(p::BdpError::Backend(

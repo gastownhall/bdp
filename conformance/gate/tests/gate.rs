@@ -1444,6 +1444,137 @@ async fn patch_correct_media_type_is_accepted(host: &str) -> Result<Vec<SurfaceI
 }
 
 
+/// `import` ROUND-TRIPS what `export` produced. Covers op/import.
+///
+/// THE LAST DECLARED PRIMITIVE TO REACH THE WIRE. The reference has implemented `import` all along
+/// and `route.rs` has parsed `POST /-/import` all along; the server answered "not mapped in the
+/// spike", so this row was uncoverable against a scope that implements the op. Wiring the handler
+/// is what made it reachable, not a new case technique.
+///
+/// EXPORT IS THE SOURCE OF THE RECORDS ON PURPOSE. Hand-built records would test the importer
+/// against my idea of the format; the exporter's own output tests the pair against each other, so a
+/// framing change that breaks one breaks this case rather than passing on both sides of a private
+/// convention.
+async fn import_round_trips_an_export(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("import-src".into()));
+    seed(r, &target, "exported").await?;
+
+    let exported = r
+        .export(&ListFilter(vec![]), None, false, Page { after: None, from: None, limit: None })
+        .await
+        .map_err(|e| format!("export seed: {e:?}"))?;
+    if exported.not_implemented {
+        return Err("export advertised but returned not_implemented".into());
+    }
+    let records = exported.value.ok_or("export returned no records")?;
+    if !records.iter().any(|rec| matches!(rec, ExportRecord::Record(_))) {
+        return Err("export carried no RECORDS, so an import of it would assert nothing".into());
+    }
+
+    let res = r
+        .import(&records, p_import_set_current())
+        .await
+        .map_err(|e| format!("import: {e:?}"))?;
+    if res.not_implemented {
+        return Err("import advertised but answered not_implemented".into());
+    }
+
+    // The import must be OBSERVABLE, not merely accepted: a handler that parsed the stream and
+    // dropped it would satisfy a status check. Re-reading the id is what distinguishes them.
+    let back = r.get(&target, None).await.map_err(|e| format!("read-back: {e:?}"))?;
+    if back.not_implemented || back.value.is_none() {
+        return Err("the imported resource did not read back".into());
+    }
+    Ok(vec![op("import")])
+}
+
+/// A stream that does not end with `ExportEnd` → 400. Covers op/import/fault/400.
+///
+/// GROUNDED IN THE SPEC'S OWN WORDS, which is why this is a `400` and not a `422`: core.lumen's
+/// `ExportEnd` says "a reader that takes a whole export lacking it refuses it (`400`)". A truncated
+/// stream is MALFORMED, not over-bound — nothing about it exceeds an advertised limit — and the
+/// distinction is the one `import`'s declared `[400, 409, 422]` keeps apart.
+async fn import_truncated_stream_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    // THE WIRE SHAPE IS READ FROM `WireExportRecord`, not guessed. It is an externally-tagged
+    // enum, so the frames are `{"Begin":{…}}` / `{"End":{…}}` — capitalised, with `Record`
+    // wrapping a `resource`. The first version of this case hand-wrote lowercase keys, every
+    // import case failed identically at 422 `unprocessable`, and the single shared cause was the
+    // parse refusing all four bodies. Four red cases, one wrong assumption.
+    let begin = br#"{"Begin":{"cursor":"c0"}}
+"#;
+    match raw_status(host, "POST", "/-/import", ctype("application/jsonl"), begin).await? {
+        400 => Ok(vec![fault("import", 400)]),
+        s => Err(format!("expected 400 on an import stream with no ExportEnd, got {s}")),
+    }
+}
+
+/// A request that is not `application/jsonl` → 400. Claims the SAME row as the truncation case.
+///
+/// `400` RATHER THAN `415`, decided by the declared fault set and not by analogy: `import` declares
+/// `[400, 409, 422]` and names no 415, while `patch` declares 415 and gets it. Answering 415 here
+/// would put a status on the wire that no denominator row carries, which is worse than a coarse
+/// one. rc2 (#448) is what makes this checkable at all — it added the
+/// `request = { contentType = "application/jsonl" }` core.lumen was missing, so there is now one
+/// acceptable type instead of a lenient reading.
+async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    match raw_status(host, "POST", "/-/import", ctype("application/json"), b"[]").await? {
+        400 => Ok(vec![fault("import", 400)]),
+        s => Err(format!("expected 400 on an import that is not application/jsonl, got {s}")),
+    }
+}
+
+/// `?strategy=history-restore` against a scope advertising `historyRestore: false` → 422
+/// `limit-exceeded`. Covers op/import/fault/422.
+///
+/// THE CAPABILITY DUAL, stated in core.lumen as a rule rather than a courtesy: "Each limit record
+/// is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side." So a
+/// scope that advertises `historyRestore: false` must REFUSE the mode, and refuse it as 422.
+///
+/// IT ANSWERED 501 UNTIL NOW, and that is why this row had no producer. 501 says the OP is absent;
+/// `import` is advertised and present, and declines exactly one mode. A client told 501 concludes
+/// the scope cannot import at all. The fix is in the reference, not here — this case is what holds
+/// it.
+async fn import_history_restore_is_refused_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let framed = br#"{"Begin":{"cursor":"c0"}}
+{"End":{"count":0}}
+"#;
+    let (status, code) =
+        raw_problem(host, "POST", "/-/import?strategy=history-restore", ctype("application/jsonl"), framed)
+            .await?;
+    match status {
+        422 if code == "limit-exceeded" => Ok(vec![fault("import", 422)]),
+        422 => Err(format!("422 but the code was {code}, not limit-exceeded")),
+        501 => Err("history-restore answered 501; it is an advertised limit on a PRESENT op, so \
+                    the dual requires 422 limit-exceeded"
+            .into()),
+        s => Err(format!("expected 422 limit-exceeded for an unadvertised import mode, got {s}")),
+    }
+}
+
+/// The `ImportStrategy` vocabulary is CLOSED, so a third name is malformed. Claims no new row
+/// (op/import/fault/400 is covered twice over above); it exists so the strategy parse cannot be
+/// satisfied by a handler that treats every unknown value as the default.
+async fn import_unknown_strategy_is_malformed(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let framed = br#"{"Begin":{"cursor":"c0"}}
+{"End":{"count":0}}
+"#;
+    match raw_status(host, "POST", "/-/import?strategy=merge-somehow", ctype("application/jsonl"), framed)
+        .await?
+    {
+        400 => Ok(vec![]),
+        200 => Err("an unknown import strategy was ACCEPTED; the vocabulary is closed, so a third \
+                    name must not silently become set-current"
+            .into()),
+        s => Err(format!("expected 400 on an unknown import strategy, got {s}")),
+    }
+}
+
+/// `ImportStrategy::SetCurrent` without naming the enum at every call site.
+fn p_import_set_current() -> bdp_primitives::ImportStrategy {
+    bdp_primitives::ImportStrategy::SetCurrent
+}
+
+
 /// RETIRED, not lost: `get/400` and `delete/400`.
 ///
 /// Both were produced by the router rejecting a `:`-bearing id as an unknown verb — the prototype's
@@ -1570,6 +1701,15 @@ async fn no_case_passes_against_a_subject_that_implements_nothing() {
 const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
     ("create", 400),
     ("delete", 400),
+    // The BINDING refuses a malformed import before the scope is reached: a stream that does not
+    // end with `ExportEnd`, a request that is not `application/jsonl`, and a strategy outside the
+    // closed vocabulary are all decided in `do_import` by reading the request alone. So this row
+    // is produced identically by a scope that implements nothing, exactly like its four
+    // neighbours here. Its sibling `import/422` is NOT in this list and must not be: that one is
+    // the capability dual and comes from the SCOPE refusing an advertised-false mode, so it is
+    // scope-dependent and the backstop correctly leaves it alone. Two fault rows on one op, two
+    // different producers — which is the distinction this list exists to make.
+    ("import", 400),
     ("patch", 400),
     ("patch", 415),
     ("put", 400),
@@ -1742,6 +1882,29 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         cancel_refuses_a_pinned_handle(&remote),
+    )
+    .await;
+    record("import", &mut covered, &mut failures, import_round_trips_an_export(&remote)).await;
+    record("import/400 truncated", &mut covered, &mut failures, import_truncated_stream_400(&addr)).await;
+    record(
+        "import/400 media type",
+        &mut covered,
+        &mut failures,
+        import_wrong_media_type_400(&addr),
+    )
+    .await;
+    record(
+        "import/422 history-restore",
+        &mut covered,
+        &mut failures,
+        import_history_restore_is_refused_422(&addr),
+    )
+    .await;
+    record(
+        "import unknown strategy",
+        &mut covered,
+        &mut failures,
+        import_unknown_strategy_is_malformed(&addr),
     )
     .await;
     record("create/400 (raw)", &mut covered, &mut failures, create_malformed_400(&addr)).await;

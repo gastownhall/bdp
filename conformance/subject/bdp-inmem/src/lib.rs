@@ -976,7 +976,23 @@ impl BdpScope for InMemScope {
                 let report = format!(r#"{{"strategy":"set-current","imported":{imported}}}"#);
                 Ok(BdpResult::ok(ImportReport(RawJson(Bytes::from(report.into_bytes())))))
             }
-            ImportStrategy::HistoryRestore => Ok(BdpResult::not_implemented()),
+            // THE CAPABILITY DUAL, not an absent op. This scope advertises
+            // `ImportCaps { history_restore: false }`, and core.lumen states the rule outright:
+            // "Each limit record is the advertise side of a dual: the matching `limit-exceeded`
+            // (422) is the enforce side."
+            //
+            // `not_implemented` was the wrong signal and it mattered on the wire: 501 says the OP
+            // is absent, and `import` is present and advertised. A client told 501 concludes the
+            // scope cannot import at all, when in fact it imports and declines exactly one mode.
+            // That also made `op/import/fault/422` unreachable — a declared fault row with no
+            // producer, because the only path to it answered a different status.
+            ImportStrategy::HistoryRestore => Err(BdpError::LimitExceeded {
+                capability: "import".into(),
+                limit: "historyRestore".into(),
+                detail: "this scope advertises `historyRestore: false`; replay the stream as \
+                         set-current, or import into a scope that rebuilds revision chains"
+                    .into(),
+            }),
         }
     }
 
