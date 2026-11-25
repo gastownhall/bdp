@@ -163,8 +163,8 @@ version it exactly as you do an issue or a document.
 A relationship type is declared with the [[core.lumen#rel]] form and refined with
 `is`:
 
-    type Dependency is unique acyclic rel<Issue, Issue> { note?: string }
-    type Blocks     is Dependency
+    type Dependency is unique rel<Issue, Issue> { note?: string }
+    type Blocks     is acyclic Dependency
 
 The trailing record is the relationship's body — ordinary properties, not a
 second "edge metadata" bag — and the prefix modifiers carry its constraints. The
@@ -234,11 +234,14 @@ Some resources are read as a sequence rather than a single value. A
 schema, a direction, and delivery characteristics. The changefeed is the
 built-in example.
 
-A reader consumes a sequence as a `source` of items, in one of three transport
-forms, chosen by `--format`. Windowed JSON returns one page at a time and is the
-floor every service offers. Bulk JSONL returns the whole sequence, one item per
-line. Live SSE follows the sequence as it grows, and is valid only on a live
-source. One [[core.lumen#Cursor]] spans all three: page through in JSON, catch up
+A reader consumes a sequence by its NATURE — a `source` (a live feed, `pull`ed
+from a channel) or a `snapshot` (a finite cut: `list`, `revisions`, `export`) —
+in one of three transport forms, chosen by `--format`. Windowed JSON returns one
+page at a time and is the floor every service offers. Bulk JSONL returns the whole
+sequence, one item per line. Live SSE follows the sequence as it grows. The nature
+decides which forms are valid: SSE is live-only, so a `source` supports all three
+while a `snapshot` offers JSON and JSONL — it has no live edge to follow. One
+[[core.lumen#Cursor]] spans a source's three forms: page through in JSON, catch up
 in JSONL, then hand the same cursor to SSE to go live.
 
 [[core.lumen#pull]] reads a channel. [[core.lumen#push]] writes one — the dual of
