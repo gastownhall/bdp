@@ -1445,7 +1445,7 @@ type ExportEnd = {
 ## export
 /// bdp = { kind = "primitive", primitive = "export" }
 /// description: Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
-/// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], params = { format = { in = "header", schema = "Transport", required = false } }, success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
+/// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200, contentType = "application/jsonl" }, problem = { status = [400] } }
 fn export(
     /// description: The scope to back up.
     scope:      Scope,
@@ -1454,7 +1454,9 @@ fn export(
     /// description: Project each exported resource.
     select?:    selector,
     /// description: Emit every revision in order (a true backup) instead of current state.
-    revisions?: bool
+    revisions?: bool,
+    /// description: Streaming controls — resume cursor, limit, and the transport (`page`/`jsonl`; no `sse`). This is where `--format` is indicated, as on every other read ([[core.lumen#ReadRequest]]).
+    request?:   ReadRequest
   ) -> snapshot<ExportRecord>
 
 ## ImportStrategy

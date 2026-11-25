@@ -2052,7 +2052,8 @@ fn export(
     scope:      Scope,
     where?:     Filter,
     select?:    selector,
-    revisions?: bool
+    revisions?: bool,
+    request?:   ReadRequest
   ) -> snapshot<ExportRecord>
 ```
 
@@ -2062,6 +2063,7 @@ fn export(
 | `where?` | `Filter` | Restrict the export to matching resources (see [Filter](#Filter)). |
 | `select?` | `selector` | Project each exported resource. |
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`page`/`jsonl`; no `sse`). This is where `--format` is indicated, as on every other read ([ReadRequest](#ReadRequest)). |
 
 **Returns** `snapshot<ExportRecord>` — One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.
 
