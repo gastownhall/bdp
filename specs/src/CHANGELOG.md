@@ -44,6 +44,27 @@ Draft changes toward the next release (pre-1.0, status: draft).
 - **Smaller core edits.** `ListFilter` → `Filter`; `BeadSchema`'s `Opaque` arm →
   an inline `JsonSchema { text }` (dropped the redundant standalone type); `create`
   / `put` body is `any` (the typed `body: T` is the pack-level view).
+- **Tombstone is a revision — `retired?` + `body: null`.** `delete` mints a final
+  revision carrying `retired: true` and `body: null` (new `retired?: bool` envelope
+  member on `rep`). The tombstone appears in `revisions`, resolves through a pinned
+  ref (a pinned `get<T>` of a tombstone yields `rep<any>`, not `rep<T>`), and an
+  unpinned read faults `410 Gone`. `retired` is service-managed — minted only by
+  `delete`, refused on `create`, ignored on `put`, read-only to `patch` — and
+  `delete` returns the bare tombstone `Rev`. Sharpens the deletion-terminal model
+  above into an observable log event.
+- **`import` is caller-driven and resumable.** Records arrive in the request
+  (`records: [ExportRecord]`, was `source: snapshot<ExportRecord>`) — no
+  service-initiated pull; mirrors `push`. Resume keys are absolute: `importId?:
+  ImportId` keys the accepted high-water mark and `fromOrdinal?: Ordinal` positions
+  `records[0]`. Chunk framing: `ExportBegin` only in the first batch, `ExportEnd`
+  only in the final. A tombstone record is applied by minting the tombstone.
+- **`export` surfaces `request: ReadRequest`.** `jsonl` is the bulk default; `page`
+  (a `Page<ExportRecord>`) where `request.format` asks. Honors only `after` /
+  `limit` / `format`; `filter` / `select` / `from` are rejected `400` (projection is
+  the op's own `where` / `select`).
+- **`Page<T>` / `PushEvent<T>` parameterized** (were `Page { items: [any] }` /
+  `PushEvent { body: {…: any} }`). Authoring-surface generics; the
+  `PushEvent<T>.body` widening (record → any) is intentional.
 
 ## 0.2.2 — 2026-11-18
 
