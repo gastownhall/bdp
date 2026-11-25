@@ -213,7 +213,7 @@ The representation of a versioned resource — the protocol envelope around a ty
 
 > **Normative.** The envelope members are fixed and closed — a domain type contributes only `body`, never a new envelope member. `id`, `type` and `body` are always present; the rest is optional. On a representation `id.rev` is the resolved revision; a reference floats to the current revision when its `rev` is absent.
 
-> **Normative.** A TOMBSTONE — the final revision [delete](#delete) mints — carries `retired: true` and a `null` body, so it is an untyped [Resource](#Resource) (`rep<any>`), never a typed representation. It is a real, pinnable revision: it appears in [revisions](#revisions) (which yields `Resource`) and resolves through a pinned reference. A live revision has `retired` absent or false and a non-null body. An UNPINNED read of a retired resource faults `410 Gone`; the tombstone is still reachable by pinning its `rev`, so retirement is observable, not merely an error. `retired` is SERVICE-MANAGED — minted only by `delete`, refused on `create` and ignored on `put`, and read-only to `patch` ([patch](#patch)); a write can neither forge nor clear a tombstone.
+> **Normative.** A TOMBSTONE — the final revision [delete](#delete) mints — carries `retired: true` and a `null` body, so it is an untyped [Resource](#Resource) (`rep<any>`), never a typed representation. It is a real, pinnable revision: it appears in [revisions](#revisions) (which yields `Resource`) and resolves through a pinned reference. A live revision has `retired` absent or false and a non-null body. An UNPINNED read of a retired resource faults `410 Gone`; the tombstone is still reachable by pinning its `rev`, so retirement is observable, not merely an error. `retired` is SERVICE-MANAGED — minted only by `delete`, refused on `create` and ignored on `put`, and read-only to `patch` ([patch](#patch)); a write can neither forge nor clear a tombstone. A pinned `get<T>` of a tombstone revision therefore yields the untyped tombstone `rep<any>` (`body: null`), NOT a `rep<T>`; `get`'s effective return is `rep<T>` OR a tombstone `rep<any>`, and a typed client checks `retired` before relying on `body: T`.
 
 ```lumen
 type rep<T> = {
@@ -973,7 +973,7 @@ Single-writer assumption (v0.2): a channel has one logical writer, so pusher-ass
 
 ### `PushEvent`
 
-One event offered to [push](#push). `body` is the payload (the channel's `pushSchema` type); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.
+One event offered to [push](#push). `body` is the payload (the channel's `pushSchema` type — which MAY be any value, not only a record, so `body: T` is deliberately unconstrained); `ordinal`, when present, is the pusher-assigned position that makes the append idempotent (keyed). Absent, the channel assigns the ordinal.
 
 ```lumen
 type PushEvent<T> = {
@@ -1987,7 +1987,7 @@ type ChangeContent = union {
 
 ### `ExportRecord`
 
-One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.
+One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added to the record: its position carries it, anchored on import by the request's `fromOrdinal` when the stream is chunked across requests. `ExportBegin` carries the changefeed cut the export was taken at.
 
 ```lumen
 type ExportRecord = ExportBegin | Resource | ExportEnd
@@ -2045,7 +2045,9 @@ type ExportEnd = {
 
 ### `export`
 
-Bulk read of a scope as JSONL — current state by default; `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
+Bulk read of a scope — `jsonl` the bulk default, `page` windows where `request.format` asks (a snapshot, like `list`); current state by default, `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
+
+> **Normative.** `export` honors only `after`, `limit` and `format` of `request` ([ReadRequest](#ReadRequest)); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type follows `format`: `application/jsonl` for `jsonl`, `application/json` (a `Page<ExportRecord>`) for `page`.
 
 ```lumen
 fn export(
@@ -2065,7 +2067,7 @@ fn export(
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
 | `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`page`/`jsonl`; no `sse`). This is where `--format` is indicated, as on every other read ([ReadRequest](#ReadRequest)). |
 
-**Returns** `snapshot<ExportRecord>` — One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its implicit ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added: the position carries it, and `ExportBegin` already carries the changefeed cut the export was taken at.
+**Returns** `snapshot<ExportRecord>` — One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added to the record: its position carries it, anchored on import by the request's `fromOrdinal` when the stream is chunked across requests. `ExportBegin` carries the changefeed cut the export was taken at.
 
 <a id="ImportStrategy"></a>
 
@@ -2157,6 +2159,16 @@ type ImportAck = {
 | `complete?` | `bool` | Present and `true` on the call that consumed `ExportEnd` — the import is whole. |
 | `tallies` | `ImportReport` | The folded tally ([ImportReport](#ImportReport)) — authoritative on the final (`complete`) ack. |
 
+<a id="ImportId"></a>
+
+### `ImportId`
+
+A caller-minted token identifying one resumable import across its requests. Opaque to the scope; its only job is to correlate a resumed batch with the `acceptedThrough` the scope is tracking, and to keep concurrent imports into one scope from crossing.
+
+```lumen
+type ImportId is string
+```
+
 <a id="import"></a>
 
 ### `import`
@@ -2165,7 +2177,7 @@ The bulk write path — put/create under If-Match with id remap; a history file 
 
 > **Normative.** `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
 
-> **Normative.** Import is RESUMABLE over the export's implicit record ordinals ([ExportRecord](#ExportRecord)). `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1`; re-offering a record at or below `acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.
+> **Normative.** Import is RESUMABLE over ABSOLUTE record ordinals. A record's ordinal is `fromOrdinal + its index` in the delivered `records` array (`fromOrdinal` omitted ⇒ `1`), so the stream position survives chunking across requests even though each array restarts at index 0; `importId` names the session the scope keys `acceptedThrough` on, and a one-shot import omits both. `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1` (`fromOrdinal = acceptedThrough + 1`); a record whose absolute ordinal is `≤ acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.
 
 > **Normative.** `acceptedThrough` is the last PROCESSED record — applied OR rejected — NOT the last success. A `Conflicted` record counts toward `acceptedThrough`, so resume SKIPS it and never re-offers it; a dropped-and-resumed import converges to the same per-record fates as one uninterrupted call.
 
@@ -2175,19 +2187,25 @@ The bulk write path — put/create under If-Match with id remap; a history file 
 
 > **Normative.** `import` is CALLER-DRIVEN exactly as [push](#push) is pusher-driven — the caller DELIVERS the records in the request body; the scope reads nothing from a caller-supplied source and issues no call back to the caller. Backpressure rides the `ImportAck` (`credit`/`acceptedThrough`), and the caller re-offers the deferred tail as the next request: there is no service-initiated pull, and no stream, cursor or channel reference is handed to the scope to drain.
 
+> **Normative.** Across a chunked (resumed) import, `ExportBegin` appears only in the FIRST batch (`fromOrdinal = 1`) and `ExportEnd` only in the final batch (the one that earns `complete`); intermediate batches carry neither. A TOMBSTONE record (`retired: true`, `body: null`, [rep](#rep)) is applied by MINTING the tombstone revision in commit order — history-restore replays a `delete` at that point, not a `create`/`put` of a null body — and a current-state import of a tombstone leaves the id retired.
+
 ```lumen
 command import(
-    scope:     Scope,
-    records:   [ExportRecord],
-    strategy?: ImportStrategy
+    scope:        Scope,
+    records:      [ExportRecord],
+    strategy?:    ImportStrategy,
+    importId?:    ImportId,
+    fromOrdinal?: Ordinal
   ) -> ImportAck
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
 | `scope` | `Scope` | The scope to import into. |
-| `records` | `[ExportRecord]` | The export records to apply — `ExportBegin`, the `Resource`s, `ExportEnd` (see [ExportRecord](#ExportRecord)) — delivered in stream order. The caller SENDS this batch in the request, as [push](#push) sends its `events`; a resumed call re-offers the deferred tail from `acceptedThrough + 1`. |
+| `records` | `[ExportRecord]` | The export records to apply — `ExportBegin`, the `Resource`s, `ExportEnd` (see [ExportRecord](#ExportRecord)) — in stream order. The caller SENDS this batch in the request, as [push](#push) sends its `events`; a resumed call re-offers the deferred tail from `acceptedThrough + 1`. |
 | `strategy?` | `ImportStrategy` | How to merge, and whether to remap ids (see [ImportStrategy](#ImportStrategy)). |
+| `importId?` | `ImportId` | The resumable-import session this batch belongs to — minted by the caller, constant across every request of one import. Omit for a one-shot (single-request) import. The scope keys `acceptedThrough` on it, so concurrent imports and re-offers never cross. |
+| `fromOrdinal?` | `Ordinal` | The absolute stream ordinal of `records[0]`; `records[i]` is ordinal `fromOrdinal + i`. Omit ⇒ `1` (a fresh import). A resumed batch sets it to `acceptedThrough + 1`; a value `≤ acceptedThrough` re-offers already-processed records (reported `Deduped`). |
 
 **Returns** `ImportAck` — What [import](#import) returns — the push-style acknowledgement for a resumable, backpressured bulk load, mirroring [PushAck](#PushAck). `acceptedThrough` is the high-water record ordinal PROCESSED by this call; the importer re-offers the deferred tail from `acceptedThrough + 1`. The call that consumes `ExportEnd` sets `complete: true` and carries the final `tallies`; a one-shot (non-resumable) import returns a single ack already `complete`.
 

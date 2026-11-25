@@ -160,7 +160,7 @@
       "safe": true,
       "idempotent": false,
       "cli": "get",
-      "summary": "Miss-partitioned bulk point-read — resolve many refs in ONE consistent snapshot, returned as `found` + `missing`",
+      "summary": "Miss-partitioned bulk point-read — resolve many refs within one scope against a single consistent snapshot, returned as `found` + `missing`",
       "parameters": [
         {
           "name": "refs",
@@ -295,7 +295,7 @@
       "parameters": [
         {
           "name": "refs",
-          "type": "[ ref<any> ]",
+          "type": "[ unpinned<any> ]",
           "required": true
         },
         {

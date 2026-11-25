@@ -341,13 +341,13 @@
       "additionalProperties": false
     },
     "GetManyResult": {
-      "description": "The result of [[stdlib.lumen#getMany]] — the resolved resources and the refs that did not resolve.",
+      "description": "The result of [[stdlib.lumen#getMany]] — the hits (each tagged with the ref the caller passed) and the refs that did not resolve.",
       "type": "object",
       "properties": {
         "found": {
           "type": "array",
           "items": {
-            "$ref": "core.schema.json#/$defs/Resource"
+            "$ref": "#/$defs/GetManyHit"
           }
         },
         "missing": {
@@ -360,6 +360,23 @@
       "required": [
         "found",
         "missing"
+      ],
+      "additionalProperties": false
+    },
+    "GetManyHit": {
+      "description": "One resolved hit in [[stdlib.lumen#getMany]] — the input ref (so an alias resolves back to its name) and the resolved representation.",
+      "type": "object",
+      "properties": {
+        "ref": {
+          "$ref": "core.schema.json#/$defs/ResourceRef"
+        },
+        "resource": {
+          "$ref": "core.schema.json#/$defs/Resource"
+        }
+      },
+      "required": [
+        "ref",
+        "resource"
       ],
       "additionalProperties": false
     },
@@ -472,7 +489,7 @@
       ]
     },
     "DeleteOutcome": {
-      "description": "The fate of one target in [[stdlib.lumen#deleteResource]].",
+      "description": "The fate of one requested target in [[stdlib.lumen#deleteResource]].",
       "type": "object",
       "properties": {
         "ref": {
@@ -483,6 +500,7 @@
             "deleted",
             "would-delete",
             "skipped",
+            "not-found",
             "blocked"
           ]
         },
