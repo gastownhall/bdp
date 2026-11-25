@@ -418,6 +418,43 @@ async fn honest_unadvertised_ops_are_not_implemented() {
     assert!(s.evaluate(Expr::BdpText("anything")).await.unwrap().not_implemented);
     assert!(s.pull(&ResourceId::head(Scope::This, Id("ch".into())), Page::default(), None, None).await.unwrap().not_implemented);
     assert!(s.resolve_alias("some-name").await.unwrap().not_implemented);
-    // history-restore import is advertised false and answers not_implemented
-    assert!(s.import(&[], ImportStrategy::HistoryRestore).await.unwrap().not_implemented);
+}
+
+/// AN UNADVERTISED MODE OF A PRESENT OP IS NOT AN ABSENT OP, and this test exists because the one
+/// above used to conflate them.
+///
+/// It asserted `import(HistoryRestore) -> not_implemented` under the title "unadvertised OPS are
+/// not_implemented". But `import` is advertised and implemented; what is advertised false is one
+/// FIELD of its limit record, `ImportCaps { history_restore: false }`. core.lumen states the rule:
+/// "Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the
+/// enforce side."
+///
+/// The two signals say different things to a client. `not_implemented` (501) means the scope cannot
+/// import at all; `limit-exceeded` (422) means it imports and declines exactly one mode, and names
+/// which in `capability`/`limit` so the caller can shrink the request. The old assertion was
+/// defending the first answer under a name that described a different rule — a test that names the
+/// old behaviour in its title will defend it, so it is re-derived under the new rule rather than
+/// deleted, and the absent-op half above keeps its three genuine cases.
+#[tokio::test]
+async fn an_unadvertised_import_mode_is_limit_exceeded_not_unimplemented() {
+    let s = scope();
+    match s.import(&[], ImportStrategy::HistoryRestore).await {
+        Err(BdpError::LimitExceeded { capability, limit, .. }) => {
+            assert_eq!(capability, "import", "the refusal must name the op it bounds");
+            assert_eq!(limit, "historyRestore", "and the field of the limit record it refuses");
+        }
+        Ok(r) if r.not_implemented => panic!(
+            "history-restore answered not_implemented; `import` IS advertised and implemented, so \
+             501 tells a client the scope cannot import at all"
+        ),
+        other => panic!("expected LimitExceeded for an unadvertised import mode, got {other:?}"),
+    }
+    // THE OP ITSELF STILL WORKS, which is the half that makes the distinction observable: a scope
+    // that refused every import would satisfy the match above.
+    let framed = [
+        ExportRecord::Begin(ExportBegin { cursor: Cursor(bytes::Bytes::from_static(b"c0")) }),
+        ExportRecord::End(ExportEnd { count: 0 }),
+    ];
+    let ok = s.import(&framed, ImportStrategy::SetCurrent).await.expect("set-current import");
+    assert!(!ok.not_implemented, "set-current import must work on a scope that advertises import");
 }
