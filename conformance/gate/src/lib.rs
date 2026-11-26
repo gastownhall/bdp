@@ -976,6 +976,66 @@ pub const CODES_USED_BUT_UNREGISTERED: &[(&str, &str)] = &[
     ("invalid-target", "core.lumen alias binding: an alias whose target is a live alias is refused it; absent from D.9"),
 ];
 
+/// The subject's server source, for the SECOND problem producer.
+pub const SERVER_RS: &str = include_str!("../../subject/bdp-protocol/src/server.rs");
+
+/// Problem codes the server emits through `problem_body(status, code, detail)` — a producer that
+/// does **not** go through `WireProblem::from_error`, and so is invisible to the exhaustive-by-
+/// execution check over `BdpError`'s variants.
+///
+/// I COMMITTED THAT CHECK CLAIMING THE COMPLETE VOCABULARY. It is complete over `BdpError`, a
+/// closed enum of thirteen variants, and that is not the same as complete over the subject: eleven
+/// `problem_body` call sites construct Problems directly, and two of their codes are unregistered.
+/// Exhaustiveness is a property of a POPULATION, and I named the enum while asserting it of the
+/// server.
+///
+/// METHOD, AND ITS LIMIT, because the two differ here. `from_error` is enumerated BY EXECUTION —
+/// construct every variant, call it, read the code. `problem_body` cannot be: it is private, and
+/// its `code` parameter means the vocabulary lives in the CALL SITES, not the function. So this is
+/// a scan for the literal `problem_body(<status>, "<code>"` form. **A code built dynamically at a
+/// call site would be missed**, which is a real gap and the reason the anti-vacuity test pins the
+/// site count rather than only the contents.
+///
+/// AND IT IMMEDIATELY BEAT THE GREP I HAD USED TO SCOPE IT. My ad-hoc
+/// `grep -oE 'problem_body\([0-9]{3}, "[a-z-]+"'` reported three codes; this scan reports four.
+/// The one it missed — `unsupported-media-type` — has its call site split across lines, so the
+/// status and the code are not on one line and a single-line pattern cannot see it. A pattern that
+/// encodes an assumption about how the code is FORMATTED is the same guess as one encoding how it
+/// is written, and this is the argument for the check living in the suite rather than in my shell
+/// history.
+pub fn codes_emitted_by_direct_problem_bodies() -> Vec<(u16, String)> {
+    let mut out: Vec<(u16, String)> = Vec::new();
+    let mut rest = SERVER_RS;
+    while let Some(i) = rest.find("problem_body(") {
+        rest = &rest[i + "problem_body(".len()..];
+        let Some(comma) = rest.find(',') else { break };
+        let Ok(status) = rest[..comma].trim().parse::<u16>() else { continue };
+        let after = rest[comma + 1..].trim_start();
+        let Some(stripped) = after.strip_prefix('"') else { continue };
+        let Some(end) = stripped.find('"') else { continue };
+        let code = &stripped[..end];
+        if !code.is_empty() && code.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
+            out.push((status, code.to_string()));
+        }
+    }
+    out
+}
+
+/// The direct-producer codes D.9 does not register. Registered so the gate is green on the known
+/// set and red on a new one.
+///
+/// Both are near-misses of registered codes with a D.8 status row, which is what makes them the
+/// same class as `not-found`/`already-exists` rather than new vocabulary:
+/// `bad-request` sits where D.8's 400 row names `malformed-request` and `invalid-parameter`, and
+/// `not-implemented` answers an un-offered capability, which core.lumen:1611 settles as
+/// `capability-not-supported` — a REGISTERED code whose D.8 row is **405**, so that one is wrong on
+/// the status as well. `501` appears nowhere in `core.lumen`.
+pub const DIRECT_CODES_NOT_REGISTERED: &[(&str, &str)] = &[
+    ("bad-request", "9 sites at 400; D.8's 400 row names `malformed-request` / `invalid-parameter`, both registered"),
+    ("not-implemented", "1 site at 501, a status absent from core.lumen; an un-offered capability is `capability-not-supported` (405) per core.lumen:1611"),
+    ("unsupported-media-type", "1 site at 415. The SHARPEST of the three: D.8 HAS a 415 row (a patch body whose media type is not application/json-patch+json), the row op/patch/fault/415 IS covered, and D.9 registers NO code for 415 at all — so the status is declared, the row is green, and the code is invented. My own 415 row asserts the status only, which is why it never surfaced. A fifth 'D.8 row with no registered code', after 401/403/429/5xx."),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1894,5 +1954,58 @@ mod tests {
                  has loosened and this check will now report noise."
             );
         }
+    }
+
+    /// THE SECOND PRODUCER MUST ALSO SPEAK THE REGISTRY. The exhaustive-by-execution check over
+    /// `BdpError` is complete over that enum and NOT over this subject: `problem_body` builds
+    /// Problems directly at eleven call sites and two of its codes are unregistered. I published
+    /// the first check calling its vocabulary complete, which was a claim about a population I had
+    /// not enumerated.
+    #[test]
+    fn the_direct_problem_producer_speaks_the_registry() {
+        let registry: BTreeSet<String> = problem_codes().into_iter().collect();
+        let known: BTreeSet<&str> = DIRECT_CODES_NOT_REGISTERED.iter().map(|(c, _)| *c).collect();
+        let bad: BTreeSet<String> = codes_emitted_by_direct_problem_bodies()
+            .into_iter()
+            .map(|(_, c)| c)
+            .filter(|c| !registry.contains(c.as_str()) && !known.contains(c.as_str()))
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "code(s) emitted by a direct `problem_body` call that D.9 does not register, and that \
+             are not registered here: {bad:?}"
+        );
+        // The other direction, so a closed gap cannot rot into a false claim.
+        let emitted: BTreeSet<String> =
+            codes_emitted_by_direct_problem_bodies().into_iter().map(|(_, c)| c).collect();
+        for (code, why) in DIRECT_CODES_NOT_REGISTERED {
+            assert!(
+                emitted.contains(*code) && !registry.contains(*code),
+                "DIRECT_CODES_NOT_REGISTERED still lists {code:?}, but it is now registered or no \
+                 longer emitted — remove it. ({why})"
+            );
+        }
+    }
+
+    /// THE SCAN IS NOT VACUOUS, and it pins the SITE COUNT, not just the contents — because its
+    /// method is a source scan and a literal-form change (a code built dynamically, a reformatted
+    /// call) would silently shrink what it sees rather than break it.
+    #[test]
+    fn the_direct_producer_scan_is_not_vacuous() {
+        let sites = codes_emitted_by_direct_problem_bodies();
+        assert!(
+            sites.len() >= 10,
+            "the direct-producer scan found only {} `problem_body` sites, which is too few to be \
+             this server — the literal form has changed and this check is now measuring almost \
+             nothing: {sites:?}",
+            sites.len()
+        );
+        // A known-good one, so the scan is proven to reach a REGISTERED code too and is not merely
+        // collecting the two it is told to expect.
+        assert!(
+            sites.iter().any(|(s, c)| *s == 404 && c == "resource-not-found"),
+            "the scan missed the 404 `resource-not-found` site, so it is not reading the call sites \
+             it claims to: {sites:?}"
+        );
     }
 }
