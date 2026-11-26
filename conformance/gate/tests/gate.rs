@@ -671,7 +671,7 @@ async fn list_the_scopes_resources(r: &RemoteScope) -> Result<Vec<SurfaceId>, St
 /// resource to a caller who asked for a subset is the `do_put`-ignored-`If-Match` defect in a
 /// different primitive — accepting a constraint and not honouring it.
 async fn a_filtered_list_is_refused_not_ignored(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
-    let filter = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["properties".to_string(), "text".to_string()]) }]);
+    let filter = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".to_string(), "text".to_string()]) }]);
     match r.list(&filter, Page::default()).await {
         Err(_) => Ok(vec![]),
         Ok(res) => Err(format!(
@@ -1635,7 +1635,7 @@ async fn patch_wrong_media_type_415(host: &str) -> Result<Vec<SurfaceId>, String
         "PATCH",
         "/patch-target",
         ctype("application/merge-patch+json"),
-        br#"{"properties":{"text":"merged"}}"#,
+        br#"{"body":{"text":"merged"}}"#,
     )
     .await?
     {
@@ -2279,6 +2279,86 @@ async fn the_format_header_refusals(r: &RemoteScope, host: &str) -> Result<Vec<S
     Ok(Vec::new())
 }
 
+/// THE CLOSED INPUT AND THE `retired` DIVERGENCE. Claims no row — `create`'s 400 is already
+/// covered, so this is obligation coverage for three obligations at once.
+///
+/// THREE NORMATIVE LINES MEET ON THIS ONE BODY TYPE:
+///   - `create` input is CLOSED: "an envelope member Core does not define is refused, not ignored".
+///   - `retired` is SERVICE-MANAGED: "minted only by `delete`, **refused on `create` and ignored on
+///     `put`**", because "a write can neither forge nor clear a tombstone".
+///   - a read-only member on a write is "IGNORED, never faulted — so a `get` → `put` round-trip of
+///     a whole representation is safe".
+///
+/// The last two collide on `create` + `retired` and BOTH survive: the round-trip rationale never
+/// reaches `create` (a round-trip does not create), and the tombstone rationale does (`retired:
+/// true` at birth forges one). The specific carves out of the general.
+///
+/// BEFORE THIS, ALL THREE WERE UNOBSERVABLE AND ONE WAS SATISFIED BY ACCIDENT. Measured: a create
+/// carrying an undefined member answered 201, a create carrying `retired: true` answered 201, and a
+/// put carrying `retired: true` answered 200 — the last one correct, but because serde silently
+/// dropped everything it did not recognise, not because the subject knew the member was read-only.
+///
+/// AND IT IS A CONVENTION, NOT AN INVARIANT, WHICH IS WHY BOTH ARMS ARE ASSERTED. The divergence
+/// lives in two handlers because serde can answer only ONCE for a shared type — so nothing
+/// structural stops a later refactor collapsing it into "refuse everywhere", which would be right
+/// for `create` and silently wrong for `put`. The put-ignores arm is the one that would rot.
+async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let ct = || vec![("content-type".to_string(), "application/json".to_string())];
+    let ty = r#"{"scope":"named","scopeName":"types","id":"Note"}"#;
+
+    // THE DISCRIMINATOR FIRST: a well-formed create must succeed, or every arm below proves only
+    // that `create` is broken.
+    let ok = raw_status(host, "POST", "/-/create", ct(),
+        format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-ok"}},"body":{{}},"metadata":{{}}}}"#).as_bytes()).await?;
+    if ok != 201 {
+        return Err(format!(
+            "a well-formed create answered {ok}, so the refusals below say nothing — this subject \
+             refuses every create"
+        ));
+    }
+
+    // 1. An undefined envelope member is REFUSED, not ignored.
+    let (st, code) = raw_problem(host, "POST", "/-/create", ct(),
+        format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-1"}},"body":{{}},"metadata":{{}},"nonsenseMember":true}}"#).as_bytes()).await?;
+    if st != 400 {
+        return Err(format!(
+            "create carrying an undefined envelope member answered {st} / `{code}`; the input is \
+             CLOSED, so it must be refused rather than silently dropped"
+        ));
+    }
+
+    // 2. `retired` on CREATE is refused — a write cannot forge a tombstone.
+    let (st, code) = raw_problem(host, "POST", "/-/create", ct(),
+        format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-2"}},"body":{{}},"metadata":{{}},"retired":true}}"#).as_bytes()).await?;
+    if st != 400 {
+        return Err(format!(
+            "create carrying `retired: true` answered {st} / `{code}`; `retired` is service-managed \
+             and minted only by `delete`, so a create must not be able to forge a tombstone"
+        ));
+    }
+
+    // 3. `retired` on PUT is IGNORED — the round-trip case, and the arm that rots.
+    let st = raw_status(host, "PUT", "/closed-3", ct(),
+        format!(r#"{{"kind":"Note","type":{ty},"body":{{"v":1}},"metadata":{{}},"retired":true}}"#).as_bytes()).await?;
+    if st != 200 {
+        return Err(format!(
+            "put carrying `retired: true` answered {st}; a read-only member on a write is IGNORED, \
+             NEVER FAULTED — \"so a `get` → `put` round-trip of a whole representation is safe\". \
+             If this is a 400, the create-side refusal has been collapsed onto `put` too, which is \
+             the exact failure this arm exists to catch"
+        ));
+    }
+    // ...and ignored means IGNORED, not honored: the resource must still be readable.
+    let readable = raw_status(host, "GET", "/closed-3", Vec::new(), b"").await?;
+    if readable != 200 {
+        return Err(format!(
+            "after a put carrying `retired: true` the resource reads {readable}, so the member was \
+             HONORED rather than ignored — the write forged a tombstone through `put`"
+        ));
+    }
+    Ok(Vec::new())
+}
+
 /// `pull` of a channel that does not exist → 404 `resource-not-found`. Covers op/pull/fault/404.
 ///
 /// THE ROW THIS GATE ASKED FOR. #456 made "which channels exist is discovered per-channel"
@@ -2586,7 +2666,7 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
         "POST",
         "/-/create",
         ctype("application/json"),
-        br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"id":{"scope":"this","id":"proposed"},"properties":{},"metadata":{}}"#,
+        br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"id":{"scope":"this","id":"proposed"},"body":{},"metadata":{}}"#,
     )
     .await?;
     match (status, code.as_str()) {
@@ -2607,7 +2687,7 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
         "PUT",
         "/dual-target",
         ctype("application/json"),
-        br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"properties":{},"metadata":{}}"#,
+        br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"body":{},"metadata":{}}"#,
     )
     .await?;
     if seeded != 200 {
@@ -2617,7 +2697,7 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
     // `If-Match` against `ifMatch: false`, on put and on patch.
     for (op_name, method, target, ct, body) in [
         ("put", "PUT", "/dual-target", "application/json",
-         br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"properties":{},"metadata":{}}"#.as_slice()),
+         br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"body":{},"metadata":{}}"#.as_slice()),
         ("patch", "PATCH", "/dual-target", "application/json-patch+json",
          br#"[{"op":"replace","path":"/body/text","value":"x"}]"#.as_slice()),
     ] {
@@ -3021,6 +3101,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         the_format_header_refusals(&remote, &addr),
+    )
+    .await;
+    record(
+        "closed input + retired divergence",
+        &mut covered,
+        &mut failures,
+        the_create_input_is_closed_and_retired_diverges(&addr),
     )
     .await;
     record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;

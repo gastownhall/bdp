@@ -685,13 +685,24 @@ fn civil_from_days(z0: i64) -> (i64, u32, u32) {
 
 // ---- list filter evaluation (in-RAM, mirroring pg's #>> text semantics) ----------------------
 
-/// Resolve a `FieldPath` against a row's {properties, metadata}. First segment selects the doc
-/// (`metadata`/`properties`, default `properties`); the rest walks object keys / array indices.
+/// Resolve a `FieldPath` against a row's payload and metadata. First segment selects the root
+/// member; the rest walks object keys / array indices.
+///
+/// ROOT-ADDRESSED ON `body`, per core.lumen: "Field paths are root-addressed `FieldPath` ARRAYS
+/// (`["body","status"]`, `["metadata","x"]`, `["type"]`) … the first segment selects the root
+/// member (`body`/`metadata`/`type`/`authority`), consistent with root-addressed `patch`/`selector`.
+/// NOT a dotted string." This keyed on `properties`, the same divergence the wire and `patch`
+/// carried.
+///
+/// THE DEFAULT ARM IS A KNOWN RESIDUAL: a first segment that is NOT a root member falls through to
+/// the payload rather than failing to resolve, so `["nonsense"]` silently addresses the body. Same
+/// shape as `add /nonsense` still succeeding on `patch`, and the same open question — what a scope
+/// answers for an unaddressable path is not specified, so it is recorded rather than guessed.
 fn field_value(props: &serde_json::Value, meta: &serde_json::Value, field: &FieldPath) -> Option<serde_json::Value> {
     let segs = &field.0;
     let (doc, rest): (&serde_json::Value, &[String]) = match segs.first().map(String::as_str) {
         Some("metadata") => (meta, &segs[1..]),
-        Some("properties") => (props, &segs[1..]),
+        Some("body") => (props, &segs[1..]),
         _ => (props, &segs[..]),
     };
     let mut cur = doc;

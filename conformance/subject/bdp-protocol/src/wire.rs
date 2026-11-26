@@ -72,7 +72,25 @@ impl WireResourceId {
 
 // ---- CreateRequest (body of create/put) ----------------------------------------
 
+/// The body of `create` AND `put`, and the two ops must answer DIFFERENTLY about one member.
+///
+/// THE INPUT IS CLOSED (core.lumen#create: "`create` input is closed — an envelope member Core
+/// does not define is refused, not ignored"), so `deny_unknown_fields`. Without it this accepted
+/// any member silently: `{"nonsenseMember": true}` returned 201.
+///
+/// AND `retired` IS DECLARED HERE ONLY SO THE HANDLERS CAN DIVERGE. core.lumen#rep: "`retired` is
+/// SERVICE-MANAGED — minted only by `delete`, **refused on `create` and ignored on `put`**". With
+/// `deny_unknown_fields` and no field, serde would refuse it for BOTH ops — right for `create`,
+/// wrong for `put`, which must IGNORE a read-only member ("so a `get` → `put` round-trip of a whole
+/// representation is safe"). **serde can only answer once for both ops**, so the divergence cannot
+/// live in the type: the field is admitted here, never read into the trait body, and `do_create`
+/// faults on it while `do_put` drops it. Pattern taken from the cleanroom, which hit this first.
+///
+/// That makes the divergence a CONVENTION held by two handlers rather than an invariant, so both
+/// arms are guarded — the `put`-ignores one especially, since it is the one a later refactor would
+/// collapse into "refuse everywhere" with nothing failing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WireCreateRequest {
     pub kind: String,
     #[serde(rename = "type")]
@@ -87,6 +105,10 @@ pub struct WireCreateRequest {
     pub properties: Option<Box<RawValue>>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<Box<RawValue>>,
+    /// Admitted, never honored. See the type's own note: present only so `create` and `put` can
+    /// answer differently about it.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub retired: Option<bool>,
 }
 
 impl WireCreateRequest {
@@ -97,6 +119,10 @@ impl WireCreateRequest {
             id: id.map(|i| WireResourceId { scope: None, id: i.0.to_string(), rev: None }),
             properties: opt_raw_to_value(&body.properties),
             metadata: opt_raw_to_value(&body.metadata),
+            // A CLIENT NEVER SENDS IT. `retired` is service-managed: minted only by `delete`,
+            // refused on `create`, ignored on `put`. It exists on this type for the server's
+            // handlers to diverge on, so the client side always writes None.
+            retired: None,
         }
     }
     /// The proposed id (if any) and the CreateBody. FRICTION: the wire carries `id` inside the

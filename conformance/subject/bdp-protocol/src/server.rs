@@ -172,6 +172,31 @@ impl<S: BdpScope> Server<S> {
             Ok(w) => w,
             Err(e) => return HttpResponse::json(400, problem_body(400, "bad-request", &format!("bad CreateRequest: {e}"))),
         };
+        // `retired` IS REFUSED ON CREATE, which is half of a divergence `put` holds the other end
+        // of. core.lumen#rep: "`retired` is SERVICE-MANAGED — minted only by `delete`, refused on
+        // `create` and ignored on `put`"; and "a write can neither forge nor clear a tombstone".
+        //
+        // WHY HERE AND NOT IN SERDE. `create` and `put` share `WireCreateRequest`, so serde can
+        // only answer ONCE for both ops — `deny_unknown_fields` with no field refuses it for both,
+        // which is right here and wrong for `put`, whose rule is that a read-only member is
+        // "IGNORED, never faulted — so a `get` → `put` round-trip of a whole representation is
+        // safe". The field is therefore admitted on the type and the two handlers diverge.
+        //
+        // The two normative lines collide on this one cell and BOTH survive it: `put`'s rationale
+        // is round-trip safety, and a round-trip never CREATES, so it does not reach create; the
+        // tombstone rationale does, because `retired: true` at birth forges one. The specific
+        // carves out of the general.
+        if wreq.retired.is_some() {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "malformed-request",
+                    "`retired` is service-managed and minted only by `delete`; a create cannot \
+                     forge a tombstone. (A `put` ignores it instead — the round-trip case.)",
+                ),
+            );
+        }
         let (proposed, body) = wreq.into_body();
         // THE DUAL ON `clientProposedId`. A scope advertising it false mints its own ids, so a
         // caller-supplied one is refused rather than quietly overwritten -- a create that silently

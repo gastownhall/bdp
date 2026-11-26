@@ -247,7 +247,7 @@ async fn list_empty_and_compare() {
     assert_eq!(all.len(), 3);
     assert!(all.iter().all(|r| r.rev.is_some()), "list returns pinned refs");
     let f = ListFilter(vec![ListCondition::Compare {
-        field: FieldPath(vec!["properties".into(), "status".into()]),
+        field: FieldPath(vec!["body".into(), "status".into()]),
         op: CompareOp::Eq,
         value: RawJson(Bytes::from(r#""open""#.to_string())),
     }]);
@@ -262,7 +262,7 @@ async fn list_excludes_deleted_and_shows_latest() {
     s.put(ResourceId::head(Scope::This, Id("b".into())), body("Task", "{}"), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, Id("b".into())), None).await.unwrap(); // tombstoned
     let open = ListFilter(vec![ListCondition::Compare {
-        field: FieldPath(vec!["properties".into(), "status".into()]),
+        field: FieldPath(vec!["body".into(), "status".into()]),
         op: CompareOp::Eq,
         value: RawJson(Bytes::from(r#""closed""#.to_string())),
     }]);
@@ -276,15 +276,15 @@ async fn list_has_missing_matches_type_limit() {
     let s = scope();
     s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"assignee":"kai","title":"Fix the Login"}"#), Guards::default()).await.unwrap();
     s.put(ResourceId::head(Scope::This, Id("y".into())), body("Bug", "{}"), Guards::default()).await.unwrap();
-    let has = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["properties".into(), "assignee".into()]) }]);
+    let has = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".into(), "assignee".into()]) }]);
     assert_eq!(ids(s.list(&has, Page::default()).await.unwrap().value.unwrap()), vec!["x".to_string()]);
-    let missing = ListFilter(vec![ListCondition::Missing { field: FieldPath(vec!["properties".into(), "assignee".into()]) }]);
+    let missing = ListFilter(vec![ListCondition::Missing { field: FieldPath(vec!["body".into(), "assignee".into()]) }]);
     assert_eq!(ids(s.list(&missing, Page::default()).await.unwrap().value.unwrap()), vec!["y".to_string()]);
     let is_bug = ListFilter(vec![ListCondition::IsType { r#type: RelativeId("Bug".into()), exact: false }]);
     assert_eq!(ids(s.list(&is_bug, Page::default()).await.unwrap().value.unwrap()), vec!["y".to_string()]);
     // case-insensitive substring match
     let m = ListFilter(vec![ListCondition::Matches {
-        field: FieldPath(vec!["properties".into(), "title".into()]),
+        field: FieldPath(vec!["body".into(), "title".into()]),
         pattern: "login".into(),
         using: MatchKind::Substring,
     }]);
@@ -318,7 +318,7 @@ async fn list_unadvertised_condition_is_limit_exceeded() {
     // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains. A Contains condition is
     // within the advertised `list` op but exceeds its advertised condition set → over-limit.
     let filter = ListFilter(vec![ListCondition::Contains {
-        field: FieldPath(vec!["properties".into(), "tags".into()]),
+        field: FieldPath(vec!["body".into(), "tags".into()]),
         value: RawJson(Bytes::from(b"\"x\"".to_vec())),
     }]);
     let r = s.list(&filter, Page::default()).await;
