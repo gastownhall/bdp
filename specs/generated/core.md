@@ -825,10 +825,12 @@ hand the same cursor to sse to go live.
 The transport enum is `Transport`, the response window is `Page`, and the request
 bundle is `ReadRequest` — ONE request type, shared by every read; its valid `format`
 set is DERIVED from the nature (a `source` admits `sse`, a `snapshot` does not).
-RESOLVED (return unified): EVERY read — `pull` (source) / `list` · `revisions` · the
-stdlib `query` · `export` (snapshot) — wire-returns a `Page` window `{ items, cursor,
-head? }`. The nature is the logical sequence; `Page` is its one-request window, the
-universal read envelope, so `list`/`query` return a Page, NOT a bare array. `cursor`
+RESOLVED (return unified): the WINDOWED reads — `pull` (source) / `list` · `revisions` ·
+the stdlib `query` (snapshot) — wire-return a `Page` window `{ items, cursor, head? }`.
+The nature is the logical sequence; `Page` is its one-request window, the universal read
+envelope, so `list`/`query` return a Page, NOT a bare array. `export` is the one
+exception: a bulk BACKUP, it is a `jsonl` stream self-framed by `ExportBegin`/`ExportEnd`,
+not a Page. `cursor`
 resumes AFTER its last item (exclusive, opaque; null/absent once `head`). With `limit`
 absent a read returns the whole current set in one Page, BOUNDED by the service's
 advertised `maxLimit` — a larger set returns `maxLimit` items + a resume `cursor`, never
@@ -859,9 +861,11 @@ type Cursor is string
 
 ### `Transport`
 
-The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
+The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page` is the windowed encoding; `jsonl` is the bulk encoding, offered by the bulk reads (`export`, `pull`, stdlib `query`) but NOT the windowed resource reads `list`/`revisions` (which are `page`-only); `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
 
 > **Normative.** `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`.
+
+> **Normative.** `list` and `revisions` are `page`-only — they refuse `format=jsonl` (and `sse`) and fault `400`; the windowed resource reads return a `Page` ([Page](#Page)), and `jsonl` serves the bulk reads (`export`, `pull`, stdlib `query`), not them.
 
 ```lumen
 type Transport = "page" | "jsonl" | "sse"
@@ -924,6 +928,8 @@ type Page<T> = {
 Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a `source<T>` (a LIVE feed) of its `pullSchema` events. `--format` picks the transport (`page` windowed / `jsonl` bulk / `sse` live); one Cursor spans all three. `sse` is valid here because `pull` is the one live-feed read.
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
+
+> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-pruned`/`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
 
 ```lumen
 fn pull(
@@ -1606,7 +1612,7 @@ Cascade and dry-run are NOT flags on the core primitive — they live in the std
 
 ### `list`
 
-A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability (query). Snapshot — `--format page|jsonl`, no `sse`.
+A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability (query). Snapshot — `--format page` only; `jsonl` and `sse` fault `400` (a windowed resource read, not a bulk stream).
 
 ```lumen
 fn list(
@@ -1623,7 +1629,7 @@ Resolved: yes — put / patch / delete accept a state guard, carried as a `preco
 
 ### `revisions`
 
-The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
+The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot — `--format page` only; `jsonl` and `sse` fault `400`.
 
 ```lumen
 fn revisions(
@@ -1637,7 +1643,7 @@ fn revisions(
 |---|---|---|
 | `resource` | `unpinned<any>` | The resource whose history to read. |
 | `select?` | `selector` | Projection per revision — ids-only vs full representations. |
-| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`). |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`page` only). |
 
 **Returns** `snapshot<Resource>` — An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
 
@@ -2045,9 +2051,9 @@ type ExportEnd = {
 
 ### `export`
 
-Bulk read of a scope — `jsonl` the bulk default, `page` windows where `request.format` asks (a snapshot, like `list`); current state by default, `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
+Bulk read of a scope — a `jsonl` BACKUP STREAM (`ExportBegin`, one resource line each, `ExportEnd`); `export` is the one read that is not windowed, so `format` other than `jsonl` faults `400`. Current state by default, `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 
-> **Normative.** `export` honors only `after`, `limit` and `format` of `request` ([ReadRequest](#ReadRequest)); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type follows `format`: `application/jsonl` for `jsonl`, `application/json` (a `Page<ExportRecord>`) for `page`.
+> **Normative.** `export` honors only `after`, `limit` and `format` of `request` ([ReadRequest](#ReadRequest)); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type is `application/jsonl` — `export` is jsonl-native, self-framed by `ExportBegin`/`ExportEnd`; `format` other than `jsonl` (including `page`) faults `400`, since a backup is a stream, not a windowed `Page`.
 
 ```lumen
 fn export(
@@ -2065,7 +2071,7 @@ fn export(
 | `where?` | `Filter` | Restrict the export to matching resources (see [Filter](#Filter)). |
 | `select?` | `selector` | Project each exported resource. |
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
-| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`page`/`jsonl`; no `sse`). This is where `--format` is indicated, as on every other read ([ReadRequest](#ReadRequest)). |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`jsonl` only — `export` is a bulk backup stream, not a windowed read). See [ReadRequest](#ReadRequest). |
 
 **Returns** `snapshot<ExportRecord>` — One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added to the record: its position carries it, anchored on import by the request's `fromOrdinal` when the stream is chunked across requests. `ExportBegin` carries the changefeed cut the export was taken at.
 
@@ -2325,7 +2331,7 @@ type Capabilities = {
 
 ### `CoreCapabilities`
 
-The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side.
+The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side. These are the core primitives that advertise in the core record; `call` and `cancel` (operations) advertise under their own packages, not here (§3.3).
 
 ```lumen
 type CoreCapabilities = {
@@ -2347,7 +2353,7 @@ type CoreCapabilities = {
 |---|---|---|
 | `get` | `GetCaps` | Always present — point reads are the floor. See [GetCaps](#GetCaps). |
 | `list?` | `ListCaps` | Present iff `list` is offered. See [ListCaps](#ListCaps). |
-| `pull?` | `PullCaps` | Present iff `pull` is offered (the changefeed and declared streams). See [PullCaps](#PullCaps). |
+| `pull?` | `PullCaps` | Present iff the `pull` OPERATION is offered — this advertises the operation, not a channel inventory. Which channels exist (the changefeed, and any declared streams) is discovered per-channel; a changefeed-only scope offering `pull` is complete. See [PullCaps](#PullCaps). |
 | `create?` | `CreateCaps` | Present iff `create` is offered. See [CreateCaps](#CreateCaps). |
 | `put?` | `PutCaps` | Present iff `put` is offered. See [PutCaps](#PutCaps). |
 | `patch?` | `PatchCaps` | Present iff `patch` is offered. See [PatchCaps](#PatchCaps). |
@@ -2938,9 +2944,9 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
   422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
        or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
-  404  get of an absent resource; an unknown action to the right of the `/-/` fence
+  404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
-  410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)
+  410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
 

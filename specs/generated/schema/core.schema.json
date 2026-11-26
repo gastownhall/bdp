@@ -747,7 +747,7 @@
       "type": "string"
     },
     "Transport": {
-      "description": "The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.",
+      "description": "The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page` is the windowed encoding; `jsonl` is the bulk encoding, offered by the bulk reads (`export`, `pull`, stdlib `query`) but NOT the windowed resource reads `list`/`revisions` (which are `page`-only); `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.",
       "enum": [
         "page",
         "jsonl",
@@ -1988,7 +1988,7 @@
       "additionalProperties": false
     },
     "CoreCapabilities": {
-      "description": "The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side.",
+      "description": "The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side. These are the core primitives that advertise in the core record; `call` and `cancel` (operations) advertise under their own packages, not here (§3.3).",
       "type": "object",
       "properties": {
         "get": {
