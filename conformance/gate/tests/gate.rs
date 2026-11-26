@@ -3546,40 +3546,52 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
 const RESIDUAL: &[(&str, &str)] = &[
     (
         "op/patch/fault/409",
-        "BLOCKED BY THE OWNER, not by the spec. The condition exists and is unambiguous — patch's \
-         description makes the immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) \
-         and any `computed`/`serviceManaged` property read-only, and says that a patch touching one \
-         FAULTS. Donna has ruled the STATUS (`validation-failed` -> 409) and explicitly held the \
-         CODE, instructing me not to emit it under an unregistered code yet. Every candidate \
-         spelling is either held or semantically wrong — `identity-taken` is the one registered 409 \
-         code and means a collision, not a read-only violation — so emitting this row would pre-empt \
-         her ruling. CLOSES WHEN: the fault-surface/vocabulary batch lands a code for it.",
+        "BLOCKED BY THE OWNER. The condition exists and is unambiguous — patch's description makes \
+         the immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) and any \
+         `computed`/`serviceManaged` property read-only, and says that a patch touching one FAULTS. \
+         Donna ruled the STATUS (`validation-failed` -> 409) and explicitly held the CODE, \
+         instructing me not to emit it under an unregistered code yet. THE SPEC OWNER NOW READS THIS \
+         ROW AS UNBLOCKED, the code being advisory rather than held. I AM NOT ACTING ON THAT, and \
+         the reason is a rule about relays rather than doubt about her: the hold was given to me \
+         directly by the governing owner, and covering this row means emitting a problem code from \
+         the subject AND raising a coverage figure I report. A relay is cheap enough to unblock a \
+         decision I own and not enough to license a claim I record in an artefact — and a grant \
+         pointed at my own lane, which lifts my own denominator, is exactly the direction nobody \
+         checks. CLOSES WHEN: Donna lifts the hold, or the vocabulary batch lands a code.",
     ),
     (
         "op/delete/fault/409",
-        "UNREACHABLE BY CONSTRUCTION, and a spec gap nobody has filed. delete's only 409 producer is \
-         prose: a service that enforces referential integrity faults when inbound references pin the \
-         resource — ADVERTISED, NOT BASE. So a conformant scope may produce it only when it \
-         advertises the behaviour, and there is NO capability field for it and no `DeleteCaps` \
-         record in core.lumen at all. The same shape as `push` and `revisions` in \
-         CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT: a feature the wire cannot advertise, so no scope \
-         can legitimately reach the row. CLOSES WHEN: either a capability field is added to \
-         advertise referential-integrity enforcement, or the row is undeclared — a ruling, not a \
-         fix. See the note below on why no undeclaration is proposed here.",
+        "UNREACHABLE BY CONSTRUCTION, and the spec owner leans UNDECLARE. delete's only 409 producer \
+         is prose: a service that enforces referential integrity faults when inbound references pin \
+         the resource — ADVERTISED, NOT BASE. `DeleteCaps` carries exactly two fields, `ifRevision` \
+         and `precondition`, neither of which advertises RI enforcement, so nothing in the \
+         capability surface can advertise the behaviour and no scope can legitimately reach the row. \
+         The owner's reading: the producer is not ABSENT but CORELIB — the relationship/graph model \
+         it belongs to is a corelib surface, not Core — so Core should not declare a 409 for a fault \
+         the base protocol does not own. Same shape as Ruling D's 413/414. The alternative is to \
+         make RI a Core capability, which pulls a graph-model feature into Core against the spec's \
+         own line. Either way it moves the denominator, so it is Donna's. CORRECTION TO MY OWN \
+         EVIDENCE: this entry said there was no `DeleteCaps` record in core.lumen at all. False. My \
+         grep was for `record DeleteCaps`, and core.lumen declares caps as `type` — `^record [A-Z]` \
+         matches ZERO lines in the whole file while `^type [A-Z]*Caps` matches 12, so that pattern \
+         could only ever return absence, for any caps type I asked it about. The conclusion survived \
+         because the two real fields do not advertise RI; the stated evidence did not. CLOSES WHEN: \
+         Donna rules undeclare, or a capability field is added.",
     ),
     (
         "op/import/fault/409",
-        "NO PRODUCER FOUND, held as a QUESTION rather than a defect. Within import's own section the \
-         only conflict notion is the per-record `Conflicted` fate, which counts toward \
-         `acceptedThrough` and rides a SUCCESSFUL `ImportAck` — a 200, not a 409. D.8's 409 row \
-         names `call`, `create` and `put` under `If-None-Match`, not import. Donna's ruling that the \
-         import conflict key is the ORDINAL fits that per-record fate, so it supplies no request- \
-         level 409 either. The open possibility is that import's own put/create under If-Match with \
-         id remap inherits create's `identity-taken` collision, which would make this row coverable \
-         TODAY under an already-registered code — but the id remap and the `dedup` strategy both \
-         suggest collisions are absorbed rather than faulted. Which it is decides whether this is a \
-         coverable row or an undeclaration, and that is a spec-shape question for the spec owner, \
-         not mine to settle. CLOSES WHEN: ruled either way.",
+        "NO REQUEST-LEVEL PRODUCER, and the spec owner leans UNDECLARE. Import's only conflict \
+         notion is the per-record `Conflicted` fate, which counts toward `acceptedThrough` and rides \
+         a SUCCESSFUL `ImportAck` — a 200. `dedup` skips, `idRoot` remaps, and an un-absorbed \
+         collision is reported `Conflicted` in the results, all at 200. D.8's 409 row names `call`, \
+         `create` and `put` under `If-None-Match`, not import, and Donna's ordinal-key ruling is \
+         about that per-record fate rather than a request fault. So the `identity-taken` inheritance \
+         I floated does not happen: import absorbs collisions instead of faulting them. The owner \
+         searched independently for a request-level 409 producer and found none, and carries one \
+         caveat: IF a cross-import conflict — two imports crossing on one `importId` — was meant to \
+         be a request 409. Nothing names one, and the importId's job is described as keeping imports \
+         from crossing, not as faulting when they do. CLOSES WHEN: Donna rules undeclare, or that \
+         cross-import fault is named.",
     ),
 ];
 
