@@ -2055,6 +2055,8 @@ Bulk read of a scope — a `jsonl` BACKUP STREAM (`ExportBegin`, one resource li
 
 > **Normative.** `export` honors only `after`, `limit` and `format` of `request` ([ReadRequest](#ReadRequest)); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type is `application/jsonl` — `export` is jsonl-native, self-framed by `ExportBegin`/`ExportEnd`; `format` other than `jsonl` (including `page`) faults `400`, since a backup is a stream, not a windowed `Page`.
 
+> **Normative.** `select` is honored iff the scope advertises it ([ExportCaps](#ExportCaps) `selector`), exactly as `get`/`list`/`pull` advertise their own selector per-op — selector support MAY differ across reads. A scope advertising `selector: false` faults a `select` request `400` (`invalid-parameter`): the capability is advertised, so a client reads it and omits `select` rather than being refused. (`where`/`Filter` has no per-op flag — it is the scope-wide `list` vocabulary, advertised once via [ListCaps](#ListCaps) `conditions`.)
+
 ```lumen
 fn export(
     scope:      Scope,
@@ -2069,7 +2071,7 @@ fn export(
 |---|---|---|
 | `scope` | `Scope` | The scope to back up. |
 | `where?` | `Filter` | Restrict the export to matching resources (see [Filter](#Filter)). |
-| `select?` | `selector` | Project each exported resource. |
+| `select?` | `selector` | Project each exported resource — honored iff the scope advertises [ExportCaps](#ExportCaps) `selector`; a scope advertising `selector: false` faults `400`. |
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
 | `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`jsonl` only — `export` is a bulk backup stream, not a windowed read). See [ReadRequest](#ReadRequest). |
 
@@ -2591,13 +2593,15 @@ Limits advertised for `export`.
 
 ```lumen
 type ExportCaps = {
-  revisions: bool
+  revisions: bool,
+  selector:  bool
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `revisions` | `bool` | Whether the export can include prior revisions (history), not only the current state. |
+| `selector` | `bool` | Whether a `select` projection is honored on the export — advertised per-op, as `get`/`list`/`pull` advertise their own. |
 
 <a id="ImportCaps"></a>
 
