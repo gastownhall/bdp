@@ -2383,8 +2383,10 @@ async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<V
         if !body.contains("service-managed") {
             return Err(format!(
                 "the refusal of `provenance` does not say WHY — its detail must name it as \
-                 service-managed, because that is the only place an explicit refusal differs from \
-                 an unrecognised-field one once both answer the same status and code: {body:.240}"
+                 service-managed, so a later rewrite cannot replace an explanatory refusal with a \
+                 bare one. (The `(status, code)` assertion above is the discriminator; this is not \
+                 about telling an explicit refusal from an unrecognised-field one, which cannot \
+                 happen for a DECLARED member — see the note above.): {body:.240}"
             ));
         }
     }
