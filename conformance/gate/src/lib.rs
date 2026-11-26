@@ -1563,10 +1563,25 @@ mod tests {
     #[test]
     fn the_normative_parse_is_not_vacuous() {
         let found = normative_surface();
+        // EXACT, NOT A FLOOR — the third floor in this file to need this, and the one that had
+        // already cost something: the normative surface grew 89 -> 91 when #456/#457/#458 merged,
+        // and `>= 60` passed in silence. Every obligation figure published off this parse — "89
+        // obligations, 19 registered", the 70-strong backlog I sized by reading — was computed over
+        // a population that had since moved. A floor is exactly the shape that survives the change
+        // it exists to report.
+        const OBLIGATIONS: usize = 91;
         assert!(
-            found.len() >= 60,
-            "parsed only {} obligations — the anchor or the prefix is wrong",
-            found.len()
+            found.len() == OBLIGATIONS,
+            "parsed {} obligations, expected {OBLIGATIONS}. {} The ledger, the backlog sizing and \
+             every count on this page are computed over this set:",
+            found.len(),
+            if found.len() < OBLIGATIONS {
+                "FEWER — the anchor or the prefix is wrong, or obligations were removed; the ledger \
+                 is now a tripwire over a short set."
+            } else {
+                "MORE — the spec gained normative lines. That is not a bug: re-read the new ones, \
+                 classify them, and update OBLIGATIONS. The backlog sizing is short by the delta."
+            }
         );
         assert!(
             found.iter().all(|t| t.len() > 20),
@@ -2049,12 +2064,22 @@ mod tests {
     #[test]
     fn the_direct_producer_scan_is_not_vacuous() {
         let sites = codes_emitted_by_direct_problem_bodies();
+        // EXACT, for the same reason. This read `>= 10` and the file has since grown to 25 sites,
+        // so the floor had stopped measuring anything — it would have passed with fifteen sites
+        // deleted.
+        const DIRECT_SITES: usize = 25;
         assert!(
-            sites.len() >= 10,
-            "the direct-producer scan found only {} `problem_body` sites, which is too few to be \
-             this server — the literal form has changed and this check is now measuring almost \
-             nothing: {sites:?}",
-            sites.len()
+            sites.len() == DIRECT_SITES,
+            "the direct-producer scan found {} `problem_body` sites, expected {DIRECT_SITES}. {} \
+             The unregistered-code result is computed over this set:\n  {sites:?}",
+            sites.len(),
+            if sites.len() < DIRECT_SITES {
+                "FEWER — the literal form has changed (a status or code built dynamically, a \
+                 reformatted call) and sites are going unscanned."
+            } else {
+                "MORE — new refusal sites were added. Check whether any introduced an unregistered \
+                 code before updating DIRECT_SITES."
+            }
         );
         // A known-good one, so the scan is proven to reach a REGISTERED code too and is not merely
         // collecting the two it is told to expect.
