@@ -927,6 +927,8 @@ Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stre
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 
+> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-pruned`/`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
+
 ```lumen
 fn pull(
     channel: unpinned<Channel>,
@@ -2327,7 +2329,7 @@ type Capabilities = {
 
 ### `CoreCapabilities`
 
-The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side.
+The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side. These are the core primitives that advertise in the core record; `call` and `cancel` (operations) advertise under their own packages, not here (§3.3).
 
 ```lumen
 type CoreCapabilities = {
@@ -2349,7 +2351,7 @@ type CoreCapabilities = {
 |---|---|---|
 | `get` | `GetCaps` | Always present — point reads are the floor. See [GetCaps](#GetCaps). |
 | `list?` | `ListCaps` | Present iff `list` is offered. See [ListCaps](#ListCaps). |
-| `pull?` | `PullCaps` | Present iff `pull` is offered (the changefeed and declared streams). See [PullCaps](#PullCaps). |
+| `pull?` | `PullCaps` | Present iff the `pull` OPERATION is offered — this advertises the operation, not a channel inventory. Which channels exist (the changefeed, and any declared streams) is discovered per-channel; a changefeed-only scope offering `pull` is complete. See [PullCaps](#PullCaps). |
 | `create?` | `CreateCaps` | Present iff `create` is offered. See [CreateCaps](#CreateCaps). |
 | `put?` | `PutCaps` | Present iff `put` is offered. See [PutCaps](#PutCaps). |
 | `patch?` | `PatchCaps` | Present iff `patch` is offered. See [PatchCaps](#PatchCaps). |
@@ -2940,9 +2942,9 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
   422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
        or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
-  404  get of an absent resource; an unknown action to the right of the `/-/` fence
+  404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
-  410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)
+  410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
 
