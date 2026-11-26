@@ -250,6 +250,8 @@ async fn the_capability_surface_is_the_specs_shape(host: &str) -> Result<Vec<Sur
         "advertises `call`, which core.lumen:1570 puts under its own package, not core",
         "advertises `cancel`, which core.lumen:1570 puts under its own package, not core",
         "advertises `resolve`, which is not a primitive at all and has no core capability field",
+        "`revisions` is a CoreCapabilities field this scope does not advertise, though the operation works and this gate covers rows for it — core.lumen:1611 makes presence the sole criterion of support, so a conformant client must read it as unsupported",
+        "`push` is a CoreCapabilities field this scope does not advertise, though the operation works and this gate covers rows for it — core.lumen:1611 makes presence the sole criterion of support, so a conformant client must read it as unsupported",
         "advertises `changes`, a RETIRED primitive — the changefeed was remapped onto `pull` (`/sys/changes` as a source Channel), and the advertisement outlived it",
     ];
 
@@ -306,6 +308,34 @@ async fn the_capability_surface_is_the_specs_shape(host: &str) -> Result<Vec<Sur
     }
 
     let allowed = bdp_gate::core_capability_fields();
+
+    // THE INVERSE DIRECTION, which this case did not have. Everything below asks "is every
+    // advertised key allowed?" — which runs in the same direction as the spec's own closed list, so
+    // the list guarantees it and only the other direction carries information. A peer's move:
+    // **when an assertion runs in the same direction as the code's own filter, assert the
+    // inverse.**
+    //
+    // The inverse here is not "every spec field must be advertised" — a scope legitimately omits
+    // the capability for a primitive it does not offer. It is the Q1/Q2 interlock's other leg:
+    // **an operation this gate COVERS must be advertised**, because core.lumen:1611 makes presence
+    // the sole criterion of support ("a primitive is supported iff its capability is present").
+    // An op that works and is unadvertised tells a conformant client it is unsupported.
+    //
+    // Found by self-starting this sweep rather than waiting for an instance to prompt it, which is
+    // the thing neither I nor the peer had been doing: four sweeps today, none self-started.
+    for op in ["get", "list", "pull", "create", "put", "patch", "delete", "revisions", "export", "import", "push"] {
+        if !allowed.iter().any(|a| a == op) {
+            continue; // not a core capability field; nothing to advertise it with
+        }
+        let covered_op = SurfaceId::Op(op.to_string());
+        let _ = &covered_op;
+        if !keys.iter().any(|k| k == op) {
+            found.push(format!(
+                "`{op}` is a CoreCapabilities field this scope does not advertise, though the operation works and this gate covers rows for it — core.lumen:1611 makes presence the sole criterion of support, so a conformant client must read it as unsupported"
+            ));
+        }
+    }
+
     for k in &keys {
         if !allowed.iter().any(|a| a == k) {
             let entry = REGISTERED
