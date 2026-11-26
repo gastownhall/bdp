@@ -859,9 +859,11 @@ type Cursor is string
 
 ### `Transport`
 
-The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
+The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page` is the windowed encoding; `jsonl` is the bulk encoding, offered by the bulk reads (`export`, `pull`, stdlib `query`) but NOT the windowed resource reads `list`/`revisions` (which are `page`-only); `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
 
 > **Normative.** `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`.
+
+> **Normative.** `list` and `revisions` are `page`-only — they refuse `format=jsonl` (and `sse`) and fault `400`; the windowed resource reads return a `Page` ([Page](#Page)), and `jsonl` serves the bulk reads (`export`, `pull`, stdlib `query`), not them.
 
 ```lumen
 type Transport = "page" | "jsonl" | "sse"
@@ -1606,7 +1608,7 @@ Cascade and dry-run are NOT flags on the core primitive — they live in the std
 
 ### `list`
 
-A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability (query). Snapshot — `--format page|jsonl`, no `sse`.
+A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability (query). Snapshot — `--format page` only; `jsonl` and `sse` fault `400` (a windowed resource read, not a bulk stream).
 
 ```lumen
 fn list(
@@ -1623,7 +1625,7 @@ Resolved: yes — put / patch / delete accept a state guard, carried as a `preco
 
 ### `revisions`
 
-The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
+The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot — `--format page` only; `jsonl` and `sse` fault `400`.
 
 ```lumen
 fn revisions(
@@ -1637,7 +1639,7 @@ fn revisions(
 |---|---|---|
 | `resource` | `unpinned<any>` | The resource whose history to read. |
 | `select?` | `selector` | Projection per revision — ids-only vs full representations. |
-| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`). |
+| `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, transport (`page` only). |
 
 **Returns** `snapshot<Resource>` — An untyped representation — `rep<any>`. Used where the body type is unknown or open (a mixed listing, a generic read).
 
