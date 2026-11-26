@@ -1586,6 +1586,24 @@ async fn raw_status(
     Ok(resp.status)
 }
 
+/// Like [`raw_status`], but also returns the response body.
+///
+/// Needed because "IGNORED" is not observable from a status. A `200` says the member was not
+/// faulted; only the stored representation says it was not HONORED, and for `provenance` and
+/// `createdAt` the difference between the two is the whole obligation.
+async fn raw_body(
+    host: &str,
+    method: &str,
+    target: &str,
+    headers: Vec<(String, String)>,
+    body: &[u8],
+) -> Result<(u16, String), String> {
+    let resp = send(Outgoing { method, host, target, headers, body: body.to_vec() })
+        .await
+        .map_err(|e| format!("raw send: {e:?}"))?;
+    Ok((resp.status, String::from_utf8_lossy(&resp.body).into_owned()))
+}
+
 fn ctype(v: &str) -> Vec<(String, String)> {
     vec![("content-type".into(), v.into())]
 }
@@ -2601,24 +2619,65 @@ async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<V
         ));
     }
 
-    // 3. `retired` on PUT is IGNORED — the round-trip case, and the arm that rots.
-    let st = raw_status(host, "PUT", "/closed-3", ct(),
-        format!(r#"{{"kind":"Note","type":{ty},"body":{{"v":1}},"metadata":{{}},"retired":true}}"#).as_bytes()).await?;
-    if st != 200 {
-        return Err(format!(
-            "put carrying `retired: true` answered {st}; a read-only member on a write is IGNORED, \
-             NEVER FAULTED — \"so a `get` → `put` round-trip of a whole representation is safe\". \
-             If this is a 400, the create-side refusal has been collapsed onto `put` too, which is \
-             the exact failure this arm exists to catch"
-        ));
-    }
-    // ...and ignored means IGNORED, not honored: the resource must still be readable.
-    let readable = raw_status(host, "GET", "/closed-3", Vec::new(), b"").await?;
-    if readable != 200 {
-        return Err(format!(
-            "after a put carrying `retired: true` the resource reads {readable}, so the member was \
-             HONORED rather than ignored — the write forged a tombstone through `put`"
-        ));
+    // 3. THE WHOLE SET on PUT is IGNORED — the round-trip arm, and the one that rots.
+    //
+    // THIS TESTED `retired` ALONE while the create side above was already fixed to cover the set.
+    // Same defect, same case, opposite end: core.lumen names an ENVELOPE, so guarding one member
+    // leaves the other two resting on nothing. A peer asked me to check that `put` ignores rather
+    // than refuses, and the gap was the member count, not the direction.
+    //
+    // THREE WRITES, THREE TREATMENTS, and the spec is coherent across them: a read-only member is
+    // REFUSED on `create` (the input is closed), IGNORED on `put` (core.lumen:472, so a
+    // `get` -> `put` round-trip of a whole representation is safe), and FAULTS under `patch`
+    // (core.lumen:1133, because the caller NAMES an unwritable path). Collapsing any pair of those
+    // is a real divergence, and this arm is what stops the create-side refusal spreading to `put`.
+    //
+    // IGNORED IS ASSERTED AS *NOT HONORED*, NOT AS 200. A status only says the write was not
+    // faulted. For `provenance` and `createdAt` the forged value landing is exactly as wrong as a
+    // refusal, and a `200` cannot tell the two apart — the same reason the sibling case reads the
+    // problem CODE rather than the number.
+    //
+    // THE DROP IS STRUCTURAL, so these cannot fail today: `WireCreateRequest::into_body` builds a
+    // `CreateBody` of `kind`/`type`/`properties`/`metadata` and there is no field for any of the
+    // three to ride past the wire layer. That makes this a TRIPWIRE on a construction guarantee,
+    // not a probe that cannot fail — the guarantee has a plausible way to end (someone implementing
+    // caller-supplied provenance adds the field and wires it through), and this is what would
+    // notice. Red-greening it means making that legitimate change, not deleting an assertion.
+    for (seg, member, forged, marker) in [
+        ("closed-3a", "retired", "true", None),
+        ("closed-3b", "provenance", r#""forged-by-caller""#, Some("forged-by-caller")),
+        ("closed-3c", "createdAt", r#""1999-01-01T00:00:00Z""#, Some("1999-01-01")),
+    ] {
+        let path = format!("/{seg}");
+        let st = raw_status(host, "PUT", &path, ct(),
+            format!(r#"{{"kind":"Note","type":{ty},"body":{{"v":1}},"metadata":{{}},"{member}":{forged}}}"#).as_bytes()).await?;
+        if st != 200 {
+            return Err(format!(
+                "put carrying `{member}` answered {st}; a read-only member on a write is IGNORED, \
+                 NEVER FAULTED, so a `get` -> `put` round-trip of a whole representation stays \
+                 safe. If this is a 400 the create-side refusal has been collapsed onto `put`, \
+                 which is the exact failure this arm exists to catch"
+            ));
+        }
+        let (readable, body) = raw_body(host, "GET", &path, Vec::new(), b"").await?;
+        if readable != 200 {
+            return Err(format!(
+                "after a put carrying `{member}` the resource reads {readable}, so the member was \
+                 HONORED rather than ignored — for `retired` that means the write forged a \
+                 tombstone through `put`"
+            ));
+        }
+        if let Some(m) = marker {
+            if body.contains(m) {
+                return Err(format!(
+                    "a put carrying `{member}` was answered 200 AND the forged value {m:?} is in \
+                     the stored representation, so it was HONORED, not ignored. Ignoring means the \
+                     member has no effect; accepting it silently is worse than refusing it, \
+                     because the caller is told the write succeeded and the service's own field \
+                     now carries a value a writer supplied"
+                ));
+            }
+        }
     }
     Ok(Vec::new())
 }
