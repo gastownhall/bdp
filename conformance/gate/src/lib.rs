@@ -770,6 +770,103 @@ fn signature_params(op: &str) -> Vec<(String, String)> {
     Vec::new()
 }
 
+// =============================================================================
+// WIRE-LOWERING COMPLETENESS — does every declared thing have a wire home?
+//
+// The tier-1 gate above counts FAULTS: ops and their declared `>=400` statuses. It cannot see a
+// declared thing that the wire has no way to carry, because such a thing produces no row to be
+// uncovered. Four findings in two days were all that shape — declared inputs the generated
+// contract cannot carry (#450), a mandated encoding with no framing (#451), a status produced but
+// never declared (#452), a status declared but not producible (#453), and a closed representation
+// envelope the wire does not emit (#454). Each was found by hand. This section is the machine.
+//
+// WHAT THIS SECTION DOES *NOT* DO, recorded because I built it and threw it away:
+//
+// I also wrote the symmetric check — every declared fault status must have a producer naming its
+// operation in D.8 — because that is precisely the hand-derivation that found `delete/409` and
+// `patch/409`. It flags **22 of 37 rows**, and a filter that rejects a majority of a conformant
+// surface is not a filter. The reason is prose shape, not defects: D.8's `409` entry ENUMERATES
+// its producers ("call → …; any id collision — `create` … OR `put` …"), so an op absent from it is
+// genuinely unaccounted for; D.8's `400` entry describes an OPEN CLASS ("Three shapes reach it. A
+// BAD BODY … AN INVALID PARAMETER VALUE …"), under which every write op falls legitimately without
+// being named. Telling those two shapes apart is prose semantics, and a gate that cried wolf 22
+// times would be ignored into uselessness — worse than no gate. The hand-derivation stands on
+// reasoning this check cannot reach, so it stays hand work and is NOT registered as automated.
+// =============================================================================
+
+/// Every Problem `code` the spec declares, parsed from the D.9 catalogue.
+///
+/// `code` is normative WIRE OUTPUT: core.lumen:853 makes it a BDP extension member carrying a
+/// stable problem-type URI (`tag:bdp.dev,2026:problem/<code>`), one per code. So a code is a thing
+/// the wire emits, and a client branches on it.
+pub fn problem_codes() -> Vec<String> {
+    let (block, _) = d9_catalogue();
+    let mut out: Vec<String> = Vec::new();
+    for tok in block.split('·') {
+        for raw in tok.split_whitespace() {
+            let t = raw.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-');
+            // A code is kebab-case with at least one hyphen. `problem-type` is prose from the
+            // catalogue's own header sentence, not a code — the one false positive this shape has.
+            if t != "problem-type"
+                && t.contains('-')
+                && t.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                && !t.starts_with('-')
+                && !t.ends_with('-')
+                && !out.iter().any(|s| s == t)
+            {
+                out.push(t.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// The D.9 catalogue block, and the rest of `core.lumen` with that block removed.
+///
+/// The split is the whole method: a code MENTIONED ONLY IN ITS OWN CATALOGUE is bound to nothing.
+fn d9_catalogue() -> (String, String) {
+    let start = CORE_LUMEN
+        .find("D.9 Problem codes")
+        .expect("core.lumen has a D.9 Problem codes appendix");
+    let end = CORE_LUMEN[start..]
+        .find("Appendix E")
+        .map(|i| start + i)
+        .expect("D.9 is followed by Appendix E");
+    let block = CORE_LUMEN[start..end].to_string();
+    let rest = format!("{}{}", &CORE_LUMEN[..start], &CORE_LUMEN[end..]);
+    (block, rest)
+}
+
+/// A declared Problem code that appears NOWHERE outside the D.9 catalogue — so nothing in the spec
+/// binds it to a status, an operation, or a producing condition.
+pub fn orphan_codes() -> Vec<String> {
+    let (_, rest) = d9_catalogue();
+    problem_codes().into_iter().filter(|c| !rest.contains(c.as_str())).collect()
+}
+
+/// The 11 declared codes with no wire home, registered so the gate is green on the KNOWN set and
+/// red on a new one. Each entry is the code and what is actually missing — they are not one defect.
+///
+/// THE TWO TIERS MATTER, and collapsing them would overstate the finding. For some, D.8 describes
+/// the CONDITION under a status without ever writing the code beside it, so the repair is one line
+/// of text: `404` says "get of an absent resource" and `410` says "get of a pruned / erased
+/// resource". For the rest there is no status entry to attach to at all — D.8 has no `429` and no
+/// `5xx` entry beyond the `4xx/5xx` catch-all, so `rate-limited` and `temporarily-unavailable`
+/// have nowhere to land, and `validation-failed` has neither a status nor a condition anywhere.
+pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
+    ("resource-not-found", "condition described under D.8 404 (\"get of an absent resource\"); code never written beside it"),
+    ("resource-pruned", "condition described under D.8 410 (\"pruned / erased\"); code never written beside it"),
+    ("resource-erased", "condition described under D.8 410 (\"pruned / erased\"); code never written beside it"),
+    ("validation-failed", "NO status and NO condition anywhere — the sharpest case; the open question behind #453's patch/409"),
+    ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
+    ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
+    ("type-not-installed", "no status entry names it; Types-profile condition with no Core landing"),
+    ("callable-not-found", "no status entry names it; a `call` dispatch condition"),
+    ("callable-unavailable", "no status entry names it; a `call` dispatch condition"),
+    ("mode-not-supported", "no status entry names it; `?mode=async` refusal"),
+    ("mode-refused", "no status entry names it; `?mode=async` refusal"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1485,4 +1582,87 @@ mod tests {
         }
     }
 
+    /// EVERY DECLARED PROBLEM CODE MUST HAVE A WIRE HOME. A `code` is normative wire output
+    /// (core.lumen:853 — a BDP extension member with a stable problem-type URI per code), so a
+    /// client branches on it. A code mentioned ONLY in its own catalogue is bound to no status, no
+    /// operation and no condition: the spec declares a value the wire can carry and never says
+    /// when it is carried.
+    ///
+    /// This is the check the tier-1 gate structurally cannot make. A code with no status home
+    /// produces no fault row, so there is nothing for coverage to leave uncovered — the gate
+    /// counts faults, and this is an obligation.
+    #[test]
+    fn every_problem_code_has_a_wire_home() {
+        let registered: BTreeSet<&str> = CODES_WITHOUT_A_WIRE_HOME.iter().map(|(c, _)| *c).collect();
+        let orphans = orphan_codes();
+        let unregistered: Vec<&String> =
+            orphans.iter().filter(|c| !registered.contains(c.as_str())).collect();
+        assert!(
+            unregistered.is_empty(),
+            "declared Problem code(s) with NO status, operation or condition anywhere outside the \
+             D.9 catalogue, and not registered in CODES_WITHOUT_A_WIRE_HOME:\n  {unregistered:?}\n\n\
+             Either bind the code to a status in D.8 and name its producing condition, or register \
+             it here with what is missing."
+        );
+    }
+
+    /// THE REGISTER NAMES ONLY LIVE ORPHANS — the other direction, and the one that rots silently.
+    /// A code that has since been given a status would sit here for ever reading as an open gap,
+    /// and the register would then be documentation of a defect that no longer exists.
+    #[test]
+    fn the_code_register_names_only_live_orphans() {
+        let orphans: BTreeSet<String> = orphan_codes().into_iter().collect();
+        let declared: BTreeSet<String> = problem_codes().into_iter().collect();
+        for (code, why) in CODES_WITHOUT_A_WIRE_HOME {
+            assert!(
+                declared.contains(*code),
+                "CODES_WITHOUT_A_WIRE_HOME names {code:?}, which is no longer a declared code in \
+                 D.9 at all — the register is stale. ({why})"
+            );
+            assert!(
+                orphans.contains(*code),
+                "CODES_WITHOUT_A_WIRE_HOME still registers {code:?} as having no wire home, but it \
+                 is now referenced outside the D.9 catalogue — the gap was closed and this entry \
+                 is now a false claim. Remove it. ({why})"
+            );
+        }
+    }
+
+    /// THE PARSE IS NOT VACUOUS. Every guard above is of the form "nothing unregistered is
+    /// orphaned", which passes trivially if the parse finds no codes — and a catalogue parse is
+    /// exactly the kind that silently yields zero when a heading is reworded. So pin the shape
+    /// from both ends: real codes are found, and codes known to be BOUND are not reported orphaned.
+    #[test]
+    fn the_problem_code_parse_is_not_vacuous() {
+        let codes = problem_codes();
+        assert!(
+            codes.len() >= 15,
+            "D.9 parsed to only {} codes, which is too few to be the catalogue — the parse broke, \
+             and every orphan check above is passing vacuously: {codes:?}",
+            codes.len()
+        );
+        // Codes whose binding is written out at length in D.8 and the primitive prose. If the
+        // orphan check ever reports one of THESE, it is the parse that is wrong, not the spec.
+        for bound in ["identity-taken", "revision-mismatch", "precondition-failed", "limit-exceeded"] {
+            assert!(
+                codes.iter().any(|c| c == bound),
+                "{bound:?} is not in the parsed catalogue, so the D.9 parse is missing codes: {codes:?}"
+            );
+            assert!(
+                !orphan_codes().iter().any(|c| c == bound),
+                "{bound:?} is reported as having no wire home, but its binding is written out in \
+                 D.8 — the orphan check is measuring the catalogue against itself, not against the \
+                 rest of the spec."
+            );
+        }
+        // And the split must actually REMOVE the catalogue: if `rest` still contained it, every
+        // code would look bound and the check would report nothing, for ever.
+        let (block, rest) = d9_catalogue();
+        assert!(block.contains("malformed-request"), "the D.9 block does not contain the catalogue");
+        assert!(
+            !rest.contains("temporarily-unavailable"),
+            "the catalogue was not removed from the comparison text, so no code can ever be \
+             reported orphaned — this check would pass for ever while guarding nothing"
+        );
+    }
 }
