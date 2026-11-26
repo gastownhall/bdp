@@ -3108,7 +3108,39 @@ async fn run_cases(addr: String, restricted_addr: String) {
     covered_sorted.sort();
     eprintln!("  covered: {}", render(&covered_sorted));
     eprintln!("  uncovered ({}): {}", uncovered.len(), render(&uncovered));
+    for row in &uncovered {
+        let id = row.to_string();
+        let why = RESIDUAL
+            .iter()
+            .find(|(r, _)| *r == id)
+            .map(|(_, why)| *why)
+            .unwrap_or("UNREGISTERED — no recorded blocker");
+        eprintln!("    - {id}: {why}");
+    }
     eprintln!("=======================\n");
+
+    // THE RESIDUAL IS REGISTERED IN BOTH DIRECTIONS. A new uncovered row must be explained, and an
+    // entry whose row gets covered must be removed in the same change.
+    let uncovered_ids: BTreeSet<String> = uncovered.iter().map(|r| r.to_string()).collect();
+    let registered_ids: BTreeSet<String> = RESIDUAL.iter().map(|(r, _)| r.to_string()).collect();
+    let unexplained: Vec<&String> = uncovered_ids.difference(&registered_ids).collect();
+    assert!(
+        unexplained.is_empty(),
+        "{} uncovered row(s) have no recorded blocker: {:?}.\n\
+         An uncovered row with no entry is indistinguishable from one nobody has looked at. Add it \
+         to RESIDUAL with WHY no case reaches it and WHAT CLOSES IT.",
+        unexplained.len(),
+        unexplained
+    );
+    let expired: Vec<&String> = registered_ids.difference(&uncovered_ids).collect();
+    assert!(
+        expired.is_empty(),
+        "RESIDUAL still records {} row(s) as unreachable that are now COVERED: {:?}.\n\
+         The blocker closed and the entry is a false claim — remove it in the change that covered \
+         the row.",
+        expired.len(),
+        expired
+    );
 
     // A case that should pass but failed is a real wire-level regression — always fail.
     assert!(failures.is_empty(), "tier-1 cases failed:\n  {}", failures.join("\n  "));
@@ -3386,6 +3418,65 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
 
     (covered, failures)
 }
+
+/// THE RESIDUAL: every uncovered denominator row, why no case reaches it, and what closes it.
+///
+/// These three were a single sentence in my head — the rest is blocked on the 409 code vocabulary —
+/// and I was about to report it that way. Reading each one's producer says they are THREE DIFFERENT
+/// BLOCKERS that happen to share a status. The shared 409 is a coincidence of the many-to-one map
+/// from conditions onto statuses, which is the same reason the denominator counts faults and cannot
+/// count obligations.
+///
+/// ASSERTED IN BOTH DIRECTIONS below: an uncovered row with no entry fails, and an entry whose row
+/// becomes covered fails. So the residual cannot grow silently and an entry cannot outlive its
+/// blocker.
+const RESIDUAL: &[(&str, &str)] = &[
+    (
+        "op/patch/fault/409",
+        "BLOCKED BY THE OWNER, not by the spec. The condition exists and is unambiguous — patch's \
+         description makes the immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) \
+         and any `computed`/`serviceManaged` property read-only, and says that a patch touching one \
+         FAULTS. Donna has ruled the STATUS (`validation-failed` -> 409) and explicitly held the \
+         CODE, instructing me not to emit it under an unregistered code yet. Every candidate \
+         spelling is either held or semantically wrong — `identity-taken` is the one registered 409 \
+         code and means a collision, not a read-only violation — so emitting this row would pre-empt \
+         her ruling. CLOSES WHEN: the fault-surface/vocabulary batch lands a code for it.",
+    ),
+    (
+        "op/delete/fault/409",
+        "UNREACHABLE BY CONSTRUCTION, and a spec gap nobody has filed. delete's only 409 producer is \
+         prose: a service that enforces referential integrity faults when inbound references pin the \
+         resource — ADVERTISED, NOT BASE. So a conformant scope may produce it only when it \
+         advertises the behaviour, and there is NO capability field for it and no `DeleteCaps` \
+         record in core.lumen at all. The same shape as `push` and `revisions` in \
+         CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT: a feature the wire cannot advertise, so no scope \
+         can legitimately reach the row. CLOSES WHEN: either a capability field is added to \
+         advertise referential-integrity enforcement, or the row is undeclared — a ruling, not a \
+         fix. See the note below on why no undeclaration is proposed here.",
+    ),
+    (
+        "op/import/fault/409",
+        "NO PRODUCER FOUND, held as a QUESTION rather than a defect. Within import's own section the \
+         only conflict notion is the per-record `Conflicted` fate, which counts toward \
+         `acceptedThrough` and rides a SUCCESSFUL `ImportAck` — a 200, not a 409. D.8's 409 row \
+         names `call`, `create` and `put` under `If-None-Match`, not import. Donna's ruling that the \
+         import conflict key is the ORDINAL fits that per-record fate, so it supplies no request- \
+         level 409 either. The open possibility is that import's own put/create under If-Match with \
+         id remap inherits create's `identity-taken` collision, which would make this row coverable \
+         TODAY under an already-registered code — but the id remap and the `dedup` strategy both \
+         suggest collisions are absorbed rather than faulted. Which it is decides whether this is a \
+         coverable row or an undeclaration, and that is a spec-shape question for the spec owner, \
+         not mine to settle. CLOSES WHEN: ruled either way.",
+    ),
+];
+
+/// WHY NO UNDECLARATION IS PROPOSED HERE, though two of the three look like candidates.
+///
+/// I published exactly that recommendation for `patch/409` once (gastownhall/bdp#453) and retracted
+/// it: the condition did exist, in the description rather than a `normative:` line, and I had
+/// reached for a ruling that lowered my own denominator. A row I cannot reach and a row that should
+/// not exist look identical from inside the gate, and only one of them is mine to act on. So the
+/// register states the blocker and names what closes it, and the ruling stays with the owner.
 
 fn render(rows: &[&SurfaceId]) -> String {
     if rows.is_empty() {
