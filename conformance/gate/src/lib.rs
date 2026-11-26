@@ -11,8 +11,15 @@
 //! it and the uncovered row surfaces here. A vendored snapshot would freeze the denominator and
 //! silently stop catching spec changes, which is why it was dropped once #405 merged.
 //!
-//! Pin: `gastownhall/bdp` `main` @`488a2d01` — merged commits, never draft tips. The surface is
-//! **48 rows (13 ops + 35 faults)** over 9 paths.
+//! Pin: `gastownhall/bdp` `main` — merged commits, never draft tips. The surface is
+//! **51 rows (13 ops + 38 faults)**, and it is DERIVED AT RUN TIME, never pinned here.
+//!
+//! THIS LINE SAID 48 AT `488a2d01` and stayed there while the surface moved to 50 and then 51.
+//! It is the first thing anyone reads, and two sweeps missed it: one grepped for the stale value I
+//! expected (50) rather than for the SHAPE of a surface claim, and the other looked only at the
+//! declaration it sat above. The number now carries the derivation rather than a pin, so there is
+//! one fewer hand-maintained copy to drift — and the sha is dropped, because a pinned sha in prose
+//! is a second copy of something `git` already knows.
 //!
 //! **The `paths` block HAS moved, and that is the point of recording it.** It was `770e3ccc…` and
 //! byte-identical from `aa439827` through #407, #408, #410 and #412 — a stability that made it
@@ -1231,7 +1238,21 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 37 faults = 50.
+    /// fault statuses. **13 ops + 38 faults = 51** — #456 declared `pull/404`, and I updated the
+    /// assertion below and left this line saying 50.
+    ///
+    /// AND THIS TABLE MUST NOT BE DERIVED, which is the scope limit on "make the drift
+    /// unrepresentable rather than detectable". Deriving it from the generated OpenAPI is exactly
+    /// the circular assertion that rule is meant to prevent elsewhere — a filter checked against
+    /// its own predicate. The relationships differ:
+    ///
+    ///   two things that must AGREE BY CONSTRUCTION (an advertisement and the fact it advertises)
+    ///     -> derive one from the other; the wrong pairing becomes unwritable
+    ///   an INDEPENDENT EXPECTATION watching an artifact (this table vs the generated catalog)
+    ///     -> must stay hand-written, or it can no longer disagree, and disagreeing is its whole job
+    ///
+    /// So this stays a hand-maintained row-by-row list, and the cost is exactly what just happened:
+    /// a hand-maintained expectation drifts from its own prose, and the prose is what drifted.
     ///
     /// RE-PINNED FOUR TIMES. Each re-pin corrects the one before it, and the corrections are the
     /// argument for spelling the surface out row by row instead of asserting a total.
