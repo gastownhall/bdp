@@ -949,16 +949,33 @@ pub fn codes_named_by_a_fault_verb() -> Vec<String> {
     for verb in VERBS {
         let mut from = 0usize;
         while let Some(i) = rest[from..].find(verb).map(|p| from + p) {
-            let after = i + verb.len();
-            let Some(close) = rest[after..].find('`').map(|p| after + p) else { break };
-            let tok = &rest[after..close];
-            if tok.contains('-')
-                && tok.chars().all(|c| c.is_ascii_lowercase() || c == '-')
-                && !out.iter().any(|s| s == tok)
-            {
-                out.push(tok.to_string());
+            let after = i + verb.len() - 1; // keep the opening backtick in the window
+            // SCAN THE CLAUSE, NOT JUST THE NEXT TOKEN. This took only the token immediately
+            // after the verb, which handles "faults `channel-not-pullable`" and is BLIND to the
+            // other normative style: core.lumen:673 writes "faults `404` (`resource-not-found`)",
+            // where the verb is followed by the STATUS and the code sits in a parenthetical. The
+            // first token there is `404`, which fails the kebab filter, so the whole site
+            // contributed nothing — and three codes named on that line were invisible.
+            //
+            // Found by simulating an incomplete repair (removing a code from D.9 while leaving its
+            // normative usages) and watching this check stay GREEN. A peer had told me it would
+            // catch exactly that; it did not, and only running it showed so.
+            let end = rest[after..]
+                .find(". ")
+                .map(|e| after + e)
+                .unwrap_or_else(|| (after + 200).min(rest.len()));
+            let clause = &rest[after..end];
+            for tok in clause.split('`').skip(1).step_by(2) {
+                if tok.contains('-')
+                    && tok.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                    && !tok.starts_with('-')
+                    && !tok.ends_with('-')
+                    && !out.iter().any(|s| s == tok)
+                {
+                    out.push(tok.to_string());
+                }
             }
-            from = close + 1;
+            from = end.max(i + verb.len());
         }
     }
     out.sort();
@@ -1955,11 +1972,27 @@ mod tests {
     #[test]
     fn the_fault_verb_parse_is_not_vacuous_and_discriminates() {
         let found = codes_named_by_a_fault_verb();
+        // EXACT, NOT A FLOOR — the same correction the registry pin needed today. `>= 6` was true
+        // at 6 and true at 12, and the parser was finding 6 because it read only the token
+        // immediately after the verb and could not see `faults `404` (`code`)`. A floor cannot
+        // catch a systematic omission; it passed happily over HALF the usage sites.
+        //
+        // The six it missed all named REGISTERED codes, so the used-but-unregistered result was
+        // right while the method was incomplete — a number correct for a reason that would not have
+        // held if any of those six had been unregistered.
+        const VERB_SITES: usize = 12;
         assert!(
-            found.len() >= 6,
-            "only {} codes found after a fault verb, which is too few to be this file — the parse \
-             broke and both registry checks are passing vacuously: {found:?}",
-            found.len()
+            found.len() == VERB_SITES,
+            "{} codes named by a fault verb, expected {VERB_SITES}. {} Either way the two registry \
+             checks are computed over this set, so re-derive before trusting them:\n  {found:?}",
+            found.len(),
+            if found.len() < VERB_SITES {
+                "FEWER — the parse narrowed (a reworded clause, a naming style it cannot see) and \
+                 usage sites are going unchecked."
+            } else {
+                "MORE — either the spec names codes in new places, or the scan has LOOSENED and is \
+                 collecting non-codes; check the discrimination assertions below."
+            }
         );
         for want in ["channel-not-pullable", "identity-taken", "revision-mismatch"] {
             assert!(
