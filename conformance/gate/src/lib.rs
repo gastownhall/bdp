@@ -319,6 +319,14 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
         disposition: Disposition::Behavioural,
         evidence: "a_no_change_write_is_a_no_op — put and patch, each no-change arm paired with a changing write that MUST mint, so a subject that never wrote would fail it. The parenthetical \"and produces no event\" is NOT asserted: the resource changefeed is served by `changes`, a retired primitive the protocol client exposes no method for, so the event stream is unobservable over the published surface. One code path serves the revision append and the event, so no row means no event — an argument from the source, not a measurement, and it is not counted as one",
     },
+    // THE BARE-`Rev` WIRE SHAPE. Registered Behavioural with the clause the case does NOT assert
+    // named in the evidence, because the ledger's job is to make a partial discharge visible
+    // rather than to round it up.
+    Registration {
+        text: "Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ \"rev\": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.",
+        disposition: Disposition::Behavioural,
+        evidence: "a_bare_rev_return_is_a_self_describing_object — asserts the OBJECT shape (a raw JSON string fails by name), a string `rev` member, and that the `ETag` equals the quoted body rev. Red-greened on both halves: returning the raw scalar reports \"delete returned a bare JSON string rather than a self-describing object\", and dropping the header reports \"NO ETag header\". THE WORD *MINIMAL* IS NOT ASSERTED: this subject answers with the full pinned reference ({scope, id, rev}), a superset of {rev} that a client written to the prose parses correctly. Whether a superset conforms is a spec-shape question with no ruling, so asserting {rev} exactly would bake in one reading while asserting nothing would leave a normative line with no producer at all. NOTE ALSO that the generated contract declares NO success schema for delete, put, patch or create, so this prose is the only governor of every write body and nothing machine-checkable would catch a raw string",
+    },
     // The full-state statement of the same rule, which adds two clauses of its own.
     Registration {
         text: "A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.",

@@ -1385,6 +1385,77 @@ fn json_patch(body: &str) -> JsonPatch {
 }
 
 /// `patch` an existing resource with a delta. Covers op/patch.
+/// A bare `Rev` return is a SELF-DESCRIBING OBJECT carrying `rev`, and the `ETag` mirrors it.
+/// Covers no new row — `op/delete` is covered — so this discharges an obligation.
+///
+/// core.lumen:1153, normative: "a bare `Rev` return (`delete`, and any `-> Rev` callable such as
+/// `removeDependency`) lowers to a minimal self-describing object `{ \"rev\": <Rev> }`, NOT a raw
+/// JSON string; the `ETag` header mirrors it."
+///
+/// THE GENERATED CONTRACT CANNOT CARRY THIS, which is why it needs a case. `delete`'s 200 declares
+/// NO response schema at all — nor do `put`, `patch` or `create` — so the body shape of every write
+/// rests entirely on this prose. Nothing machine-checkable would notice a write returning a raw
+/// string, and the drift gate would stay green.
+///
+/// WHAT IS ASSERTED IS THE UNAMBIGUOUS PART, and the rest is recorded rather than guessed. The
+/// obligation has three clauses: self-describing OBJECT (not a raw string), carrying `rev`, and the
+/// `ETag` mirroring it. All three are asserted. The word "MINIMAL" is NOT: this subject answers
+/// with the full pinned reference (`{scope, id, rev}`), a superset of `{rev}`. A client written to
+/// the prose parses it correctly, so the superset is compatible but not minimal, and whether a
+/// superset conforms is a spec-shape question I have not had ruled. Asserting `{rev}` exactly would
+/// bake in one reading; asserting nothing would leave a normative line with no producer at all.
+///
+/// SO THE CASE AND THE LEDGER SPLIT THE OBLIGATION rather than one of them overclaiming it.
+async fn a_bare_rev_return_is_a_self_describing_object(host: &str) -> Result<Vec<SurfaceId>, String> {
+    let ty = r#"{"scope":"named","id":"Note"}"#;
+    let ct = || vec![("content-type".to_string(), "application/json".to_string())];
+    let put = raw_status(host, "PUT", "/bare-rev", ct(),
+        format!(r#"{{"kind":"Note","type":{ty},"body":{{"v":1}},"metadata":{{}}}}"#).as_bytes()).await?;
+    if put != 200 {
+        return Err(format!("seeding /bare-rev answered {put}; the case never ran"));
+    }
+
+    let (status, body, etag) = raw_header(host, "DELETE", "/bare-rev", "ETag").await?;
+    if status != 200 {
+        return Err(format!("delete answered {status}, so there is no Rev return to shape"));
+    }
+
+    // NOT A RAW JSON STRING. This is the defect the obligation names, and it is the one a
+    // `-> Rev` signature invites: serializing the newtype directly yields `"rev-123"`.
+    let parsed: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("delete body is not JSON at all ({e}): {body}"))?;
+    let obj = parsed.as_object().ok_or_else(|| format!(
+        "delete returned a bare JSON {} rather than a self-describing object: {body}. \
+         core.lumen:1153 names exactly this — a `-> Rev` return lowers to an OBJECT, never the \
+         raw scalar, so a client can tell a revision from any other string",
+        if parsed.is_string() { "string" } else { "scalar" }
+    ))?;
+
+    let rev = obj.get("rev").and_then(|v| v.as_str()).ok_or_else(|| format!(
+        "delete's body has no string `rev` member: {body}. The object is self-DESCRIBING only if \
+         the member names what it carries"
+    ))?;
+    if rev.is_empty() {
+        return Err("delete's `rev` member is empty".to_string());
+    }
+
+    // THE ETAG MIRRORS IT — the second half of the same sentence, and the half no body assertion
+    // can reach. A write that returned the right body and no ETag would satisfy a lesser case.
+    let etag = etag.ok_or_else(|| format!(
+        "delete returned `rev` {rev:?} and NO ETag header; 1153 says the ETag mirrors the bare Rev, \
+         and a caller using `If-Match` on the next write has nothing to send"
+    ))?;
+    if etag != format!("\"{rev}\"") {
+        return Err(format!(
+            "ETag is {etag:?} but the body's rev is {rev:?}; the header must MIRROR the body, as a \
+             quoted strong entity-tag. Two different values is worse than one missing, because a \
+             client may trust either"
+        ));
+    }
+
+    Ok(Vec::new())
+}
+
 /// A NO-CHANGE WRITE IS A NO-OP — it keeps the revision and records no provenance. Covers no new
 /// row: `put`, `patch` and `revisions` are all covered already, so this discharges an obligation
 /// rather than grounding a fault.
@@ -1628,6 +1699,21 @@ async fn raw_body(
         .await
         .map_err(|e| format!("raw send: {e:?}"))?;
     Ok((resp.status, String::from_utf8_lossy(&resp.body).into_owned()))
+}
+
+/// Like [`raw_body`], but also returns one response header — needed for `ETag`, which is half of
+/// the bare-`Rev` obligation and not visible in a body.
+async fn raw_header(
+    host: &str,
+    method: &str,
+    target: &str,
+    header: &str,
+) -> Result<(u16, String, Option<String>), String> {
+    let resp = send(Outgoing { method, host, target, headers: Vec::new(), body: Vec::new() })
+        .await
+        .map_err(|e| format!("raw send: {e:?}"))?;
+    let h = resp.header_value(header).map(|v| v.to_string());
+    Ok((resp.status, String::from_utf8_lossy(&resp.body).into_owned(), h))
 }
 
 fn ctype(v: &str) -> Vec<(String, String)> {
@@ -3120,8 +3206,51 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
 
 // ---- harness ----------------------------------------------------------------
 
-#[tokio::test(flavor = "current_thread")]
-async fn tier1_gate() {
+/// Run a gate body on a thread with a LARGE STACK, because the default one is not big enough.
+///
+/// `collect_cases` awaits ~35 case futures in sequence, and async lowering makes the enclosing
+/// future large enough to hold them — it does not reuse the space of a completed await. The suite
+/// was already close to the 2 MiB default: adding ONE case aborted the whole binary with
+///
+///     thread 'tier1_gate' has overflowed its stack
+///     fatal runtime error: stack overflow, aborting        (SIGABRT, exit 134)
+///
+/// which is not a test failure. No case name, no assertion, no coverage report — the process dies
+/// before the gate can say anything, and `cargo test` reports it as the TEST BINARY failing. I lost
+/// two separate investigations to this: once chasing a probe that "printed nothing", once reading it
+/// as a defect in the case I had just written. Both times the code was fine and the stack was not.
+///
+/// THE CEILING IS THE POINT. The gate's whole job is to grow a case at a time, so a limit that
+/// turns the next case into an abort is a blocker on the work, not a quirk — and it fails in the
+/// least legible way available, since a stack overflow looks like a crash in whatever was added
+/// last. 32 MiB is far past what the current suite needs; the alternative (boxing every case future
+/// at 64 call sites) buys the same thing and has to be remembered by every future author.
+fn on_a_big_stack<F>(body: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    std::thread::Builder::new()
+        .stack_size(32 * 1024 * 1024)
+        .spawn(body)
+        .expect("spawn gate thread")
+        .join()
+        .expect("gate thread panicked");
+}
+
+fn block_on<F: std::future::Future>(f: F) -> F::Output {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime")
+        .block_on(f)
+}
+
+#[test]
+fn tier1_gate() {
+    on_a_big_stack(|| block_on(tier1_gate_inner()));
+}
+
+async fn tier1_gate_inner() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind loopback");
     let addr = listener.local_addr().expect("local addr").to_string();
     let server = Server::new(InMemScope::new("gate"));
@@ -3158,8 +3287,12 @@ async fn tier1_gate() {
 ///
 /// Adapted from Shelly's `null_subject.rs` on the reference backends, which reports 0 pass / 38
 /// fail against her grid.
-#[tokio::test(flavor = "current_thread")]
-async fn no_case_passes_against_a_subject_that_implements_nothing() {
+#[test]
+fn no_case_passes_against_a_subject_that_implements_nothing() {
+    on_a_big_stack(|| block_on(no_case_passes_against_a_subject_that_implements_nothing_inner()));
+}
+
+async fn no_case_passes_against_a_subject_that_implements_nothing_inner() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind loopback");
     let addr = listener.local_addr().expect("local addr").to_string();
     let server = Server::new(NullScope);
@@ -3490,6 +3623,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         a_no_change_write_is_a_no_op(&remote),
+    )
+    .await;
+    record(
+        "a bare Rev return is a self-describing object (obligation, no new row)",
+        &mut covered,
+        &mut failures,
+        a_bare_rev_return_is_a_self_describing_object(&addr),
     )
     .await;
     record(
