@@ -1491,6 +1491,32 @@ async fn a_no_change_write_is_a_no_op(r: &RemoteScope) -> Result<Vec<SurfaceId>,
     Ok(Vec::new())
 }
 
+/// TWO OF PATCH'S FOUR DOCUMENTED ROOT PATHS ARE NOT REACHABLE HERE, measured and recorded.
+///
+/// core.lumen:1132 names patch as ROOT-addressed over `/body/…`, `/metadata/…`, `/type` and
+/// `/authority`. The applier builds its document as `{ "body": …, "metadata": … }`, so the other
+/// two are absent and a patch naming them fails the JSON Patch target lookup. MEASURED, not read
+/// off the source: a `replace` of `/type` answers `422 unprocessable`.
+///
+/// This is a divergence from MERGED text, not from the pending envelope ruling — and the pending
+/// ruling agrees with 1132, restating the rule as a complement where the writable set is exactly
+/// `{body, metadata, type, authority}`. So both the merged description and the ruling in flight
+/// say these two should be patchable, which is why this is recorded as a gap rather than as a
+/// question.
+///
+/// SPLIT BY WHAT BLOCKS EACH, because they are not one fix:
+///   - `/type` is representable today (the row carries `type_scope`/`type_id`) and is a genuine
+///     missing capability. CLOSES WHEN: the applier's document carries `type` and the store writes
+///     it back.
+///   - `/authority` is NOT representable: the store's row has no authority column at all, and
+///     whether this subject acquires an authority model is already an open question with the owner.
+///     Implementing the patch path first would mean inventing the model to satisfy a patch test,
+///     which is the wrong order. CLOSES WHEN: that question is ruled.
+///
+/// Found by accident, chasing a peer's observation that 1133's forbidden list is a BLACKLIST
+/// omitting `storageClass` — so a literal implementation leaves it writable. Mine does not, because
+/// it exposes only two members; the same narrowness that makes it safe against the blacklist gap is
+/// what makes it refuse two documented paths.
 async fn patch_ok(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let target = ResourceId::head(Scope::This, Id("patch-target".into()));
     seed(r, &target, "v0").await?;
@@ -3307,6 +3333,15 @@ async fn run_cases(addr: String, restricted_addr: String) {
     }
     eprintln!("=======================\n");
 
+    // A case that should pass but failed is a real wire-level regression — always fail.
+    assert!(failures.is_empty(), "tier-1 cases failed:\n  {}", failures.join("\n  "));
+
+    // FAILING CASES ARE REPORTED BEFORE THE RESIDUAL IS CHECKED, and the order is load-bearing.
+    // It used to be the other way round, and a probe of mine made `op/patch` uncovered: the gate
+    // reported "1 uncovered row(s) have no recorded blocker" and NEVER PRINTED the case failure
+    // that caused it. A broken case is a wire-level regression and names the defect; its coverage
+    // consequence is downstream and names only a symptom. Asserting the symptom first hides the
+    // cause, so the ordering is part of the diagnosis, not housekeeping.
     // THE RESIDUAL IS REGISTERED IN BOTH DIRECTIONS. A new uncovered row must be explained, and an
     // entry whose row gets covered must be removed in the same change.
     let uncovered_ids: BTreeSet<String> = uncovered.iter().map(|r| r.to_string()).collect();
@@ -3329,9 +3364,6 @@ async fn run_cases(addr: String, restricted_addr: String) {
         expired.len(),
         expired
     );
-
-    // A case that should pass but failed is a real wire-level regression — always fail.
-    assert!(failures.is_empty(), "tier-1 cases failed:\n  {}", failures.join("\n  "));
 
     // fail-if-no-coverage — blocking only under BDP_GATE_STRICT while tier-1 is still being filled.
     if std::env::var("BDP_GATE_STRICT").is_ok() {
