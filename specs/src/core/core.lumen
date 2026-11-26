@@ -629,8 +629,9 @@ type Ordinal is integer
 type Cursor is string
 
 ## Transport
-/// description: The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page`/`jsonl` are valid on either nature; `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
+/// description: The transport encoding a caller selects (the `--format` arm): `page` (windowed JSON pages), `jsonl` (bulk JSON-lines), or `sse` (live SSE). The token mirrors the typed projection — `page<T>` / `jsonl<T>` / `sse<T>`. `page` is the windowed encoding; `jsonl` is the bulk encoding, offered by the bulk reads (`export`, `pull`, stdlib `query`) but NOT the windowed resource reads `list`/`revisions` (which are `page`-only); `sse` is valid only on a `source` (a live feed, `pull`), and a `snapshot` (list/query/revisions/export) does not carry it in its support set.
 /// normative: `sse` transport is valid ONLY on a live source (pull); a snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`.
+/// normative: `list` and `revisions` are `page`-only — they refuse `format=jsonl` (and `sse`) and fault `400`; the windowed resource reads return a `Page` ([[core.lumen#Page]]), and `jsonl` serves the bulk reads (`export`, `pull`, stdlib `query`), not them.
 type Transport = "page" | "jsonl" | "sse"
 
 ## ReadRequest
@@ -1189,7 +1190,7 @@ idempotent command delete(
 
 ## list
 /// bdp = { kind = "primitive", primitive = "list" }
-/// description: A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability ([[stdlib.lumen#query]]). Snapshot — `--format page|jsonl`, no `sse`.
+/// description: A collection of current resources in a scope, as a snapshot<Resource> (a FINITE cut). `where` is a Filter (the flat low bar every service supports); the full boolean/traversal `query` is a stdlib capability ([[stdlib.lumen#query]]). Snapshot — `--format page` only; `jsonl` and `sse` fault `400` (a windowed resource read, not a bulk stream).
 /// openapi = { operationId = "list", method = "GET", pathItem = "scope", tags = ["Core"], params = { where = { in = "query", schema = "Filter", required = false }, include = { in = "query", schema = "[JsonPointer]", required = false }, omit = { in = "query", schema = "[JsonPointer]", required = false }, expand = { in = "query", schema = "[LocalName]", required = false }, select = { in = "query", schema = "selector", required = false }, after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400] } }
 fn list(
     /// description: The scope to list.
@@ -1204,20 +1205,20 @@ fn list(
     where?:  Filter,
     /// description: Projection applied to each result (overlaps `request.select`).
     select?: selector,
-    /// description: Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`).
+    /// description: Streaming controls — resume cursor, limit, transport (`page` only).
     request?: ReadRequest
   ) -> snapshot<Resource>
 
 ## revisions
 /// bdp = { kind = "primitive", primitive = "revisions" }
-/// description: The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot.
+/// description: The history of one resource — id-targeted like `get`, list-shaped like `list`. `select` controls payload (ids-only vs full representations). Snapshot — `--format page` only; `jsonl` and `sse` fault `400`.
 /// openapi = { operationId = "revisions", method = "GET", pathItem = "resource", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,404] } }
 fn revisions(
     /// description: The resource whose history to read.
     resource: unpinned<any>,
     /// description: Projection per revision — ids-only vs full representations.
     select?:  selector,
-    /// description: Streaming controls — resume cursor, limit, transport (`page`/`jsonl`; no `sse`).
+    /// description: Streaming controls — resume cursor, limit, transport (`page` only).
     request?: ReadRequest
   ) -> snapshot<Resource>
 
