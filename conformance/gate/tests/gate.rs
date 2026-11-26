@@ -3546,18 +3546,27 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
 const RESIDUAL: &[(&str, &str)] = &[
     (
         "op/patch/fault/409",
-        "BLOCKED BY THE OWNER. The condition exists and is unambiguous — patch's description makes \
-         the immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) and any \
-         `computed`/`serviceManaged` property read-only, and says that a patch touching one FAULTS. \
-         Donna ruled the STATUS (`validation-failed` -> 409) and explicitly held the CODE, \
-         instructing me not to emit it under an unregistered code yet. THE SPEC OWNER NOW READS THIS \
-         ROW AS UNBLOCKED, the code being advisory rather than held. I AM NOT ACTING ON THAT, and \
-         the reason is a rule about relays rather than doubt about her: the hold was given to me \
-         directly by the governing owner, and covering this row means emitting a problem code from \
-         the subject AND raising a coverage figure I report. A relay is cheap enough to unblock a \
-         decision I own and not enough to license a claim I record in an artefact — and a grant \
-         pointed at my own lane, which lifts my own denominator, is exactly the direction nobody \
-         checks. CLOSES WHEN: Donna lifts the hold, or the vocabulary batch lands a code.",
+        "BLOCKED ON A RULING THAT HAS NOT REACHED ME, which is a narrower blocker than this entry \
+         used to state. It said every candidate code spelling was held or semantically wrong, so \
+         emitting the row would pre-empt Donna. CATR1=C SUPERSEDES THAT REASONING: she ruled the \
+         `code` ADVISORY and the `status` the conformance surface, so the spelling does not block \
+         anything — a case would test the status and the code would be advisory output. The claim \
+         stays true and the reason changed, the same stale-reasoning shape this file's \
+         justifications are swept for. WHY IT IS STILL BLOCKED: the ruling reached me as the spec \
+         owner's RELAY of Donna's word in another session, and the code-advisory line is NOT yet \
+         materialized in the spec, so there is no artefact I can read live and cite. Covering this \
+         row emits a code from the subject and raises a figure I report to Donna, and the grant \
+         lifts my own denominator — the direction nobody checks. The spec owner agrees and is asking \
+         Donna to confirm to me directly. CLOSES WHEN: Donna confirms CATR1=C in my own session, or \
+         the code-advisory line lands in the spec this gate reads. AND WHEN IT DOES, THE CASE MUST \
+         USE THE IMMUTABLE-ENVELOPE CONDITION, not a cycle-closing patch. patch's own description is \
+         unambiguously Core: the immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) \
+         and any `computed`/`serviceManaged` property are read-only, and a patch touching one \
+         FAULTS. A cycle-closing patch is a GRAPH-MODEL producer, and core.lumen lists graph among \
+         corelib capabilities, not core, with `acyclic` appearing only inside a comment example and \
+         no normative cycle fault for patch anywhere. Grounding this Core row on a corelib producer \
+         is exactly what the delete/409 lean argues against, so it would undeclare the row rather \
+         than cover it.",
     ),
     (
         "op/delete/fault/409",
