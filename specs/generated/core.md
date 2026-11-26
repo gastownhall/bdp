@@ -2325,7 +2325,7 @@ type Capabilities = {
 
 ### `CoreCapabilities`
 
-The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side.
+The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side. These are the core primitives that advertise in the core record; `call` and `cancel` (operations) advertise under their own packages, not here (§3.3).
 
 ```lumen
 type CoreCapabilities = {
@@ -2347,7 +2347,7 @@ type CoreCapabilities = {
 |---|---|---|
 | `get` | `GetCaps` | Always present — point reads are the floor. See [GetCaps](#GetCaps). |
 | `list?` | `ListCaps` | Present iff `list` is offered. See [ListCaps](#ListCaps). |
-| `pull?` | `PullCaps` | Present iff `pull` is offered (the changefeed and declared streams). See [PullCaps](#PullCaps). |
+| `pull?` | `PullCaps` | Present iff the `pull` OPERATION is offered — this advertises the operation, not a channel inventory. Which channels exist (the changefeed, and any declared streams) is discovered per-channel; a changefeed-only scope offering `pull` is complete. See [PullCaps](#PullCaps). |
 | `create?` | `CreateCaps` | Present iff `create` is offered. See [CreateCaps](#CreateCaps). |
 | `put?` | `PutCaps` | Present iff `put` is offered. See [PutCaps](#PutCaps). |
 | `patch?` | `PatchCaps` | Present iff `patch` is offered. See [PatchCaps](#PatchCaps). |
