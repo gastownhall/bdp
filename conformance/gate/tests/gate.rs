@@ -93,6 +93,113 @@ where
 
 // ---- cases ------------------------------------------------------------------
 
+/// EVERY PROBLEM CODE THE SUBJECT CAN EMIT MUST BE IN D.9's REGISTRY. Claims no row.
+///
+/// The third direction of one registry invariant, and the only one that looks at a PRODUCER:
+/// #455 asked whether each registry entry has a status home (eleven had none); `e7db3df5` asked
+/// whether each code named by a fault verb is registered (three were not); this asks what the
+/// subject can actually put on the wire.
+///
+/// `code` is normative wire output — core.lumen:853 gives each registry entry a stable
+/// problem-type URI `tag:bdp.dev,2026:problem/<code>` — so a code outside D.9 has no URI and a
+/// client told to branch on it has nothing to branch against. **The near-misses are the dangerous
+/// ones**: a client following the spec branches on `resource-not-found` and is handed `not-found`,
+/// which does not match and is not obviously wrong when read.
+///
+/// EXHAUSTIVE BY EXECUTION, NOT BY READING. `BdpError` is a closed enum of thirteen variants and
+/// `from_error` matches on it, so constructing every variant and calling it yields the complete
+/// vocabulary. This is deliberately not a grep of `wire.rs`: reading the producer is how I built a
+/// register for the capability case that missed two live divergences the running server showed.
+async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<SurfaceId>, String> {
+    use bdp_primitives::{BdpError as E, ConstraintViolation as CV};
+    let rid = || ResourceId::head(Scope::This, Id("probe".into()));
+    let rev = || Rev("r1".into());
+    let all: Vec<E> = vec![
+        E::NotFound(rid()),
+        E::Erased { id: rid(), at: rev() },
+        E::AlreadyExists(rid()),
+        E::RevisionMismatch { id: rid(), expected: rev(), found: Some(rev()) },
+        E::Conflict(CV::Uniqueness { fromprop: "p".into(), to: rid() }),
+        E::Conflict(CV::Cycle { family: "f".into(), from: rid(), to: rid() }),
+        E::Conflict(CV::Cardinality { fromprop: "p".into(), detail: "d".into() }),
+        E::Unprocessable("u".into()),
+        E::LimitExceeded { capability: "c".into(), limit: "l".into(), detail: "d".into() },
+        E::CursorExpired(Cursor(Bytes::from_static(b"c"))),
+        E::ChannelNotPullable { channel: rid(), direction: "sink".into() },
+        E::ChannelNotPushable { channel: rid(), direction: "source".into() },
+        E::ChannelClosed { channel: rid() },
+        E::AlreadySettled { id: rid() },
+        E::Backend("b".into()),
+    ];
+
+    // Codes this subject emits that D.9 does not register. Registered so the gate is green on the
+    // known set and red on a new one; the spec-side spelling is named where one exists, because
+    // that is the repair, not a rename of the registry.
+    const REGISTERED: &[(&str, &str)] = &[
+        ("not-found", "D.9 registers `resource-not-found` — a NEAR-MISS, so a conformant client's branch does not match"),
+        ("erased", "D.9 registers `resource-erased` — a near-miss"),
+        ("already-exists", "D.9 registers `identity-taken` — a near-miss; D.8's 409 row names `identity-taken` for exactly this collision"),
+        ("constraint-violation", "not in D.9; Donna ruled `validation-failed` -> 409, which is plausibly this code's registry home"),
+        ("unprocessable", "not in D.9; the 422 bound case is `limit-exceeded`, so this is a second unregistered 422"),
+        ("channel-not-pullable", "named in core.lumen pull but absent from D.9 — see #455; a covered gate row keys on this spelling"),
+        ("channel-not-pushable", "named in core.lumen push but absent from D.9 — see #455; a covered gate row keys on this spelling"),
+        ("channel-closed", "not in D.9 and not named anywhere in core.lumen"),
+        ("already-settled", "not in D.9; cancel's declared 409 state conflict has no registered code"),
+        ("backend", "not in D.9; a 500 code, and D.8 has no 5xx row beyond the 4xx/5xx catch-all"),
+    ];
+
+    let registry: BTreeSet<String> = bdp_gate::problem_codes().into_iter().collect();
+    let known: BTreeSet<&str> = REGISTERED.iter().map(|(c, _)| *c).collect();
+    let mut emitted: BTreeSet<String> = BTreeSet::new();
+    for e in &all {
+        let (_status, problem) = bdp_protocol::wire::WireProblem::from_error(e);
+        emitted.insert(problem.code);
+    }
+    if emitted.len() < 10 {
+        return Err(format!(
+            "only {} distinct codes collected from {} constructed variants — the probe is not \
+             exercising the producer and every check below passes vacuously: {emitted:?}",
+            emitted.len(),
+            all.len()
+        ));
+    }
+
+    let unregistered: Vec<&String> = emitted
+        .iter()
+        .filter(|c| !registry.contains(c.as_str()) && !known.contains(c.as_str()))
+        .collect();
+    if !unregistered.is_empty() {
+        return Err(format!(
+            "problem code(s) this subject can emit that are absent from D.9's registry and not \
+             registered in this case: {unregistered:?}. A code outside D.9 has no stable \
+             problem-type URI, so a client cannot branch on it."
+        ));
+    }
+    let fixed: Vec<&&str> = REGISTERED
+        .iter()
+        .map(|(c, _)| c)
+        .filter(|c| registry.contains(**c) || !emitted.contains(&c.to_string()))
+        .collect();
+    if !fixed.is_empty() {
+        return Err(format!(
+            "this case registers emittable-but-unregistered code(s) that are now either REGISTERED \
+             in D.9 or no longer emitted, so the register is a false claim — remove them: {fixed:?}"
+        ));
+    }
+    // And the three that ARE conformant must stay so: if one of these ever leaves the registry or
+    // stops being emitted, that is a regression this case should name.
+    for good in ["cursor-expired", "revision-mismatch", "limit-exceeded"] {
+        if !emitted.contains(good) {
+            return Err(format!("`{good}` is no longer emitted by this subject at all"));
+        }
+        if !registry.contains(good) {
+            return Err(format!("`{good}` has left D.9's registry"));
+        }
+    }
+    Ok(Vec::new())
+}
+
+
 /// THE CAPABILITY SURFACE IS THE SPEC'S, OR IT IS NOT DISCOVERABLE. Claims no row — this is an
 /// obligation, and the tier-1 gate counts faults, which is exactly why nothing here was ever seen.
 ///
@@ -2708,6 +2815,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         the_capability_surface_is_the_specs_shape(&addr),
+    )
+    .await;
+    record(
+        "emittable problem codes",
+        &mut covered,
+        &mut failures,
+        every_emittable_problem_code_is_registered(&addr),
     )
     .await;
     record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;
