@@ -929,7 +929,7 @@ Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stre
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 
-> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-pruned`/`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
+> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
 
 ```lumen
 fn pull(
@@ -2950,7 +2950,7 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   405  `channel-not-pullable` / `channel-not-pushable` — pull / push on the wrong channel
        direction; `capability-not-supported` — patch where a Scope offers no patch, or any
        un-offered primitive or feature (an un-offered capability is declined here, never 501)
-  410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
+  410  `resource-erased` — `get` of an erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
 
@@ -2959,7 +2959,7 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   `code`/`retry` are BDP extension members, not RFC 9457 core; each code has a stable
   problem-type URI `tag:bdp.dev,2026:problem/<code>` carried in the Problem `type` member.
   malformed-request · invalid-parameter · unauthenticated · forbidden ·
-  resource-not-found · resource-pruned · resource-erased · revision-mismatch ·
+  resource-not-found · resource-erased · revision-mismatch ·
   precondition-failed · identity-taken · validation-failed · type-not-installed ·
   cursor-expired · request-too-large · limit-exceeded · rate-limited ·
   temporarily-unavailable · capability-not-supported · callable-not-found ·
