@@ -289,6 +289,47 @@ pub struct Registration {
     pub evidence: &'static str,
 }
 
+/// A SECOND CENSUS OF THIS SAME FILE EXISTS, IN TYPESCRIPT, AND IT COUNTS A NARROWER POPULATION.
+///
+/// `scripts/v02-provider-kit/coverage.json` is a clause-coverage manifest that pins each spec file
+/// by sha256, enumerates its `/// normative:` clauses, and halts with "Spec changed: review and
+/// update the manifest" when the hash moves. It is the counterpart of this ledger, and the current
+/// red on the repo's `implementation` job is that halt.
+///
+/// THE TWO DISAGREE ON THE POPULATION, NOT JUST ON THE PIN. Measured:
+///
+///   | instrument | core.lumen clauses |
+///   |---|---|
+///   | the manifest, at its pinned commit `247c02ac` | 87 |
+///   | `^/// normative:` at column 0, same commit     | 87 |
+///   | every `normative:` occurrence, same commit     | 91 |
+///   | this ledger, at HEAD                           | 91 |
+///   | `^/// normative:` at column 0, HEAD            | 89 |
+///
+/// The manifest's harvester is `specification.mjs:15`:
+/// `if (!lines[i].startsWith("/// normative:")) continue;` — `startsWith` on the RAW line, so an
+/// INDENTED clause is skipped. Verified from the producer rather than inferred from the counts
+/// agreeing, which they would have done by coincidence either way.
+///
+/// SO A RE-CENSUS DOES NOT FIX IT. Re-running the manifest against HEAD yields 89 and still misses
+/// the two indented obligations — core.lumen:286 (`displayName` is never identity and never a
+/// matching/resolution key) and core.lumen:464 (an `abstract` type is not directly instantiable).
+/// This ledger carries both, because it does not anchor on column 0. The staleness is the visible
+/// problem and the blind spot is the durable one.
+///
+/// IT IS ALSO THE FIFTH INSTANCE TODAY of one defect class: a pattern anchored on FORMATTING that
+/// systematically omits members. `problem_codes()` required a hyphen and dropped two codes; a grep
+/// for `record DeleteCaps` could not match a file with no `record` keyword; a peer's survey grepped
+/// `conf-pg` on the same line as `process::id()` and found two of five sites. Same shape, four
+/// languages, and in every case the count looked plausible because the omitted members were not
+/// missed by anything else.
+///
+/// WHY THIS LEDGER IS BUILT THE OTHER WAY. It derives the population from the working tree at run
+/// time and keys each registration on the obligation's TEXT, so a spec change surfaces as NAMED
+/// unregistered obligations — actionable, and attributable to a line. A sha-pinned manifest can only
+/// say "something changed, re-census", which is a halt rather than a finding. That difference is
+/// the argument for one instrument, and it is not about duplication being untidy.
+///
 /// THE LEDGER PINS EACH OBLIGATION'S RESOLUTION, NEVER THE CARDINALITY.
 ///
 /// A count cannot be pinned coherently here and the reason is concrete: PR #428 takes the
