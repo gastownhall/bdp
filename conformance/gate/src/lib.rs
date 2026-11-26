@@ -1810,11 +1810,28 @@ mod tests {
     #[test]
     fn the_problem_code_parse_is_not_vacuous() {
         let codes = problem_codes();
+        // THE COUNT IS EXACT, SO THE DIAGNOSIS MUST READ BOTH WAYS. This was a floor (`>= 15`),
+        // which could not catch a systematic omission — two hyphenless codes were being dropped and
+        // 20 passed as happily as 22. Tightening it to an exact count fixed the check and left the
+        // MESSAGE saying "too few … the parse broke", so when the registry legitimately GREW to 24
+        // (two channel codes registered) the failure sent the reader hunting a bug that was not
+        // there. A true check whose words say something else is the same defect as a stale comment;
+        // the fix is to let the message name the direction instead of assuming one.
+        const REGISTRY: usize = 22;
         assert!(
-            codes.len() == 22,
-            "D.9 parsed to only {} codes, which is too few to be the catalogue — the parse broke, \
-             and every orphan check above is passing vacuously: {codes:?}",
-            codes.len()
+            codes.len() == REGISTRY,
+            "D.9 parsed to {} codes, expected {REGISTRY}. {} Either way, re-derive before trusting \
+             any orphan count on this page — they are all computed over this set:\n  {codes:?}",
+            codes.len(),
+            if codes.len() < REGISTRY {
+                "FEWER than expected, so either the parse broke (a reworded heading, a code shape \
+                 the filter cannot see) or codes were removed from the catalogue — and every orphan \
+                 check above is now passing over a short set."
+            } else {
+                "MORE than expected, so the catalogue GREW. That is a spec change, not a bug: \
+                 update REGISTRY and re-check which entries in the orphan and used-but-unregistered \
+                 registers have just become false claims."
+            }
         );
         // Codes whose binding is written out at length in D.8 and the primitive prose. If the
         // orphan check ever reports one of THESE, it is the parse that is wrong, not the spec.
