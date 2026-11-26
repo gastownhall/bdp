@@ -2011,11 +2011,14 @@ type ExportRecord = ExportBegin | Resource | ExportEnd
 
 The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`.
 
+> **Normative.** `partial: true` marks an export that is NOT a faithful backup — a current-state projection (the op's `where`/`select` applied), whose bodies may be narrowed and whose resource set may be filtered. A true backup omits `partial`: the default current-state export with no `where`/`select`, and every `--revisions` export. A consumer reads `partial` from this opening line before applying any record; [import](#import) REFUSES a `partial` stream as a source (`400`), since a projected export cannot faithfully seed or restore a scope.
+
 ```lumen
 type ExportBegin = {
   kind:   "export-begin",
   scope:  AbsoluteHttpUrl,
-  cursor: Cursor
+  cursor: Cursor,
+  partial?: bool
 }
 ```
 
@@ -2024,6 +2027,7 @@ type ExportBegin = {
 | `kind` | `"export-begin"` | The discriminator that tells a begin line from a resource line. |
 | `scope` | `AbsoluteHttpUrl` | The scope this export covers. |
 | `cursor` | `Cursor` | The cut the export was taken at — where a consumer resumes the changefeed. |
+| `partial?` | `bool` | Present and `true` only when this export is a projection, not a faithful backup (the op's `where`/`select` was applied to a current-state read). Omitted ⇒ complete and unprojected, so an unlabelled stream is byte-identical to one taken without the field. |
 
 <a id="ExportEnd"></a>
 
@@ -2055,6 +2059,8 @@ Bulk read of a scope — a `jsonl` BACKUP STREAM (`ExportBegin`, one resource li
 
 > **Normative.** `export` honors only `after`, `limit` and `format` of `request` ([ReadRequest](#ReadRequest)); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type is `application/jsonl` — `export` is jsonl-native, self-framed by `ExportBegin`/`ExportEnd`; `format` other than `jsonl` (including `page`) faults `400`, since a backup is a stream, not a windowed `Page`.
 
+> **Normative.** `where`/`select` are the op's projection and are legal ONLY on a current-state export. A `--revisions` (history) export REFUSES either (`400`): a true backup is neither filtered nor projected, so every revision and the `previousRevision` chain survive intact. A current-state export that carries `where`/`select` IS a projection, not a faithful backup, so its `ExportBegin` sets `partial: true` ([ExportBegin](#ExportBegin)); an unprojected current-state export, and every `--revisions` export, omits `partial`.
+
 ```lumen
 fn export(
     scope:      Scope,
@@ -2068,9 +2074,9 @@ fn export(
 | Parameter | Type | Description |
 |---|---|---|
 | `scope` | `Scope` | The scope to back up. |
-| `where?` | `Filter` | Restrict the export to matching resources (see [Filter](#Filter)). |
-| `select?` | `selector` | Project each exported resource. |
-| `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. |
+| `where?` | `Filter` | Restrict the export to matching resources — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` (see [Filter](#Filter), [ExportBegin](#ExportBegin)). |
+| `select?` | `selector` | Project each exported resource — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` ([ExportBegin](#ExportBegin)). |
+| `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. A `--revisions` export refuses `where`/`select` (`400`) and never sets `partial`. |
 | `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`jsonl` only — `export` is a bulk backup stream, not a windowed read). See [ReadRequest](#ReadRequest). |
 
 **Returns** `snapshot<ExportRecord>` — One line of an export. The export is a strict in-order serialization, so a record's POSITION in the stream is its ordinal — the resume key a resumable `import` acks against ([import](#import)). No ordinal field is added to the record: its position carries it, anchored on import by the request's `fromOrdinal` when the stream is chunked across requests. `ExportBegin` carries the changefeed cut the export was taken at.
@@ -2097,6 +2103,30 @@ type ImportStrategy = {
 | `dryRun?` | `bool` | Validate and report, but write nothing. |
 | `idRoot?` | `string` | Remap incoming ids under this id-root prefix. |
 
+<a id="ImportConflict"></a>
+
+### `ImportConflict`
+
+One rejected import record. Keyed on its stream `ordinal` (always present, always unique); `id` and `revision` are optional context, absent when the record was malformed before its id could be read.
+
+> **Normative.** A conflict is keyed on the stream `ordinal`, never on `id`. An id-keyed list cannot represent two distinct records that fail at one id, nor a record malformed before its id is parsed (which has no id to key on); the stream ordinal is the only total, always-present key, so `id`/`revision` ride as optional context when known. This is a property of what the list must represent, independent of any implementation.
+
+```lumen
+type ImportConflict = {
+  ordinal:   Ordinal,
+  id?:       ref<any>,
+  revision?: Rev,
+  reason:    string
+}
+```
+
+| Member | Type | Description |
+|---|---|---|
+| `ordinal` | `Ordinal` | The stream ordinal of the rejected record — its position in the export. |
+| `id?` | `ref<any>` | The resource id, when the record parsed far enough to carry one. |
+| `revision?` | `Rev` | The record's revision, when known — context for a revision conflict. |
+| `reason` | `string` | Why the record was rejected. |
+
 <a id="ImportReport"></a>
 
 ### `ImportReport`
@@ -2107,7 +2137,7 @@ The import tally — counts and any conflicted records. It is the `tallies` of t
 type ImportReport = {
   imported:  integer,
   skipped:   integer,
-  conflicts: [ { id: ref<any>, reason: string } ]
+  conflicts: [ ImportConflict ]
 }
 ```
 
@@ -2115,7 +2145,7 @@ type ImportReport = {
 |---|---|---|
 | `imported` | `integer` | How many records were written. |
 | `skipped` | `integer` | How many records were skipped as already present (content `dedup`). |
-| `conflicts` | `[ { id: ref<any>, reason: string } ]` | Rejected records, each by its id and the reason. |
+| `conflicts` | `[ ImportConflict ]` | Rejected records ([ImportConflict](#ImportConflict)) — each keyed by stream ordinal, with id/revision as context. |
 
 <a id="ImportResult"></a>
 
@@ -2128,7 +2158,7 @@ type ImportResult = union {
   Accepted   { ordinal: Ordinal }
   Deduped    { ordinal: Ordinal }
   Deferred
-  Conflicted { ordinal: Ordinal, reason: string }
+  Conflicted { ordinal: Ordinal, id?: ref<any>, revision?: Rev, reason: string }
 }
 ```
 
@@ -2137,7 +2167,7 @@ type ImportResult = union {
 | `Accepted` | `{ ordinal: Ordinal }` | Applied (written) at this ordinal. |
 | `Deduped` | `{ ordinal: Ordinal }` | A benign no-op — EITHER an idempotent resume re-offer (ordinal ≤ `acceptedThrough`), OR a content `dedup` skip (the resource is already present). Two distinct mechanisms, one fate (see the import normative notes). |
 | `Deferred` | — | Not processed on this call (backpressure); re-offer the tail from `acceptedThrough + 1` after `retryAfter`. |
-| `Conflicted` | `{ ordinal: Ordinal, reason: string }` | Hard per-record reject — the record was PROCESSED (it counts toward `acceptedThrough`) but not applied; resume never re-offers it. |
+| `Conflicted` | `{ ordinal: Ordinal, id?: ref<any>, revision?: Rev, reason: string }` | Hard per-record reject — the record was PROCESSED (it counts toward `acceptedThrough`) but not applied; resume never re-offers it. Carries the [ImportConflict](#ImportConflict) shape (same `ordinal` key, same optional id/revision context), so the per-record fate and the folded [ImportReport](#ImportReport) tally never disagree on what a conflict is. |
 
 <a id="ImportAck"></a>
 
@@ -2182,6 +2212,8 @@ type ImportId is string
 The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op. Push-style and resumable: the importer sends the records, the scope accepts a prefix and defers the rest under backpressure, acks `acceptedThrough`, and the importer re-offers the deferred tail from `acceptedThrough + 1`. Resume is an advertised capability ([ImportCaps](#ImportCaps) `window`); a minimal scope keeps one-shot import (one ack, already `complete`).
 
 > **Normative.** `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
+
+> **Normative.** `import` REFUSES (`400`) a stream whose opening `ExportBegin` carries `partial: true` ([ExportBegin](#ExportBegin)) — a projected or filtered export is not a faithful source and cannot seed or restore a scope. The refusal is read off the first record, before any resource is applied.
 
 > **Normative.** Import is RESUMABLE over ABSOLUTE record ordinals. A record's ordinal is `fromOrdinal + its index` in the delivered `records` array (`fromOrdinal` omitted ⇒ `1`), so the stream position survives chunking across requests even though each array restarts at index 0; `importId` names the session the scope keys `acceptedThrough` on, and a one-shot import omits both. `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1` (`fromOrdinal = acceptedThrough + 1`); a record whose absolute ordinal is `≤ acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.
 
