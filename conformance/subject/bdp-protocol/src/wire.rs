@@ -116,7 +116,23 @@ pub struct WireCreateRequest {
     /// `deny_unknown_fields`, which refused them — the RIGHT OUTCOME FOR THE WRONG REASON, under
     /// `bad-request` rather than the registered code, and only while they are undeclared. The day
     /// #454 puts them in the representation they become known members and are silently accepted
-    /// again. That is the exact trap I identified for `retired` and then guarded `retired` alone
+    /// again.
+    ///
+    /// THAT JUDGEMENT IS ABOUT THESE MEMBERS, NOT ABOUT `deny_unknown_fields`, which is correct on
+    /// its own grounds and stays. I had proposed replacing it with one broader rule — ignore any
+    /// representation member that is not writable, so a future envelope member would be tolerated
+    /// automatically instead of refused. A peer measured why that is wrong and the reason is
+    /// decisive: AT THE WIRE, A FUTURE ENVELOPE MEMBER AND A TYPO OF A WRITABLE ONE ARE THE SAME
+    /// BYTES. `bodyy` is an unknown field exactly as a not-yet-invented member is, so "ignore the
+    /// non-writable" would accept `bodyy` silently, write nothing, and report success — a caller's
+    /// whole body dropped under a `200`. That is the defect I spent the day removing elsewhere
+    /// (`export` accepting `?select=` and dropping the projection), and my simplification would
+    /// have reintroduced it at the most-used write path.
+    ///
+    /// So the rule is two rules, and they are not reducible: REFUSE unknowns (closed input, which
+    /// is what this attribute does) and IGNORE the known service-managed set on `put`. The set has
+    /// to be enumerated precisely because membership is what distinguishes a member from a mistake,
+    /// and no shape test can recover that distinction once the bytes are the same. That is the exact trap I identified for `retired` and then guarded `retired` alone
     /// against; a peer's rule is the general form — a guard over one member of a NAMED SET is two
     /// omissions wearing one assertion.
     ///
