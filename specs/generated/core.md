@@ -2942,10 +2942,14 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        or a length-related `400`.
   415  a direct `patch` body whose media type is not `application/json-patch+json` (a
        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
-  422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
-       or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
+  422  `limit-exceeded` — a request exceeding an advertised capability bound (a batch over
+       `maxBatch`, or a guard past a scope limit). MEMBERSHIP TEST: a fault belongs at 422
+       IFF shrinking the request fixes it; a well-formed body that is simply unusable (a
+       projected export offered as a restore source) is 400, not 422.
   404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
-  405  pull / push on the wrong channel direction; patch where a Scope offers no patch
+  405  `channel-not-pullable` / `channel-not-pushable` — pull / push on the wrong channel
+       direction; `capability-not-supported` — patch where a Scope offers no patch, or any
+       un-offered primitive or feature (an un-offered capability is declined here, never 501)
   410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
@@ -2959,7 +2963,8 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   precondition-failed · identity-taken · validation-failed · type-not-installed ·
   cursor-expired · request-too-large · limit-exceeded · rate-limited ·
   temporarily-unavailable · capability-not-supported · callable-not-found ·
-  callable-unavailable · mode-not-supported · mode-refused
+  callable-unavailable · mode-not-supported · mode-refused ·
+  channel-not-pullable · channel-not-pushable
 ```
 
 # Appendix E. Conformance — what a Core service MUST provide
