@@ -603,8 +603,10 @@ pub const UNCARRIED_INPUTS: &[(&str, &str, &str)] = &[
         "export",
         "select",
         "`export`'s own projection, required to exist by the same normative line as \
-         `export`/`where`. Also the open question on `ExportCaps`, which has no selector field, so \
-         a scope cannot advertise this either way.",
+         `export`/`where`. (This also cited the open question on `ExportCaps` having no selector field. #461 ANSWERS \
+         it by adding `ExportCaps.selector`, so that clause is now false while the claim above \
+         it stands — the PR adds the capability field, not the parameter. CLOSES WHEN: `select` \
+         appears in `export`'s generated `parameters`.)",
     ),
     (
         "export",
@@ -860,8 +862,19 @@ pub fn orphan_codes() -> Vec<String> {
     problem_codes().into_iter().filter(|c| !rest.contains(c.as_str())).collect()
 }
 
-/// The 11 declared codes with no wire home, registered so the gate is green on the KNOWN set and
-/// red on a new one. Each entry is the code and what is actually missing — they are not one defect.
+/// The declared codes with no wire home, registered so the gate is green on the KNOWN set and red
+/// on a new one. Each entry is the code and what is actually missing — they are not one defect.
+///
+/// EVERY JUSTIFICATION HERE MUST NAME WHAT CLOSES IT. Most do so implicitly, by restating the fact
+/// the guard already checks ("D.8 has no 401 row"): when the spec gains that row the code stops
+/// being an orphan and `the_code_register_names_only_live_orphans` fails. Prose and guard agree by
+/// construction there, which is why those entries cannot rot.
+///
+/// A justification that instead cites an OPEN QUESTION expires the moment the question closes, and
+/// NOTHING WATCHES PROSE. `validation-failed` carried "the open question behind #453's patch/409"
+/// after Donna had already ruled it 409: claim still true, reasoning false, and no guard able to
+/// tell the difference. So an entry resting on a question states the condition that closes it,
+/// which dates the entry and lets a reader check instead of trusting the sentence.
 ///
 /// THE TWO TIERS MATTER, and collapsing them would overstate the finding. For some, D.8 describes
 /// the CONDITION under a status without ever writing the code beside it, so the repair is one line
@@ -877,7 +890,13 @@ pub fn orphan_codes() -> Vec<String> {
 pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
     ("unauthenticated", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 401 row"),
     ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
-    ("validation-failed", "NO status and NO condition anywhere — the sharpest case; the open question behind #453's patch/409"),
+    (
+        "validation-failed",
+        "no status row and no producing condition in the TEXT. This used to cite \"the open \
+         question behind #453's patch/409\" — Donna has since RULED it 409, so the question is \
+         CLOSED and only the lowering is outstanding. CLOSES WHEN: `validation-failed` appears on \
+         D.8's 409 row.",
+    ),
     ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
     ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
     ("type-not-installed", "no status entry names it; Types-profile condition with no Core landing"),
