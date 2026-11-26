@@ -218,7 +218,7 @@ fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
         // Lydia §70: a `constraint-violation` 409 reconstructs the specific ConstraintViolation from
         // the `constraint` discriminator. Uniqueness is the blessed, fully-structured case
         // (property + existing holder); others degrade to a generic Cardinality carrier.
-        (409, Some("constraint-violation")) => {
+        (409, Some("validation-failed")) => {
             let pb = prob.as_ref().expect("code came from a parsed problem");
             match pb.constraint.as_deref() {
                 Some("uniqueness") => p::BdpError::Conflict(p::ConstraintViolation::Uniqueness {

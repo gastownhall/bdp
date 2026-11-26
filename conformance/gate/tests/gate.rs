@@ -143,7 +143,6 @@ async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<S
     // three the moment the rename landed, which is the only reason this list is not now a false
     // claim about its own subject.
     const REGISTERED: &[(&str, &str)] = &[
-        ("constraint-violation", "not in D.9; Donna ruled `validation-failed` -> 409, which is plausibly this code's registry home"),
         ("unprocessable", "not in D.9; the 422 bound case is `limit-exceeded`, so this is a second unregistered 422"),
         ("channel-not-pullable", "named in core.lumen pull but absent from D.9 — see #455; a covered gate row keys on this spelling"),
         ("channel-not-pushable", "named in core.lumen push but absent from D.9 — see #455; a covered gate row keys on this spelling"),

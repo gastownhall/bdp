@@ -491,7 +491,7 @@ impl WireProblem {
                         format!("{fromprop}: {detail}")
                     }
                 };
-                (409, "constraint-violation", "Constraint violation", Some(msg))
+                (409, "validation-failed", "Constraint violation", Some(msg))
             }
             // THE WRONG CHANNEL DIRECTION IS 405, and the spec names both codes. D.8: "405 pull /
             // push on the wrong channel direction". Not 422: the direction is a property of the
@@ -1016,7 +1016,7 @@ mod tests {
         let (status, prob) = WireProblem::from_error(&e);
         assert_eq!(status, 409);
         // Lydia §70: ONE code for the constraint family; the constraint is a structured discriminator.
-        assert_eq!(prob.code, "constraint-violation");
+        assert_eq!(prob.code, "validation-failed");
         assert_eq!(prob.constraint.as_deref(), Some("uniqueness"));
         assert_eq!(prob.property.as_deref(), Some("name"));
         assert_eq!(prob.conflicts_with.as_deref(), Some("alias-doc-1"));
@@ -1026,7 +1026,7 @@ mod tests {
             fromprop: "owner".into(),
             detail: "too many".into(),
         }));
-        assert_eq!(card.code, "constraint-violation");
+        assert_eq!(card.code, "validation-failed");
         assert_eq!(card.constraint.as_deref(), Some("cardinality"));
         assert!(card.conflicts_with.is_none());
     }

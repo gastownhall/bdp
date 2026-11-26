@@ -802,13 +802,22 @@ fn signature_params(op: &str) -> Vec<(String, String)> {
 pub fn problem_codes() -> Vec<String> {
     let (block, _) = d9_catalogue();
     let mut out: Vec<String> = Vec::new();
-    for tok in block.split('·') {
-        for raw in tok.split_whitespace() {
-            let t = raw.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-');
-            // A code is kebab-case with at least one hyphen. `problem-type` is prose from the
-            // catalogue's own header sentence, not a code — the one false positive this shape has.
-            if t != "problem-type"
-                && t.contains('-')
+    // ONLY THE ·-SEPARATED LINES, which is what makes a hyphenless code reachable.
+    //
+    // This parser required a hyphen, on the reasoning that codes are kebab-case and the header
+    // sentence's `problem-type` was the one false positive to exclude. **Two codes have no
+    // hyphen** — `unauthenticated` and `forbidden` — so both were silently dropped, and the
+    // registry read 20 where it is 22. Every count built on it was computed over the wrong
+    // denominator, and both are themselves orphans, so the orphan figure was wrong in BOTH terms.
+    // A peer hit the identical bug in her own extractor and told me to check mine.
+    //
+    // The fix is to discriminate by POSITION rather than by spelling: the catalogue's codes are
+    // the ·-separated items, and its header prose contains no `·`. That admits a hyphenless code
+    // and still excludes the prose, where a hyphen rule had to choose one or the other.
+    for line in block.lines().filter(|l| l.contains('·')) {
+        for tok in line.split('·') {
+            let t = tok.trim().trim_start_matches('/').trim().trim_matches('`');
+            if !t.is_empty()
                 && t.chars().all(|c| c.is_ascii_lowercase() || c == '-')
                 && !t.starts_with('-')
                 && !t.ends_with('-')
@@ -854,6 +863,8 @@ pub fn orphan_codes() -> Vec<String> {
 /// `5xx` entry beyond the `4xx/5xx` catch-all, so `rate-limited` and `temporarily-unavailable`
 /// have nowhere to land, and `validation-failed` has neither a status nor a condition anywhere.
 pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
+    ("unauthenticated", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 401 row"),
+    ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
     ("resource-not-found", "condition described under D.8 404 (\"get of an absent resource\"); code never written beside it"),
     ("resource-pruned", "condition described under D.8 410 (\"pruned / erased\"); code never written beside it"),
     ("resource-erased", "condition described under D.8 410 (\"pruned / erased\"); code never written beside it"),
@@ -1734,13 +1745,22 @@ mod tests {
     fn the_problem_code_parse_is_not_vacuous() {
         let codes = problem_codes();
         assert!(
-            codes.len() >= 15,
+            codes.len() == 22,
             "D.9 parsed to only {} codes, which is too few to be the catalogue — the parse broke, \
              and every orphan check above is passing vacuously: {codes:?}",
             codes.len()
         );
         // Codes whose binding is written out at length in D.8 and the primitive prose. If the
         // orphan check ever reports one of THESE, it is the parse that is wrong, not the spec.
+        // `unauthenticated` and `forbidden` are HYPHENLESS and were dropped by the old parser,
+        // so they are pinned here by name: they are the two the shape-based filter could not see.
+        for want in ["unauthenticated", "forbidden"] {
+            assert!(
+                codes.iter().any(|c| c == want),
+                "{want:?} is missing from the parsed catalogue — the hyphenless codes have been \
+                 dropped again, and every count over this registry is off by two: {codes:?}"
+            );
+        }
         for bound in ["identity-taken", "revision-mismatch", "precondition-failed", "limit-exceeded"] {
             assert!(
                 codes.iter().any(|c| c == bound),
