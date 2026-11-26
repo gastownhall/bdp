@@ -2185,7 +2185,22 @@ async fn pull_on_a_sink_is_not_pullable_405(r: &RemoteScope, host: &str) -> Resu
     let (status, code) = raw_problem(host, "GET", "/ch-sink/-/pull", Vec::new(), b"").await?;
     match (status, code.as_str()) {
         (405, "channel-not-pullable") => Ok(vec![fault("pull", 405)]),
-        (405, c) => Err(format!("405 but the code was `{c}`, not channel-not-pullable")),
+        // 405 HAS TWO MEANINGS AND THIS ROW MUST ONLY CLAIM ONE. D.8: "405 pull / push on the
+        // wrong channel direction; patch where a Scope offers no patch" -- so the same status also
+        // answers an UN-OFFERED PRIMITIVE, with `capability-not-supported` (core.lumen:1611, the
+        // enforce side of the a-la-carte advertisement). That is a conformant DECLINE, not a
+        // failure: a scope that does not offer this primitive cannot cover this row, so the case
+        // claims no row and the row stays uncovered. Treating it as an error -- which this arm did
+        // -- would fail a conformant subject for not implementing an optional primitive, and would
+        // report a capability gap as a caller mistake. Found by Shelly, whose own suite has the
+        // mirror test for the other meaning; the complementary-populations problem living inside a
+        // gate row rather than inside a count.
+        (405, "capability-not-supported") => Ok(Vec::new()),
+        (405, c) => Err(format!(
+            "405 but the code was `{c}` -- neither `channel-not-pullable` (wrong direction) nor \
+             `capability-not-supported` (primitive not offered), which are D.8's two readings of \
+             this status"
+        )),
         (422, _) => Err("a sink answered 422; the direction is the channel's, not an advertised \
                          bound of pull, so there is no smaller request that would work"
             .into()),
@@ -2207,7 +2222,22 @@ async fn push_on_a_source_is_not_pushable_405(r: &RemoteScope, host: &str) -> Re
     .await?;
     match (status, code.as_str()) {
         (405, "channel-not-pushable") => Ok(vec![fault("push", 405)]),
-        (405, c) => Err(format!("405 but the code was `{c}`, not channel-not-pushable")),
+        // 405 HAS TWO MEANINGS AND THIS ROW MUST ONLY CLAIM ONE. D.8: "405 pull / push on the
+        // wrong channel direction; patch where a Scope offers no patch" -- so the same status also
+        // answers an UN-OFFERED PRIMITIVE, with `capability-not-supported` (core.lumen:1611, the
+        // enforce side of the a-la-carte advertisement). That is a conformant DECLINE, not a
+        // failure: a scope that does not offer this primitive cannot cover this row, so the case
+        // claims no row and the row stays uncovered. Treating it as an error -- which this arm did
+        // -- would fail a conformant subject for not implementing an optional primitive, and would
+        // report a capability gap as a caller mistake. Found by Shelly, whose own suite has the
+        // mirror test for the other meaning; the complementary-populations problem living inside a
+        // gate row rather than inside a count.
+        (405, "capability-not-supported") => Ok(Vec::new()),
+        (405, c) => Err(format!(
+            "405 but the code was `{c}` -- neither `channel-not-pushable` (wrong direction) nor \
+             `capability-not-supported` (primitive not offered), which are D.8's two readings of \
+             this status"
+        )),
         (s, c) => Err(format!("expected 405 channel-not-pushable on a source, got {s} / {c}")),
     }
 }
