@@ -3614,6 +3614,30 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     (covered, failures)
 }
 
+/// THE ABSENCE BEHIND ALL THREE IS NOW GROUNDED OVER THE WHOLE POPULATION, not over where I expected
+/// to find it. Each entry below originally rested on a search of the op's own section plus D.8 — a
+/// negative claim from a partial sweep, which is the weakest thing I ship. The spec owner put the
+/// principle sharply while correcting a different argument of mine: a claim grounded on "the rule that
+/// would permit it does not apply" is weaker than one grounded on "the rule that forbids it does",
+/// because a negative depends on the absence continuing and nothing watches an absence.
+///
+/// So I enumerated instead. core.lumen mentions `409` on 26 lines, and every one is either a
+/// DECLARATION (an `openapi` annotation's `problem.status` list) or one of exactly THREE producers:
+///
+///   - `call`'s declared failure — `Outcome.failure` is 409 (842, 858, 900, 901, 903)
+///   - `identity-taken` — a `create` fail-if-exists collision, or a `put` under `If-None-Match: *`
+///     claiming a spent id (1081, 1106, 1121, 1158, 1966, 1970, 2062, 2066)
+///   - `cancel` of an already-settled handle (915, covered by its own case)
+///
+/// None of the three reaches `delete`, `import` or `patch`. The declarations at 1134 (patch), 1160
+/// (delete) and 1535 (import) therefore stand over nothing — which is the shared root, stated now
+/// from the complete set of 409 mentions rather than from the three places I thought to look.
+///
+/// THE METHOD IS THE POINT: enumerate the population and classify every member, rather than searching
+/// where the answer is expected to be. A narrow search can confirm a hypothesis and cannot establish
+/// an absence — the same asymmetry that made a peer's `conf-pg`-on-the-same-line grep report two
+/// defect sites in a tree that held five.
+///
 /// THE RESIDUAL: every uncovered denominator row, why no case reaches it, and what closes it.
 ///
 /// These three were a single sentence in my head — the rest is blocked on the 409 code vocabulary —
