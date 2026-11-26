@@ -2348,6 +2348,47 @@ async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<V
         }
     }
 
+    // AND THE REFUSAL MUST SAY WHY. The assertion is right; the reason I first gave for it was not,
+    // and the correction is worth more than the assertion.
+    //
+    // I added this citing a future risk: that the nine other `problem_body` sites still use the
+    // unregistered `bad-request`, so this case's discrimination rests on an unrelated defect
+    // staying unfixed — fix those nine to `malformed-request` and an incidental refusal would
+    // answer the same (status, code) pair as an explicit one, leaving the detail as the only
+    // difference.
+    //
+    // THAT SCENARIO CANNOT ARISE, and the reason is the fix itself. Measured by simulating it:
+    // with the explicit guard dropped, `create + provenance` does not get refused under a
+    // converged code — it answers **201 and creates the resource with a forged provenance**.
+    // DECLARING the member is what removed the incidental `deny_unknown_fields` protection, so
+    // there is no longer any path by which a declared service-managed member is refused for the
+    // wrong reason. Declare-without-refuse is strictly worse than the original state, which is why
+    // both halves had to land in one commit (`8cee96a2` did).
+    //
+    // So this assertion guards something narrower and real: that the refusal STATES its reason, and
+    // that a later rewrite cannot quietly drop it. It is not the discriminator I claimed — the code
+    // assertion above is, and it is not fragile in the way I described. A peer raised the detail
+    // point and it was worth adding; the justification I attached was mine and wrong.
+    {
+        let resp = send(Outgoing {
+            method: "POST",
+            host,
+            target: "/-/create",
+            headers: ct(),
+            body: format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-why"}},"body":{{}},"metadata":{{}},"provenance":"forged"}}"#).into_bytes(),
+        })
+        .await
+        .map_err(|e| format!("raw create: {e:?}"))?;
+        let body = String::from_utf8_lossy(&resp.body);
+        if !body.contains("service-managed") {
+            return Err(format!(
+                "the refusal of `provenance` does not say WHY — its detail must name it as \
+                 service-managed, because that is the only place an explicit refusal differs from \
+                 an unrecognised-field one once both answer the same status and code: {body:.240}"
+            ));
+        }
+    }
+
     // THE EXEMPTION, which is this rule's discriminating arm: `id` is in the immutable envelope and
     // is nonetheless caller-proposable AT creation ("Caller-proposed id optional"), so a case that
     // refused the whole envelope would be wrong in the other direction.
