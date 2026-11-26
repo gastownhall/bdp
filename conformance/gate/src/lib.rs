@@ -2158,7 +2158,10 @@ mod tests {
         // EXACT, for the same reason. This read `>= 10` and the file has since grown to 25 sites,
         // so the floor had stopped measuring anything — it would have passed with fifteen sites
         // deleted.
-        const DIRECT_SITES: usize = 25;
+        // 25 -> 26: `export`'s `where`/`select` refusal became a `problem_body(400, "bad-request")` site,
+        // replacing an `unmapped()` (`501`) that `export` does not declare. The code is already in
+        // DIRECT_CODES_NOT_REGISTERED, so the move adds a site without adding a divergence.
+        const DIRECT_SITES: usize = 26;
         assert!(
             sites.len() == DIRECT_SITES,
             "the direct-producer scan found {} `problem_body` sites, expected {DIRECT_SITES}. {} \

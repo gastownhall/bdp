@@ -510,9 +510,50 @@ impl<S: BdpScope> Server<S> {
         if let Some(r) = refuse_format(req, &["jsonl"], "export") {
             return r;
         }
-        if req.query.contains_key("where") {
-            return unmapped(
-                "export `where` filtering is not carried by this binding — same reason as `list`",
+        // REFUSED, AND WITH A DECLARED STATUS. This refused only `where`, and did it with
+        // `unmapped()` — a `501`. Two defects in one site:
+        //
+        // 1. `select` WAS NOT REFUSED AT ALL. Donna's export ruling (B) says a history export
+        //    refuses `select`/`where` together; half the refusal was missing, so `?select=` was
+        //    accepted and silently dropped — the caller's projection vanishing with a `200`, which
+        //    is the defect the `after`/`limit` comment below was written about.
+        // 2. `export` DECLARES EXACTLY ONE FAULT, `400`. A `501` from here is a status the
+        //    generated contract does not publish, so the refusal was itself a divergence.
+        //
+        // I had a tidier design — `400` for a history export (the spec refuses projection) and
+        // `501` for a current-state one (ruling B says honour it, this binding cannot) — and the
+        // asymmetry does carry the real semantic difference. It also ADDS an undeclared status to
+        // keep a `501` I am meant to be removing, so it is the wrong trade: a caller reading
+        // `core.openapi.json` sees no `where`/`select` parameter on this operation at all
+        // (gastownhall/bdp#450), which makes `400` a true statement about the published contract
+        // rather than a convenient one.
+        //
+        // AND THE REFUSAL IS UNCONDITIONAL FOR A STRONGER REASON THAN I FIRST WROTE. I had this
+        // as "ruling B's current-state half is not implemented because the projection has no wire
+        // channel", which is true and understates it: `export` declares THREE of its own inputs —
+        // `where?`, `select?` AND `revisions?` — and the annotation lowers none of them, all three
+        // being registered in the gate's `UNCARRIED_INPUTS`. `revisions` is the DISCRIMINATOR
+        // ruling B turns on (current state vs history), so the binding cannot express which branch
+        // a caller is asking for. There is exactly one reachable branch here, which is why this is
+        // not a choice between B's two halves at all.
+        //
+        // (The handler does read `?revisions=` below, under a spelling the contract does not
+        // publish. That keeps the operation useful and is left alone deliberately — but it is why
+        // no conformance case may use `?revisions=` to reach the history branch: a case over an
+        // undeclared spelling asserts against a contract nobody can read.)
+        //
+        // CLOSES WHEN: #450 lowers these parameters, at which point the current-state branch must
+        // honour projection and self-label partial instead of refusing.
+        if req.query.contains_key("where") || req.query.contains_key("select") {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "bad-request",
+                    "export refuses `where` and `select`: a history export rejects projection, and \
+                     this binding lowers neither parameter, so there is no declared way to supply \
+                     one",
+                ),
             );
         }
 

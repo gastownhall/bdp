@@ -1891,6 +1891,58 @@ async fn export_rejects_an_ordinal_resume_400(host: &str) -> Result<Vec<SurfaceI
 }
 
 
+/// `GET /-/export?where=…` and `?select=…` → 400. COVERS NO NEW ROW, and that is the point.
+///
+/// A REGRESSION GUARD, NOT A COVERAGE CASE. `export/400` is already covered by
+/// `export_rejects_an_ordinal_resume_400`, and this discharges no obligation either — see below.
+/// It exists because the behaviour it pins was WRONG and silently so: the handler refused `where`
+/// and said nothing about `select`, so `?select=` was accepted and the caller's projection vanished
+/// with a `200`. Nothing in the suite noticed, because nothing asked.
+///
+/// WHAT IT DELIBERATELY DOES NOT CLAIM. The sibling case asserts `from` AND NOT `select`, for a
+/// documented reason that still holds: `?select=` could be the `request.select` that rc2 rejects
+/// `400`, or `export`'s own unlowered `select?` arriving under a spelling nobody declared
+/// (gastownhall/bdp#450), and a case cannot tell which it exercised. So this asserts the one thing
+/// true under BOTH readings — the published contract declares no such parameter, so a refusal is
+/// right either way — and claims no obligation on the strength of it.
+///
+/// NOR CAN IT REACH RULING B'S HISTORY BRANCH. Donna ruled that a history export refuses
+/// projection while a current-state one honours it and self-labels partial. The discriminator is
+/// `revisions?`, which `export` declares and the annotation does not lower (registered in
+/// `UNCARRIED_INPUTS` alongside `where` and `select`). The handler does honour `?revisions=`, but
+/// under an undeclared spelling, so using it here would assert against a contract no client can
+/// read. Both of B's branches are unreachable until #450.
+///
+/// THE POSITIVE HALF IS ASSERTED, so a guard that refused every query string cannot pass this.
+async fn export_refuses_projection_parameters_400(host: &str) -> Result<Vec<SurfaceId>, String> {
+    for target in ["/-/export?where=kind%3Dnote", "/-/export?select=id"] {
+        let (status, code) = raw_problem(host, "GET", target, Vec::new(), b"").await?;
+        if status != 400 {
+            return Err(format!(
+                "`{target}` answered {status}; `export` publishes neither parameter, and the \
+                 earlier binding ACCEPTED `?select=` and dropped the projection with a 200 — a \
+                 silently narrowed backup is worse than a refusal"
+            ));
+        }
+        if code.is_empty() {
+            return Err(format!("`{target}` refused {status} with no problem code"));
+        }
+    }
+    // The two inputs export DOES publish must still work, or this case passes by breaking the op.
+    for target in ["/-/export", "/-/export?after=c0", "/-/export?limit=1"] {
+        match raw_status(host, "GET", target, Vec::new(), b"").await? {
+            200 => {}
+            s => {
+                return Err(format!(
+                    "`{target}` answered {s}; `after` and `limit` are the only query inputs export \
+                     publishes, so refusing them would make this guard pass for the wrong reason"
+                ))
+            }
+        }
+    }
+    Ok(Vec::new())
+}
+
 /// An invalid `?limit=` on a read → 400 `invalid-parameter`. Covers op/list/fault/400 and
 /// op/revisions/fault/400.
 ///
@@ -3172,6 +3224,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         export_rejects_an_ordinal_resume_400(&addr),
+    )
+    .await;
+    record(
+        "export refuses where/select (regression guard, no new row)",
+        &mut covered,
+        &mut failures,
+        export_refuses_projection_parameters_400(&addr),
     )
     .await;
     record(
