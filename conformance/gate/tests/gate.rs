@@ -3546,27 +3546,26 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
 const RESIDUAL: &[(&str, &str)] = &[
     (
         "op/patch/fault/409",
-        "BLOCKED ON A RULING THAT HAS NOT REACHED ME, which is a narrower blocker than this entry \
-         used to state. It said every candidate code spelling was held or semantically wrong, so \
-         emitting the row would pre-empt Donna. CATR1=C SUPERSEDES THAT REASONING: she ruled the \
-         `code` ADVISORY and the `status` the conformance surface, so the spelling does not block \
-         anything — a case would test the status and the code would be advisory output. The claim \
-         stays true and the reason changed, the same stale-reasoning shape this file's \
-         justifications are swept for. WHY IT IS STILL BLOCKED: the ruling reached me as the spec \
-         owner's RELAY of Donna's word in another session, and the code-advisory line is NOT yet \
-         materialized in the spec, so there is no artefact I can read live and cite. Covering this \
-         row emits a code from the subject and raises a figure I report to Donna, and the grant \
-         lifts my own denominator — the direction nobody checks. The spec owner agrees and is asking \
-         Donna to confirm to me directly. CLOSES WHEN: Donna confirms CATR1=C in my own session, or \
-         the code-advisory line lands in the spec this gate reads. AND WHEN IT DOES, THE CASE MUST \
-         USE THE IMMUTABLE-ENVELOPE CONDITION, not a cycle-closing patch. patch's own description is \
-         unambiguously Core: the immutable envelope (`/id`, `/provenance`, `/createdAt`, `/retired`) \
-         and any `computed`/`serviceManaged` property are read-only, and a patch touching one \
-         FAULTS. A cycle-closing patch is a GRAPH-MODEL producer, and core.lumen lists graph among \
-         corelib capabilities, not core, with `acyclic` appearing only inside a comment example and \
-         no normative cycle fault for patch anywhere. Grounding this Core row on a corelib producer \
-         is exactly what the delete/409 lean argues against, so it would undeclare the row rather \
-         than cover it.",
+        "NO CORE PRODUCER PINNED AT 409 — and I have now been wrong about this row's blocker three \
+         times, each time with the claim true and the reasoning stale. (1) I said no code spelling \
+         was available; CATR1=C made the code ADVISORY, so the spelling blocks nothing. (2) I said \
+         the immutable-envelope condition would ground it, after showing that the cycle-closing \
+         framing names a GRAPH-MODEL producer and graph is corelib, not core. (3) That condition is \
+         Core but its STATUS IS UNPINNED. core.lumen:1133 is normative and says a patch naming an \
+         envelope member (`/id`, `/provenance`, `/createdAt`, `/retired`), the whole-document root, \
+         or a `computed`/`serviceManaged` property FAULTS — and names no status at all. patch \
+         declares [400,404,409,410,412,415,422], so `faults` does not select 409. THE EVIDENCE LEANS \
+         400, from an asymmetry in the spec rather than from taste: core.lumen:472 says a read-only \
+         member supplied on a write (`create`/`put`) is IGNORED, NEVER FAULTED, so a get-put round- \
+         trip stays safe. The fault is therefore specific to patch, where the caller NAMES an \
+         unwritable path — a defective patch document, which reads as `400 invalid-parameter` rather \
+         than a state conflict. It is not 422 either, by the membership test that 422 holds iff \
+         shrinking the request fixes it: removing the offending op is correcting an error, not \
+         shrinking to a bound. SO ALL THREE 409 ROWS ARE ONE SHAPE, not three, and my earlier report \
+         that patch/409 was the coverable one is RETRACTED: each is a declared 409 with no Core \
+         producer pinned at 409. The spec owner is putting them to Donna as a single producer/status \
+         question. CLOSES WHEN: Donna pins a Core 409 producer for any of the three — pinning the \
+         read-only-member refusal to 409 would do it for patch — or rules all three undeclared.",
     ),
     (
         "op/delete/fault/409",
