@@ -2192,6 +2192,93 @@ async fn a_duplex_channel_round_trips(r: &RemoteScope) -> Result<Vec<SurfaceId>,
     Ok(vec![op("push"), op("pull")])
 }
 
+/// THE `format` REFUSALS #457 AND #458 MADE NORMATIVE. Claims no row — both 400s are already
+/// covered by other cases, so this is obligation coverage, not a row.
+///
+/// MIRROR IMAGES, which is the whole point of #458. The windowed reads return a `Page`, and
+/// `export` is the single exception — a self-framed jsonl backup stream. So `list`/`revisions`
+/// refuse `jsonl`/`sse` and serve `page`, while `export` refuses everything that is NOT `jsonl`,
+/// `page` included, "since a backup is a stream, not a windowed `Page`".
+///
+/// THIS BINDING SERVED ALL OF THEM 200 and the re-pin to main did not notice. That is the lesson
+/// of the re-pin rather than a footnote to it: my gate went green at 48/51 against the merged
+/// spec, which establishes that no ROW noticed, not that nothing arrived. #458's requirement was
+/// in the merge and nobody relayed it; a peer hit the same thing in her own tree.
+///
+/// AND THE STATUS IS NOT THE OBLIGATION. Serving the windowed bytes under a `jsonl` request is
+/// "the default encoding, as if the param were absent" — the silent-failure class rc2 names. A
+/// status check alone cannot separate "refused" from "refused and then served anyway", so each arm
+/// asserts the refused body did NOT come back. Found by a peer amending rather than deleting the
+/// test whose expectation had inverted: its expectation changed and its PURPOSE did not.
+async fn the_format_header_refusals(r: &RemoteScope, host: &str) -> Result<Vec<SurfaceId>, String> {
+    let t = ResourceId::head(Scope::This, Id("fmt-probe".into()));
+    seed(r, &t, "v1").await?;
+    let hdr = |v: &str| vec![("format".to_string(), v.to_string())];
+
+    // list / revisions: refuse the stream transports, serve the window.
+    for (op, target) in [("list", "/-/list"), ("revisions", "/fmt-probe/-/revisions")] {
+        for bad in ["jsonl", "sse"] {
+            let (status, code) = raw_problem(host, "GET", target, hdr(bad), b"").await?;
+            if (status, code.as_str()) != (400, "invalid-parameter") {
+                return Err(format!(
+                    "`{op}` with `format: {bad}` answered {status} / `{code}`; #457 requires 400 \
+                     `invalid-parameter` — a windowed read does not serve a stream transport"
+                ));
+            }
+        }
+        // THE DISCRIMINATOR: the accepted values must still work, or the arms above prove only that
+        // this op is broken for every `format`.
+        for ok in ["page", ""] {
+            let h = if ok.is_empty() { Vec::new() } else { hdr(ok) };
+            let st = raw_status(host, "GET", target, h, b"").await?;
+            if st != 200 {
+                return Err(format!(
+                    "`{op}` with format {:?} answered {st}, so the refusals above say nothing about \
+                     the transport — this op refuses every `format`",
+                    if ok.is_empty() { "absent" } else { ok }
+                ));
+            }
+        }
+    }
+
+    // export: the one exception — jsonl only, `page` refused WITH the others.
+    for bad in ["page", "sse"] {
+        let (status, code) = raw_problem(host, "GET", "/-/export", hdr(bad), b"").await?;
+        if (status, code.as_str()) != (400, "invalid-parameter") {
+            return Err(format!(
+                "`export` with `format: {bad}` answered {status} / `{code}`; #458 makes export the \
+                 jsonl-native exception, so `page` is refused with the rest"
+            ));
+        }
+    }
+    let st = raw_status(host, "GET", "/-/export", hdr("jsonl"), b"").await?;
+    if st != 200 {
+        return Err(format!(
+            "`export` with `format: jsonl` answered {st}; jsonl is the ONE transport export serves, \
+             so refusing it would mean export refuses everything"
+        ));
+    }
+
+    // AND THE BYTES. A 400 that still carries the payload is the silent substitution in disguise.
+    let resp = send(Outgoing {
+        method: "GET",
+        host,
+        target: "/-/export",
+        headers: hdr("page"),
+        body: Vec::new(),
+    })
+    .await
+    .map_err(|e| format!("raw export: {e:?}"))?;
+    let body = String::from_utf8_lossy(&resp.body);
+    if body.contains("fmt-probe") {
+        return Err(format!(
+            "`export` refused `format: page` with 400 and STILL served the records — a refusal that \
+             carries the payload is the silent substitution wearing a status code: {body:.200}"
+        ));
+    }
+    Ok(Vec::new())
+}
+
 /// `pull` of a channel that does not exist → 404 `resource-not-found`. Covers op/pull/fault/404.
 ///
 /// THE ROW THIS GATE ASKED FOR. #456 made "which channels exist is discovered per-channel"
@@ -2927,6 +3014,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         pull_of_an_absent_channel_404(&remote, &addr),
+    )
+    .await;
+    record(
+        "format header refusals",
+        &mut covered,
+        &mut failures,
+        the_format_header_refusals(&remote, &addr),
     )
     .await;
     record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;

@@ -213,6 +213,9 @@ impl<S: BdpScope> Server<S> {
     /// `RemoteScope` therefore advertises `ListCaps { conditions: [] }` over this binding, so a
     /// client learns from discovery not to send one rather than learning from a 501.
     async fn do_list(&self, req: &HttpRequest) -> HttpResponse {
+        if let Some(r) = refuse_format(req, &["page"], "list") {
+            return r;
+        }
         if req.query.contains_key("where") {
             return unmapped(
                 "list `where` filtering is not carried by this binding — no wire encoding for a \
@@ -466,6 +469,9 @@ impl<S: BdpScope> Server<S> {
     }
 
     async fn do_export(&self, req: &HttpRequest) -> HttpResponse {
+        if let Some(r) = refuse_format(req, &["jsonl"], "export") {
+            return r;
+        }
         if req.query.contains_key("where") {
             return unmapped(
                 "export `where` filtering is not carried by this binding — same reason as `list`",
@@ -538,6 +544,9 @@ impl<S: BdpScope> Server<S> {
     /// cannot expire is not a cursor. Returning one would advertise resumability that nothing
     /// backs, which is the same mistake as `storage_classes: [Durable]` on an in-memory store.
     async fn do_revisions(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
+        if let Some(r) = refuse_format(req, &["page"], "revisions") {
+            return r;
+        }
         let rid = resource_id_from(id_seg, None);
         let page = p::Page {
             after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
@@ -938,6 +947,45 @@ fn write_result_wire(res: &p::BdpResult<p::ResourceId>) -> (WireResourceId, Stri
 fn problem_response(e: &p::BdpError) -> HttpResponse {
     let (status, prob) = WireProblem::from_error(e);
     HttpResponse::json(status, serde_json::to_vec(&prob).unwrap())
+}
+
+/// The `format` (Transport) header refusals that #457 and #458 made normative.
+///
+/// WINDOWED READS vs THE ONE STREAM. #458 carved `export` out of the return-unified resolution:
+/// the windowed reads (`list`, `revisions`) return a `Page`, and `export` is the single exception —
+/// a self-framed jsonl backup stream. So the two refusals are mirror images:
+///   - `list` / `revisions` refuse `jsonl` and `sse`, and serve `page` or an absent header.
+///   - `export` refuses everything that is not `jsonl`, `page` INCLUDED, "since a backup is a
+///     stream, not a windowed `Page`".
+///
+/// WHY THIS IS A REFUSAL AND NOT A DEFAULT. Serving the windowed bytes under a `jsonl` request —
+/// which is what this binding did, with a 200 — is "the default encoding, as if the param were
+/// absent", which rc2 names as the silent-failure class: the caller asked for a transport, got a
+/// success, and got something else. The status alone does not carry that, which is why the cases
+/// also assert the refused body is not served.
+///
+/// `invalid-parameter`, not `bad-request`: D.8's 400 row names `malformed-request` and
+/// `invalid-parameter`, and an invalid parameter VALUE is explicitly the second. The nine
+/// `bad-request` sites in this file are an unregistered code awaiting Donna's vocabulary batch; a
+/// new site must not join them.
+fn refuse_format(req: &HttpRequest, allowed: &[&str], op: &str) -> Option<HttpResponse> {
+    let got = req.header("format").map(|f| f.trim().to_ascii_lowercase());
+    match got.as_deref() {
+        None | Some("") => None,
+        Some(f) if allowed.contains(&f) => None,
+        Some(f) => Some(HttpResponse::json(
+            400,
+            problem_body(
+                400,
+                "invalid-parameter",
+                &format!(
+                    "`{op}` does not serve `format: {f}`; it accepts {} — serving the default \
+                     encoding instead would be a silent substitution",
+                    allowed.join(" | ")
+                ),
+            ),
+        )),
+    }
 }
 
 fn problem_body(status: u16, code: &str, detail: &str) -> Vec<u8> {
