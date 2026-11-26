@@ -330,6 +330,28 @@ pub struct Registration {
 /// say "something changed, re-census", which is a halt rather than a finding. That difference is
 /// the argument for one instrument, and it is not about duplication being untidy.
 ///
+/// AND THIS LEDGER HAS ITS OWN BLIND SPOT, which belongs beside that criticism rather than after it.
+///
+/// Keying on obligation TEXT means a REWORD is a new key. For a REGISTERED obligation that is the
+/// behaviour you want: the old registration goes PENDING (registered, not in the spec) and the new
+/// wording surfaces unregistered, so the pair is visible and a reader can tell a reword from a new
+/// clause. For an UNREGISTERED one — currently 70 of 91 — it is invisible. The backlog count does
+/// not move, no registration goes pending, and nothing anywhere says that line changed.
+///
+/// MEASURED, not supposed. Between the manifest's base commit and HEAD, core.lumen's column-0
+/// clauses went 87 -> 89 as +3/-1: two genuinely new (`list`/`revisions` page-only, and a channel
+/// being a resource so absence and retirement resolve as `get`) and ONE REWORD of `export`'s
+/// honors-only line, which appears in both the added and the removed set. The spec owner was about
+/// to author checks for three new clauses when only two were new. That reworded clause is
+/// unregistered here, so this ledger reported nothing about it either — the backlog stayed 70 and
+/// the number was unchanged across a real normative edit.
+///
+/// SO THE TWO INSTRUMENTS FAIL DIFFERENTLY, AND NEITHER FAILS SAFE. A sha-pinned manifest halts on
+/// any change and tells you nothing about what changed. A text-keyed ledger tells you precisely
+/// what changed in the registered fifth and is silent about the unregistered rest. The honest claim
+/// for retiring the manifest is not that this ledger is complete; it is that this one's silence
+/// shrinks as registrations grow, while a blind harvester's does not shrink at all.
+///
 /// THE LEDGER PINS EACH OBLIGATION'S RESOLUTION, NEVER THE CARDINALITY.
 ///
 /// A count cannot be pinned coherently here and the reason is concrete: PR #428 takes the
