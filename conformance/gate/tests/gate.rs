@@ -93,6 +93,124 @@ where
 
 // ---- cases ------------------------------------------------------------------
 
+/// THE CAPABILITY SURFACE IS THE SPEC'S, OR IT IS NOT DISCOVERABLE. Claims no row — this is an
+/// obligation, and the tier-1 gate counts faults, which is exactly why nothing here was ever seen.
+///
+/// core.lumen:1611 is normative and makes presence the SOLE criterion of support: "a primitive is
+/// supported iff its capability is present". So the capability document is not metadata — it is
+/// the only way a client learns what it may call. `Capabilities = { core, scope, packs? }`, `core`
+/// is a RECORD keyed by primitive, and its eleven fields are closed (`call`/`cancel` advertise
+/// under their own package per core.lumen:1570, hence eleven for thirteen).
+///
+/// WHY THIS IS AN ASSERT-PRESENT CHECK AND NOT AN IF-ADVERTISED ONE: a case shaped
+/// `if advertised { require X }` loses its gate in SILENCE the day the advertisement moves, while
+/// one asserting the shape is present fails loudly. The silent form is what let every divergence
+/// below survive — the gate's own `call`/`cancel` cases read `r.capabilities()` through the trait,
+/// which proxies whatever the wire happens to carry, so an unfiltered wire makes them pass and a
+/// conformant one would make them SKIP. Five rows ride on that.
+///
+/// Registered rather than red, matching this suite's practice for a known gap, and guarded in both
+/// directions: a NEW divergence fails, and a registered one that has been FIXED also fails, so the
+/// register cannot rot into a description of a defect that no longer exists.
+async fn the_capability_surface_is_the_specs_shape(host: &str) -> Result<Vec<SurfaceId>, String> {
+    // What the spec says must be true, each paired with how this subject actually answers.
+    const REGISTERED: &[&str] = &[
+        "served at `/:capabilities`, not the spec's `/sys/capabilities` (core.lumen reserves `sys` for in-band system resources)",
+        "the primitive member is named `primitives`, not `core`",
+        "`primitives` is an ARRAY of single-key objects, not a RECORD keyed by primitive",
+        "advertises `apply`, which core.lumen:1570 puts under its own package, not core",
+        "advertises `call`, which core.lumen:1570 puts under its own package, not core",
+        "advertises `cancel`, which core.lumen:1570 puts under its own package, not core",
+        "advertises `resolve`, which is not a primitive at all and has no core capability field",
+        "advertises `changes`, a RETIRED primitive — the changefeed was remapped onto `pull` (`/sys/changes` as a source Channel), and the advertisement outlived it",
+    ];
+
+    let mut found: Vec<String> = Vec::new();
+
+    // The spec's path must serve the document. Asserted FIRST and positively: if `/sys/capabilities`
+    // ever starts working, this register entry must go, and that is a fix we want to be told about.
+    let sys = send(Outgoing {
+        method: "GET",
+        host,
+        target: "/sys/capabilities",
+        headers: Vec::new(),
+        body: Vec::new(),
+    })
+    .await
+    .map_err(|e| format!("raw /sys/capabilities: {e:?}"))?;
+    if sys.status >= 400 {
+        found.push(REGISTERED[0].to_string());
+    }
+
+    let resp = send(Outgoing {
+        method: "GET",
+        host,
+        target: "/:capabilities",
+        headers: Vec::new(),
+        body: Vec::new(),
+    })
+    .await
+    .map_err(|e| format!("raw /:capabilities: {e:?}"))?;
+    let doc: serde_json::Value = serde_json::from_slice(&resp.body)
+        .map_err(|e| format!("capabilities body is not JSON: {e}"))?;
+
+    let core = doc.get("core");
+    if core.is_none() {
+        found.push(REGISTERED[1].to_string());
+    }
+    let member = core.or_else(|| doc.get("primitives"));
+    let Some(member) = member else {
+        return Err(format!("capabilities document has neither `core` nor `primitives`: {doc}"));
+    };
+
+    // Collect the advertised primitive names out of EITHER shape, so the key check runs even while
+    // the shape is wrong — otherwise the shape divergence would mask every key divergence behind it.
+    let mut keys: Vec<String> = Vec::new();
+    if let Some(arr) = member.as_array() {
+        found.push(REGISTERED[2].to_string());
+        for entry in arr {
+            if let Some(o) = entry.as_object() {
+                keys.extend(o.keys().cloned());
+            }
+        }
+    } else if let Some(o) = member.as_object() {
+        keys.extend(o.keys().cloned());
+    }
+
+    let allowed = bdp_gate::core_capability_fields();
+    for k in &keys {
+        if !allowed.iter().any(|a| a == k) {
+            let entry = REGISTERED
+                .iter()
+                .find(|r| r.contains(&format!("`{k}`")))
+                .map(|r| r.to_string())
+                .unwrap_or_else(|| format!("advertises `{k}`, which is not a CoreCapabilities field"));
+            found.push(entry);
+        }
+    }
+
+    // Both directions.
+    let mut unregistered: Vec<&String> =
+        found.iter().filter(|f| !REGISTERED.contains(&f.as_str())).collect();
+    unregistered.sort();
+    if !unregistered.is_empty() {
+        return Err(format!(
+            "NEW capability-surface divergence(s) from the spec, not in this case's register:\n  - {}",
+            unregistered.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n  - ")
+        ));
+    }
+    let fixed: Vec<&&str> = REGISTERED.iter().filter(|r| !found.iter().any(|f| f == *r)).collect();
+    if !fixed.is_empty() {
+        return Err(format!(
+            "this case still registers capability-surface divergence(s) that are now FIXED, so the \
+             register has become a false claim — remove them:\n  - {}",
+            fixed.iter().map(|s| **s).collect::<Vec<_>>().join("\n  - ")
+        ));
+    }
+    Ok(Vec::new())
+}
+
+
 /// `create` (server-allocated id) then `get` the resource back. Covers op/create + op/get.
 async fn create_then_get(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let created = r
@@ -2583,6 +2701,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         every_read_returns_a_page_and_a_walk_terminates(&remote, &addr),
+    )
+    .await;
+    record(
+        "capability surface shape",
+        &mut covered,
+        &mut failures,
+        the_capability_surface_is_the_specs_shape(&addr),
     )
     .await;
     record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;

@@ -867,6 +867,54 @@ pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
     ("mode-refused", "no status entry names it; `?mode=async` refusal"),
 ];
 
+/// The field names of the spec's `CoreCapabilities` record — the closed set of primitives that may
+/// be advertised in the `core` capability member.
+///
+/// core.lumen:1611 is normative and makes presence the SOLE criterion of support: "a primitive is
+/// supported iff its capability is present". So this set is not a style guide — a key outside it,
+/// advertised in `core`, tells a client something the spec's capability model does not define, and
+/// a primitive whose key cannot appear there cannot be discovered at all.
+///
+/// `call` and `cancel` are deliberately absent: core.lumen:1570 puts them under their own package
+/// ("Call / cancel (operations) and the stdlib packs (apply = batch, eval = query) advertise under
+/// their own packages, not core"), so `Capabilities.packs` is their home, not `core`. Eleven fields
+/// for thirteen primitives is the design, not a gap — a conclusion I reached only after nearly
+/// filing it as a defect, which is why it is written here rather than left to be re-derived.
+pub fn core_capability_fields() -> Vec<String> {
+    let start = CORE_LUMEN
+        .find("## CoreCapabilities")
+        .expect("core.lumen declares a CoreCapabilities record");
+    let span = balanced(CORE_LUMEN, start, b'{', b'}')
+        .expect("the CoreCapabilities record body is brace-balanced");
+    record_field_names(span)
+}
+
+/// Field names of a Lumen record body — `name:` or `name?:` at the head of a line.
+///
+/// NOT [`keys_of`], which parses the `name = { … }` annotation form used by the `/// openapi =`
+/// lowering lines. Reusing it here yielded ZERO fields, and an empty allowed-set would have made
+/// the wire-side check flag every advertised key — caught by the anti-vacuity test on the first
+/// run, which is the whole reason that test is written before the check that depends on it.
+fn record_field_names(span: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in span.lines() {
+        let t = line.trim();
+        // Skip doc comments, comments and nested braces.
+        if t.starts_with("///") || t.starts_with("//") || t.is_empty() {
+            continue;
+        }
+        let Some(colon) = t.find(':') else { continue };
+        let name = t[..colon].trim().trim_end_matches('?');
+        if !name.is_empty()
+            && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            && !out.iter().any(|s| s == name)
+        {
+            out.push(name.to_string());
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1664,5 +1712,40 @@ mod tests {
             "the catalogue was not removed from the comparison text, so no code can ever be \
              reported orphaned — this check would pass for ever while guarding nothing"
         );
+    }
+
+    /// THE CORE CAPABILITY FIELD PARSE IS NOT VACUOUS, and it pins the shape from both ends.
+    ///
+    /// The wire-side check built on this asserts "no advertised key is outside this set", which
+    /// passes trivially if the set is accidentally everything — and a brace-balanced record parse
+    /// is exactly the kind that silently swallows a neighbouring type when a heading moves.
+    #[test]
+    fn the_core_capability_field_parse_is_not_vacuous() {
+        let fields = core_capability_fields();
+        assert_eq!(
+            fields.len(),
+            11,
+            "CoreCapabilities parsed to {} fields, not the eleven rc2 closed it to — the parse has \
+             drifted and the wire-side check built on it is measuring the wrong set: {fields:?}",
+            fields.len()
+        );
+        for want in ["get", "list", "pull", "create", "put", "patch", "delete", "revisions", "export", "import", "push"] {
+            assert!(
+                fields.iter().any(|f| f == want),
+                "{want:?} is missing from the parsed CoreCapabilities fields, so a conformant \
+                 advertisement of it would be reported as out-of-vocabulary: {fields:?}"
+            );
+        }
+        // And the two that must NOT be here. core.lumen:1570 puts `call`/`cancel` under their own
+        // package, so a parse that picked them up would bless advertising them in `core` — the
+        // exact divergence the wire-side check exists to catch.
+        for never in ["call", "cancel", "apply"] {
+            assert!(
+                !fields.iter().any(|f| f == never),
+                "{never:?} was parsed as a CoreCapabilities field. It is not one (core.lumen:1570 \
+                 — operations and stdlib packs advertise under their own packages, not core), so \
+                 the parse has swallowed a neighbouring record and would bless the divergence."
+            );
+        }
     }
 }
