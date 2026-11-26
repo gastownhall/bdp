@@ -135,10 +135,14 @@ async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<S
     // Codes this subject emits that D.9 does not register. Registered so the gate is green on the
     // known set and red on a new one; the spec-side spelling is named where one exists, because
     // that is the repair, not a rename of the registry.
+    // THREE ENTRIES LEFT THIS LIST BY BEING FIXED, not by being re-judged: `not-found`,
+    // `erased` and `already-exists` were near-misses of D.9's `resource-not-found`,
+    // `resource-erased` and `identity-taken`, and the subject now emits the canonical spellings.
+    // D.9 is the registry and needed no ruling for that -- the same reasoning as bringing the
+    // subject to the frozen wire. The staleness guard below is what told me: it failed naming all
+    // three the moment the rename landed, which is the only reason this list is not now a false
+    // claim about its own subject.
     const REGISTERED: &[(&str, &str)] = &[
-        ("not-found", "D.9 registers `resource-not-found` — a NEAR-MISS, so a conformant client's branch does not match"),
-        ("erased", "D.9 registers `resource-erased` — a near-miss"),
-        ("already-exists", "D.9 registers `identity-taken` — a near-miss; D.8's 409 row names `identity-taken` for exactly this collision"),
         ("constraint-violation", "not in D.9; Donna ruled `validation-failed` -> 409, which is plausibly this code's registry home"),
         ("unprocessable", "not in D.9; the 422 bound case is `limit-exceeded`, so this is a second unregistered 422"),
         ("channel-not-pullable", "named in core.lumen pull but absent from D.9 — see #455; a covered gate row keys on this spelling"),

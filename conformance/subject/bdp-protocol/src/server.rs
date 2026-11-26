@@ -75,7 +75,7 @@ impl<S: BdpScope> Server<S> {
             // nothing, which is what the spec says.
             Route::UnknownAction => HttpResponse::json(
                 404,
-                problem_body(404, "not-found", "no such protocol action past the fence"),
+                problem_body(404, "resource-not-found", "no such protocol action past the fence"),
             ),
             // The id LEFT of the fence contains a bare `-` segment, which no resource-id segment
             // may be — a literal hyphen-only segment must arrive as `%2D`. Malformed id, so 400.

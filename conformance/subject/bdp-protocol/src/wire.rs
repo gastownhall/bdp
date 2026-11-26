@@ -456,11 +456,11 @@ impl WireProblem {
         let (mut capability, mut limit, mut constraint, mut property, mut conflicts_with) =
             (None, None, None, None, None);
         let (status, code, title, detail) = match e {
-            p::BdpError::NotFound(id) => (404, "not-found", "Resource not found", Some(format!("{:?}", id))),
-            p::BdpError::Erased { id, at } => (410, "erased", "Resource erased", Some(format!("{:?} at {:?}", id, at))),
+            p::BdpError::NotFound(id) => (404, "resource-not-found", "Resource not found", Some(format!("{:?}", id))),
+            p::BdpError::Erased { id, at } => (410, "resource-erased", "Resource erased", Some(format!("{:?} at {:?}", id, at))),
             // Lydia §71: create-fail-if-exists is an EXISTENCE conflict, NOT a declared constraint —
             // its own 409 code, never `constraint-violation`.
-            p::BdpError::AlreadyExists(id) => (409, "already-exists", "Resource already exists", Some(format!("{:?}", id))),
+            p::BdpError::AlreadyExists(id) => (409, "identity-taken", "Resource already exists", Some(format!("{:?}", id))),
             p::BdpError::RevisionMismatch { expected, found, .. } => (
                 412,
                 "revision-mismatch",
@@ -1039,7 +1039,7 @@ mod tests {
         let (s1, exists) = WireProblem::from_error(&p::BdpError::AlreadyExists(
             p::ResourceId::head(p::Scope::This, p::Id(Arc::from("note-2"))),
         ));
-        assert_eq!((s1, exists.code.as_str()), (409, "already-exists"));
+        assert_eq!((s1, exists.code.as_str()), (409, "identity-taken"));
         assert!(exists.constraint.is_none());
 
         let (s2, rev) = WireProblem::from_error(&p::BdpError::RevisionMismatch {

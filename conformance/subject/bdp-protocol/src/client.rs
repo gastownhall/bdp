@@ -236,7 +236,7 @@ fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
         }
         // Lydia §71: create-fail-if-exists is an existence conflict with its own code, distinct from
         // a declared constraint.
-        (409, Some("already-exists")) => p::BdpError::AlreadyExists(rid.clone()),
+        (409, Some("identity-taken")) => p::BdpError::AlreadyExists(rid.clone()),
         // `cancel` on a handle that already carries a `reply`. Reconstructed from the code rather
         // than from the status, because three different conditions answer 409 in this binding
         // (`already-exists`, a declared `call` failure, and this) and a caller that could not tell
