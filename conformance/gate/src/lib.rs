@@ -915,6 +915,56 @@ fn record_field_names(span: &str) -> Vec<String> {
     out
 }
 
+/// Problem codes NAMED BY A FAULT VERB in `core.lumen` — "faults `x`", "refused `x`".
+///
+/// The mirror of [`orphan_codes`], which asks whether a REGISTERED code has a status home. This
+/// asks the other direction: whether a code the spec actually USES is in the registry at all. A
+/// code named in a normative line and absent from D.9 has no stable problem-type URI
+/// (`tag:bdp.dev,2026:problem/<code>` is defined per registry entry — core.lumen:853), so a client
+/// told to branch on it has nothing to branch against.
+///
+/// THE VERB IS THE DISCRIMINATOR, and it has to be. A naive "backticked kebab-case token" filter
+/// returns nine candidates here, of which SIX are not problem codes at all — an event kind
+/// (`call-leave`), an authentication basis (`channel-authenticated`), a query relation (`is-a`) and
+/// three link relations (`service-desc`/`service-doc`/`service-meta`). Filtering on the fault verb
+/// cuts it to the three that are, which is the difference between a check and a noise generator.
+pub fn codes_named_by_a_fault_verb() -> Vec<String> {
+    const VERBS: [&str; 4] = ["faults `", "refused `", "refuses `", "fault `"];
+    let (d9, rest) = d9_catalogue();
+    let _ = d9;
+    let mut out: Vec<String> = Vec::new();
+    for verb in VERBS {
+        let mut from = 0usize;
+        while let Some(i) = rest[from..].find(verb).map(|p| from + p) {
+            let after = i + verb.len();
+            let Some(close) = rest[after..].find('`').map(|p| after + p) else { break };
+            let tok = &rest[after..close];
+            if tok.contains('-')
+                && tok.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                && !out.iter().any(|s| s == tok)
+            {
+                out.push(tok.to_string());
+            }
+            from = close + 1;
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Codes the spec USES but never registers in D.9. Registered so the gate is green on the known set
+/// and red on a new one, with the staleness guard in the other direction too.
+///
+/// All three are channel/alias faults, which is not a coincidence: both are surfaces whose codes
+/// were written at the point of use and never carried back to the registry. A peer found
+/// `channel-not-pullable` by reading one normative line; measuring the whole file found its mirror
+/// and a third on an unrelated primitive.
+pub const CODES_USED_BUT_UNREGISTERED: &[(&str, &str)] = &[
+    ("channel-not-pullable", "core.lumen pull: a `sink`-only channel faults it; absent from D.9"),
+    ("channel-not-pushable", "core.lumen push: a `source`-only channel faults it; absent from D.9"),
+    ("invalid-target", "core.lumen alias binding: an alias whose target is a live alias is refused it; absent from D.9"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1745,6 +1795,83 @@ mod tests {
                 "{never:?} was parsed as a CoreCapabilities field. It is not one (core.lumen:1570 \
                  — operations and stdlib packs advertise under their own packages, not core), so \
                  the parse has swallowed a neighbouring record and would bless the divergence."
+            );
+        }
+    }
+
+    /// EVERY CODE THE SPEC USES MUST BE IN THE REGISTRY — the mirror of
+    /// [`every_problem_code_has_a_wire_home`], and the direction that one structurally cannot see.
+    ///
+    /// A registry is two assertions, not one: every entry has a home, and every code in use has an
+    /// entry. #455 checked the first and found eleven. This checks the second and finds three, on
+    /// surfaces whose codes were written at the point of use and never carried back. Both drifts
+    /// live on the same primitive in one case — `pull` has `channel-not-pullable` unregistered AND
+    /// `validation-failed`-style registry entries with no status — in opposite directions.
+    #[test]
+    fn every_code_the_spec_uses_is_registered() {
+        let registry: BTreeSet<String> = problem_codes().into_iter().collect();
+        let known: BTreeSet<&str> = CODES_USED_BUT_UNREGISTERED.iter().map(|(c, _)| *c).collect();
+        let unregistered: Vec<String> = codes_named_by_a_fault_verb()
+            .into_iter()
+            .filter(|c| !registry.contains(c) && !known.contains(c.as_str()))
+            .collect();
+        assert!(
+            unregistered.is_empty(),
+            "code(s) named by a fault verb in core.lumen but absent from D.9's registry, and not \
+             registered here:\n  {unregistered:?}\n\nA code with no registry entry has no stable \
+             problem-type URI, so a client told to branch on it has nothing to branch against. \
+             Either add it to D.9 or register it here."
+        );
+    }
+
+    /// And the register names only live gaps, so a closed one fails instead of rotting.
+    #[test]
+    fn the_used_code_register_names_only_live_gaps() {
+        let registry: BTreeSet<String> = problem_codes().into_iter().collect();
+        let used: BTreeSet<String> = codes_named_by_a_fault_verb().into_iter().collect();
+        for (code, why) in CODES_USED_BUT_UNREGISTERED {
+            assert!(
+                used.contains(*code),
+                "CODES_USED_BUT_UNREGISTERED names {code:?}, but no fault verb in core.lumen names \
+                 it any more — the register is stale. ({why})"
+            );
+            assert!(
+                !registry.contains(*code),
+                "{code:?} is now IN D.9's registry, so this entry is a false claim — remove it. \
+                 ({why})"
+            );
+        }
+    }
+
+    /// THE FAULT-VERB PARSE IS NOT VACUOUS, and it must stay DISCRIMINATING.
+    ///
+    /// Both guards above pass trivially if the parse finds nothing, and a verb-anchored scan is
+    /// exactly the kind that silently yields zero when wording shifts. Worse, a parse that got
+    /// LOOSER would start reporting link relations and event kinds as unregistered codes — so this
+    /// pins both ends: the real codes are found, and the six known non-codes are not.
+    #[test]
+    fn the_fault_verb_parse_is_not_vacuous_and_discriminates() {
+        let found = codes_named_by_a_fault_verb();
+        assert!(
+            found.len() >= 6,
+            "only {} codes found after a fault verb, which is too few to be this file — the parse \
+             broke and both registry checks are passing vacuously: {found:?}",
+            found.len()
+        );
+        for want in ["channel-not-pullable", "identity-taken", "revision-mismatch"] {
+            assert!(
+                found.iter().any(|c| c == want),
+                "{want:?} is named by a fault verb in core.lumen but the parse missed it: {found:?}"
+            );
+        }
+        // The six that are NOT problem codes. If the filter loosens, these reappear and the check
+        // becomes a noise generator — which is how a gate gets ignored into uselessness.
+        for never in ["call-leave", "channel-authenticated", "is-a", "service-desc", "service-doc", "service-meta"] {
+            assert!(
+                !found.iter().any(|c| c == never),
+                "{never:?} was parsed as a problem code. It is not one — it is an event kind, an \
+                 authentication basis, a query relation or a link relation. The fault-verb filter \
+                 has loosened and this check will now report noise."
             );
         }
     }
