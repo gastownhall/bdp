@@ -925,6 +925,8 @@ Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stre
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 
+> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-pruned`/`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
+
 ```lumen
 fn pull(
     channel: unpinned<Channel>,
@@ -2938,9 +2940,9 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
   422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
        or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
-  404  get of an absent resource; an unknown action to the right of the `/-/` fence
+  404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
-  410  get of a pruned / erased resource; pull below the retention floor (cursor-expired)
+  410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
 
