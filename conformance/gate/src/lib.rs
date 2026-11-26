@@ -862,12 +862,14 @@ pub fn orphan_codes() -> Vec<String> {
 /// resource". For the rest there is no status entry to attach to at all — D.8 has no `429` and no
 /// `5xx` entry beyond the `4xx/5xx` catch-all, so `rate-limited` and `temporarily-unavailable`
 /// have nowhere to land, and `validation-failed` has neither a status nor a condition anywhere.
+// THREE ENTRIES CLOSED BY #456 (`b001cbff`), not re-judged: `resource-not-found`,
+// `resource-pruned` and `resource-erased` are now named beside their D.8 status rows, so each has a
+// wire home. The staleness guard is what told me — it failed naming them the moment main was
+// merged in, which is the only reason this list is not now a false claim about the spec it reads.
+// Thirteen of twenty-two became ten of twenty-two.
 pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
     ("unauthenticated", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 401 row"),
     ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
-    ("resource-not-found", "condition described under D.8 404 (\"get of an absent resource\"); code never written beside it"),
-    ("resource-pruned", "condition described under D.8 410 (\"pruned / erased\"); code never written beside it"),
-    ("resource-erased", "condition described under D.8 410 (\"pruned / erased\"); code never written beside it"),
     ("validation-failed", "NO status and NO condition anywhere — the sharpest case; the open question behind #453's patch/409"),
     ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
     ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
@@ -1258,7 +1260,11 @@ mod tests {
         // is not an error for `put`, which creates. On `put` the 409 belongs to the `ifAbsent` guard
         // (claiming a spent id), never to the bare operation (updating what is gone).
         ("patch", &[400, 404, 409, 410, 412, 415, 422]),
-        ("pull", &[400, 405, 410]),
+        // 404 ADDED by #456 (merged `b001cbff`): once "which channels exist is discovered
+        // per-channel" is normative, pulling a channel that does not exist is a legitimate request,
+        // and `pull`'s other three statuses are each spoken for — 405 is direction, 410 is the
+        // retention floor, 400 is malformed. Raised pre-merge, declared in the same change.
+        ("pull", &[400, 404, 405, 410]),
         ("push", &[405, 409, 422]),
         ("put", &[400, 409, 410, 412, 422]),
         ("revisions", &[400, 404]),
@@ -1299,7 +1305,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 50, "the v0.2.3 surface is 50 rows (13 ops + 37 faults)");
+        assert_eq!(actual.len(), 51, "the v0.2.3 surface is 51 rows (13 ops + 38 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must

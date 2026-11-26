@@ -2192,6 +2192,53 @@ async fn a_duplex_channel_round_trips(r: &RemoteScope) -> Result<Vec<SurfaceId>,
     Ok(vec![op("push"), op("pull")])
 }
 
+/// `pull` of a channel that does not exist → 404 `resource-not-found`. Covers op/pull/fault/404.
+///
+/// THE ROW THIS GATE ASKED FOR. #456 made "which channels exist is discovered per-channel"
+/// normative, which turns pulling an absent channel into a legitimate request — and `pull`'s other
+/// three statuses were each already spoken for (405 direction, 410 the retention floor, 400
+/// malformed), so the obligation had no status to answer it. Raised on the PR pre-merge and
+/// declared in the same change, so the row and its declaration landed together.
+///
+/// NO SUBJECT CHANGE WAS NEEDED, which I established by probing rather than assuming: this binding
+/// already answered `404 resource-not-found` here. The gap was never in the server — it was that
+/// nothing asked. A peer found exactly the same thing in an independent implementation, which is
+/// worth more than either observation alone.
+///
+/// THE SECOND ARM IS LOAD-BEARING. "An absent channel is 404" passes trivially against a subject
+/// that 404s every pull, so the case also pulls a channel that DOES exist and asserts it does not
+/// 404. Without that, the row would be green on a `pull` that never worked at all.
+async fn pull_of_an_absent_channel_404(r: &RemoteScope, host: &str) -> Result<Vec<SurfaceId>, String> {
+    let absent = raw_problem(host, "GET", "/no-such-channel-at-all/-/pull", Vec::new(), b"").await?;
+    match (absent.0, absent.1.as_str()) {
+        (404, "resource-not-found") => {}
+        (404, c) => {
+            return Err(format!(
+                "404 on an absent channel but the code was `{c}`; #456 binds `resource-not-found` \
+                 on D.8's 404 row"
+            ))
+        }
+        (s, c) => {
+            return Err(format!(
+                "pull of a channel that does not exist answered {s} / `{c}`; #456 declares 404 for \
+                 exactly this case"
+            ))
+        }
+    }
+
+    // THE DISCRIMINATOR: a live, pullable channel must NOT answer 404, or the arm above proves only
+    // that `pull` is broken for everything.
+    seed_channel(r, "ch-live-404-probe", "source", serde_json::json!({})).await?;
+    let live = raw_status(host, "GET", "/ch-live-404-probe/-/pull", Vec::new(), b"").await?;
+    if live == 404 {
+        return Err(format!(
+            "a live `source` channel also answered 404, so the absent-channel arm says nothing \
+             about absence — this subject 404s every pull"
+        ));
+    }
+    Ok(vec![fault("pull", 404)])
+}
+
 /// `pull` on a `sink`-only channel → 405 `channel-not-pullable`. Covers op/pull/fault/405.
 ///
 /// NAMED BY THE SPEC, both the status and the code: core.lumen#pull says "Valid on a
@@ -2873,6 +2920,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         every_emittable_problem_code_is_registered(&addr),
+    )
+    .await;
+    record(
+        "pull/404 absent channel",
+        &mut covered,
+        &mut failures,
+        pull_of_an_absent_channel_404(&remote, &addr),
     )
     .await;
     record("channel round trip", &mut covered, &mut failures, a_duplex_channel_round_trips(&remote)).await;
