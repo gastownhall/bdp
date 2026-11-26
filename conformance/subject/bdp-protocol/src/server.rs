@@ -942,7 +942,7 @@ fn problem_response(e: &p::BdpError) -> HttpResponse {
 
 fn problem_body(status: u16, code: &str, detail: &str) -> Vec<u8> {
     let prob = WireProblem {
-        r#type: format!("https://bdp.dev/problems/{}", code),
+        r#type: format!("tag:bdp.dev,2026:problem/{}", code),
         title: detail.to_string(),
         status,
         code: code.to_string(),

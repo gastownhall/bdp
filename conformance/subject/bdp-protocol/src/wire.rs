@@ -544,7 +544,7 @@ impl WireProblem {
         (
             status,
             Self {
-                r#type: format!("https://bdp.dev/problems/{}", code),
+                r#type: format!("tag:bdp.dev,2026:problem/{}", code),
                 title: title.to_string(),
                 status,
                 code: code.to_string(),

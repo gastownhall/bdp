@@ -156,6 +156,24 @@ async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<S
     let mut emitted: BTreeSet<String> = BTreeSet::new();
     for e in &all {
         let (_status, problem) = bdp_protocol::wire::WireProblem::from_error(e);
+        // AND THE PROBLEM-TYPE URI, which nothing asserted until now. core.lumen:853: "`type` is a
+        // stable, machine-readable problem-type URI identifier (`tag:bdp.dev,2026:problem/<code>`,
+        // one per `code`), not a bare token. A `tag:` URI (RFC 4151) identifies without being
+        // dereferenceable, which RFC 9457 §3.1.1 permits."
+        //
+        // This subject emitted `https://bdp.dev/problems/<code>` — a near-miss of the same kind as
+        // the code spellings: an http(s) URI INVITES dereferencing a URL that does not exist, which
+        // is the precise thing the `tag:` scheme is chosen to prevent. Changing it broke no test,
+        // because no test looked, so the assertion lands with the fix.
+        let want = format!("tag:bdp.dev,2026:problem/{}", problem.code);
+        if problem.r#type != want {
+            return Err(format!(
+                "the Problem `type` for code `{}` is {:?}, not the spec's {:?} — a `tag:` URI \
+                 identifies without being dereferenceable; an http(s) one invites a fetch of a URL \
+                 that need not exist",
+                problem.code, problem.r#type, want
+            ));
+        }
         emitted.insert(problem.code);
     }
     if emitted.len() < 10 {
