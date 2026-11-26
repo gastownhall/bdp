@@ -553,11 +553,16 @@ fn apply_one(
                 .map_err(|e| BdpError::Unprocessable(format!("patch: current properties not json: {e}")))?;
             let meta_v: serde_json::Value = serde_json::from_str(&cur_meta)
                 .map_err(|e| BdpError::Unprocessable(format!("patch: current metadata not json: {e}")))?;
-            let mut doc = serde_json::json!({ "properties": props_v, "metadata": meta_v });
+            // ROOT-ADDRESSED OVER THE REP, per core.lumen#patch: "JSON Patch over the resource
+            // representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`)".
+            // This document was `{ properties, metadata }`, so the spec's own documented paths
+            // FAILED (`replace /body/status` -> "target does not exist") while an unknown path
+            // silently succeeded. The member is `body`.
+            let mut doc = serde_json::json!({ "body": props_v, "metadata": meta_v });
             let patch_v: serde_json::Value = serde_json::from_slice(patch.0 .0.as_ref())
                 .map_err(|e| BdpError::Unprocessable(format!("patch: patch document not json: {e}")))?;
             bdp_jsonpatch::apply_patch(&mut doc, &patch_v).map_err(BdpError::Unprocessable)?;
-            let props_s = serde_json::to_string(doc.get("properties").unwrap_or(&serde_json::Value::Null))
+            let props_s = serde_json::to_string(doc.get("body").unwrap_or(&serde_json::Value::Null))
                 .map_err(|e| BdpError::Unprocessable(e.to_string()))?;
             let meta_s = serde_json::to_string(doc.get("metadata").unwrap_or(&serde_json::Value::Null))
                 .map_err(|e| BdpError::Unprocessable(e.to_string()))?;
@@ -1464,7 +1469,10 @@ impl BdpScope for InMemScope {
             "callId": call_id,
         });
         let patch = serde_json::json!([
-            { "op": "add", "path": "/properties/reply", "value": reply }
+            // `/body/reply`, root-addressed over the rep like any other patch — this wrote
+            // `/properties/reply`, which stopped resolving the moment the document became the
+            // spec's. The one PRODUCTION patch path in this subject.
+            { "op": "add", "path": "/body/reply", "value": reply }
         ]);
         let r = self
             .commit(&[Write::Patch {

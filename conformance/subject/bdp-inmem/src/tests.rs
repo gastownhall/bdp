@@ -160,7 +160,7 @@ async fn patch_applies_delta_bumps_rev_keeps_kind() {
     let r0 = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"status":"open","n":1}"#), Guards::default()).await.unwrap().value.unwrap();
     let rev0 = r0.rev.clone().unwrap();
     let patch = JsonPatch(RawJson(Bytes::from(
-        r#"[{"op":"replace","path":"/properties/status","value":"closed"},{"op":"add","path":"/properties/assignee","value":"ada"}]"#.as_bytes().to_vec(),
+        r#"[{"op":"replace","path":"/body/status","value":"closed"},{"op":"add","path":"/body/assignee","value":"ada"}]"#.as_bytes().to_vec(),
     )));
     let r1 = s.patch(ResourceId::head(Scope::This, id.clone()), patch, None).await.unwrap().value.unwrap();
     assert_ne!(r1.rev.unwrap().0.as_ref(), rev0.0.as_ref(), "patch mints a new rev");
@@ -179,7 +179,7 @@ async fn patch_if_rev_guards() {
     let s = scope();
     let id = Id("p2".into());
     s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap();
-    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"replace","path":"/properties/n","value":2}]"#.as_bytes().to_vec())));
+    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"replace","path":"/body/n","value":2}]"#.as_bytes().to_vec())));
     let r = s.patch(ResourceId::head(Scope::This, id.clone()), patch, Some(Rev("stale-rev".into()))).await;
     assert!(matches!(r, Err(BdpError::RevisionMismatch { .. })), "stale if_rev must be rejected; got {r:?}");
 }
@@ -187,7 +187,7 @@ async fn patch_if_rev_guards() {
 #[tokio::test]
 async fn patch_missing_is_not_found() {
     let s = scope();
-    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"add","path":"/properties/x","value":1}]"#.as_bytes().to_vec())));
+    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"add","path":"/body/x","value":1}]"#.as_bytes().to_vec())));
     let r = s.patch(ResourceId::head(Scope::This, Id("ghost".into())), patch, None).await;
     assert!(matches!(r, Err(BdpError::NotFound(_))), "patch of a never-created id -> NotFound; got {r:?}");
 }

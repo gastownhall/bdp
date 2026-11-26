@@ -80,6 +80,10 @@ pub struct WireCreateRequest {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub id: Option<WireResourceId>, // caller-proposed identity (unpinned)
     #[serde(skip_serializing_if = "Option::is_none", default)]
+    /// THE SPEC'S NAME. core.lumen's `rep<T>`: "a domain type contributes only `body`,
+    /// never a new envelope member", and `put`'s body "stays exactly the resource
+    /// representation" — so the input member is `body`, not `properties`.
+    #[serde(rename = "body")]
     pub properties: Option<Box<RawValue>>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<Box<RawValue>>,
@@ -177,6 +181,9 @@ pub struct WireBead {
     #[serde(rename = "storageClass")]
     pub storage_class: Box<RawValue>, // FRICTION: trait Representation::Bead has NO storageClass;
                                       // the server fabricates one here and the client drops it.
+    /// `body`, per core.lumen's closed envelope — this emitted `properties`, a member
+    /// `rep<T>` does not have, while omitting the `body` it requires always be present.
+    #[serde(rename = "body")]
     pub properties: Box<RawValue>,
     pub metadata: Box<RawValue>,
     pub provenance: WireProvenance,

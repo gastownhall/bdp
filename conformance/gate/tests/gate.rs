@@ -456,7 +456,7 @@ async fn patch_tombstone_410(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> 
     match r
         .patch(
             target,
-            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"after"}]"#),
+            json_patch(r#"[{"op":"replace","path":"/body/text","value":"after"}]"#),
             None,
         )
         .await
@@ -1361,7 +1361,7 @@ async fn patch_ok(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let res = r
         .patch(
             target,
-            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"v1"}]"#),
+            json_patch(r#"[{"op":"replace","path":"/body/text","value":"v1"}]"#),
             None,
         )
         .await
@@ -1377,7 +1377,7 @@ async fn patch_missing_404(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     match r
         .patch(
             missing("patch-never"),
-            json_patch(r#"[{"op":"add","path":"/properties/x","value":1}]"#),
+            json_patch(r#"[{"op":"add","path":"/body/x","value":1}]"#),
             None,
         )
         .await
@@ -1394,7 +1394,7 @@ async fn patch_stale_412(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     match r
         .patch(
             target,
-            json_patch(r#"[{"op":"replace","path":"/properties/text","value":"v1"}]"#),
+            json_patch(r#"[{"op":"replace","path":"/body/text","value":"v1"}]"#),
             Some(Rev("stale-rev".into())),
         )
         .await
@@ -1589,7 +1589,7 @@ async fn patch_out_of_vocabulary_guard_400(host: &str) -> Result<Vec<SurfaceId>,
         "PATCH",
         "/patch-target",
         headers,
-        br#"[{"op":"replace","path":"/properties/text","value":"guarded"}]"#,
+        br#"[{"op":"replace","path":"/body/text","value":"guarded"}]"#,
     )
     .await?;
     expect_problem(got, 400, "malformed-request", "`If-None-Match` on a patch")?;
@@ -1660,7 +1660,7 @@ async fn patch_absent_media_type_415(host: &str) -> Result<Vec<SurfaceId>, Strin
         "PATCH",
         "/patch-target",
         vec![],
-        br#"[{"op":"replace","path":"/properties/text","value":"no ctype"}]"#,
+        br#"[{"op":"replace","path":"/body/text","value":"no ctype"}]"#,
     )
     .await?
     {
@@ -1680,7 +1680,7 @@ async fn patch_correct_media_type_is_accepted(host: &str) -> Result<Vec<SurfaceI
         "PATCH",
         "/patch-target",
         ctype("application/json-patch+json; charset=utf-8"),
-        br#"[{"op":"replace","path":"/properties/text","value":"ok"}]"#,
+        br#"[{"op":"replace","path":"/body/text","value":"ok"}]"#,
     )
     .await?
     {
@@ -2619,7 +2619,7 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
         ("put", "PUT", "/dual-target", "application/json",
          br#"{"kind":"note","type":{"scope":"this","id":"BeadType:note"},"properties":{},"metadata":{}}"#.as_slice()),
         ("patch", "PATCH", "/dual-target", "application/json-patch+json",
-         br#"[{"op":"replace","path":"/properties/text","value":"x"}]"#.as_slice()),
+         br#"[{"op":"replace","path":"/body/text","value":"x"}]"#.as_slice()),
     ] {
         let mut headers = ctype(ct);
         headers.push(("if-match".into(), "some-rev".into()));
@@ -2650,7 +2650,7 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
         "PATCH",
         "/dual-target",
         headers,
-        br#"[{"op":"replace","path":"/properties/text","value":"x"}]"#,
+        br#"[{"op":"replace","path":"/body/text","value":"x"}]"#,
     )
     .await?;
     if status != 400 {
