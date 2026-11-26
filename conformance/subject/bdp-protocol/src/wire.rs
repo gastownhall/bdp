@@ -109,6 +109,24 @@ pub struct WireCreateRequest {
     /// answer differently about it.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub retired: Option<bool>,
+    /// THE REST OF THE SERVICE-MANAGED SET, admitted for the same reason and no other.
+    ///
+    /// core.lumen names an envelope, not a member: "The immutable envelope (`/id`, `/provenance`,
+    /// `/createdAt`, `/retired`)". `retired` was declared here first and the other two were left to
+    /// `deny_unknown_fields`, which refused them — the RIGHT OUTCOME FOR THE WRONG REASON, under
+    /// `bad-request` rather than the registered code, and only while they are undeclared. The day
+    /// #454 puts them in the representation they become known members and are silently accepted
+    /// again. That is the exact trap I identified for `retired` and then guarded `retired` alone
+    /// against; a peer's rule is the general form — a guard over one member of a NAMED SET is two
+    /// omissions wearing one assertion.
+    ///
+    /// `id` is deliberately NOT here: it is immutable after creation but legitimately
+    /// caller-proposed AT creation ("Caller-proposed id optional"), so the envelope's membership
+    /// and `create`'s rule differ on exactly that one member.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub provenance: Option<Box<RawValue>>,
+    #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none", default)]
+    pub created_at: Option<Box<RawValue>>,
 }
 
 impl WireCreateRequest {
@@ -123,6 +141,8 @@ impl WireCreateRequest {
             // refused on `create`, ignored on `put`. It exists on this type for the server's
             // handlers to diverge on, so the client side always writes None.
             retired: None,
+            provenance: None,
+            created_at: None,
         }
     }
     /// The proposed id (if any) and the CreateBody. FRICTION: the wire carries `id` inside the

@@ -186,14 +186,27 @@ impl<S: BdpScope> Server<S> {
         // is round-trip safety, and a round-trip never CREATES, so it does not reach create; the
         // tombstone rationale does, because `retired: true` at birth forges one. The specific
         // carves out of the general.
-        if wreq.retired.is_some() {
+        // THE SET, NOT THE MEMBER. `provenance` and `createdAt` were refused only incidentally, by
+        // `deny_unknown_fields`, under the unregistered `bad-request` and only while undeclared.
+        if let Some(m) = [
+            ("retired", wreq.retired.is_some()),
+            ("provenance", wreq.provenance.is_some()),
+            ("createdAt", wreq.created_at.is_some()),
+        ]
+        .iter()
+        .find(|(_, present)| *present)
+        .map(|(n, _)| *n)
+        {
             return HttpResponse::json(
                 400,
                 problem_body(
                     400,
                     "malformed-request",
-                    "`retired` is service-managed and minted only by `delete`; a create cannot \
-                     forge a tombstone. (A `put` ignores it instead — the round-trip case.)",
+                    &format!(
+                        "`{m}` is service-managed: the service sets it and a writer never does. A \
+                         `create` cannot forge it. (`put` ignores the whole set instead — the \
+                         round-trip case. `id` is exempt: it is caller-proposable at creation.)"
+                    ),
                 ),
             );
         }

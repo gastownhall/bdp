@@ -2327,13 +2327,37 @@ async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<V
         ));
     }
 
-    // 2. `retired` on CREATE is refused — a write cannot forge a tombstone.
-    let (st, code) = raw_problem(host, "POST", "/-/create", ct(),
-        format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-2"}},"body":{{}},"metadata":{{}},"retired":true}}"#).as_bytes()).await?;
-    if st != 400 {
+    // 2. THE WHOLE SERVICE-MANAGED SET is refused on CREATE, not just `retired`.
+    //
+    // core.lumen names an envelope, not a member: "The immutable envelope (`/id`, `/provenance`,
+    // `/createdAt`, `/retired`)". This case tested `retired` alone, while `provenance` and
+    // `createdAt` were refused only incidentally by `deny_unknown_fields` — the right outcome for
+    // the wrong reason, under the unregistered `bad-request`, and only while they stayed
+    // undeclared. A guard over one member of a named set is two omissions wearing one assertion.
+    for (i, m) in ["retired", "provenance", "createdAt"].iter().enumerate() {
+        let v = if *m == "retired" { "true" } else { r#""forged""# };
+        let (st, code) = raw_problem(host, "POST", "/-/create", ct(),
+            format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-2{i}"}},"body":{{}},"metadata":{{}},"{m}":{v}}}"#).as_bytes()).await?;
+        if (st, code.as_str()) != (400, "malformed-request") {
+            return Err(format!(
+                "create carrying `{m}` answered {st} / `{code}`; every member of the \
+                 service-managed envelope must be refused, and refused BECAUSE it is \
+                 service-managed — a refusal under a different code is the undeclared-field \
+                 accident, which stops working the moment the member joins the representation"
+            ));
+        }
+    }
+
+    // THE EXEMPTION, which is this rule's discriminating arm: `id` is in the immutable envelope and
+    // is nonetheless caller-proposable AT creation ("Caller-proposed id optional"), so a case that
+    // refused the whole envelope would be wrong in the other direction.
+    let st = raw_status(host, "POST", "/-/create", ct(),
+        format!(r#"{{"kind":"Note","type":{ty},"id":{{"scope":"this","id":"closed-id-ok"}},"body":{{}},"metadata":{{}}}}"#).as_bytes()).await?;
+    if st != 201 {
         return Err(format!(
-            "create carrying `retired: true` answered {st} / `{code}`; `retired` is service-managed \
-             and minted only by `delete`, so a create must not be able to forge a tombstone"
+            "a create proposing its own `id` answered {st}; `id` is in the immutable envelope but \
+             is caller-proposable at creation, so refusing it would over-apply the service-managed \
+             rule to the one member the envelope and `create` disagree about"
         ));
     }
 
