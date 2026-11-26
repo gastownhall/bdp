@@ -1055,6 +1055,54 @@ pub const DIRECT_CODES_NOT_REGISTERED: &[(&str, &str)] = &[
     ("unsupported-media-type", "1 site at 415. The SHARPEST of the three: D.8 HAS a 415 row (a patch body whose media type is not application/json-patch+json), the row op/patch/fault/415 IS covered, and D.9 registers NO code for 415 at all — so the status is declared, the row is green, and the code is invented. My own 415 row asserts the status only, which is why it never surfaced. A fifth 'D.8 row with no registered code', after 401/403/429/5xx."),
 ];
 
+/// The subject's wire module, for the capability-key mapping.
+pub const WIRE_RS: &str = include_str!("../../subject/bdp-protocol/src/wire.rs");
+
+/// The capability keys this subject's wire CAN emit — the `serde(rename = "…")` of each
+/// `WireCapability` variant.
+///
+/// THE CAUSE-LEVEL CHECK, ported from the cleanroom after its own inverse sweep found that it would
+/// have caught this subject's `push` defect. The capability case in `tests/gate.rs` catches the
+/// SYMPTOM — an operation this gate covers that the scope does not advertise. This catches the
+/// CAUSE: a closed-vocabulary field the wire has no variant for, so no scope could ever advertise
+/// it however correctly it behaved. `caps_to_wire` is `filter_map(from_trait)`, so a trait
+/// capability with no wire variant is silently discarded.
+///
+/// The two are worth keeping separate and in this order: fix the wire variant and the cause check
+/// goes green while the symptom check still fires until the scope actually advertises. That
+/// sequencing is the point — one guard per step, rather than one guard that passes when either is
+/// done.
+///
+/// METHOD: a scan for the literal `rename = "…"` inside the `WireCapability` enum. Serde renames
+/// are literals here so the scan is exhaustive over them; a variant named any other way would be
+/// missed, which is why the test pins the count.
+pub fn capability_keys_the_wire_can_emit() -> Vec<String> {
+    let Some(start) = WIRE_RS.find("enum WireCapability") else { return Vec::new() };
+    let Some(span) = balanced(WIRE_RS, start, b'{', b'}') else { return Vec::new() };
+    let mut out: Vec<String> = Vec::new();
+    let mut rest = span;
+    while let Some(i) = rest.find("rename = \"") {
+        rest = &rest[i + "rename = \"".len()..];
+        let Some(end) = rest.find('"') else { break };
+        let k = &rest[..end];
+        if !k.is_empty() && k.chars().all(|c| c.is_ascii_lowercase()) && !out.iter().any(|s| s == k) {
+            out.push(k.to_string());
+        }
+        rest = &rest[end..];
+    }
+    out
+}
+
+/// Closed-vocabulary fields the wire has no variant for, so no scope can advertise them.
+///
+/// Both are IMPLEMENTED here and carry covered rows — `op/push` with three faults, `op/revisions`
+/// with two — so seven covered rows belong to primitives a conformant client must read as
+/// unsupported (core.lumen:1611: a primitive is supported iff its capability is present).
+pub const CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT: &[(&str, &str)] = &[
+    ("push", "no `WireCapability::Push`; inmem advertises `C::Push` on the trait and `filter_map` discards it — the ASYMMETRIC case: advertised, implemented, dropped"),
+    ("revisions", "no `WireCapability::Revisions` and no trait variant either; the cleanroom derives this advertisement from `revision_model == Versioned` so the pairing cannot rot"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2091,5 +2139,62 @@ mod tests {
             "the scan missed the 404 `resource-not-found` site, so it is not reading the call sites \
              it claims to: {sites:?}"
         );
+    }
+
+    /// EVERY CLOSED-VOCABULARY FIELD MUST BE EMITTABLE. The inverse of the capability case's
+    /// question, one layer upstream: that case asks whether a covered op is advertised; this asks
+    /// whether the wire could advertise it at all.
+    #[test]
+    fn every_capability_field_is_emittable() {
+        let emittable: BTreeSet<String> = capability_keys_the_wire_can_emit().into_iter().collect();
+        let known: BTreeSet<&str> =
+            CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT.iter().map(|(f, _)| *f).collect();
+        let missing: Vec<String> = core_capability_fields()
+            .into_iter()
+            .filter(|f| !emittable.contains(f.as_str()) && !known.contains(f.as_str()))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "CoreCapabilities field(s) the wire has NO variant for, so no scope can advertise them \
+             however correctly it behaves: {missing:?}\n\n`caps_to_wire` is \
+             `filter_map(from_trait)`, so a trait capability with no wire variant is silently \
+             discarded. Add the variant, or register the gap here."
+        );
+        // And the register must not outlive its gap.
+        for (f, why) in CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT {
+            assert!(
+                !emittable.contains(*f),
+                "{f:?} is now emittable, so this entry is a false claim — remove it, and check \
+                 whether the scope actually advertises it yet. ({why})"
+            );
+        }
+    }
+
+    /// THE SCAN IS NOT VACUOUS, and it pins the count because its method is a source scan: a
+    /// variant renamed some other way would silently shrink what it sees.
+    #[test]
+    fn the_capability_key_scan_is_not_vacuous() {
+        let keys = capability_keys_the_wire_can_emit();
+        const WIRE_KEYS: usize = 17;
+        assert!(
+            keys.len() == WIRE_KEYS,
+            "scanned {} `WireCapability` renames, expected {WIRE_KEYS}. {} The emittable check is \
+             computed over this set:\n  {keys:?}",
+            keys.len(),
+            if keys.len() < WIRE_KEYS {
+                "FEWER — either the scan narrowed (a variant named some other way) or variants were \
+                 removed. The second is a spec/subject change, not a bug."
+            } else {
+                "MORE — variants were added. Check whether any closed-vocabulary gap just closed \
+                 before updating WIRE_KEYS."
+            }
+        );
+        for want in ["get", "list", "pull", "create", "put", "patch", "delete", "export", "import"] {
+            assert!(
+                keys.iter().any(|k| k == want),
+                "{want:?} is a CoreCapabilities field the wire plainly does emit, but the scan \
+                 missed it — the scan is wrong, not the subject: {keys:?}"
+            );
+        }
     }
 }
