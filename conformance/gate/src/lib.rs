@@ -1316,10 +1316,6 @@ mod tests {
         }
     }
 
-    /// THE TIER-1/TIER-2 INTERLOCK: a surface-bearing obligation claims specific wire rows, and
-    /// those rows must exist in the denominator. A registration naming a row that was undeclared, or
-    /// misspelled, is a silent lie about where the obligation is discharged — so it fails here.
-    #[test]
     /// NO TWO REGISTRATIONS MAY CARRY THE SAME TEXT, and this exists because I added a duplicate.
     ///
     /// The obligation above was already on the ledger, waived against #430 item 14. I registered it
@@ -1357,6 +1353,14 @@ mod tests {
         );
     }
 
+    /// THE TIER-1/TIER-2 INTERLOCK: a surface-bearing obligation claims specific wire rows, and
+    /// those rows must exist in the denominator. A registration naming a row that was undeclared, or
+    /// misspelled, is a silent lie about where the obligation is discharged — so it fails here.
+    ///
+    /// This doc comment was stranded above the WRONG test by a bad insertion: the duplicate-
+    /// registration test was spliced between it and this function, leaving a second `#[test]` on
+    /// that test (so it registered twice and the harness reported 18 tests for 17) and attributing
+    /// the interlock rationale to it. Only a `duplicated attribute` warning showed it.
     #[test]
     fn every_surface_bearing_registration_names_real_rows() {
         let den = denominator();
