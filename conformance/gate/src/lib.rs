@@ -2002,8 +2002,11 @@ mod tests {
              checks are computed over this set, so re-derive before trusting them:\n  {found:?}",
             found.len(),
             if found.len() < VERB_SITES {
-                "FEWER — the parse narrowed (a reworded clause, a naming style it cannot see) and \
-                 usage sites are going unchecked."
+                "FEWER — EITHER the parse narrowed (a reworded clause, a naming style it cannot \
+                 see) and usage sites are going unchecked, OR a usage was legitimately REMOVED by \
+                 a spec change. The second is not a bug: confirm the code is gone from the registry \
+                 too, then update VERB_SITES. I wrote this branch naming only the first cause and \
+                 it was wrong the first time it fired, on #460 retiring `resource-pruned`."
             } else {
                 "MORE — either the spec names codes in new places, or the scan has LOOSENED and is \
                  collecting non-codes; check the discrimination assertions below."
