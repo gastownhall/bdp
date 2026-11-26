@@ -1385,6 +1385,112 @@ fn json_patch(body: &str) -> JsonPatch {
 }
 
 /// `patch` an existing resource with a delta. Covers op/patch.
+/// A NO-CHANGE WRITE IS A NO-OP — it keeps the revision and records no provenance. Covers no new
+/// row: `put`, `patch` and `revisions` are all covered already, so this discharges an obligation
+/// rather than grounding a fault.
+///
+/// THE SUBJECT APPENDED UNCONDITIONALLY before this. Every idempotent re-write minted a fresh
+/// revision, so a client retrying a `put` it was unsure had landed silently grew the history and
+/// published a changefeed event for a change that never happened. Nothing in the suite saw it,
+/// because a 200 with a new rev is indistinguishable from a 200 with the old one unless you ask.
+///
+/// BOTH ARMS, AND THIS IS THE POINT. A subject that simply never minted revisions would satisfy
+/// every "unchanged" assertion here, so each is paired with a write that DOES change something and
+/// MUST mint. That is what makes this a test of the no-change rule rather than of the absence of
+/// writing.
+///
+/// PATCH IS INCLUDED because a well-formed delta can still leave the document identical — a
+/// `replace` with the value already there — and it reaches the rule by a different route than
+/// `put` does, through the patched document rather than the caller's object.
+///
+/// WHAT THIS CASE CANNOT SEE, stated rather than quietly dropped. The obligation has two further
+/// clauses:
+///   - "produces no event". The resource changefeed is served by `changes`, a RETIRED primitive
+///     (remapped onto `pull`), and the protocol client exposes no method for it at all — so there
+///     is no way to observe the event stream over the published surface. The implementation shares
+///     one code path with the revision append, so no row means no event, but that is an argument
+///     from the source, not a measurement, and it is not asserted here.
+///   - "the reply carries no `transaction`". This subject never puts a transaction on a write
+///     reply under ANY circumstances, so an assertion would pass without discriminating — honest
+///     by accident. Left unasserted deliberately; a probe that cannot fail is not evidence.
+async fn a_no_change_write_is_a_no_op(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let target = ResourceId::head(Scope::This, Id("no-change".into()));
+    seed(r, &target, "v0").await?;
+
+    async fn history(r: &RemoteScope, t: &ResourceId) -> Result<usize, String> {
+        let res = r
+            .revisions(t, None, Page::default())
+            .await
+            .map_err(|e| format!("revisions transport: {e:?}"))?;
+        if res.not_implemented {
+            return Err("revisions advertised but not_implemented".into());
+        }
+        Ok(res.value.ok_or("revisions returned no value")?.len())
+    }
+    async fn rev_of(r: &RemoteScope, t: &ResourceId) -> Result<String, String> {
+        let res = r.get(t, None).await.map_err(|e| format!("get transport: {e:?}"))?;
+        let rep = res.value.ok_or("get returned no value")?;
+        Ok(format!("{:?}", rep.id().rev))
+    }
+
+    let rev0 = rev_of(r, &target).await?;
+    let n0 = history(r, &target).await?;
+
+    // 1. The identical full-state write.
+    seed(r, &target, "v0").await?;
+    let rev1 = rev_of(r, &target).await?;
+    let n1 = history(r, &target).await?;
+    if rev1 != rev0 || n1 != n0 {
+        return Err(format!(
+            "a `put` of the IDENTICAL representation minted a revision: rev {rev0} -> {rev1},              history {n0} -> {n1}. The obligation is that it succeeds and KEEPS the revision, so              an idempotent retry must not grow the history or record provenance"
+        ));
+    }
+
+    // 2. The discriminating arm: a real change MUST mint.
+    seed(r, &target, "v1").await?;
+    let rev2 = rev_of(r, &target).await?;
+    let n2 = history(r, &target).await?;
+    if rev2 == rev1 || n2 != n1 + 1 {
+        return Err(format!(
+            "a `put` that CHANGED the body did not mint a revision: rev {rev1} -> {rev2}, history              {n1} -> {n2}. Without this arm a subject that never writes would satisfy the              no-change assertions above"
+        ));
+    }
+
+    // 3. A no-change PATCH — well-formed, and the value is already there.
+    r.patch(
+        target.clone(),
+        json_patch(r#"[{"op":"replace","path":"/body/text","value":"v1"}]"#),
+        None,
+    )
+    .await
+    .map_err(|e| format!("no-change patch transport: {e:?}"))?;
+    let rev3 = rev_of(r, &target).await?;
+    let n3 = history(r, &target).await?;
+    if rev3 != rev2 || n3 != n2 {
+        return Err(format!(
+            "a `patch` whose delta left the document IDENTICAL minted a revision: rev {rev2} ->              {rev3}, history {n2} -> {n3}. A well-formed delta that changes nothing is still a              no-change request"
+        ));
+    }
+
+    // 4. And its discriminating arm.
+    r.patch(
+        target.clone(),
+        json_patch(r#"[{"op":"replace","path":"/body/text","value":"v2"}]"#),
+        None,
+    )
+    .await
+    .map_err(|e| format!("real patch transport: {e:?}"))?;
+    let rev4 = rev_of(r, &target).await?;
+    let n4 = history(r, &target).await?;
+    if rev4 == rev3 || n4 != n3 + 1 {
+        return Err(format!(
+            "a `patch` that CHANGED the body did not mint a revision: rev {rev3} -> {rev4},              history {n3} -> {n4}"
+        ));
+    }
+
+    Ok(Vec::new())
+}
+
 async fn patch_ok(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
     let target = ResourceId::head(Scope::This, Id("patch-target".into()));
     seed(r, &target, "v0").await?;
@@ -3263,6 +3369,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         export_refuses_projection_parameters_400(&addr),
+    )
+    .await;
+    record(
+        "a no-change write keeps the revision (obligation, no new row)",
+        &mut covered,
+        &mut failures,
+        a_no_change_write_is_a_no_op(&remote),
     )
     .await;
     record(

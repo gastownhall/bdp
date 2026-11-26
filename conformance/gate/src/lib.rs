@@ -302,16 +302,28 @@ pub struct Registration {
 pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
 
     // THE LEDGER'S FIRST PRE-EXISTING FIND: normative on `main` all along, no case, no
-    // waiver, and invisible until the ledger enumerated the register. Registered against its
-    // own issue rather than #430, which is scoped to #428's cohort.
+    // waiver, and invisible until the ledger enumerated the register.
+    //
+    // NOW DISCHARGED, and the waiver is removed in the same change that discharged it rather
+    // than left behind as a stale label. It was Waived because `Behavioural` asserts that a case
+    // exercises it and there was none; registering it as behavioural "with a waiver note" was the
+    // first thing I wrote, and it is precisely the half-true registration this ledger exists to
+    // stop. The subject appended a row unconditionally, so this was a real gap and not a missing
+    // test: closing it took an implementation change, not a case.
+    //
+    // THE TEXT IS A BICONDITIONAL — "the revision changes EXACTLY WHEN the state changes" — so a
+    // case asserting one direction would not discharge it. Both are asserted, each no-change arm
+    // paired with a changing write that MUST mint.
     Registration {
         text: "The revision changes exactly when the resource's state changes; a write that would leave the state unchanged mints no new revision (and produces no event).",
-        // WAIVED, not Behavioural: there is no case yet, and `Behavioural` asserts that a case
-        // exercises it. Registering it as behavioural "with a waiver note" was the first thing I
-        // wrote, and it is precisely the half-true registration this ledger exists to stop —
-        // caught by reading the disposition against its own evidence.
-        disposition: Disposition::Waived,
-        evidence: "gastownhall/bdp#433",
+        disposition: Disposition::Behavioural,
+        evidence: "a_no_change_write_is_a_no_op — put and patch, each no-change arm paired with a changing write that MUST mint, so a subject that never wrote would fail it. The parenthetical \"and produces no event\" is NOT asserted: the resource changefeed is served by `changes`, a retired primitive the protocol client exposes no method for, so the event stream is unobservable over the published surface. One code path serves the revision append and the event, so no row means no event — an argument from the source, not a measurement, and it is not counted as one",
+    },
+    // The full-state statement of the same rule, which adds two clauses of its own.
+    Registration {
+        text: "A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.",
+        disposition: Disposition::Behavioural,
+        evidence: "a_no_change_write_is_a_no_op — PARTIAL, and the case names what it leaves. Succeeds, keeps the revision and records no provenance are asserted (no new revision means no provenance row, since they are the same append). Produces no event is unobservable, as above. The reply carries no `transaction` would pass VACUOUSLY: this subject never carries one on a write reply under any circumstances, so the assertion could not fail and is deliberately absent — a probe that cannot fail is not evidence",
     },
     Registration {
         text: "A `Rev` is opaque: compared for equality only, never parsed or inspected.",

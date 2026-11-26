@@ -438,6 +438,22 @@ fn apply_one(
                     });
                 }
             }
+            // A NO-CHANGE FULL-STATE WRITE IS A NO-OP. Computed before the revision is minted,
+            // because minting one is exactly what must not happen. A tombstone head is excluded:
+            // that path either faulted above (`permanent`) or legitimately creates (`reusable`).
+            let kind_s = body.kind.0.to_string();
+            let (ts, ti) = ref_parts(&body.r#type);
+            let props_s = json_str(&body.properties);
+            let meta_s = json_str(&body.metadata);
+            if let Some(h) = head.as_ref().filter(|h| h.op != "delete") {
+                if unchanged_from(h, &kind_s, &ts, &ti, &props_s, &meta_s) {
+                    return Ok(ResourceId::pinned(
+                        target.scope.clone(),
+                        target.id.clone(),
+                        Rev(h.rev.clone().into()),
+                    ));
+                }
+            }
             let (op, prev, created_at) = match &head {
                 None => ("create", None, now_rfc3339()),
                 // Reachable only under `reusable`, where a retired id is free to mint again.
@@ -445,17 +461,16 @@ fn apply_one(
                 Some(h) => ("update", Some(h.rev.clone()), h.created_at.clone()),
             };
             let rev = Uuid::new_v4().to_string();
-            let (ts, ti) = ref_parts(&body.r#type);
             store.append(Row {
                 ordinal: (store.log.len() + 1) as u64,
                 scope,
                 id: id_s,
                 rev: rev.clone(),
-                kind: body.kind.0.to_string(),
+                kind: kind_s,
                 type_scope: ts,
                 type_id: ti,
-                properties: Some(json_str(&body.properties)),
-                metadata: Some(json_str(&body.metadata)),
+                properties: Some(props_s),
+                metadata: Some(meta_s),
                 op: op.into(),
                 prev_rev: prev,
                 transaction: txn.into(),
@@ -567,6 +582,17 @@ fn apply_one(
             let meta_s = serde_json::to_string(doc.get("metadata").unwrap_or(&serde_json::Value::Null))
                 .map_err(|e| BdpError::Unprocessable(e.to_string()))?;
 
+            // THE SAME RULE, and reached by a different route: a delta can be well-formed and
+            // still leave the document identical (`replace` with the value already there, `add` of
+            // an existing member). kind and type carry over, so the comparison is really over the
+            // patched body and metadata.
+            if unchanged_from(&head, &head.kind, &head.type_scope, &head.type_id, &props_s, &meta_s) {
+                return Ok(ResourceId::pinned(
+                    target.scope.clone(),
+                    target.id.clone(),
+                    Rev(head.rev.clone().into()),
+                ));
+            }
             let rev = Uuid::new_v4().to_string();
             store.append(Row {
                 ordinal: (store.log.len() + 1) as u64,
@@ -597,6 +623,49 @@ fn scope_str_of(scope_name: &str, s: &Scope) -> String {
         Scope::Web => "WEB".to_string(),
         Scope::Named(n) => n.0.to_string(),
     }
+}
+
+/// A write whose RESULT equals the head is a NO-OP: it keeps the revision, appends no row, and so
+/// records no provenance and produces no event.
+///
+/// Two obligations say this, and they say it of ALL writes, not of `put`: "a full-state write that
+/// changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the
+/// reply carries no `transaction`", and "one commit produces exactly one event per resource
+/// changed ... a failed request and a no-change request produce no resource event".
+///
+/// ONE RULE, SO ONE HELPER. `put` and `patch` differ in how they COMPUTE the new content and not at
+/// all in what a no-change outcome means, so mirroring the check into both arms would let the two
+/// drift apart. The store appended unconditionally before this, so every idempotent re-write minted
+/// a fresh revision AND published a changefeed event for a change that did not happen.
+///
+/// COMPARED AS PARSED JSON, NEVER AS STRINGS. `put` serializes the caller's object and `patch`
+/// serializes a patched document, so two equal documents routinely differ byte-wise in key order
+/// or spacing. A string compare would report "changed" for a write that changed nothing — the very
+/// defect this closes — so the comparison is over `serde_json::Value`.
+///
+/// AN UNPARSEABLE SIDE IS TREATED AS CHANGED, not as equal. Mapping a parse failure to `Null` on
+/// both sides would make two corrupt documents compare EQUAL and silently swallow a write.
+fn unchanged_from(
+    head: &Row,
+    kind: &str,
+    type_scope: &Option<String>,
+    type_id: &Option<String>,
+    properties: &str,
+    metadata: &str,
+) -> bool {
+    fn same_json(stored: Option<&String>, incoming: &str) -> bool {
+        let a = serde_json::from_str::<serde_json::Value>(stored.map(String::as_str).unwrap_or("{}"));
+        let b = serde_json::from_str::<serde_json::Value>(incoming);
+        match (a, b) {
+            (Ok(x), Ok(y)) => x == y,
+            _ => false,
+        }
+    }
+    head.kind == kind
+        && &head.type_scope == type_scope
+        && &head.type_id == type_id
+        && same_json(head.properties.as_ref(), properties)
+        && same_json(head.metadata.as_ref(), metadata)
 }
 
 fn ref_parts(r: &ResourceId) -> (Option<String>, Option<String>) {
