@@ -2351,11 +2351,20 @@ async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<V
     // AND THE REFUSAL MUST SAY WHY. The assertion is right; the reason I first gave for it was not,
     // and the correction is worth more than the assertion.
     //
-    // I added this citing a future risk: that the nine other `problem_body` sites still use the
-    // unregistered `bad-request`, so this case's discrimination rests on an unrelated defect
-    // staying unfixed — fix those nine to `malformed-request` and an incidental refusal would
-    // answer the same (status, code) pair as an explicit one, leaving the detail as the only
-    // difference.
+    // THE REFUTED RATIONALE, QUOTED RATHER THAN PARAPHRASED, because it is the one anyone would
+    // reach for and stating it as refuted preserves why it is tempting. I wrote:
+    //
+    //   "the status and code are identical whether a member is refused explicitly or as an unknown
+    //    field, so the detail is the only place the reason shows"
+    //
+    // — the nine other `problem_body` sites still using the unregistered `bad-request` being the
+    // premise: fix those to `malformed-request` and both refusals would answer the same pair.
+    //
+    // Keeping the sentence costs something and it is worth naming: it is now a FALSE POSITIVE for
+    // the grep that finds this defect class ("indistinguishable | identical whether | the only
+    // place"), indistinguishable at grep distance from a live wrong claim. A peer hit exactly this
+    // in her tree, and the triage is manual — which is the reason this sweep stays a procedure and
+    // is NOT automated into a check. A check that flags quoted retractions is a noise generator.
     //
     // THAT SCENARIO CANNOT ARISE, and the reason is the fix itself. Measured by simulating it:
     // with the explicit guard dropped, `create + provenance` does not get refused under a
