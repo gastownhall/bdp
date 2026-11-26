@@ -2643,6 +2643,29 @@ async fn the_create_input_is_closed_and_retired_diverges(host: &str) -> Result<V
     // not a probe that cannot fail — the guarantee has a plausible way to end (someone implementing
     // caller-supplied provenance adds the field and wires it through), and this is what would
     // notice. Red-greening it means making that legitimate change, not deleting an assertion.
+    // TWO MEMBERS OF THE SET ARE DELIBERATELY NOT IN THIS LOOP, and both are MEASURED divergences held
+    // pending a ruling rather than fixed. The spec owner is taking to Donna that `put` IGNORES the whole
+    // service-managed ENVELOPE -- `id`, `provenance`, `createdAt`, `retired`, `storageClass` -- generalising
+    // core.lumen:198's `retired` asymmetry, with `create` refusing them under the closed input (:4). Under
+    // that ruling this subject diverges twice, in opposite directions:
+    //
+    //   - `storageClass` on put answers 400. Measured, not inferred: added to this loop it reported "put
+    //     carrying `storageClass` answered 400". `WireCreateRequest` has no such field and carries
+    //     `deny_unknown_fields`, so it is refused as unknown. That is the round-trip break 472 exists to
+    //     prevent -- a `get` returns `storageClass`, so putting the whole representation back FAILS. A peer
+    //     found the same shape with `id` in her own tree.
+    //
+    //   - a body `id` that MISMATCHES the URL answers 200 and is silently dropped (the URL wins). Measured
+    //     the same way: the arm passed. The owner's new sub-rule says a matching id is ignored and a
+    //     mismatch faults 400, because the body contradicts the target rather than being written.
+    //
+    // NOT FIXED HERE ON PURPOSE. The rule reached me as the spec owner's relay and is going to Donna for
+    // ratification; 472's own text scopes its ignore to a "read-only member (`computed` or
+    // `serviceManaged`)", and whether the envelope counts is precisely what is being ruled. Changing
+    // behaviour now would bake one reading of an open question into the subject, and unlike the
+    // patch/409 grant this one costs me work rather than granting me a row -- which is a reason to be
+    // careful, not a reason to be quick. CLOSES WHEN: Donna ratifies, at which point `storageClass` joins
+    // the admitted-never-honored fields and the id-mismatch arm becomes a 400 case.
     for (seg, member, forged, marker) in [
         ("closed-3a", "retired", "true", None),
         ("closed-3b", "provenance", r#""forged-by-caller""#, Some("forged-by-caller")),
