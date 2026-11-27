@@ -1454,13 +1454,14 @@ type ExportEnd = {
 /// description: Bulk read of a scope — a `jsonl` BACKUP STREAM (`ExportBegin`, one resource line each, `ExportEnd`); `export` is the one read that is not windowed, so `format` other than `jsonl` faults `400`. Current state by default, `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 /// normative: `export` honors only `after`, `limit` and `format` of `request` ([[core.lumen#ReadRequest]]); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type is `application/jsonl` — `export` is jsonl-native, self-framed by `ExportBegin`/`ExportEnd`; `format` other than `jsonl` (including `page`) faults `400`, since a backup is a stream, not a windowed `Page`.
 /// normative: `where`/`select` are the op's projection and are legal ONLY on a current-state export. A `--revisions` (history) export REFUSES either (`400`): a true backup is neither filtered nor projected, so every revision and the `previousRevision` chain survive intact. A current-state export that carries `where`/`select` IS a projection, not a faithful backup, so its `ExportBegin` sets `partial: true` ([[core.lumen#ExportBegin]]); an unprojected current-state export, and every `--revisions` export, omits `partial`.
+/// normative: `select` is honored iff the scope advertises it ([[core.lumen#ExportCaps]] `selector`), exactly as `get`/`list`/`pull` advertise their own selector per-op — selector support MAY differ across reads. A scope advertising `selector: false` faults a `select` request `400` (`invalid-parameter`): the capability is advertised, so a client reads it and omits `select` rather than being refused.
 /// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400] } }
 fn export(
     /// description: The scope to back up.
     scope:      Scope,
     /// description: Restrict the export to matching resources — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` (see [[core.lumen#Filter]], [[core.lumen#ExportBegin]]).
     where?:     Filter,
-    /// description: Project each exported resource — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` ([[core.lumen#ExportBegin]]).
+    /// description: Project each exported resource — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` ([[core.lumen#ExportBegin]]). Honored iff the scope advertises [[core.lumen#ExportCaps]] `selector`; a scope advertising `selector: false` faults `400`.
     select?:    selector,
     /// description: Emit every revision in order (a true backup) instead of current state. A `--revisions` export refuses `where`/`select` (`400`) and never sets `partial`.
     revisions?: bool,
@@ -1785,7 +1786,9 @@ type RevisionsCaps = { }
 /// description: Limits advertised for `export`.
 type ExportCaps = {
   /// description: Whether the export can include prior revisions (history), not only the current state.
-  revisions: bool
+  revisions: bool,
+  /// description: Whether a `select` projection is honored on the export — advertised per-op, as `get`/`list`/`pull` advertise their own.
+  selector:  bool
 }
 
 ## ImportCaps

@@ -2061,6 +2061,8 @@ Bulk read of a scope — a `jsonl` BACKUP STREAM (`ExportBegin`, one resource li
 
 > **Normative.** `where`/`select` are the op's projection and are legal ONLY on a current-state export. A `--revisions` (history) export REFUSES either (`400`): a true backup is neither filtered nor projected, so every revision and the `previousRevision` chain survive intact. A current-state export that carries `where`/`select` IS a projection, not a faithful backup, so its `ExportBegin` sets `partial: true` ([ExportBegin](#ExportBegin)); an unprojected current-state export, and every `--revisions` export, omits `partial`.
 
+> **Normative.** `select` is honored iff the scope advertises it ([ExportCaps](#ExportCaps) `selector`), exactly as `get`/`list`/`pull` advertise their own selector per-op — selector support MAY differ across reads. A scope advertising `selector: false` faults a `select` request `400` (`invalid-parameter`): the capability is advertised, so a client reads it and omits `select` rather than being refused.
+
 ```lumen
 fn export(
     scope:      Scope,
@@ -2075,7 +2077,7 @@ fn export(
 |---|---|---|
 | `scope` | `Scope` | The scope to back up. |
 | `where?` | `Filter` | Restrict the export to matching resources — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` (see [Filter](#Filter), [ExportBegin](#ExportBegin)). |
-| `select?` | `selector` | Project each exported resource — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` ([ExportBegin](#ExportBegin)). |
+| `select?` | `selector` | Project each exported resource — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` ([ExportBegin](#ExportBegin)). Honored iff the scope advertises [ExportCaps](#ExportCaps) `selector`; a scope advertising `selector: false` faults `400`. |
 | `revisions?` | `bool` | Emit every revision in order (a true backup) instead of current state. A `--revisions` export refuses `where`/`select` (`400`) and never sets `partial`. |
 | `request?` | `ReadRequest` | Streaming controls — resume cursor, limit, and the transport (`jsonl` only — `export` is a bulk backup stream, not a windowed read). See [ReadRequest](#ReadRequest). |
 
@@ -2623,13 +2625,15 @@ Limits advertised for `export`.
 
 ```lumen
 type ExportCaps = {
-  revisions: bool
+  revisions: bool,
+  selector:  bool
 }
 ```
 
 | Member | Type | Description |
 |---|---|---|
 | `revisions` | `bool` | Whether the export can include prior revisions (history), not only the current state. |
+| `selector` | `bool` | Whether a `select` projection is honored on the export — advertised per-op, as `get`/`list`/`pull` advertise their own. |
 
 <a id="ImportCaps"></a>
 

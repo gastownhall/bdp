@@ -3169,10 +3169,14 @@
         "properties": {
           "revisions": {
             "type": "boolean"
+          },
+          "selector": {
+            "type": "boolean"
           }
         },
         "required": [
-          "revisions"
+          "revisions",
+          "selector"
         ],
         "additionalProperties": false
       },

@@ -1738,7 +1738,7 @@ mod tests {
         // obligations, 19 registered", the 70-strong backlog I sized by reading — was computed over
         // a population that had since moved. A floor is exactly the shape that survives the change
         // it exists to report.
-        const OBLIGATIONS: usize = 95;
+        const OBLIGATIONS: usize = 96;
         assert!(
             found.len() == OBLIGATIONS,
             "parsed {} obligations, expected {OBLIGATIONS}. {} The ledger, the backlog sizing and \
