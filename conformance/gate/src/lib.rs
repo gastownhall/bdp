@@ -40,6 +40,9 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+/// The TS `bdptest` subsumption ledger: which TS cases are ported, dropped or still pending.
+pub mod subsumption;
+
 /// One row of the tier-1 coverage surface: either a primitive operation, or a declared fault
 /// (an HTTP `>=400` response) on that operation.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
