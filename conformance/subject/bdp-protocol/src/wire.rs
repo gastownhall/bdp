@@ -90,6 +90,21 @@ impl WireResourceId {
 /// arms are guarded — the `put`-ignores one especially, since it is the one a later refactor would
 /// collapse into "refuse everywhere" with nothing failing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// CLOSEDNESS IS NOT THE ONLY EVIDENCE-DROPPING SHAPE, and the other one this type does NOT catch:
+/// a DUPLICATE member. Measured 2026-11-27, both arms:
+///   `{"kind":"note","kind":"OVERWRITTEN",...}`  -> REJECTED, `duplicate field \`kind\``. serde's
+///     derive catches duplicates on the ENVELOPE, so `deny_unknown_fields`' sibling guarantee holds
+///     for the members named here.
+///   `{...,"body":{"a":1,"a":2},...}`             -> ACCEPTED. `body` is raw, so the duplicate
+///     survives the envelope parse and one value is silently dropped downstream.
+/// The guarantee stops at the envelope boundary, and a resource BODY is where dropping evidence
+/// costs most -- a caller sends two values for one key and is told 200. The TS estate had a test
+/// for exactly this ("JSON parser refuses duplicate members rather than dropping evidence"),
+/// deleted with `adbbdb20`; so this is a real gap, not a check waiting to be relocated.
+/// NOT FIXED: rejecting duplicates inside a raw body changes what requests this binding accepts,
+/// which is wire behaviour under the 0.2.3-rc1 freeze.
+/// CLOSES WHEN: post-freeze, the raw-body parse refuses duplicate members, and a gate case pins
+/// both arms (envelope AND nested) so the envelope's passing arm cannot stand in for the body's.
 #[serde(deny_unknown_fields)]
 pub struct WireCreateRequest {
     pub kind: String,
