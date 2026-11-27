@@ -929,7 +929,7 @@ Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stre
 
 > **Normative.** Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
 
-> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-pruned`/`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
+> **Normative.** A channel is a resource (`rep<Channel>`, [Channel](#Channel)), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
 
 ```lumen
 fn pull(
@@ -2974,11 +2974,15 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        or a length-related `400`.
   415  a direct `patch` body whose media type is not `application/json-patch+json` (a
        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
-  422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
-       or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
+  422  `limit-exceeded` — a request exceeding an advertised capability bound (a batch over
+       `maxBatch`, or a guard past a scope limit). MEMBERSHIP TEST: a fault belongs at 422
+       IFF shrinking the request fixes it; a well-formed body that is simply unusable (a
+       projected export offered as a restore source) is 400, not 422.
   404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
-  405  pull / push on the wrong channel direction; patch where a Scope offers no patch
-  410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
+  405  `channel-not-pullable` / `channel-not-pushable` — pull / push on the wrong channel
+       direction; `capability-not-supported` — patch where a Scope offers no patch, or any
+       un-offered primitive (an un-offered primitive is declined here, never 501)
+  410  `resource-erased` — `get` of an erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
 
@@ -2987,11 +2991,12 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   `code`/`retry` are BDP extension members, not RFC 9457 core; each code has a stable
   problem-type URI `tag:bdp.dev,2026:problem/<code>` carried in the Problem `type` member.
   malformed-request · invalid-parameter · unauthenticated · forbidden ·
-  resource-not-found · resource-pruned · resource-erased · revision-mismatch ·
+  resource-not-found · resource-erased · revision-mismatch ·
   precondition-failed · identity-taken · validation-failed · type-not-installed ·
   cursor-expired · request-too-large · limit-exceeded · rate-limited ·
   temporarily-unavailable · capability-not-supported · callable-not-found ·
-  callable-unavailable · mode-not-supported · mode-refused
+  callable-unavailable · mode-not-supported · mode-refused ·
+  channel-not-pullable · channel-not-pushable
 ```
 
 # Appendix E. Conformance — what a Core service MUST provide
@@ -3019,4 +3024,4 @@ A suite CITING any of the five is not thereby testing it — the citation must c
 13. An authorization view — a hidden resource reads exactly as a missing one.
 14. Where `delete` is offered, deletion that does not erase — under `permanent` the id stays accounted for, and where the scope is also `versioned` the tombstone revision is kept. A `reusable` scope retains neither record ([delete](#delete)); that is the declared model, not a breach of this guarantee.
 
-Discovery advertises, per scope: the primitives offered; whether history / patch / push are offered; which storage classes `create` accepts; which invocation modes are refused; the max request-context size; and where the changefeed is. A request that needs an un-offered capability is refused `capability-not-supported`; an optional feature is never half-present.
+Discovery advertises, per scope: the primitives offered; whether history / patch / push are offered; which storage classes `create` accepts; which invocation modes are refused; the max request-context size; and where the changefeed is. A request that needs an un-offered primitive is refused `capability-not-supported`; an optional feature is never half-present (an advertised-false option is declined at 400, not here).

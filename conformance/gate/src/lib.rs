@@ -1099,8 +1099,6 @@ pub fn codes_named_by_a_fault_verb() -> Vec<String> {
 /// `channel-not-pullable` by reading one normative line; measuring the whole file found its mirror
 /// and a third on an unrelated primitive.
 pub const CODES_USED_BUT_UNREGISTERED: &[(&str, &str)] = &[
-    ("channel-not-pullable", "core.lumen pull: a `sink`-only channel faults it; absent from D.9"),
-    ("channel-not-pushable", "core.lumen push: a `source`-only channel faults it; absent from D.9"),
     ("invalid-target", "core.lumen alias binding: an alias whose target is a live alias is refused it; absent from D.9"),
 ];
 
@@ -2020,7 +2018,7 @@ mod tests {
         // (two channel codes registered) the failure sent the reader hunting a bug that was not
         // there. A true check whose words say something else is the same defect as a stale comment;
         // the fix is to let the message name the direction instead of assuming one.
-        const REGISTRY: usize = 22;
+        const REGISTRY: usize = 23;
         assert!(
             codes.len() == REGISTRY,
             "D.9 parsed to {} codes, expected {REGISTRY}. {} Either way, re-derive before trusting \
@@ -2166,7 +2164,7 @@ mod tests {
         // The six it missed all named REGISTERED codes, so the used-but-unregistered result was
         // right while the method was incomplete — a number correct for a reason that would not have
         // held if any of those six had been unregistered.
-        const VERB_SITES: usize = 12;
+        const VERB_SITES: usize = 11;
         assert!(
             found.len() == VERB_SITES,
             "{} codes named by a fault verb, expected {VERB_SITES}. {} Either way the two registry \
