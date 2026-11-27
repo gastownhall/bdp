@@ -70,3 +70,43 @@ async fn client_half(addr: String) -> Result<(), String> {
 
     Ok(())
 }
+
+/// The prefix in a base URL must reach the WIRE, not merely compose in `BaseUrl::target`.
+///
+/// The `BaseUrl` unit tests prove `target()` composes correctly and prove NOTHING about whether
+/// `request` and `fetch_capabilities` call it. Both pre-existing integration callers dial a scope
+/// at the server root, where a prefixed and an unprefixed target are byte-identical — so that
+/// coverage structurally cannot tell a driver that prefixes from one that silently drops the
+/// prefix. It would report green either way.
+///
+/// These two arms differ ONLY in the prefix and must differ in OUTCOME. A driver that dropped the
+/// prefix makes the second arm succeed, and this test fail.
+#[tokio::test(flavor = "current_thread")]
+async fn a_base_url_prefix_reaches_the_wire() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind loopback");
+    let addr = listener.local_addr().expect("local addr");
+    let server = Server::new(InMemScope::new("prefix"));
+
+    tokio::select! {
+        r = server.serve(listener) => panic!("server stopped before the client finished: {r:?}"),
+        out = prefix_half(addr.to_string()) => out.expect("base-URL prefix discrimination failed"),
+    }
+}
+
+async fn prefix_half(addr: String) -> Result<(), String> {
+    // This server mounts its scope at the root, so the EMPTY prefix is the one that resolves.
+    // Asserting this arm first means a failure in the second arm cannot be blamed on the server
+    // being unreachable.
+    RemoteScope::connect(format!("http://{addr}/"))
+        .await
+        .map_err(|e| format!("a root base URL should connect: {e:?}"))?;
+
+    // Same authority, same server, ONLY the prefix differs. Nothing is served under
+    // `/not-a-scope`, so discovery must fail.
+    match RemoteScope::connect(format!("http://{addr}/not-a-scope")).await {
+        Err(_) => Ok(()),
+        Ok(_) => Err("connect SUCCEEDED under a prefix this server does not serve, so the base \
+                      URL's prefix is being dropped before the request reaches the wire"
+            .into()),
+    }
+}

@@ -67,8 +67,103 @@ fn parse_export_jsonl(body: &[u8]) -> Result<Vec<p::ExportRecord>, p::BdpError> 
     }
 }
 
+/// Where a scope lives, split into the two things this transport actually needs: the authority to
+/// dial, and the path prefix every target hangs off.
+///
+/// `RemoteScope` used to hold a bare `"host:port"` and build every target from `/`, which pinned
+/// one scope == one server root. Nothing in the protocol says that: discovery LOCATES a scope, and
+/// a server may host several. A base URL carrying a prefix is what lets one endpoint serve more
+/// than one scope -- and it is what an operator validating a real deployment actually has. They
+/// hold a URL, not an `ip:port`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseUrl {
+    /// What `TcpStream::connect` takes. ALWAYS carries an explicit port, defaulted here if the URL
+    /// omitted one, so no target-building site needs to know a scheme default.
+    authority: String,
+    /// `""`, or a path with a leading and no trailing slash (`"/acme/scope-1"`). Prepended to every
+    /// request target, discovery included.
+    prefix: String,
+}
+
+impl BaseUrl {
+    /// Parse an operator-supplied base URL. A bare authority (`"127.0.0.1:8080"`) is accepted so
+    /// every existing caller keeps working unchanged; `http://host:port/prefix` is the new form.
+    ///
+    /// `https` is REFUSED, not silently downgraded. This transport is raw TCP with no TLS, so
+    /// honouring an `https` base URL would put cleartext on the wire for a caller who asked for a
+    /// secure channel. That is the same rule this file already applies to capabilities: a feature
+    /// is never half-present. A refusal the operator can read beats a request they think is
+    /// encrypted.
+    pub fn parse(input: &str) -> Result<Self, p::BdpError> {
+        let bad = |m: String| p::BdpError::Backend(m);
+        let s = input.trim();
+        if s.is_empty() {
+            return Err(bad("base URL is empty".into()));
+        }
+        let rest = if let Some(r) = s.strip_prefix("http://") {
+            r
+        } else if s.strip_prefix("https://").is_some() {
+            return Err(bad(format!(
+                "base URL {s:?} is https, and this binding speaks cleartext HTTP over raw TCP with \
+                 no TLS. Honouring it would downgrade a caller who asked for a secure channel, so \
+                 it is refused instead of served in part."
+            )));
+        } else if let Some((scheme, _)) = s.split_once("://") {
+            return Err(bad(format!(
+                "base URL {s:?} has scheme {scheme:?}; this transport supports only http:// or a \
+                 bare host:port"
+            )));
+        } else {
+            s
+        };
+        let (authority, path) = match rest.find('/') {
+            Some(i) => (&rest[..i], &rest[i..]),
+            None => (rest, ""),
+        };
+        if authority.is_empty() {
+            return Err(bad(format!("base URL {s:?} has no host")));
+        }
+        if authority.ends_with(':') {
+            return Err(bad(format!("base URL {s:?} has a colon with no port after it")));
+        }
+        if authority.contains('@') {
+            return Err(bad(format!(
+                "base URL {s:?} carries userinfo; this client does not forward credentials, and \
+                 accepting the URL would quietly drop them"
+            )));
+        }
+        // A port is whatever follows the LAST colon when it is all digits. That test also gets
+        // bare IPv6 right: `[::1]` ends `1]`, which is not a port, so it defaults -- whereas
+        // `[::1]:8080` ends `8080`, which is.
+        let has_port = authority
+            .rfind(':')
+            .is_some_and(|i| !authority[i + 1..].is_empty()
+                && authority[i + 1..].chars().all(|c| c.is_ascii_digit()));
+        let authority =
+            if has_port { authority.to_string() } else { format!("{authority}:80") };
+        // `"/"` trims to `""`, which is the right answer rather than an edge case: the scope sits
+        // at the root, exactly as a bare authority means.
+        Ok(Self { authority, prefix: path.trim_end_matches('/').to_string() })
+    }
+
+    pub fn authority(&self) -> &str {
+        &self.authority
+    }
+
+    pub fn prefix(&self) -> &str {
+        &self.prefix
+    }
+
+    /// The wire target for a scope-relative `path` (which always starts with `/`).
+    fn target(&self, path: &str) -> String {
+        format!("{}{}", self.prefix, path)
+    }
+}
+
 pub struct RemoteScope {
-    host: String, // "127.0.0.1:PORT"
+    /// Where the scope lives. Replaces the old bare `"127.0.0.1:PORT"`, which could only ever
+    /// address a scope at a server's root.
+    base: BaseUrl,
     /// The backing scope's advertised capabilities, fetched once at `connect`. `capabilities()`
     /// returns these filtered to what this client forwards.
     caps: Vec<p::PrimitiveCapabilities>,
@@ -128,24 +223,38 @@ fn narrow_to_binding(cap: &p::PrimitiveCapabilities) -> p::PrimitiveCapabilities
 }
 
 impl RemoteScope {
-    /// Connect to a `Server` at `host` ("ip:port") and PROXY its scope's advertised capabilities,
-    /// so this `RemoteScope` faithfully represents the backing scope. (A full impl would take the
-    /// scope's base URL and read `discovery`; the spike pins one scope == one server root.)
-    pub async fn connect(host: impl Into<String>) -> Result<Self, p::BdpError> {
-        let host = host.into();
-        let (scope_caps, caps) = fetch_capabilities(&host).await?;
-        Ok(Self { host, caps, scope_caps })
+    /// Connect to a scope at `base` and PROXY its advertised capabilities, so this `RemoteScope`
+    /// faithfully represents the backing scope.
+    ///
+    /// `base` is a base URL -- `http://host:port/prefix`, or a bare `"host:port"` for a scope at a
+    /// server's root. Discovery is read AT THE PREFIX, which is the whole point: the scope is
+    /// wherever the operator's URL says it is, not wherever this client assumed. That is what lets
+    /// an endpoint host several scopes, and what lets someone point this driver at a real
+    /// deployment they did not build.
+    pub async fn connect(base: impl AsRef<str>) -> Result<Self, p::BdpError> {
+        let base = BaseUrl::parse(base.as_ref())?;
+        let (scope_caps, caps) = fetch_capabilities(&base).await?;
+        Ok(Self { base, caps, scope_caps })
     }
 
     /// Construct with a known capability set and no discovery round-trip (tests / embedding).
     /// The scope traits must be supplied too: there is no safe default, since guessing one would
     /// have this client assert a guarantee the backing store may not make.
+    ///
+    /// Returns a `Result` because the base URL is parsed here as well. A constructor that fell back
+    /// to some default on a URL it could not read would hand back an object that dials the wrong
+    /// place and reports nothing.
     pub fn with_capabilities(
-        host: impl Into<String>,
+        base: impl AsRef<str>,
         scope_caps: p::ScopeCapabilities,
         caps: Vec<p::PrimitiveCapabilities>,
-    ) -> Self {
-        Self { host: host.into(), caps, scope_caps }
+    ) -> Result<Self, p::BdpError> {
+        Ok(Self { base: BaseUrl::parse(base.as_ref())?, caps, scope_caps })
+    }
+
+    /// Where this scope was located, for a caller that needs to report or log the endpoint.
+    pub fn base(&self) -> &BaseUrl {
+        &self.base
     }
 
     async fn request(
@@ -155,7 +264,11 @@ impl RemoteScope {
         headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> Result<crate::http::HttpResponse, p::BdpError> {
-        send(Outgoing { method, host: &self.host, target, headers, body })
+        // Every target is scope-relative and gets the base prefix here, at the ONE site that
+        // builds a request. Prefixing at each call site instead would make a forgotten one fail
+        // only against a prefixed deployment -- green here, wrong at Chris's endpoint.
+        let target = self.base.target(target);
+        send(Outgoing { method, host: self.base.authority(), target: &target, headers, body })
             .await
             .map_err(|e| p::BdpError::Backend(format!("transport: {e}")))
     }
@@ -164,9 +277,10 @@ impl RemoteScope {
 /// Fetch the server scope's advertised capabilities (`GET /:capabilities`), decoded to the trait
 /// form, so `RemoteScope` can proxy them. A free fn so `connect` can call it before `Self` exists.
 async fn fetch_capabilities(
-    host: &str,
+    base: &BaseUrl,
 ) -> Result<(p::ScopeCapabilities, Vec<p::PrimitiveCapabilities>), p::BdpError> {
-    let resp = send(Outgoing { method: "GET", host, target: "/:capabilities", headers: vec![], body: vec![] })
+    let target = base.target("/:capabilities");
+    let resp = send(Outgoing { method: "GET", host: base.authority(), target: &target, headers: vec![], body: vec![] })
         .await
         .map_err(|e| p::BdpError::Backend(format!("transport: {e}")))?;
     if resp.status == 200 {
@@ -816,5 +930,100 @@ mod export_truncation_tests {
         let body = format!("{END}\n{BEGIN}\n");
         parse_export_jsonl(body.as_bytes())
             .expect_err("an ExportEnd that is not the final line does not make a stream whole");
+    }
+}
+
+#[cfg(test)]
+mod base_url_tests {
+    use super::*;
+
+    fn ok(s: &str) -> BaseUrl {
+        BaseUrl::parse(s).unwrap_or_else(|e| panic!("{s:?} should parse: {e:?}"))
+    }
+
+    /// A bare authority is the OLD form and must keep working untouched, because the two existing
+    /// callers pass one. The prefix it yields is empty, not `"/"`.
+    #[test]
+    fn a_bare_authority_is_a_scope_at_the_root() {
+        let b = ok("127.0.0.1:8080");
+        assert_eq!(b.authority(), "127.0.0.1:8080");
+        assert_eq!(b.prefix(), "");
+    }
+
+    /// The whole point of the change: authority and prefix come apart, and the prefix survives.
+    #[test]
+    fn a_base_url_splits_into_authority_and_prefix() {
+        let b = ok("http://example.test:9000/acme/scope-1");
+        assert_eq!(b.authority(), "example.test:9000");
+        assert_eq!(b.prefix(), "/acme/scope-1");
+    }
+
+    /// `TcpStream::connect` cannot resolve a scheme default, so the port is materialised here.
+    #[test]
+    fn an_absent_port_defaults_to_eighty() {
+        assert_eq!(ok("http://example.test/scope").authority(), "example.test:80");
+        assert_eq!(ok("example.test").authority(), "example.test:80");
+    }
+
+    /// A trailing slash is an operator typing a URL, not a different scope. Both spellings of
+    /// "the root" must land on the same empty prefix, or targets double their slash.
+    #[test]
+    fn a_trailing_slash_and_a_bare_root_agree() {
+        assert_eq!(ok("http://example.test:80/").prefix(), "");
+        assert_eq!(ok("http://example.test:80/scope/").prefix(), "/scope");
+        assert_eq!(ok("http://example.test:80").prefix(), "");
+    }
+
+    /// BOTH arms. A `target` that is only checked with a prefix would also pass for a driver that
+    /// always prefixed; one only checked without would pass for a driver that never did. Neither
+    /// test alone discriminates, so neither is written alone.
+    #[test]
+    fn target_composition_is_checked_with_and_without_a_prefix() {
+        assert_eq!(ok("http://h:1/acme").target("/:capabilities"), "/acme/:capabilities");
+        assert_eq!(ok("h:1").target("/:capabilities"), "/:capabilities");
+        // And the resource form, where a doubled slash would be silently accepted by many servers
+        // and change the path for a strict one.
+        assert_eq!(ok("http://h:1/acme").target("/things/1"), "/acme/things/1");
+    }
+
+    /// Refused, not downgraded. The transport has no TLS, so serving this would put cleartext on
+    /// the wire for someone who asked for a secure channel.
+    #[test]
+    fn https_is_refused_rather_than_silently_downgraded() {
+        let e = BaseUrl::parse("https://example.test/scope").expect_err("https must not parse");
+        let msg = format!("{e:?}");
+        assert!(
+            msg.contains("https") && msg.contains("TLS"),
+            "the refusal must say WHY, so an operator can act on it; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn an_unsupported_scheme_is_named_in_its_refusal() {
+        let e = BaseUrl::parse("ftp://example.test/scope").expect_err("ftp must not parse");
+        assert!(format!("{e:?}").contains("ftp"), "refusal should name the scheme it rejected");
+    }
+
+    /// Credentials this client never forwards must not be accepted and dropped: a URL that
+    /// "worked" while losing its userinfo is how an auth failure gets blamed on the server.
+    #[test]
+    fn userinfo_is_refused_because_it_would_be_dropped() {
+        assert!(BaseUrl::parse("http://user:pw@example.test/scope").is_err());
+    }
+
+    /// The port detector is a last-colon-all-digits test, which is exactly the rule that bare IPv6
+    /// breaks. Both arms, because a detector that never found a port would still pass the first.
+    #[test]
+    fn bare_ipv6_is_not_mistaken_for_a_port_and_a_real_one_is_still_found() {
+        assert_eq!(ok("http://[::1]/scope").authority(), "[::1]:80");
+        assert_eq!(ok("http://[::1]:8080/scope").authority(), "[::1]:8080");
+    }
+
+    #[test]
+    fn the_degenerate_inputs_are_refused() {
+        assert!(BaseUrl::parse("").is_err());
+        assert!(BaseUrl::parse("   ").is_err());
+        assert!(BaseUrl::parse("http://").is_err(), "no host");
+        assert!(BaseUrl::parse("http://example.test:/scope").is_err(), "colon with no port");
     }
 }
