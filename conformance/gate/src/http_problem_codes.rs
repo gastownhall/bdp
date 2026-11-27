@@ -116,7 +116,18 @@ pub const HTTP_CODES_WITHOUT_A_REGISTER_ENTRY: &[(&str, &str)] = &[
          `where` is entangled with the 0.2.4 filter-model question (per-op `PullCaps.filter` vs \
          scope-wide `ListCaps.conditions` vs `ExportCaps` having no filter field at all), so its \
          code cannot be settled before that model is. \
-         AND (b) MAY NOT BE 400 AT ALL -- TWO NORMATIVE LINES COLLIDE ON THIS EXACT CELL, which \
+         RULED 2026-11-27 (#460 `ae703386`), and the 400-vs-405 half is CLOSED: \
+         `capability-not-supported` (405) is scoped to an un-offered PRIMITIVE; an advertised-false \
+         option on an OFFERED primitive is 400 `invalid-parameter`. The axis is fixability -- \
+         primitive absent, the caller cannot fix the request; option declined, the caller omits it. \
+         `or feature` was removed from the 405 row and :2158 aligned to `primitive`, so the scope \
+         is now uniform across :993/:1573/:1615/:2088/:2158 (checked tolerant of line breaks: \
+         :1573 wraps `un-offered` and `primitive` onto separate lines, and a line-anchored grep \
+         misses it). Verified prose-only: :688, :1532 and :1626 untouched, and the gate is green on \
+         `ae703386` + main at 28+2 passed, so REGISTRY 23 / VERB_SITES 11 stand. \
+         SO THE FOUR `unmapped()` SITES ARE SETTLED AT 400 -- pull `sse`, pull `jsonl`, async \
+         `call` mode, and list `where` once its filter model lands. \
+         WHAT IS STILL OPEN IS THE 400-vs-422 HALF, which that ruling did not engage: \
          #460 makes visible without creating. The scope of `capability-not-supported` is stated \
          three ways: `un-offered PRIMITIVE` (:993, :1573, :1615), `un-offered CAPABILITY` (:2153), \
          and, in #460's rewritten 405 row, `any un-offered primitive or FEATURE (an un-offered \
