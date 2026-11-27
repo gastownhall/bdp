@@ -11,8 +11,15 @@
 //! it and the uncovered row surfaces here. A vendored snapshot would freeze the denominator and
 //! silently stop catching spec changes, which is why it was dropped once #405 merged.
 //!
-//! Pin: `gastownhall/bdp` `main` @`488a2d01` — merged commits, never draft tips. The surface is
-//! **48 rows (13 ops + 35 faults)** over 9 paths.
+//! Pin: `gastownhall/bdp` `main` — merged commits, never draft tips. The surface is
+//! **51 rows (13 ops + 38 faults)**, and it is DERIVED AT RUN TIME, never pinned here.
+//!
+//! THIS LINE SAID 48 AT `488a2d01` and stayed there while the surface moved to 50 and then 51.
+//! It is the first thing anyone reads, and two sweeps missed it: one grepped for the stale value I
+//! expected (50) rather than for the SHAPE of a surface claim, and the other looked only at the
+//! declaration it sat above. The number now carries the derivation rather than a pin, so there is
+//! one fewer hand-maintained copy to drift — and the sha is dropped, because a pinned sha in prose
+//! is a second copy of something `git` already knows.
 //!
 //! **The `paths` block HAS moved, and that is the point of recording it.** It was `770e3ccc…` and
 //! byte-identical from `aa439827` through #407, #408, #410 and #412 — a stability that made it
@@ -282,6 +289,69 @@ pub struct Registration {
     pub evidence: &'static str,
 }
 
+/// A SECOND CENSUS OF THIS SAME FILE EXISTS, IN TYPESCRIPT, AND IT COUNTS A NARROWER POPULATION.
+///
+/// `scripts/v02-provider-kit/coverage.json` is a clause-coverage manifest that pins each spec file
+/// by sha256, enumerates its `/// normative:` clauses, and halts with "Spec changed: review and
+/// update the manifest" when the hash moves. It is the counterpart of this ledger, and the current
+/// red on the repo's `implementation` job is that halt.
+///
+/// THE TWO DISAGREE ON THE POPULATION, NOT JUST ON THE PIN. Measured:
+///
+///   | instrument | core.lumen clauses |
+///   |---|---|
+///   | the manifest, at its pinned commit `247c02ac` | 87 |
+///   | `^/// normative:` at column 0, same commit     | 87 |
+///   | every `normative:` occurrence, same commit     | 91 |
+///   | this ledger, at HEAD                           | 91 |
+///   | `^/// normative:` at column 0, HEAD            | 89 |
+///
+/// The manifest's harvester is `specification.mjs:15`:
+/// `if (!lines[i].startsWith("/// normative:")) continue;` — `startsWith` on the RAW line, so an
+/// INDENTED clause is skipped. Verified from the producer rather than inferred from the counts
+/// agreeing, which they would have done by coincidence either way.
+///
+/// SO A RE-CENSUS DOES NOT FIX IT. Re-running the manifest against HEAD yields 89 and still misses
+/// the two indented obligations — core.lumen:286 (`displayName` is never identity and never a
+/// matching/resolution key) and core.lumen:464 (an `abstract` type is not directly instantiable).
+/// This ledger carries both, because it does not anchor on column 0. The staleness is the visible
+/// problem and the blind spot is the durable one.
+///
+/// IT IS ALSO THE FIFTH INSTANCE TODAY of one defect class: a pattern anchored on FORMATTING that
+/// systematically omits members. `problem_codes()` required a hyphen and dropped two codes; a grep
+/// for `record DeleteCaps` could not match a file with no `record` keyword; a peer's survey grepped
+/// `conf-pg` on the same line as `process::id()` and found two of five sites. Same shape, four
+/// languages, and in every case the count looked plausible because the omitted members were not
+/// missed by anything else.
+///
+/// WHY THIS LEDGER IS BUILT THE OTHER WAY. It derives the population from the working tree at run
+/// time and keys each registration on the obligation's TEXT, so a spec change surfaces as NAMED
+/// unregistered obligations — actionable, and attributable to a line. A sha-pinned manifest can only
+/// say "something changed, re-census", which is a halt rather than a finding. That difference is
+/// the argument for one instrument, and it is not about duplication being untidy.
+///
+/// AND THIS LEDGER HAS ITS OWN BLIND SPOT, which belongs beside that criticism rather than after it.
+///
+/// Keying on obligation TEXT means a REWORD is a new key. For a REGISTERED obligation that is the
+/// behaviour you want: the old registration goes PENDING (registered, not in the spec) and the new
+/// wording surfaces unregistered, so the pair is visible and a reader can tell a reword from a new
+/// clause. For an UNREGISTERED one — currently 70 of 91 — it is invisible. The backlog count does
+/// not move, no registration goes pending, and nothing anywhere says that line changed.
+///
+/// MEASURED, not supposed. Between the manifest's base commit and HEAD, core.lumen's column-0
+/// clauses went 87 -> 89 as +3/-1: two genuinely new (`list`/`revisions` page-only, and a channel
+/// being a resource so absence and retirement resolve as `get`) and ONE REWORD of `export`'s
+/// honors-only line, which appears in both the added and the removed set. The spec owner was about
+/// to author checks for three new clauses when only two were new. That reworded clause is
+/// unregistered here, so this ledger reported nothing about it either — the backlog stayed 70 and
+/// the number was unchanged across a real normative edit.
+///
+/// SO THE TWO INSTRUMENTS FAIL DIFFERENTLY, AND NEITHER FAILS SAFE. A sha-pinned manifest halts on
+/// any change and tells you nothing about what changed. A text-keyed ledger tells you precisely
+/// what changed in the registered fifth and is silent about the unregistered rest. The honest claim
+/// for retiring the manifest is not that this ledger is complete; it is that this one's silence
+/// shrinks as registrations grow, while a blind harvester's does not shrink at all.
+///
 /// THE LEDGER PINS EACH OBLIGATION'S RESOLUTION, NEVER THE CARDINALITY.
 ///
 /// A count cannot be pinned coherently here and the reason is concrete: PR #428 takes the
@@ -293,17 +363,38 @@ pub struct Registration {
 /// Registered ahead of the spec change is a legitimate state, reported as PENDING: #428's twelve are
 /// registered here and are pending until #428 merges.
 pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
+
     // THE LEDGER'S FIRST PRE-EXISTING FIND: normative on `main` all along, no case, no
-    // waiver, and invisible until the ledger enumerated the register. Registered against its
-    // own issue rather than #430, which is scoped to #428's cohort.
+    // waiver, and invisible until the ledger enumerated the register.
+    //
+    // NOW DISCHARGED, and the waiver is removed in the same change that discharged it rather
+    // than left behind as a stale label. It was Waived because `Behavioural` asserts that a case
+    // exercises it and there was none; registering it as behavioural "with a waiver note" was the
+    // first thing I wrote, and it is precisely the half-true registration this ledger exists to
+    // stop. The subject appended a row unconditionally, so this was a real gap and not a missing
+    // test: closing it took an implementation change, not a case.
+    //
+    // THE TEXT IS A BICONDITIONAL — "the revision changes EXACTLY WHEN the state changes" — so a
+    // case asserting one direction would not discharge it. Both are asserted, each no-change arm
+    // paired with a changing write that MUST mint.
     Registration {
         text: "The revision changes exactly when the resource's state changes; a write that would leave the state unchanged mints no new revision (and produces no event).",
-        // WAIVED, not Behavioural: there is no case yet, and `Behavioural` asserts that a case
-        // exercises it. Registering it as behavioural "with a waiver note" was the first thing I
-        // wrote, and it is precisely the half-true registration this ledger exists to stop —
-        // caught by reading the disposition against its own evidence.
-        disposition: Disposition::Waived,
-        evidence: "gastownhall/bdp#433",
+        disposition: Disposition::Behavioural,
+        evidence: "a_no_change_write_is_a_no_op — put and patch, each no-change arm paired with a changing write that MUST mint, so a subject that never wrote would fail it. The parenthetical \"and produces no event\" is NOT asserted: the resource changefeed is served by `changes`, a retired primitive the protocol client exposes no method for, so the event stream is unobservable over the published surface. One code path serves the revision append and the event, so no row means no event — an argument from the source, not a measurement, and it is not counted as one",
+    },
+    // THE BARE-`Rev` WIRE SHAPE. Registered Behavioural with the clause the case does NOT assert
+    // named in the evidence, because the ledger's job is to make a partial discharge visible
+    // rather than to round it up.
+    Registration {
+        text: "Wire body — a bare `Rev` return (`delete`, and any `-> Rev` callable such as `removeDependency`) lowers to a minimal self-describing object `{ \"rev\": <Rev> }`, NOT a raw JSON string; the `ETag` header mirrors it.",
+        disposition: Disposition::Behavioural,
+        evidence: "a_bare_rev_return_is_a_self_describing_object — asserts the OBJECT shape (a raw JSON string fails by name), a string `rev` member, and that the `ETag` equals the quoted body rev. Red-greened on both halves: returning the raw scalar reports \"delete returned a bare JSON string rather than a self-describing object\", and dropping the header reports \"NO ETag header\". THE WORD *MINIMAL* IS NOT ASSERTED: this subject answers with the full pinned reference ({scope, id, rev}), a superset of {rev} that a client written to the prose parses correctly. Whether a superset conforms is a spec-shape question with no ruling, so asserting {rev} exactly would bake in one reading while asserting nothing would leave a normative line with no producer at all. NOTE ALSO that the generated contract declares NO success schema for delete, put, patch or create, so this prose is the only governor of every write body and nothing machine-checkable would catch a raw string",
+    },
+    // The full-state statement of the same rule, which adds two clauses of its own.
+    Registration {
+        text: "A full-state write that changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the reply carries no `transaction`.",
+        disposition: Disposition::Behavioural,
+        evidence: "a_no_change_write_is_a_no_op — PARTIAL, and the case names what it leaves. Succeeds, keeps the revision and records no provenance are asserted (no new revision means no provenance row, since they are the same append). Produces no event is unobservable, as above. The reply carries no `transaction` would pass VACUOUSLY: this subject never carries one on a write reply under any circumstances, so the assertion could not fail and is deliberately absent — a probe that cannot fail is not evidence",
     },
     Registration {
         text: "A `Rev` is opaque: compared for equality only, never parsed or inspected.",
@@ -395,10 +486,24 @@ pub const EXPECTED_OBLIGATIONS: &[Registration] = &[
     },
         // Re-points to SurfaceBearing at the impl PR that binds the params: that is what makes
         // list/export/revisions `400` reachable. Waived until then -- there is no case to name.
+    // THE FIRST OBLIGATION THIS LEDGER CANNOT HONESTLY TYPE, and the clause states have MOVED since
+    // it was written, which is the argument for recording them on the row. The malformed-value
+    // clause is COVERED; "MUST HONOR after/limit" was PARTIAL and is now COVERED -- typing it
+    // partial is what sent me looking, and `after` turned out to be dropped at FOUR layers of this
+    // binding (the store ignored it, the server never parsed it, the client never sent it, and
+    // there was no envelope to return the position), each failure looking like a correct first
+    // page. `format` is still NOT COVERED AT ALL
+    // — read nowhere in this binding, and riding as a HEADER on all four reads, which is why it was
+    // easy to miss while every other control sits on the request line.
+    //
+    // `Waived` is the least wrong of three bad fits, not a verdict. `Behavioural` would claim a case
+    // exercises it, true of one clause in three; `SurfaceBearing` would claim tier-1 rows ground it,
+    // true of clause 1 alone. A PARTIALLY DISCHARGED obligation is a real state and this ledger has
+    // no word for it. Recorded rather than rounded to whichever bucket flattered the count.
     Registration {
         text: "A service offering a read MUST HONOR the floor controls it accepts — not merely declare them: `after` (resume from the cursor), `limit` (window the result), and `format` (encode in the selected transport) — and MUST fault `400` on a malformed value. Silently ignoring a resume cursor or a transport selector — returning the whole set from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT (the silent-failure class, like a dropped `where`). A declared floor param is a promise to act on it.",
         disposition: Disposition::Waived,
-        evidence: "gastownhall/bdp#430 item 14",
+        evidence: "PARTIAL, and tracked in two places: gastownhall/bdp#430 item 14 for the obligation, gastownhall/bdp#451 for the `format` encoding question that blocks the rest. TWO of three clauses are now covered -- the malformed-value clause by an_invalid_limit_is_an_invalid_parameter_400 (grounding op/list/fault/400 and op/revisions/fault/400), and MUST-HONOR-after/limit by every_read_returns_a_page_and_a_walk_terminates, which walks list to exhaustion and asserts the pages reconstruct the set exactly. `format` remains uncovered: list and revisions refuse `jsonl` 501 because the spec does not frame a `Page` as newline-delimited records (#451, Lydia has it as RC3 item 1)",
     },
         // A DISTINCT trigger from item 9's missing terminator, and deliberately NOT SurfaceBearing
         // on `op/import/fault/400`: one truncation case citing that row would discharge this
@@ -477,9 +582,748 @@ pub fn obligation_ledger() -> Ledger {
     l
 }
 
+// ---- the INPUT lowering: can the generated contract say how to INVOKE each op? ----------------
+
+/// One primitive's input lowering — what its `core.lumen` signature DECLARES, against what the
+/// generated OpenAPI can actually CARRY.
+///
+/// THE DENOMINATOR ABOVE CANNOT SEE THIS, which is the whole reason this exists. [`denominator`]
+/// counts ops and their declared `>=400` statuses, and both are present and correct for all 13
+/// primitives. So the contract can be complete in every row this gate counts and still not say how
+/// to INVOKE the operation — no request body, no parameter, nowhere for a declared input to ride.
+///
+/// The tier-1 cases do not catch it either, and that is worth stating plainly: they drive a
+/// reference that carries inputs the contract never declared, so they pass over a wire the contract
+/// cannot describe. A green gate over an unusable contract is the exact failure the two-sided
+/// generator witness ([`source_surface`]) was added for, one level further in — there the two sides
+/// were the generated catalog and the source it comes from; here they are an operation's signature
+/// and the `/// openapi =` annotation hand-written three lines above it, with nothing comparing
+/// them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputLowering {
+    pub op: String,
+    /// The signature parameter the path carries, named by the annotation's `pathItem`.
+    pub path_param: Option<String>,
+    /// Signature parameters that must therefore ride a param or the request body.
+    pub declared: Vec<String>,
+    /// The `params = { … }` KEYS from the annotation. The key is the Lumen parameter name; a
+    /// nested `name = "If-Match"` is its wire spelling, so the keys are what a signature compares
+    /// against.
+    pub carried: Vec<String>,
+    /// Whether the annotation declares `request = { contentType = … }`.
+    pub has_request_body: bool,
+    /// Declared parameters with nowhere on the wire to ride: not the path, not a param, and no
+    /// request body to fall back on.
+    pub uncarried: Vec<String>,
+}
+
+/// Signature parameters the annotation lowers under a DIFFERENT name.
+///
+/// Each needs a reason, because an unexplained alias and a dropped parameter look identical from
+/// here — and reading one as the other is how this check would acquire a false positive and then be
+/// widened to silence it.
+pub const LOWERED_UNDER_ANOTHER_NAME: &[(&str, &str, &str)] = &[(
+    "get",
+    "selector",
+    "lowered as the `select` query param. `get`'s annotation also carries `revision`, `include`, \
+     `omit` and `expand`, none of which has a signature counterpart at all — so this annotation is \
+     MORE complete than its signature, not less, and the mismatch is a spelling rather than a gap.",
+)];
+
+/// Declared inputs that the generated contract CANNOT carry, registered with what each costs.
+///
+/// THIS IS A REGISTER, NOT A SUPPRESSION LIST, and the test below asserts it in BOTH directions: an
+/// unregistered uncarried input fails, and a registered one that becomes carriable fails too. So
+/// closing any of these turns the gate red until its entry is removed in the same change, and no
+/// entry can quietly outlive the gap it describes.
+///
+/// WHY THESE ARE REGISTERED RATHER THAN FIXED. A plausible ruling makes the current annotations
+/// correct: that the OpenAPI lowering is a ROUTE and FAULT surface, with inputs specified by the
+/// Lumen signature and the prose, and never intended as a complete client contract. On that reading
+/// nothing here is a defect and the fix would be to say so in the spec. The opposite ruling — that
+/// the lowering is the machine-readable contract — makes every row below a blocker, because an
+/// implementer handed `core.openapi.json` cannot create, write or call at all. The evidence leans
+/// the second way (`list` carries all eight of its params, `put` carries its three guards, and
+/// `patch`/`import`/`push` all declare a `request` body, so the vocabulary is used completely where
+/// an author filled it in) but leaning is not a ruling, and authoring the fix would decide it.
+pub const UNCARRIED_INPUTS: &[(&str, &str, &str)] = &[
+    (
+        "call",
+        "request",
+        "the invocation payload. `call` is POST with one `mode` query param and no request body, so \
+         there is no channel for the argument of the call.",
+    ),
+    (
+        "create",
+        "requestedId",
+        "`create` declares NO params and NO request body — its annotation carries only `success`, \
+         `responseHeaders` and `problem`. All five non-path inputs are uncarriable, so the \
+         generated contract describes no way to create a resource.",
+    ),
+    ("create", "type", "see `create`/`requestedId`."),
+    ("create", "authority", "see `create`/`requestedId`."),
+    ("create", "body", "see `create`/`requestedId`."),
+    ("create", "metadata", "see `create`/`requestedId`."),
+    (
+        "put",
+        "type",
+        "`put` carries its three GUARDS (`If-Match`, `If-None-Match`, `precondition`) and declares \
+         no request body, so the representation it writes has nowhere to ride. The guards being \
+         present is what makes this an omission rather than a policy: the annotation is used, just \
+         not finished.",
+    ),
+    ("put", "authority", "see `put`/`type`."),
+    ("put", "body", "see `put`/`type`."),
+    ("put", "metadata", "see `put`/`type`."),
+    (
+        "export",
+        "where",
+        "`export`'s own filter. Its normative line REQUIRES this parameter to exist — it rejects \
+         `request.filter` with `400` precisely because \"filtering and projection are the op's own \
+         `where`/`select`\" — so the annotation contradicts the obligation three lines above it.",
+    ),
+    (
+        "export",
+        "select",
+        "`export`'s own projection, required to exist by the same normative line as \
+         `export`/`where`. (This also cited the open question on `ExportCaps` having no selector field. #461 ANSWERS \
+         it by adding `ExportCaps.selector`, so that clause is now false while the claim above \
+         it stands — the PR adds the capability field, not the parameter. CLOSES WHEN: `select` \
+         appears in `export`'s generated `parameters`.)",
+    ),
+    (
+        "export",
+        "revisions",
+        "the `--revisions` flag the description leans on (\"`--revisions` emits every revision in \
+         order (a true backup)\"). Uncarried, so the generated contract offers no way to ask for \
+         the backup form of an export.",
+    ),
+    (
+        "revisions",
+        "select",
+        "declared `select?: selector` with the description \"Projection per revision — ids-only vs \
+         full representations\", and absent from the annotation's params. `list` — the sibling this \
+         op's own description compares it to (\"list-shaped like `list`\") — carries its `select`, \
+         which is what makes this a drop rather than a design.",
+    ),
+];
+
+/// Derive the input lowering for every primitive carrying an `/// openapi =` annotation.
+///
+/// Parses two things the file keeps three lines apart and never cross-checks:
+///   * the annotation — `pathItem`, the `params` keys, and whether a `request` body is declared;
+///   * the signature — `fn`, `command` or `idempotent command`, one parameter per line at four
+///     spaces, up to the `) ->` return.
+///
+/// A `request?: ReadRequest` parameter is EXCLUDED as the documented expansion into
+/// `after`/`from`/`limit`/`format`. The type is what decides that, never the name: `call` also has
+/// a parameter called `request` and its type is `Request`, the invocation payload, which has to be
+/// carried like any other input. Matching on the name alone hid `call` when this was first written.
+pub fn input_lowering() -> Vec<InputLowering> {
+    let mut out: Vec<InputLowering> = Vec::new();
+
+    for line in CORE_LUMEN.lines() {
+        let l = line.trim_start();
+        if !l.starts_with("///") || !l.contains("openapi") {
+            continue;
+        }
+        let Some(idx) = l.find("operationId") else { continue };
+        let Some(rest) = l[idx..].split_once('"').map(|(_, r)| r) else { continue };
+        let Some((op, _)) = rest.split_once('"') else { continue };
+
+        let path_param = l.find("pathItem").and_then(|i| {
+            l[i..].split_once('"').and_then(|(_, r)| r.split_once('"').map(|(v, _)| v.to_string()))
+        });
+
+        let carried: Vec<String> = match l.find("params = {") {
+            Some(i) => balanced(l, i, b'{', b'}').map(keys_of).unwrap_or_default(),
+            None => Vec::new(),
+        };
+
+        let has_request_body = l.contains("request = {");
+        let sig = signature_params(op);
+        assert!(
+            !sig.is_empty(),
+            "no signature parameters parsed for `{op}`. Every primitive declares at least its own \
+             target, so an empty list means the parse missed the declaration form — and a parse \
+             that reports nothing reports every op as clean. Teach `signature_params` the form \
+             rather than letting this return an empty verdict.",
+        );
+
+        let declared: Vec<String> = sig
+            .iter()
+            .filter(|(n, t)| {
+                Some(n.as_str()) != path_param.as_deref() && !(n == "request" && t.contains("ReadRequest"))
+            })
+            .map(|(n, _)| n.clone())
+            .collect();
+
+        let uncarried: Vec<String> = if has_request_body {
+            Vec::new()
+        } else {
+            declared
+                .iter()
+                .filter(|n| {
+                    !carried.contains(n)
+                        && !LOWERED_UNDER_ANOTHER_NAME
+                            .iter()
+                            .any(|(o, p, _)| *o == op && *p == n.as_str())
+                })
+                .cloned()
+                .collect()
+        };
+
+        out.push(InputLowering {
+            op: op.to_string(),
+            path_param,
+            declared,
+            carried,
+            has_request_body,
+            uncarried,
+        });
+    }
+    out
+}
+
+/// The `word = {` keys of a `params = { … }` span, in order.
+fn keys_of(span: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = span.as_bytes();
+    let mut i = 0usize;
+    while let Some(eq) = span[i..].find(" = {").map(|p| i + p) {
+        let key_end = eq;
+        let mut key_start = key_end;
+        while key_start > 0 && (bytes[key_start - 1].is_ascii_alphanumeric() || bytes[key_start - 1] == b'_') {
+            key_start -= 1;
+        }
+        if key_start < key_end {
+            out.push(span[key_start..key_end].to_string());
+        }
+        // Skip the whole nested record, so an inner `name = { … }` is never read as a param key.
+        match balanced(span, eq, b'{', b'}') {
+            Some(inner) => {
+                let after = inner.as_ptr() as usize - span.as_ptr() as usize + inner.len();
+                i = (after + 1).min(span.len());
+            }
+            None => i = (eq + 4).min(span.len()),
+        }
+    }
+    out
+}
+
+/// One primitive's signature parameters as `(name, type)`, in declaration order.
+///
+/// Accepts all three declaration forms `core.lumen` uses — `fn op(`, `command op(` and
+/// `idempotent command op(`, with optional generics (`fn get<T>(`). Reads only parameters at
+/// exactly four spaces, so a nested record field inside a parameter's type is never mistaken for a
+/// parameter.
+fn signature_params(op: &str) -> Vec<(String, String)> {
+    let mut lines = CORE_LUMEN.lines();
+    while let Some(l) = lines.next() {
+        let head = l
+            .strip_prefix("idempotent ")
+            .unwrap_or(l)
+            .strip_prefix("fn ")
+            .or_else(|| l.strip_prefix("idempotent ").unwrap_or(l).strip_prefix("command "));
+        let Some(head) = head else { continue };
+        let name: String = head.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+        if name != op {
+            continue;
+        }
+        let after = &head[name.len()..];
+        // `(` directly, or after a generic parameter list.
+        let opens = after.starts_with('(')
+            || (after.starts_with('<') && after.split_once('>').is_some_and(|(_, r)| r.starts_with('(')));
+        if !opens {
+            continue;
+        }
+        let mut out = Vec::new();
+        for body in lines.by_ref() {
+            let t = body.trim_start();
+            if t.starts_with(") ->") || t.starts_with(")->") {
+                break;
+            }
+            if t.starts_with("///") || t.starts_with("//") {
+                continue;
+            }
+            let Some(decl) = body.strip_prefix("    ") else { continue };
+            if decl.starts_with(' ') {
+                continue;
+            }
+            let Some((lhs, rhs)) = decl.split_once(':') else { continue };
+            let pname = lhs.trim().trim_end_matches('?');
+            if pname.is_empty() || !pname.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                continue;
+            }
+            out.push((pname.to_string(), rhs.trim().trim_end_matches(',').to_string()));
+        }
+        return out;
+    }
+    Vec::new()
+}
+
+// =============================================================================
+// WIRE-LOWERING COMPLETENESS — does every declared thing have a wire home?
+//
+// The tier-1 gate above counts FAULTS: ops and their declared `>=400` statuses. It cannot see a
+// declared thing that the wire has no way to carry, because such a thing produces no row to be
+// uncovered. Four findings in two days were all that shape — declared inputs the generated
+// contract cannot carry (#450), a mandated encoding with no framing (#451), a status produced but
+// never declared (#452), a status declared but not producible (#453), and a closed representation
+// envelope the wire does not emit (#454). Each was found by hand. This section is the machine.
+//
+// WHAT THIS SECTION DOES *NOT* DO, recorded because I built it and threw it away:
+//
+// I also wrote the symmetric check — every declared fault status must have a producer naming its
+// operation in D.8 — because that is precisely the hand-derivation that found `delete/409` and
+// `patch/409`. It flags **22 of 37 rows**, and a filter that rejects a majority of a conformant
+// surface is not a filter. The reason is prose shape, not defects: D.8's `409` entry ENUMERATES
+// its producers ("call → …; any id collision — `create` … OR `put` …"), so an op absent from it is
+// genuinely unaccounted for; D.8's `400` entry describes an OPEN CLASS ("Three shapes reach it. A
+// BAD BODY … AN INVALID PARAMETER VALUE …"), under which every write op falls legitimately without
+// being named. Telling those two shapes apart is prose semantics, and a gate that cried wolf 22
+// times would be ignored into uselessness — worse than no gate. The hand-derivation stands on
+// reasoning this check cannot reach, so it stays hand work and is NOT registered as automated.
+// =============================================================================
+
+/// Every Problem `code` the spec declares, parsed from the D.9 catalogue.
+///
+/// `code` is normative WIRE OUTPUT: core.lumen:853 makes it a BDP extension member carrying a
+/// stable problem-type URI (`tag:bdp.dev,2026:problem/<code>`), one per code. So a code is a thing
+/// the wire emits, and a client branches on it.
+pub fn problem_codes() -> Vec<String> {
+    let (block, _) = d9_catalogue();
+    let mut out: Vec<String> = Vec::new();
+    // ONLY THE ·-SEPARATED LINES, which is what makes a hyphenless code reachable.
+    //
+    // This parser required a hyphen, on the reasoning that codes are kebab-case and the header
+    // sentence's `problem-type` was the one false positive to exclude. **Two codes have no
+    // hyphen** — `unauthenticated` and `forbidden` — so both were silently dropped, and the
+    // registry read 20 where it is 22. Every count built on it was computed over the wrong
+    // denominator, and both are themselves orphans, so the orphan figure was wrong in BOTH terms.
+    // A peer hit the identical bug in her own extractor and told me to check mine.
+    //
+    // The fix is to discriminate by POSITION rather than by spelling: the catalogue's codes are
+    // the ·-separated items, and its header prose contains no `·`. That admits a hyphenless code
+    // and still excludes the prose, where a hyphen rule had to choose one or the other.
+    for line in block.lines().filter(|l| l.contains('·')) {
+        for tok in line.split('·') {
+            let t = tok.trim().trim_start_matches('/').trim().trim_matches('`');
+            if !t.is_empty()
+                && t.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                && !t.starts_with('-')
+                && !t.ends_with('-')
+                && !out.iter().any(|s| s == t)
+            {
+                out.push(t.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// The D.9 catalogue block, and the rest of `core.lumen` with that block removed.
+///
+/// The split is the whole method: a code MENTIONED ONLY IN ITS OWN CATALOGUE is bound to nothing.
+fn d9_catalogue() -> (String, String) {
+    let start = CORE_LUMEN
+        .find("D.9 Problem codes")
+        .expect("core.lumen has a D.9 Problem codes appendix");
+    let end = CORE_LUMEN[start..]
+        .find("Appendix E")
+        .map(|i| start + i)
+        .expect("D.9 is followed by Appendix E");
+    let block = CORE_LUMEN[start..end].to_string();
+    let rest = format!("{}{}", &CORE_LUMEN[..start], &CORE_LUMEN[end..]);
+    (block, rest)
+}
+
+/// A declared Problem code that appears NOWHERE outside the D.9 catalogue — so nothing in the spec
+/// binds it to a status, an operation, or a producing condition.
+pub fn orphan_codes() -> Vec<String> {
+    let (_, rest) = d9_catalogue();
+    problem_codes().into_iter().filter(|c| !rest.contains(c.as_str())).collect()
+}
+
+/// The declared codes with no wire home, registered so the gate is green on the KNOWN set and red
+/// on a new one. Each entry is the code and what is actually missing — they are not one defect.
+///
+/// EVERY JUSTIFICATION HERE MUST NAME WHAT CLOSES IT. Most do so implicitly, by restating the fact
+/// the guard already checks ("D.8 has no 401 row"): when the spec gains that row the code stops
+/// being an orphan and `the_code_register_names_only_live_orphans` fails. Prose and guard agree by
+/// construction there, which is why those entries cannot rot.
+///
+/// A justification that instead cites an OPEN QUESTION expires the moment the question closes, and
+/// NOTHING WATCHES PROSE. `validation-failed` carried "the open question behind #453's patch/409"
+/// after Donna had already ruled it 409: claim still true, reasoning false, and no guard able to
+/// tell the difference. So an entry resting on a question states the condition that closes it,
+/// which dates the entry and lets a reader check instead of trusting the sentence.
+///
+/// THE TWO TIERS MATTER, and collapsing them would overstate the finding. For some, D.8 describes
+/// the CONDITION under a status without ever writing the code beside it, so the repair is one line
+/// of text: `404` says "get of an absent resource" and `410` says "get of a pruned / erased
+/// resource". For the rest there is no status entry to attach to at all — D.8 has no `429` and no
+/// `5xx` entry beyond the `4xx/5xx` catch-all, so `rate-limited` and `temporarily-unavailable`
+/// have nowhere to land, and `validation-failed` has neither a status nor a condition anywhere.
+// THREE ENTRIES CLOSED BY #456 (`b001cbff`), not re-judged: `resource-not-found`,
+// `resource-pruned` and `resource-erased` are now named beside their D.8 status rows, so each has a
+// wire home. The staleness guard is what told me — it failed naming them the moment main was
+// merged in, which is the only reason this list is not now a false claim about the spec it reads.
+// Thirteen of twenty-two became ten of twenty-two.
+pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
+    ("unauthenticated", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 401 row"),
+    ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
+    (
+        "validation-failed",
+        "no status row and no producing condition in the TEXT. This used to cite \"the open \
+         question behind #453's patch/409\" — Donna has since RULED it 409, so the question is \
+         CLOSED and only the lowering is outstanding. CLOSES WHEN: `validation-failed` appears on \
+         D.8's 409 row.",
+    ),
+    ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
+    ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
+    ("type-not-installed", "no status entry names it; Types-profile condition with no Core landing"),
+    ("callable-not-found", "no status entry names it; a `call` dispatch condition"),
+    ("callable-unavailable", "no status entry names it; a `call` dispatch condition"),
+    ("mode-not-supported", "no status entry names it; `?mode=async` refusal"),
+    ("mode-refused", "no status entry names it; `?mode=async` refusal"),
+];
+
+/// The field names of the spec's `CoreCapabilities` record — the closed set of primitives that may
+/// be advertised in the `core` capability member.
+///
+/// core.lumen:1611 is normative and makes presence the SOLE criterion of support: "a primitive is
+/// supported iff its capability is present". So this set is not a style guide — a key outside it,
+/// advertised in `core`, tells a client something the spec's capability model does not define, and
+/// a primitive whose key cannot appear there cannot be discovered at all.
+///
+/// `call` and `cancel` are deliberately absent: core.lumen:1570 puts them under their own package
+/// ("Call / cancel (operations) and the stdlib packs (apply = batch, eval = query) advertise under
+/// their own packages, not core"), so `Capabilities.packs` is their home, not `core`. Eleven fields
+/// for thirteen primitives is the design, not a gap — a conclusion I reached only after nearly
+/// filing it as a defect, which is why it is written here rather than left to be re-derived.
+pub fn core_capability_fields() -> Vec<String> {
+    let start = CORE_LUMEN
+        .find("## CoreCapabilities")
+        .expect("core.lumen declares a CoreCapabilities record");
+    let span = balanced(CORE_LUMEN, start, b'{', b'}')
+        .expect("the CoreCapabilities record body is brace-balanced");
+    record_field_names(span)
+}
+
+/// Field names of a Lumen record body — `name:` or `name?:` at the head of a line.
+///
+/// NOT [`keys_of`], which parses the `name = { … }` annotation form used by the `/// openapi =`
+/// lowering lines. Reusing it here yielded ZERO fields, and an empty allowed-set would have made
+/// the wire-side check flag every advertised key — caught by the anti-vacuity test on the first
+/// run, which is the whole reason that test is written before the check that depends on it.
+fn record_field_names(span: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in span.lines() {
+        let t = line.trim();
+        // Skip doc comments, comments and nested braces.
+        if t.starts_with("///") || t.starts_with("//") || t.is_empty() {
+            continue;
+        }
+        let Some(colon) = t.find(':') else { continue };
+        let name = t[..colon].trim().trim_end_matches('?');
+        if !name.is_empty()
+            && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            && !out.iter().any(|s| s == name)
+        {
+            out.push(name.to_string());
+        }
+    }
+    out
+}
+
+/// Problem codes NAMED BY A FAULT VERB in `core.lumen` — "faults `x`", "refused `x`".
+///
+/// The mirror of [`orphan_codes`], which asks whether a REGISTERED code has a status home. This
+/// asks the other direction: whether a code the spec actually USES is in the registry at all. A
+/// code named in a normative line and absent from D.9 has no stable problem-type URI
+/// (`tag:bdp.dev,2026:problem/<code>` is defined per registry entry — core.lumen:853), so a client
+/// told to branch on it has nothing to branch against.
+///
+/// THE VERB IS THE DISCRIMINATOR, and it has to be. A naive "backticked kebab-case token" filter
+/// returns nine candidates here, of which SIX are not problem codes at all — an event kind
+/// (`call-leave`), an authentication basis (`channel-authenticated`), a query relation (`is-a`) and
+/// three link relations (`service-desc`/`service-doc`/`service-meta`). Filtering on the fault verb
+/// cuts it to the three that are, which is the difference between a check and a noise generator.
+pub fn codes_named_by_a_fault_verb() -> Vec<String> {
+    const VERBS: [&str; 4] = ["faults `", "refused `", "refuses `", "fault `"];
+    let (d9, rest) = d9_catalogue();
+    let _ = d9;
+    let mut out: Vec<String> = Vec::new();
+    for verb in VERBS {
+        let mut from = 0usize;
+        while let Some(i) = rest[from..].find(verb).map(|p| from + p) {
+            let after = i + verb.len() - 1; // keep the opening backtick in the window
+            // SCAN THE CLAUSE, NOT JUST THE NEXT TOKEN. This took only the token immediately
+            // after the verb, which handles "faults `channel-not-pullable`" and is BLIND to the
+            // other normative style: core.lumen:673 writes "faults `404` (`resource-not-found`)",
+            // where the verb is followed by the STATUS and the code sits in a parenthetical. The
+            // first token there is `404`, which fails the kebab filter, so the whole site
+            // contributed nothing — and three codes named on that line were invisible.
+            //
+            // Found by simulating an incomplete repair (removing a code from D.9 while leaving its
+            // normative usages) and watching this check stay GREEN. A peer had told me it would
+            // catch exactly that; it did not, and only running it showed so.
+            let end = rest[after..]
+                .find(". ")
+                .map(|e| after + e)
+                .unwrap_or_else(|| (after + 200).min(rest.len()));
+            let clause = &rest[after..end];
+            for tok in clause.split('`').skip(1).step_by(2) {
+                if tok.contains('-')
+                    && tok.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                    && !tok.starts_with('-')
+                    && !tok.ends_with('-')
+                    && !out.iter().any(|s| s == tok)
+                {
+                    out.push(tok.to_string());
+                }
+            }
+            from = end.max(i + verb.len());
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Codes the spec USES but never registers in D.9. Registered so the gate is green on the known set
+/// and red on a new one, with the staleness guard in the other direction too.
+///
+/// All three are channel/alias faults, which is not a coincidence: both are surfaces whose codes
+/// were written at the point of use and never carried back to the registry. A peer found
+/// `channel-not-pullable` by reading one normative line; measuring the whole file found its mirror
+/// and a third on an unrelated primitive.
+pub const CODES_USED_BUT_UNREGISTERED: &[(&str, &str)] = &[
+    ("channel-not-pullable", "core.lumen pull: a `sink`-only channel faults it; absent from D.9"),
+    ("channel-not-pushable", "core.lumen push: a `source`-only channel faults it; absent from D.9"),
+    ("invalid-target", "core.lumen alias binding: an alias whose target is a live alias is refused it; absent from D.9"),
+];
+
+/// The subject's server source, for the SECOND problem producer.
+pub const SERVER_RS: &str = include_str!("../../subject/bdp-protocol/src/server.rs");
+
+/// Problem codes the server emits through `problem_body(status, code, detail)` — a producer that
+/// does **not** go through `WireProblem::from_error`, and so is invisible to the exhaustive-by-
+/// execution check over `BdpError`'s variants.
+///
+/// I COMMITTED THAT CHECK CLAIMING THE COMPLETE VOCABULARY. It is complete over `BdpError`, a
+/// closed enum of thirteen variants, and that is not the same as complete over the subject: eleven
+/// `problem_body` call sites construct Problems directly, and two of their codes are unregistered.
+/// Exhaustiveness is a property of a POPULATION, and I named the enum while asserting it of the
+/// server.
+///
+/// METHOD, AND ITS LIMIT, because the two differ here. `from_error` is enumerated BY EXECUTION —
+/// construct every variant, call it, read the code. `problem_body` cannot be: it is private, and
+/// its `code` parameter means the vocabulary lives in the CALL SITES, not the function. So this is
+/// a scan for the literal `problem_body(<status>, "<code>"` form. **A code built dynamically at a
+/// call site would be missed**, which is a real gap and the reason the anti-vacuity test pins the
+/// site count rather than only the contents.
+///
+/// AND IT IMMEDIATELY BEAT THE GREP I HAD USED TO SCOPE IT. My ad-hoc
+/// `grep -oE 'problem_body\([0-9]{3}, "[a-z-]+"'` reported three codes; this scan reports four.
+/// The one it missed — `unsupported-media-type` — has its call site split across lines, so the
+/// status and the code are not on one line and a single-line pattern cannot see it. A pattern that
+/// encodes an assumption about how the code is FORMATTED is the same guess as one encoding how it
+/// is written, and this is the argument for the check living in the suite rather than in my shell
+/// history.
+pub fn codes_emitted_by_direct_problem_bodies() -> Vec<(u16, String)> {
+    let mut out: Vec<(u16, String)> = Vec::new();
+    let mut rest = SERVER_RS;
+    while let Some(i) = rest.find("problem_body(") {
+        rest = &rest[i + "problem_body(".len()..];
+        let Some(comma) = rest.find(',') else { break };
+        let Ok(status) = rest[..comma].trim().parse::<u16>() else { continue };
+        let after = rest[comma + 1..].trim_start();
+        let Some(stripped) = after.strip_prefix('"') else { continue };
+        let Some(end) = stripped.find('"') else { continue };
+        let code = &stripped[..end];
+        if !code.is_empty() && code.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
+            out.push((status, code.to_string()));
+        }
+    }
+    out
+}
+
+/// The direct-producer codes D.9 does not register. Registered so the gate is green on the known
+/// set and red on a new one.
+///
+/// Both are near-misses of registered codes with a D.8 status row, which is what makes them the
+/// same class as `not-found`/`already-exists` rather than new vocabulary:
+/// `bad-request` sits where D.8's 400 row names `malformed-request` and `invalid-parameter`, and
+/// `not-implemented` answers an un-offered capability, which core.lumen:1611 settles as
+/// `capability-not-supported` — a REGISTERED code whose D.8 row is **405**, so that one is wrong on
+/// the status as well. `501` appears nowhere in `core.lumen`.
+pub const DIRECT_CODES_NOT_REGISTERED: &[(&str, &str)] = &[
+    ("bad-request", "9 sites at 400; D.8's 400 row names `malformed-request` / `invalid-parameter`, both registered"),
+    ("not-implemented", "1 site at 501, a status absent from core.lumen; an un-offered capability is `capability-not-supported` (405) per core.lumen:1611"),
+    ("unsupported-media-type", "1 site at 415. The SHARPEST of the three: D.8 HAS a 415 row (a patch body whose media type is not application/json-patch+json), the row op/patch/fault/415 IS covered, and D.9 registers NO code for 415 at all — so the status is declared, the row is green, and the code is invented. My own 415 row asserts the status only, which is why it never surfaced. A fifth 'D.8 row with no registered code', after 401/403/429/5xx."),
+];
+
+/// The subject's wire module, for the capability-key mapping.
+pub const WIRE_RS: &str = include_str!("../../subject/bdp-protocol/src/wire.rs");
+
+/// The capability keys this subject's wire CAN emit — the `serde(rename = "…")` of each
+/// `WireCapability` variant.
+///
+/// THE CAUSE-LEVEL CHECK, ported from the cleanroom after its own inverse sweep found that it would
+/// have caught this subject's `push` defect. The capability case in `tests/gate.rs` catches the
+/// SYMPTOM — an operation this gate covers that the scope does not advertise. This catches the
+/// CAUSE: a closed-vocabulary field the wire has no variant for, so no scope could ever advertise
+/// it however correctly it behaved. `caps_to_wire` is `filter_map(from_trait)`, so a trait
+/// capability with no wire variant is silently discarded.
+///
+/// The two are worth keeping separate and in this order: fix the wire variant and the cause check
+/// goes green while the symptom check still fires until the scope actually advertises. That
+/// sequencing is the point — one guard per step, rather than one guard that passes when either is
+/// done.
+///
+/// METHOD: a scan for the literal `rename = "…"` inside the `WireCapability` enum. Serde renames
+/// are literals here so the scan is exhaustive over them; a variant named any other way would be
+/// missed, which is why the test pins the count.
+pub fn capability_keys_the_wire_can_emit() -> Vec<String> {
+    let Some(start) = WIRE_RS.find("enum WireCapability") else { return Vec::new() };
+    let Some(span) = balanced(WIRE_RS, start, b'{', b'}') else { return Vec::new() };
+    let mut out: Vec<String> = Vec::new();
+    let mut rest = span;
+    while let Some(i) = rest.find("rename = \"") {
+        rest = &rest[i + "rename = \"".len()..];
+        let Some(end) = rest.find('"') else { break };
+        let k = &rest[..end];
+        if !k.is_empty() && k.chars().all(|c| c.is_ascii_lowercase()) && !out.iter().any(|s| s == k) {
+            out.push(k.to_string());
+        }
+        rest = &rest[end..];
+    }
+    out
+}
+
+/// Closed-vocabulary fields the wire has no variant for, so no scope can advertise them.
+///
+/// Both are IMPLEMENTED here and carry covered rows — `op/push` with three faults, `op/revisions`
+/// with two — so seven covered rows belong to primitives a conformant client must read as
+/// unsupported (core.lumen:1611: a primitive is supported iff its capability is present).
+pub const CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT: &[(&str, &str)] = &[
+    ("push", "no `WireCapability::Push`; inmem advertises `C::Push` on the trait and `filter_map` discards it — the ASYMMETRIC case: advertised, implemented, dropped"),
+    ("revisions", "no `WireCapability::Revisions` and no trait variant either; the cleanroom derives this advertisement from `revision_model == Versioned` so the pairing cannot rot"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every declared input must have somewhere on the wire to ride, or be REGISTERED as not
+    /// having one. Asserted in both directions, so neither the gap nor the register can rot.
+    #[test]
+    fn every_declared_input_is_carriable_or_registered() {
+        let lowering = input_lowering();
+        assert_eq!(
+            lowering.len(),
+            CORE_PRIMITIVES.len(),
+            "input lowering must cover all 13 primitives; got {}",
+            lowering.len()
+        );
+
+        let observed: BTreeSet<(String, String)> = lowering
+            .iter()
+            .flat_map(|l| l.uncarried.iter().map(|p| (l.op.clone(), p.clone())))
+            .collect();
+        let declared: BTreeSet<(String, String)> =
+            UNCARRIED_INPUTS.iter().map(|(o, p, _)| (o.to_string(), p.to_string())).collect();
+
+        let unregistered: Vec<&(String, String)> = observed.difference(&declared).collect();
+        assert!(
+            unregistered.is_empty(),
+            "{} declared input(s) have NOWHERE on the wire to ride and are not registered: {:?}.\n\
+             The generated contract cannot say how to supply them, so an implementer working from \
+             `core.openapi.json` alone cannot invoke the operation. Either lower the parameter in \
+             the `/// openapi =` annotation, or add it to UNCARRIED_INPUTS with what it costs.",
+            unregistered.len(),
+            unregistered
+        );
+
+        // The other direction: an entry that is no longer needed is a claim that has expired.
+        let stale: Vec<&(String, String)> = declared.difference(&observed).collect();
+        assert!(
+            stale.is_empty(),
+            "UNCARRIED_INPUTS registers {} input(s) that ARE now carriable: {:?}. The gap closed \
+             and the entry outlived it — remove it in the change that closed it.",
+            stale.len(),
+            stale
+        );
+    }
+
+    /// The alias register must stay honest the same way: an alias that stops being needed is an
+    /// unexplained exemption, and an alias for a parameter that is NOT in the signature is a stale
+    /// name nobody is lowering.
+    #[test]
+    fn the_alias_register_names_only_live_aliases() {
+        let lowering = input_lowering();
+        for (op, param, _) in LOWERED_UNDER_ANOTHER_NAME {
+            let l = lowering
+                .iter()
+                .find(|l| l.op == *op)
+                .unwrap_or_else(|| panic!("alias register names `{op}`, which is not a primitive"));
+            assert!(
+                l.declared.iter().any(|d| d == param),
+                "alias register claims `{op}` declares `{param}`, but its signature does not. \
+                 The parameter was renamed or removed and this entry now lowers nothing."
+            );
+            assert!(
+                !l.carried.iter().any(|c| c == param),
+                "`{op}`'s annotation now carries `{param}` under its OWN name, so the alias entry \
+                 is obsolete — remove it."
+            );
+        }
+    }
+
+    /// THE PARSE MUST NOT BE VACUOUS. Both checks above are clean if `signature_params` returns
+    /// nothing, so the parse is asserted directly: a form it cannot read reports every op as
+    /// carrying every input.
+    #[test]
+    fn the_signature_parse_reaches_every_primitive() {
+        for op in CORE_PRIMITIVES {
+            let ps = signature_params(op);
+            assert!(
+                !ps.is_empty(),
+                "`signature_params(\"{op}\")` found nothing. `core.lumen` declares primitives as \
+                 `fn`, `command` and `idempotent command`, with optional generics — a form this \
+                 parser cannot read makes the lowering checks pass by measuring nothing."
+            );
+        }
+        // And it must find the three declaration forms, not just one: `get` is `fn get<T>(`,
+        // `push` is `command push(`, `put` is `idempotent command put(`. If a future rewrite
+        // collapses them this still holds; if the parser regresses to one form, it fails.
+        assert!(signature_params("get").iter().any(|(n, _)| n == "resource"));
+        assert!(signature_params("push").iter().any(|(n, _)| n == "events"));
+        assert!(signature_params("put").iter().any(|(n, _)| n == "body"));
+    }
+
+    /// `call`'s `request` is the invocation payload, NOT a `ReadRequest` expansion, and the
+    /// lowering must keep them apart. Written as its own test because excluding `request` by NAME
+    /// is the obvious implementation and it silently hid `call` when this was first built.
+    #[test]
+    fn a_read_request_expansion_is_not_confused_with_a_payload() {
+        let lowering = input_lowering();
+        let call = lowering.iter().find(|l| l.op == "call").expect("call");
+        assert!(
+            call.declared.iter().any(|d| d == "request"),
+            "`call`'s `request: Request` is the argument of the call and must be treated as an \
+             input needing a channel, not dropped as a ReadRequest expansion"
+        );
+        for op in ["list", "pull", "export", "revisions"] {
+            let l = lowering.iter().find(|l| l.op == op).expect(op);
+            assert!(
+                !l.declared.iter().any(|d| d == "request"),
+                "`{op}`'s `request?: ReadRequest` lowers to after/from/limit/format and must not \
+                 be counted as an uncarried input"
+            );
+        }
+    }
 
     #[test]
     fn denominator_has_13_ops_and_matches_core_primitives() {
@@ -496,7 +1340,21 @@ mod tests {
     }
 
     /// The v0.2.3 tier-1 surface, written out ROW BY ROW: each primitive and its declared `>=400`
-    /// fault statuses. 13 ops + 37 faults = 50.
+    /// fault statuses. **13 ops + 38 faults = 51** — #456 declared `pull/404`, and I updated the
+    /// assertion below and left this line saying 50.
+    ///
+    /// AND THIS TABLE MUST NOT BE DERIVED, which is the scope limit on "make the drift
+    /// unrepresentable rather than detectable". Deriving it from the generated OpenAPI is exactly
+    /// the circular assertion that rule is meant to prevent elsewhere — a filter checked against
+    /// its own predicate. The relationships differ:
+    ///
+    ///   two things that must AGREE BY CONSTRUCTION (an advertisement and the fact it advertises)
+    ///     -> derive one from the other; the wrong pairing becomes unwritable
+    ///   an INDEPENDENT EXPECTATION watching an artifact (this table vs the generated catalog)
+    ///     -> must stay hand-written, or it can no longer disagree, and disagreeing is its whole job
+    ///
+    /// So this stays a hand-maintained row-by-row list, and the cost is exactly what just happened:
+    /// a hand-maintained expectation drifts from its own prose, and the prose is what drifted.
     ///
     /// RE-PINNED FOUR TIMES. Each re-pin corrects the one before it, and the corrections are the
     /// argument for spelling the surface out row by row instead of asserting a total.
@@ -590,7 +1448,11 @@ mod tests {
         // is not an error for `put`, which creates. On `put` the 409 belongs to the `ifAbsent` guard
         // (claiming a spent id), never to the bare operation (updating what is gone).
         ("patch", &[400, 404, 409, 410, 412, 415, 422]),
-        ("pull", &[400, 405, 410]),
+        // 404 ADDED by #456 (merged `b001cbff`): once "which channels exist is discovered
+        // per-channel" is normative, pulling a channel that does not exist is a legitimate request,
+        // and `pull`'s other three statuses are each spoken for — 405 is direction, 410 is the
+        // retention floor, 400 is malformed. Raised pre-merge, declared in the same change.
+        ("pull", &[400, 404, 405, 410]),
         ("push", &[405, 409, 422]),
         ("put", &[400, 409, 410, 412, 422]),
         ("revisions", &[400, 404]),
@@ -631,7 +1493,7 @@ mod tests {
                 if removed.is_empty() { "(none)".into() } else { removed.join(", ") },
             );
         }
-        assert_eq!(actual.len(), 50, "the v0.2.3 surface is 50 rows (13 ops + 37 faults)");
+        assert_eq!(actual.len(), 51, "the v0.2.3 surface is 51 rows (13 ops + 38 faults)");
     }
 
     /// The STANDING GENERATOR WITNESS: the surface derived from the normative `core.lumen` source must
@@ -872,10 +1734,25 @@ mod tests {
     #[test]
     fn the_normative_parse_is_not_vacuous() {
         let found = normative_surface();
+        // EXACT, NOT A FLOOR — the third floor in this file to need this, and the one that had
+        // already cost something: the normative surface grew 89 -> 91 when #456/#457/#458 merged,
+        // and `>= 60` passed in silence. Every obligation figure published off this parse — "89
+        // obligations, 19 registered", the 70-strong backlog I sized by reading — was computed over
+        // a population that had since moved. A floor is exactly the shape that survives the change
+        // it exists to report.
+        const OBLIGATIONS: usize = 91;
         assert!(
-            found.len() >= 60,
-            "parsed only {} obligations — the anchor or the prefix is wrong",
-            found.len()
+            found.len() == OBLIGATIONS,
+            "parsed {} obligations, expected {OBLIGATIONS}. {} The ledger, the backlog sizing and \
+             every count on this page are computed over this set:",
+            found.len(),
+            if found.len() < OBLIGATIONS {
+                "FEWER — the anchor or the prefix is wrong, or obligations were removed; the ledger \
+                 is now a tripwire over a short set."
+            } else {
+                "MORE — the spec gained normative lines. That is not a bug: re-read the new ones, \
+                 classify them, and update OBLIGATIONS. The backlog sizing is short by the delta."
+            }
         );
         assert!(
             found.iter().all(|t| t.len() > 20),
@@ -914,9 +1791,51 @@ mod tests {
         }
     }
 
+    /// NO TWO REGISTRATIONS MAY CARRY THE SAME TEXT, and this exists because I added a duplicate.
+    ///
+    /// The obligation above was already on the ledger, waived against #430 item 14. I registered it
+    /// a second time without checking, and NOTHING COMPLAINED: `obligation_ledger` resolves each
+    /// obligation with `find`, which takes the first match, so my entry silently shadowed the
+    /// original and the original became unreachable. The counts could not show it either — 20
+    /// entries resolved to "registered: 19, pending: 0", and the only trace was that 20 ≠ 19 + 0.
+    ///
+    /// THE SHADOWING IS THE DANGER, not the redundancy. Two entries for one obligation means one
+    /// disposition and one piece of evidence are live and the other is dead text that still reads
+    /// as current — so a reader can find the stale one, trust it, and act on a tracking issue that
+    /// the live entry has already superseded.
+    #[test]
+    fn no_obligation_is_registered_twice() {
+        let mut seen: BTreeSet<&str> = BTreeSet::new();
+        for r in EXPECTED_OBLIGATIONS {
+            assert!(
+                seen.insert(r.text),
+                "two registrations carry the same obligation text, so one SHADOWS the other and \
+                 its disposition and evidence are dead text that still reads as current:\n  {}",
+                r.text
+            );
+        }
+        // And the partition must account for every entry: anything neither registered nor pending
+        // has been swallowed, which is exactly how the duplicate hid.
+        let l = obligation_ledger();
+        assert_eq!(
+            l.registered.len() + l.pending.len(),
+            EXPECTED_OBLIGATIONS.len(),
+            "{} registrations resolved to {} registered + {} pending; the difference is entries \
+             the ledger silently dropped",
+            EXPECTED_OBLIGATIONS.len(),
+            l.registered.len(),
+            l.pending.len()
+        );
+    }
+
     /// THE TIER-1/TIER-2 INTERLOCK: a surface-bearing obligation claims specific wire rows, and
     /// those rows must exist in the denominator. A registration naming a row that was undeclared, or
     /// misspelled, is a silent lie about where the obligation is discharged — so it fails here.
+    ///
+    /// This doc comment was stranded above the WRONG test by a bad insertion: the duplicate-
+    /// registration test was spliced between it and this function, leaving a second `#[test]` on
+    /// that test (so it registered twice and the harness reported 18 tests for 17) and attributing
+    /// the interlock rationale to it. Only a `duplicated attribute` warning showed it.
     #[test]
     fn every_surface_bearing_registration_names_real_rows() {
         let den = denominator();
@@ -1041,4 +1960,367 @@ mod tests {
         }
     }
 
+    /// EVERY DECLARED PROBLEM CODE MUST HAVE A WIRE HOME. A `code` is normative wire output
+    /// (core.lumen:853 — a BDP extension member with a stable problem-type URI per code), so a
+    /// client branches on it. A code mentioned ONLY in its own catalogue is bound to no status, no
+    /// operation and no condition: the spec declares a value the wire can carry and never says
+    /// when it is carried.
+    ///
+    /// This is the check the tier-1 gate structurally cannot make. A code with no status home
+    /// produces no fault row, so there is nothing for coverage to leave uncovered — the gate
+    /// counts faults, and this is an obligation.
+    #[test]
+    fn every_problem_code_has_a_wire_home() {
+        let registered: BTreeSet<&str> = CODES_WITHOUT_A_WIRE_HOME.iter().map(|(c, _)| *c).collect();
+        let orphans = orphan_codes();
+        let unregistered: Vec<&String> =
+            orphans.iter().filter(|c| !registered.contains(c.as_str())).collect();
+        assert!(
+            unregistered.is_empty(),
+            "declared Problem code(s) with NO status, operation or condition anywhere outside the \
+             D.9 catalogue, and not registered in CODES_WITHOUT_A_WIRE_HOME:\n  {unregistered:?}\n\n\
+             Either bind the code to a status in D.8 and name its producing condition, or register \
+             it here with what is missing."
+        );
+    }
+
+    /// THE REGISTER NAMES ONLY LIVE ORPHANS — the other direction, and the one that rots silently.
+    /// A code that has since been given a status would sit here for ever reading as an open gap,
+    /// and the register would then be documentation of a defect that no longer exists.
+    #[test]
+    fn the_code_register_names_only_live_orphans() {
+        let orphans: BTreeSet<String> = orphan_codes().into_iter().collect();
+        let declared: BTreeSet<String> = problem_codes().into_iter().collect();
+        for (code, why) in CODES_WITHOUT_A_WIRE_HOME {
+            assert!(
+                declared.contains(*code),
+                "CODES_WITHOUT_A_WIRE_HOME names {code:?}, which is no longer a declared code in \
+                 D.9 at all — the register is stale. ({why})"
+            );
+            assert!(
+                orphans.contains(*code),
+                "CODES_WITHOUT_A_WIRE_HOME still registers {code:?} as having no wire home, but it \
+                 is now referenced outside the D.9 catalogue — the gap was closed and this entry \
+                 is now a false claim. Remove it. ({why})"
+            );
+        }
+    }
+
+    /// THE PARSE IS NOT VACUOUS. Every guard above is of the form "nothing unregistered is
+    /// orphaned", which passes trivially if the parse finds no codes — and a catalogue parse is
+    /// exactly the kind that silently yields zero when a heading is reworded. So pin the shape
+    /// from both ends: real codes are found, and codes known to be BOUND are not reported orphaned.
+    #[test]
+    fn the_problem_code_parse_is_not_vacuous() {
+        let codes = problem_codes();
+        // THE COUNT IS EXACT, SO THE DIAGNOSIS MUST READ BOTH WAYS. This was a floor (`>= 15`),
+        // which could not catch a systematic omission — two hyphenless codes were being dropped and
+        // 20 passed as happily as 22. Tightening it to an exact count fixed the check and left the
+        // MESSAGE saying "too few … the parse broke", so when the registry legitimately GREW to 24
+        // (two channel codes registered) the failure sent the reader hunting a bug that was not
+        // there. A true check whose words say something else is the same defect as a stale comment;
+        // the fix is to let the message name the direction instead of assuming one.
+        const REGISTRY: usize = 22;
+        assert!(
+            codes.len() == REGISTRY,
+            "D.9 parsed to {} codes, expected {REGISTRY}. {} Either way, re-derive before trusting \
+             any orphan count on this page — they are all computed over this set:\n  {codes:?}",
+            codes.len(),
+            if codes.len() < REGISTRY {
+                "FEWER than expected, so either the parse broke (a reworded heading, a code shape \
+                 the filter cannot see) or codes were removed from the catalogue — and every orphan \
+                 check above is now passing over a short set."
+            } else {
+                "MORE than expected, so the catalogue GREW. That is a spec change, not a bug: \
+                 update REGISTRY and re-check which entries in the orphan and used-but-unregistered \
+                 registers have just become false claims."
+            }
+        );
+        // Codes whose binding is written out at length in D.8 and the primitive prose. If the
+        // orphan check ever reports one of THESE, it is the parse that is wrong, not the spec.
+        // `unauthenticated` and `forbidden` are HYPHENLESS and were dropped by the old parser,
+        // so they are pinned here by name: they are the two the shape-based filter could not see.
+        for want in ["unauthenticated", "forbidden"] {
+            assert!(
+                codes.iter().any(|c| c == want),
+                "{want:?} is missing from the parsed catalogue — the hyphenless codes have been \
+                 dropped again, and every count over this registry is off by two: {codes:?}"
+            );
+        }
+        for bound in ["identity-taken", "revision-mismatch", "precondition-failed", "limit-exceeded"] {
+            assert!(
+                codes.iter().any(|c| c == bound),
+                "{bound:?} is not in the parsed catalogue, so the D.9 parse is missing codes: {codes:?}"
+            );
+            assert!(
+                !orphan_codes().iter().any(|c| c == bound),
+                "{bound:?} is reported as having no wire home, but its binding is written out in \
+                 D.8 — the orphan check is measuring the catalogue against itself, not against the \
+                 rest of the spec."
+            );
+        }
+        // And the split must actually REMOVE the catalogue: if `rest` still contained it, every
+        // code would look bound and the check would report nothing, for ever.
+        let (block, rest) = d9_catalogue();
+        assert!(block.contains("malformed-request"), "the D.9 block does not contain the catalogue");
+        assert!(
+            !rest.contains("temporarily-unavailable"),
+            "the catalogue was not removed from the comparison text, so no code can ever be \
+             reported orphaned — this check would pass for ever while guarding nothing"
+        );
+    }
+
+    /// THE CORE CAPABILITY FIELD PARSE IS NOT VACUOUS, and it pins the shape from both ends.
+    ///
+    /// The wire-side check built on this asserts "no advertised key is outside this set", which
+    /// passes trivially if the set is accidentally everything — and a brace-balanced record parse
+    /// is exactly the kind that silently swallows a neighbouring type when a heading moves.
+    #[test]
+    fn the_core_capability_field_parse_is_not_vacuous() {
+        let fields = core_capability_fields();
+        assert_eq!(
+            fields.len(),
+            11,
+            "CoreCapabilities parsed to {} fields, not the eleven rc2 closed it to — the parse has \
+             drifted and the wire-side check built on it is measuring the wrong set: {fields:?}",
+            fields.len()
+        );
+        for want in ["get", "list", "pull", "create", "put", "patch", "delete", "revisions", "export", "import", "push"] {
+            assert!(
+                fields.iter().any(|f| f == want),
+                "{want:?} is missing from the parsed CoreCapabilities fields, so a conformant \
+                 advertisement of it would be reported as out-of-vocabulary: {fields:?}"
+            );
+        }
+        // And the two that must NOT be here. core.lumen:1570 puts `call`/`cancel` under their own
+        // package, so a parse that picked them up would bless advertising them in `core` — the
+        // exact divergence the wire-side check exists to catch.
+        for never in ["call", "cancel", "apply"] {
+            assert!(
+                !fields.iter().any(|f| f == never),
+                "{never:?} was parsed as a CoreCapabilities field. It is not one (core.lumen:1570 \
+                 — operations and stdlib packs advertise under their own packages, not core), so \
+                 the parse has swallowed a neighbouring record and would bless the divergence."
+            );
+        }
+    }
+
+    /// EVERY CODE THE SPEC USES MUST BE IN THE REGISTRY — the mirror of
+    /// [`every_problem_code_has_a_wire_home`], and the direction that one structurally cannot see.
+    ///
+    /// A registry is two assertions, not one: every entry has a home, and every code in use has an
+    /// entry. #455 checked the first and found eleven. This checks the second and finds three, on
+    /// surfaces whose codes were written at the point of use and never carried back. Both drifts
+    /// live on the same primitive in one case — `pull` has `channel-not-pullable` unregistered AND
+    /// `validation-failed`-style registry entries with no status — in opposite directions.
+    #[test]
+    fn every_code_the_spec_uses_is_registered() {
+        let registry: BTreeSet<String> = problem_codes().into_iter().collect();
+        let known: BTreeSet<&str> = CODES_USED_BUT_UNREGISTERED.iter().map(|(c, _)| *c).collect();
+        let unregistered: Vec<String> = codes_named_by_a_fault_verb()
+            .into_iter()
+            .filter(|c| !registry.contains(c) && !known.contains(c.as_str()))
+            .collect();
+        assert!(
+            unregistered.is_empty(),
+            "code(s) named by a fault verb in core.lumen but absent from D.9's registry, and not \
+             registered here:\n  {unregistered:?}\n\nA code with no registry entry has no stable \
+             problem-type URI, so a client told to branch on it has nothing to branch against. \
+             Either add it to D.9 or register it here."
+        );
+    }
+
+    /// And the register names only live gaps, so a closed one fails instead of rotting.
+    #[test]
+    fn the_used_code_register_names_only_live_gaps() {
+        let registry: BTreeSet<String> = problem_codes().into_iter().collect();
+        let used: BTreeSet<String> = codes_named_by_a_fault_verb().into_iter().collect();
+        for (code, why) in CODES_USED_BUT_UNREGISTERED {
+            assert!(
+                used.contains(*code),
+                "CODES_USED_BUT_UNREGISTERED names {code:?}, but no fault verb in core.lumen names \
+                 it any more — the register is stale. ({why})"
+            );
+            assert!(
+                !registry.contains(*code),
+                "{code:?} is now IN D.9's registry, so this entry is a false claim — remove it. \
+                 ({why})"
+            );
+        }
+    }
+
+    /// THE FAULT-VERB PARSE IS NOT VACUOUS, and it must stay DISCRIMINATING.
+    ///
+    /// Both guards above pass trivially if the parse finds nothing, and a verb-anchored scan is
+    /// exactly the kind that silently yields zero when wording shifts. Worse, a parse that got
+    /// LOOSER would start reporting link relations and event kinds as unregistered codes — so this
+    /// pins both ends: the real codes are found, and the six known non-codes are not.
+    #[test]
+    fn the_fault_verb_parse_is_not_vacuous_and_discriminates() {
+        let found = codes_named_by_a_fault_verb();
+        // EXACT, NOT A FLOOR — the same correction the registry pin needed today. `>= 6` was true
+        // at 6 and true at 12, and the parser was finding 6 because it read only the token
+        // immediately after the verb and could not see `faults `404` (`code`)`. A floor cannot
+        // catch a systematic omission; it passed happily over HALF the usage sites.
+        //
+        // The six it missed all named REGISTERED codes, so the used-but-unregistered result was
+        // right while the method was incomplete — a number correct for a reason that would not have
+        // held if any of those six had been unregistered.
+        const VERB_SITES: usize = 12;
+        assert!(
+            found.len() == VERB_SITES,
+            "{} codes named by a fault verb, expected {VERB_SITES}. {} Either way the two registry \
+             checks are computed over this set, so re-derive before trusting them:\n  {found:?}",
+            found.len(),
+            if found.len() < VERB_SITES {
+                "FEWER — EITHER the parse narrowed (a reworded clause, a naming style it cannot \
+                 see) and usage sites are going unchecked, OR a usage was legitimately REMOVED by \
+                 a spec change. The second is not a bug: confirm the code is gone from the registry \
+                 too, then update VERB_SITES. I wrote this branch naming only the first cause and \
+                 it was wrong the first time it fired, on #460 retiring `resource-pruned`."
+            } else {
+                "MORE — either the spec names codes in new places, or the scan has LOOSENED and is \
+                 collecting non-codes; check the discrimination assertions below."
+            }
+        );
+        for want in ["channel-not-pullable", "identity-taken", "revision-mismatch"] {
+            assert!(
+                found.iter().any(|c| c == want),
+                "{want:?} is named by a fault verb in core.lumen but the parse missed it: {found:?}"
+            );
+        }
+        // The six that are NOT problem codes. If the filter loosens, these reappear and the check
+        // becomes a noise generator — which is how a gate gets ignored into uselessness.
+        for never in ["call-leave", "channel-authenticated", "is-a", "service-desc", "service-doc", "service-meta"] {
+            assert!(
+                !found.iter().any(|c| c == never),
+                "{never:?} was parsed as a problem code. It is not one — it is an event kind, an \
+                 authentication basis, a query relation or a link relation. The fault-verb filter \
+                 has loosened and this check will now report noise."
+            );
+        }
+    }
+
+    /// THE SECOND PRODUCER MUST ALSO SPEAK THE REGISTRY. The exhaustive-by-execution check over
+    /// `BdpError` is complete over that enum and NOT over this subject: `problem_body` builds
+    /// Problems directly at eleven call sites and two of its codes are unregistered. I published
+    /// the first check calling its vocabulary complete, which was a claim about a population I had
+    /// not enumerated.
+    #[test]
+    fn the_direct_problem_producer_speaks_the_registry() {
+        let registry: BTreeSet<String> = problem_codes().into_iter().collect();
+        let known: BTreeSet<&str> = DIRECT_CODES_NOT_REGISTERED.iter().map(|(c, _)| *c).collect();
+        let bad: BTreeSet<String> = codes_emitted_by_direct_problem_bodies()
+            .into_iter()
+            .map(|(_, c)| c)
+            .filter(|c| !registry.contains(c.as_str()) && !known.contains(c.as_str()))
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "code(s) emitted by a direct `problem_body` call that D.9 does not register, and that \
+             are not registered here: {bad:?}"
+        );
+        // The other direction, so a closed gap cannot rot into a false claim.
+        let emitted: BTreeSet<String> =
+            codes_emitted_by_direct_problem_bodies().into_iter().map(|(_, c)| c).collect();
+        for (code, why) in DIRECT_CODES_NOT_REGISTERED {
+            assert!(
+                emitted.contains(*code) && !registry.contains(*code),
+                "DIRECT_CODES_NOT_REGISTERED still lists {code:?}, but it is now registered or no \
+                 longer emitted — remove it. ({why})"
+            );
+        }
+    }
+
+    /// THE SCAN IS NOT VACUOUS, and it pins the SITE COUNT, not just the contents — because its
+    /// method is a source scan and a literal-form change (a code built dynamically, a reformatted
+    /// call) would silently shrink what it sees rather than break it.
+    #[test]
+    fn the_direct_producer_scan_is_not_vacuous() {
+        let sites = codes_emitted_by_direct_problem_bodies();
+        // EXACT, for the same reason. This read `>= 10` and the file has since grown to 25 sites,
+        // so the floor had stopped measuring anything — it would have passed with fifteen sites
+        // deleted.
+        // 25 -> 26: `export`'s `where`/`select` refusal became a `problem_body(400, "bad-request")` site,
+        // replacing an `unmapped()` (`501`) that `export` does not declare. The code is already in
+        // DIRECT_CODES_NOT_REGISTERED, so the move adds a site without adding a divergence.
+        const DIRECT_SITES: usize = 26;
+        assert!(
+            sites.len() == DIRECT_SITES,
+            "the direct-producer scan found {} `problem_body` sites, expected {DIRECT_SITES}. {} \
+             The unregistered-code result is computed over this set:\n  {sites:?}",
+            sites.len(),
+            if sites.len() < DIRECT_SITES {
+                "FEWER — the literal form has changed (a status or code built dynamically, a \
+                 reformatted call) and sites are going unscanned."
+            } else {
+                "MORE — new refusal sites were added. Check whether any introduced an unregistered \
+                 code before updating DIRECT_SITES."
+            }
+        );
+        // A known-good one, so the scan is proven to reach a REGISTERED code too and is not merely
+        // collecting the two it is told to expect.
+        assert!(
+            sites.iter().any(|(s, c)| *s == 404 && c == "resource-not-found"),
+            "the scan missed the 404 `resource-not-found` site, so it is not reading the call sites \
+             it claims to: {sites:?}"
+        );
+    }
+
+    /// EVERY CLOSED-VOCABULARY FIELD MUST BE EMITTABLE. The inverse of the capability case's
+    /// question, one layer upstream: that case asks whether a covered op is advertised; this asks
+    /// whether the wire could advertise it at all.
+    #[test]
+    fn every_capability_field_is_emittable() {
+        let emittable: BTreeSet<String> = capability_keys_the_wire_can_emit().into_iter().collect();
+        let known: BTreeSet<&str> =
+            CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT.iter().map(|(f, _)| *f).collect();
+        let missing: Vec<String> = core_capability_fields()
+            .into_iter()
+            .filter(|f| !emittable.contains(f.as_str()) && !known.contains(f.as_str()))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "CoreCapabilities field(s) the wire has NO variant for, so no scope can advertise them \
+             however correctly it behaves: {missing:?}\n\n`caps_to_wire` is \
+             `filter_map(from_trait)`, so a trait capability with no wire variant is silently \
+             discarded. Add the variant, or register the gap here."
+        );
+        // And the register must not outlive its gap.
+        for (f, why) in CAPABILITY_FIELDS_THE_WIRE_CANNOT_EMIT {
+            assert!(
+                !emittable.contains(*f),
+                "{f:?} is now emittable, so this entry is a false claim — remove it, and check \
+                 whether the scope actually advertises it yet. ({why})"
+            );
+        }
+    }
+
+    /// THE SCAN IS NOT VACUOUS, and it pins the count because its method is a source scan: a
+    /// variant renamed some other way would silently shrink what it sees.
+    #[test]
+    fn the_capability_key_scan_is_not_vacuous() {
+        let keys = capability_keys_the_wire_can_emit();
+        const WIRE_KEYS: usize = 17;
+        assert!(
+            keys.len() == WIRE_KEYS,
+            "scanned {} `WireCapability` renames, expected {WIRE_KEYS}. {} The emittable check is \
+             computed over this set:\n  {keys:?}",
+            keys.len(),
+            if keys.len() < WIRE_KEYS {
+                "FEWER — either the scan narrowed (a variant named some other way) or variants were \
+                 removed. The second is a spec/subject change, not a bug."
+            } else {
+                "MORE — variants were added. Check whether any closed-vocabulary gap just closed \
+                 before updating WIRE_KEYS."
+            }
+        );
+        for want in ["get", "list", "pull", "create", "put", "patch", "delete", "export", "import"] {
+            assert!(
+                keys.iter().any(|k| k == want),
+                "{want:?} is a CoreCapabilities field the wire plainly does emit, but the scan \
+                 missed it — the scan is wrong, not the subject: {keys:?}"
+            );
+        }
+    }
 }

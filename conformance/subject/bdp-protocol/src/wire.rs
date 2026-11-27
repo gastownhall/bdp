@@ -72,7 +72,25 @@ impl WireResourceId {
 
 // ---- CreateRequest (body of create/put) ----------------------------------------
 
+/// The body of `create` AND `put`, and the two ops must answer DIFFERENTLY about one member.
+///
+/// THE INPUT IS CLOSED (core.lumen#create: "`create` input is closed — an envelope member Core
+/// does not define is refused, not ignored"), so `deny_unknown_fields`. Without it this accepted
+/// any member silently: `{"nonsenseMember": true}` returned 201.
+///
+/// AND `retired` IS DECLARED HERE ONLY SO THE HANDLERS CAN DIVERGE. core.lumen#rep: "`retired` is
+/// SERVICE-MANAGED — minted only by `delete`, **refused on `create` and ignored on `put`**". With
+/// `deny_unknown_fields` and no field, serde would refuse it for BOTH ops — right for `create`,
+/// wrong for `put`, which must IGNORE a read-only member ("so a `get` → `put` round-trip of a whole
+/// representation is safe"). **serde can only answer once for both ops**, so the divergence cannot
+/// live in the type: the field is admitted here, never read into the trait body, and `do_create`
+/// faults on it while `do_put` drops it. Pattern taken from the cleanroom, which hit this first.
+///
+/// That makes the divergence a CONVENTION held by two handlers rather than an invariant, so both
+/// arms are guarded — the `put`-ignores one especially, since it is the one a later refactor would
+/// collapse into "refuse everywhere" with nothing failing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WireCreateRequest {
     pub kind: String,
     #[serde(rename = "type")]
@@ -80,9 +98,51 @@ pub struct WireCreateRequest {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub id: Option<WireResourceId>, // caller-proposed identity (unpinned)
     #[serde(skip_serializing_if = "Option::is_none", default)]
+    /// THE SPEC'S NAME. core.lumen's `rep<T>`: "a domain type contributes only `body`,
+    /// never a new envelope member", and `put`'s body "stays exactly the resource
+    /// representation" — so the input member is `body`, not `properties`.
+    #[serde(rename = "body")]
     pub properties: Option<Box<RawValue>>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<Box<RawValue>>,
+    /// Admitted, never honored. See the type's own note: present only so `create` and `put` can
+    /// answer differently about it.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub retired: Option<bool>,
+    /// THE REST OF THE SERVICE-MANAGED SET, admitted for the same reason and no other.
+    ///
+    /// core.lumen names an envelope, not a member: "The immutable envelope (`/id`, `/provenance`,
+    /// `/createdAt`, `/retired`)". `retired` was declared here first and the other two were left to
+    /// `deny_unknown_fields`, which refused them — the RIGHT OUTCOME FOR THE WRONG REASON, under
+    /// `bad-request` rather than the registered code, and only while they are undeclared. The day
+    /// #454 puts them in the representation they become known members and are silently accepted
+    /// again.
+    ///
+    /// THAT JUDGEMENT IS ABOUT THESE MEMBERS, NOT ABOUT `deny_unknown_fields`, which is correct on
+    /// its own grounds and stays. I had proposed replacing it with one broader rule — ignore any
+    /// representation member that is not writable, so a future envelope member would be tolerated
+    /// automatically instead of refused. A peer measured why that is wrong and the reason is
+    /// decisive: AT THE WIRE, A FUTURE ENVELOPE MEMBER AND A TYPO OF A WRITABLE ONE ARE THE SAME
+    /// BYTES. `bodyy` is an unknown field exactly as a not-yet-invented member is, so "ignore the
+    /// non-writable" would accept `bodyy` silently, write nothing, and report success — a caller's
+    /// whole body dropped under a `200`. That is the defect I spent the day removing elsewhere
+    /// (`export` accepting `?select=` and dropping the projection), and my simplification would
+    /// have reintroduced it at the most-used write path.
+    ///
+    /// So the rule is two rules, and they are not reducible: REFUSE unknowns (closed input, which
+    /// is what this attribute does) and IGNORE the known service-managed set on `put`. The set has
+    /// to be enumerated precisely because membership is what distinguishes a member from a mistake,
+    /// and no shape test can recover that distinction once the bytes are the same. That is the exact trap I identified for `retired` and then guarded `retired` alone
+    /// against; a peer's rule is the general form — a guard over one member of a NAMED SET is two
+    /// omissions wearing one assertion.
+    ///
+    /// `id` is deliberately NOT here: it is immutable after creation but legitimately
+    /// caller-proposed AT creation ("Caller-proposed id optional"), so the envelope's membership
+    /// and `create`'s rule differ on exactly that one member.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub provenance: Option<Box<RawValue>>,
+    #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none", default)]
+    pub created_at: Option<Box<RawValue>>,
 }
 
 impl WireCreateRequest {
@@ -93,6 +153,12 @@ impl WireCreateRequest {
             id: id.map(|i| WireResourceId { scope: None, id: i.0.to_string(), rev: None }),
             properties: opt_raw_to_value(&body.properties),
             metadata: opt_raw_to_value(&body.metadata),
+            // A CLIENT NEVER SENDS IT. `retired` is service-managed: minted only by `delete`,
+            // refused on `create`, ignored on `put`. It exists on this type for the server's
+            // handlers to diverge on, so the client side always writes None.
+            retired: None,
+            provenance: None,
+            created_at: None,
         }
     }
     /// The proposed id (if any) and the CreateBody. FRICTION: the wire carries `id` inside the
@@ -177,6 +243,9 @@ pub struct WireBead {
     #[serde(rename = "storageClass")]
     pub storage_class: Box<RawValue>, // FRICTION: trait Representation::Bead has NO storageClass;
                                       // the server fabricates one here and the client drops it.
+    /// `body`, per core.lumen's closed envelope — this emitted `properties`, a member
+    /// `rep<T>` does not have, while omitting the `body` it requires always be present.
+    #[serde(rename = "body")]
     pub properties: Box<RawValue>,
     pub metadata: Box<RawValue>,
     pub provenance: WireProvenance,
@@ -456,11 +525,11 @@ impl WireProblem {
         let (mut capability, mut limit, mut constraint, mut property, mut conflicts_with) =
             (None, None, None, None, None);
         let (status, code, title, detail) = match e {
-            p::BdpError::NotFound(id) => (404, "not-found", "Resource not found", Some(format!("{:?}", id))),
-            p::BdpError::Erased { id, at } => (410, "erased", "Resource erased", Some(format!("{:?} at {:?}", id, at))),
+            p::BdpError::NotFound(id) => (404, "resource-not-found", "Resource not found", Some(format!("{:?}", id))),
+            p::BdpError::Erased { id, at } => (410, "resource-erased", "Resource erased", Some(format!("{:?} at {:?}", id, at))),
             // Lydia §71: create-fail-if-exists is an EXISTENCE conflict, NOT a declared constraint —
             // its own 409 code, never `constraint-violation`.
-            p::BdpError::AlreadyExists(id) => (409, "already-exists", "Resource already exists", Some(format!("{:?}", id))),
+            p::BdpError::AlreadyExists(id) => (409, "identity-taken", "Resource already exists", Some(format!("{:?}", id))),
             p::BdpError::RevisionMismatch { expected, found, .. } => (
                 412,
                 "revision-mismatch",
@@ -491,8 +560,33 @@ impl WireProblem {
                         format!("{fromprop}: {detail}")
                     }
                 };
-                (409, "constraint-violation", "Constraint violation", Some(msg))
+                (409, "validation-failed", "Constraint violation", Some(msg))
             }
+            // THE WRONG CHANNEL DIRECTION IS 405, and the spec names both codes. D.8: "405 pull /
+            // push on the wrong channel direction". Not 422: the direction is a property of the
+            // CHANNEL, not an advertised bound of the operation, so no smaller request succeeds —
+            // which is the test `limit-exceeded` exists for.
+            p::BdpError::ChannelNotPullable { channel, direction } => (
+                405,
+                "channel-not-pullable",
+                "Channel is not pullable",
+                Some(format!("{channel:?} declares direction `{direction}`; pull needs source or duplex")),
+            ),
+            p::BdpError::ChannelNotPushable { channel, direction } => (
+                405,
+                "channel-not-pushable",
+                "Channel is not pushable",
+                Some(format!("{channel:?} declares direction `{direction}`; push needs sink or duplex")),
+            ),
+            // DERIVED, not cited — see `BdpError::ChannelClosed`. core.lumen says a terminal channel
+            // "faults" without naming a status; 405 and 422 are both spoken for on `push`, so 409 is
+            // what remains of its declared set.
+            p::BdpError::ChannelClosed { channel } => (
+                409,
+                "channel-closed",
+                "Channel is terminal",
+                Some(format!("{channel:?} is closed or failed and accepts no further events")),
+            ),
             p::BdpError::Unprocessable(m) => (422, "unprocessable", "Unprocessable request", Some(m.clone())),
             // Donna-ruled: advertised op, request over its advertised limits → 422 `limit-exceeded`
             // (NOT 501/not-implemented). Distinct from generic `unprocessable` by the problem code.
@@ -519,7 +613,7 @@ impl WireProblem {
         (
             status,
             Self {
-                r#type: format!("https://bdp.dev/problems/{}", code),
+                r#type: format!("tag:bdp.dev,2026:problem/{}", code),
                 title: title.to_string(),
                 status,
                 code: code.to_string(),
@@ -788,6 +882,108 @@ pub fn caps_from_wire(wire: Vec<WireCapability>) -> Vec<p::PrimitiveCapabilities
 /// time with *"invalid type: newtype struct"* — an internally-tagged outer enum pulls its content
 /// through a buffering deserializer that `RawValue` rejects. Carries the same FRICTION as
 /// `WireRepresentation`: the spec would discriminate these structurally, not by an envelope tag.
+/// THE UNIVERSAL READ ENVELOPE — core.lumen's `Page` window, `{ items, cursor, head? }`.
+///
+/// RULED, AND IN FORCE AT THE FROZEN TAG, which is what makes emitting it catch-up rather than a
+/// wire change during a freeze. core.lumen (present at `bdp-core-0.2.3-rc1`, untouched by #448):
+/// "RESOLVED (return unified): EVERY read — `pull` (source) / `list` · `revisions` · the stdlib
+/// `query` · `export` (snapshot) — wire-returns a `Page` window `{ items, cursor, head? }` … so
+/// `list`/`query` return a Page, NOT a bare array."
+///
+/// `cursor` IS SERIALIZED AS NULL, NOT OMITTED, when there is nothing further to resume from. The
+/// `Page` type declares the field and the prose says "null/absent", so present-but-null satisfies
+/// both — and it distinguishes "this read has an envelope and the walk is done" from "this
+/// response has no envelope at all", which is the state this type exists to end.
+///
+/// `head` IS OPTIONAL IN THE SPEC and is therefore OMITTED when the scope does not say, rather than
+/// inferred. The tempting heuristic — `items.len() < limit` — is FALSE on a final page that exactly
+/// fills the limit, so it reports "more remains" at the end of a walk and a caller looping on it
+/// never terminates.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WirePage<T> {
+    pub items: Vec<T>,
+    /// Null once the walk is complete. NOT `skip_serializing_if`: see the type's own docs.
+    pub cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub head: Option<bool>,
+}
+
+impl<T> WirePage<T> {
+    /// Wrap a window using the scope's OWN cursor/head, never a heuristic over `items`.
+    pub fn of(items: Vec<T>, protocol: &p::ProtocolMeta) -> Self {
+        Self {
+            items,
+            cursor: protocol.cursor.as_ref().map(|c| String::from_utf8_lossy(&c.0).into_owned()),
+            head: protocol.head,
+        }
+    }
+}
+
+/// One offered event on the wire — `{"ordinal": 7, "body": {...}}`, one per line.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WirePushEvent {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ordinal: Option<u64>,
+    pub body: Box<RawValue>,
+}
+
+/// `push`'s acknowledgement on the wire.
+///
+/// `results` IS EXTERNALLY TAGGED like every other union here, so the three fates read
+/// `{"Accepted":{"ordinal":1}}`, `{"Deduped":{"ordinal":1}}`, `"Deferred"`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum WirePushResult {
+    Accepted { ordinal: u64 },
+    Deduped { ordinal: u64 },
+    Deferred,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WirePushAck {
+    #[serde(rename = "acceptedThrough")]
+    pub accepted_through: u64,
+    pub results: Vec<WirePushResult>,
+    pub credit: u64,
+    #[serde(rename = "retryAfter", skip_serializing_if = "Option::is_none", default)]
+    pub retry_after: Option<u64>,
+}
+
+impl WirePushAck {
+    pub fn from_trait(a: &p::PushAck) -> Self {
+        Self {
+            accepted_through: a.accepted_through,
+            results: a
+                .results
+                .iter()
+                .map(|r| match r {
+                    p::PushResult::Accepted(o) => WirePushResult::Accepted { ordinal: *o },
+                    p::PushResult::Deduped(o) => WirePushResult::Deduped { ordinal: *o },
+                    p::PushResult::Deferred => WirePushResult::Deferred,
+                })
+                .collect(),
+            credit: a.credit,
+            retry_after: a.retry_after,
+        }
+    }
+
+    pub fn to_trait(&self) -> p::PushAck {
+        p::PushAck {
+            accepted_through: self.accepted_through,
+            results: self
+                .results
+                .iter()
+                .map(|r| match r {
+                    WirePushResult::Accepted { ordinal } => p::PushResult::Accepted(*ordinal),
+                    WirePushResult::Deduped { ordinal } => p::PushResult::Deduped(*ordinal),
+                    WirePushResult::Deferred => p::PushResult::Deferred,
+                })
+                .collect(),
+            credit: self.credit,
+            retry_after: self.retry_after,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum WireExportRecord {
     Begin { cursor: String },
@@ -889,7 +1085,7 @@ mod tests {
         let (status, prob) = WireProblem::from_error(&e);
         assert_eq!(status, 409);
         // Lydia §70: ONE code for the constraint family; the constraint is a structured discriminator.
-        assert_eq!(prob.code, "constraint-violation");
+        assert_eq!(prob.code, "validation-failed");
         assert_eq!(prob.constraint.as_deref(), Some("uniqueness"));
         assert_eq!(prob.property.as_deref(), Some("name"));
         assert_eq!(prob.conflicts_with.as_deref(), Some("alias-doc-1"));
@@ -899,7 +1095,7 @@ mod tests {
             fromprop: "owner".into(),
             detail: "too many".into(),
         }));
-        assert_eq!(card.code, "constraint-violation");
+        assert_eq!(card.code, "validation-failed");
         assert_eq!(card.constraint.as_deref(), Some("cardinality"));
         assert!(card.conflicts_with.is_none());
     }
@@ -912,7 +1108,7 @@ mod tests {
         let (s1, exists) = WireProblem::from_error(&p::BdpError::AlreadyExists(
             p::ResourceId::head(p::Scope::This, p::Id(Arc::from("note-2"))),
         ));
-        assert_eq!((s1, exists.code.as_str()), (409, "already-exists"));
+        assert_eq!((s1, exists.code.as_str()), (409, "identity-taken"));
         assert!(exists.constraint.is_none());
 
         let (s2, rev) = WireProblem::from_error(&p::BdpError::RevisionMismatch {

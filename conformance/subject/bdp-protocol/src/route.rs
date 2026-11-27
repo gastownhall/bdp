@@ -26,6 +26,10 @@ pub enum Route {
     ScopeEval,              // POST /:eval
     ScopeCapabilities,      // GET  /:capabilities   (discovery)
     ScopeResolveAlias,      // GET  /:resolve-alias?name=NAME  (aliases capability)
+    /// The two CHANNEL routes, both fenced and both resource-targeted, exactly as the generated
+    /// OpenAPI binds them (`pathItem = "channel"`).
+    Pull(String),           // GET    /{channel}/-/pull
+    Push(String),           // POST   /{channel}/-/push
     Call(String),           // POST   /{opPath}/-/call
     Cancel(String),         // POST   /{asyncResultId}/-/cancel
     /// A fence was present but its right-hand side is not a known protocol action. The spec is
@@ -62,7 +66,7 @@ pub enum Style {
 /// `/{id}/-/revisions`. Adding a name here without a spec path re-opens the ambiguity the fence
 /// exists to close.
 const FENCE_ACTIONS: &[&str] = &[
-    "create", "list", "export", "import", "call", "cancel", "revisions",
+    "create", "list", "export", "import", "call", "cancel", "revisions", "pull", "push",
 ];
 
 /// Split a RAW path at the action fence.
@@ -108,6 +112,8 @@ pub fn parse_raw(method: &str, raw_path: &str, decoded_path: &str) -> (Route, St
             ("GET", "list", true) => Route::ScopeList,
             ("GET", "export", true) => Route::ScopeExport,
             ("POST", "import", true) => Route::ScopeImport,
+            ("GET", "pull", false) => Route::Pull(id),
+            ("POST", "push", false) => Route::Push(id),
             ("POST", "call", false) => Route::Call(id),
             ("POST", "cancel", false) => Route::Cancel(id),
             ("GET", "revisions", false) => Route::Revisions(id),
