@@ -16,6 +16,15 @@
 //! green through every one of them. `bad-request` alone accounts for 14 -- a spelling that appears
 //! nowhere in `core.lumen`.
 //!
+//! WHAT THIS GUARD CANNOT SEE: FITNESS. It asks "is this code REGISTERED?" and never "is this the
+//! RIGHT code for this condition?" Those are different questions and only the first is mechanical.
+//! Demonstrated in this very tree: the four `unadvertised()` sites emit `limit-exceeded`, which IS
+//! in D.9 (core.lumen:2094), so this guard passes them in silence -- and they are the sites that
+//! carry three covered denominator rows. A registry guard over a mapping is structurally incapable
+//! of catching a call site that picked the wrong registered code; a peer proved the same hole in
+//! her own variant-to-(status,code) tripwire, which is green and correctly green while four of her
+//! call sites choose the wrong variant. Any future guard keyed on the mapping inherits this hole.
+//!
 //! WHY A SOURCE PARSE RATHER THAN A PROBE. These sites are reached by malformed or unroutable
 //! requests, so exercising all 26 over the wire would mean 26 new cases, several of them for paths
 //! the router rejects before any op is chosen. The parse reads the producer instead, and the
@@ -149,8 +158,27 @@ pub const HTTP_CODES_WITHOUT_A_REGISTER_ENTRY: &[(&str, &str)] = &[
          here` -- i.e. it is keyed on precisely the condition the membership test excludes. If \
          advertised-false is not 422, those three rows lose their only coverage and the grid is \
          45/51, not 48/51. \
-         NOT TREATED AS SETTLED, by this lane's own rule: a plausible ruling could call a boolean \
-         advertised false a bound of zero and keep 422, which would make current behaviour correct. \
+         NOT TREATED AS SETTLED, AND THE CLAUSE THAT KEEPS IT OPEN IS NAMED: core.lumen:1626 -- \
+         `Each limit record is the advertise side of a dual: the matching limit-exceeded (422) is \
+         the enforce side`. `PutCaps.ifMatch` lives in a limit record, so 1626 reaches it, and \
+         `unadvertised()` (server.rs:1180-1192) cites that clause verbatim as its grounds. Against \
+         it stand :688 and :1532, both normative, defining `limit-exceeded` as `the hard rejection \
+         of a request that exceeds a static capability bound (e.g. maxBatch), fixed by shrinking \
+         the request` -- which an `If-Match` header does not. And :2153 reaches the same cell a \
+         third way, at 405, by calling it an `un-offered capability`. THREE clauses, three \
+         statuses, one cell. \
+         THE TWO REFERENCE IMPLEMENTATIONS ARE IN DOCUMENTED CONTRADICTION ON IT, which is better \
+         evidence than either tree alone: this subject's `unadvertised()` doc concludes 422 and \
+         says so citing 1626, while the cleanroom's `wire.rs:764` defines `limit-exceeded` as \
+         `past its advertised bounds ... DISTINCT from capability-not-supported (not advertised)` \
+         and routes the same condition there. Both read real spec text; they diverge because 1626 \
+         and 688/1532 disagree. The peer's sites are condemned by her OWN crate's contract and so \
+         need no ruling; these are not, and folding them together would borrow a verdict the \
+         evidence here does not support. \
+         WORTH PRESERVING WHATEVER IS RULED: `unadvertised()`'s doc also draws the in-vs-out of \
+         vocabulary line correctly and separately -- `If-None-Match` on patch is 400 because \
+         `ifAbsent` is not a field of `PatchCaps` at all. That half matches D.8:2057-2062 and is \
+         not in question; only in-vocabulary-advertised-false is. \
          So it is a question with a measured consequence, not a defect to fix here -- but it is the \
          one item in this register that can move the published coverage figure, and the figure \
          should not be quoted as settled while it is open. \
