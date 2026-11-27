@@ -144,8 +144,6 @@ async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<S
     // claim about its own subject.
     const REGISTERED: &[(&str, &str)] = &[
         ("unprocessable", "not in D.9; the 422 bound case is `limit-exceeded`, so this is a second unregistered 422"),
-        ("channel-not-pullable", "named in core.lumen pull but absent from D.9 — see #455; a covered gate row keys on this spelling"),
-        ("channel-not-pushable", "named in core.lumen push but absent from D.9 — see #455; a covered gate row keys on this spelling"),
         ("channel-closed", "not in D.9 and not named anywhere in core.lumen"),
         ("already-settled", "not in D.9; cancel's declared 409 state conflict has no registered code"),
         ("backend", "not in D.9; a 500 code, and D.8 has no 5xx row beyond the 4xx/5xx catch-all"),
