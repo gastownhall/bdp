@@ -2636,6 +2636,9 @@
           },
           "cursor": {
             "$ref": "#/components/schemas/Cursor"
+          },
+          "partial": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -2681,6 +2684,29 @@
         },
         "additionalProperties": false
       },
+      "ImportConflict": {
+        "description": "One rejected import record. Keyed on its stream `ordinal` (always present, always unique); `id` and `revision` are optional context, absent when the record was malformed before its id could be read.",
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "$ref": "#/components/schemas/Ordinal"
+          },
+          "id": {
+            "$ref": "#/components/schemas/ResourceRef"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Rev"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ordinal",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
       "ImportReport": {
         "description": "The import tally — counts and any conflicted records. It is the `tallies` of the final [[core.lumen#ImportAck]] (the call that consumes `ExportEnd`); the old terminal whole-batch report folds here. Also returned directly by pack ops that summarize a bulk load.",
         "type": "object",
@@ -2694,20 +2720,7 @@
           "conflicts": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "$ref": "#/components/schemas/ResourceRef"
-                },
-                "reason": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "reason"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/ImportConflict"
             }
           }
         },
@@ -2761,6 +2774,12 @@
             "properties": {
               "ordinal": {
                 "$ref": "#/components/schemas/Ordinal"
+              },
+              "id": {
+                "$ref": "#/components/schemas/ResourceRef"
+              },
+              "revision": {
+                "$ref": "#/components/schemas/Rev"
               },
               "reason": {
                 "type": "string"

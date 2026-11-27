@@ -1426,6 +1426,12 @@
       "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
     },
     {
+      "path": "scripts/wire-discrimination.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Discrimination evidence (checker catches a broken optional wire behaviour) plus Chris Sells's compactFilter regression, preserved census-independent when the v02-provider-kit clause-census was retired (adbbdb20)."
+    },
+    {
       "path": "scripts/check-spec-editorial-test.py",
       "runner": "python",
       "lane": "artifact",
@@ -1442,12 +1448,6 @@
       "runner": "node",
       "lane": "artifact",
       "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
-    },
-    {
-      "path": "scripts/v02-provider-kit.node-test.mjs",
-      "runner": "node",
-      "lane": "current",
-      "reason": "Current v0.2 read-only endpoint qualification, applicability and independent wire negative controls; re-homed on the Core 0.2.3 generated surface."
     },
     {
       "path": "scripts/demo-history.test.mjs",
