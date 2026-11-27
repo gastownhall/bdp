@@ -3634,6 +3634,27 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// reconcile; in this tree the stale import is the ADJUST side and the narrowing is 11-23. Same
 /// shape, different members -- which is why the dates belong here rather than in a summary.
 ///
+/// TWO LANDMARKS, NOT ONE, AND ONLY THE FIRST REMOVES 422. Both peers have collapsed these into a
+/// single "ten days", which understates the case:
+///   11-23 (`4f27896f`) narrowed the 422 DEFINITION to shrinkable bounds. This is what takes
+///         advertised-false OUT of 422's scope, and it is load-bearing on its own.
+///   11-24 (`96c21581`) gave 400 a SPECIFIED code for the condition. This answers section 7's
+///         "too generic" objection, but by itself it would only add an option -- 422 would remain
+///         available, and the approval could stand.
+/// Carrying only 11-24 to the owner argues that 400 became viable. Carrying 11-23 argues that 422
+/// stopped applying. The second is the question; the first is the remedy.
+///
+/// AND THE APPROVAL'S OWN LEADING NUMERIC EXAMPLE HAS NO SPEC CARRIER. Section 1 offers "a
+/// `resolve`/`apply` batch past the advertised `maxBatch` / `maxWrites`" as the paradigm 422.
+/// Measured: `maxWrites`, `max_writes` and `ApplyCaps` appear in NO `.lumen`, `.md` or `.json`
+/// under this repo -- packs included -- and exist only in the Rust subject
+/// (`bdp-primitives`: `ApplyCaps { max_writes, acyclicity }`). `apply` is not a Core op at all;
+/// core.lumen declares no `fn apply` and no `operationId = "apply"`.
+/// So of the approval's two numeric exemplars, one is `maxBatch` and the other is a field no spec
+/// defines. The spec owner cited it back to me as "your tested maxWrites core" -- it is neither
+/// core nor specified, and a reader told "numeric bounds like `maxWrites` keep 422" would infer a
+/// populated class of legitimate 422s. There is exactly one: `PushCaps.maxBatch`.
+///
 /// THE APPROVED DOCUMENT IS SELF-CONSISTENT ON ITS OWN TEST -- it never states a shrinkability
 /// test. The spec owner reported it as internally inconsistent, citing
 /// `bdp-primitives/src/lib.rs:724-726`, which excludes channel-direction from 422 because "there
