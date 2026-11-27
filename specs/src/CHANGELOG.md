@@ -58,13 +58,45 @@ Draft changes toward the next release (pre-1.0, status: draft).
   ImportId` keys the accepted high-water mark and `fromOrdinal?: Ordinal` positions
   `records[0]`. Chunk framing: `ExportBegin` only in the first batch, `ExportEnd`
   only in the final. A tombstone record is applied by minting the tombstone.
-- **`export` surfaces `request: ReadRequest`.** `jsonl` is the bulk default; `page`
-  (a `Page<ExportRecord>`) where `request.format` asks. Honors only `after` /
-  `limit` / `format`; `filter` / `select` / `from` are rejected `400` (projection is
-  the op's own `where` / `select`).
+- **`export` surfaces `request: ReadRequest`.** The stream is `jsonl`-native
+  (self-framed by `ExportBegin` / `ExportEnd`, never a `Page`); a non-`jsonl`
+  `format` faults `400`. Honors only `after` / `limit` / `format`; `filter` /
+  `select` / `from` are rejected `400` (projection is the op's own `where` /
+  `select`).
 - **`Page<T>` / `PushEvent<T>` parameterized** (were `Page { items: [any] }` /
   `PushEvent { body: {…: any} }`). Authoring-surface generics; the
   `PushEvent<T>.body` widening (record → any) is intentional.
+- **Reads are page-framed; `export` is the one bulk stream.** `list` and `revisions`
+  are page-only (`Page<T>`) — the `jsonl` / `sse` transports and their cursor headers
+  were dropped (a snapshot is windowed, not a live feed), so a non-`page` `format`
+  faults `400`. `export` is the inverse, `jsonl`-native (above). `pull` keeps all
+  three transports (`page` windowed / `jsonl` bulk / `sse` live), one Cursor spanning
+  them — it is the one live-feed read.
+- **`pull` advertises the operation, not a channel inventory.** Offering `pull` says
+  the scope reads channels; which channels exist is discovered per-channel. A `pull`
+  of an absent channel faults `404` (`resource-not-found`), a retired channel `410`
+  (`resource-erased`); both distinct from `cursor-expired` (below the retention
+  floor). Wrong-direction pull/push fault `channel-not-pullable` /
+  `channel-not-pushable`.
+- **`export` projection and `partial` labelling.** `where` / `select` project a
+  current-state export and set its `ExportBegin` `partial: true` (an unprojected or
+  `--revisions` export omits it, so an unlabelled stream is byte-identical to a
+  faithful backup); a `--revisions` backup refuses `where` / `select` (`400`).
+  `select` is honored iff the scope advertises it (new `ExportCaps.selector`, per-op
+  as `get` / `list` / `pull` advertise their own); a scope advertising
+  `selector: false` faults a `select` request `400`. `import` refuses a `partial`
+  source (`400`) — a projection cannot faithfully seed a scope — and keys its
+  conflicts on the stream `ordinal` (always present, always unique; `id` / `revision`
+  ride as optional context, absent when a record is malformed before its id is read).
+- **Fault vocabulary tightened.** `capability-not-supported` (`405`) is scoped to an
+  un-offered **primitive**, never `501`; an advertised-false option (a `select` under
+  `selector: false`, an unadvertised condition kind) is declined `400`
+  (`invalid-parameter`), not `422`. `422 limit-exceeded` now carries an explicit
+  membership test — a fault belongs at `422` iff *shrinking the request* fixes it (a
+  batch over `maxBatch`), otherwise `400`. Registered the channel-direction codes
+  (`channel-not-pullable` / `channel-not-pushable`); retired the ungrounded
+  `resource-pruned` (a retired channel's `410` is `resource-erased`, its only
+  grounded `410`).
 
 ## 0.2.2 — 2026-11-18
 
