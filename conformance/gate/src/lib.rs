@@ -898,6 +898,57 @@ fn signature_params(op: &str) -> Vec<(String, String)> {
 /// `code` is normative WIRE OUTPUT: core.lumen:853 makes it a BDP extension member carrying a
 /// stable problem-type URI (`tag:bdp.dev,2026:problem/<code>`), one per code. So a code is a thing
 /// the wire emits, and a client branches on it.
+/// Every `*Caps` record in core.lumen with its REQUIRED field names (those without a `?`).
+///
+/// Returned keyed by the WIRE name a capability is advertised under -- `ListCaps` -> `list` --
+/// which is the convention `WireCapability`'s `#[serde(rename)]` follows. Spec field names are
+/// camelCase and so are the wire's, so the names compare directly.
+///
+/// WHY THIS EXISTS: an external contributor (Chris Sells, #442 comment 7142885377) reported that
+/// a checker omitted `ListCaps.compactFilter` from its key arrays, so a scope OMITTING a
+/// spec-required capability field was wrongly accepted. The TypeScript estate had a single test
+/// for that one field; it was deleted with the clause-census retirement. This generalises it: the
+/// requirement is derived from the spec for EVERY caps record, so the next omitted field is caught
+/// without anyone writing a second test.
+pub fn required_caps_fields() -> Vec<(String, Vec<String>)> {
+    let mut out: Vec<(String, Vec<String>)> = Vec::new();
+    let mut cur: Option<(String, Vec<String>)> = None;
+    for line in CORE_LUMEN.lines() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("type ") {
+            if let Some((name, _)) = rest.split_once(" = {") {
+                let name = name.trim();
+                if let Some(stem) = name.strip_suffix("Caps") {
+                    if !stem.is_empty() {
+                        cur = Some((stem.to_ascii_lowercase(), Vec::new()));
+                        continue;
+                    }
+                }
+            }
+        }
+        if line.starts_with('}') {
+            if let Some(rec) = cur.take() {
+                out.push(rec);
+            }
+            continue;
+        }
+        if let Some((_, fields)) = cur.as_mut() {
+            // `name:` is required; `name?:` is optional. Skip doc lines and anything else.
+            if let Some(colon) = t.find(':') {
+                let head = &t[..colon];
+                if !head.is_empty()
+                    && head.chars().all(|c| c.is_ascii_alphanumeric() || c == '?')
+                    && head.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+                    && !head.ends_with('?')
+                {
+                    fields.push(head.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 pub fn problem_codes() -> Vec<String> {
     let (block, _) = d9_catalogue();
     let mut out: Vec<String> = Vec::new();

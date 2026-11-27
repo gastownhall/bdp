@@ -3531,6 +3531,116 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
     ("put", 400),
 ];
 
+/// EVERY SPEC-REQUIRED CAPABILITY FIELD MUST BE ADVERTISED. Claims no row -- this is advertisement
+/// conformance, not a fault.
+///
+/// WHY IT EXISTS, and it is not this lane's idea. An external contributor (Chris Sells, #442
+/// comment 7142885377) reported that a checker had omitted `ListCaps.compactFilter` from its key
+/// arrays, so a valid `compactFilter: false` threw AND a scope omitting the spec-REQUIRED field was
+/// wrongly accepted. The TypeScript estate carried one test for that one field. It was deleted with
+/// the clause-census retirement (`adbbdb20`, 20 tests, 290 lines), covered nowhere else, and would
+/// have ridden into RC3 silently on all three PRs.
+///
+/// SO THIS IS THE GENERAL FORM RATHER THAN A PORT. The requirement is DERIVED from core.lumen for
+/// every `*Caps` record -- a field without a `?` is required -- and checked against what this
+/// subject actually serialises. Porting the single test would have protected one field; deriving
+/// the rule protects the next one too, which is the difference between the spec carrying the rule
+/// and a suite carrying one instance of it.
+///
+/// AND IT FAILS HERE TODAY, which is the honest reason this case exists rather than a relocation:
+/// censusing all spec caps fields against this subject found exactly ONE required field absent, and
+/// it is `ListCaps.compactFilter` -- the very field Chris reported. This subject IS a scope omitting
+/// a spec-required capability field. Adding it changes the `/sys/capabilities` payload, which is
+/// wire behaviour under the rc1 freeze, so the field is registered below and fixed post-freeze.
+const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
+    (
+        "list",
+        "compactFilter",
+        "core.lumen:1693-1703 declares `ListCaps.compactFilter: bool` REQUIRED (no `?`); this \
+         subject's `ListCaps` is { conditions, selector, sort, max_limit } and the wire encodes \
+         only those four. The exact omission Chris Sells reported against the TS checker. NOT \
+         FIXED: adding it changes the discovery payload, which is wire behaviour under the \
+         0.2.3-rc1 freeze. CLOSES WHEN: post-freeze, `ListCaps` gains `compact_filter` and the \
+         wire encodes it.",
+    ),
+    // TWO MECHANISMS, SIX ENTRIES. Deriving the rule rather than porting Chris's single test found
+    // both immediately; neither has any equivalent check anywhere.
+    //
+    // (a) A SPEC-REQUIRED FIELD ADVERTISED UNDER THE WRONG NAME. core.lumen calls the capability
+    //     `ifRevision`; `If-Match` is its HEADER spelling (`ifRevision = { in = "header",
+    //     name = "If-Match" }`). This subject's caps struct is `if_match` and the wire renames it
+    //     to `ifMatch`, so a client looking for the field the spec names cannot find it. This is
+    //     the same vocabulary error I made in prose all day today before measuring the record --
+    //     except here it is on the wire, where a client pays for it.
+    ("put", "ifRevision", "advertised as `ifMatch` (the header spelling). Spec field is `ifRevision`. NOT FIXED: renaming a discovery member is wire behaviour under the 0.2.3-rc1 freeze. CLOSES WHEN: post-freeze, the caps field and its wire name are `ifRevision`."),
+    ("patch", "ifRevision", "as `put` -- advertised as `ifMatch`, spec field is `ifRevision`."),
+    ("delete", "ifRevision", "as `put` -- advertised as `ifMatch`, spec field is `ifRevision`."),
+    // (b) A SPEC-REQUIRED FIELD ABSENT ENTIRELY. `precondition: bool` (a `Filter` precondition) is
+    //     required on all three write caps records and is in neither the caps struct nor the wire.
+    //     So a scope cannot say whether it honours `?precondition=`, and a client cannot ask.
+    ("put", "precondition", "`PutCaps.precondition: bool` is REQUIRED and absent from both the caps struct and the wire. NOT FIXED: adding a discovery member is wire behaviour under the freeze. CLOSES WHEN: post-freeze, `PutCaps` carries `precondition` and the wire encodes it."),
+    ("patch", "precondition", "as `put` -- `PatchCaps.precondition: bool` required, absent from struct and wire."),
+    ("delete", "precondition", "as `put` -- `DeleteCaps.precondition: bool` required, absent from struct and wire."),
+];
+
+async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let required = bdp_gate::required_caps_fields();
+    if required.len() < 8 {
+        return Err(format!(
+            "only {} caps records parsed from core.lumen -- the parse is not finding the records \
+             and every check below passes vacuously",
+            required.len()
+        ));
+    }
+    let known: BTreeSet<(&str, &str)> =
+        CAPS_FIELDS_NOT_ADVERTISED.iter().map(|(w, f, _)| (*w, *f)).collect();
+
+    let mut advertised_any = false;
+    let mut gaps: Vec<String> = Vec::new();
+    let mut stale: Vec<String> = Vec::new();
+
+    for cap in r.capabilities() {
+        let Some(wire) = bdp_protocol::wire::WireCapability::from_trait(&cap) else { continue };
+        let json = serde_json::to_value(&wire).map_err(|e| format!("serialise capability: {e}"))?;
+        // The enum is externally tagged: {"list": { ...fields... }}.
+        let Some((name, body)) = json.as_object().and_then(|o| o.iter().next()) else { continue };
+        let Some(body) = body.as_object() else { continue };
+        let Some((_, fields)) = required.iter().find(|(rec, _)| rec == name) else { continue };
+        advertised_any = true;
+        for f in fields {
+            let present = body.contains_key(f.as_str());
+            let registered = known.contains(&(name.as_str(), f.as_str()));
+            if !present && !registered {
+                gaps.push(format!("{name}.{f}"));
+            }
+            if present && registered {
+                stale.push(format!("{name}.{f}"));
+            }
+        }
+    }
+
+    if !advertised_any {
+        return Err("no advertised capability matched a spec caps record, so this case checked \
+                    nothing -- the wire name and the record stem have stopped agreeing"
+            .into());
+    }
+    if !gaps.is_empty() {
+        return Err(format!(
+            "spec-REQUIRED capability field(s) this subject does not advertise: {gaps:?}. A scope \
+             omitting a required field is the defect Chris Sells reported (#442 comment \
+             7142885377). Either advertise it, or register it in CAPS_FIELDS_NOT_ADVERTISED with \
+             the reason and a CLOSES WHEN."
+        ));
+    }
+    if !stale.is_empty() {
+        return Err(format!(
+            "CAPS_FIELDS_NOT_ADVERTISED registers field(s) this subject NOW advertises: {stale:?} \
+             -- the entry is a false claim; remove it in the change that closed it."
+        ));
+    }
+    Ok(Vec::new())
+}
+
 /// Rows whose ONLY covering case asserts a status the 2026-11-27 ruling makes WRONG.
 ///
 /// The ruling: `limit-exceeded` (422) is for a request exceeding a STATIC CAPABILITY BOUND, fixed
@@ -4132,6 +4242,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         pull_is_the_one_read_that_admits_sse(&remote, &addr),
+    )
+    .await;
+    record(
+        "every spec-required caps field is advertised",
+        &mut covered,
+        &mut failures,
+        every_required_caps_field_is_advertised(&remote),
     )
     .await;
     record("import", &mut covered, &mut failures, import_round_trips_an_export(&remote)).await;
