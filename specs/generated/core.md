@@ -2949,7 +2949,7 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
   405  `channel-not-pullable` / `channel-not-pushable` — pull / push on the wrong channel
        direction; `capability-not-supported` — patch where a Scope offers no patch, or any
-       un-offered primitive or feature (an un-offered capability is declined here, never 501)
+       un-offered primitive (an un-offered primitive is declined here, never 501)
   410  `resource-erased` — `get` of an erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 ```
@@ -2992,4 +2992,4 @@ A suite CITING any of the five is not thereby testing it — the citation must c
 13. An authorization view — a hidden resource reads exactly as a missing one.
 14. Where `delete` is offered, deletion that does not erase — under `permanent` the id stays accounted for, and where the scope is also `versioned` the tombstone revision is kept. A `reusable` scope retains neither record ([delete](#delete)); that is the declared model, not a breach of this guarantee.
 
-Discovery advertises, per scope: the primitives offered; whether history / patch / push are offered; which storage classes `create` accepts; which invocation modes are refused; the max request-context size; and where the changefeed is. A request that needs an un-offered capability is refused `capability-not-supported`; an optional feature is never half-present.
+Discovery advertises, per scope: the primitives offered; whether history / patch / push are offered; which storage classes `create` accepts; which invocation modes are refused; the max request-context size; and where the changefeed is. A request that needs an un-offered primitive is refused `capability-not-supported`; an optional feature is never half-present (an advertised-false option is declined at 400, not here).
