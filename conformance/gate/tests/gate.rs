@@ -3655,6 +3655,30 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// core nor specified, and a reader told "numeric bounds like `maxWrites` keep 422" would infer a
 /// populated class of legitimate 422s. There is exactly one: `PushCaps.maxBatch`.
 ///
+/// A DENOMINATOR ROW LEFT AND CAME BACK ON 2026-11-23, AND THE GENERATED ARTEFACT CARRIED IT. The
+/// same commit that narrowed the 422 definition also stripped `400` from `import`'s declared set.
+/// A peer found both endpoints and could not find the restoring commit, because `git log -S`
+/// tracks a string's COUNT and `operationId = "import"` never changes count -- only the bracket
+/// contents do. `-G` finds it:
+///   2026-11-16  `81cba84e`  import: [400,409,422]
+///   2026-11-23  `4f27896f`  import: [409,422]        <- 400 REMOVED (the 422-narrowing commit)
+///   2026-11-23  `c83944fd`  import: [400,409,422]    <- RESTORED, same day, 14 commits later
+///   2026-11-26  `3cc6f4eb`  import: [400,409,422]    (the pin, and still so on main)
+/// And the generated OpenAPI this gate derives its denominator from carried the removal, not just
+/// the source: `['409','422']` at `4f27896f`, `['400','409','422']` at `c83944fd`. So the surface
+/// really did lose `op/import/fault/400` for that span.
+///
+/// WHICH MAKES 2026-11-23 A DAY WHEN "THE DENOMINATOR" IS NOT A NUMBER. Inside that same 14-commit
+/// window sits `47bc779c`, "ruling D -- undeclare 413/414, 54 -> 47 rows". The surface moved
+/// repeatedly within one day, in both directions. Any coverage figure dated 11-23 needs its commit,
+/// not its date -- a date is not a fine enough coordinate when the thing measured changes several
+/// times inside it.
+///
+/// Nothing published here is affected: this gate derives the denominator live, and every figure in
+/// this file was computed at HEAD today, where the row is present. Checked rather than assumed,
+/// because the row is claimed by `import_truncated_stream_400` and `import_wrong_media_type_400`
+/// and would have had no denominator entry to claim during the window.
+///
 /// THE APPROVED DOCUMENT IS SELF-CONSISTENT ON ITS OWN TEST -- it never states a shrinkability
 /// test. The spec owner reported it as internally inconsistent, citing
 /// `bdp-primitives/src/lib.rs:724-726`, which excludes channel-direction from 422 because "there
