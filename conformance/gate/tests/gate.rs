@@ -3596,6 +3596,34 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// everything section 7 wanted -- and advertised-false takes `invalid-parameter` at 400. Each gets
 /// a dedicated code; nothing section 7 argued for is given up. Still not ours to rule.
 ///
+/// AND THE WHOLE DISPUTE REDUCES TO ONE WORD, which is the form to put to the owner because she
+/// can answer it without relitigating anything and without anyone having been wrong:
+///
+///   IS 422's MEMBERSHIP TEST "ADJUST" OR "SHRINK"?
+///     the approval (2026-11-14) -- "the op exists, ADJUST the request and retry" (its section 1,
+///       and again later: "fall back when it should adjust and retry"). Omitting a `select` IS
+///       adjusting the request, so advertised-false -> 422 follows.
+///     core.lumen :688, :1532, :2060, :2082 -- "fixed by SHRINKING the request", four times.
+///       Omitting a header shrinks nothing, so advertised-false -> not 422.
+///
+/// Adjust: the approval stands as written, and the selector ruling plus #460/#461 revisit. Shrink:
+/// advertised-false is 400, and the approval's own case list narrows to the genuinely numeric ones.
+///
+/// THE APPROVED DOCUMENT IS SELF-CONSISTENT ON ITS OWN TEST -- it never states a shrinkability
+/// test. The spec owner reported it as internally inconsistent, citing
+/// `bdp-primitives/src/lib.rs:724-726`, which excludes channel-direction from 422 because "there
+/// is no smaller request that would succeed -- which is the test `limit-exceeded` is for", eight
+/// lines after routing `selector:false` TO 422. That inconsistency is real and verified, and it is
+/// OURS: this doc imported the approval's adjust test for the routing and core.lumen's shrink test
+/// for the exclusion. Mixing two sources manufactured a contradiction that neither source has.
+///
+/// AND THE DANGLING-CITATION POINT IS WITHDRAWN TWICE OVER. I reported it, corrected it after
+/// reading the record in the other repo, and then received it back from the spec owner as
+/// "dangling citation confirmed" -- she had verified it in the same repository where I made the
+/// mistake, while my correction was still queued to her. Nobody added evidence; the claim returned
+/// wearing a second name. A peer confirming a claim you made, in the tree you made it in, is not
+/// corroboration.
+///
 /// SO THIS IS A CONFLICT TO SURFACE, NOT A DEFECT TO BOOK. Two readings of one cell, one of them
 /// attributed to the owner, and a subject authored to the older one. The figure below is printed
 /// as CONTINGENT for that reason: subtracting the rows presumes the newer reading wins, and that
