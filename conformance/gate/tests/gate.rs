@@ -2056,14 +2056,29 @@ async fn import_truncated_stream_400(host: &str) -> Result<Vec<SurfaceId>, Strin
 /// generated contract does not publish, so the refusal was itself a divergence". Same premise,
 /// different words, missed by my own search.
 ///
-/// A MECHANICAL SWEEP WOULD BE ITS OWN ERROR, so this is recorded rather than done. Most of those
+/// A MECHANICAL SWEEP WOULD BE ITS OWN ERROR, so this is recorded rather than done. Many of those
 /// comments use the declaration CORROBORATIVELY beside a substantive argument -- `cancel` takes
-/// `unpinned<AsyncResult>`, so its missing `412` confirms a fact the TYPE already establishes --
-/// and that reasoning is sound. Only the ones where the declaration is LOAD-BEARING ("X declares
-/// no Y, therefore answering Y is wrong") are defective. Telling them apart needs reading each
-/// one, so replacing them all would destroy correct reasoning to remove incorrect reasoning.
+/// `unpinned<AsyncResult>`, so its missing `412` agrees with a fact the TYPE already establishes.
+/// Replacing those wholesale would destroy correct reasoning to remove incorrect reasoning.
+///
 /// THE TEST, per site: delete the sentence about the declared set. If the conclusion still stands
 /// on what is left, the citation was corroborative. If it collapses, it was the premise.
+///
+/// AND THE CORRECTION TO THAT TEST, which is a peer's and is better than my version: SURVIVING THE
+/// DELETION MAKES A CITATION CORROBORATIVE, NOT HARMLESS. I first wrote that the corroborative ones
+/// were "sound" and needed nothing. That is wrong, because a reader takes the stated reason as the
+/// reason. A bare "`X` declares no `Y`, so ..." reads as closure whether or not the conclusion
+/// needs closure, and the refuted inference is the one a reader will carry away.
+///
+/// So the sort is THREE ways, not two:
+///   1. LOAD-BEARING on closure -- defective. The conclusion must be re-grounded or withdrawn.
+///   2. CORROBORATIVE as evidence of DESIGN INTENT -- sound, but it must say so. "the spec author
+///      declared no `412` here, consistent with `unpinned<AsyncResult>` carrying no revision to
+///      pin" is the same fact read legitimately; the bare form is not.
+///   3. CORROBORATIVE AND REDUNDANT -- delete it; it only invites the closure reading.
+/// The peer found an instance of (1) in her own tree by this test, in a comment she had written up
+/// as a lesson about being careful with lists -- and she found it after her OWN wording sweep came
+/// back with two irrelevant hits, which is what sent her looking by meaning.
 async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     match raw_status(host, "POST", "/-/import", ctype("application/json"), b"[]").await? {
         400 => Ok(vec![fault("import", 400)]),

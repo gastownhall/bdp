@@ -520,8 +520,18 @@ impl<S: BdpScope> Server<S> {
         //    refuses `select`/`where` together; half the refusal was missing, so `?select=` was
         //    accepted and silently dropped — the caller's projection vanishing with a `200`, which
         //    is the defect the `after`/`limit` comment below was written about.
-        // 2. `export` DECLARES EXACTLY ONE FAULT, `400`. A `501` from here is a status the
-        //    generated contract does not publish, so the refusal was itself a divergence.
+        // 2. THE `501` WAS WRONG, AND THE REASON THIS COMMENT GAVE WAS ALSO WRONG. It read:
+        //    "`export` DECLARES EXACTLY ONE FAULT, `400`; a `501` from here is a status the
+        //    generated contract does not publish, so the refusal was itself a divergence." That is
+        //    the closed-set reading, and `problem = { status = [...] }` is not closed -- D.8's own
+        //    last row is "4xx/5xx any fault, carried at the Problem's own status", and D.8 requires
+        //    a 405 from `patch` whose declared set omits 405. Absence from the enumeration never
+        //    forbade the status.
+        //    RE-GROUNDED POSITIVELY, which is what the conclusion actually needs: refusing a
+        //    parameter is a DECLINE, and D.8 (:2057-2062) puts a decline the op can state at `400`
+        //    (`invalid-parameter`) -- so `400` is right because a rule REQUIRES it here, not
+        //    because a list failed to mention `501`. Category (1) under the test recorded on
+        //    `import_wrong_media_type_400`: load-bearing on closure, conclusion re-groundable.
         //
         // I had a tidier design — `400` for a history export (the spec refuses projection) and
         // `501` for a current-state one (ruling B says honour it, this binding cannot) — and the
