@@ -11,10 +11,13 @@ import { capabilities } from "./v02-provider-kit/contract.mjs";
 // gastownhall/bdp main unprotected, they are the evidence that the still-live TS checker
 // can fail at all.
 //
-// NOT ported here: the "independent wire mutant" family. Its assertion is `claimEligible
-// === false`, which the retired census forces to false for every input via its
-// harness-error, so it would pass without discriminating. Its discrimination home is the
-// Rust subject's own evidence (the teapot-probe red-green), built in the subsume.
+// NOT ported: the "independent wire mutant" family's DISCRIMINATION assertions
+// (claimEligible === false, state !== "pass") — the retired census forces both for every
+// input via its harness-error, so they would pass without discriminating; their home is the
+// Rust subject's own evidence (the teapot-probe red-green), built in the subsume. The
+// family's THIRD assertion, a leak guard, IS census-independent and is ported below —
+// without it the sentinel injected at test-support/v02-kit-provider.mjs:504 is planted with
+// nothing reading it, which reads as coverage.
 
 // The checker catches a broken OPTIONAL wire behaviour: the mutated obligation's own check
 // sets its state to "fail", independent of the census.
@@ -57,4 +60,16 @@ test("ListCaps requires a boolean compactFilter, rejecting both omission and a n
   const stringly = caps();
   stringly.core.list.compactFilter = "false";
   assert.throws(() => capabilities(stringly));
+});
+
+// Leak guard (the census-independent third assertion of the retired mutant family): the
+// fixture support injects a sentinel `notDefined: "DO_NOT_REPORT_SERVER_VALUE"` into served
+// records (test-support/v02-kit-provider.mjs:504); the checker must not echo any
+// server-supplied value into its report.
+test("checker does not echo a server-supplied value into its report", async () => {
+  const report = await runV02Provider(await serveFixture("magic-path"), {
+    allowRefusalProbes: true,
+    maxPages: 100,
+  });
+  assert.equal(JSON.stringify(report).includes("DO_NOT_REPORT_SERVER_VALUE"), false);
 });
