@@ -3538,6 +3538,37 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// advertised-false BOOLEAN option on an offered primitive is 400 `invalid-parameter`; a primitive
 /// absent is 405 `capability-not-supported`. The three are disjoint.
 ///
+/// THE SUBTRACTION IS CONTINGENT, NOT SETTLED, AND THIS IS THE CORRECTION THAT MATTERS. The
+/// ruling above reached me as the spec owner's relay. I verified its SPEC grounds myself (four
+/// statements) and then recorded the consequence in this artefact -- which is the wrong threshold.
+/// My own rule: a relay clears a low bar to unblock a decision I own, and a high bar for a claim I
+/// write down. Verifying the spec text is not the high bar, because the question is not only what
+/// the clause says.
+///
+/// WHAT I HAD NOT CHECKED: `bdp-primitives`' `LimitExceeded` doc (:710-718) attributes this
+/// mapping to DONNA, and names the disputed cell explicitly -- "a batch past `max_batch`, a `List`
+/// condition kind not advertised, A SELECTOR WHEN `selector:false`" -- so the attributed ruling
+/// covers advertised-false booleans, not merely over-bound requests. A peer found the same conflict
+/// in her tree first; mine is the same shape.
+///
+/// TWO THINGS WEAKEN THAT ATTRIBUTION AND NEITHER SETTLES IT. It cites
+/// `bdp-protocol/LIMIT-EXCEEDED.md` as its record, and THAT FILE DOES NOT EXIST anywhere in this
+/// repository -- a path makes a claim read as grounded whether or not it resolves. And this fleet
+/// shares one account, so "Donna-ruled" in a comment is self-asserted body text, never account
+/// attestation. But an unverifiable attribution is not a refuted one, and governance is hers
+/// either way.
+///
+/// SO THIS IS A CONFLICT TO SURFACE, NOT A DEFECT TO BOOK. Two readings of one cell, one of them
+/// attributed to the owner, and a subject authored to the older one. The figure below is printed
+/// as CONTINGENT for that reason: subtracting the rows presumes the newer reading wins, and that
+/// is exactly the call a conformance gate must not make for itself.
+///
+/// I ALSO NEARLY CLEARED THIS TREE. Grepping for Donna attributions near 422, the first hit
+/// (`wire.rs:591`) is only the error-to-status MAPPING -- "request over its advertised limits" --
+/// which is compatible with the newer ruling, and I was ready to report no conflict here. The
+/// SECOND hit carries the condition list. Reading to the width of the question would have cost one
+/// more line.
+///
 /// Every row below is covered by a case that drives an advertised-false BOOLEAN and asserts
 /// `(422, limit-exceeded)`. The case passes -- the frozen subject really does answer that -- so the
 /// mechanical ratio counts the row. But coverage through a path the ruling misclassifies is not
@@ -3682,11 +3713,14 @@ async fn run_cases(addr: String, restricted_addr: String) {
          condemnation of 422 rather than a classification."
     );
     eprintln!(
-        "HONEST coverage: {}/{} — {} row(s) subtracted, covered only via a status the ruling \
-         makes wrong (advertised-false boolean asserted as 422):",
+        "CONTINGENT coverage: {}/{} — {} row(s) subtracted IF the advertised-false ruling stands. \
+         NOT yet the honest figure: it rests on a RULING CONFLICT that is Donna's to settle (see \
+         COVERED_BY_A_RULED_WRONG_STATUS). Quote {}/{} with that caveat, never bare.",
         covered_in_denom.len() - disputed.len(),
         denom.len(),
-        disputed.len()
+        disputed.len(),
+        covered_in_denom.len() - disputed.len(),
+        denom.len()
     );
     for (row, why) in COVERED_BY_A_RULED_WRONG_STATUS {
         eprintln!("    - {row}: {why}");
