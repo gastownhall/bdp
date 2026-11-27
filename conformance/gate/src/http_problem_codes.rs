@@ -125,6 +125,35 @@ pub const HTTP_CODES_WITHOUT_A_REGISTER_ENTRY: &[(&str, &str)] = &[
          `or feature` cuts across that, and #460 merges FIRST. \
          THIS BLOCKS NOTHING HERE and is not ours to rule, but it does gate the five-part \
          `select` -> `invalid-parameter` change: if `feature` carries, that change is 405, not 400. \
+         AND (b) IS 8 SITES, NOT 4, ACROSS TWO CODES -- found because a peer confessed that her \
+         census of this class had been scoped to where MY instances lived, which is exactly what \
+         mine was. I keyed the census on `unmapped(` call sites, so it could only ever find \
+         advertised-false cases that already answered 501. A second helper answers the SAME \
+         condition differently: `unadvertised()` (:1193) returns 422 `limit-exceeded` for \
+         `clientProposedId: false` (:219), `ifMatch: false` on put (:843), `ifAbsent: false` \
+         (:850) and `ifMatch: false` on patch (:953). So this subject answers advertised-false \
+         with 501 at four sites and 422 at four others, depending only on which helper the path \
+         reaches -- an inconsistency invisible to any census keyed on a code. \
+         THE 422 SITES LOOK WRONG TOO, and this is the consequential part. #460 adds an explicit \
+         test to D.8's 422 row: `MEMBERSHIP TEST: a fault belongs at 422 IFF shrinking the request \
+         fixes it; a well-formed body that is simply unusable is 400, not 422`. Dropping an \
+         `If-Match` header is not SHRINKING anything, and `ifMatch: false` is an off switch rather \
+         than a bound -- so these fail the IFF. Main already carried the weaker form of the same \
+         test (`fixed by shrinking the request`), so the defect pre-dates #460; #460 only makes it \
+         undeniable. \
+         AND IT REACHES THE HEADLINE NUMBER, which is why it is recorded here rather than left in \
+         a message. `op/create/fault/422` (claimed at tests/gate.rs:3279), `op/put/fault/422` and \
+         `op/patch/fault/422` (both at :3314) are claimed SOLELY by \
+         `the_capability_duals_are_refused_422`, via the advertised-false path, asserting \
+         `(422, limit-exceeded)`. That case's own prose says 422 `says the guard is not offered \
+         here` -- i.e. it is keyed on precisely the condition the membership test excludes. If \
+         advertised-false is not 422, those three rows lose their only coverage and the grid is \
+         45/51, not 48/51. \
+         NOT TREATED AS SETTLED, by this lane's own rule: a plausible ruling could call a boolean \
+         advertised false a bound of zero and keep 422, which would make current behaviour correct. \
+         So it is a question with a measured consequence, not a defect to fix here -- but it is the \
+         one item in this register that can move the published coverage figure, and the figure \
+         should not be quoted as settled while it is open. \
          (c) 10 sites -- a `None` arm on `res.value`, which sits AFTER the `not_implemented` guard \
          in the same match and is therefore reachable ONLY when `not_implemented == false`. The \
          scope has just claimed it implements the primitive and returned no value. Answering \
