@@ -1444,12 +1444,6 @@
       "reason": "Full-CI partition and observed-file counterchecks, including a tiny actual Vitest JSON fixture; no provider execution, impact selection, result reuse or coverage retirement."
     },
     {
-      "path": "scripts/v02-provider-kit.node-test.mjs",
-      "runner": "node",
-      "lane": "current",
-      "reason": "Current v0.2 read-only endpoint qualification, applicability and independent wire negative controls; re-homed on the Core 0.2.3 generated surface."
-    },
-    {
       "path": "scripts/demo-history.test.mjs",
       "runner": "vitest",
       "lane": "legacy",
