@@ -3091,6 +3091,80 @@ async fn pull_with_an_invalid_limit_400(r: &RemoteScope, host: &str) -> Result<V
     }
 }
 
+/// `pull` IS THE ONE READ THAT ADMITS `sse`, and the stub must say so with its STATUS.
+///
+/// [[core.lumen#Transport]] is normative: "`sse` transport is valid ONLY on a live source (pull); a
+/// snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`". The snapshot
+/// half is covered by `the_format_header_refusals`, which walks `list`, `revisions` and `export`.
+///
+/// WITHOUT THIS CASE THAT COVERAGE IS HONEST BY ACCIDENT. A binding that refused `sse` on EVERY op
+/// passes every existing `format` arm, because no case asks the one op where `sse` is legal. Those
+/// refusals prove `sse` is rejected somewhere; only this proves it is rejected for the right reason.
+///
+/// THREE OUTCOMES, ALL REACHABLE, AND ONLY ONE HONEST:
+///   - `200` + a page: the rc2 silent substitution. The caller asked for a live stream and got a
+///     window, with nothing on the wire saying the transport was swapped.
+///   - `400 invalid-parameter`: the SNAPSHOT answer, applied to the op the spec exempts by name.
+///     This is what a binding that reused `refuse_format` uniformly would return.
+///   - `501 not-implemented`: the honest stub. The transport is recognised and declined.
+///
+/// CLAIMS NO ROW, and the reason is a question I am NOT ruling: `501` is not among `pull`'s declared
+/// faults (`[400,404,405,410]`). A plausible ruling -- that `not-implemented` is a protocol-level
+/// status no op enumerates, as `500` is -- would make this behaviour correct exactly as it stands,
+/// so it is evidence for a question rather than a defect to fix here.
+/// CLOSES WHEN: Donna rules whether `501` is declared per-op or protocol-wide. Per-op, `pull` gains
+/// a `501` row and this case claims it; protocol-wide, this note goes and the assertion is unchanged.
+async fn pull_is_the_one_read_that_admits_sse(
+    r: &RemoteScope,
+    host: &str,
+) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-sse", "duplex", serde_json::json!({})).await?;
+    let fmt = |v: &str| vec![("format".to_string(), v.to_string())];
+
+    // The CODE is pinned alongside the status: `501` alone would not tell "this transport is
+    // declined" from any other unimplemented thing on the same path.
+    let (status, code) = raw_problem(host, "GET", "/ch-sse/-/pull", fmt("sse"), b"").await?;
+    match (status, code.as_str()) {
+        (501, "not-implemented") => {}
+        (200, _) => {
+            return Err("`pull` with `format: sse` answered 200 — the caller asked for a live \
+                        stream and was served a window. That is the silent substitution the \
+                        `format` header exists to prevent, and it is invisible to a client that \
+                        trusts the status."
+                .into())
+        }
+        (400, c) => {
+            return Err(format!(
+                "`pull` with `format: sse` answered 400 / `{c}`, which is the SNAPSHOT answer. \
+                 [[core.lumen#Transport]] exempts `pull` by name — sse is valid ONLY on a live \
+                 source — and a uniform `refuse_format` over every read produces exactly this."
+            ))
+        }
+        (s, c) => {
+            return Err(format!(
+                "`pull` with `format: sse` answered {s} / `{c}`; expected 501 `not-implemented`. \
+                 See this case's note on whether 501 is declared per-op."
+            ))
+        }
+    }
+
+    // THE DISCRIMINATOR. Without it the arm above also passes for a `pull` that is broken for every
+    // `format`, and then the refusal says nothing about the transport.
+    for ok in ["page", ""] {
+        let h = if ok.is_empty() { Vec::new() } else { fmt(ok) };
+        let st = raw_status(host, "GET", "/ch-sse/-/pull", h, b"").await?;
+        if st != 200 {
+            return Err(format!(
+                "`pull` with format {:?} answered {st}, so the `sse` refusal above says nothing \
+                 about the transport — this op declines every `format`",
+                if ok.is_empty() { "absent" } else { ok }
+            ));
+        }
+    }
+
+    Ok(Vec::new())
+}
+
 
 // ---- the capability duals, against a subject that advertises a BOUND ---------------------------
 
@@ -3715,6 +3789,13 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         &mut covered,
         &mut failures,
         pull_with_an_invalid_limit_400(&remote, &addr),
+    )
+    .await;
+    record(
+        "pull format=sse (the one legal sse read)",
+        &mut covered,
+        &mut failures,
+        pull_is_the_one_read_that_admits_sse(&remote, &addr),
     )
     .await;
     record("import", &mut covered, &mut failures, import_round_trips_an_export(&remote)).await;
