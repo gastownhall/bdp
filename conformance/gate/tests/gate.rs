@@ -3609,6 +3609,31 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// Adjust: the approval stands as written, and the selector ruling plus #460/#461 revisit. Shrink:
 /// advertised-false is 400, and the approval's own case list narrows to the genuinely numeric ones.
 ///
+/// THE CHRONOLOGY, MEASURED, because it decides who inherited what and no one's summary of it has
+/// been right yet -- mine included, twice:
+///   2026-11-13/14  LIMIT-EXCEEDED.md APPROVED (`2b493b98`, 07:28Z). Its test: ADJUST.
+///   2026-11-17     "fixed by shrinking" enters core.lumen (`2993e979`) -- but SCOPED TO PUSH, in
+///                  the normative line distinguishing `limit-exceeded` from backpressure. Not the
+///                  general definition.
+///   2026-11-19     this subject imports the ADJUST test (`ee95366a`, the gate scaffold). Correct
+///                  at the time: the general 422 row had not narrowed.
+///   2026-11-23     D.8's GENERAL 422 row gains the shrink wording (`4f27896f`, "reconcile
+///                  declared fault surface with producers"). THIS is the narrowing.
+///   2026-11-24     D.8's statable-decline clause (`96c21581`) gives 400 a specified home.
+///   2026-11-25     I add the SHRINK test to `bdp-primitives` (`039867d5`, "channels: pull and
+///                  push, end to end"), eight lines from the ADJUST test, unreconciled.
+///
+/// So the approval was consistent with the spec as it stood. The general definition narrowed ten
+/// days later, in a commit whose own headline is "reconcile ... with producers" -- and it did not
+/// reconcile the approval's section 1 case list, nor the 24 sites across two trees authored to it.
+/// The last line is mine: I introduced this tree's contradiction two days ago, in a commit
+/// headlined as a coverage gain, by reaching for the spec's narrower test to justify a 405 without
+/// noticing the broader one eight lines above justifying a 422.
+///
+/// A peer dated the narrowing to 2026-11-24 in her crate and read it as an import that failed to
+/// reconcile; in this tree the stale import is the ADJUST side and the narrowing is 11-23. Same
+/// shape, different members -- which is why the dates belong here rather than in a summary.
+///
 /// THE APPROVED DOCUMENT IS SELF-CONSISTENT ON ITS OWN TEST -- it never states a shrinkability
 /// test. The spec owner reported it as internally inconsistent, citing
 /// `bdp-primitives/src/lib.rs:724-726`, which excludes channel-direction from 422 because "there
