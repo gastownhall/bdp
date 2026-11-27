@@ -492,6 +492,11 @@ pub enum PrimitiveCapabilities {
     List(ListCaps),
     Changes(ChangesCaps),
     Pull(PullCaps),
+    /// The `push` side of a channel. Separate from [`PullCaps`] because a channel's DIRECTION makes
+    /// the two independent: a `source` advertises pull and not push, a `sink` the reverse, and only
+    /// a `duplex` both. One combined record could not express a scope that offers one and not the
+    /// other.
+    Push(PushCaps),
     Export(ExportCaps),
     Create(CreateCaps),
     Put(PutCaps),
@@ -546,6 +551,22 @@ pub struct ChangesCaps { pub sse: bool, pub jsonl: bool, pub filter: bool, pub s
 
 #[derive(Clone, Debug, Default)]
 pub struct PullCaps { pub sse: bool, pub jsonl: bool, pub filter: bool, pub selector: bool }
+
+/// `push`'s limit record — core.lumen#PushCaps, field for field.
+///
+/// THE TWO BOUNDS ARE NOT THE SAME KIND OF THING and a case must not conflate them. `max_batch`
+/// exceeded is the HARD rejection: `limit-exceeded` (422), fixed by shrinking the request. `window`
+/// exceeded is SOFT backpressure, which rc2 states is "not an error" — it rides the ack as
+/// `credit: 0` and a `Deferred` tail, and the pusher re-offers. A binding that answered 422 for a
+/// full window would turn normal flow into a fault.
+#[derive(Clone, Debug, Default)]
+pub struct PushCaps {
+    /// The most events accepted in one batch, when capped. Exceeding it is `limit-exceeded` (422).
+    pub max_batch: Option<u64>,
+    /// The admission window — how many events the channel takes before backpressure, when bounded.
+    /// Exceeding it is NOT an error.
+    pub window: Option<u64>,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct ExportCaps { pub revisions: bool }
@@ -696,6 +717,33 @@ pub enum BdpError {
     /// `bdp-protocol/LIMIT-EXCEEDED.md`). `capability`/`limit` name the bound, e.g. "apply"/"maxWrites".
     LimitExceeded { capability: String, limit: String, detail: String },
     CursorExpired(Cursor),
+    /// `pull` against a channel whose declared direction is `sink` — core.lumen#pull: "Valid on a
+    /// `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`."
+    ///
+    /// WIRE = 405, and the spec names the code. D.8 grounds the status: "405 pull / push on the
+    /// wrong channel direction; patch where a Scope offers no patch". It is NOT 422: the direction
+    /// is a property of the CHANNEL, not an advertised bound of the operation, so there is no
+    /// smaller request that would succeed — which is the test `limit-exceeded` is for.
+    ChannelNotPullable { channel: ResourceId, direction: String },
+    /// `push` against a channel whose declared direction is `source`. The mirror of
+    /// [`BdpError::ChannelNotPullable`]; code `channel-not-pushable`.
+    ChannelNotPushable { channel: ResourceId, direction: String },
+    /// `push` to a TERMINAL (closed or failed) channel.
+    ///
+    /// THE STATUS IS DERIVED, NOT CITED, and that distinction is worth keeping because the rest of
+    /// this enum is cited. core.lumen#push says only "A terminal (closed/failed) channel faults" —
+    /// no status, no problem code. `push` declares `[405, 409, 422]`; 405 is the direction fault and
+    /// 422 is the `maxBatch` bound, both named outright, so a terminal channel can only be the 409.
+    /// D.8's 409 line leaves room for it ("also some Problems") without naming it.
+    ///
+    /// The CODE is my own naming for the same reason, and it is not `constraint-violation`:
+    /// [`ConstraintViolation`] models uniqueness, cycles and cardinality — properties of
+    /// relationships — and a closed channel is none of those. Reusing it would file a channel's
+    /// lifecycle under the Types vocabulary.
+    ///
+    /// Same shape as [`BdpError::AlreadySettled`], which is derived from `cancel`'s declared set by
+    /// the same elimination, and labelled as derived there too.
+    ChannelClosed { channel: ResourceId },
     /// `cancel` was aimed at an `AsyncResult` that is ALREADY SETTLED — its `reply` is present.
     ///
     /// DERIVED from the declared fault set, not chosen. `cancel` declares `[404, 409]`; 404 is
@@ -728,6 +776,45 @@ pub enum ConstraintViolation {
 // §10  BdpScope — the one trait. `get` required; every other primitive defaults to
 //      not-implemented. `self` IS an opened scope. Methods return `BdpResult<T>` directly.
 // =============================================================================
+
+/// One offered event — core.lumen#PushEvent.
+#[derive(Clone, Debug)]
+pub struct PushEvent {
+    /// The pusher-assigned position, for a KEYED (idempotent) append; absent, the channel assigns
+    /// one. rc2: append is idempotent on `(channel, ordinal)` and a keyed event is first-write-wins
+    /// and immutable, so a re-push of that ordinal is "a benign no-op success, reported `Deduped`,
+    /// never a fault".
+    pub ordinal: Option<u64>,
+    pub body: RawJson,
+}
+
+/// The fate of ONE offered event — core.lumen#PushResult.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PushResult {
+    /// Appended at this ordinal.
+    Accepted(u64),
+    /// Already present at this ordinal — an idempotent re-push, and a SUCCESS.
+    Deduped(u64),
+    /// Not accepted on this call (backpressure); the pusher re-offers after `retry_after`.
+    Deferred,
+}
+
+/// What `push` returns — core.lumen#PushAck.
+///
+/// A SHORT `results` WITH `credit: 0` IS NORMAL FLOW, not an error. The ack is where backpressure
+/// lives, which is what makes `push` non-blocking: the channel takes a prefix, defers the rest, and
+/// the pusher re-offers from `accepted_through + 1`.
+#[derive(Clone, Debug)]
+pub struct PushAck {
+    /// The high-water ordinal durably appended by this call.
+    pub accepted_through: u64,
+    /// Per offered event, IN ORDER.
+    pub results: Vec<PushResult>,
+    /// How many more events the channel will take right now; `0` means hold and retry.
+    pub credit: u64,
+    /// Seconds to wait before re-offering the deferred tail (maps to HTTP `Retry-After`).
+    pub retry_after: Option<u64>,
+}
 
 pub trait BdpScope: Send + Sync {
     /// The supported ops, each with its limits. Presence = supported (`get` always present).
@@ -772,6 +859,16 @@ pub trait BdpScope: Send + Sync {
     /// pull — a general channel (already-resolved ref); its events are the channel's own type.
     async fn pull(&self, _channel: &ResourceId, _page: Page, _filter: Option<&ListFilter>, _selector: Option<&Selector>)
         -> Result<BdpResult<Vec<RawJson>>, BdpError> {
+        Ok(BdpResult::not_implemented())
+    }
+
+    /// push — append events to a channel (core.lumen#push).
+    ///
+    /// Takes the batch BY VALUE from the caller, exactly as rc2 makes `import` caller-driven: the
+    /// pusher owns the pump, the channel initiates nothing, and no stream or cursor reference is
+    /// handed to the scope to drain.
+    async fn push(&self, _channel: &ResourceId, _events: &[PushEvent])
+        -> Result<BdpResult<PushAck>, BdpError> {
         Ok(BdpResult::not_implemented())
     }
 

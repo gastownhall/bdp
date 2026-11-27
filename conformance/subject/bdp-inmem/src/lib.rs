@@ -60,6 +60,34 @@ struct Row {
 struct Store {
     log: Vec<Row>,
     by_id: HashMap<(String, String), Vec<usize>>,
+    /// Per-channel event streams, keyed `(scope, channel id)`.
+    ///
+    /// A SEPARATE LOG FROM `log`, and core.lumen says why in as many words: "A Channel bead's
+    /// revision does NOT change when events arrive — the bead is not the stream. Appended events
+    /// ride the channel's own stream, never the changefeed." Putting events in `log` would mint a
+    /// revision per event on the channel resource and leak them into `/sys/changes`, which is the
+    /// one thing that sentence forbids.
+    channels: HashMap<(String, String), ChannelLog>,
+}
+
+/// A channel's declared facts, read from its bead.
+struct ChannelDescriptor {
+    direction: String,
+    /// The lowest ordinal still resumable; a cursor below it faults `cursor-expired`.
+    floor: u64,
+    /// Terminal (closed/failed).
+    closed: bool,
+}
+
+/// One channel's stream: its events by ordinal.
+#[derive(Clone, Default)]
+struct ChannelLog {
+    /// `(ordinal, body)`, append-only and ordinal-ascending.
+    ///
+    /// EVENTS ARE NOT DROPPED when the retention floor rises. Retention governs what a READER may
+    /// resume from, and discarding the events behind it would make the floor unobservable: a case
+    /// could not then tell "expired cursor" from "nothing was ever there".
+    events: Vec<(u64, String)>,
 }
 
 impl Store {
@@ -97,6 +125,21 @@ const ASYNC_RESULT_KIND: &str = "asyncResult";
 pub struct InMemScope {
     store: RwLock<Store>,
     scope_name: String,
+    /// NARROW THE ADVERTISEMENT, never the behaviour. A scope constructed with
+    /// [`InMemScope::restricted`] advertises `ifMatch`, `ifAbsent` and `clientProposedId` as
+    /// FALSE while implementing exactly what it did before.
+    ///
+    /// WHY THE REFERENCE NEEDS THIS AT ALL. Three declared fault rows -- `create/422`, `put/422`,
+    /// `patch/422` -- are the enforce side of a capability dual, and a subject that advertises
+    /// every guard as supported can never produce one: there is nothing for it to refuse. The
+    /// rows were not uncovered for want of a case; they were unreachable against a permissive
+    /// subject, which is a property of the SUBJECT and not of the suite.
+    ///
+    /// Narrowing the advertisement rather than removing the implementation is what keeps the pair
+    /// honest: the restricted scope still HONORS a guard it is handed directly, so a case proving
+    /// the binding refuses one is proving the binding read the capability record, not that the
+    /// store lost a feature.
+    restricted_guards: bool,
 }
 
 impl Default for InMemScope {
@@ -114,13 +157,71 @@ impl Default for InMemScope {
 
 impl InMemScope {
     pub fn new(scope_name: impl Into<String>) -> Self {
-        Self { store: RwLock::new(Store::default()), scope_name: scope_name.into() }
+        Self {
+            store: RwLock::new(Store::default()),
+            scope_name: scope_name.into(),
+            restricted_guards: false,
+        }
+    }
+
+    /// The same store, advertising `ifMatch: false`, `ifAbsent: false` and
+    /// `clientProposedId: false`. See [`InMemScope::restricted_guards`].
+    pub fn restricted(scope_name: impl Into<String>) -> Self {
+        Self { restricted_guards: true, ..Self::new(scope_name) }
     }
 
     /// This scope's storage class — `Ephemeral` (volatile, local, not a durable source). The
     /// inherent accessor that feeds discovery (Lydia §78); nothing about the versioned core changes.
     pub fn storage_class(&self) -> StorageClass {
         StorageClass::Ephemeral
+    }
+
+    /// A channel's declared descriptor — `direction` and its retention floor — read from the
+    /// channel RESOURCE's body.
+    ///
+    /// THE DESCRIPTOR IS THE BEAD, not scope configuration, which is what core.lumen#Channel means
+    /// by `Channel is Bead`: "A channel-descriptor bead body — its two event schemas, direction,
+    /// and delivery characteristics. Its resource is `rep<Channel>`." So a test declares a channel
+    /// by CREATING one, and `pull`/`push` read what it declared. Holding direction in scope state
+    /// instead would let the two disagree with the resource a client can read.
+    ///
+    /// SIMPLIFIED IN ONE PLACE, and said so rather than implied: the spec's `retention: Retention`
+    /// is modelled here as an optional `retentionFloor` ordinal, which is the only part of
+    /// retention `pull` has an observable obligation about (a cursor below it faults). The schemas
+    /// (`pushSchema`/`pullSchema`) are not modelled: this store validates no event payloads, so
+    /// carrying them would be declaring a check that does not exist.
+    fn channel_descriptor(&self, channel: &ResourceId) -> Result<ChannelDescriptor, BdpError> {
+        let store = self.store.read().unwrap();
+        let scope = self.scope_str(&channel.scope);
+        let row = store
+            .head(&scope, channel.id.0.as_ref())
+            .ok_or_else(|| BdpError::NotFound(channel.clone()))?;
+        if row.op == "delete" {
+            return Err(BdpError::Erased {
+                id: channel.clone(),
+                at: Rev(row.rev.clone().into()),
+            });
+        }
+        let body: serde_json::Value = row
+            .properties
+            .as_deref()
+            .and_then(|p| serde_json::from_str(p).ok())
+            .unwrap_or(serde_json::Value::Null);
+        // A resource that declares no direction is not a channel. `405` would claim it is a channel
+        // facing the wrong way; `404` says there is no channel here, which is what is true.
+        let direction = body
+            .get("direction")
+            .and_then(|d| d.as_str())
+            .ok_or_else(|| BdpError::NotFound(channel.clone()))?
+            .to_string();
+        let floor = body.get("retentionFloor").and_then(|f| f.as_u64()).unwrap_or(0);
+        // TERMINAL STATE IS DECLARED ON THE BEAD TOO, for the same reason as direction and for one
+        // more: a `closed` flag on the in-memory event log would be set by NOTHING, since this
+        // store has no close operation — a branch no request can reach, which reads as implemented
+        // while being dead. Reading it from the descriptor makes the state something a client can
+        // both set (by writing the channel) and observe (by reading it).
+        let closed = body.get("closed").and_then(|c| c.as_bool()).unwrap_or(false);
+        Ok(ChannelDescriptor { direction, floor, closed })
     }
 
     fn scope_str(&self, s: &Scope) -> String {
@@ -337,6 +438,22 @@ fn apply_one(
                     });
                 }
             }
+            // A NO-CHANGE FULL-STATE WRITE IS A NO-OP. Computed before the revision is minted,
+            // because minting one is exactly what must not happen. A tombstone head is excluded:
+            // that path either faulted above (`permanent`) or legitimately creates (`reusable`).
+            let kind_s = body.kind.0.to_string();
+            let (ts, ti) = ref_parts(&body.r#type);
+            let props_s = json_str(&body.properties);
+            let meta_s = json_str(&body.metadata);
+            if let Some(h) = head.as_ref().filter(|h| h.op != "delete") {
+                if unchanged_from(h, &kind_s, &ts, &ti, &props_s, &meta_s) {
+                    return Ok(ResourceId::pinned(
+                        target.scope.clone(),
+                        target.id.clone(),
+                        Rev(h.rev.clone().into()),
+                    ));
+                }
+            }
             let (op, prev, created_at) = match &head {
                 None => ("create", None, now_rfc3339()),
                 // Reachable only under `reusable`, where a retired id is free to mint again.
@@ -344,17 +461,16 @@ fn apply_one(
                 Some(h) => ("update", Some(h.rev.clone()), h.created_at.clone()),
             };
             let rev = Uuid::new_v4().to_string();
-            let (ts, ti) = ref_parts(&body.r#type);
             store.append(Row {
                 ordinal: (store.log.len() + 1) as u64,
                 scope,
                 id: id_s,
                 rev: rev.clone(),
-                kind: body.kind.0.to_string(),
+                kind: kind_s,
                 type_scope: ts,
                 type_id: ti,
-                properties: Some(json_str(&body.properties)),
-                metadata: Some(json_str(&body.metadata)),
+                properties: Some(props_s),
+                metadata: Some(meta_s),
                 op: op.into(),
                 prev_rev: prev,
                 transaction: txn.into(),
@@ -452,15 +568,31 @@ fn apply_one(
                 .map_err(|e| BdpError::Unprocessable(format!("patch: current properties not json: {e}")))?;
             let meta_v: serde_json::Value = serde_json::from_str(&cur_meta)
                 .map_err(|e| BdpError::Unprocessable(format!("patch: current metadata not json: {e}")))?;
-            let mut doc = serde_json::json!({ "properties": props_v, "metadata": meta_v });
+            // ROOT-ADDRESSED OVER THE REP, per core.lumen#patch: "JSON Patch over the resource
+            // representation, ROOT-addressed (`/body/…`, `/metadata/…`, `/type`, `/authority`)".
+            // This document was `{ properties, metadata }`, so the spec's own documented paths
+            // FAILED (`replace /body/status` -> "target does not exist") while an unknown path
+            // silently succeeded. The member is `body`.
+            let mut doc = serde_json::json!({ "body": props_v, "metadata": meta_v });
             let patch_v: serde_json::Value = serde_json::from_slice(patch.0 .0.as_ref())
                 .map_err(|e| BdpError::Unprocessable(format!("patch: patch document not json: {e}")))?;
             bdp_jsonpatch::apply_patch(&mut doc, &patch_v).map_err(BdpError::Unprocessable)?;
-            let props_s = serde_json::to_string(doc.get("properties").unwrap_or(&serde_json::Value::Null))
+            let props_s = serde_json::to_string(doc.get("body").unwrap_or(&serde_json::Value::Null))
                 .map_err(|e| BdpError::Unprocessable(e.to_string()))?;
             let meta_s = serde_json::to_string(doc.get("metadata").unwrap_or(&serde_json::Value::Null))
                 .map_err(|e| BdpError::Unprocessable(e.to_string()))?;
 
+            // THE SAME RULE, and reached by a different route: a delta can be well-formed and
+            // still leave the document identical (`replace` with the value already there, `add` of
+            // an existing member). kind and type carry over, so the comparison is really over the
+            // patched body and metadata.
+            if unchanged_from(&head, &head.kind, &head.type_scope, &head.type_id, &props_s, &meta_s) {
+                return Ok(ResourceId::pinned(
+                    target.scope.clone(),
+                    target.id.clone(),
+                    Rev(head.rev.clone().into()),
+                ));
+            }
             let rev = Uuid::new_v4().to_string();
             store.append(Row {
                 ordinal: (store.log.len() + 1) as u64,
@@ -491,6 +623,49 @@ fn scope_str_of(scope_name: &str, s: &Scope) -> String {
         Scope::Web => "WEB".to_string(),
         Scope::Named(n) => n.0.to_string(),
     }
+}
+
+/// A write whose RESULT equals the head is a NO-OP: it keeps the revision, appends no row, and so
+/// records no provenance and produces no event.
+///
+/// Two obligations say this, and they say it of ALL writes, not of `put`: "a full-state write that
+/// changes nothing succeeds, keeps the revision, records no provenance, and produces no event; the
+/// reply carries no `transaction`", and "one commit produces exactly one event per resource
+/// changed ... a failed request and a no-change request produce no resource event".
+///
+/// ONE RULE, SO ONE HELPER. `put` and `patch` differ in how they COMPUTE the new content and not at
+/// all in what a no-change outcome means, so mirroring the check into both arms would let the two
+/// drift apart. The store appended unconditionally before this, so every idempotent re-write minted
+/// a fresh revision AND published a changefeed event for a change that did not happen.
+///
+/// COMPARED AS PARSED JSON, NEVER AS STRINGS. `put` serializes the caller's object and `patch`
+/// serializes a patched document, so two equal documents routinely differ byte-wise in key order
+/// or spacing. A string compare would report "changed" for a write that changed nothing — the very
+/// defect this closes — so the comparison is over `serde_json::Value`.
+///
+/// AN UNPARSEABLE SIDE IS TREATED AS CHANGED, not as equal. Mapping a parse failure to `Null` on
+/// both sides would make two corrupt documents compare EQUAL and silently swallow a write.
+fn unchanged_from(
+    head: &Row,
+    kind: &str,
+    type_scope: &Option<String>,
+    type_id: &Option<String>,
+    properties: &str,
+    metadata: &str,
+) -> bool {
+    fn same_json(stored: Option<&String>, incoming: &str) -> bool {
+        let a = serde_json::from_str::<serde_json::Value>(stored.map(String::as_str).unwrap_or("{}"));
+        let b = serde_json::from_str::<serde_json::Value>(incoming);
+        match (a, b) {
+            (Ok(x), Ok(y)) => x == y,
+            _ => false,
+        }
+    }
+    head.kind == kind
+        && &head.type_scope == type_scope
+        && &head.type_id == type_id
+        && same_json(head.properties.as_ref(), properties)
+        && same_json(head.metadata.as_ref(), metadata)
 }
 
 fn ref_parts(r: &ResourceId) -> (Option<String>, Option<String>) {
@@ -579,13 +754,24 @@ fn civil_from_days(z0: i64) -> (i64, u32, u32) {
 
 // ---- list filter evaluation (in-RAM, mirroring pg's #>> text semantics) ----------------------
 
-/// Resolve a `FieldPath` against a row's {properties, metadata}. First segment selects the doc
-/// (`metadata`/`properties`, default `properties`); the rest walks object keys / array indices.
+/// Resolve a `FieldPath` against a row's payload and metadata. First segment selects the root
+/// member; the rest walks object keys / array indices.
+///
+/// ROOT-ADDRESSED ON `body`, per core.lumen: "Field paths are root-addressed `FieldPath` ARRAYS
+/// (`["body","status"]`, `["metadata","x"]`, `["type"]`) … the first segment selects the root
+/// member (`body`/`metadata`/`type`/`authority`), consistent with root-addressed `patch`/`selector`.
+/// NOT a dotted string." This keyed on `properties`, the same divergence the wire and `patch`
+/// carried.
+///
+/// THE DEFAULT ARM IS A KNOWN RESIDUAL: a first segment that is NOT a root member falls through to
+/// the payload rather than failing to resolve, so `["nonsense"]` silently addresses the body. Same
+/// shape as `add /nonsense` still succeeding on `patch`, and the same open question — what a scope
+/// answers for an unaddressable path is not specified, so it is recorded rather than guessed.
 fn field_value(props: &serde_json::Value, meta: &serde_json::Value, field: &FieldPath) -> Option<serde_json::Value> {
     let segs = &field.0;
     let (doc, rest): (&serde_json::Value, &[String]) = match segs.first().map(String::as_str) {
         Some("metadata") => (meta, &segs[1..]),
-        Some("properties") => (props, &segs[1..]),
+        Some("body") => (props, &segs[1..]),
         _ => (props, &segs[..]),
     };
     let mut cur = doc;
@@ -712,12 +898,35 @@ impl BdpScope for InMemScope {
         vec![
             PrimitiveCapabilities::Get(GetCaps { selector: false }),
             PrimitiveCapabilities::Resolve(ResolveCaps { selector: false, max_batch: None }),
-            PrimitiveCapabilities::Create(CreateCaps { server_allocates_id: true, client_proposed_id: true }),
-            PrimitiveCapabilities::Put(PutCaps { if_match: true, if_absent: true }),
-            PrimitiveCapabilities::Patch(PatchCaps { if_match: true }),
+            PrimitiveCapabilities::Create(CreateCaps {
+                // A scope that mints no id of its own would be unusable, so only the
+                // caller-proposed half narrows.
+                server_allocates_id: true,
+                client_proposed_id: !self.restricted_guards,
+            }),
+            PrimitiveCapabilities::Put(PutCaps {
+                if_match: !self.restricted_guards,
+                if_absent: !self.restricted_guards,
+            }),
+            PrimitiveCapabilities::Patch(PatchCaps { if_match: !self.restricted_guards }),
             PrimitiveCapabilities::Delete(DeleteCaps { if_match: true }),
             // acyclicity DEFERRED until the ref-encoding pin (honest: advertised ⟹ implemented).
             PrimitiveCapabilities::Apply(ApplyCaps { max_writes: None, acyclicity: false }),
+            // THE TWO CHANNEL SIDES ARE ADVERTISED SEPARATELY, because a channel's direction makes
+            // them independent — this scope offers both and each individual channel declares which
+            // of them IT admits.
+            PrimitiveCapabilities::Pull(PullCaps {
+                sse: false,
+                jsonl: false,
+                filter: false,
+                selector: false,
+            }),
+            // SMALL BOUNDS ON PURPOSE. `max_batch: 4` is the hard bound whose breach is
+            // `limit-exceeded` (422); `window: 2` is the soft admission credit, whose breach is
+            // backpressure and NOT an error. Keeping them different numbers is what lets a case
+            // prove the binding does not conflate them: a batch of 3 is deferred-in-part and
+            // SUCCEEDS, a batch of 5 is refused.
+            PrimitiveCapabilities::Push(PushCaps { max_batch: Some(4), window: Some(2) }),
             PrimitiveCapabilities::Export(ExportCaps { revisions: true }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
@@ -839,10 +1048,39 @@ impl BdpScope for InMemScope {
                 ));
             }
         }
+        // RESUME AFTER THE CURSOR, which this read used to IGNORE. `page.after` was never looked
+        // at: only `limit` was, so a caller walking the collection got PAGE ONE AGAIN, FOREVER,
+        // with a 200 each time — indistinguishable from a correct first page, which is why neither
+        // a test nor a grid row could see it. rc2 names exactly this: "Silently ignoring a resume
+        // cursor … is NON-CONFORMANT (the silent-failure class)".
+        //
+        // THE CURSOR IS THE LAST ID EMITTED, and the encoding is sound because the result is
+        // ordered BY ID — so the id IS the position, and no side table is needed to interpret it.
+        // rc2 leaves the encoding to the scope and fixes only the semantics. Found by Shelly in the
+        // sibling stores; this binding had the same defect, so applying her finding rather than
+        // assuming it stopped at her tree is what caught it.
+        if let Some(c) = &page.after {
+            let resume_after = String::from_utf8_lossy(&c.0).into_owned();
+            out.retain(|r| r.id.0.as_ref() > resume_after.as_str());
+        }
+
+        let total_after_cursor = out.len();
         if let Some(n) = page.limit {
             out.truncate(n as usize);
         }
-        Ok(BdpResult::ok(out))
+        // `head` IS COMPUTED, NOT GUESSED. The tempting heuristic — `out.len() < limit` — is FALSE
+        // on a final page that exactly fills the limit, so it would claim "more remains" at the end
+        // of a walk and a caller looping on `head` would never terminate. The scope knows whether
+        // anything is left; that is the authoritative signal and it is the one reported.
+        let head = out.len() == total_after_cursor;
+        let cursor = out.last().map(|r| Cursor(Bytes::from(r.id.0.as_ref().to_owned().into_bytes())));
+        Ok(BdpResult::ok(out).with_protocol(ProtocolMeta {
+            // `cursor` is null once `head`: there is nothing further to resume from, and handing
+            // back a position that yields an empty page invites an endless poll.
+            cursor: if head { None } else { cursor },
+            head: Some(head),
+            ..Default::default()
+        }))
     }
 
     /// changes — the scope's changefeed: the append-log tailed by a cursor. Resume `after` a cursor
@@ -976,7 +1214,23 @@ impl BdpScope for InMemScope {
                 let report = format!(r#"{{"strategy":"set-current","imported":{imported}}}"#);
                 Ok(BdpResult::ok(ImportReport(RawJson(Bytes::from(report.into_bytes())))))
             }
-            ImportStrategy::HistoryRestore => Ok(BdpResult::not_implemented()),
+            // THE CAPABILITY DUAL, not an absent op. This scope advertises
+            // `ImportCaps { history_restore: false }`, and core.lumen states the rule outright:
+            // "Each limit record is the advertise side of a dual: the matching `limit-exceeded`
+            // (422) is the enforce side."
+            //
+            // `not_implemented` was the wrong signal and it mattered on the wire: 501 says the OP
+            // is absent, and `import` is present and advertised. A client told 501 concludes the
+            // scope cannot import at all, when in fact it imports and declines exactly one mode.
+            // That also made `op/import/fault/422` unreachable — a declared fault row with no
+            // producer, because the only path to it answered a different status.
+            ImportStrategy::HistoryRestore => Err(BdpError::LimitExceeded {
+                capability: "import".into(),
+                limit: "historyRestore".into(),
+                detail: "this scope advertises `historyRestore: false`; replay the stream as \
+                         set-current, or import into a scope that rebuilds revision chains"
+                    .into(),
+            }),
         }
     }
 
@@ -996,6 +1250,157 @@ impl BdpScope for InMemScope {
     /// So an unresolvable `operation` is an `Err` (a Problem) and a *declared* failure is an
     /// `Ok` carrying a settled `Outcome`. Collapsing the two would erase the only distinction
     /// that says whether the operation ran.
+    /// pull — read a channel's events (core.lumen#pull).
+    async fn pull(&self, channel: &ResourceId, page: Page, _filter: Option<&ListFilter>, selector: Option<&Selector>)
+        -> Result<BdpResult<Vec<RawJson>>, BdpError> {
+        let d = self.channel_descriptor(channel)?;
+        let (direction, floor) = (d.direction, d.floor);
+        // DIRECTION FIRST, before the cursor is even parsed. A `sink` has no readable stream at
+        // all, so a malformed cursor on one is not the interesting fault.
+        if direction == "sink" {
+            return Err(BdpError::ChannelNotPullable { channel: channel.clone(), direction });
+        }
+        if selector.is_some() {
+            return Err(BdpError::LimitExceeded {
+                capability: "pull".into(),
+                limit: "selector".into(),
+                detail: "this scope advertises `selector: false` on pull".into(),
+            });
+        }
+
+        let after: u64 = match (&page.after, &page.from) {
+            (Some(c), _) => String::from_utf8_lossy(&c.0)
+                .parse()
+                .map_err(|_| BdpError::CursorExpired(c.clone()))?,
+            (None, Some(Ordinal(o))) => o.saturating_sub(1),
+            _ => 0,
+        };
+
+        // BELOW THE RETENTION FLOOR. Resuming "after N" delivers N+1 onwards, so the cursor is
+        // valid exactly when `N + 1 >= floor` — off-by-one in the other direction would expire a
+        // cursor that names the last event BEFORE the floor, which is the oldest legal resume
+        // point rather than an illegal one.
+        if after + 1 < floor {
+            return Err(BdpError::CursorExpired(
+                page.after.clone().unwrap_or_else(|| Cursor(Bytes::from(after.to_string()))),
+            ));
+        }
+
+        let store = self.store.read().unwrap();
+        let key = (self.scope_str(&channel.scope), channel.id.0.to_string());
+        let limit = page.limit.unwrap_or(u32::MAX) as usize;
+        let out = store
+            .channels
+            .get(&key)
+            .map(|log| {
+                log.events
+                    .iter()
+                    .filter(|(o, _)| *o > after)
+                    .take(limit)
+                    .map(|(_, body)| RawJson(Bytes::from(body.clone().into_bytes())))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        // THE WINDOW'S OWN POSITION, so a reader can resume without tracking ordinals itself. The
+        // cursor is the last ordinal delivered, in the same decimal encoding `after` parses, and
+        // `head` is whether anything remains beyond it — computed from the log, never from whether
+        // the window filled.
+        let last_delivered = after + out.len() as u64;
+        let remaining = store
+            .channels
+            .get(&key)
+            .map(|log| log.events.iter().any(|(o, _)| *o > last_delivered))
+            .unwrap_or(false);
+        Ok(BdpResult::ok(out).with_protocol(ProtocolMeta {
+            cursor: if remaining { Some(Cursor(Bytes::from(last_delivered.to_string()))) } else { None },
+            head: Some(!remaining),
+            ..Default::default()
+        }))
+    }
+
+    /// push — append events to a channel (core.lumen#push).
+    async fn push(&self, channel: &ResourceId, events: &[PushEvent])
+        -> Result<BdpResult<PushAck>, BdpError> {
+        let d = self.channel_descriptor(channel)?;
+        let direction = d.direction;
+        if direction == "source" {
+            return Err(BdpError::ChannelNotPushable { channel: channel.clone(), direction });
+        }
+
+        // READ OFF THIS SCOPE'S OWN ADVERTISEMENT rather than hard-coded, so narrowing the
+        // capability record narrows the behaviour with it and the two cannot drift.
+        let (max_batch, window) = BdpScope::capabilities(self)
+            .into_iter()
+            .find_map(|c| match c {
+                PrimitiveCapabilities::Push(pc) => Some((pc.max_batch, pc.window)),
+                _ => None,
+            })
+            .unwrap_or((None, None));
+
+        // THE HARD BOUND, and it is checked BEFORE anything is appended: `limit-exceeded` means
+        // the request is refused whole, so a partial append would make the fault a lie.
+        if let Some(mb) = max_batch {
+            if events.len() as u64 > mb {
+                return Err(BdpError::LimitExceeded {
+                    capability: "push".into(),
+                    limit: "maxBatch".into(),
+                    detail: format!("this channel accepts at most {mb} events per batch; offered {}", events.len()),
+                });
+            }
+        }
+
+        let mut store = self.store.write().unwrap();
+        let key = (self.scope_str(&channel.scope), channel.id.0.to_string());
+        if d.closed {
+            return Err(BdpError::ChannelClosed { channel: channel.clone() });
+        }
+        let log = store.channels.entry(key).or_default();
+
+        let mut high = log.events.last().map(|(o, _)| *o).unwrap_or(0);
+        let mut taken: u64 = 0;
+        let mut results = Vec::with_capacity(events.len());
+        for ev in events {
+            // THE SOFT BOUND. Once the admission window is full the REST is deferred, and that is
+            // a success: rc2 is explicit that backpressure "is soft and temporal, not an error".
+            if window.is_some_and(|w| taken >= w) {
+                results.push(PushResult::Deferred);
+                continue;
+            }
+            let body = String::from_utf8_lossy(ev.body.0.as_ref()).into_owned();
+            match ev.ordinal {
+                // KEYED AND ALREADY PRESENT: first-write-wins and immutable, so this is a benign
+                // no-op reported `Deduped` and NEVER a fault — and it does not consume credit,
+                // because nothing was admitted.
+                Some(o) if log.events.iter().any(|(x, _)| *x == o) => results.push(PushResult::Deduped(o)),
+                Some(o) => {
+                    log.events.push((o, body));
+                    high = high.max(o);
+                    taken += 1;
+                    results.push(PushResult::Accepted(o));
+                }
+                None => {
+                    let o = high + 1;
+                    log.events.push((o, body));
+                    high = o;
+                    taken += 1;
+                    results.push(PushResult::Accepted(o));
+                }
+            }
+        }
+        log.events.sort_by_key(|(o, _)| *o);
+
+        let deferred = results.iter().any(|r| matches!(r, PushResult::Deferred));
+        Ok(BdpResult::ok(PushAck {
+            accepted_through: high,
+            results,
+            // `credit: 0` is the hold signal and must accompany a deferred tail, or the pusher
+            // re-offers immediately into the same full window.
+            credit: if deferred { 0 } else { window.unwrap_or(0) },
+            retry_after: if deferred { Some(1) } else { None },
+        }))
+    }
+
     async fn call(&self, operation: &ResourceId, request: Request, mode: CallMode)
         -> Result<BdpResult<CallOutcome>, BdpError> {
         // --- PRE-dispatch: resolve the operation. Faults as a Problem, no Outcome.
@@ -1144,7 +1549,10 @@ impl BdpScope for InMemScope {
             "callId": call_id,
         });
         let patch = serde_json::json!([
-            { "op": "add", "path": "/properties/reply", "value": reply }
+            // `/body/reply`, root-addressed over the rep like any other patch — this wrote
+            // `/properties/reply`, which stopped resolving the moment the document became the
+            // spec's. The one PRODUCTION patch path in this subject.
+            { "op": "add", "path": "/body/reply", "value": reply }
         ]);
         let r = self
             .commit(&[Write::Patch {
@@ -1195,10 +1603,35 @@ impl BdpScope for InMemScope {
             }
             out.push(bead_from_row(&resource.scope, &resource.id, row));
         }
+        // THE SAME CURSOR OBLIGATION AS `list`, and it was missing here too. `page.after` was
+        // ignored, so a caller paging a long history re-read the oldest revisions for ever.
+        //
+        // THE POSITION IS THE REVISION, so the cursor is the last `rev` emitted and resuming means
+        // dropping everything up to and including it. History is ordered oldest-first, so index
+        // order IS revision order and a scan to the cursor is unambiguous.
+        if let Some(c) = &page.after {
+            let resume_after = String::from_utf8_lossy(&c.0).into_owned();
+            if let Some(i) = out.iter().position(|r| {
+                r.id().rev.as_ref().map(|rv| rv.0.as_ref()) == Some(resume_after.as_str())
+            }) {
+                out.drain(..=i);
+            }
+        }
+
+        let total_after_cursor = out.len();
         if let Some(limit) = page.limit {
             out.truncate(limit as usize);
         }
-        Ok(BdpResult::ok(out))
+        let head = out.len() == total_after_cursor;
+        let cursor = out
+            .last()
+            .and_then(|r| r.id().rev.clone())
+            .map(|rv| Cursor(Bytes::from(rv.0.as_ref().to_owned().into_bytes())));
+        Ok(BdpResult::ok(out).with_protocol(ProtocolMeta {
+            cursor: if head { None } else { cursor },
+            head: Some(head),
+            ..Default::default()
+        }))
     }
 }
 

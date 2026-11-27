@@ -160,7 +160,7 @@ async fn patch_applies_delta_bumps_rev_keeps_kind() {
     let r0 = s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"status":"open","n":1}"#), Guards::default()).await.unwrap().value.unwrap();
     let rev0 = r0.rev.clone().unwrap();
     let patch = JsonPatch(RawJson(Bytes::from(
-        r#"[{"op":"replace","path":"/properties/status","value":"closed"},{"op":"add","path":"/properties/assignee","value":"ada"}]"#.as_bytes().to_vec(),
+        r#"[{"op":"replace","path":"/body/status","value":"closed"},{"op":"add","path":"/body/assignee","value":"ada"}]"#.as_bytes().to_vec(),
     )));
     let r1 = s.patch(ResourceId::head(Scope::This, id.clone()), patch, None).await.unwrap().value.unwrap();
     assert_ne!(r1.rev.unwrap().0.as_ref(), rev0.0.as_ref(), "patch mints a new rev");
@@ -179,7 +179,7 @@ async fn patch_if_rev_guards() {
     let s = scope();
     let id = Id("p2".into());
     s.put(ResourceId::head(Scope::This, id.clone()), body("Task", r#"{"n":1}"#), Guards::default()).await.unwrap();
-    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"replace","path":"/properties/n","value":2}]"#.as_bytes().to_vec())));
+    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"replace","path":"/body/n","value":2}]"#.as_bytes().to_vec())));
     let r = s.patch(ResourceId::head(Scope::This, id.clone()), patch, Some(Rev("stale-rev".into()))).await;
     assert!(matches!(r, Err(BdpError::RevisionMismatch { .. })), "stale if_rev must be rejected; got {r:?}");
 }
@@ -187,7 +187,7 @@ async fn patch_if_rev_guards() {
 #[tokio::test]
 async fn patch_missing_is_not_found() {
     let s = scope();
-    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"add","path":"/properties/x","value":1}]"#.as_bytes().to_vec())));
+    let patch = JsonPatch(RawJson(Bytes::from(r#"[{"op":"add","path":"/body/x","value":1}]"#.as_bytes().to_vec())));
     let r = s.patch(ResourceId::head(Scope::This, Id("ghost".into())), patch, None).await;
     assert!(matches!(r, Err(BdpError::NotFound(_))), "patch of a never-created id -> NotFound; got {r:?}");
 }
@@ -247,7 +247,7 @@ async fn list_empty_and_compare() {
     assert_eq!(all.len(), 3);
     assert!(all.iter().all(|r| r.rev.is_some()), "list returns pinned refs");
     let f = ListFilter(vec![ListCondition::Compare {
-        field: FieldPath(vec!["properties".into(), "status".into()]),
+        field: FieldPath(vec!["body".into(), "status".into()]),
         op: CompareOp::Eq,
         value: RawJson(Bytes::from(r#""open""#.to_string())),
     }]);
@@ -262,7 +262,7 @@ async fn list_excludes_deleted_and_shows_latest() {
     s.put(ResourceId::head(Scope::This, Id("b".into())), body("Task", "{}"), Guards::default()).await.unwrap();
     s.delete(ResourceId::head(Scope::This, Id("b".into())), None).await.unwrap(); // tombstoned
     let open = ListFilter(vec![ListCondition::Compare {
-        field: FieldPath(vec!["properties".into(), "status".into()]),
+        field: FieldPath(vec!["body".into(), "status".into()]),
         op: CompareOp::Eq,
         value: RawJson(Bytes::from(r#""closed""#.to_string())),
     }]);
@@ -276,15 +276,15 @@ async fn list_has_missing_matches_type_limit() {
     let s = scope();
     s.put(ResourceId::head(Scope::This, Id("x".into())), body("Task", r#"{"assignee":"kai","title":"Fix the Login"}"#), Guards::default()).await.unwrap();
     s.put(ResourceId::head(Scope::This, Id("y".into())), body("Bug", "{}"), Guards::default()).await.unwrap();
-    let has = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["properties".into(), "assignee".into()]) }]);
+    let has = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".into(), "assignee".into()]) }]);
     assert_eq!(ids(s.list(&has, Page::default()).await.unwrap().value.unwrap()), vec!["x".to_string()]);
-    let missing = ListFilter(vec![ListCondition::Missing { field: FieldPath(vec!["properties".into(), "assignee".into()]) }]);
+    let missing = ListFilter(vec![ListCondition::Missing { field: FieldPath(vec!["body".into(), "assignee".into()]) }]);
     assert_eq!(ids(s.list(&missing, Page::default()).await.unwrap().value.unwrap()), vec!["y".to_string()]);
     let is_bug = ListFilter(vec![ListCondition::IsType { r#type: RelativeId("Bug".into()), exact: false }]);
     assert_eq!(ids(s.list(&is_bug, Page::default()).await.unwrap().value.unwrap()), vec!["y".to_string()]);
     // case-insensitive substring match
     let m = ListFilter(vec![ListCondition::Matches {
-        field: FieldPath(vec!["properties".into(), "title".into()]),
+        field: FieldPath(vec!["body".into(), "title".into()]),
         pattern: "login".into(),
         using: MatchKind::Substring,
     }]);
@@ -318,7 +318,7 @@ async fn list_unadvertised_condition_is_limit_exceeded() {
     // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains. A Contains condition is
     // within the advertised `list` op but exceeds its advertised condition set → over-limit.
     let filter = ListFilter(vec![ListCondition::Contains {
-        field: FieldPath(vec!["properties".into(), "tags".into()]),
+        field: FieldPath(vec!["body".into(), "tags".into()]),
         value: RawJson(Bytes::from(b"\"x\"".to_vec())),
     }]);
     let r = s.list(&filter, Page::default()).await;
@@ -416,8 +416,61 @@ async fn honest_unadvertised_ops_are_not_implemented() {
     let s = scope();
     // ops this backend doesn't implement answer not_implemented (advertised ⟹ implemented).
     assert!(s.evaluate(Expr::BdpText("anything")).await.unwrap().not_implemented);
-    assert!(s.pull(&ResourceId::head(Scope::This, Id("ch".into())), Page::default(), None, None).await.unwrap().not_implemented);
     assert!(s.resolve_alias("some-name").await.unwrap().not_implemented);
-    // history-restore import is advertised false and answers not_implemented
-    assert!(s.import(&[], ImportStrategy::HistoryRestore).await.unwrap().not_implemented);
+
+    // `pull` LEFT THIS LIST, and the test is where that transition shows. It used to assert
+    // `pull -> not_implemented`; this scope now advertises `PrimitiveCapabilities::Pull` and
+    // implements it, so the SAME line would now be asserting that an advertised op is absent —
+    // the exact breach the `advertised ⟹ implemented` rule in the comment above forbids.
+    //
+    // So the assertion flips rather than disappearing: pull against a channel that does not exist
+    // must be a real fault, NOT the not-implemented signal. Deleting the line would have left the
+    // op untested from this direction, and a scope that regressed to `not_implemented` would then
+    // pass both halves of the suite.
+    match s.pull(&ResourceId::head(Scope::This, Id("ch-absent".into())), Page::default(), None, None).await {
+        Err(BdpError::NotFound(_)) => {}
+        Ok(r) if r.not_implemented => {
+            panic!("pull is advertised now, so `not_implemented` is a breach, not an answer")
+        }
+        other => panic!("expected NotFound pulling a channel that does not exist, got {other:?}"),
+    }
+}
+
+/// AN UNADVERTISED MODE OF A PRESENT OP IS NOT AN ABSENT OP, and this test exists because the one
+/// above used to conflate them.
+///
+/// It asserted `import(HistoryRestore) -> not_implemented` under the title "unadvertised OPS are
+/// not_implemented". But `import` is advertised and implemented; what is advertised false is one
+/// FIELD of its limit record, `ImportCaps { history_restore: false }`. core.lumen states the rule:
+/// "Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the
+/// enforce side."
+///
+/// The two signals say different things to a client. `not_implemented` (501) means the scope cannot
+/// import at all; `limit-exceeded` (422) means it imports and declines exactly one mode, and names
+/// which in `capability`/`limit` so the caller can shrink the request. The old assertion was
+/// defending the first answer under a name that described a different rule — a test that names the
+/// old behaviour in its title will defend it, so it is re-derived under the new rule rather than
+/// deleted, and the absent-op half above keeps its three genuine cases.
+#[tokio::test]
+async fn an_unadvertised_import_mode_is_limit_exceeded_not_unimplemented() {
+    let s = scope();
+    match s.import(&[], ImportStrategy::HistoryRestore).await {
+        Err(BdpError::LimitExceeded { capability, limit, .. }) => {
+            assert_eq!(capability, "import", "the refusal must name the op it bounds");
+            assert_eq!(limit, "historyRestore", "and the field of the limit record it refuses");
+        }
+        Ok(r) if r.not_implemented => panic!(
+            "history-restore answered not_implemented; `import` IS advertised and implemented, so \
+             501 tells a client the scope cannot import at all"
+        ),
+        other => panic!("expected LimitExceeded for an unadvertised import mode, got {other:?}"),
+    }
+    // THE OP ITSELF STILL WORKS, which is the half that makes the distinction observable: a scope
+    // that refused every import would satisfy the match above.
+    let framed = [
+        ExportRecord::Begin(ExportBegin { cursor: Cursor(bytes::Bytes::from_static(b"c0")) }),
+        ExportRecord::End(ExportEnd { count: 0 }),
+    ];
+    let ok = s.import(&framed, ImportStrategy::SetCurrent).await.expect("set-current import");
+    assert!(!ok.not_implemented, "set-current import must work on a scope that advertises import");
 }

@@ -66,14 +66,16 @@ impl<S: BdpScope> Server<S> {
             Route::ScopeList => self.do_list(&req).await,
             Route::ScopeExport => self.do_export(&req).await,
             Route::ScopeEval => unmapped("eval not mapped in the spike"),
-            Route::ScopeImport => unmapped("import not mapped in the spike"),
+            Route::ScopeImport => self.do_import(&req).await,
+            Route::Pull(ref id) => self.do_pull(&req, id).await,
+            Route::Push(ref id) => self.do_push(&req, id).await,
             Route::Revisions(id) => self.do_revisions(&req, &id).await,
             // The fence split succeeded but named no known action, or named one with the wrong
             // method / id-ness. 404 rather than 400: the request is well-formed and simply names
             // nothing, which is what the spec says.
             Route::UnknownAction => HttpResponse::json(
                 404,
-                problem_body(404, "not-found", "no such protocol action past the fence"),
+                problem_body(404, "resource-not-found", "no such protocol action past the fence"),
             ),
             // The id LEFT of the fence contains a bare `-` segment, which no resource-id segment
             // may be — a literal hyphen-only segment must arrive as `%2D`. Malformed id, so 400.
@@ -170,7 +172,57 @@ impl<S: BdpScope> Server<S> {
             Ok(w) => w,
             Err(e) => return HttpResponse::json(400, problem_body(400, "bad-request", &format!("bad CreateRequest: {e}"))),
         };
+        // `retired` IS REFUSED ON CREATE, which is half of a divergence `put` holds the other end
+        // of. core.lumen#rep: "`retired` is SERVICE-MANAGED — minted only by `delete`, refused on
+        // `create` and ignored on `put`"; and "a write can neither forge nor clear a tombstone".
+        //
+        // WHY HERE AND NOT IN SERDE. `create` and `put` share `WireCreateRequest`, so serde can
+        // only answer ONCE for both ops — `deny_unknown_fields` with no field refuses it for both,
+        // which is right here and wrong for `put`, whose rule is that a read-only member is
+        // "IGNORED, never faulted — so a `get` → `put` round-trip of a whole representation is
+        // safe". The field is therefore admitted on the type and the two handlers diverge.
+        //
+        // The two normative lines collide on this one cell and BOTH survive it: `put`'s rationale
+        // is round-trip safety, and a round-trip never CREATES, so it does not reach create; the
+        // tombstone rationale does, because `retired: true` at birth forges one. The specific
+        // carves out of the general.
+        // THE SET, NOT THE MEMBER. `provenance` and `createdAt` were refused only incidentally, by
+        // `deny_unknown_fields`, under the unregistered `bad-request` and only while undeclared.
+        if let Some(m) = [
+            ("retired", wreq.retired.is_some()),
+            ("provenance", wreq.provenance.is_some()),
+            ("createdAt", wreq.created_at.is_some()),
+        ]
+        .iter()
+        .find(|(_, present)| *present)
+        .map(|(n, _)| *n)
+        {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "malformed-request",
+                    &format!(
+                        "`{m}` is service-managed: the service sets it and a writer never does. A \
+                         `create` cannot forge it. (`put` ignores the whole set instead — the \
+                         round-trip case. `id` is exempt: it is caller-proposable at creation.)"
+                    ),
+                ),
+            );
+        }
         let (proposed, body) = wreq.into_body();
+        // THE DUAL ON `clientProposedId`. A scope advertising it false mints its own ids, so a
+        // caller-supplied one is refused rather than quietly overwritten -- a create that silently
+        // allocated a DIFFERENT id than the one asked for would hand back a Location the caller
+        // did not request and could not predict.
+        if proposed.is_some() && self.create_caps().is_some_and(|cc| !cc.client_proposed_id) {
+            return unadvertised(
+                "create",
+                "clientProposedId",
+                "this scope advertises `clientProposedId: false`; omit the id and read it from the \
+                 response",
+            );
+        }
         match self.scope.create(proposed, body).await {
             Ok(res) if res.not_implemented => unmapped("create not implemented by this scope"),
             Ok(res) => {
@@ -199,6 +251,9 @@ impl<S: BdpScope> Server<S> {
     /// `RemoteScope` therefore advertises `ListCaps { conditions: [] }` over this binding, so a
     /// client learns from discovery not to send one rather than learning from a 501.
     async fn do_list(&self, req: &HttpRequest) -> HttpResponse {
+        if let Some(r) = refuse_format(req, &["page"], "list") {
+            return r;
+        }
         if req.query.contains_key("where") {
             return unmapped(
                 "list `where` filtering is not carried by this binding — no wire encoding for a \
@@ -206,17 +261,27 @@ impl<S: BdpScope> Server<S> {
             );
         }
         let page = p::Page {
-            after: None,
+            // `?after=` IS READ, and it was pinned to `None` here. That made the cursor
+            // undeliverable no matter what the store or the client did: FOUR layers had to agree on
+            // this one read — the store honoring `after`, the server parsing it, the client sending
+            // it, and an envelope to hand the position back — and none of them did. Each failure
+            // looked like a correct first page.
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
             from: None,
-            limit: req.query.get("limit").and_then(|s| s.parse::<u32>().ok()),
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
         };
         match self.scope.list(&p::ListFilter(vec![]), page).await {
             Ok(res) if res.not_implemented => unmapped("list not implemented by this scope"),
             Ok(res) => match res.value {
                 Some(ids) => {
-                    let wire: Vec<WireResourceId> = ids.iter().map(WireResourceId::from_trait).collect();
-                    let body = serde_json::to_vec(&wire).unwrap();
-                    attach(HttpResponse::json(200, body), &res.protocol)
+                    // THE PAGE ENVELOPE, not a bare array. See `WirePage` for the ruling and why
+                    // emitting it is catch-up against a rule in force at the frozen tag.
+                    let items: Vec<WireResourceId> = ids.iter().map(WireResourceId::from_trait).collect();
+                    let page = crate::wire::WirePage::of(items, &res.protocol);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&page).unwrap()), &res.protocol)
                 }
                 None => unmapped("list returned no value"),
             },
@@ -229,14 +294,307 @@ impl<S: BdpScope> Server<S> {
     /// The declared content type is `application/jsonl`, so the body is newline-delimited records
     /// and NOT a JSON array. Begin and End frame the stream: the cursor the export is consistent
     /// as of, and the record count, which is what makes it a backup rather than a read.
-    async fn do_export(&self, req: &HttpRequest) -> HttpResponse {
-        if req.query.contains_key("where") {
-            return unmapped(
-                "export `where` filtering is not carried by this binding — same reason as `list`",
+    /// This scope's `PutCaps` / `PatchCaps` / `CreateCaps`, if advertised at all.
+    fn put_caps(&self) -> Option<p::PutCaps> {
+        self.scope.capabilities().into_iter().find_map(|c| match c {
+            p::PrimitiveCapabilities::Put(pc) => Some(pc),
+            _ => None,
+        })
+    }
+
+    fn patch_caps(&self) -> Option<p::PatchCaps> {
+        self.scope.capabilities().into_iter().find_map(|c| match c {
+            p::PrimitiveCapabilities::Patch(pc) => Some(pc),
+            _ => None,
+        })
+    }
+
+    fn create_caps(&self) -> Option<p::CreateCaps> {
+        self.scope.capabilities().into_iter().find_map(|c| match c {
+            p::PrimitiveCapabilities::Create(cc) => Some(cc),
+            _ => None,
+        })
+    }
+
+    /// `GET /{channel}/-/pull` — read a channel's events.
+    ///
+    /// `format` IS ACTED ON RATHER THAN IGNORED, which is the whole point of rc2's silent-failure
+    /// clause: "Silently ignoring a resume cursor or a transport selector — returning the whole set
+    /// from the start, or the default encoding, as if the param were absent — is NON-CONFORMANT."
+    /// This binding implements `jsonl` and REFUSES the two it does not implement, by name. A
+    /// refusal is not silence; returning jsonl to a caller who asked for `page` would be.
+    ///
+    /// `sse` IS REFUSED AS UNIMPLEMENTED, NOT AS INVALID, and the difference matters: `pull` is the
+    /// one read where `sse` is legal (core.lumen#pull: "`sse` is valid here because `pull` is the
+    /// one live-feed read"), so a `400` would be a false statement about the spec. 501 says this
+    /// binding does not do it yet, which is true.
+    async fn do_pull(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
+        // `page` IS THE DEFAULT AND THE ONLY FRAMING SERVED, which is the ruling rather than a
+        // preference: every read "wire-returns a `Page` window", so the envelope is the response
+        // shape and a transport is how it is encoded.
+        //
+        // `jsonl` IS REFUSED, and this is the one place with no conformant answer — the spec does
+        // not say how a `Page` is framed as newline-delimited records, so the choices are to invent
+        // framing, to serve page bytes under a jsonl request, or to refuse a declared floor param.
+        // All three are wrong; refusing is wrong LOUDLY and names the gap (Lydia has it as RC3
+        // item 1). A case asserting "a declared `format` is honored" should still fail here.
+        match req.header("format").map(|f| f.trim().to_ascii_lowercase()).as_deref() {
+            None | Some("") | Some("page") => {}
+            Some("jsonl") => {
+                return unmapped(
+                    "pull `format=jsonl` is not served: the spec does not frame a `Page` as \
+                     newline-delimited records, so this binding refuses rather than inventing it",
+                )
+            }
+            Some("sse") => return unmapped("pull `format=sse` is not implemented by this binding"),
+            Some(other) => {
+                return HttpResponse::json(
+                    400,
+                    problem_body(
+                        400,
+                        "invalid-parameter",
+                        &format!("`format` must be page | jsonl | sse; got `{other}`"),
+                    ),
+                )
+            }
+        }
+        let page = p::Page {
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
+            from: None,
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
+        };
+        let channel = resource_id_from(channel_seg, None);
+        match self.scope.pull(&channel, page, None, None).await {
+            Ok(res) if res.not_implemented => unmapped("pull not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(events) => {
+                    // The events are already JSON values, so they ride as raw items inside the
+                    // envelope rather than being re-encoded as strings.
+                    let items: Vec<serde_json::Value> = events
+                        .iter()
+                        .map(|e| serde_json::from_slice(e.0.as_ref()).unwrap_or(serde_json::Value::Null))
+                        .collect();
+                    let page = crate::wire::WirePage::of(items, &res.protocol);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&page).unwrap()), &res.protocol)
+                }
+                None => unmapped("pull returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// `POST /{channel}/-/push` — append events to a channel.
+    ///
+    /// `application/jsonl` IS FIXED on the request, exactly as on `import`: core.lumen#push carries
+    /// `request = { contentType = "application/jsonl" }`. A wrong media type is `400` and not `415`
+    /// for the same reason as import — `push` declares `[405, 409, 422]` and names no 415, so
+    /// answering one would put a status on the wire that no denominator row carries.
+    async fn do_push(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
+        const JSONL: &str = "application/jsonl";
+        let media_type = req
+            .header("content-type")
+            .and_then(|ct| ct.split(';').next().map(|m| m.trim().to_ascii_lowercase()))
+            .unwrap_or_default();
+        if media_type != JSONL {
+            let got = if media_type.is_empty() { "no Content-Type" } else { &media_type };
+            return HttpResponse::json(
+                400,
+                problem_body(400, "bad-request", &format!("push requires {JSONL}, got {got}")),
             );
         }
+
+        let text = String::from_utf8_lossy(&req.body);
+        let mut events = Vec::new();
+        for line in text.lines().filter(|l| !l.trim().is_empty()) {
+            match serde_json::from_str::<crate::wire::WirePushEvent>(line) {
+                Ok(w) => events.push(p::PushEvent {
+                    ordinal: w.ordinal,
+                    body: p::RawJson(bytes::Bytes::from(w.body.get().as_bytes().to_vec())),
+                }),
+                Err(e) => {
+                    return HttpResponse::json(
+                        400,
+                        problem_body(400, "bad-request", &format!("bad push event line: {e}")),
+                    )
+                }
+            }
+        }
+
+        let channel = resource_id_from(channel_seg, None);
+        match self.scope.push(&channel, &events).await {
+            Ok(res) if res.not_implemented => unmapped("push not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(ack) => {
+                    let wire = crate::wire::WirePushAck::from_trait(&ack);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&wire).unwrap()), &res.protocol)
+                }
+                None => unmapped("push returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    /// `POST /-/import` — the bulk WRITE side, and the last declared primitive this binding left
+    /// unmapped. The reference has implemented `import` all along and `route.rs` has parsed the
+    /// path all along; only the handler was missing, so `op/import` and its three fault rows were
+    /// uncoverable against a scope that implements the op.
+    ///
+    /// THE MEDIA TYPE IS FIXED, NOT NEGOTIATED. rc2 (#448) added the `request = { contentType =
+    /// "application/jsonl" }` that core.lumen was missing, so there is now exactly one acceptable
+    /// request type and no lenient-reading rationale left.
+    ///
+    /// A WRONG MEDIA TYPE IS `400`, NOT `415`, and the declared fault set is what decides that:
+    /// `import` declares `[400, 409, 422]` and names no 415. `patch` declares 415 and gets it (see
+    /// `do_patch`). Answering an undeclared status would put a row on the wire that no denominator
+    /// carries, which is worse than a coarse one — so a request that is not `application/jsonl` is
+    /// malformed against a fixed contract.
+    async fn do_import(&self, req: &HttpRequest) -> HttpResponse {
+        const JSONL: &str = "application/jsonl";
+        let media_type = req
+            .header("content-type")
+            .and_then(|ct| ct.split(';').next().map(|m| m.trim().to_ascii_lowercase()))
+            .unwrap_or_default();
+        if media_type != JSONL {
+            let got = if media_type.is_empty() { "no Content-Type" } else { &media_type };
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "bad-request",
+                    &format!("import requires {JSONL} (rc2 fixes it on the request), got {got}"),
+                ),
+            );
+        }
+
+        let records = match parse_import_jsonl(&req.body) {
+            Ok(r) => r,
+            Err(detail) => {
+                return HttpResponse::json(400, problem_body(400, "bad-request", &detail))
+            }
+        };
+
+        // `?strategy=` carries the merge mode. An unknown value is malformed rather than
+        // unsupported: the vocabulary is closed, so a third name is not a capability question.
+        let strategy = match req.query.get("strategy").map(|s| s.as_str()) {
+            None | Some("set-current") => p::ImportStrategy::SetCurrent,
+            Some("history-restore") => p::ImportStrategy::HistoryRestore,
+            Some(other) => {
+                return HttpResponse::json(
+                    400,
+                    problem_body(
+                        400,
+                        "bad-request",
+                        &format!(
+                            "unknown import strategy `{other}`; the vocabulary is \
+                             set-current | history-restore"
+                        ),
+                    ),
+                )
+            }
+        };
+
+        match self.scope.import(&records, strategy).await {
+            Ok(res) if res.not_implemented => unmapped("import not implemented by this scope"),
+            Ok(res) => match res.value {
+                Some(report) => attach(HttpResponse::json(200, report.0 .0.to_vec()), &res.protocol),
+                None => unmapped("import returned no value"),
+            },
+            Err(e) => problem_response(&e),
+        }
+    }
+
+    async fn do_export(&self, req: &HttpRequest) -> HttpResponse {
+        if let Some(r) = refuse_format(req, &["jsonl"], "export") {
+            return r;
+        }
+        // REFUSED, AND WITH A DECLARED STATUS. This refused only `where`, and did it with
+        // `unmapped()` — a `501`. Two defects in one site:
+        //
+        // 1. `select` WAS NOT REFUSED AT ALL. Donna's export ruling (B) says a history export
+        //    refuses `select`/`where` together; half the refusal was missing, so `?select=` was
+        //    accepted and silently dropped — the caller's projection vanishing with a `200`, which
+        //    is the defect the `after`/`limit` comment below was written about.
+        // 2. `export` DECLARES EXACTLY ONE FAULT, `400`. A `501` from here is a status the
+        //    generated contract does not publish, so the refusal was itself a divergence.
+        //
+        // I had a tidier design — `400` for a history export (the spec refuses projection) and
+        // `501` for a current-state one (ruling B says honour it, this binding cannot) — and the
+        // asymmetry does carry the real semantic difference. It also ADDS an undeclared status to
+        // keep a `501` I am meant to be removing, so it is the wrong trade: a caller reading
+        // `core.openapi.json` sees no `where`/`select` parameter on this operation at all
+        // (gastownhall/bdp#450), which makes `400` a true statement about the published contract
+        // rather than a convenient one.
+        //
+        // AND THE REFUSAL IS UNCONDITIONAL FOR A STRONGER REASON THAN I FIRST WROTE. I had this
+        // as "ruling B's current-state half is not implemented because the projection has no wire
+        // channel", which is true and understates it: `export` declares THREE of its own inputs —
+        // `where?`, `select?` AND `revisions?` — and the annotation lowers none of them, all three
+        // being registered in the gate's `UNCARRIED_INPUTS`. `revisions` is the DISCRIMINATOR
+        // ruling B turns on (current state vs history), so the binding cannot express which branch
+        // a caller is asking for. There is exactly one reachable branch here, which is why this is
+        // not a choice between B's two halves at all.
+        //
+        // (The handler does read `?revisions=` below, under a spelling the contract does not
+        // publish. That keeps the operation useful and is left alone deliberately — but it is why
+        // no conformance case may use `?revisions=` to reach the history branch: a case over an
+        // undeclared spelling asserts against a contract nobody can read.)
+        //
+        // CLOSES WHEN: #450 lowers these parameters, at which point the current-state branch must
+        // honour projection and self-label partial instead of refusing.
+        if req.query.contains_key("where") || req.query.contains_key("select") {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "bad-request",
+                    "export refuses `where` and `select`: a history export rejects projection, and \
+                     this binding lowers neither parameter, so there is no declared way to supply \
+                     one",
+                ),
+            );
+        }
+
+        // rc2 NAMES THIS FAULT, which is what makes it a producer rather than a guess: "`export`
+        // honors only `after`, `limit` and `format` of `request`; `request.filter`,
+        // `request.select` and `request.from` are rejected `400` — filtering and projection are the
+        // op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal."
+        //
+        // `from` IS THE UNAMBIGUOUS ONE and the only one asserted here. `select` and `filter` as
+        // query names are ambiguous over this binding: export ALSO declares its own `select?` and
+        // `where?`, and those are not lowered into the generated params at all
+        // (gastownhall/bdp#450), so a `?select=` could be either the rejected `request.select` or
+        // the op's own parameter arriving by a spelling nobody declared. `from` has no such
+        // double: export declares no ordinal parameter of its own, and a snapshot resumes by cut
+        // cursor, so `?from=` can only be `request.from`.
+        if req.query.contains_key("from") {
+            return HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "bad-request",
+                    "export rejects `request.from`: a snapshot resumes by cut Cursor (`after`), \
+                     not by a fresh ordinal",
+                ),
+            );
+        }
+
         let revisions = req.query.get("revisions").map(|s| s == "true").unwrap_or(false);
-        let page = p::Page { after: None, from: None, limit: None };
+
+        // HONORED, NOT IGNORED. These were all three `None`, so export accepted `?after=` and
+        // `?limit=` and silently dropped them — the caller's window vanished with a 200, which is
+        // the same defect as a silently dropped selector and worse than refusing. Rejecting `from`
+        // above while continuing to drop its two neighbours would have been incoherent.
+        let page = p::Page {
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
+            from: None,
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
+        };
         match self.scope.export(&p::ListFilter(vec![]), None, revisions, page).await {
             Ok(res) if res.not_implemented => unmapped("export not implemented by this scope"),
             Ok(res) => match res.value {
@@ -265,20 +623,26 @@ impl<S: BdpScope> Server<S> {
     /// cannot expire is not a cursor. Returning one would advertise resumability that nothing
     /// backs, which is the same mistake as `storage_classes: [Durable]` on an in-memory store.
     async fn do_revisions(&self, req: &HttpRequest, id_seg: &str) -> HttpResponse {
+        if let Some(r) = refuse_format(req, &["page"], "revisions") {
+            return r;
+        }
         let rid = resource_id_from(id_seg, None);
         let page = p::Page {
-            after: None,
+            after: req.query.get("after").map(|c| p::Cursor(bytes::Bytes::from(c.clone().into_bytes()))),
             from: None,
-            limit: req.query.get("limit").and_then(|s| s.parse::<u32>().ok()),
+            limit: match parse_limit(req) {
+                Ok(l) => l,
+                Err(resp) => return resp,
+            },
         };
         match self.scope.revisions(&rid, None, page).await {
             Ok(res) if res.not_implemented => unmapped("revisions not implemented by this scope"),
             Ok(res) => match res.value {
                 Some(reps) => {
-                    let wire: Vec<WireRepresentation> =
+                    let items: Vec<WireRepresentation> =
                         reps.iter().map(WireRepresentation::from_trait).collect();
-                    let body = serde_json::to_vec(&wire).unwrap();
-                    attach(HttpResponse::json(200, body), &res.protocol)
+                    let page = crate::wire::WirePage::of(items, &res.protocol);
+                    attach(HttpResponse::json(200, serde_json::to_vec(&page).unwrap()), &res.protocol)
                 }
                 None => unmapped("revisions returned no value"),
             },
@@ -461,6 +825,22 @@ impl<S: BdpScope> Server<S> {
             if_absent: req.header("if-none-match").map(|v| v.trim() == "*").unwrap_or(false),
             precondition: None,
         };
+        if let Some(pc) = self.put_caps() {
+            if guards.if_revision.is_some() && !pc.if_match {
+                return unadvertised(
+                    "put",
+                    "ifMatch",
+                    "this scope advertises `ifMatch: false`; retry without `If-Match`",
+                );
+            }
+            if guards.if_absent && !pc.if_absent {
+                return unadvertised(
+                    "put",
+                    "ifAbsent",
+                    "this scope advertises `ifAbsent: false`; retry without `If-None-Match: *`",
+                );
+            }
+        }
         match self.scope.put(target, body, guards).await {
             Ok(res) if res.not_implemented => unmapped("put not implemented by this scope"),
             Ok(res) => {
@@ -556,6 +936,13 @@ impl<S: BdpScope> Server<S> {
         let target = resource_id_from(id_seg, None);
         let patch = p::JsonPatch(p::RawJson(bytes::Bytes::copy_from_slice(&req.body)));
         let if_rev = req.header("if-match").map(|s| p::Rev(std::sync::Arc::from(s)));
+        if if_rev.is_some() && self.patch_caps().is_some_and(|pc| !pc.if_match) {
+            return unadvertised(
+                "patch",
+                "ifMatch",
+                "this scope advertises `ifMatch: false` on patch; retry without `If-Match`",
+            );
+        }
         match self.scope.patch(target, patch, if_rev).await {
             Ok(res) if res.not_implemented => unmapped("patch not implemented by this scope"),
             Ok(res) => {
@@ -641,9 +1028,48 @@ fn problem_response(e: &p::BdpError) -> HttpResponse {
     HttpResponse::json(status, serde_json::to_vec(&prob).unwrap())
 }
 
+/// The `format` (Transport) header refusals that #457 and #458 made normative.
+///
+/// WINDOWED READS vs THE ONE STREAM. #458 carved `export` out of the return-unified resolution:
+/// the windowed reads (`list`, `revisions`) return a `Page`, and `export` is the single exception —
+/// a self-framed jsonl backup stream. So the two refusals are mirror images:
+///   - `list` / `revisions` refuse `jsonl` and `sse`, and serve `page` or an absent header.
+///   - `export` refuses everything that is not `jsonl`, `page` INCLUDED, "since a backup is a
+///     stream, not a windowed `Page`".
+///
+/// WHY THIS IS A REFUSAL AND NOT A DEFAULT. Serving the windowed bytes under a `jsonl` request —
+/// which is what this binding did, with a 200 — is "the default encoding, as if the param were
+/// absent", which rc2 names as the silent-failure class: the caller asked for a transport, got a
+/// success, and got something else. The status alone does not carry that, which is why the cases
+/// also assert the refused body is not served.
+///
+/// `invalid-parameter`, not `bad-request`: D.8's 400 row names `malformed-request` and
+/// `invalid-parameter`, and an invalid parameter VALUE is explicitly the second. The nine
+/// `bad-request` sites in this file are an unregistered code awaiting Donna's vocabulary batch; a
+/// new site must not join them.
+fn refuse_format(req: &HttpRequest, allowed: &[&str], op: &str) -> Option<HttpResponse> {
+    let got = req.header("format").map(|f| f.trim().to_ascii_lowercase());
+    match got.as_deref() {
+        None | Some("") => None,
+        Some(f) if allowed.contains(&f) => None,
+        Some(f) => Some(HttpResponse::json(
+            400,
+            problem_body(
+                400,
+                "invalid-parameter",
+                &format!(
+                    "`{op}` does not serve `format: {f}`; it accepts {} — serving the default \
+                     encoding instead would be a silent substitution",
+                    allowed.join(" | ")
+                ),
+            ),
+        )),
+    }
+}
+
 fn problem_body(status: u16, code: &str, detail: &str) -> Vec<u8> {
     let prob = WireProblem {
-        r#type: format!("https://bdp.dev/problems/{}", code),
+        r#type: format!("tag:bdp.dev,2026:problem/{}", code),
         title: detail.to_string(),
         status,
         code: code.to_string(),
@@ -675,6 +1101,88 @@ fn status_for_outcome(reply_body: &[u8]) -> u16 {
         // `failure`, `canceled`, and any arm added later: settled, and not success.
         _ => 409,
     }
+}
+
+/// Read an `application/jsonl` import body, REFUSING a stream that is not whole.
+///
+/// SERVER-SIDE AND SEPARATE from the client's `parse_export_jsonl`, deliberately. The client parses
+/// what it RECEIVES and the server parses what it is SENT; sharing one function would make a single
+/// leniency apply to both directions at once, and these two have different obligations — a reader
+/// that takes a truncated export must refuse it (core.lumen `ExportEnd`: "a reader that takes a
+/// whole export lacking it refuses it (`400`)"), while an importer additionally has to accept
+/// rc2's CHUNKED form, where `ExportBegin` appears only in the first batch and `ExportEnd` only in
+/// the last.
+///
+/// CHUNKING IS NOT IMPLEMENTED HERE AND SO IS NOT PRETENDED AT: this binding accepts only the
+/// one-shot form, which is the whole stream, and rejects a stream lacking its terminator. When
+/// `importId`/`fromOrdinal` resume lands, the terminator check becomes conditional on being the
+/// final batch — and until then a conditional check would be a branch nothing takes.
+fn parse_import_jsonl(body: &[u8]) -> Result<Vec<p::ExportRecord>, String> {
+    let text = String::from_utf8_lossy(body);
+    let mut out = Vec::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let rec: WireExportRecord = serde_json::from_str(line)
+            .map_err(|e| format!("bad import line: {e}"))?;
+        out.push(rec.into_trait());
+    }
+    match out.last() {
+        Some(p::ExportRecord::End(_)) => Ok(out),
+        None => Err("import carried no lines at all; a whole export is framed by Begin and End, \
+                     so this stream is truncated"
+            .into()),
+        Some(_) => Err("the import stream does not end with ExportEnd, so it is truncated and \
+                        MUST NOT be applied as whole"
+            .into()),
+    }
+}
+
+/// `?limit=` as a number, or the D.8 `invalid-parameter` fault.
+///
+/// AN INVALID PARAMETER VALUE IS A 400, and D.8 says so in as many words: "`malformed-request` /
+/// `invalid-parameter` — a malformed or invalid request. Three shapes reach it. A BAD BODY … AN
+/// INVALID PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES NOT DEFINE".
+///
+/// EVERY CALLER USED `.and_then(|s| s.parse().ok())`, which SILENTLY DROPPED a bad value and
+/// answered 200 over the caller's whole collection. That is the same defect as a silently dropped
+/// selector and worse than refusing: `?limit=abc` meant "give me everything" instead of "that is
+/// not a number". It also left `list/400` and `revisions/400` with no producer — two declared fault
+/// rows whose only reachable path had been turned into a success.
+fn parse_limit(req: &HttpRequest) -> Result<Option<u32>, HttpResponse> {
+    match req.query.get("limit") {
+        None => Ok(None),
+        Some(raw) => raw.parse::<u32>().map(Some).map_err(|_| {
+            HttpResponse::json(
+                400,
+                problem_body(
+                    400,
+                    "invalid-parameter",
+                    &format!("`limit` must be a non-negative integer; got `{raw}`"),
+                ),
+            )
+        }),
+    }
+}
+
+/// The ENFORCE side of the capability dual, read off `capabilities()` and never hard-coded.
+///
+/// core.lumen states the rule on `CoreCapabilities`: "Each limit record is the advertise side of a
+/// dual: the matching `limit-exceeded` (422) is the enforce side." So a guard whose field is
+/// advertised FALSE must be refused, and refused as `422 limit-exceeded` naming the bound — not
+/// honored anyway, and not answered `501`, which says the whole op is absent.
+///
+/// THIS IS NOT THE SAME FAULT AS AN OUT-OF-VOCABULARY GUARD, and the two sit a few lines apart in
+/// this file deliberately. `If-None-Match` on `patch` is `400`: `ifAbsent` is not a field of
+/// `PatchCaps` at all, so no advertisement could have offered or refused it and the request names
+/// something the operation does not define. `If-Match` on a `put` advertising `ifMatch: false` is
+/// `422`: the field EXISTS, this scope says it does not support it, and the caller fixes the
+/// request by dropping the guard. A binding that collapsed them would tell a client to stop using
+/// a parameter that is simply unavailable here.
+fn unadvertised(op: &str, limit: &str, detail: &str) -> HttpResponse {
+    problem_response(&p::BdpError::LimitExceeded {
+        capability: op.into(),
+        limit: limit.into(),
+        detail: detail.into(),
+    })
 }
 
 fn unmapped(detail: &str) -> HttpResponse {
