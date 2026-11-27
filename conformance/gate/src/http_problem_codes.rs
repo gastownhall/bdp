@@ -88,27 +88,47 @@ pub const HTTP_CODES_WITHOUT_A_REGISTER_ENTRY: &[(&str, &str)] = &[
     ),
     (
         "not-implemented",
-        "1 site by spelling, ~16 reachable paths, 501 (`unmapped`). TWO DIFFERENT THINGS WERE \
-         CONFLATED HERE, and only one is an open question. \
-         (a) AN UN-OFFERED PRIMITIVE. `unmapped` answers every \
-         `Ok(res) if res.not_implemented` arm -- get, list, put, patch, delete, create, pull, \
-         push, import, export, revisions, call, cancel, apply, resolve_alias -- and \
-         `BdpResult::not_implemented` is exactly \"this scope does not support this primitive\". \
-         The spec ANSWERS that case and we do not match it: core.lumen:1615 is normative that a \
-         request needing an un-offered primitive is refused `capability-not-supported`, and D.8 \
-         binds that code to 405 (:2084, which names `patch where a Scope offers no patch` by \
-         name). So this is a conformance gap, not a missing register entry -- a REGISTERED code \
-         (`capability-not-supported`) at a REQUIRED status, and this subject emits that code \
-         nowhere at all. It is invisible to the gate three ways: 405 is absent from patch's \
-         declared set so no denominator row can carry it, the 501 spelling is unregistered, and \
-         the `pull format=sse` case pins the 501 as correct. NOT FIXED HERE: the core wire is \
-         frozen at 0.2.3-rc1, and this changes wire behaviour on ~16 paths. \
-         CLOSES WHEN: the un-offered-primitive refusal becomes 405 `capability-not-supported`, \
-         post-freeze. \
-         (b) AN UN-OFFERED TRANSPORT (`pull format=sse`). 1615 governs PRIMITIVES, and a \
-         transport is not one, so (a)'s answer does not reach it. That one stays genuinely open. \
-         CLOSES WHEN: Donna rules whether 501 is declared per-op or protocol-wide, and D.9 gains \
-         a code if it is to be branched on.",
+        "1 site by SPELLING (`unmapped`), 29 call sites, FOUR distinct conditions. The single \
+         spelling is what hid them: counting codes found one gap, and counting CONDITIONS found \
+         four, each needing a different answer. Classified by the arm that reaches it, not by the \
+         detail string. \
+         (a) 14 sites -- `Ok(res) if res.not_implemented`, i.e. the scope does not support the \
+         primitive. core.lumen:1615 is normative that this is refused `capability-not-supported`, \
+         which D.8 (:2084) binds to 405, naming `patch where a Scope offers no patch` explicitly. \
+         This subject emits that code NOWHERE. A conformance gap with a known answer. \
+         (b) 4 sites -- an ADVERTISED-FALSE option, which is a different thing entirely: list \
+         `where` (:258), pull `format=jsonl` (:344) and `format=sse` (:349), async `call` mode \
+         (:700). The capability EXISTS in the op's record and this scope advertises it false \
+         (`PullCaps { sse: false, jsonl: false, .. }`), so D.8 (:2057-2062) makes it a decline the \
+         op can STATE: `400 invalid-parameter`. Same reasoning the spec owner ruled for \
+         `ExportCaps.selector` and extended to get/list/pull. The binding has this INVERTED -- an \
+         out-of-vocabulary `format` token already answers 400 while these in-vocabulary ones \
+         answer 501, so the harsher undeclared status goes to the gentler cases. NOTE: list \
+         `where` is entangled with the 0.2.4 filter-model question (per-op `PullCaps.filter` vs \
+         scope-wide `ListCaps.conditions` vs `ExportCaps` having no filter field at all), so its \
+         code cannot be settled before that model is. \
+         (c) 10 sites -- a `None` arm on `res.value`, which sits AFTER the `not_implemented` guard \
+         in the same match and is therefore reachable ONLY when `not_implemented == false`. The \
+         scope has just claimed it implements the primitive and returned no value. Answering \
+         `not-implemented` asserts the opposite of the flag that got us here, about a primitive \
+         the advertisement says is offered -- the advertised-implies-implemented breach, \
+         manufactured by the protocol layer rather than the backend. The detail strings are honest \
+         (`list returned no value`) while the code contradicts them, which is why reading the file \
+         never caught it: a true sentence beside a false one. FOUND BY A PEER in her own tree, \
+         after I told her hers was the correct one; she checked BECAUSE the compliment flattered \
+         her. D.9's register has no code for `the scope broke its own contract`, and \
+         `temporarily-unavailable` is wrong because it tells a client to retry something that is \
+         not transient. REACHABILITY IS NOT PROMISED: no case constructs such a scope and the \
+         in-memory backends may never do it, so these may be arms with no path to them -- and an \
+         unreachable arm holds a false answer with no statistical tell. `Server` wraps any \
+         `impl BdpScope`, so reachability is not ours to guarantee either way. \
+         (d) 1 site -- `Route::ScopeEval` (:68), a route this binding does not bind at all. \
+         Plausibly the one place 501 is right, and the only one left needing the per-op \
+         vs protocol-wide ruling. \
+         NOT FIXED: the core wire is frozen at 0.2.3-rc1 and (a)+(b)+(c) are 28 paths of live \
+         response. CLOSES WHEN: post-freeze, (a) answers 405 `capability-not-supported`, (b) \
+         answers 400 `invalid-parameter` (after the filter model for list `where`), (c) gets a \
+         code that does not exist yet, and (d) is ruled.",
     ),
 ];
 

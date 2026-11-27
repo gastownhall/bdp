@@ -2048,6 +2048,22 @@ async fn import_truncated_stream_400(host: &str) -> Result<Vec<SurfaceId>, Strin
 /// until the choice is ruled. `import` carries `request = { contentType = "application/jsonl" }`
 /// with no 415 in its fault set, so "should import declare 415?" is a live question for the spec
 /// owner. rc2 (#448) added that `contentType`, which is what makes the media type checkable at all.
+///
+/// THE RETRACTION IS INCOMPLETE, AND SAYING SO HERE IS THE POINT. I retracted this premise in two
+/// places by matching the WORDING I had used ("declares no 415"). A sweep by MEANING finds about a
+/// dozen more comments reasoning from "`X` declares no `Y`" -- including `server.rs`'s export note,
+/// which says "`export` DECLARES EXACTLY ONE FAULT, `400`; a `501` from here is a status the
+/// generated contract does not publish, so the refusal was itself a divergence". Same premise,
+/// different words, missed by my own search.
+///
+/// A MECHANICAL SWEEP WOULD BE ITS OWN ERROR, so this is recorded rather than done. Most of those
+/// comments use the declaration CORROBORATIVELY beside a substantive argument -- `cancel` takes
+/// `unpinned<AsyncResult>`, so its missing `412` confirms a fact the TYPE already establishes --
+/// and that reasoning is sound. Only the ones where the declaration is LOAD-BEARING ("X declares
+/// no Y, therefore answering Y is wrong") are defective. Telling them apart needs reading each
+/// one, so replacing them all would destroy correct reasoning to remove incorrect reasoning.
+/// THE TEST, per site: delete the sentence about the declared set. If the conclusion still stands
+/// on what is left, the citation was corroborative. If it collapses, it was the premise.
 async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     match raw_status(host, "POST", "/-/import", ctype("application/json"), b"[]").await? {
         400 => Ok(vec![fault("import", 400)]),
