@@ -63,13 +63,21 @@ test("ListCaps requires a boolean compactFilter, rejecting both omission and a n
 });
 
 // Leak guard (the census-independent third assertion of the retired mutant family): the
-// fixture support injects a sentinel `notDefined: "DO_NOT_REPORT_SERVER_VALUE"` into served
-// records (test-support/v02-kit-provider.mjs:504); the checker must not echo any
-// server-supplied value into its report.
+// checker must not echo a server-supplied value into its report. The sentinel
+// `DO_NOT_REPORT_SERVER_VALUE` is injected into served records ONLY under
+// mutation === "extra-envelope" (the CONDITIONAL at test-support/v02-kit-provider.mjs:502,
+// not just the injection at :504) — so the fixture must be "extra-envelope" or the guard is
+// vacuous. The positive arm pins that non-vacuity IN the test: the sentinel must be on the
+// wire before we assert the checker does not echo it.
 test("checker does not echo a server-supplied value into its report", async () => {
-  const report = await runV02Provider(await serveFixture("magic-path"), {
-    allowRefusalProbes: true,
-    maxPages: 100,
-  });
+  const f = await serveFixture("extra-envelope");
+  const served = await fetch(`${f.scope}-/list`, {
+    headers: { accept: "application/json" },
+  }).then((r) => r.text());
+  assert.ok(
+    served.includes("DO_NOT_REPORT_SERVER_VALUE"),
+    "sentinel must be on the wire or this leak guard is vacuous",
+  );
+  const report = await runV02Provider(f, { allowRefusalProbes: true, maxPages: 100 });
   assert.equal(JSON.stringify(report).includes("DO_NOT_REPORT_SERVER_VALUE"), false);
 });
