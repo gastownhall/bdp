@@ -1,19 +1,34 @@
 // =============================================================================
 // memory.lumen — the Memory pack (the resource / relationship model)
 // =============================================================================
-// A BDP pack modelling arbitrary knowledge (Memory), obligations (Constraint),
-// assessments (Evaluation), and reified conformance claims (Conformance) on the
-// 0.2.3 resource model. Companion to the Issue and stdlib packs.
+// A BDP pack modelling arbitrary knowledge (Memory), obligations (Constraint) and
+// assessments (Evaluation) on the 0.2.3 resource model, together with the six
+// relationship types that connect them (§1.4) — context, retirement, dependency,
+// defining structure, applicability, and the reified conformance claim.
+// Companion to the Issue and stdlib packs.
 //
 // PRINCIPLES (as issue.lumen):
-//   1. Model before commands. §1 models the resources completely; a command
-//      surface is a thin pass over them, authored later, not here.
+//   1. Model before commands. §1 models the resources; §2 derives the command
+//      surface from them, never the reverse.
 //   2. Refinement via `is`. A subtype refines its parent with `type X is T`;
 //      `abstract type` marks a parent that is not directly instantiated — only
 //      its concrete leaves are. The type graph is OPEN: a closed/exhaustive set
 //      is a modelling intent, not an enforced closure.
-//   3. Relationships are refs. A pointer from one resource to another is an
-//      owned `ref<T>` property; there is no Link.
+//   3. Relationships are EDGE RESOURCES. A relationship between two resources is
+//      a first-class `rel<F, T>` bead with its own identity, properties and
+//      revision history (§1.4) — not an owned `ref<T>` property on an endpoint.
+//      The same reading issue.lumen takes for `Dependency` (§1.2 there), and the
+//      one the cited semantic authority takes for all nine of its Link Types.
+//      A bead therefore declares NO relationship fields; the facts it wants to
+//      read back are `computed` projections over the edges, revision-transparent
+//      exactly as issue.lumen's `computed dependencies` is.
+//
+// SOURCES. The semantic authority for the types below is the accepted-cut Memory
+// specification (BDP `94f699b947382e3a52385b1895a941575fcc08cb`,
+// `specs/types/memory/memory.md`; seven Bead Types, nine Link Types), which
+// `specs/deferred.md` (MEM-MECHANICS) still cites as normative and which was
+// deleted from the tree as superseded by this pack. The command surface in §2 is
+// derived from `docs/cli-design/memory-cli.md`, the canonical Memory CLI.
 // =============================================================================
 
 /// description: Markdown text — a nominal string (lowers to a nominal over string).
@@ -29,12 +44,27 @@ type markdown is string
 // -----------------------------------------------------------------------------
 
 /// description: Memory — a unit of arbitrary knowledge. Plain memories exist and packs refine subtypes.
-/// normative: `supersededBy` is a ≤1 replacement pointer; its chains are acyclic. `references` are
-/// normative: context pointers to any resource; they carry no further semantics.
+/// normative: `title` is a required nonblank display name; `body` is required Markdown and MAY be empty;
+/// normative: `status` is an optional nonblank organization-defined label that carries NO built-in workflow,
+/// normative: approval or lifecycle effect. (`remember` derives an omitted creation title from the body, but
+/// normative: the stored property is required — see §2.B.)
+/// normative: A Memory holds NO relationship fields — context, retirement and applicability are the
+/// normative: `References`, `SupersededBy` and `SubjectTo` edge resources of §1.4. The three projections
+/// normative: below are COMPUTED: derived from the edge graph and revision-transparent, so reading or
+/// normative: recomputing one never advances the Memory's revision, emits no change event and never enters
+/// normative: its content hash. They are reverse-lookup views, never written fields; author the edges.
 type Memory is Bead {
-  body:          markdown,
-  references?:   set<ref<resource>>,          // context pointers (unique by ref)
-  supersededBy?: ref<Memory> { acyclic },     // ≤1 replacement; chains acyclic
+  // All three render as their default flag spellings on the generic verbs
+  // (`--title` / `--body` / `--status`); `remember` takes the body POSITIONALLY,
+  // which is stated on that op (§2.B), not here.
+  title:   string { minLength: 1 },
+  body:    markdown,
+  status?: string { minLength: 1 },
+
+  // -- computed: outgoing edge projections (revision-transparent; §1.4) --
+  computed references:   [ ref<References> ],
+  computed supersededBy: [ ref<SupersededBy> ],   // ≤1 live (arity is §1.4's rule)
+  computed subjectTo:    [ ref<SubjectTo> ],
 }
 
 
@@ -43,17 +73,47 @@ type Memory is Bead {
 // -----------------------------------------------------------------------------
 
 /// description: Constraint — an obligation. Abstract: only the concrete subtypes below are instantiated.
-/// normative: `requires` are prerequisite constraints; `definedBy` is a ≤1 defining parent; `appliesTo`
-/// normative: are the resources this constraint governs. These are three SEPARATE props (no family).
+/// normative: A Constraint holds NO relationship fields: dependency and defining structure are the
+/// normative: `Requires` and `Defines` edge resources of §1.4, and the projections below are COMPUTED
+/// normative: (revision-transparent, never written). `requires` projects the OUTGOING Requires family and so
+/// normative: includes every `Defines` edge; `defines` is the Defines-only subset; `definedBy` is the one
+/// normative: INCOMING projection the ≤1-defining-parent rule makes single-valued.
+/// normative: There is deliberately NO `appliesTo` projection. Applicability is declared by the SUBJECT
+/// normative: (`SubjectTo`, source = the subject), so on this end it is a pure reverse lookup — exactly what
+/// normative: `subjects` (§2.C) reads. A stored `appliesTo` would reinstate the inverted DIRECTION this pack
+/// normative: corrected, putting a declaration about a constraint into that constraint's own state; see §1.4.
+/// normative: An empty `body` does NOT establish that the constraint is satisfied. Every `requires` target,
+/// normative: including every defining child, is NECESSARY for satisfying this constraint; the constraint's own
+/// normative: body still applies, so children are never collectively SUFFICIENT unless that is stated
+/// normative: explicitly, and a constraint with no children is not automatically satisfied.
 abstract type Constraint is Memory {
-  requires?:  set<ref<Constraint>>,           // prerequisite constraints
-  definedBy?: ref<Constraint>,                // ≤1 defining parent
-  appliesTo?: set<ref<resource>>,             // targets this constraint governs
+  // -- computed: Requires-family edge projections (revision-transparent; §1.4) --
+  computed requires:  [ ref<Requires> ],      // outgoing, family-wide (cycles ALLOWED — see §2.C)
+  computed defines:   [ ref<Defines> ],       // outgoing, Defines only
+  computed definedBy: [ ref<Defines> ],       // incoming; ≤1 live per child identity
+  // >> OPEN — Q4. The authority selects an optional `applicability` predicate on Constraint
+  // >> ("executable subject-selection predicate; concrete representation DEFERRED"). It is
+  // >> deliberately NOT declared here: lowering it would mean choosing a predicate
+  // >> representation, which is the deferred decision itself. Matches would add implicit
+  // >> applicability WITHOUT filtering explicit declarations.
 }
-type Policy is Constraint {}
+type Policy is Constraint {
+  // >> OPEN — Q5. The authority gives Policy an optional `authority` ("URI or `{uri, revision}`
+  // >> Reference ... identifies the person, role, or governing source that issued the rule").
+  // >> Not declared: the type is a genuine fork. `ref<resource>` reads it as a BDP resource,
+  // >> but a person or role generally is not one, and issue.lumen deliberately models
+  // >> principals as native strings, NOT refs (`owner`/`assignee`, §1.1 there). It is a claim
+  // >> of authority, not proof of approval, either way. No CLI flag surfaces it today.
+}
 type Requirement is Constraint {}
 type Scenario is Constraint {}
-type Specification is Constraint {}
+
+/// description: Specification — an intended result, described well enough to be checked against.
+/// normative: `version` is an author-chosen label, INDEPENDENT of bead revisions and of any source/build
+/// normative: identifier. It carries no automatic increment and no ordering. No CLI flag surfaces it today.
+type Specification is Constraint {
+  version?: string { minLength: 1 },
+}
 
 
 // -----------------------------------------------------------------------------
@@ -61,22 +121,749 @@ type Specification is Constraint {}
 // -----------------------------------------------------------------------------
 
 /// description: Evaluation — an assessment over a NONEMPTY group of subject resources.
+/// normative: Every claim an Evaluation asserts concerns the WHOLE subject group COLLECTIVELY; there is no
+/// normative: per-claim subset selector, and a collective claim does not distribute to an individual member.
+/// normative: The first accepted Evaluation state BINDS that group to this bead identity, and the binding
+/// normative: survives retyping away from Evaluation and back. A different group requires a new Evaluation
+/// normative: identity. Array order is immaterial (hence `set`). Recording a claim revises the CLAIM, never
+/// normative: the Evaluation and never an assessed subject (§1.4); an Evaluation may itself be assessed by
+/// normative: another Evaluation.
+/// normative: Each subject is an EXACT PIN — `pinned<T>` is `ref<T> { rev: Rev }`, so `rev` is REQUIRED. A
+/// normative: bare URI or a reference without a revision is a floating reference and MUST be refused, never
+/// normative: silently resolved to a newer revision. A claim is about the revisions that were assessed.
 type Evaluation is Memory {
-  subjects: set<ref<resource>> { minSize: 1 },
+  // `minItems` (not `minSize`) is the JSON Schema 2020-12 keyword — see the lowering note below.
+  subjects: set<pinned<resource>> { minItems: 1 },
+  // >> Q3 — ANSWERED in the type, NOT yet in the schema. `pinned<resource>` is the right
+  // >> type and is core vocabulary already in use (`get`/`put`/`delete` take `unpinned<any>`
+  // >> and writes return `pinned<any>`), so the authority's exact-`{uri, revision}` rule is
+  // >> now SAID rather than merely commented. What remains is a LOWERING gap, not a spec
+  // >> gap: under Appendix C's erasure rule `ref`, `pinned` and `unpinned` all lower to
+  // >> `ResourceRef`, whose `rev` is optional, so a floating subject still validates against
+  // >> the generated bundle. The fix belongs in the generator (erase `pinned<T>` to a
+  // >> rev-required ResourceRef), not in a bespoke nominal type here, and it is not worked
+  // >> around in this pack. §1.5 lists it with the other unenforced intents.
+
+  // -- computed: the claims this evaluation asserts (revision-transparent; §1.4) --
+  computed conformance: [ ref<Conformance> ],
 }
 
 
 // -----------------------------------------------------------------------------
-// §1.4  Conformance — a reified claim (abstract; three concrete subtypes)
+// §1.4  The relationship types — edge resources (Principle 3)
 // -----------------------------------------------------------------------------
+// Six relationship types, each a `rel<F, T>` bead: its own identity, its own
+// revision history, its own `title`/`body`/`status`. `References` is the root and
+// is itself instantiable; the other five refine it, directly or transitively, and
+// inherit its three content properties. `source` is always the asserting end, so
+// the DIRECTION below is normative, not presentational.
+//
+// NOT `unique`, unlike issue.lumen's `Dependency`. Every family here explicitly
+// ALLOWS parallel edges over the same ordered pair — independently authored edges
+// keep their own identities, reasons and revision selections, and repeated paths
+// are not additional satisfaction. `unique` would key by (type, source, target)
+// and collapse exactly those distinct claims, so each edge takes a surrogate id
+// instead, which is what the creation commands' `--id`/`--id-root` expect (§2.D).
+//
+// ENDPOINT NARROWING. All five refinements restipulate narrower endpoints than
+// `References`' `rel<Bead, Bead>` — `rel<Memory, Memory>`, `rel<Constraint,
+// Constraint>`, `rel<Bead, Constraint>`, `rel<Evaluation, Constraint>` — because
+// the authority's allowed source→target pairs differ per family. Whether a
+// refinement MAY narrow a parent rel's endpoints is the same Lumen-scrub question
+// issue.lumen raises on `ReadyAffecting is Dependency rel<Issue, Issue>`; the
+// intent here is likewise the conformance list, not a new rule. It is recorded in
+// one place rather than repeated on each of the five.
+//
+// REVISIONS. Creating, changing or deleting a relationship does NOT touch either
+// endpoint's revision. The edge is its own resource, so a mutation to it revises
+// THE EDGE; an endpoint moves only when separately written. This is the uniform
+// rule for all six, and it is the same rule issue.lumen states for `Dependency`.
+//
+// It replaces the cited authority's source-ownership rule ("adding, changing, or
+// deleting one revises the source"), which is NOT ambiguous here but wrong: it is
+// an artifact of the pre-0.2.3 model in which a relationship was a `ref<T>`
+// property ON the holder, where mutating it really did revise the holder because
+// the property was part of the holder's representation. The edge-resource ruling
+// replaced exactly that model, so the rule did not survive it. The authority's
+// ownership TABLE is still load-bearing for everything else it fixes — direction,
+// arity, which end asserts — and §1.2's two corrections rest on it; only its
+// revision consequence lapses. Core's `rel<F, T>` needs no ownership modifier:
+// "the owning endpoint that asserts the relationship" is assertion semantics —
+// which end the relationship is ABOUT, and what `acyclic` and `unique` range over
+// — not a claim about revision propagation, which is why it attaches none.
+//
+// This is NOT "edges and endpoints are independent": the propagation runs the
+// other way. Per core.lumen §1.7, `source`/`target` are STRUCTURAL references, so
+// a scope either cascades an endpoint's retirement to the relationship or
+// restricts that retirement while the relationship stands — "a relationship never
+// outlives a structural endpoint". `forgetMemory`'s `has-incident-links` refusal
+// (§2.0) is the RESTRICT arm of exactly that choice. Endpoint death reaches the
+// edge; an edge change does not reach the endpoints.
+//
+// A TERMINOLOGY NOTE, since the ruling splits a word the authority used for two
+// things. With revision-ownership gone, "owns" survives only as PARTICIPATION
+// SUPPORT: whether a bead type and its writer are installed to be the source of a
+// given family at all. That is a capability question, not a revision one, and it
+// is still enforced — it is what `createSubjectTo`'s `source-lacks-ownership`
+// refuses (§2.D).
 
-/// description: Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a
-/// normative: bare edge). Abstract: only the concrete subtypes below are instantiated. `constraint` is what
-/// normative: it claims about; `evaluation` is the owning assessment (which names the subjects).
-abstract type Conformance is Bead {
-  constraint: ref<Constraint>,
-  evaluation: ref<Evaluation>,
+/// description: References — a relationship from a bead to useful context, carried as a first-class edge resource. The instantiable root of this pack's relationship family.
+/// normative: Adds an informational connection and claims NOTHING further — not satisfaction, not replacement.
+/// normative: Parallel edges and cycles are allowed;
+/// normative: equal endpoints on separate calls do NOT deduplicate. A self-edge by bead identity is refused
+/// normative: (`rel` is irreflexive by default). Endpoint eligibility is CORRELATED, not a free pair: Memory→Memory,
+/// normative: Memory→Issue, Issue→Memory, or any bead→Constraint. Lumen has no disjunctive endpoint-pair form,
+/// normative: so `rel<Bead, Bead>` is the widest honest signature and the pair table is carried here as prose
+/// normative: and enforced by `reference`'s `ineligible-endpoints` refusal (§2.D), NOT by the schema.
+/// normative: `title`, `body` and `status` are each optional and NONBLANK, and belong to the edge, never to an
+/// normative: endpoint; `status` is descriptive and activates, validates and invalidates nothing.
+type References is rel<Bead, Bead> {
+  title?:  string { minLength: 1 },
+  body?:   markdown { minLength: 1 },
+  status?: string { minLength: 1 },
+}
+
+/// description: SupersededBy — retires a Memory in favour of a replacement with a different identity. Source is the retiring bead, target its replacement.
+/// normative: Expresses normative succession: readers follow the successor for current guidance. It does NOT
+/// normative: delete the source, approve the replacement, set a status or rewrite the source's applicability
+/// normative: declarations, and the retired bead and its history stay readable. Each source has ZERO OR ONE
+/// normative: live outgoing edge: a second refuses even when it already names the same target (§2.D's
+/// normative: `already-superseded`), and this command never retargets or treats an existing successor as a
+/// normative: no-op. Endpoints are distinct Memory identities, both FLOATING — an exact pin is refused.
+/// normative: `acyclic` restipulates `rel<Memory, Memory>`: following the chain must never revisit a bead.
+/// normative: Retiring through this edge revises NEITHER endpoint (§1.4): succession is recorded on the edge,
+/// normative: and the source moves only if separately written. Arity and acyclicity are graph invariants the
+/// normative: writer enforces; neither lowers to the schema (§1.5), so §2.D's refusals are where they are checked.
+type SupersededBy is References, acyclic rel<Memory, Memory> {}
+
+/// description: Requires — says the target Constraint is necessary for satisfying the source Constraint.
+/// normative: Necessity composes TRANSITIVELY across the family, Defines included. Many outgoing and many
+/// normative: incoming edges, no minimum and no maximum. CYCLES ARE ALLOWED — mutual necessity is meaningful,
+/// normative: supplies no satisfaction evidence, and a traversal must terminate on revisited identities
+/// normative: without treating a repeat as progress; so `acyclic` is deliberately NOT restipulated here.
+/// normative: Parallel edges are allowed and repeated paths are not additional satisfaction. Recording every
+/// normative: necessary target never becomes SUFFICIENT: the source's own body still applies. Requires alone
+/// normative: assigns no defining parent. Writing a dependency revises neither constraint (§1.4).
+type Requires is References rel<Constraint, Constraint> {}
+
+/// description: Defines — makes the source Constraint the DEFINING PARENT of the target, and inherits Requires' necessity. Source is the parent, target the child.
+/// normative: Supplies the defining tree. A parent may define many children; each CHILD identity has zero or
+/// normative: one live INCOMING Defines-family edge, and a second refuses even from the same parent (§2.D's
+/// normative: `already-defined`). That is a per-endpoint arity cap, not a natural-key rule, so `unique`
+/// normative: cannot express it. `acyclic` restipulates `rel<Constraint, Constraint>` — the Defines family
+/// normative: forbids cycles even though its Requires parent allows them. A standalone constraint is a legal
+/// normative: root; no defining parent is required. The child keeps its own type, identity, properties and
+/// normative: history: asserting the edge transfers no ownership of the child and grants no right to edit or
+/// normative: delete it, and deleting a parent implies no cascade to the child. Another constraint may REQUIRE
+/// normative: the child without becoming a second defining parent. Defined children are necessary by default,
+/// normative: never collectively sufficient unless stated. Writing the edge revises neither constraint (§1.4);
+/// normative: what the inversion corrected is which end ASSERTS — the parent, never the child.
+type Defines is Requires, acyclic rel<Constraint, Constraint> {}
+
+/// description: SubjectTo — declares that the target Constraint applies to the source bead. Source is the SUBJECT, which is the end that asserts the declaration.
+/// normative: Identifies an applicable obligation and asserts NO contribution, satisfaction, verification or
+/// normative: breach; adding or removing an assessment never removes the declaration. NOT TRANSITIVE: if X is
+/// normative: subject to A and A to B, then B governs A, not X. Discover a subject's obligations by following
+/// normative: each target's Requires family (Defines included) — a read creates no inferred stored edge.
+/// normative: Many-to-many, parallel declarations may coexist, and a self-edge is refused by identity.
+/// normative: Writing a declaration revises neither endpoint (§1.4). PARTICIPATION SUPPORT is still required
+/// normative: and is NOT conferred by endpoint eligibility: a source bead's own installed type and writer must
+/// normative: declare that it can be the source of this family, so a source without that support is refused
+/// normative: (§2.D's `source-lacks-ownership`) rather than silently accepted. Memory declares it for its
+/// normative: family; Issue and other non-Memory sources must each add it, and widening endpoints alone
+/// normative: installs nothing. A declaration is not proof of authority to bind the source.
+/// normative: This is the second end the inversion corrected: the SUBJECT is the asserting end, which is why
+/// normative: no `appliesTo` survives on Constraint (§1.2).
+type SubjectTo is References rel<Bead, Constraint> {}
+
+/// description: Conformance — the abstract claim family: a claim by the source Evaluation about its FULL assessed subject group relative to the target Constraint. Abstract, so only the three concrete peers below are instantiated.
+/// normative: The source Evaluation names the subjects, so a claim always concerns that evaluation's whole
+/// normative: group COLLECTIVELY and cannot select a subset. The common type is NEUTRAL: membership in the
+/// normative: family alone establishes no conclusion. `Addresses` claims a contribution without asserting
+/// normative: completeness, `Satisfies` claims complete satisfaction, `Violates` claims a specific breach.
+/// normative: The three are PEERS — `Violates` does NOT refine `Addresses`, and a breach establishes no
+/// normative: contribution. Many-to-many; PARALLEL AND CONTRADICTORY claims from different evaluations about
+/// normative: the same group and constraint each keep their own identity and MUST be exposed, never silently
+/// normative: overwritten, resolved or counted as votes. Every claim is asserted BY its source Evaluation —
+/// normative: there is no third-party claim form and no claim that stands apart from an evaluation — and a
+/// normative: mutation to a claim revises THE CLAIM, not that evaluation, not its assessed subjects and not
+/// normative: the target (§1.4). No general transitivity or automatic coverage rule.
+/// normative: `evidence` preserves test, review, execution or source pointers; neither it nor an authored
+/// normative: claim is independent verification. The claiming actor rides in PROVENANCE and is distinct from
+/// normative: the asserting evaluation and its subjects. Abstractness here does not make a refinement abstract,
+/// normative: and family queries and source selectors still match the concrete peers.
+abstract type Conformance is References rel<Evaluation, Constraint> {
+  evidence?: text { minLength: 1 },
 }
 type Addresses is Conformance {}
 type Satisfies is Conformance {}
 type Violates is Conformance {}
+
+
+// -----------------------------------------------------------------------------
+// §1.5  Lowering notes — what the schema does and does not enforce
+// -----------------------------------------------------------------------------
+// `{ minItems: 1 }` is a real JSON Schema 2020-12 array keyword and lowers to
+// `"minItems": 1`. The previous spelling here, `{ minSize: 1 }`, was NOT: the
+// generator's constraint parser passes unknown keys through verbatim (it maps only
+// `min`/`max`), so it emitted `"minSize": 1`, which every validator IGNORES —
+// Evaluation's nonempty-subjects rule was silently inert in the generated bundle.
+// It was the only such key in all of specs/src.
+//
+// Still carried as modelling intent rather than enforced schema:
+//   - `abstract` — no JSON Schema analogue; the bundle emits the concrete leaves
+//     and the abstract parent alike.
+//   - `acyclic` on `SupersededBy` and `Defines` — a graph invariant over many
+//     documents, not a per-document constraint, so it is dropped in lowering.
+//   - `References`' correlated endpoint-pair table — Lumen has no disjunctive
+//     endpoint form (§1.4).
+//   - the per-endpoint arity caps (≤1 outgoing successor, ≤1 incoming defining
+//     parent) — `unique` keys by (type, source, target) and cannot express them.
+//   - participation support, i.e. whether a source bead's installed type may be
+//     the source of a given relationship family at all (§1.4).
+//   - `Evaluation.subjects`' exact-pin requirement: `pinned<T>` SAYS it, but
+//     Appendix C erases `ref`/`pinned`/`unpinned` alike to `ResourceRef`, whose
+//     `rev` is optional — see §1.3.
+// Each is enforced instead by the writer, and surfaces as a declared domain
+// refusal on the creating command where one exists (§2.D).
+//
+// TWO GENERATOR GAPS, both pre-existing and both shared with issue.lumen, so they
+// are recorded rather than worked around — contorting a normative model to suit a
+// lowering limitation would be the wrong trade:
+//   - A REFINED relationship lowers to `$comment: "UNLOWERED: …"`. The generator
+//     handles the bare `rel<F, T>` form (so `References` lowers), but not one
+//     carrying a parent or a modifier, so `SupersededBy`, `Requires`, `Defines`,
+//     `SubjectTo` and `Conformance` emit no schema. issue.lumen's shipped bundle
+//     has the same five gaps for the same reason (`Dependency` among them, from
+//     its `unique`). Flattening the hierarchy into five independent bare rels
+//     would lower, and would destroy the refinement the authority requires —
+//     every specialized type refines `references` — so it is not done. Note also
+//     that even a lowered `rel` erases its endpoint types: `rel<F, T>` becomes a
+//     `$ref` to core's `rel`, so the F/T pairing is never schema-checked.
+//   - `computed` has no lowering. A computed field is emitted as an ordinary
+//     property AND listed in `required`, which is wrong twice: a derived value is
+//     neither authored nor mandatory on a document. issue.lumen's `isBlocked`,
+//     `dependencies`, `labels` and `createdBy` lower the same way today. The
+//     revision-transparency contract these fields rely on is therefore stated in
+//     §1.1–§1.3 and honoured by the writer, not expressed in the bundle.
+
+
+// #############################################################################
+// §2. The command surface — derived from §1
+// #############################################################################
+// Five sections. §2.A is the generic verbs, which ARE core primitives and are NOT
+// redefined here. §2.B is the four Memory commands. §2.C is the ten relationship
+// traversals. §2.D is the five relationship-CREATION commands. §2.E records why
+// claim authoring is absent. Queries are `fn` (safe); writes are `command`.
+// Signatures model the SHAPE: generic shared flags (scope selection,
+// revision guards, object inputs, `--output-format`/`--long`/`--json`/`--quiet`,
+// and the `--body-file`/`--stdin` body-input spellings) are orthogonal plumbing
+// owned by the general CLI and never appear here.
+//
+// CLI MOUNT: this pack mounts at `bd memory` — `cli.mount: "memory"` — so its ops
+// render as `bd memory remember` / `bd memory references`. Each op's `/// cli.name`
+// is relative to that mount. `cli.mount` is a PACK-level hint; until the
+// pack-machinery spec defines a package-declaration anchor, it is stated here in
+// prose rather than a structured line. The four §2.B ops additionally keep their
+// trained top-level spellings (`bd remember` / `bd recall` / `bd memories` /
+// `bd forget`) as compatibility aliases, carried as `/// cli.alias`; both spellings
+// share one handler, and an alias is not a second contract.
+
+// -----------------------------------------------------------------------------
+// §2.A  Generic verbs → core primitives (rendered, never redefined)
+// -----------------------------------------------------------------------------
+//   create  → create(Memory)            show    → get(ref<Memory>)
+//   list    → list(Memory, where?)      update  → patch(ref<Memory>, …)
+//   delete  → delete(ref<Memory>)       count   → list(Memory, where?):count
+// The pack RENDERS the trained names; each lowers to the primitive beside it. The
+// §2.B convenience commands are NOT replacements for these: `bd list --type memory`
+// is the Type-family inventory with paging and full-resource output, while
+// `memories` (§2.B) is a bounded compact summary view, and `show` returns the bead
+// document while `recall` returns only the body. Neither substitutes for the other.
+
+// -----------------------------------------------------------------------------
+// §2.0  The error model — primitives fault; operations declare a Result<T, E>
+// -----------------------------------------------------------------------------
+// As issue.lumen §2.0. A PRIMITIVE returns its value or faults with a `Problem`
+// (the universal fault channel), declares no `E` and is not cancellable. An
+// OPERATION settles as `Outcome<T, E> = Result<T, E> | fault | canceled`, so a
+// command with its own domain "no" declares `Result<T, E>` — `E` is that op's
+// DOMAIN refusals (business rules only). Not-found, wrong-selector, malformed
+// input, flag conflicts and stale revision guards stay Problems and are NOT listed
+// as domain errors: so `remember --update` naming a missing memory, a blank
+// explicit creation title, two body sources at once, and an `--if-revision` miss
+// are all Problems. Safe queries (`fn`) read-or-fault and carry no domain `E`;
+// following stdlib's `graph`, a request exceeding an advertised traversal or
+// acquisition bound FAULTS rather than silently truncating.
+
+/// description: Domain refusals of `rememberMemory`.
+/// normative: `already-exists` — `--create-only` named an already-allocated identity. `not-a-memory` — the
+/// normative: identity resolves to a bead outside the Memory family (an Issue, say); an existing-ID write
+/// normative: never silently retypes a bead. `identity-consumed` — the identity was used by a forgotten
+/// normative: memory and is retained; it cannot be reused.
+type RememberError = "already-exists" | "not-a-memory" | "identity-consumed"
+
+/// description: Domain refusals of `forgetMemory`.
+/// normative: `has-incident-links` — the memory still participates in a live relationship in EITHER
+/// normative: direction; those must be removed through their own operations first. `not-a-memory` — the
+/// normative: target is outside the Memory family. Deletion is a tombstone, so the identity and the earlier
+/// normative: snapshots are retained; forgetting neither retires the memory in favour of a successor nor
+/// normative: erases history.
+type ForgetError = "has-incident-links" | "not-a-memory"
+
+
+// -----------------------------------------------------------------------------
+// §2.B  Memory commands (the four canonical Memory spellings)
+// -----------------------------------------------------------------------------
+
+/// description: Store a Memory, or update the same Memory under an explicit identity — the create-or-update convenience over the generic `create`/`patch`. (`memory/remember`.)
+/// normative: `key` chooses the literal public identity (the CLI spells it `--key` or the equivalent `--id`);
+/// normative: it is NOT a title. It creates when unused and updates that same live memory when allocated.
+/// normative: `update` instead REQUIRES an existing memory. The two are mutually exclusive, and `createOnly`
+/// normative: requires one of them and refuses an allocated identity. With no explicit identity the id derives
+/// normative: from the body by the trained content-to-key rule, and a single bare key-like argument naming an
+/// normative: existing memory RECALLS it rather than writing.
+/// normative: Creation needs exactly one body source. An omitted creation title derives from the body (first
+/// normative: trimmed line, whitespace collapsed, at most 80 code points including the ellipsis when
+/// normative: shortened; an empty summary becomes `Untitled memory`). An existing-ID write PRESERVES every
+/// normative: omitted content property, and requires at least one actual edit input — a revision guard alone
+/// normative: is not an edit and cannot authorize creation.
+/// normative: `type` selects an installed Memory type or refinement and is accepted ONLY with `createOnly`;
+/// normative: an existing-ID write preserves the bead's current type. Use the generic `update … --type` to
+/// normative: retype. The content shorthand is limited to title/body/status; the full property-edit surface
+/// normative: stays with the generic verb. This is a convenience over two primitives, NOT a portable atomic
+/// normative: upsert: the writer decides the admitted route, and an unchanged state retains its revision.
+/// cli.name: "remember"
+/// cli.alias: remember
+command rememberMemory(
+    /// cli.positional: 0
+    body?:       markdown,
+    /// cli.flag: --key
+    key?:        string,
+    /// cli.flag: --update
+    update?:     ref<Memory>,
+    /// cli.flag: --type
+    type?:       PathString,
+    /// cli.flag: --title
+    title?:      string,
+    /// cli.flag: --status
+    status?:     string,
+    /// cli.flag: --create-only
+    createOnly?: bool = false
+  ) -> Result<rep<Memory>, RememberError>
+
+/// description: Read a Memory's Markdown body — only the body, not the bead document. (`memory/recall`.)
+/// normative: The reference may select a retained revision (`@N` / `@=TOKEN`), in which case that saved
+/// normative: body is returned verbatim. The generic `show` returns the resource representation instead;
+/// normative: `recall` never switches to it.
+/// cli.name: "recall"
+/// cli.alias: recall
+fn recallMemory(
+    /// cli.positional: 0
+    memory: ref<Memory>
+  ) -> markdown
+
+/// description: Browse compact Memory summaries, optionally matching text in the id, title or body. (`memory/memories`.)
+/// normative: `search` is ONE literal, case-insensitive id/title/body match — not a selector, regex, graph
+/// normative: predicate or query language. Omitted, it browses the admitted population. `details` adds
+/// normative: revision, attribution and owned-relationship counts, and obtains no neighbouring bodies.
+/// normative: The view is BOUNDED and has no paging: a selection exceeding the default match bound FAULTS
+/// normative: with a request to narrow the search or pass `all`, which keeps the acquisition and output
+/// normative: caps. A bounded selection is returned COMPLETE or it fails — never the first N as though all
+/// normative: matches had been reported. A successful empty selection stays distinguishable from a failure.
+/// cli.name: "memories"
+/// cli.alias: memories
+fn listMemorySummaries(
+    /// cli.positional: 0
+    search?:  string,
+    /// cli.flag: --all
+    all?:     bool = false,
+    /// cli.flag: --details
+    details?: bool = false
+  ) -> [ MemorySummary ]
+
+/// description: MemorySummary — one row of the compact summary view: identity, title, a bounded body excerpt, and the optional `details` fields.
+/// normative: The excerpt is positioned at the match when the body matched, and otherwise starts at the
+/// normative: beginning. `revision`, `createdBy` and `linkCount` are present only under `details`.
+/// normative: >> OPEN — Q6. The CLI specification marks the machine framing of this view Unreviewed and
+/// normative: calls the existing shape experimental, so these field names are derived from its documented
+/// normative: result prose ("identities, titles, bounded body excerpts and optional details" plus
+/// normative: "revision, attribution and owned-Link counts"), not transcribed from a settled schema.
+type MemorySummary = {
+  memory:     ref<Memory>,
+  title:      string,
+  excerpt:    string,
+  type:       PathString,
+  revision?:  Rev,
+  createdBy?: string,
+  linkCount?: integer
+}
+
+/// description: Forget a Memory — delete one live, unreferenced Memory; the invocation itself supplies the delete intent. (`memory/forget`.)
+/// normative: Requires a live memory with NO incident relationship in either direction; remove those first.
+/// normative: There is no `--force`, preview mode or cascade here: the generic `delete` without `--force` is
+/// normative: the observational preview, and it reserves no later successful deletion. Returns the terminal
+/// normative: revision (the tombstone). The consumed identity and the earlier snapshots are retained, so the
+/// normative: identity cannot be reused (see `RememberError.identity-consumed`).
+/// cli.name: "forget"
+/// cli.alias: forget
+command forgetMemory(
+    /// cli.positional: 0
+    memory: ref<Memory>
+  ) -> Result<Rev, ForgetError>
+
+
+// -----------------------------------------------------------------------------
+// §2.C  Relationship traversals — the ten bounded family reads
+// -----------------------------------------------------------------------------
+// Each op fixes ONE relationship family and ONE direction, so none takes a family
+// filter or a direction flag; they are named entry points over the generic
+// `stdlib/graph`, exactly as issue.lumen's `getDependencyTree` is. They return
+// stdlib's `Subgraph` — the same shape the generic `graph` returns — because the
+// CLI specification defines them as conveniences over it and requires the result to
+// retain roots, per-root membership, supporting paths, the actual relationship type
+// and original arrow direction (including on incoming reads), the depth frontier,
+// and cycle-closing edges.
+//
+// SHARED SEMANTICS. Every read takes one or more roots and holds them in ONE
+// consistent, bounded view. Roots with no matching relationship are PRESERVED.
+// Each root gets its own hop allowance; acquisition, work and output caps are
+// cumulative across all roots. For each root, find the beads reached in the fixed
+// direction within the depth, then keep all matching-family edges AMONG THOSE BEADS;
+// combine the per-root graphs WITHOUT inducing extra edges across their union (for
+// A→B, A→C, B→D, C→D, roots A and B at depth 1 retain AB, AC and BD, not CD).
+// Visited identities stop repeated expansion without dropping selected edges. Exact
+// stored pins are preserved as stored and MUST NOT be floated, and current content
+// MUST NOT be substituted for a historical root. A depth frontier is VISIBLE and
+// proves nothing — not a terminal successor, not discovery of every governing rule,
+// and not compliance. An invalid, inaccessible or unavailable root, an incompatible
+// binding, or a budget failure REFUSES the aggregate; it never degrades to a
+// successful empty or partial result. A read never repairs invalid stored state.
+//
+// EDGE IDENTITY. `Subgraph`'s `GraphEdge` carries `edge: ref<resource>` and
+// `type: PathString`. Under Principle 3 both are populated: every edge these reads
+// traverse IS a §1.4 relationship resource, so `edge` reports its own id and `type`
+// its concrete relationship type — which is what lets a reader distinguish parallel
+// edges over one ordered pair, and what the CLI's requirement to report "the actual
+// relationship type and original arrow direction, including on incoming reads"
+// needs. An incoming read reports the edge as STORED (source→target), never flipped
+// to match the traversal direction.
+
+/// description: Follow outgoing References from each root to find related context. (`memory/references`.)
+/// cli.name: "references"
+fn listReferences(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1
+  ) -> Subgraph
+
+/// description: Follow incoming References to find the beads that refer to each root. (`memory/referenced-by`.)
+/// cli.name: "referenced-by"
+fn listReferencedBy(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1
+  ) -> Subgraph
+
+/// description: Follow the replacement chain FORWARD from each retiring Memory to its current successor. (`memory/successor`.)
+/// normative: Succession is normative: readers should follow the successor for current guidance. The chain is
+/// normative: acyclic and each memory has at most one live replacement, so the default depth is the 1000-hop
+/// normative: bound rather than a single hop. Reaching the frontier does NOT prove a terminal successor.
+/// cli.name: "successor"
+fn getSuccessorChain(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1000
+  ) -> Subgraph
+
+/// description: Follow the replacement chain BACKWARD from a replacement, showing its direct predecessors by default. (`memory/supersedes`.)
+/// cli.name: "supersedes"
+fn listSupersedes(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1
+  ) -> Subgraph
+
+/// description: Follow the outgoing Requires FAMILY — including Defines — to collect the constraints necessary for each root. (`memory/requirements`.)
+/// normative: Necessity composes TRANSITIVELY across the family, so the default depth is the 1000-hop bound.
+/// normative: Cycles are ALLOWED in this family — mutual necessity is meaningful — so traversal MUST
+/// normative: terminate on repeated visits without treating a repeated path as additional satisfaction. A
+/// normative: cycle supplies no satisfaction evidence. Defines children are rendered before other Requires
+/// normative: dependencies at a constraint.
+/// cli.name: "requirements"
+fn listRequirements(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1000
+  ) -> Subgraph
+
+/// description: Follow the incoming Requires family to find the constraints that depend on each root, showing direct dependents by default. (`memory/required-by`.)
+/// cli.name: "required-by"
+fn listRequiredBy(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1
+  ) -> Subgraph
+
+/// description: Follow outgoing Defines to read each root's defining parts — its defining tree. (`memory/definition`.)
+/// normative: The defining tree is ACYCLIC and each child has at most one defining parent, so the default
+/// normative: depth is the 1000-hop bound. The defining parent ASSERTS the relationship, not the child: the
+/// normative: child keeps its own type, identity, properties and history, and deleting a parent does not imply
+/// normative: deleting its children.
+/// cli.name: "definition"
+fn getDefinition(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1000
+  ) -> Subgraph
+
+/// description: Follow incoming Defines to find each root's defining parent, showing the direct parent by default. (`memory/defined-by`.)
+/// normative: At most one live defining parent per child identity. A constraint may REQUIRE a child without
+/// normative: becoming a second defining parent.
+/// cli.name: "defined-by"
+fn listDefinedBy(
+    /// cli.positional: 0
+    roots:  [ ref<resource> ],
+    /// cli.alias: -d
+    /// cli.flag: --depth
+    depth?: integer = 1
+  ) -> Subgraph
+
+/// description: Discover the rules governing each subject — its explicit Subject To declarations, then the Requires-family paths that follow from them. (`memory/constraints`.)
+/// normative: STAGED, not one traversal: first the subject's explicit declarations, then each declared
+/// normative: constraint's Requires family (including Defines). Selecting both families in a single generic
+/// normative: traversal is NOT equivalent. Subject To is NOT transitive — if X is subject to A and A is
+/// normative: subject to B, then B governs A, not X — and shared expansion MUST NOT transfer a governing rule
+/// normative: from one original subject to another. The read creates no inferred stored declaration.
+/// normative: Discovery helps readers find the rules; it neither proves compliance nor affects issue
+/// normative: readiness or scheduling.
+/// normative: Takes NO depth: its staged bound has separate depth controls that remain unselected.
+/// cli.name: "constraints"
+fn listConstraints(
+    /// cli.positional: 0
+    subjects: [ ref<resource> ]
+  ) -> Subgraph
+
+/// description: Find the beads that DIRECTLY declare themselves subject to each selected Constraint. (`memory/subjects`.)
+/// normative: Direct only — it takes no depth and performs no Requires-family expansion.
+/// cli.name: "subjects"
+fn listSubjects(
+    /// cli.positional: 0
+    constraints: [ ref<resource> ]
+  ) -> Subgraph
+
+
+// -----------------------------------------------------------------------------
+// §2.D  Relationship creation — one command per family
+// -----------------------------------------------------------------------------
+// Five commands, each creating one §1.4 edge resource and returning it. Each takes
+// its two endpoints POSITIONALLY; the CLI also accepts `--from`/`--to` for the same
+// two parameters and all three spellings select the same operation, so the
+// alternates are plumbing and are not modelled. Creation ids (`--id`/`--id-root`),
+// object inputs (`--properties`/`--metadata`), scope selection, output format and
+// the `--if-source-revision` guard are generic shared flags per §2's preamble and
+// never appear in these signatures; a stale guard is a Problem, not a domain error.
+//
+// NO DELETE COUNTERPARTS. An earlier draft of this section expected five; the CLI
+// specification has none. A relationship is removed with the generic `delete`
+// primitive (§2.A) against the edge's own id — which is available precisely because
+// an edge is a resource. `forgetMemory`'s `has-incident-links` refusal (§2.0) is
+// what makes that ordering mandatory: remove the edges, then forget the bead.
+//
+// ERROR MODEL. Per §2.0, only DOMAIN refusals are listed. Endpoint eligibility,
+// per-endpoint arity caps, prospective cycles and missing participation support
+// are business rules of the relationship model, so they are `E`. Deliberately NOT
+// domain errors, and left as Problems: an unresolvable or inaccessible endpoint,
+// a stale `--if-source-revision`, duplicate endpoint bindings, a source guard
+// passed to `reference` (whose source asserts nothing revisable), and an endpoint
+// PIN where the family admits only floating selection — a pin is a selector form,
+// and §2.0 keeps wrong-selector faults in the Problem channel. That last one is
+// the judgement call in this classification; it is called out so a reviewer can
+// take it the other way.
+
+/// description: Domain refusals of `createReference`.
+/// normative: `ineligible-endpoints` — the pair is outside §1.4's correlated table (Memory→Memory,
+/// normative: Memory→Issue, Issue→Memory, any bead→Constraint). `self-link` — both endpoints are the same
+/// normative: bead identity, including across different revision selectors.
+type ReferenceError = "ineligible-endpoints" | "self-link"
+
+/// description: Domain refusals of `supersedeMemory`.
+/// normative: `already-superseded` — the source already has a live outgoing successor; it refuses even when
+/// normative: that successor is the target already, because the command never retargets and never reports a
+/// normative: no-op. `would-cycle` — the edge would close a cycle in the succession graph.
+type SupersedeError = "ineligible-endpoints" | "self-link" | "already-superseded" | "would-cycle"
+
+/// description: Domain refusals of `createRequires`.
+/// normative: There is deliberately NO `would-cycle`: a cycle through distinct Constraint identities is
+/// normative: ALLOWED in the Requires family (§1.4), so it is not an error here.
+type RequiresError = "ineligible-endpoints" | "self-link"
+
+/// description: Domain refusals of `createDefines`.
+/// normative: `already-defined` — the child already has a live incoming Defines-family edge; it refuses even
+/// normative: from the same parent. `would-cycle` — the edge would close a cycle in the defining tree, which
+/// normative: Defines forbids even though its Requires parent permits cycles.
+type DefinesError = "ineligible-endpoints" | "self-link" | "already-defined" | "would-cycle"
+
+/// description: Domain refusals of `createSubjectTo`.
+/// normative: `source-lacks-ownership` — the source bead's installed type and authoritative writer do not
+/// normative: declare that it may be the SOURCE of this family (the CLI's "missing source ownership support",
+/// normative: whose name this keeps). It is PARTICIPATION support, not the lapsed revision rule (§1.4):
+/// normative: endpoint eligibility does NOT confer it, so this is a refusal and not a silent acceptance.
+/// normative: `ineligible-endpoints` covers a target outside Constraint.
+type SubjectToError = "ineligible-endpoints" | "self-link" | "source-lacks-ownership"
+
+/// description: Create a References edge from a bead to useful context. (`memory/reference`.)
+/// normative: Neither endpoint's revision changes (§1.4). Parallel edges are allowed and equal endpoints
+/// normative: on separate calls do NOT deduplicate, so a repeat call creates a SECOND edge rather than
+/// normative: upserting the first. Both endpoints stay in one scope under the current proposal.
+/// cli.name: "reference"
+command createReference(
+    /// cli.positional: 0
+    source:  ref<Bead>,
+    /// cli.positional: 1
+    target:  ref<Bead>,
+    title?:  string { minLength: 1 },
+    body?:   markdown { minLength: 1 },
+    status?: string { minLength: 1 }
+  ) -> Result<rep<References>, ReferenceError>
+
+/// description: Retire a Memory in favour of a replacement — creates the SupersededBy edge from the old memory to the new. (`memory/supersede`.)
+/// normative: `old` is the retiring memory and `new` its replacement, which may be any Memory subtype. Both
+/// normative: are floating selections. Retirement leaves `old` readable, deletes nothing, approves nothing,
+/// normative: sets no status and rewrites no applicability declarations.
+/// cli.name: "supersede"
+command supersedeMemory(
+    /// cli.positional: 0
+    old:     ref<Memory>,
+    /// cli.positional: 1
+    new:     ref<Memory>,
+    title?:  string { minLength: 1 },
+    body?:   markdown { minLength: 1 },
+    status?: string { minLength: 1 }
+  ) -> Result<rep<SupersededBy>, SupersedeError>
+
+/// description: Declare that the source Constraint depends on the target — creates the Requires edge. (`memory/requires`.)
+/// normative: States necessity only. It does not execute either constraint, prove satisfaction, or make the
+/// normative: target a defining child. The target stays independently maintained.
+/// cli.name: "requires"
+command createRequires(
+    /// cli.positional: 0
+    source:  ref<Constraint>,
+    /// cli.positional: 1
+    target:  ref<Constraint>,
+    title?:  string { minLength: 1 },
+    body?:   markdown { minLength: 1 },
+    status?: string { minLength: 1 }
+  ) -> Result<rep<Requires>, RequiresError>
+
+/// description: Make the parent Constraint the defining parent of the child — creates the Defines edge. (`memory/defines`.)
+/// normative: `parent` is the source and asserts the edge; `child` is the target and keeps its own identity,
+/// normative: type, properties and history. Defining children does not assert that they exhaust the parent's
+/// normative: obligations — the parent's own body still applies.
+/// cli.name: "defines"
+command createDefines(
+    /// cli.positional: 0
+    parent:  ref<Constraint>,
+    /// cli.positional: 1
+    child:   ref<Constraint>,
+    title?:  string { minLength: 1 },
+    body?:   markdown { minLength: 1 },
+    status?: string { minLength: 1 }
+  ) -> Result<rep<Defines>, DefinesError>
+
+/// description: Declare that a Constraint applies to a subject bead — creates the SubjectTo edge from the subject. (`memory/subject-to`.)
+/// normative: `subject` is the source and the asserting end. The declaration neither executes the constraint nor
+/// normative: establishes compliance, and it does not change issue readiness or scheduling.
+/// cli.name: "subject-to"
+command createSubjectTo(
+    /// cli.positional: 0
+    subject:    ref<Bead>,
+    /// cli.positional: 1
+    constraint: ref<Constraint>,
+    title?:     string { minLength: 1 },
+    body?:      markdown { minLength: 1 },
+    status?:    string { minLength: 1 }
+  ) -> Result<rep<SubjectTo>, SubjectToError>
+
+// -----------------------------------------------------------------------------
+// §2.E  Claim authoring — out of scope here
+// -----------------------------------------------------------------------------
+// The Conformance family (§1.4) has no authoring command in this pack. That is the
+// CLI specification's own boundary — "Assessment authoring, evaluation/claim
+// commands … are outside this companion" — and `specs/deferred.md`
+// (MEM-MECHANICS) defers Memory's concrete query/CLI design to the Memory and
+// shared Core/Types/Write owners, after Callable AND Package. The edges are
+// MODELLED above because the model is what Principle 1 derives commands from; the
+// commands that write them are a separate design pass. Creating one meanwhile is
+// the generic `create` over the relationship type (§2.A).
+
+// #############################################################################
+// Appendix. What the edge-resource ruling changed
+// #############################################################################
+// Recorded because it is a NORMATIVE model change, not a refactor, and a reviewer
+// should be able to see its extent without diffing two drafts.
+//
+//   1. Principle 3 inverted. "Relationships are refs; there is no Link" became
+//      "relationships are edge resources". The old principle was a pre-0.2.3
+//      leftover: `core.lumen` already carried `rel<F, T> is Bead { source, target }`
+//      and issue.lumen already modelled `Dependency` as an edge.
+//
+//   2. Five ref properties removed, replaced by six relationship types (§1.4) and
+//      `computed` projections (§1.1, §1.2, §1.3):
+//        Memory.references    → References edge     + computed references
+//        Memory.supersededBy  → SupersededBy edge   + computed supersededBy
+//        Constraint.requires  → Requires edge       + computed requires / defines
+//        Constraint.definedBy → Defines edge        + computed definedBy (INCOMING)
+//        Constraint.appliesTo → SubjectTo edge      + NO projection on this end
+//
+//   3. Two relationship DIRECTIONS corrected against the authority's ownership
+//      table. Each was stored on the end that does not assert the relationship:
+//        `appliesTo` put the subject list on the CONSTRAINT, so the constraint
+//        carried a declaration made about it by someone else. The authority: every
+//        source bead asserts its outgoing SubjectTo. Hence `SubjectTo`'s source is
+//        the SUBJECT, and the constraint end is a pure reverse lookup — the
+//        `subjects` read (§2.C), not a field.
+//        `definedBy` put the defining-parent pointer on the CHILD, so the child
+//        carried its parent's decomposition choice. The authority: the parent
+//        asserts its outgoing Defines. Hence `Defines`' source is the PARENT, and
+//        `definedBy` survives only as an incoming projection.
+//      The table's ownership column ALSO carried a revision consequence ("its
+//      revision includes…"). That part did not survive the ruling — see item 6 —
+//      but the directions it fixes are unaffected, because which end asserts is
+//      what makes `source`/`target`, `acyclic` and `unique` meaningful at all.
+//
+//   4. Conformance stopped being a bead. It was `is Bead` with `constraint` and
+//      `evaluation` ref properties; those two properties ARE the edge's endpoints,
+//      so it is now `abstract type Conformance is References rel<Evaluation,
+//      Constraint>` carrying the authority's `evidence`.
+//
+//   5. §2.D's five creation commands became ordinary `command`s, and
+//      `GraphEdge.edge` (§2.C) acquired a value to report.
+//
+//   6. The authority's SOURCE-OWNED REVISION rule lapsed (§1.4). It held that
+//      writing a relationship revises its source; that was true of the pre-0.2.3
+//      model, where the relationship was a property OF the source, and it did not
+//      survive the model's replacement. A relationship now revises itself, and
+//      Memory matches issue.lumen's `Dependency`. Core's `rel<F, T>` needs no
+//      ownership modifier. Propagation runs the other way instead: `source`/
+//      `target` are STRUCTURAL, so a scope cascades or restricts an endpoint's
+//      retirement (core.lumen §1.7), and `forgetMemory`'s `has-incident-links` is
+//      the restrict arm.
+//
+// Q1, Q2 and Q7 are closed. Q3 is answered in the TYPE — `subjects` is
+// `set<pinned<resource>>` — and what remains of it is a generator erasure gap, not
+// a spec gap (§1.3). Q4, Q5 and Q6 remain open and are untouched.
