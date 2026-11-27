@@ -3569,14 +3569,28 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// So the citation dangles only HERE, which is a defect in this tree -- a cross-repo path that
 /// resolves nowhere in the repo quoting it -- and not evidence about the ruling.
 ///
-/// AND THE ONE FACT THAT MAKES THIS A REVISIT RATHER THAN A STANDOFF, dated rather than argued:
-/// the approval landed 2026-11-14 (`2b493b98`, "Donna-approved"). D.8's statable-decline line --
-/// "in an operation's vocabulary and advertised false is a decline it can state", which is the
-/// entire ground the newer ruling reasons from -- landed in core.lumen on 2026-11-24, TEN DAYS
-/// LATER (`96c21581`). Section 7 rejected `400` for being "too generic to key reactions on", and
-/// at the time it was: no dedicated code existed at 400 for this condition. One now does
-/// (`invalid-parameter`). So the ground for rejecting the alternative has moved since the
-/// alternative was rejected.
+/// AND THE ONE FACT THAT MAKES THIS A REVISIT RATHER THAN A STANDOFF -- stated carefully, because
+/// my first version of it was dated, confident and WRONG IN ITS MECHANISM. A peer caught it.
+///
+/// Approval `2b493b98`: 2026-11-14T07:28Z. D.8's statable-decline line (`96c21581`): 2026-11-24.
+/// (The approval is 2026-11-13 23:28 PST -- 32 minutes before midnight -- which is why she dated
+/// it 11-13 and I dated it 11-14. Same instant, unstated frame; a date is a coordinate too, and
+/// this one sits half an hour from flipping. Give the timestamp, not the interval.)
+///
+/// WHAT I CLAIMED: that section 7 rejected `400` because no dedicated code existed at 400 for this
+/// condition, and one does now -- which reads as `invalid-parameter` being NEW. It is not. First
+/// appearance of the string: 2026-11-16 in `core.lumen`, 2026-10-15 across `specs/`, 2026-08-28 in
+/// the repo. It predates the approval by two and a half months. The 11-16 date -- three days after
+/// the approval, exactly what the argument needed -- is an artefact of `core.lumen` being the newer
+/// Lumen-ified file, not of the code being new. ONE FILE IS A COORDINATE, NOT A POPULATION, and
+/// each widening moved the date earlier.
+///
+/// WHAT ACTUALLY CHANGED, which is narrower and still sufficient: not the code's existence but the
+/// RULE ASSIGNING IT. Before 2026-11-24 nothing specified `400` for an advertised-false option;
+/// D.8's clause does. Section 7's objection was that `400` is "too generic to key reactions on",
+/// and a rule that makes 400 the specified answer HERE answers that objection -- the code merely
+/// existing never would have. So the ground for rejecting the alternative moved after the
+/// alternative was rejected, by assignment rather than by invention.
 /// That also composes without loss, which is why it is worth putting this way: a genuine numeric
 /// bound keeps `limit-exceeded` at 422 WITH its `capability`/`limit` fields naming the bound --
 /// everything section 7 wanted -- and advertised-false takes `invalid-parameter` at 400. Each gets
