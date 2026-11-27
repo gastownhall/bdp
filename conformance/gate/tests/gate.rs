@@ -3120,19 +3120,43 @@ async fn pull_with_an_invalid_limit_400(r: &RemoteScope, host: &str) -> Result<V
 /// passes every existing `format` arm, because no case asks the one op where `sse` is legal. Those
 /// refusals prove `sse` is rejected somewhere; only this proves it is rejected for the right reason.
 ///
-/// THREE OUTCOMES, ALL REACHABLE, AND ONLY ONE HONEST:
-///   - `200` + a page: the rc2 silent substitution. The caller asked for a live stream and got a
-///     window, with nothing on the wire saying the transport was swapped.
-///   - `400 invalid-parameter`: the SNAPSHOT answer, applied to the op the spec exempts by name.
-///     This is what a binding that reused `refuse_format` uniformly would return.
-///   - `501 not-implemented`: the honest stub. The transport is recognised and declined.
+/// WHAT THIS CASE PINS IS CURRENT BEHAVIOUR, AND CURRENT BEHAVIOUR IS WRONG. Read this before
+/// citing it: the `501` below is a regression pin on a frozen wire, not a conformant answer.
 ///
-/// CLAIMS NO ROW, and the reason is a question I am NOT ruling: `501` is not among `pull`'s declared
-/// faults (`[400,404,405,410]`). A plausible ruling -- that `not-implemented` is a protocol-level
-/// status no op enumerates, as `500` is -- would make this behaviour correct exactly as it stands,
-/// so it is evidence for a question rather than a defect to fix here.
-/// CLOSES WHEN: Donna rules whether `501` is declared per-op or protocol-wide. Per-op, `pull` gains
-/// a `501` row and this case claims it; protocol-wide, this note goes and the assertion is unchanged.
+/// The first version of this comment weighed three outcomes and chose `501` as "the honest stub",
+/// rejecting `400 invalid-parameter` as "the SNAPSHOT answer, applied to the op the spec exempts by
+/// name". That rejection was right about the route and wrong about the destination. There is a
+/// SECOND route to `400` that it never considered, and it is the one that applies:
+///
+///   - [[core.lumen#PullCaps]] (main, :1712-1721) carries `sse: bool`, `jsonl: bool`, `filter` and
+///     `selector`. So `sse` is IN `pull`'s capability vocabulary -- not an exemption from a
+///     snapshot rule, a capability this op advertises.
+///   - `InMemScope` advertises `PullCaps { sse: false, jsonl: false, .. }`.
+///   - D.8 (:2057-2062): "in an operation's vocabulary and advertised false is a decline it can
+///     state, outside its vocabulary is malformed. Both `malformed-request` and `invalid-parameter`
+///     resolve here" -- at `400`.
+///
+/// So an advertised-false transport is a STATABLE DECLINE: `400 invalid-parameter`. That is the
+/// same reasoning the spec owner ruled for `ExportCaps.selector`, and she extended it in the same
+/// breath to "`get`/`list`/`pull`'s selector-false by the shared register rule". `PullCaps.sse`
+/// needs no new ruling and, unlike `ExportCaps.selector`, it already exists on main.
+///
+/// I rejected `400` because of a reason I imagined for it rather than the reason that applied.
+///
+/// AND THE BINDING HAS IT INVERTED, which is the tell this is a defect and not a choice. In
+/// `do_pull`'s one `match`: an UNKNOWN token (out of vocabulary) answers `400 invalid-parameter`,
+/// while `jsonl` and `sse` (in vocabulary, advertised false) answer `501`. D.8 puts the statable
+/// decline at `400` and the out-of-vocabulary input at malformed -- so the harsher, undeclared
+/// status is going to the two cases with the gentler answer, and both arms are wrong in opposite
+/// directions. The `jsonl` arm carries the same defect for the same reason.
+///
+/// CLAIMS NO ROW: `501` is not among `pull`'s declared faults (`[400,404,405,410]`), and on the
+/// correct answer it would claim `op/pull/fault/400`, which is already covered.
+/// NOT FIXED HERE: the core wire is frozen at 0.2.3-rc1 and this changes two arms of a live
+/// response. CLOSES WHEN: post-freeze, both arms answer `400 invalid-parameter` and this case
+/// asserts that instead. The separate question of whether `501` is declared per-op or
+/// protocol-wide survives for the paths where `501` is still right -- see
+/// `http_problem_codes::HTTP_CODES_WITHOUT_A_REGISTER_ENTRY`, entry `not-implemented` (b).
 async fn pull_is_the_one_read_that_admits_sse(
     r: &RemoteScope,
     host: &str,
