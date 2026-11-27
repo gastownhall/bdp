@@ -107,6 +107,24 @@ pub const HTTP_CODES_WITHOUT_A_REGISTER_ENTRY: &[(&str, &str)] = &[
          `where` is entangled with the 0.2.4 filter-model question (per-op `PullCaps.filter` vs \
          scope-wide `ListCaps.conditions` vs `ExportCaps` having no filter field at all), so its \
          code cannot be settled before that model is. \
+         AND (b) MAY NOT BE 400 AT ALL -- TWO NORMATIVE LINES COLLIDE ON THIS EXACT CELL, which \
+         #460 makes visible without creating. The scope of `capability-not-supported` is stated \
+         three ways: `un-offered PRIMITIVE` (:993, :1573, :1615), `un-offered CAPABILITY` (:2153), \
+         and, in #460's rewritten 405 row, `any un-offered primitive or FEATURE (an un-offered \
+         capability is declined here, never 501)`. An advertised-false `selector` or `sse` is a \
+         capability FIELD, so the broader two readings reach it -- at 405. D.8's 400 line \
+         (:2057-2062) reaches the same cell at 400 `invalid-parameter`, and that is what the spec \
+         owner ruled for `ExportCaps.selector`. Both lines are normative and they disagree on the \
+         STATUS. \
+         THE SCOPING THAT HONOURS BOTH RATIONALES, offered as a reading and not a ruling: the 405 \
+         rationale is that the caller CANNOT fix the request -- the operation is not available \
+         here, which is what 405 means. The 400 rationale is the owner's own words, that `the \
+         capability is advertised, so a client reads it and omits select rather than being \
+         refused` -- i.e. the caller CAN fix the request. So the line falls on FIXABILITY: \
+         primitive absent -> 405; an option declined on a primitive that IS offered -> 400. #460's \
+         `or feature` cuts across that, and #460 merges FIRST. \
+         THIS BLOCKS NOTHING HERE and is not ours to rule, but it does gate the five-part \
+         `select` -> `invalid-parameter` change: if `feature` carries, that change is 405, not 400. \
          (c) 10 sites -- a `None` arm on `res.value`, which sits AFTER the `not_implemented` guard \
          in the same match and is therefore reachable ONLY when `not_implemented == false`. The \
          scope has just claimed it implements the primitive and returned no value. Answering \
