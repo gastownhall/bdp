@@ -1426,6 +1426,12 @@
       "reason": "Canonical reference, SDK or CLI boundary; not arbitrary-provider conformance."
     },
     {
+      "path": "scripts/wire-discrimination.node-test.mjs",
+      "runner": "node",
+      "lane": "current",
+      "reason": "Discrimination evidence (checker catches a broken optional wire behaviour) plus Chris Sells's compactFilter regression, preserved census-independent when the v02-provider-kit clause-census was retired (adbbdb20)."
+    },
+    {
       "path": "scripts/check-spec-editorial-test.py",
       "runner": "python",
       "lane": "artifact",
