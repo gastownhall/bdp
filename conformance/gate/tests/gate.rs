@@ -2023,12 +2023,31 @@ async fn import_truncated_stream_400(host: &str) -> Result<Vec<SurfaceId>, Strin
 
 /// A request that is not `application/jsonl` → 400. Claims the SAME row as the truncation case.
 ///
-/// `400` RATHER THAN `415`, decided by the declared fault set and not by analogy: `import` declares
-/// `[400, 409, 422]` and names no 415, while `patch` declares 415 and gets it. Answering 415 here
-/// would put a status on the wire that no denominator row carries, which is worse than a coarse
-/// one. rc2 (#448) is what makes this checkable at all — it added the
-/// `request = { contentType = "application/jsonl" }` core.lumen was missing, so there is now one
-/// acceptable type instead of a lenient reading.
+/// `400` IS THIS SUBJECT'S CHOICE, NOT A RULING — and the reason this case used to give is refuted.
+///
+/// It read: "decided by the declared fault set — `import` declares `[400, 409, 422]` and names no
+/// 415". That treats `problem = { status = [...] }` as a CLOSED set, and it is not one. A peer
+/// constructed the contradiction instead of searching for a clause, which is why it settles:
+///   - D.8's own 405 row (core.lumen:2084) requires "patch where a Scope offers no patch";
+///   - `patch`'s declared set (core.lumen:1134) is `[400,404,409,410,412,415,422]` — NO 405;
+///   - core.lumen:1615 is normative that an un-offered primitive is refused
+///     `capability-not-supported`, which D.8 binds to 405.
+/// If declared sets were closed, a scope OBEYING 1615 would be non-conformant for obeying it. They
+/// are what the generated OpenAPI enumerates — the annotation is literally `openapi = {...}` — and
+/// D.8's last row is an explicit catch-all: "4xx/5xx any fault ... carried at the Problem's own
+/// status".
+///
+/// The second clause was weaker than it looked too: "answering 415 would put a status on the wire
+/// that no denominator row carries" is a cost to THIS INSTRUMENT, not evidence about the spec, and
+/// it should not be what decides wire behaviour. Choosing the subject's answer so the gate can see
+/// it is backwards.
+///
+/// SO WHAT THIS CASE IS: a regression pin on THIS subject's answer, not a normative verdict. A
+/// conformant implementation may answer 415 here — the cleanroom does — and this case would fail
+/// it, which is why it must not be cited as a conformance result against another implementation
+/// until the choice is ruled. `import` carries `request = { contentType = "application/jsonl" }`
+/// with no 415 in its fault set, so "should import declare 415?" is a live question for the spec
+/// owner. rc2 (#448) added that `contentType`, which is what makes the media type checkable at all.
 async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     match raw_status(host, "POST", "/-/import", ctype("application/json"), b"[]").await? {
         400 => Ok(vec![fault("import", 400)]),
@@ -3525,6 +3544,16 @@ async fn run_cases(addr: String, restricted_addr: String) {
     eprintln!("denominator source: specs/generated/openapi/core.openapi.json (live, drift-gated)");
     eprintln!("surface: {} rows, derived at run time, not pinned here", denom.len());
     eprintln!("coverage: {}/{} surface rows", covered_in_denom.len(), denom.len());
+    // WHAT THIS RATIO IS NOT. The denominator is the faults the generated OpenAPI DECLARES. The
+    // spec also REQUIRES statuses that no declared set carries: D.8's 405 row (core.lumen:2084)
+    // demands "patch where a Scope offers no patch", `patch` declares no 405, and core.lumen:1615
+    // makes the refusal normative via `capability-not-supported`. Such a row cannot enter this
+    // denominator, so no case can claim it and a full ratio would not report it.
+    // 51/51 would therefore mean "every DECLARED fault is exercised", never "conformant".
+    eprintln!(
+        "  NB: declared faults only — the spec requires statuses outside this set (e.g. patch/405 \
+         per D.8:2084 + core.lumen:1615), which no row here can carry"
+    );
     let mut covered_sorted: Vec<&SurfaceId> = covered_in_denom.iter().copied().collect();
     covered_sorted.sort();
     eprintln!("  covered: {}", render(&covered_sorted));

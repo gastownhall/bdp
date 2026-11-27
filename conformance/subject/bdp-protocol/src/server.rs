@@ -389,9 +389,12 @@ impl<S: BdpScope> Server<S> {
     /// `POST /{channel}/-/push` — append events to a channel.
     ///
     /// `application/jsonl` IS FIXED on the request, exactly as on `import`: core.lumen#push carries
-    /// `request = { contentType = "application/jsonl" }`. A wrong media type is `400` and not `415`
-    /// for the same reason as import — `push` declares `[405, 409, 422]` and names no 415, so
-    /// answering one would put a status on the wire that no denominator row carries.
+    /// `request = { contentType = "application/jsonl" }`. A wrong media type is `400` here, and the
+    /// reason this comment used to give — "`push` declares `[405, 409, 422]` and names no 415" —
+    /// is REFUTED: declared sets are not closed. D.8's 405 row requires a 405 from `patch`, whose
+    /// declared set has none, so a closed reading would make obedience non-conformant. See
+    /// `import_wrong_media_type_400` in the gate for the full construction. The `400` stands as
+    /// this binding's unruled choice, not as a conclusion from the declaration.
     async fn do_push(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
         const JSONL: &str = "application/jsonl";
         let media_type = req

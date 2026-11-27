@@ -88,12 +88,27 @@ pub const HTTP_CODES_WITHOUT_A_REGISTER_ENTRY: &[(&str, &str)] = &[
     ),
     (
         "not-implemented",
-        "1 site, 501 (`unmapped`, for a primitive or transport this binding declines). D.8 has no \
-         501 row at all -- only the `4xx/5xx any fault` catch-all -- so neither the status nor the \
-         code is declared. The gate's `pull format=sse` case ASSERTS this code, so a case of ours \
-         currently pins an unregistered spelling; that is recorded there too. \
-         CLOSES WHEN: Donna rules whether 501 is declared per-op or protocol-wide (the same \
-         ruling that case waits on), and D.9 gains the code if it is to be branched on.",
+        "1 site by spelling, ~16 reachable paths, 501 (`unmapped`). TWO DIFFERENT THINGS WERE \
+         CONFLATED HERE, and only one is an open question. \
+         (a) AN UN-OFFERED PRIMITIVE. `unmapped` answers every \
+         `Ok(res) if res.not_implemented` arm -- get, list, put, patch, delete, create, pull, \
+         push, import, export, revisions, call, cancel, apply, resolve_alias -- and \
+         `BdpResult::not_implemented` is exactly \"this scope does not support this primitive\". \
+         The spec ANSWERS that case and we do not match it: core.lumen:1615 is normative that a \
+         request needing an un-offered primitive is refused `capability-not-supported`, and D.8 \
+         binds that code to 405 (:2084, which names `patch where a Scope offers no patch` by \
+         name). So this is a conformance gap, not a missing register entry -- a REGISTERED code \
+         (`capability-not-supported`) at a REQUIRED status, and this subject emits that code \
+         nowhere at all. It is invisible to the gate three ways: 405 is absent from patch's \
+         declared set so no denominator row can carry it, the 501 spelling is unregistered, and \
+         the `pull format=sse` case pins the 501 as correct. NOT FIXED HERE: the core wire is \
+         frozen at 0.2.3-rc1, and this changes wire behaviour on ~16 paths. \
+         CLOSES WHEN: the un-offered-primitive refusal becomes 405 `capability-not-supported`, \
+         post-freeze. \
+         (b) AN UN-OFFERED TRANSPORT (`pull format=sse`). 1615 governs PRIMITIVES, and a \
+         transport is not one, so (a)'s answer does not reach it. That one stays genuinely open. \
+         CLOSES WHEN: Donna rules whether 501 is declared per-op or protocol-wide, and D.9 gains \
+         a code if it is to be branched on.",
     ),
 ];
 
