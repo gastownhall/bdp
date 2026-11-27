@@ -3548,9 +3548,30 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// stands. If this list condemned every 422 it would be a blanket, not a classification; one
 /// surviving 422 is what shows the line was drawn by the ruling rather than by the status.
 ///
-/// CLOSES WHEN: post-freeze, each site answers 400 `invalid-parameter` and the case is rewritten to
-/// assert that -- at which point the row's declared 422 needs a REAL bound condition to be covered
-/// at all, or a ruling on whether these ops declare a 422 that anything can reach.
+/// AND THE REACHABILITY QUESTION IS ANSWERED, MEASURED: none of these four rows has a reachable
+/// 422 producer in Core, so rewriting the cases cannot recover them. The complete population of
+/// numeric fields across every `*Caps` record in core.lumen is FOUR, and only one of them faults:
+///   `PushCaps.maxBatch`   (:1785) -- "fixed by shrinking the request"      -> 422. THE ONLY ONE.
+///   `PushCaps.window`     (:1787) -- backpressure, "not an error" (:688)   -> no fault
+///   `ImportCaps.window`   (:1778) -- backpressure, "not an error" (:1532)  -> no fault
+///   `ListCaps.maxLimit`   (:1703) -- "returns maxLimit items + a resume cursor, NEVER" (:622)
+///                                                                          -> silently capped
+/// `CreateCaps`, `PutCaps` and `PatchCaps` carry no numeric field at all, and `ImportCaps`' only
+/// one is soft backpressure. `ScopeCapabilities` has none either, so D.8's other 422 producer --
+/// "a guard past a scope limit" -- names no advertised carrier anywhere; that phrase is itself a
+/// gap, since D.8 says the one request-context max it alludes to "has no capability field to carry
+/// it".
+///
+/// I nearly reported `import/422` as RECOVERABLE via `ImportCaps.window`, on the reasoning that a
+/// numeric field can be exceeded. Reading what a breach of it MEANS stopped that: it is declared
+/// soft and not an error. A numeric type is not a faulting bound, and the comfortable answer here
+/// was the wrong one.
+///
+/// CLOSES WHEN: post-freeze, each site answers 400 `invalid-parameter`; and SEPARATELY, the spec
+/// owner rules whether `create`/`put`/`patch`/`import` should declare a 422 at all, since nothing
+/// in Core can currently produce one for them. That is a denominator question for four rows, not a
+/// case-writing one -- if they are undeclared, the surface drops to 47 and these rows leave the
+/// grid rather than sitting uncovered in it.
 const COVERED_BY_A_RULED_WRONG_STATUS: &[(&str, &str)] = &[
     ("op/create/fault/422", "`clientProposedId: bool` advertised false (CreateCaps). A boolean, not a bound."),
     ("op/put/fault/422", "`ifRevision` / `ifAbsent: bool` advertised false (PutCaps). Booleans, not bounds."),
