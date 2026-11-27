@@ -3531,6 +3531,33 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
     ("put", 400),
 ];
 
+/// Rows whose ONLY covering case asserts a status the 2026-11-27 ruling makes WRONG.
+///
+/// The ruling: `limit-exceeded` (422) is for a request exceeding a STATIC CAPABILITY BOUND, fixed
+/// by SHRINKING the request -- stated four times on main (core.lumen:688, :1532, :2060, :2082). An
+/// advertised-false BOOLEAN option on an offered primitive is 400 `invalid-parameter`; a primitive
+/// absent is 405 `capability-not-supported`. The three are disjoint.
+///
+/// Every row below is covered by a case that drives an advertised-false BOOLEAN and asserts
+/// `(422, limit-exceeded)`. The case passes -- the frozen subject really does answer that -- so the
+/// mechanical ratio counts the row. But coverage through a path the ruling misclassifies is not
+/// coverage of the declared fault, so the honest figure subtracts them.
+///
+/// THE DISCRIMINATOR IS `op/push/fault/422`, DELIBERATELY ABSENT. Its case drives a batch of 5
+/// against `maxBatch: 4` -- a numeric bound, shrinkable, so 422 is correct there and the row
+/// stands. If this list condemned every 422 it would be a blanket, not a classification; one
+/// surviving 422 is what shows the line was drawn by the ruling rather than by the status.
+///
+/// CLOSES WHEN: post-freeze, each site answers 400 `invalid-parameter` and the case is rewritten to
+/// assert that -- at which point the row's declared 422 needs a REAL bound condition to be covered
+/// at all, or a ruling on whether these ops declare a 422 that anything can reach.
+const COVERED_BY_A_RULED_WRONG_STATUS: &[(&str, &str)] = &[
+    ("op/create/fault/422", "`clientProposedId: bool` advertised false (CreateCaps). A boolean, not a bound."),
+    ("op/put/fault/422", "`ifRevision` / `ifAbsent: bool` advertised false (PutCaps). Booleans, not bounds."),
+    ("op/patch/fault/422", "`ifRevision: bool` advertised false (PatchCaps). A boolean, not a bound."),
+    ("op/import/fault/422", "`historyRestore: bool` advertised false (ImportCaps). A boolean, not a bound; its case cites core.lumen:1626's dual clause verbatim."),
+];
+
 /// A subject that ADVERTISES every primitive and IMPLEMENTS none. `get` is the one mandatory trait
 /// method, so it answers the not-implemented signal explicitly; everything else falls through to the
 /// trait default, which does the same. Advertising the full set is the point: it makes the subject
@@ -3609,6 +3636,40 @@ async fn run_cases(addr: String, restricted_addr: String) {
         "  NB: declared faults only — the spec requires statuses outside this set (e.g. patch/405 \
          per D.8:2084 + core.lumen:1615), which no row here can carry"
     );
+    // AND THE HONEST FIGURE, which is lower than the mechanical one. See
+    // `COVERED_BY_A_RULED_WRONG_STATUS`: four rows are covered only by cases asserting 422 for an
+    // advertised-false boolean, which the ruling makes 400. The cases pass against the frozen
+    // subject, so the ratio above counts them; coverage through a misclassified path is not
+    // coverage of the declared fault.
+    let disputed: BTreeSet<String> =
+        COVERED_BY_A_RULED_WRONG_STATUS.iter().map(|(r, _)| r.to_string()).collect();
+    let covered_names: BTreeSet<String> =
+        covered_in_denom.iter().map(|r| r.to_string()).collect();
+    let stale: Vec<&String> = disputed.difference(&covered_names).collect();
+    assert!(
+        stale.is_empty(),
+        "COVERED_BY_A_RULED_WRONG_STATUS names {} row(s) that are no longer covered at all: {:?}. \
+         The entry is a false claim — if the case was rewritten or removed, settle the entry in the \
+         same change.",
+        stale.len(),
+        stale
+    );
+    assert!(
+        !disputed.contains("op/push/fault/422"),
+        "`op/push/fault/422` must NOT be listed: its case drives a batch over `maxBatch`, a real \
+         numeric bound, so 422 is correct there. Listing it would make this register a blanket \
+         condemnation of 422 rather than a classification."
+    );
+    eprintln!(
+        "HONEST coverage: {}/{} — {} row(s) subtracted, covered only via a status the ruling \
+         makes wrong (advertised-false boolean asserted as 422):",
+        covered_in_denom.len() - disputed.len(),
+        denom.len(),
+        disputed.len()
+    );
+    for (row, why) in COVERED_BY_A_RULED_WRONG_STATUS {
+        eprintln!("    - {row}: {why}");
+    }
     let mut covered_sorted: Vec<&SurfaceId> = covered_in_denom.iter().copied().collect();
     covered_sorted.sort();
     eprintln!("  covered: {}", render(&covered_sorted));
