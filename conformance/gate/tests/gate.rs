@@ -3551,12 +3551,36 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// covers advertised-false booleans, not merely over-bound requests. A peer found the same conflict
 /// in her tree first; mine is the same shape.
 ///
-/// TWO THINGS WEAKEN THAT ATTRIBUTION AND NEITHER SETTLES IT. It cites
-/// `bdp-protocol/LIMIT-EXCEEDED.md` as its record, and THAT FILE DOES NOT EXIST anywhere in this
-/// repository -- a path makes a claim read as grounded whether or not it resolves. And this fleet
-/// shares one account, so "Donna-ruled" in a comment is self-asserted body text, never account
-/// attestation. But an unverifiable attribution is not a refuted one, and governance is hers
-/// either way.
+/// THE RECORD EXISTS -- IN THE OTHER REPOSITORY -- AND I HAD THAT WRONG. The doc cites
+/// `bdp-protocol/LIMIT-EXCEEDED.md`, which has never existed in THIS repository (not in the tree,
+/// not in any branch's history). I reported that as "the cited record does not exist", which was
+/// true of this repo and false as a claim about the attribution: a peer found it at
+/// `crates/bdp-protocol/LIMIT-EXCEEDED.md` in `donnabox/bdp-rs`, and I then read it there myself
+/// rather than taking her quotes. 125 lines, and it resolves:
+///   - line 3 and section 6: "Status: APPROVED by Donna", "Donna ruled: APPROVED (shape =
+///     `BdpError` variant; wire = `422` + `limit-exceeded`)".
+///   - section 1 lists the cases BY NAME, the disputed cell among them: "a `selector` supplied
+///     when the advertised cap is `selector:false`", and "a `list` condition kind not in the
+///     advertised `conditions` set".
+///   - section 7, Alternatives considered: "`400` / `413` as the status. `400` is too generic to
+///     key reactions on ... A dedicated `code` at `422` covers all limit kinds uniformly."
+/// So `400` was on the table, by name, and was REJECTED in an approved decision that covers this
+/// cell explicitly. The newer ruling does not fill a gap; as relayed it reverses a considered call.
+/// So the citation dangles only HERE, which is a defect in this tree -- a cross-repo path that
+/// resolves nowhere in the repo quoting it -- and not evidence about the ruling.
+///
+/// AND THE ONE FACT THAT MAKES THIS A REVISIT RATHER THAN A STANDOFF, dated rather than argued:
+/// the approval landed 2026-11-14 (`2b493b98`, "Donna-approved"). D.8's statable-decline line --
+/// "in an operation's vocabulary and advertised false is a decline it can state", which is the
+/// entire ground the newer ruling reasons from -- landed in core.lumen on 2026-11-24, TEN DAYS
+/// LATER (`96c21581`). Section 7 rejected `400` for being "too generic to key reactions on", and
+/// at the time it was: no dedicated code existed at 400 for this condition. One now does
+/// (`invalid-parameter`). So the ground for rejecting the alternative has moved since the
+/// alternative was rejected.
+/// That also composes without loss, which is why it is worth putting this way: a genuine numeric
+/// bound keeps `limit-exceeded` at 422 WITH its `capability`/`limit` fields naming the bound --
+/// everything section 7 wanted -- and advertised-false takes `invalid-parameter` at 400. Each gets
+/// a dedicated code; nothing section 7 argued for is given up. Still not ours to rule.
 ///
 /// SO THIS IS A CONFLICT TO SURFACE, NOT A DEFECT TO BOOK. Two readings of one cell, one of them
 /// attributed to the owner, and a subject authored to the older one. The figure below is printed
