@@ -586,3 +586,58 @@ async fn a_selector_is_refused_rather_than_dropped() {
         "export must still work with no selector"
     );
 }
+
+/// EVERY UNHONOURED READ OPTION IS REFUSED, and the capability it names depends on whether a flag
+/// exists to look up.
+///
+/// D.8:2076-2083 (merged) settles the status and code for all of these: an option IN the
+/// operation's vocabulary and unsupported declines `invalid-parameter`, whether it is advertised
+/// `false` or advertised at no granularity at all. The vocabulary is what decides, not the
+/// advertisement — which is why `pull`'s filter belongs here: `fn pull` takes
+/// `(channel, request: ReadRequest)` and `ReadRequest` carries `filter?` and `select?`, so both
+/// ride the signature transitively.
+///
+/// THE TWO CAPABILITY SHAPES ARE THE POINT. Where a caps field exists the refusal names
+/// `<op>.<field>` so a client can read it; where none does — `RevisionsCaps` is `{ }` — it names
+/// the bare op, because pointing at a field that does not exist is worse than pointing at nothing.
+#[tokio::test]
+async fn an_unhonoured_read_option_is_refused_and_names_what_a_client_can_look_up() {
+    let s = scope();
+    let id = ResourceId::head(Scope::This, Id("ro".into()));
+    s.put(id.clone(), body("Task", r#"{"a":1}"#), Guards::default()).await.unwrap();
+    let sel = Selector(RawJson(Bytes::from(br#"{"include":["/properties/a"]}"#.to_vec())));
+    let filt = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".into()]) }]);
+
+    // A caps field EXISTS for these, so the refusal names `<op>.<field>`.
+    match s.changes(Page::default(), None, Some(&sel)).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "changes.selector"),
+        other => panic!("changes must refuse a selector, got {other:?}"),
+    }
+    match s.changes(Page::default(), Some(&filt), None).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "changes.filter"),
+        other => panic!("changes must refuse a filter, got {other:?}"),
+    }
+
+    // NO caps field exists for `revisions.select` — `RevisionsCaps` is `{ }` — so the bare op.
+    match s.revisions(&id, Some(&sel), Page::default()).await {
+        Err(BdpError::InvalidParameter { capability, detail }) => {
+            assert_eq!(capability, "revisions", "no flag exists, so do not name one");
+            assert!(
+                detail.contains("no capability field advertises it"),
+                "the detail must say WHY it is unpredictable; got {detail}"
+            );
+        }
+        other => panic!("revisions must refuse a selector, got {other:?}"),
+    }
+
+    // AND THE OPS STILL WORK WITHOUT THE OPTION. Without this every assertion above is satisfied
+    // by a scope that refuses these reads outright.
+    assert!(
+        s.changes(Page::default(), None, None).await.is_ok(),
+        "changes must still work with no filter and no selector"
+    );
+    assert!(
+        s.revisions(&id, None, Page::default()).await.is_ok(),
+        "revisions must still work with no selector"
+    );
+}

@@ -815,15 +815,29 @@ fn text_of(v: &serde_json::Value) -> Option<String> {
 ///
 /// Defaulting an unadvertised op to `false` is the SAFE direction: refuse rather than silently
 /// decline to project.
+/// Whether a read option is advertised, and whether a flag for it EXISTS at all.
+///
+/// `None` means no caps field advertises this option on this op — `RevisionsCaps` is `{ }`, so
+/// nothing can advertise its `select`. D.8 (core.lumen:2076-2083, merged) covers that case
+/// explicitly: "a `select` on a read whose caps carry no `selector` … BDP deliberately does not
+/// advertise support at this sub-capability granularity … so a missing advertisement does not
+/// change the fault, only a client's ability to predict it". So `None` and `Some(false)` take the
+/// SAME status and code, and differ only in what the refusal can name.
+fn advertised_option(caps: &[PrimitiveCapabilities], op: &str, field: &str) -> Option<bool> {
+    caps.iter().find_map(|c| match (op, field, c) {
+        ("get", "selector", PrimitiveCapabilities::Get(x)) => Some(x.selector),
+        ("export", "selector", PrimitiveCapabilities::Export(x)) => Some(x.selector),
+        ("pull", "selector", PrimitiveCapabilities::Pull(x)) => Some(x.selector),
+        ("pull", "filter", PrimitiveCapabilities::Pull(x)) => Some(x.filter),
+        ("changes", "selector", PrimitiveCapabilities::Changes(x)) => Some(x.selector),
+        ("changes", "filter", PrimitiveCapabilities::Changes(x)) => Some(x.filter),
+        ("resolve", "selector", PrimitiveCapabilities::Resolve(x)) => Some(x.selector),
+        _ => None,
+    })
+}
+
 fn advertised_selector(caps: &[PrimitiveCapabilities], op: &str) -> bool {
-    caps.iter()
-        .find_map(|c| match (op, c) {
-            ("get", PrimitiveCapabilities::Get(x)) => Some(x.selector),
-            ("pull", PrimitiveCapabilities::Pull(x)) => Some(x.selector),
-            ("export", PrimitiveCapabilities::Export(x)) => Some(x.selector),
-            _ => None,
-        })
-        .unwrap_or(false)
+    advertised_option(caps, op, "selector").unwrap_or(false)
 }
 
 /// What a supplied selector gets, given what the scope ADVERTISES for that read.
@@ -837,6 +851,34 @@ fn advertised_selector(caps: &[PrimitiveCapabilities], op: &str) -> bool {
 /// dangerous one: returning full representations under a projection request, with a 200. Failing
 /// loudly makes a future flag flip a visible error instead of a silent lie. It is reachable and
 /// pinned by `the_true_arm_refuses_loudly_rather_than_lying` below.
+/// The refusal for a read option this scope does not honour.
+///
+/// `advertised: None` = no caps field exists for it, so `capability` carries the bare op: a client
+/// cannot look this one up, which is itself the signal. Same status and code either way, per
+/// D.8:2076-2083.
+fn option_refusal(advertised: Option<bool>, op: &str, field: &str) -> BdpError {
+    if advertised == Some(true) {
+        return BdpError::Backend(format!(
+            "{op} advertises `{field}: true`, but this subject implements no projection or \
+             stream filtering at all. Refusing loudly rather than returning an answer to a \
+             different request."
+        ));
+    }
+    BdpError::InvalidParameter {
+        capability: match advertised {
+            Some(false) => format!("{op}.{field}"),
+            _ => op.to_string(),
+        },
+        detail: match advertised {
+            Some(false) => format!("this scope advertises `{field}: false` on {op}"),
+            _ => format!(
+                "{op} does not honour `{field}`, and no capability field advertises it — \
+                 unsupported at a granularity BDP does not advertise (D.8:2076-2083)"
+            ),
+        },
+    }
+}
+
 fn selector_refusal(advertised: bool, op: &str) -> BdpError {
     if advertised {
         return BdpError::Backend(format!(
@@ -1337,8 +1379,18 @@ impl BdpScope for InMemScope {
     /// record, which I had never enumerated either. Her point generalises and this is the
     /// instance: a self-correction arrives with the credibility of having caught itself, so it
     /// gets less scrutiny than the assertion it replaces.
-    async fn changes(&self, page: Page, _filter: Option<&ListFilter>, _selector: Option<&Selector>)
+    async fn changes(&self, page: Page, filter: Option<&ListFilter>, selector: Option<&Selector>)
         -> Result<BdpResult<Vec<ChangeEvent>>, BdpError> {
+        // NO LONGER SILENT. The changefeed is `pull`'s (settled by the spec owner), so `pull`'s
+        // signature governs and both options are in vocabulary via `ReadRequest`.
+        let caps = BdpScope::capabilities(self);
+        if selector.is_some() {
+            return Err(option_refusal(advertised_option(&caps, "changes", "selector"), "changes", "selector"));
+        }
+        if filter.is_some_and(|f| !f.0.is_empty()) {
+            return Err(option_refusal(advertised_option(&caps, "changes", "filter"), "changes", "filter"));
+        }
+
         let store = self.store.read().unwrap();
         let after: u64 = match (&page.after, &page.from) {
             (Some(c), _) => std::str::from_utf8(&c.0)
@@ -1565,7 +1617,7 @@ impl BdpScope for InMemScope {
     /// that would cover it (an unsupported option answers a plain 400) but its text is not in, so
     /// picking a status here would be answering an unruled cell by editing. Recorded, held with
     /// `changes`, `revisions` and `resolve`.
-    async fn pull(&self, channel: &ResourceId, page: Page, _filter: Option<&ListFilter>, selector: Option<&Selector>)
+    async fn pull(&self, channel: &ResourceId, page: Page, filter: Option<&ListFilter>, selector: Option<&Selector>)
         -> Result<BdpResult<Vec<RawJson>>, BdpError> {
         let d = self.channel_descriptor(channel)?;
         let (direction, floor) = (d.direction, d.floor);
@@ -1587,6 +1639,15 @@ impl BdpScope for InMemScope {
         // two peers as the correct one.
         if selector.is_some() {
             return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "pull"), "pull"));
+        }
+        // THE FILTER IS IN `pull`'s VOCABULARY, which is the fact that decides this. `fn pull` takes
+        // `(channel, request: ReadRequest)` and `ReadRequest` carries `filter?: Filter` and
+        // `select?: selector` (core.lumen, merged), so both ride the signature transitively. D.8
+        // draws the line by VOCABULARY, not by advertisement — so a filter here is
+        // `invalid-parameter`, never `malformed-request`.
+        if filter.is_some_and(|f| !f.0.is_empty()) {
+            let caps = BdpScope::capabilities(self);
+            return Err(option_refusal(advertised_option(&caps, "pull", "filter"), "pull", "filter"));
         }
 
         let after: u64 = match (&page.after, &page.from) {
@@ -1913,8 +1974,22 @@ impl BdpScope for InMemScope {
     /// that revision faults `410` carrying it. **Whether `revisions` ought to enumerate tombstones
     /// is not settled by anything normative** — the section carries zero `/// normative:` lines —
     /// so this is flagged rather than resolved, and no case asserts either way.
-    async fn revisions(&self, resource: &ResourceId, _selector: Option<&Selector>, page: Page)
+    async fn revisions(&self, resource: &ResourceId, selector: Option<&Selector>, page: Page)
         -> Result<BdpResult<Vec<Representation>>, BdpError> {
+        // `select?: selector` IS DECLARED ON `fn revisions` DIRECTLY (core.lumen, merged) while
+        // `RevisionsCaps` is `{ }` — nothing can advertise it. D.8:2076-2083 names exactly this:
+        // "a `select` on a read whose caps carry no `selector`" is `invalid-parameter`, because a
+        // missing advertisement "does not change the fault, only a client's ability to predict
+        // it". So the refusal carries the BARE OP as its capability: there is no field to look up,
+        // and saying `revisions.selector` would send a client after one that does not exist.
+        if selector.is_some() {
+            let caps = BdpScope::capabilities(self);
+            return Err(option_refusal(
+                advertised_option(&caps, "revisions", "selector"),
+                "revisions",
+                "selector",
+            ));
+        }
         let store = self.store.read().unwrap();
         let scope = self.scope_str(&resource.scope);
         let id = resource.id.0.to_string();
