@@ -1056,11 +1056,29 @@ pub fn orphan_codes() -> Vec<String> {
 /// SWEPT, RATHER THAN LEFT AS A PRINCIPLE. Every owner-attribution across `conformance/` measured
 /// against that bar — six sites, two distinct states:
 ///
-///   SOURCED (2):
-///     gate/tests/gate.rs ~3636  cites fe690ac8 AND quotes it ("Donna ruled (a): ExportCaps
-///                               gains a `selector` field"). Commit + quotation.
+///   THE CENSUS HAD TWO BUCKETS AND THE REAL STRUCTURE HAS THREE. A peer checked the merge paths
+///   and the commits I had called "sourced" arrived on `lydia/*` branches — fe690ac8 via
+///   `lydia/rc3-exportcaps-selector`, ae703386 via PR #460 from `lydia/rc3-vocab-405-422`,
+///   ea2495c6 the same. Verified here. So quoting a commit message sources the CLAIM'S EXISTENCE,
+///   its date and its author — and NOT the authority behind it.
+///
+///   RELAYED IN WRITING (1), the bucket I was missing:
+///     gate/tests/gate.rs ~3636  cites fe690ac8 and quotes "Donna ruled (a): ExportCaps gains a
+///                               `selector` field". That is the SPEC OWNER recording a ruling she
+///                               received, on her own branch, dated and immutable. Much stronger
+///                               than my unsourced prose — she holds delegated authority for
+///                               spec shape — and weaker than the owner's own signature. Chain:
+///                               owner → spec owner → commit message → me, with one relay.
+///
+///   SOURCED (1):
 ///     gate/tests/gate.rs ~3771  quotes the approved document directly ("Status: APPROVED by
-///                               Donna"). Quotation of an artefact that exists.
+///                               Donna"). An artefact that exists and can be opened.
+///
+///   AND NOTHING I ACTED ON DEPENDS ON THE RELAYED LEG, which is worth stating because it was
+///   the leg I leaned on rhetorically. Advertising `ExportCaps.selector` (8fdc9651) rests on two
+///   facts I measured myself: the generated OpenAPI REQUIRES the field, and this subject honours
+///   nothing it would need to lie about. The "authorized under the freeze" argument came from
+///   fe690ac8's message and is the weakest of the three — the action stands without it.
 ///
 ///   UNSOURCED (4 sites, 2 rulings):
 ///     "Donna's advertised⟹implemented ruling" — 5 occurrences across bdp-protocol's client.rs,
