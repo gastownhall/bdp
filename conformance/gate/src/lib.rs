@@ -1053,6 +1053,34 @@ pub fn orphan_codes() -> Vec<String> {
 /// crate, "the owner ruled X" needs a PR number, a commit the owner alone could have made, or a
 /// quotation — and absent one it is my inference wearing the owner's name.
 ///
+/// SWEPT, RATHER THAN LEFT AS A PRINCIPLE. Every owner-attribution across `conformance/` measured
+/// against that bar — six sites, two distinct states:
+///
+///   SOURCED (2):
+///     gate/tests/gate.rs ~3636  cites fe690ac8 AND quotes it ("Donna ruled (a): ExportCaps
+///                               gains a `selector` field"). Commit + quotation.
+///     gate/tests/gate.rs ~3771  quotes the approved document directly ("Status: APPROVED by
+///                               Donna"). Quotation of an artefact that exists.
+///
+///   UNSOURCED (4 sites, 2 rulings):
+///     "Donna's advertised⟹implemented ruling" — 5 occurrences across bdp-protocol's client.rs,
+///       server.rs and wire.rs, with NO PR, commit or quotation at any site. It is load-bearing
+///       prose: it is the stated rationale for proxying the backing scope's real capabilities.
+///     gate/tests/gate.rs ~2214 "Donna ruled that a history export refuses projection while a
+///       current-state one honours it" — #450 is referenced NEARBY, but as a dependency ("both of
+///       B's branches are unreachable until #450"), not as the ruling's source.
+///
+/// WHAT THAT DOES AND DOES NOT MEAN. It does NOT make either ruling false — both may be real and
+/// received in conversation; what is missing is the ability of a later reader to check. And unlike
+/// the 409, neither is being used to overturn anything: advertised⟹implemented is close to a
+/// tautology for a conformance subject, and the proxying design it justifies is right on its own
+/// merits. So they are MARKED, not withdrawn. The rule going forward: none of the four may be
+/// cited as authority against a ruling relayed with better grounding, and if one is ever needed
+/// for that, source it first or drop it.
+///
+/// The asymmetry worth remembering: I found the 409 only because a peer tried to ACT on it. The
+/// other four have sat unexamined because nothing yet depended on them.
+///
 /// THE TWO TIERS MATTER, and collapsing them would overstate the finding. For some, D.8 describes
 /// the CONDITION under a status without ever writing the code beside it, so the repair is one line
 /// of text: `404` says "get of an absent resource" and `410` says "get of a pruned / erased
