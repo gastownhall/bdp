@@ -708,13 +708,42 @@ pub enum BdpError {
     AlreadyExists(ResourceId),
     RevisionMismatch { id: ResourceId, expected: Rev, found: Option<Rev> },
     Conflict(ConstraintViolation),
+    /// A MALFORMED payload — a body that does not parse, or a patch document that does not apply.
+    /// NOT a well-formed request the scope declines: that is [`BdpError::InvalidParameter`].
+    ///
+    /// Wire: 400 `malformed-request`. It was 422 `unprocessable` until the RC3 fault-vocabulary
+    /// pass, and that was wrong twice over. `unprocessable` is not in D.9's problem-code
+    /// vocabulary (core.lumen:2117-2123) — so the code was out of vocabulary whatever the status —
+    /// and D.8's 422 line now states the membership test outright (core.lumen:2103-2106): a fault
+    /// belongs at 422 "IFF shrinking the request fixes it". No smaller body parses, so a malformed
+    /// payload is not 422. D.8's 400 line (core.lumen:2071) carries it: "`malformed-request` /
+    /// `invalid-parameter` — a malformed or invalid request."
     Unprocessable(String),
-    /// The op IS advertised, but this request exceeds that capability's advertised limits — a
-    /// REJECTION the client fixes by adjusting the request (a batch past `max_batch`, a `List`
-    /// condition kind not advertised, a selector when `selector:false`, …). Distinct from
-    /// `not_implemented` (absent — the op isn't advertised) and `Unprocessable` (malformed, not
-    /// over-bound). Donna-ruled; wire = HTTP 422, problem code `limit-exceeded` (see
-    /// `bdp-protocol/LIMIT-EXCEEDED.md`). `capability`/`limit` name the bound, e.g. "apply"/"maxWrites".
+    /// A WELL-FORMED request the scope declines because the capability it exercises is advertised
+    /// `false`, or is not honoured at the granularity the request used. No smaller request
+    /// succeeds — dropping the parameter is not shrinking it — so this is NOT `LimitExceeded`.
+    ///
+    /// Wire: 400 `invalid-parameter`. Grounded in D.8's 422 membership test (core.lumen:2103-2106,
+    /// "a fault belongs at 422 IFF shrinking the request fixes it") and in the spec's own worked
+    /// case for this exact shape (core.lumen:1457): "A scope advertising `selector: false` faults a
+    /// `select` request `400` (`invalid-parameter`): the capability is advertised, so a client reads
+    /// it and omits `select` rather than being refused."
+    ///
+    /// Distinct from `not_implemented` (the op is not advertised at all — D.8's 405 line now
+    /// declines an un-offered primitive there, never 501) and from `Unprocessable` (malformed).
+    /// `capability` names the advertised flag the client can read, e.g. "pull"/"selector".
+    InvalidParameter { capability: String, detail: String },
+    /// The op IS advertised, and this request exceeds a NUMERIC bound that capability advertises —
+    /// a batch past `maxBatch`, a push past `window`. THE MEMBERSHIP TEST IS SHRINKABILITY, and
+    /// D.8 states it outright (core.lumen:2103-2106): a fault belongs at 422 "IFF shrinking the
+    /// request fixes it; a well-formed body that is simply unusable … is 400, not 422".
+    ///
+    /// So an advertised-`false` capability does NOT belong here, however much it reads like a
+    /// bound: there is no smaller request that would succeed. Those cases are
+    /// [`BdpError::InvalidParameter`] (400). This variant kept its 422 for the cases that pass the
+    /// test; in Core `push`/`maxBatch` is the only faulting numeric bound.
+    ///
+    /// Wire: 422 `limit-exceeded`. `capability`/`limit` name the bound, e.g. "push"/"maxBatch".
     LimitExceeded { capability: String, limit: String, detail: String },
     CursorExpired(Cursor),
     /// `pull` against a channel whose declared direction is `sink` — core.lumen#pull: "Valid on a

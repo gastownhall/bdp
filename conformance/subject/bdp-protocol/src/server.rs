@@ -1176,24 +1176,37 @@ fn parse_limit(req: &HttpRequest) -> Result<Option<u32>, HttpResponse> {
     }
 }
 
-/// The ENFORCE side of the capability dual, read off `capabilities()` and never hard-coded.
+/// The ENFORCE side of the capability dual, read off `capabilities()` and never hard-coded. A
+/// guard whose field is advertised FALSE is refused — not honored anyway, and not answered `501`,
+/// which says the whole op is absent.
 ///
-/// core.lumen states the rule on `CoreCapabilities`: "Each limit record is the advertise side of a
-/// dual: the matching `limit-exceeded` (422) is the enforce side." So a guard whose field is
-/// advertised FALSE must be refused, and refused as `422 limit-exceeded` naming the bound — not
-/// honored anyway, and not answered `501`, which says the whole op is absent.
+/// IT IS `400 invalid-parameter`, NOT `422 limit-exceeded`, and this helper used to carry the
+/// citation that made 422 look right: `CoreCapabilities` (core.lumen:1646), "Each limit record is
+/// the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side." Four
+/// normative lines say otherwise for a BOOLEAN field — core.lumen:688 and :1552 both scope
+/// `limit-exceeded` to a request "that exceeds a static capability bound, fixed by shrinking the
+/// request"; D.8:2103-2106 states the membership test outright; and core.lumen:1457 works this
+/// exact shape as `400` (`invalid-parameter`). `ifMatch: false` is a bool: no smaller request
+/// succeeds, so dropping the guard is not shrinking it.
 ///
-/// THIS IS NOT THE SAME FAULT AS AN OUT-OF-VOCABULARY GUARD, and the two sit a few lines apart in
-/// this file deliberately. `If-None-Match` on `patch` is `400`: `ifAbsent` is not a field of
-/// `PatchCaps` at all, so no advertisement could have offered or refused it and the request names
-/// something the operation does not define. `If-Match` on a `put` advertising `ifMatch: false` is
-/// `422`: the field EXISTS, this scope says it does not support it, and the caller fixes the
-/// request by dropping the guard. A binding that collapsed them would tell a client to stop using
-/// a parameter that is simply unavailable here.
-fn unadvertised(op: &str, limit: &str, detail: &str) -> HttpResponse {
-    problem_response(&p::BdpError::LimitExceeded {
-        capability: op.into(),
-        limit: limit.into(),
+/// THE DISTINCTION THIS HELPER USED TO DRAW BY STATUS IS NOW DRAWN BY CODE, and it survives
+/// intact — both sides verified in this file, not assumed:
+///
+///   - an OUT-OF-VOCABULARY guard is `400 malformed-request` (server.rs:908-925 and :971-987):
+///     `ifAbsent` is a field of `PutCaps` and of NEITHER `PatchCaps` NOR `DeleteCaps`, so on a
+///     patch it is an input the operation does not define, and no advertisement could ever have
+///     offered or refused it;
+///   - an ADVERTISED-FALSE guard is `400 invalid-parameter` (here): the field EXISTS, this scope
+///     says it does not support it, and a client can read that from discovery before asking.
+///
+/// A client still branches on the two — it just reads `code`, which it had to read anyway to tell
+/// `invalid-parameter` from the other producers of 400 on these ops.
+///
+/// `capability` carries `<op>.<field>` so the member names the flag a caller can look up in
+/// discovery, the same key shape the gate's `required_caps_fields()` uses.
+fn unadvertised(op: &str, field: &str, detail: &str) -> HttpResponse {
+    problem_response(&p::BdpError::InvalidParameter {
+        capability: format!("{op}.{field}"),
         detail: detail.into(),
     })
 }

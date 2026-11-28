@@ -311,18 +311,37 @@ async fn istype_subtype_prefix() {
     assert_eq!(s.list(&interior, Page::default()).await.unwrap().value.unwrap().len(), 0, "exact interior matches no stored bead");
 }
 
+/// A condition kind outside the advertised set is `InvalidParameter`, NOT `LimitExceeded`.
+///
+/// The old name and assertion said `limit-exceeded`, on the reading that an advertised condition
+/// SET is a bound you can exceed. D.8's membership test (core.lumen:2103-2106) admits 422 "IFF
+/// shrinking the request fixes it", and no shorter filter satisfies an unsupported kind — dropping
+/// the condition is not shrinking it. `list` also declares only `[400]`, so the old status had no
+/// declared row at all.
 #[tokio::test]
-async fn list_unadvertised_condition_is_limit_exceeded() {
+async fn list_unadvertised_condition_is_invalid_parameter() {
     let s = scope();
     s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"tags":["x"]}"#), Guards::default()).await.unwrap();
-    // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains. A Contains condition is
-    // within the advertised `list` op but exceeds its advertised condition set → over-limit.
+    // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains.
     let filter = ListFilter(vec![ListCondition::Contains {
         field: FieldPath(vec!["body".into(), "tags".into()]),
         value: RawJson(Bytes::from(b"\"x\"".to_vec())),
     }]);
-    let r = s.list(&filter, Page::default()).await;
-    assert!(matches!(r, Err(BdpError::LimitExceeded { .. })), "unadvertised condition kind -> LimitExceeded; got {r:?}");
+    match s.list(&filter, Page::default()).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(
+            capability, "list.conditions",
+            "the refusal must name the discovery field a client can read to predict it"
+        ),
+        other => panic!("unadvertised condition kind -> InvalidParameter; got {other:?}"),
+    }
+    // AND THE ADVERTISED KINDS STILL WORK. Without this the assertion above passes for a `list`
+    // that refuses every filter, which is the failure the single-arm version could not see.
+    let ok = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".into(), "tags".into()]) }]);
+    assert_eq!(
+        s.list(&ok, Page::default()).await.unwrap().value.unwrap().len(),
+        1,
+        "an ADVERTISED condition kind must still match"
+    );
 }
 
 // --- changes: the changefeed (the append-log tailed by a cursor) ---
@@ -441,29 +460,31 @@ async fn honest_unadvertised_ops_are_not_implemented() {
 ///
 /// It asserted `import(HistoryRestore) -> not_implemented` under the title "unadvertised OPS are
 /// not_implemented". But `import` is advertised and implemented; what is advertised false is one
-/// FIELD of its limit record, `ImportCaps { history_restore: false }`. core.lumen states the rule:
-/// "Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the
-/// enforce side."
+/// FIELD of its limit record, `ImportCaps { history_restore: false }`.
 ///
-/// The two signals say different things to a client. `not_implemented` (501) means the scope cannot
-/// import at all; `limit-exceeded` (422) means it imports and declines exactly one mode, and names
-/// which in `capability`/`limit` so the caller can shrink the request. The old assertion was
-/// defending the first answer under a name that described a different rule — a test that names the
-/// old behaviour in its title will defend it, so it is re-derived under the new rule rather than
-/// deleted, and the absent-op half above keeps its three genuine cases.
+/// THE OP/MODE DISTINCTION IS THE POINT AND IT SURVIVES; only the status moved. `not_implemented`
+/// (501) means the scope cannot import at all; a 400 `invalid-parameter` naming
+/// `import.historyRestore` means it imports and declines exactly one mode, and names which so the
+/// caller can read it from discovery instead of guessing.
+///
+/// IT WAS 422 UNTIL THE RC3 FAULT-VOCABULARY PASS, and this doc used to carry the citation that
+/// justified it: `CoreCapabilities` (core.lumen:1646), "the matching `limit-exceeded` (422) is the
+/// enforce side". `historyRestore` is a bool, and D.8:2103-2106 admits 422 only "IFF shrinking the
+/// request fixes it" — no smaller stream imports under a flag that is off. See the note at the
+/// producer in `bdp-inmem/src/lib.rs` for the four normative lines against that parenthetical.
 #[tokio::test]
-async fn an_unadvertised_import_mode_is_limit_exceeded_not_unimplemented() {
+async fn an_unadvertised_import_mode_is_invalid_parameter_not_unimplemented() {
     let s = scope();
     match s.import(&[], ImportStrategy::HistoryRestore).await {
-        Err(BdpError::LimitExceeded { capability, limit, .. }) => {
-            assert_eq!(capability, "import", "the refusal must name the op it bounds");
-            assert_eq!(limit, "historyRestore", "and the field of the limit record it refuses");
-        }
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(
+            capability, "import.historyRestore",
+            "the refusal must name the op AND the field of its limit record"
+        ),
         Ok(r) if r.not_implemented => panic!(
             "history-restore answered not_implemented; `import` IS advertised and implemented, so \
              501 tells a client the scope cannot import at all"
         ),
-        other => panic!("expected LimitExceeded for an unadvertised import mode, got {other:?}"),
+        other => panic!("expected InvalidParameter for an unadvertised import mode, got {other:?}"),
     }
     // THE OP ITSELF STILL WORKS, which is the half that makes the distinction observable: a scope
     // that refused every import would satisfy the match above.

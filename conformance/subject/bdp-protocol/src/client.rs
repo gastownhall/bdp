@@ -360,8 +360,24 @@ fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
             fromprop: String::new(),
             detail: format!("server returned 409 {:?}", code),
         }),
-        // Donna-ruled over-limit: reconstruct the structured rejection from the Problem's extension
-        // members, so a caller sees WHICH advertised bound it exceeded (distinct from Unprocessable).
+        // An advertised-`false` capability refused the request: 400 `invalid-parameter`. Keyed on
+        // the CODE, not the status, because 400 is the busiest status in this binding — `export`'s
+        // `format`, `import`'s `partial` source and the out-of-vocab guards all answer 400 — and a
+        // caller that could not tell them apart would have one handler for unrelated situations.
+        // `capability` is reconstructed so the caller is told which advertised flag to read.
+        (400, Some("invalid-parameter")) => {
+            let pb = prob.as_ref().expect("code came from a parsed problem");
+            p::BdpError::InvalidParameter {
+                capability: pb.capability.clone().unwrap_or_default(),
+                detail: pb.detail.clone().unwrap_or_default(),
+            }
+        }
+        (400, Some("malformed-request")) => {
+            let pb = prob.as_ref().expect("code came from a parsed problem");
+            p::BdpError::Unprocessable(pb.detail.clone().unwrap_or_default())
+        }
+        // A request past a NUMERIC advertised bound: reconstruct the structured rejection from the
+        // Problem's extension members, so a caller sees WHICH bound it exceeded and can shrink.
         (422, Some("limit-exceeded")) => {
             let pb = prob.as_ref().expect("code came from a parsed problem");
             p::BdpError::LimitExceeded {
@@ -370,7 +386,11 @@ fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
                 detail: pb.detail.clone().unwrap_or_default(),
             }
         }
-        (422, _) => p::BdpError::Unprocessable(format!("server returned 422 {:?}", code)),
+        // A 422 carrying some OTHER code is NOT reconstructed as `Unprocessable` any more. That
+        // variant now serialises at 400 (`malformed-request`), so reconstructing it from a 422
+        // would hand back an error whose own wire mapping is a different status — the kind of
+        // asymmetry only a round-trip test catches, which is why one now exists
+        // (`every_structured_fault_round_trips_at_its_own_status`).
         (s, c) => p::BdpError::Backend(format!("http {s} {:?}", c)),
     }
 }
@@ -1025,5 +1045,105 @@ mod base_url_tests {
         assert!(BaseUrl::parse("   ").is_err());
         assert!(BaseUrl::parse("http://").is_err(), "no host");
         assert!(BaseUrl::parse("http://example.test:/scope").is_err(), "colon with no port");
+    }
+}
+
+#[cfg(test)]
+mod fault_round_trip_tests {
+    use super::*;
+
+    /// A STRUCTURED FAULT MUST SURVIVE THE WIRE AND COME BACK AS ITSELF, at the same status.
+    ///
+    /// This exists because the RC3 fault-vocabulary pass moved two variants between statuses, and
+    /// the two halves of that move live in different files: `WireProblem::from_error` (wire.rs)
+    /// serialises, `error_from` (here) reconstructs. Each half compiled and tested green on its
+    /// own while disagreeing with the other — `Unprocessable` went out at 400 and came back from
+    /// 422 — and nothing in the tree compared them. Statuses are asserted as well as variants,
+    /// because a reconstruction that lands on the right variant from the wrong status re-serialises
+    /// to a different response than it parsed.
+    #[test]
+    fn every_structured_fault_round_trips_at_its_own_status() {
+        let rid = p::ResourceId::head(p::Scope::This, p::Id(Arc::from("r")));
+        let cases: Vec<(p::BdpError, u16, &str)> = vec![
+            (
+                p::BdpError::InvalidParameter {
+                    capability: "pull.selector".into(),
+                    detail: "this scope advertises `selector: false` on pull".into(),
+                },
+                400,
+                "invalid-parameter",
+            ),
+            (p::BdpError::Unprocessable("not json".into()), 400, "malformed-request"),
+            (
+                p::BdpError::LimitExceeded {
+                    capability: "push".into(),
+                    limit: "maxBatch".into(),
+                    detail: "at most 2 per batch".into(),
+                },
+                422,
+                "limit-exceeded",
+            ),
+        ];
+
+        for (sent, want_status, want_code) in cases {
+            let (status, prob) = WireProblem::from_error(&sent);
+            assert_eq!(status, want_status, "outbound status for {sent:?}");
+            assert_eq!(prob.code, want_code, "outbound code for {sent:?}");
+            let body = serde_json::to_vec(&prob).expect("problem serialises");
+            let back = error_from(status, &body, &rid);
+
+            match (&sent, &back) {
+                (
+                    p::BdpError::InvalidParameter { capability: a, detail: da },
+                    p::BdpError::InvalidParameter { capability: b, detail: db },
+                ) => {
+                    assert_eq!(a, b, "`capability` lost over the wire");
+                    assert_eq!(da, db, "`detail` lost over the wire");
+                }
+                (p::BdpError::Unprocessable(a), p::BdpError::Unprocessable(b)) => {
+                    assert_eq!(a, b, "the malformed-payload message lost over the wire")
+                }
+                (
+                    p::BdpError::LimitExceeded { capability: a, limit: la, detail: da },
+                    p::BdpError::LimitExceeded { capability: b, limit: lb, detail: db },
+                ) => {
+                    assert_eq!(a, b, "`capability` lost over the wire");
+                    assert_eq!(la, lb, "`limit` lost over the wire");
+                    assert_eq!(da, db, "`detail` lost over the wire");
+                }
+                (s, b) => panic!("round trip changed the variant: sent {s:?}, got back {b:?}"),
+            }
+
+            // AND IT CAME BACK FROM THE RIGHT STATUS. Reconstructing the same variant from some
+            // other status would pass the match above and still be wrong.
+            let (restatus, reprob) = WireProblem::from_error(&back);
+            assert_eq!(restatus, want_status, "re-serialising the reconstruction moved the status");
+            assert_eq!(reprob.code, want_code, "re-serialising the reconstruction moved the code");
+        }
+    }
+
+    /// A 422 CARRYING AN UNKNOWN CODE IS `Backend`, NOT `Unprocessable`.
+    ///
+    /// `Unprocessable` serialises at 400 now, so reconstructing it from a 422 would hand a caller
+    /// an error whose own mapping is a different status — which is what the catch-all did before
+    /// this pass. The 400 mirror is asserted too, so the arms cannot both quietly become a
+    /// catch-all that swallows everything.
+    #[test]
+    fn an_unknown_code_is_not_reconstructed_as_a_structured_fault() {
+        let rid = p::ResourceId::head(p::Scope::This, p::Id(Arc::from("r")));
+        let body = br#"{"type":"t","title":"x","status":422,"code":"something-new","retry":"no"}"#;
+        match error_from(422, body, &rid) {
+            p::BdpError::Backend(m) => assert!(
+                m.contains("something-new"),
+                "the opaque fallback must still name the code it could not place; got {m}"
+            ),
+            other => panic!("a 422 with an unknown code must not become a structured fault: {other:?}"),
+        }
+
+        let body400 = br#"{"type":"t","title":"x","status":400,"code":"bad-request","retry":"no"}"#;
+        match error_from(400, body400, &rid) {
+            p::BdpError::Backend(_) => {}
+            other => panic!("a 400 with an unmapped code must not become a structured fault: {other:?}"),
+        }
     }
 }

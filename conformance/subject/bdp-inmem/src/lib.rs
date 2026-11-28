@@ -806,8 +806,17 @@ fn rhs_text(v: &RawJson) -> String {
 }
 
 /// Does `row` satisfy one `ListCondition`? Mirrors pg's lowering: Compare/Matches use `#>>` text
-/// comparison; Has/Missing test presence; IsType is the kind-path prefix. An unadvertised kind is
-/// `LimitExceeded`; an unwired sub-option (Glob/In) is `Unprocessable` — exactly as pg emits.
+/// comparison; Has/Missing test presence; IsType is the kind-path prefix.
+///
+/// BOTH refusal paths here are now `InvalidParameter` (400 `invalid-parameter`), and they are NOT
+/// the same defect:
+///   - an unadvertised condition KIND is a capability this scope declines by advertisement, the
+///     case D.8's membership test and core.lumen:1457 settle;
+///   - an unwired SUB-OPTION (`In`, `Glob`, `Regex`) is this implementation failing to honour
+///     something it DOES advertise, because `ListCaps.conditions` advertises kinds and has no
+///     field for sub-options. There is no advertised `false` for a client to read, so the scope
+///     cannot be predicted here. THAT IS A SPEC GAP, not a status question, and it is recorded
+///     for Lydia rather than papered over: the status is the least-wrong carrier, not a ruling.
 fn matches_condition(
     props: &serde_json::Value,
     meta: &serde_json::Value,
@@ -829,7 +838,15 @@ fn matches_condition(
                 CompareOp::Le => lhs <= rhs,
                 CompareOp::Gt => lhs > rhs,
                 CompareOp::Ge => lhs >= rhs,
-                CompareOp::In => return Err(BdpError::Unprocessable("list: `in` not wired".into())),
+                CompareOp::In => {
+                    return Err(BdpError::InvalidParameter {
+                        capability: "list".into(),
+                        detail: "list: `in` is not wired in this scope (see the note on \
+                                 `matches_condition`: `ListCaps.conditions` advertises kinds, not \
+                                 sub-options, so this refusal is not advertised anywhere)"
+                            .into(),
+                    })
+                }
             }
         }
         ListCondition::Matches { field, pattern, using } => {
@@ -839,8 +856,22 @@ fn matches_condition(
             };
             match using {
                 MatchKind::Substring => lhs.to_lowercase().contains(&pattern.to_lowercase()),
-                MatchKind::Regex => return Err(BdpError::Unprocessable("list: regex match needs a regex engine (not wired)".into())),
-                MatchKind::Glob => return Err(BdpError::Unprocessable("list: glob match not wired".into())),
+                MatchKind::Regex => {
+                    return Err(BdpError::InvalidParameter {
+                        capability: "list".into(),
+                        detail: "list: `regex` match needs a regex engine and is not wired in this \
+                                 scope (unadvertisable — see `matches_condition`)"
+                            .into(),
+                    })
+                }
+                MatchKind::Glob => {
+                    return Err(BdpError::InvalidParameter {
+                        capability: "list".into(),
+                        detail: "list: `glob` match is not wired in this scope (unadvertisable — \
+                                 see `matches_condition`)"
+                            .into(),
+                    })
+                }
             }
         }
         ListCondition::Has { field } => {
@@ -855,13 +886,21 @@ fn matches_condition(
                 kind == t || kind.starts_with(&format!("{t}/"))
             }
         }
-        // a condition KIND beyond the advertised set (Compare/Matches/Has/Missing/IsType) is an
-        // OVER-LIMIT request — LimitExceeded, not not_implemented and not a generic payload error.
+        // A condition KIND outside the advertised set (`ListCaps.conditions`) is a WELL-FORMED
+        // request exercising a capability this scope does not advertise — 400 `invalid-parameter`,
+        // not 422. No smaller request succeeds: dropping the condition is not shrinking it, and
+        // D.8's 422 line admits a fault "IFF shrinking the request fixes it"
+        // (core.lumen:2103-2106). It is also not `not_implemented`: `list` IS offered.
+        //
+        // AND `list` DECLARES ONLY 400 (core.openapi.json, `list`: problem = [400]), so the old 422
+        // was an undeclared fault as well as a mis-keyed one — two independent reasons, and the
+        // declaration one holds whichever way the membership test had been read.
         other => {
-            return Err(BdpError::LimitExceeded {
-                capability: "list".into(),
-                limit: "conditions".into(),
-                detail: format!("condition kind not in the advertised set: {other:?}"),
+            return Err(BdpError::InvalidParameter {
+                capability: "list.conditions".into(),
+                detail: format!(
+                    "condition kind not in this scope's advertised `ListCaps.conditions`: {other:?}"
+                ),
             })
         }
     })
@@ -1214,19 +1253,37 @@ impl BdpScope for InMemScope {
                 let report = format!(r#"{{"strategy":"set-current","imported":{imported}}}"#);
                 Ok(BdpResult::ok(ImportReport(RawJson(Bytes::from(report.into_bytes())))))
             }
-            // THE CAPABILITY DUAL, not an absent op. This scope advertises
-            // `ImportCaps { history_restore: false }`, and core.lumen states the rule outright:
-            // "Each limit record is the advertise side of a dual: the matching `limit-exceeded`
-            // (422) is the enforce side."
+            // THE CAPABILITY DUAL, not an absent op — and 400, not 422.
             //
             // `not_implemented` was the wrong signal and it mattered on the wire: 501 says the OP
             // is absent, and `import` is present and advertised. A client told 501 concludes the
             // scope cannot import at all, when in fact it imports and declines exactly one mode.
-            // That also made `op/import/fault/422` unreachable — a declared fault row with no
-            // producer, because the only path to it answered a different status.
-            ImportStrategy::HistoryRestore => Err(BdpError::LimitExceeded {
-                capability: "import".into(),
-                limit: "historyRestore".into(),
+            // That reasoning stands unchanged.
+            //
+            // THE STATUS, HOWEVER, WAS WRONG, and this comment used to carry the citation that
+            // made it look right: `CoreCapabilities` (core.lumen:1646) says "Each limit record is
+            // the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce
+            // side." Read at the width of the record that covers a BOOLEAN field too, which is how
+            // this site read it. It does not survive the rest of the spec:
+            //
+            //   - core.lumen:1552 (`import`'s own normative line) scopes `limit-exceeded` to "a
+            //     request that exceeds a static capability bound, fixed by shrinking the request";
+            //   - core.lumen:688 says the same for `push`;
+            //   - D.8:2103-2106 states the membership test outright — 422 "IFF shrinking the
+            //     request fixes it";
+            //   - core.lumen:1457 works this exact shape the other way: a capability advertised
+            //     `false` faults `400` (`invalid-parameter`).
+            //
+            // `historyRestore` is a bool. No smaller stream imports under it, so it fails the test
+            // four normative lines state and the one description-level parenthetical does not
+            // reach. :1646's "(422)" predates the test (it landed at GAP-4) and is reported as a
+            // stale parenthetical, not treated as a competing ruling.
+            //
+            // NOTE WHAT THIS COSTS: `op/import/fault/422` goes back to having no producer here.
+            // That is the spec's to undeclare (a 0.2.4 task), not this subject's to keep reachable
+            // by emitting a status the spec's own test excludes.
+            ImportStrategy::HistoryRestore => Err(BdpError::InvalidParameter {
+                capability: "import.historyRestore".into(),
                 detail: "this scope advertises `historyRestore: false`; replay the stream as \
                          set-current, or import into a scope that rebuilds revision chains"
                     .into(),
@@ -1260,10 +1317,16 @@ impl BdpScope for InMemScope {
         if direction == "sink" {
             return Err(BdpError::ChannelNotPullable { channel: channel.clone(), direction });
         }
+        // 400, and this is the case the spec itself works: core.lumen:1457 rules `select` under
+        // `ExportCaps.selector: false` a `400` (`invalid-parameter`) — "the capability is
+        // advertised, so a client reads it and omits `select` rather than being refused" — and
+        // says selector support is advertised per-op, `pull` among them. The exact parallel.
+        //
+        // `pull` DECLARES [400, 404, 405, 410] and no 422 at all (core.openapi.json), so the old
+        // mapping was an undeclared fault independently of the membership test.
         if selector.is_some() {
-            return Err(BdpError::LimitExceeded {
-                capability: "pull".into(),
-                limit: "selector".into(),
+            return Err(BdpError::InvalidParameter {
+                capability: "pull.selector".into(),
                 detail: "this scope advertises `selector: false` on pull".into(),
             });
         }
@@ -1499,12 +1562,21 @@ impl BdpScope for InMemScope {
     /// stay findable via `causedBy`, so undoing them here would be wrong even where it were possible.
     async fn cancel(&self, async_result: ResourceId) -> Result<BdpResult<ResourceId>, BdpError> {
         if async_result.rev.is_some() {
-            return Err(BdpError::Unprocessable(
-                "cancel takes `unpinned<AsyncResult>`: it carries no revision guard, and declares \
-                 no 412 to report one failing. A pinned handle is refused rather than honoured as \
-                 a precondition the declaration excludes."
+            // A pinned handle is an INVALID PARAMETER, not a malformed body: the request parses
+            // and the argument is simply one the declared signature forbids. Moved off
+            // `Unprocessable` with the rest, because that variant now means "did not parse".
+            //
+            // STILL UNDECLARED AT ANY STATUS, and that is the point of saying so here: `cancel`
+            // declares [404, 409] — neither 400 nor 422 — so this refusal has no declared row to
+            // land on whichever code it carries. The declaration question above is unchanged by
+            // this move; 400 is the least-wrong carrier, not an answer to it.
+            return Err(BdpError::InvalidParameter {
+                capability: "cancel".into(),
+                detail: "cancel takes `unpinned<AsyncResult>`: it carries no revision guard, and \
+                         declares no 412 to report one failing. A pinned handle is refused rather \
+                         than honoured as a precondition the declaration excludes."
                     .into(),
-            ));
+            });
         }
 
         // Read the handle's state under a read guard, then release it before committing — the

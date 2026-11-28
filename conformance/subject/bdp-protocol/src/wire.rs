@@ -518,6 +518,12 @@ pub struct WireProblem {
     // RFC 9457 extension members. Populated per problem type so a client can branch on the general
     // `code` yet still see the specifics (not just a prose `detail`):
     //   - `limit-exceeded`: which advertised bound (`capability`/`limit`);
+    //   - `invalid-parameter`: which advertised-`false` capability refused it (`capability`; no
+    //     `limit`, because there is no bound to report — that is the whole difference). The value
+    //     is `<op>.<field>` when a discovery field exists to read (`pull.selector`), and the bare
+    //     `<op>` when NONE does — a `list` sub-option, a `cancel` argument the signature forbids.
+    //     A bare op is therefore a signal, not a shrug: it says this refusal is not advertised
+    //     anywhere, which is itself the defect (see `matches_condition` in bdp-inmem);
     //   - `constraint-violation`: which constraint (`constraint` discriminator, e.g. "uniqueness"),
     //     plus `property` and the existing holder (`conflicts_with`) for uniqueness (Lydia §70).
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -602,9 +608,26 @@ impl WireProblem {
                 "Channel is terminal",
                 Some(format!("{channel:?} is closed or failed and accepts no further events")),
             ),
-            p::BdpError::Unprocessable(m) => (422, "unprocessable", "Unprocessable request", Some(m.clone())),
-            // Donna-ruled: advertised op, request over its advertised limits → 422 `limit-exceeded`
-            // (NOT 501/not-implemented). Distinct from generic `unprocessable` by the problem code.
+            // A MALFORMED payload is 400 `malformed-request`, not 422 `unprocessable`, and the old
+            // mapping was wrong on BOTH members. `unprocessable` is absent from D.9's problem-code
+            // vocabulary (core.lumen:2117-2123), so the code never had a carrier; and D.8's 422 line
+            // (core.lumen:2103-2106) admits a fault "IFF shrinking the request fixes it", which no
+            // unparseable body does. D.8:2071 is the carrier: "`malformed-request` /
+            // `invalid-parameter` — a malformed or invalid request."
+            p::BdpError::Unprocessable(m) => (400, "malformed-request", "Malformed request", Some(m.clone())),
+            // A WELL-FORMED request exercising a capability advertised `false`. 400, not 422, by the
+            // same membership test: no smaller request succeeds. The spec works this exact case
+            // (core.lumen:1457) — `select` under `ExportCaps.selector: false` faults 400
+            // `invalid-parameter`, "the capability is advertised, so a client reads it and omits
+            // `select` rather than being refused". `capability` rides so the client is told WHICH
+            // advertised flag refused it, the same service `limit-exceeded`'s members do for a bound.
+            p::BdpError::InvalidParameter { capability: cap, detail } => {
+                capability = Some(cap.clone());
+                (400, "invalid-parameter", "Capability not advertised", Some(detail.clone()))
+            }
+            // 422 IS STILL RIGHT HERE, and only here: a request past a NUMERIC bound the capability
+            // advertises, which shrinking fixes (core.lumen:2103-2106). In Core that is
+            // `push`/`maxBatch`. An advertised-`false` capability moved to the arm above.
             p::BdpError::LimitExceeded { capability: cap, limit: lim, detail } => {
                 capability = Some(cap.clone());
                 limit = Some(lim.clone());
@@ -1071,23 +1094,90 @@ mod tests {
         assert!(aliases.indexed, "aliases.indexed lost over the wire");
     }
 
+    /// THE THREE REFUSAL CLASSES AND THEIR STATUSES, pinned together because the whole RC3
+    /// fault-vocabulary pass is about telling them apart.
+    ///
+    /// The fixture for the 422 arm is `push`/`maxBatch` and it has to be: after the pass, a NUMERIC
+    /// bound is the only thing that reaches this arm, and in Core `push`/`maxBatch` is the only
+    /// faulting one. The old fixture was `list`/`conditions`, a case that now answers 400 — a test
+    /// whose fixture cannot occur still passes, and would have gone on documenting the old rule.
     #[test]
-    fn limit_exceeded_maps_to_422_with_code_and_extension_members() {
-        let e = p::BdpError::LimitExceeded {
-            capability: "list".into(),
-            limit: "conditions".into(),
-            detail: "condition kind `containsAny` not advertised".into(),
+    fn the_three_refusal_classes_map_to_distinct_statuses_and_codes() {
+        // 422 — a numeric bound. Shrinking the batch fixes it, which is the membership test.
+        let bound = p::BdpError::LimitExceeded {
+            capability: "push".into(),
+            limit: "maxBatch".into(),
+            detail: "this channel accepts at most 2 events per batch; offered 5".into(),
         };
-        let (status, prob) = WireProblem::from_error(&e);
-        assert_eq!(status, 422);
+        let (status, prob) = WireProblem::from_error(&bound);
+        assert_eq!(status, 422, "a numeric bound keeps 422");
         assert_eq!(prob.code, "limit-exceeded");
-        assert_eq!(prob.capability.as_deref(), Some("list"));
-        assert_eq!(prob.limit.as_deref(), Some("conditions"));
-        // Distinct from generic unprocessable at the SAME status — keyed by the problem code.
-        let (gen_status, gen) = WireProblem::from_error(&p::BdpError::Unprocessable("bad".into()));
-        assert_eq!(gen_status, 422);
-        assert_eq!(gen.code, "unprocessable");
-        assert!(gen.capability.is_none() && gen.limit.is_none());
+        assert_eq!(prob.capability.as_deref(), Some("push"));
+        assert_eq!(prob.limit.as_deref(), Some("maxBatch"), "a bound reports WHICH bound");
+
+        // 400 `invalid-parameter` — an advertised-`false` capability. No smaller request succeeds.
+        let advertised_false = p::BdpError::InvalidParameter {
+            capability: "pull.selector".into(),
+            detail: "this scope advertises `selector: false` on pull".into(),
+        };
+        let (status, prob) = WireProblem::from_error(&advertised_false);
+        assert_eq!(status, 400, "advertised-false is 400, not 422");
+        assert_eq!(prob.code, "invalid-parameter");
+        assert_eq!(prob.capability.as_deref(), Some("pull.selector"));
+        assert!(
+            prob.limit.is_none(),
+            "there is no bound to report — that absence is the difference from `limit-exceeded`"
+        );
+
+        // 400 `malformed-request` — a payload that does not parse. Same status as the case above,
+        // so the CODE is what a client branches on; `unprocessable` was never in D.9's vocabulary.
+        let (status, prob) = WireProblem::from_error(&p::BdpError::Unprocessable("bad".into()));
+        assert_eq!(status, 400, "a malformed payload is 400, not 422");
+        assert_eq!(prob.code, "malformed-request");
+        assert!(prob.capability.is_none() && prob.limit.is_none());
+
+        // AND THE TWO 400s ARE DISTINGUISHABLE, which is the property the old status split carried
+        // and this one has to carry instead.
+        let (_, a) = WireProblem::from_error(&advertised_false);
+        let (_, b) = WireProblem::from_error(&p::BdpError::Unprocessable("bad".into()));
+        assert_ne!(a.code, b.code, "both are 400; only the code tells a client which");
+    }
+
+    /// EVERY CODE THIS BINDING EMITS IS IN D.9's VOCABULARY — the check the `unprocessable` defect
+    /// escaped for the whole of RC2. D.9 is pasted from core.lumen:2117-2123 rather than derived,
+    /// because the generated artifacts carry the type shapes and not the prose code list; a stale
+    /// copy is the known weakness, so the gate owns the live comparison and this one owns the arms.
+    #[test]
+    fn no_mapping_arm_emits_a_code_outside_d9() {
+        const D9: &[&str] = &[
+            "malformed-request", "invalid-parameter", "unauthenticated", "forbidden",
+            "resource-not-found", "resource-erased", "revision-mismatch", "precondition-failed",
+            "identity-taken", "validation-failed", "type-not-installed", "cursor-expired",
+            "request-too-large", "limit-exceeded", "rate-limited", "temporarily-unavailable",
+            "capability-not-supported", "callable-not-found", "callable-unavailable",
+            "mode-not-supported", "mode-refused", "channel-not-pullable", "channel-not-pushable",
+        ];
+        let samples = [
+            p::BdpError::Unprocessable("x".into()),
+            p::BdpError::InvalidParameter { capability: "pull.selector".into(), detail: "x".into() },
+            p::BdpError::LimitExceeded {
+                capability: "push".into(), limit: "maxBatch".into(), detail: "x".into(),
+            },
+        ];
+        for e in &samples {
+            let (_, prob) = WireProblem::from_error(e);
+            assert!(
+                D9.contains(&prob.code.as_str()),
+                "`{}` is not in D.9's problem-code vocabulary (core.lumen:2117-2123)",
+                prob.code
+            );
+        }
+        // NOT VACUOUS: the list really does reject something, and it is the exact string this pass
+        // removed. Without this arm the check passes for an empty or all-accepting vocabulary.
+        assert!(
+            !D9.contains(&"unprocessable"),
+            "the code this pass retired must still be absent from D.9, or this check proves nothing"
+        );
     }
 
     #[test]
