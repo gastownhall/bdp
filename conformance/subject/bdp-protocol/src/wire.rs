@@ -581,21 +581,23 @@ impl WireProblem {
                         format!("{fromprop}: {detail}")
                     }
                 };
-                // QUEUED CONFORMANCE CHANGE, 409 -> 400: `validation-failed` has been RULED to 400
-                // (relayed, spec text not in yet — so this is recorded, not acted on). When it
-                // lands, this arm and the client reconstruction at client.rs:335 both move, and
-                // `create`/`put`'s declared 409 loses a producer.
+                // 400, PER THE MERGED TEXT. D.8's 400 block (core.lumen:2088-2090 at
+                // origin/main) names this shape outright: "A VALIDATION FAILURE
+                // (`validation-failed`): a well-formed body whose values violate a declared
+                // constraint — excluded from `422` by the shrink test (shrinking a bad value does
+                // not fix it) and from `409` (no identity conflict)."
                 //
-                // ALL THREE IMPLEMENTATIONS WERE WRONG, which is the part worth keeping. This
-                // subject emits 409, the cleanroom emits 409, and the TS suite asserts 422 across
-                // 25 references. I offered the two 409s to the spec owner as near-agreement; she
-                // declined to "ratify 409" on the grounds that my 409 rested on D.8:2084-2085's
-                // "also some Problems" — an open SLOT, not an assignment — and that the positive
-                // assignment had to be made rather than inferred. She was right, and the reason
-                // generalises: our two trees were authored by sessions in one fleet reading one
-                // spec, so they are ONE READING IMPLEMENTED TWICE, not two readings agreeing. The
-                // ruling went to a status neither of us had.
-                (409, "validation-failed", "Constraint violation", Some(msg))
+                // READ FROM THE SPEC, NOT FROM THE RELAY. The ruling reached me as a peer's
+                // message naming a merge sha; that sha was a different PR (the memory-pack port),
+                // and the fault prose landed at bf3b6b67. The text is what I checked and what
+                // this arm cites.
+                //
+                // ALL THREE IMPLEMENTATIONS WERE WRONG, which is worth keeping now that it is
+                // settled: this subject emitted 409, the cleanroom 409, and the TS suite asserts
+                // 422 across 25 references. Two trees agreeing was one reading implemented twice,
+                // not corroboration — the spec owner declined to ratify 409 on exactly that
+                // ground, and the ruling landed on a status none of the three had.
+                (400, "validation-failed", "Constraint violation", Some(msg))
             }
             // THE WRONG CHANNEL DIRECTION IS 405, and the spec names both codes. D.8: "405 pull /
             // push on the wrong channel direction". Not 422: the direction is a property of the
@@ -1202,8 +1204,12 @@ mod tests {
             to: p::ResourceId::head(p::Scope::This, p::Id(Arc::from("alias-doc-1"))),
         });
         let (status, prob) = WireProblem::from_error(&e);
-        assert_eq!(status, 409);
-        // Lydia §70: ONE code for the constraint family; the constraint is a structured discriminator.
+        // 400, NOT 409, per the merged D.8 text (core.lumen:2088-2090): a validation failure is
+        // "excluded from `422` by the shrink test ... and from `409` (no identity conflict)".
+        // This assertion is why the move could not be a quiet code swap -- it failed the moment
+        // the arm changed, which is the whole point of pinning the status beside the code.
+        assert_eq!(status, 400, "a constraint breach is 400 `validation-failed`, never 409");
+        // ONE code for the constraint family; the constraint is a structured discriminator.
         assert_eq!(prob.code, "validation-failed");
         assert_eq!(prob.constraint.as_deref(), Some("uniqueness"));
         assert_eq!(prob.property.as_deref(), Some("name"));
