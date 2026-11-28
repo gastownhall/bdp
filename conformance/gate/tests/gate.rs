@@ -4536,22 +4536,47 @@ const RESIDUAL: &[(&str, &str)] = &[
     // ---- the four rows the RC3 fault-vocabulary ruling emptied ----------------------------
     // ONE BLOCKER, FOUR ROWS, AND IT IS A DENOMINATOR QUESTION. Each of these was covered by a
     // case asserting `(422, limit-exceeded)` for an advertised-false BOOLEAN; those sites now
-    // answer `(400, invalid-parameter)` per the ruling, so each row lost its only producer. They
-    // are not recoverable by writing a better case: the numeric-field census in
-    // MOVED_OFF_422_BY_THE_RC3_RULING shows `push`/`maxBatch` is the only faulting numeric bound
-    // in Core, and none of these four ops has one. So the row is either undeclared by the spec or
-    // permanently uncovered, and only the spec owner can choose.
+    // answer `(400, invalid-parameter)` per the ruling, so each row lost its only producer.
+    //
+    // THE LOAD-BEARING REASON IS D.8's "IFF", NOT THE NUMERIC-FIELD CENSUS, and I had it the weak
+    // way round when these entries were first written. The census (in
+    // MOVED_OFF_422_BY_THE_RC3_RULING) shows `push`/`maxBatch` is Core's only faulting numeric
+    // bound and none of these four ops has one -- but that is a claim about ONE PRODUCER CLASS,
+    // capability bounds, offered as a claim about the whole ROW. The row-level claim comes from
+    // D.8:2103-2106 instead: 422 admits a fault "IFF shrinking the request fixes it". An IFF is
+    // exclusive, so NO producer of ANY class can legitimately reach 422 on an operation with no
+    // shrinkable bound -- not a schema violation, not a guard, not anything later invented.
+    //
+    // WHAT MADE ME LOOK: the TS suite asserts `validation-failed` at 422 (25 real 422 references
+    // across 10 files, enumerated; `transactional-fresh-depth-installed.test.ts:762-766` makes the
+    // pairing explicit), and this subject emits `validation-failed` at 409. That is a producer
+    // for `create`'s 422 that has nothing to do with capability bounds, and the census-based
+    // reason could not see it. `validation-failed` appears in core.lumen exactly ONCE, in D.9's
+    // vocabulary at :2119, bound to NO status -- so the divergence is real and unruled. The IFF
+    // settles which side is excluded: a schema violation is not fixed by shrinking, so 422 is
+    // wrong for it, while D.8's 409 line (:2084-2085, "also some Problems") leaves an unnamed slot
+    // this subject's 409 sits in. Conclusion unchanged, reason replaced.
+    //
+    // So each row is either undeclared by the spec or permanently uncovered, and only the spec
+    // owner can choose.
     (
         "op/create/fault/422",
-        "NO PRODUCER AFTER THE RC3 RULING. `CreateCaps.clientProposedId` is a bool, so its refusal \
-         is 400 `invalid-parameter` (server.rs `unadvertised`); `CreateCaps` carries no numeric \
-         field at all, so nothing in it can be exceeded. CLOSES WHEN: the spec owner undeclares \
-         `create`'s 422, or names a Core numeric bound for it.",
+        "NO PRODUCER AFTER THE RC3 RULING, and no producer of any class can reach it. \
+         `CreateCaps.clientProposedId` is a bool, so its refusal is 400 `invalid-parameter` \
+         (server.rs `unadvertised`), and `CreateCaps` carries no numeric field for anything to \
+         exceed -- but the row-level reason is D.8:2103-2106's IFF, which admits only faults \
+         shrinking fixes. NOTE THE NEAR MISS: the TS suite asserts `validation-failed` at 422 on \
+         create, which IS a producer the capability-bound census cannot see; the IFF excludes it \
+         (a schema violation is not fixed by shrinking) and this subject answers 409, where D.8's \
+         `also some Problems` leaves room. `validation-failed` is bound to no status anywhere in \
+         core.lumen, so that divergence is unruled and carried up. CLOSES WHEN: the spec owner \
+         undeclares `create`'s 422, or names a shrinkable bound for it.",
     ),
     (
         "op/put/fault/422",
-        "NO PRODUCER AFTER THE RC3 RULING. `PutCaps.ifMatch`/`ifAbsent` are bools -> 400. `PutCaps` \
-         carries no numeric field. CLOSES WHEN: as `create` -- undeclared, or a numeric bound named.",
+        "NO PRODUCER AFTER THE RC3 RULING. `PutCaps.ifMatch`/`ifAbsent` are bools -> 400, `PutCaps` \
+         carries no numeric field, and D.8:2103-2106's IFF closes the row to every other producer \
+         class. CLOSES WHEN: as `create` -- undeclared, or a shrinkable bound named.",
     ),
     (
         "op/patch/fault/422",
@@ -4559,7 +4584,9 @@ const RESIDUAL: &[(&str, &str)] = &[
          carries no numeric field. NOTE this row has now been wrong TWICE for different reasons: \
          it was first recorded covered by a case that never exercised a capability bound at all \
          (see the note above at op/patch/fault/409's neighbour), then covered by the \
-         advertised-false path the ruling reclassifies. CLOSES WHEN: as `create`.",
+         advertised-false path the ruling reclassifies -- which is why the reason here is \
+         D.8:2103-2106's IFF and not another enumeration of producers I happened to be near. \
+         CLOSES WHEN: as `create`.",
     ),
     (
         "op/import/fault/422",
@@ -4567,7 +4594,8 @@ const RESIDUAL: &[(&str, &str)] = &[
          `ImportCaps`' only numeric field is `window`, which core.lumen:1552 declares SOFT \
          backpressure and \"not an error\" -- I nearly reported this row recoverable through it, \
          on the reasoning that a numeric field can be exceeded; a numeric TYPE is not a faulting \
-         bound. CLOSES WHEN: as `create`.",
+         bound. The IFF at D.8:2103-2106 reaches the same answer without needing the census to be \
+         complete. CLOSES WHEN: as `create`.",
     ),
 ];
 

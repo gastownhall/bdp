@@ -1189,6 +1189,13 @@ fn parse_limit(req: &HttpRequest) -> Result<Option<u32>, HttpResponse> {
 /// exact shape as `400` (`invalid-parameter`). `ifMatch: false` is a bool: no smaller request
 /// succeeds, so dropping the guard is not shrinking it.
 ///
+/// AND D.8 STATES THIS SPLIT VERBATIM, which is a better carrier than the derivation this comment
+/// originally gave. core.lumen:2078-2082: "The line is therefore drawn by the caps record, not by
+/// the sentence — in an operation's vocabulary and advertised false is a decline it can state,
+/// outside its vocabulary is malformed." I reached the same split from :1457's selector precedent
+/// plus the D.9 vocabulary argument and did not find this line until afterwards; a reader is owed
+/// the direct carrier, not my route to it.
+///
 /// THE DISTINCTION THIS HELPER USED TO DRAW BY STATUS IS NOW DRAWN BY CODE, and it survives
 /// intact — both sides verified in this file, not assumed:
 ///

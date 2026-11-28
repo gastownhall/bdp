@@ -34,6 +34,35 @@ pub struct TsFile {
     pub disposition: Disposition,
 }
 
+/// THE 422 CENSUS OF THE TS SUITE, enumerated before any port, because a ported expectation is
+/// the one kind of borrowed evidence this gate cannot audit afterwards.
+///
+/// 25 real `\b422\b` references across 10 of the 52 files (36 raw matches on a broad pattern, 5 of
+/// them digit substrings like `adds2422B` — a bare `422` over-matches, so the population was read,
+/// not counted). EVERY ONE WAS READ. NONE asserts the core advertised-false rule the RC3 ruling
+/// reclassifies, so nothing here contradicts the ruling and no expectation needs flipping for it.
+///
+/// THE DOMINANT CLASS IS `validation-failed` AT 422 — a schema violation, not a capability bound —
+/// and THIS SUBJECT EMITS IT AT 409. That divergence is a PORTING DECISION, not a mechanical
+/// transcription: `validation-failed` appears in core.lumen exactly once (D.9's vocabulary, :2119)
+/// bound to no status, so neither side is ruled. D.8:2103-2106's IFF excludes 422 for it (a schema
+/// violation is not fixed by shrinking) while D.8:2084-2085's "also some Problems" leaves an
+/// unnamed 409 slot. Carried to the spec owner. PORT THE CASE, NOT ITS STATUS, until it is ruled.
+///
+/// The rest, by category: schema/type validation rejects (the above), idempotency-key handling,
+/// `view=terminal` under a feature media type, transactional admission control, and one
+/// unsupported `capabilityVersion`. Three of the ten files are v0.1 retained-compat
+/// (`retained-v01-reference`, `retained-v01-links-reference`, `historical-update-reference`,
+/// 9 of the 25 references) and are Dropped, so they are not ported at all.
+///
+/// HOW THIS WAS FOUND IS THE LESSON. A peer's census of her own tree went 16 → 17 → 23 → 24, the
+/// last found by a failing test rather than a grep, because a fault has TWO spellings — a variant
+/// token and a wire string — and she had grepped one. Applying that here, my first repo-wide pass
+/// reported no string-level assertions outside `conformance/` at all. It was wrong: I had dropped
+/// the bare `422` alternative that my in-tree pattern carried, measuring the two sides with
+/// DIFFERENT commands while citing the rule that says not to. The 15 files were invisible to the
+/// pattern, not absent from the repo. The conclusion survived; the search did not.
+///
 /// Every file in `apps/bdptest/src`, pinned EXACTLY. Not a floor -- see the module note.
 pub const TS_SUITE: &[TsFile] = &[
     TsFile { file: "atomic-batch-reference.test.ts", disposition: Disposition::Pending },
