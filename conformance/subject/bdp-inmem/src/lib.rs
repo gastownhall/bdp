@@ -1110,8 +1110,37 @@ impl BdpScope for InMemScope {
 
     async fn get(&self, r: &ResourceId, selector: Option<&Selector>) -> Result<BdpResult<Representation>, BdpError> {
         // DERIVED, NOT HARDCODED. This used to take `_selector` and drop it: a client asking for a
-        // projection got 200 with a full representation and no error, which is worse than a wrong
-        // status because it cannot be observed.
+        // projection got 200 with a full representation and no error.
+        //
+        // AND THIS REFUSAL EMITS AN UNDECLARED FAULT, which I did not check before making the
+        // change. A peer found it by measuring her tree on the axis I had given her. Four facts,
+        // all verified here:
+        //   1. `get`'s annotation DECLARES the parameter (core.lumen:157,
+        //      `select = { in = "query", schema = "selector", required = false }`);
+        //   2. `GetCaps.selector` exists and this scope advertises it `false` (:991);
+        //   3. core.lumen:1457 names `get` among the ops advertising a selector per-op;
+        //   4. `get` declares `problem = { status = [404,410] }` — NO 400 and NO 422.
+        //
+        // SO NO CONFORMANT ANSWER EXISTS. Dropping it silently violates the advertisement;
+        // refusing it answers a status `get` does not declare; adding the row is a spec change
+        // under the freeze. That differs in kind from every other cell held today, where one
+        // answer was right and we did not know which — here neither is available, by construction.
+        //
+        // I GROUNDED THIS ON :1457 AND NEVER READ `get`'s DECLARED SET, which I had derived myself
+        // earlier in the same session — `get [404, 410]` was in my own output. I read :1457 for the
+        // clause I came for and skipped the one check that would have stopped me. `pull`
+        // ([400,404,405,410]) and `export` ([400]) both declare their 400, so only this site is
+        // affected.
+        //
+        // AND MY GATE CANNOT SEE IT. It measures DECLARED rows for coverage and never checks an
+        // EMITTED fault against the declaration — the asymmetry is why this got past me, and it is
+        // a missing instrument rather than a missed assertion.
+        //
+        // KEPT RATHER THAN REVERTED, as a choice between two defects and not a justification:
+        // reverting restores a 200 answering a different request, which no client can detect,
+        // while this fails where the caller can see it. THE CONFORMANT FIX IS NEITHER — it is
+        // implementing projection, after which `selector: true` is honoured and no fault status is
+        // needed at all. Real work, not a status choice, and it is the answer.
         if selector.is_some() {
             return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "get"), "get"));
         }
