@@ -1205,6 +1205,25 @@ impl BdpScope for InMemScope {
     /// resolve — batch read, reusing `get`'s Present/Absent/Erased decision so it lives in one place.
     async fn resolve(&self, refs: &[ResourceId], selector: Option<&Selector>)
         -> Result<BdpResult<Vec<ResolvedRepresentation>>, BdpError> {
+        // REFUSED HERE, NAMING `resolve.selector`, NOT FORWARDED TO `get`.
+        //
+        // The behaviour was already correct — `get` refuses a selector, so a `resolve` carrying
+        // one was declined rather than silently unprojected. What was wrong is what the refusal
+        // NAMED: `get.selector`, which leaks an implementation detail (that resolve forwards to
+        // get) into a member a client reads to decide what to send. `ResolveCaps.selector` exists
+        // and is the flag a client would look up for `resolve`, so that is what must be named.
+        //
+        // The same reasoning as `revisions` naming the bare op, pointed the other way: there, no
+        // field exists and naming one would invent it; here a field exists and naming the wrong
+        // one sends a client to another operation's advertisement.
+        if selector.is_some() {
+            let caps = BdpScope::capabilities(self);
+            return Err(option_refusal(
+                advertised_option(&caps, "resolve", "selector"),
+                "resolve",
+                "selector",
+            ));
+        }
         let mut out = Vec::with_capacity(refs.len());
         for r in refs {
             let resolved = match self.get(r, selector).await {

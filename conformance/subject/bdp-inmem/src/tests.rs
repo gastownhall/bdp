@@ -630,6 +630,17 @@ async fn an_unhonoured_read_option_is_refused_and_names_what_a_client_can_look_u
         other => panic!("revisions must refuse a selector, got {other:?}"),
     }
 
+    // `resolve` NAMES ITS OWN FLAG, not the one belonging to the op it forwards to. The behaviour
+    // was already a refusal (via `get`); the defect was that it named `get.selector` and so leaked
+    // the forwarding into a member clients read.
+    match s.resolve(&[id.clone()], Some(&sel)).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(
+            capability, "resolve.selector",
+            "must name the flag a client reads for `resolve`, never the forwarded-to op's"
+        ),
+        other => panic!("resolve must refuse a selector, got {other:?}"),
+    }
+
     // AND THE OPS STILL WORK WITHOUT THE OPTION. Without this every assertion above is satisfied
     // by a scope that refuses these reads outright.
     assert!(
