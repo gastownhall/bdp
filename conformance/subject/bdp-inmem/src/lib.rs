@@ -1496,6 +1496,33 @@ impl BdpScope for InMemScope {
     /// `Ok` carrying a settled `Outcome`. Collapsing the two would erase the only distinction
     /// that says whether the operation ran.
     /// pull — read a channel's events (core.lumen#pull).
+    /// `_filter` IS THE FIELD I DID NOT LOOK AT, and it has the defect I had just finished
+    /// removing from `selector` two arguments to its left.
+    ///
+    /// MEASURED: this scope advertises `PullCaps { filter: false, .. }` (:1070), and `_filter` is
+    /// underscore-bound and never read below. So a filter supplied to `pull` is DROPPED SILENTLY —
+    /// 200, the unfiltered feed, no error — which is the same shape as the selector drop I fixed
+    /// in this file an hour ago, on the same operation.
+    ///
+    /// I ENUMERATED THE SELECTOR POPULATION AND CALLED IT THE POPULATION. Six selector-bearing
+    /// reads, carefully listed, every one checked — and `filter` is a second advertised capability
+    /// riding the same methods, which my census never asked about. A peer hit the identical trap
+    /// on the identical pair in her own tree the same afternoon ("the field I never looked at —
+    /// I'd spent the whole exchange on the selector"), which is what sent me back here. Two of us
+    /// independently scoped a census to the flag under discussion.
+    ///
+    /// THE OTHER DROP IS `changes` (:1311, `ChangesCaps { filter: false }`). `list` and `export`
+    /// both bind their filter and use it, so the silent-drop population is exactly these two.
+    ///
+    /// NOT FIXED, and the grounding is genuinely thinner here than it was for the selector.
+    /// core.lumen:1457 gives the selector a general sentence — "a scope advertising
+    /// `selector: false` faults a `select` request `400` (`invalid-parameter`)" — and there is NO
+    /// per-op equivalent for `filter` anywhere in core.lumen (checked). fe690ac8's message says
+    /// the Filter vocabulary is scope-wide, advertised once via `ListCaps.conditions`, which makes
+    /// a per-op `filter` flag's meaning less settled rather than more. A ruling has been relayed
+    /// that would cover it (an unsupported option answers a plain 400) but its text is not in, so
+    /// picking a status here would be answering an unruled cell by editing. Recorded, held with
+    /// `changes`, `revisions` and `resolve`.
     async fn pull(&self, channel: &ResourceId, page: Page, _filter: Option<&ListFilter>, selector: Option<&Selector>)
         -> Result<BdpResult<Vec<RawJson>>, BdpError> {
         let d = self.channel_descriptor(channel)?;
