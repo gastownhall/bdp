@@ -1184,6 +1184,33 @@ impl BdpScope for InMemScope {
     /// (exclusive) XOR `from` an ordinal (inclusive); `head` = caught up to the live edge. Each log
     /// row is one committed change; create/update carry the full post-image, delete carries
     /// top-level provenance (no body). Mirrors pg.
+    /// DEFECT, MEASURED AND UNFIXED: this silently DROPS a requested `filter` and `selector`.
+    ///
+    /// This scope advertises `ChangesCaps { filter: false, selector: false }` (see
+    /// `capabilities()`), and both parameters are `_`-prefixed and never read below. So a client
+    /// that asks for a projection gets `200` with FULL representations and no error — the request
+    /// was neither honoured nor refused. That is strictly worse than answering the wrong status:
+    /// a wrong status is visible, and this is not.
+    ///
+    /// AND IT CONTRADICTS `pull` IN THIS SAME FILE. `pull` advertises `selector: false` too and
+    /// faults `400 invalid-parameter` for a selector. Same advertisement, opposite behaviour, one
+    /// subject — and `pull` is the one with a spec precedent behind it (core.lumen:1457).
+    ///
+    /// WHY IT IS RECORDED RATHER THAN FIXED, and the two halves are not equally blocked:
+    ///   * THE SILENCE IS WRONG UNDER EVERY READING. Dropping a requested projection while
+    ///     advertising the flag is indefensible whichever fault is correct, so this is not a
+    ///     "plausible ruling makes it right" case.
+    ///   * WHICH FAULT IS UNRULED. `changes` is not among the 13 declared operationIds and has no
+    ///     declared fault surface, so there is no row to answer and no status the spec assigns.
+    ///     Picking one is the same unruled third class as the `list` sub-options.
+    /// Stopping the silence REQUIRES picking, so the fix is blocked on which fault, never on
+    /// whether. CLOSES WHEN: the spec owner rules the class, or grounds `changes` as an operation.
+    ///
+    /// FOUND BY AUDITING A PEER'S RETRACTION rather than accepting it. She withdrew a claim about
+    /// her own changefeed selector; checking whether the withdrawal held sent me to my own caps
+    /// record, which I had never enumerated either. Her point generalises and this is the
+    /// instance: a self-correction arrives with the credibility of having caught itself, so it
+    /// gets less scrutiny than the assertion it replaces.
     async fn changes(&self, page: Page, _filter: Option<&ListFilter>, _selector: Option<&Selector>)
         -> Result<BdpResult<Vec<ChangeEvent>>, BdpError> {
         let store = self.store.read().unwrap();
