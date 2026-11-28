@@ -10,18 +10,30 @@
 // 0.2.3 model. Preview 3 wrote its relationships as a markdown Link/edge DSL;
 // here they are first-class `rel<F, T>` RELATIONSHIP RESOURCES (core `rel`), the
 // same construct the Issue pack uses for `Dependency` — NOT the obsolete
-// graph-mode edge model. The canonical command design is [[memory-cli.md]].
+// graph-mode edge model.
+//
+// SOURCE OF AUTHORITY. [[memory-cli.md]] is the design intent for WHAT
+// relationships exist and their semantics (endpoints, ownership, cardinality,
+// acyclicity). Its generic Link-creation CLI (`bd link create --type …` and the
+// `bd memory …` facades defined over it) is SUPERSEDED and is NOT the authority
+// for the command surface. A `rel<F, T>` relationship IS a resource, so §2
+// follows the current 0.2.3 resource model and the issue.lumen pattern: a
+// relationship is created, deleted and read with the core primitives (and the
+// pack commands below), exactly as `issue.lumen` creates a `Dependency` through
+// `addDependency` + `create`, never through a generic link-create CLI.
 //
 // PRINCIPLES — why it is shaped this way (as issue.lumen):
 //   1. Model before commands. §1 models the Memory and the relationships
 //      completely; §2's commands are a thin surface over that model, never the
 //      reverse.
-//   2. Relationships are relationship RESOURCES. A Link between two beads is a
-//      `rel<F, T>` — a bead with its own identity, revision history and
-//      provenance (core §rel). The five Memory Links (References, SupersededBy,
-//      Requires, Defines, SubjectTo) are concrete relationship types; the CLI's
-//      "Link-creation" commands CREATE them and the relationship reads TRAVERSE
-//      them. A bare `ref<T>` in a body field is data, not a Link.
+//   2. Relationships are relationship RESOURCES. A relationship between two beads
+//      is a `rel<F, T>` — a bead with its own identity, revision history and
+//      provenance (core §rel). The five Memory relationships (References,
+//      SupersededBy, Requires, Defines, SubjectTo) are concrete relationship
+//      types; the §2.B pack commands CREATE them over the core `create` primitive
+//      (as `issue.lumen`'s `addDependency` creates a `Dependency`), and the §2.C
+//      reads TRAVERSE them. A bare `ref<T>` in a body field is data, not a
+//      relationship.
 //   3. Owned vs unowned follows core referential integrity. An OWNED Link's write
 //      revises its source, not its target (SupersededBy, Requires, Defines,
 //      SubjectTo); plain References is UNOWNED and revises neither endpoint. The
@@ -184,12 +196,13 @@ type Violates is Conformance {}
 // §2. The command surface — derived from §1
 // #############################################################################
 // As issue.lumen: the generic verbs (§2.A) ARE core primitives and are NOT
-// redefined; §2.0 is the error model; §2.B is the Link-creation commands; §2.C is
-// the relationship reads. Queries are `fn` (safe); writes are `command`. The full
-// flag lists are folded from the callable catalog (memory-cli.md §"Memory
-// commands"); the signatures below model the SHAPE — representative parameters,
-// not every field — and share the named-content flags (`--title`/`--body`/
-// `--status`) and, on an owned Link, the `--if-source-revision` guard.
+// redefined; §2.0 is the error model; §2.B creates the relationship resources;
+// §2.C is the relationship reads. Queries are `fn` (safe); writes are `command`.
+// The signatures model the SHAPE — representative parameters, not every field —
+// and share the named-content inputs (`title`/`body`/`status`) and, on an owned
+// relationship, the `ifSourceRevision` guard. The relationship SEMANTICS are
+// [[memory-cli.md]]'s; the command FORM follows the 0.2.3 resource model and
+// issue.lumen, not memory-cli.md's superseded link-create CLI.
 //
 // CLI MOUNT: this pack mounts at `bd memory` — `cli.mount: "/memory"` — so its
 // ops render as `bd memory reference` / `bd memory requires`; `remember` /
@@ -207,15 +220,18 @@ type Violates is Conformance {}
 // the existing top-level commands; both paths share one handler. A generic verb
 // gains no Memory-specific behaviour — behaviour lives in §2.B/§2.C. `recall`
 // projects the body (a `get` selector); `memories` is a summary `list`. Ordinary
-// Bead/Link CRUD (incl. `bd link create`) is the general CLI's, not re-specified.
+// Bead CRUD is the core primitives', not re-specified; a relationship, being a
+// resource, is likewise created/deleted/read with those primitives — §2.B adds a
+// pack command only where there is relationship behaviour beyond a bare `create`
+// (endpoint eligibility, self-link, cardinality, acyclicity).
 
 // -----------------------------------------------------------------------------
 // §2.0  The error model — primitives fault; operations declare a Result<T, E>
 // -----------------------------------------------------------------------------
 // As issue.lumen §2.0: a PRIMITIVE returns its value or faults with a `Problem`
-// (not-found, conflict, precondition — e.g. a stale `--if-source-revision` guard
-// is a precondition fault, not a domain `E`). A Link-creation `command` with its
-// own domain "no" declares `Result<T, E>`: `T` is the created `rep<Link>`, `E` is
+// (not-found, conflict, precondition — e.g. a stale `ifSourceRevision` guard is a
+// precondition fault, not a domain `E`). A relationship-creation `command` with
+// its own domain "no" declares `Result<T, E>`: `T` is the created `rep<X>`, `E` is
 // that op's DOMAIN refusals (business rules only). Safe reads (`fn`) read-or-fault
 // and carry no domain `E`.
 
@@ -231,12 +247,15 @@ type DefinesError   = "existing-definer" | "would-cycle" | "ineligible-endpoints
 type SubjectToError = "ineligible-target" | "self-link" | "ownership-unsupported"
 
 // -----------------------------------------------------------------------------
-// §2.B  Link-creation commands — CREATE a `rel<F, T>` resource
+// §2.B  Relationship-creation commands — CREATE a `rel<F, T>` resource
 // -----------------------------------------------------------------------------
-// Each fixes its installed nominal Link Type (no `--type` override) and lowers to
-// `bd link create SOURCE TARGET --type "$LINK_TYPE"`. All accept the three
-// endpoint forms (positional, `--to`, `--from`/`--to`); modelled here as the two
-// endpoint parameters. Each returns the created `rep<Link>`.
+// Each creates one concrete relationship resource via the core `create`
+// primitive and enforces that type's invariants (endpoint eligibility, self-link,
+// cardinality, acyclicity), returning the created `rep<X>` or a domain refusal —
+// the issue.lumen `addDependency` pattern, a pack command over a `rel` resource,
+// NOT a facade over a generic link-create CLI. Each takes the two endpoints and
+// the shared named-content inputs; an owned relationship also takes
+// `ifSourceRevision` (an optimistic-concurrency guard on the owning source).
 
 /// description: Create a References Link from a Bead to useful context (unowned; §1.3.1). Eligible pairs only; a self-Link refuses; no owner guard. `bd memory reference`. (`memory/reference`.)
 /// cli.name: "reference"
