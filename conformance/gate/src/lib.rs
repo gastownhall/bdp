@@ -75,6 +75,25 @@ pub const CORE_OPENAPI: &str =
 
 /// Derive the tier-1 denominator from the pinned OpenAPI: one `Op` per operation and one `Fault`
 /// per declared `>=400` response. This is the set the gate measures coverage against.
+/// The spec version, READ from the generated document rather than written here.
+///
+/// The report used to print a hand-written `v0.2.3` directly beneath a comment explaining that a
+/// pinned provenance line had gone stale in every component and that "nothing hand-written here
+/// can be more current than" the tree. The comment's own argument condemned the line beneath it,
+/// and the one component it kept is the one about to rot — 0.2.4 is the active target.
+///
+/// This is also the missing half of a peer's instrument design: a number should not leave without
+/// the coordinate it was derived at. The denominator was already live; its coordinate was not.
+pub fn spec_version() -> String {
+    let doc: serde_json::Value =
+        serde_json::from_str(CORE_OPENAPI).expect("specs/generated/openapi/core.openapi.json parses");
+    doc.get("info")
+        .and_then(|i| i.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+        .expect("the generated OpenAPI carries info.version")
+}
+
 pub fn denominator() -> BTreeSet<SurfaceId> {
     let doc: serde_json::Value =
         serde_json::from_str(CORE_OPENAPI).expect("specs/generated/openapi/core.openapi.json parses");

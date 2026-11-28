@@ -4024,7 +4024,9 @@ async fn run_cases(addr: String, restricted_addr: String) {
     // a live measurement is worse than no claim, because it reads as the measurement's source.
     // The denominator is read from the working tree at run time, so the tree IS the pin; `git
     // rev-parse HEAD` names it, and nothing hand-written here can be more current than that.
-    eprintln!("spec version: v0.2.3 (tier-1 surface)");
+    // READ, NOT WRITTEN. The hand-written `v0.2.3` that stood here contradicted the comment
+    // above it, and 0.2.4 is the active target — so it was a stale claim waiting for a date.
+    eprintln!("spec version: v{} (tier-1 surface, read from info.version)", bdp_gate::spec_version());
     eprintln!("denominator source: specs/generated/openapi/core.openapi.json (live, drift-gated)");
     eprintln!("surface: {} rows, derived at run time, not pinned here", denom.len());
     eprintln!("coverage: {}/{} surface rows", covered_in_denom.len(), denom.len());
@@ -4662,4 +4664,26 @@ fn render(rows: &[&SurfaceId]) -> String {
         return "(none)".into();
     }
     rows.iter().map(|r| r.to_string()).collect::<Vec<_>>().join(", ")
+}
+
+
+/// The reported spec version is READ from the generated document, not written in the report.
+///
+/// WHAT THIS CATCHES AND WHAT IT CANNOT, stated because the limit is real: it compares
+/// `spec_version()` against the document, so a re-hardcoded `"0.2.3"` would pass TODAY and fail
+/// the day the spec moves to 0.2.4. That is the moment the rot matters, so the test is useful —
+/// but it is not a same-day guard, and calling it one would be the kind of coverage claim that
+/// stops anyone looking. The previous hand-written line survived three surface changes precisely
+/// because nothing compared it to anything.
+#[test]
+fn the_reported_spec_version_is_read_from_the_document() {
+    let doc: serde_json::Value = serde_json::from_str(bdp_gate::CORE_OPENAPI)
+        .expect("the generated OpenAPI parses");
+    let from_doc = doc["info"]["version"].as_str().expect("info.version is a string");
+    assert_eq!(
+        bdp_gate::spec_version(),
+        from_doc,
+        "the reported version must come from the document's `info.version`, not from a literal"
+    );
+    assert!(!from_doc.is_empty(), "a blank version would print as `v` and read as a formatting bug");
 }
