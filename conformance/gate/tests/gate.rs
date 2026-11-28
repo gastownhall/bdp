@@ -3638,6 +3638,22 @@ const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
     //     three entries above are held for; taking the exception for the one case that unblocked
     //     me, in the same commit, would have been a rule written to permit what I wanted.
     //
+    //     AND THE PRECEDENT IS ALREADY DATED, which reframes the question from "may we?" to "was
+    //     this already decided?". Measured: the freeze tag `bdp-core-0.2.3-rc1` is 33dc2f2e
+    //     (2026-11-24 09:03:11 -0800), `rc2` is acb7aa67 (2026-11-25 14:25:25), and
+    //     `ExportCaps.selector` was added to core.lumen at fe690ac8 (2026-11-26 14:11:14) as a
+    //     `+ selector:  bool` line -- AFTER BOTH TAGS. So the spec owner has already added an
+    //     additive advertisement member post-freeze once, and the RC3 merges carried it into the
+    //     generated wire schema.
+    //
+    //     WHICH MAKES THE HOLD SELF-DEFEATING AT THIS ONE ENTRY, and that is worth saying against
+    //     my own decision: this guard fires BECAUSE the spec now requires the field. Holding the
+    //     gap under the freeze means this subject is knowingly non-conformant to current main in
+    //     order to honour a freeze that current main already moved past. The revert was still
+    //     right as PROCESS -- taking the exception for the one case that unblocked me is not mine
+    //     to do -- but the likely answer is "additive is exempt", and the entry should not pretend
+    //     the question is open in both directions.
+    //
     //     THE QUESTION IS WORTH MORE THAN THIS ENTRY, so it goes to Donna rather than being
     //     decided here: does the rc1 wire freeze cover an ADDITIVE member with `#[serde(default)]`
     //     -- which an old client ignores and a new client reads as `false` against an old scope --
