@@ -3674,6 +3674,13 @@ const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
     //     class, or (ii) each needs its own authorization as `selector` got. Only (i) resolves the
     //     non-conformance without a further ruling.
     //
+    //     SURFACE-MATCHED, CHECKED: fe690ac8 is a CAPABILITY RECORD field, which is the
+    //     discovery/advertise side -- the same surface as every entry in this register (three
+    //     `ifRevision` renames, three `precondition` absences, `list.compactFilter`,
+    //     `export.selector`). So citing it here is on-surface. It would NOT carry to the fault
+    //     wire: a peer nearly borrowed it for a Problem EXTENSION MEMBER and stopped herself,
+    //     which is the right line -- advertise-side and fault-side are two freeze questions.
+    //
     //     THE QUESTION IS WORTH MORE THAN THIS ENTRY, so it goes to Donna rather than being
     //     decided here: does the rc1 wire freeze cover an ADDITIVE member with `#[serde(default)]`
     //     -- which an old client ignores and a new client reads as `false` against an old scope --

@@ -728,9 +728,17 @@ pub const UNCARRIED_INPUTS: &[(&str, &str, &str)] = &[
 /// WORSE than "POSIX ERE has no `\s`": on this machine `grep -E 'a\sb'` matches, while
 /// `git grep -E 'fn\sunadvertised'` returns 0 against a file where the plain string matches 1.
 /// So the hazard is not the standard, it is that `git grep` carries its own engine — a pattern
-/// verified in one tool returns silently empty in the other, which is exactly what happens when
-/// someone moves a working pattern between them.
+/// verified in one tool returns silently empty in the other, which is exactly what happens in the
+/// ORDINARY workflow: validate interactively with `grep -E`, wire it into a repo-wide
+/// `git grep -E`, and it breaks at the step after you believe you have validated it.
 ///
+/// THE COMPLETE MATRIX, measured on this machine against a file where the plain string matches 1:
+///   grep -E     'fn\sunadvertised'   -> 1   works
+///   git grep -E 'fn\sunadvertised'   -> 0   SILENTLY EMPTY
+///   git grep -P 'fn\sunadvertised'   -> 1   works
+///   git grep -F 'fn unadvertised'    -> 1   control
+/// So `-P` is the fix where `\s` is wanted under `git grep`, and `-E` is the one combination that
+/// lies. A peer supplied the `-P` arm; it is the half that turns the warning into a remedy.
 /// The habit that separates "absent" from "unmatchable", and it is one command: when a search
 /// returns EMPTY and the answer matters, re-run the same pattern against something you KNOW is
 /// present. If that is also empty, the instrument is broken rather than the tree. This gate's
