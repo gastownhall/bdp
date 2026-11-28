@@ -795,6 +795,104 @@ fn text_of(v: &serde_json::Value) -> Option<String> {
     }
 }
 
+/// The advertised selector flag for one read, READ rather than hardcoded.
+///
+/// This exists because the advertisement was DECORATIVE: across six selector-bearing reads, not
+/// one consulted the flag it published. Two happened to agree with it and one did not, so the
+/// fault was invisible to every test here — they all drive only the advertised value, so no arm
+/// ever disagreed.
+///
+/// SCOPED TO THE THREE READS THE SPEC NAMES. core.lumen:1457 establishes that `get`/`list`/`pull`
+/// advertise their own selector per-op and then states generally that "a scope advertising
+/// `selector: false` faults a `select` request `400` (`invalid-parameter`)". That reaches `get`,
+/// `pull` and `export`. It does NOT reach `changes` (not a declared operation), `revisions`
+/// (`RevisionsCaps {}` carries no selector field at all) or `resolve` (also not among the 13
+/// declared operationIds) — those are the unruled class, recorded and left alone rather than
+/// answered by my picking a status for them.
+///
+/// Takes the caps SLICE rather than `&self` so both arms can be unit-tested without a scope whose
+/// advertisement is hardcoded — the arm-with-no-path problem, avoided by construction.
+///
+/// Defaulting an unadvertised op to `false` is the SAFE direction: refuse rather than silently
+/// decline to project.
+/// Whether a read option is advertised, and whether a flag for it EXISTS at all.
+///
+/// `None` means no caps field advertises this option on this op — `RevisionsCaps` is `{ }`, so
+/// nothing can advertise its `select`. D.8 (core.lumen:2076-2083, merged) covers that case
+/// explicitly: "a `select` on a read whose caps carry no `selector` … BDP deliberately does not
+/// advertise support at this sub-capability granularity … so a missing advertisement does not
+/// change the fault, only a client's ability to predict it". So `None` and `Some(false)` take the
+/// SAME status and code, and differ only in what the refusal can name.
+fn advertised_option(caps: &[PrimitiveCapabilities], op: &str, field: &str) -> Option<bool> {
+    caps.iter().find_map(|c| match (op, field, c) {
+        ("get", "selector", PrimitiveCapabilities::Get(x)) => Some(x.selector),
+        ("export", "selector", PrimitiveCapabilities::Export(x)) => Some(x.selector),
+        ("pull", "selector", PrimitiveCapabilities::Pull(x)) => Some(x.selector),
+        ("pull", "filter", PrimitiveCapabilities::Pull(x)) => Some(x.filter),
+        ("changes", "selector", PrimitiveCapabilities::Changes(x)) => Some(x.selector),
+        ("changes", "filter", PrimitiveCapabilities::Changes(x)) => Some(x.filter),
+        ("resolve", "selector", PrimitiveCapabilities::Resolve(x)) => Some(x.selector),
+        _ => None,
+    })
+}
+
+fn advertised_selector(caps: &[PrimitiveCapabilities], op: &str) -> bool {
+    advertised_option(caps, op, "selector").unwrap_or(false)
+}
+
+/// What a supplied selector gets, given what the scope ADVERTISES for that read.
+///
+/// Both arms are errors, and that is the honest state of this subject rather than an oversight:
+/// it implements NO projection anywhere. `get` discards its selector, and there is no projection
+/// helper in this crate — so there is no arm in which a selector can be honoured.
+///
+/// THE `true` ARM IS NOT DEAD CODE AND IS NOT A SHRUG. A scope advertising `selector: true` here
+/// would be claiming a capability that does not exist, and the failure mode it replaces is the
+/// dangerous one: returning full representations under a projection request, with a 200. Failing
+/// loudly makes a future flag flip a visible error instead of a silent lie. It is reachable and
+/// pinned by `the_true_arm_refuses_loudly_rather_than_lying` below.
+/// The refusal for a read option this scope does not honour.
+///
+/// `advertised: None` = no caps field exists for it, so `capability` carries the bare op: a client
+/// cannot look this one up, which is itself the signal. Same status and code either way, per
+/// D.8:2076-2083.
+fn option_refusal(advertised: Option<bool>, op: &str, field: &str) -> BdpError {
+    if advertised == Some(true) {
+        return BdpError::Backend(format!(
+            "{op} advertises `{field}: true`, but this subject implements no projection or \
+             stream filtering at all. Refusing loudly rather than returning an answer to a \
+             different request."
+        ));
+    }
+    BdpError::InvalidParameter {
+        capability: match advertised {
+            Some(false) => format!("{op}.{field}"),
+            _ => op.to_string(),
+        },
+        detail: match advertised {
+            Some(false) => format!("this scope advertises `{field}: false` on {op}"),
+            _ => format!(
+                "{op} does not honour `{field}`, and no capability field advertises it — \
+                 unsupported at a granularity BDP does not advertise (D.8:2076-2083)"
+            ),
+        },
+    }
+}
+
+fn selector_refusal(advertised: bool, op: &str) -> BdpError {
+    if advertised {
+        return BdpError::Backend(format!(
+            "{op} advertises `selector: true`, but this subject implements no projection at all — \
+             `get` discards its selector and there is no projection helper. Refusing loudly rather \
+             than returning full representations under a projection request."
+        ));
+    }
+    BdpError::InvalidParameter {
+        capability: format!("{op}.selector"),
+        detail: format!("this scope advertises `selector: false` on {op}"),
+    }
+}
+
 /// The RHS text of a `Compare`/condition value (mirrors pg `json_scalar_text`).
 fn rhs_text(v: &RawJson) -> String {
     match serde_json::from_slice::<serde_json::Value>(&v.0) {
@@ -806,8 +904,70 @@ fn rhs_text(v: &RawJson) -> String {
 }
 
 /// Does `row` satisfy one `ListCondition`? Mirrors pg's lowering: Compare/Matches use `#>>` text
-/// comparison; Has/Missing test presence; IsType is the kind-path prefix. An unadvertised kind is
-/// `LimitExceeded`; an unwired sub-option (Glob/In) is `Unprocessable` — exactly as pg emits.
+/// comparison; Has/Missing test presence; IsType is the kind-path prefix.
+///
+/// BOTH refusal paths here are now `InvalidParameter` (400 `invalid-parameter`), and they are NOT
+/// the same defect:
+///   - an unadvertised condition KIND is a capability this scope declines by advertisement, the
+///     case D.8's membership test and core.lumen:1457 settle;
+///   - an unwired SUB-OPTION (`In`, `Glob`, `Regex`) is UNRULED, and TWO OF THE THREE READINGS
+///     MAKE THE CARRIER BELOW WRONG. Saying that first, because it is the direction that costs
+///     me: an earlier version of this note called it "a class D.8's dichotomy does not reach",
+///     which framed the gap so that my own `invalid-parameter` survived it by default. It does
+///     not survive by default.
+///
+/// D.8:2071-2083 lists THREE shapes reaching 400 — a bad body, AN INVALID PARAMETER VALUE, and a
+/// write guard the operation does not define — then justifies the third: "no field exists that
+/// could advertise it either way … The line is therefore drawn by the caps record, not by the
+/// sentence — in an operation's vocabulary and advertised false is a decline it can state, outside
+/// its vocabulary is malformed."
+///
+/// THE "THEREFORE" IS SCOPED TO THE GUARD CASE, which is the whole difficulty. D.8's example
+/// (`If-None-Match` on `patch`) has BOTH properties at once — `PatchCaps` has no `ifAbsent` field
+/// AND `ifAbsent` is not a parameter of `patch` — so it cannot discriminate "no caps field" from
+/// "not in the signature", and the generalizing sentence was written where the two coincide.
+/// Whether it extends to a value that is DECLARED but unadvertisable is exactly the open question.
+///
+/// Three readings, and only the first leaves this code as it stands:
+///   (i)   shape 2, "an invalid parameter value" → `invalid-parameter`. Weakest of the three:
+///         `"glob"` is not an invalid value, it is a valid one this scope cannot run.
+///   (ii)  the caps-record sentence extends → no field at `op`/`using` granularity →
+///         `malformed-request`. THIS MAKES THE CARRIER BELOW WRONG, and it is the reading with
+///         the only NORMATIVE text behind it. Measured: `invalid-parameter` appears ZERO times in
+///         ae703386's diff and twice in its commit MESSAGE, and the one code-relevant line that
+///         diff does add says "declined at 400, not here" without choosing between the two 400
+///         codes. So the competing naming lives in a message, not in the artefact — authority is
+///         real (it is the owner's), but ae703386 deliberated the 405 boundary and named
+///         `invalid-parameter` as its contrast case, never weighing a declared-but-unadvertisable
+///         input. Wording reaching further than deliberation, again, and this time against me.
+///   (iii) an advertised KIND binds all its declared members → supporting `"in"` is not optional,
+///         so the refusal is not a fault at all but a SUBJECT GAP: implement them, or stop
+///         advertising `compare`/`matches`. THIS MAKES THE CARRIER BELOW WRONG TOO, and more
+///         deeply — there would be no fault to classify.
+///
+/// The declared text that forces the question, none of it in dispute:
+///   core.lumen:1286  `compare { field, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value }`
+///   core.lumen:1288  `matches { field, pattern, using: "substring"|"glob"|"regex" }`
+///   core.lumen:1726  `ConditionKind = "compare" | "matches" | ... | "isType"`
+/// So `"in"`, `"glob"` and `"regex"` are DECLARED members of a DECLARED parameter of a DECLARED
+/// operation, while `ListCaps.conditions: [ConditionKind]` advertises at KIND granularity only,
+/// with no caps field at `op`/`using` granularity. In-vocabulary by the signature, unadvertisable
+/// by the caps record — and D.8 names the caps record as the discriminator, which is why (ii) is
+/// the stronger reading of the text and (i), the one this code implements, is the weaker.
+///
+/// A CONDITION KIND IS NOT IN THIS CLASS, and that is the line. `contains`, `containsAny` and
+/// `excludes` are `ConditionKind` members that `ListCaps.conditions` CAN advertise, so refusing one
+/// is a decline the scope can state — `invalid-parameter`, which is what the catch-all below emits.
+/// Same record, two populations, two answers.
+///
+/// NOT RE-POINTED ON MY OWN DERIVATION, and that is a decision about PROCESS, not a defence of
+/// (i). `invalid-parameter` stays only because moving it would answer an unruled cell by editing,
+/// on a reading that is mine — the same ground on which a peer declined to re-flip 12 sites in her
+/// tree on her derivation plus my message. If the ruling picks (ii) or (iii), this carrier changes. THE FIX IS
+/// PROBABLY NOT A STATUS AT ALL: Lydia's stated reason for adding `ExportCaps.selector` was that
+/// without it "a scope that did not project had to refuse while claiming an advertised absence it
+/// had no field to advertise" — which is this class exactly, and the remedy she chose was to ADD
+/// THE FIELD. A sub-option advertisement would do the same here. Carried to her as that.
 fn matches_condition(
     props: &serde_json::Value,
     meta: &serde_json::Value,
@@ -829,7 +989,15 @@ fn matches_condition(
                 CompareOp::Le => lhs <= rhs,
                 CompareOp::Gt => lhs > rhs,
                 CompareOp::Ge => lhs >= rhs,
-                CompareOp::In => return Err(BdpError::Unprocessable("list: `in` not wired".into())),
+                CompareOp::In => {
+                    return Err(BdpError::InvalidParameter {
+                        capability: "list".into(),
+                        detail: "list: `in` is not wired in this scope (see the note on \
+                                 `matches_condition`: `ListCaps.conditions` advertises kinds, not \
+                                 sub-options, so this refusal is not advertised anywhere)"
+                            .into(),
+                    })
+                }
             }
         }
         ListCondition::Matches { field, pattern, using } => {
@@ -839,8 +1007,22 @@ fn matches_condition(
             };
             match using {
                 MatchKind::Substring => lhs.to_lowercase().contains(&pattern.to_lowercase()),
-                MatchKind::Regex => return Err(BdpError::Unprocessable("list: regex match needs a regex engine (not wired)".into())),
-                MatchKind::Glob => return Err(BdpError::Unprocessable("list: glob match not wired".into())),
+                MatchKind::Regex => {
+                    return Err(BdpError::InvalidParameter {
+                        capability: "list".into(),
+                        detail: "list: `regex` match needs a regex engine and is not wired in this \
+                                 scope (unadvertisable — see `matches_condition`)"
+                            .into(),
+                    })
+                }
+                MatchKind::Glob => {
+                    return Err(BdpError::InvalidParameter {
+                        capability: "list".into(),
+                        detail: "list: `glob` match is not wired in this scope (unadvertisable — \
+                                 see `matches_condition`)"
+                            .into(),
+                    })
+                }
             }
         }
         ListCondition::Has { field } => {
@@ -855,13 +1037,21 @@ fn matches_condition(
                 kind == t || kind.starts_with(&format!("{t}/"))
             }
         }
-        // a condition KIND beyond the advertised set (Compare/Matches/Has/Missing/IsType) is an
-        // OVER-LIMIT request — LimitExceeded, not not_implemented and not a generic payload error.
+        // A condition KIND outside the advertised set (`ListCaps.conditions`) is a WELL-FORMED
+        // request exercising a capability this scope does not advertise — 400 `invalid-parameter`,
+        // not 422. No smaller request succeeds: dropping the condition is not shrinking it, and
+        // D.8's 422 line admits a fault "IFF shrinking the request fixes it"
+        // (core.lumen:2103-2106). It is also not `not_implemented`: `list` IS offered.
+        //
+        // AND `list` DECLARES ONLY 400 (core.openapi.json, `list`: problem = [400]), so the old 422
+        // was an undeclared fault as well as a mis-keyed one — two independent reasons, and the
+        // declaration one holds whichever way the membership test had been read.
         other => {
-            return Err(BdpError::LimitExceeded {
-                capability: "list".into(),
-                limit: "conditions".into(),
-                detail: format!("condition kind not in the advertised set: {other:?}"),
+            return Err(BdpError::InvalidParameter {
+                capability: "list.conditions".into(),
+                detail: format!(
+                    "condition kind not in this scope's advertised `ListCaps.conditions`: {other:?}"
+                ),
             })
         }
     })
@@ -927,7 +1117,14 @@ impl BdpScope for InMemScope {
             // prove the binding does not conflate them: a batch of 3 is deferred-in-part and
             // SUCCEEDS, a batch of 5 is refused.
             PrimitiveCapabilities::Push(PushCaps { max_batch: Some(4), window: Some(2) }),
-            PrimitiveCapabilities::Export(ExportCaps { revisions: true }),
+            // `selector: false`, AND THE `true` I PUT HERE AN HOUR AGO WAS FALSE. I justified it
+            // as "measured, not aspirational — `export` forwards the selector to `get`". The
+            // forwarding is real and it is not the claim; the claim was that a projection is
+            // HONOURED, and that needed reading `get`. `get` (:1053) discards its selector and
+            // there is no projection helper anywhere in this subject, so `export` forwards into a
+            // void. I verified one link of a two-link chain and reported the chain, stopping at
+            // the first thing that confirmed the value I wanted to advertise.
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: false }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
             // `async_supported: true` — `?mode=async` now MINTS an `AsyncResult` and answers 202
@@ -953,7 +1150,42 @@ impl BdpScope for InMemScope {
         ]
     }
 
-    async fn get(&self, r: &ResourceId, _selector: Option<&Selector>) -> Result<BdpResult<Representation>, BdpError> {
+    async fn get(&self, r: &ResourceId, selector: Option<&Selector>) -> Result<BdpResult<Representation>, BdpError> {
+        // DERIVED, NOT HARDCODED. This used to take `_selector` and drop it: a client asking for a
+        // projection got 200 with a full representation and no error.
+        //
+        // AND THIS REFUSAL EMITS AN UNDECLARED FAULT, which I did not check before making the
+        // change. A peer found it by measuring her tree on the axis I had given her. Four facts,
+        // all verified here:
+        //   1. `get`'s annotation DECLARES the parameter (core.lumen:157,
+        //      `select = { in = "query", schema = "selector", required = false }`);
+        //   2. `GetCaps.selector` exists and this scope advertises it `false` (:991);
+        //   3. core.lumen:1457 names `get` among the ops advertising a selector per-op;
+        //   4. `get` declares `problem = { status = [404,410] }` — NO 400 and NO 422.
+        //
+        // SO NO CONFORMANT ANSWER EXISTS. Dropping it silently violates the advertisement;
+        // refusing it answers a status `get` does not declare; adding the row is a spec change
+        // under the freeze. That differs in kind from every other cell held today, where one
+        // answer was right and we did not know which — here neither is available, by construction.
+        //
+        // I GROUNDED THIS ON :1457 AND NEVER READ `get`'s DECLARED SET, which I had derived myself
+        // earlier in the same session — `get [404, 410]` was in my own output. I read :1457 for the
+        // clause I came for and skipped the one check that would have stopped me. `pull`
+        // ([400,404,405,410]) and `export` ([400]) both declare their 400, so only this site is
+        // affected.
+        //
+        // AND MY GATE CANNOT SEE IT. It measures DECLARED rows for coverage and never checks an
+        // EMITTED fault against the declaration — the asymmetry is why this got past me, and it is
+        // a missing instrument rather than a missed assertion.
+        //
+        // KEPT RATHER THAN REVERTED, as a choice between two defects and not a justification:
+        // reverting restores a 200 answering a different request, which no client can detect,
+        // while this fails where the caller can see it. THE CONFORMANT FIX IS NEITHER — it is
+        // implementing projection, after which `selector: true` is honoured and no fault status is
+        // needed at all. Real work, not a status choice, and it is the answer.
+        if selector.is_some() {
+            return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "get"), "get"));
+        }
         let store = self.store.read().unwrap();
         let scope = self.scope_str(&r.scope);
         let id = r.id.0.to_string();
@@ -973,6 +1205,25 @@ impl BdpScope for InMemScope {
     /// resolve — batch read, reusing `get`'s Present/Absent/Erased decision so it lives in one place.
     async fn resolve(&self, refs: &[ResourceId], selector: Option<&Selector>)
         -> Result<BdpResult<Vec<ResolvedRepresentation>>, BdpError> {
+        // REFUSED HERE, NAMING `resolve.selector`, NOT FORWARDED TO `get`.
+        //
+        // The behaviour was already correct — `get` refuses a selector, so a `resolve` carrying
+        // one was declined rather than silently unprojected. What was wrong is what the refusal
+        // NAMED: `get.selector`, which leaks an implementation detail (that resolve forwards to
+        // get) into a member a client reads to decide what to send. `ResolveCaps.selector` exists
+        // and is the flag a client would look up for `resolve`, so that is what must be named.
+        //
+        // The same reasoning as `revisions` naming the bare op, pointed the other way: there, no
+        // field exists and naming one would invent it; here a field exists and naming the wrong
+        // one sends a client to another operation's advertisement.
+        if selector.is_some() {
+            let caps = BdpScope::capabilities(self);
+            return Err(option_refusal(
+                advertised_option(&caps, "resolve", "selector"),
+                "resolve",
+                "selector",
+            ));
+        }
         let mut out = Vec::with_capacity(refs.len());
         for r in refs {
             let resolved = match self.get(r, selector).await {
@@ -1087,8 +1338,78 @@ impl BdpScope for InMemScope {
     /// (exclusive) XOR `from` an ordinal (inclusive); `head` = caught up to the live edge. Each log
     /// row is one committed change; create/update carry the full post-image, delete carries
     /// top-level provenance (no body). Mirrors pg.
-    async fn changes(&self, page: Page, _filter: Option<&ListFilter>, _selector: Option<&Selector>)
+    /// DEFECT, MEASURED AND UNFIXED: this silently DROPS a requested `filter` and `selector`.
+    ///
+    /// AND IT IS ONE INSTANCE OF A BIGGER ONE. I first reported this as `changes` being wrong
+    /// where `pull` was right. That contrast is FALSE, and I had stated it to two peers before
+    /// measuring it. The capability record is DECORATIVE in this subject: across the three
+    /// selector-governed reads, NONE reads the flag it advertises. Every mention of `PullCaps`,
+    /// `ExportCaps` and `ChangesCaps` in this file is a construction inside `capabilities()`
+    /// (:1010, :1027, :1029) — there is no third kind of mention.
+    ///
+    ///   `pull`     advertises `selector: false`, refuses UNCONDITIONALLY (:1412). Right answer,
+    ///              and right only because the flag happens to be `false`. Honest by accident:
+    ///              set it `true` and `pull` still refuses.
+    ///   `export`   advertises `selector: true`, honours UNCONDITIONALLY (:1300 forwards to
+    ///              `get`). Also right only by coincidence, and the INVERSE failure — set it
+    ///              `false` and `export` keeps projecting, silently, exactly as `changes` does.
+    ///   `changes`  advertises `selector: false`, drops it silently. The one case where the
+    ///              coincidence does not save the answer.
+    ///
+    /// SO THE FLAG AND THE BEHAVIOUR AGREE BY COINCIDENCE IN ALL THREE, and two of the three
+    /// coincidences are currently favourable. That is a worse defect than a wrong status on one
+    /// path, because it means the advertisement cannot be trusted anywhere in this subject — and
+    /// it is invisible to any test that only drives the advertised value, which is every test
+    /// here. It is the shape I have recorded as honest-by-accident, in the one place I would have
+    /// sworn I had checked.
+    ///
+    /// IT ALSO WEAKENS MY OWN 8fdc9651. I advertised `ExportCaps.selector: true` and justified it
+    /// as "measured, not aspirational — export forwards the selector to `get`". The forwarding is
+    /// real, so the VALUE is right; but nothing derives it, so the justification was a statement
+    /// about today's coincidence dressed as a statement about the code. The fix for all three is
+    /// the same and it is the one #461 chose for `ExportCaps.selector`: READ THE FIELD.
+    ///
+    /// Not fixed here for the reason below — stopping the silence requires choosing a fault — but
+    /// `export` and `pull` are fixable WITHOUT that ruling, because both already have their
+    /// answer and only need to derive it from the flag instead of hardcoding it.
+    ///
+    /// This scope advertises `ChangesCaps { filter: false, selector: false }` (see
+    /// `capabilities()`), and both parameters are `_`-prefixed and never read below. So a client
+    /// that asks for a projection gets `200` with FULL representations and no error — the request
+    /// was neither honoured nor refused. That is strictly worse than answering the wrong status:
+    /// a wrong status is visible, and this is not.
+    ///
+    /// AND IT CONTRADICTS `pull` IN THIS SAME FILE. `pull` advertises `selector: false` too and
+    /// faults `400 invalid-parameter` for a selector. Same advertisement, opposite behaviour, one
+    /// subject — and `pull` is the one with a spec precedent behind it (core.lumen:1457).
+    ///
+    /// WHY IT IS RECORDED RATHER THAN FIXED, and the two halves are not equally blocked:
+    ///   * THE SILENCE IS WRONG UNDER EVERY READING. Dropping a requested projection while
+    ///     advertising the flag is indefensible whichever fault is correct, so this is not a
+    ///     "plausible ruling makes it right" case.
+    ///   * WHICH FAULT IS UNRULED. `changes` is not among the 13 declared operationIds and has no
+    ///     declared fault surface, so there is no row to answer and no status the spec assigns.
+    ///     Picking one is the same unruled third class as the `list` sub-options.
+    /// Stopping the silence REQUIRES picking, so the fix is blocked on which fault, never on
+    /// whether. CLOSES WHEN: the spec owner rules the class, or grounds `changes` as an operation.
+    ///
+    /// FOUND BY AUDITING A PEER'S RETRACTION rather than accepting it. She withdrew a claim about
+    /// her own changefeed selector; checking whether the withdrawal held sent me to my own caps
+    /// record, which I had never enumerated either. Her point generalises and this is the
+    /// instance: a self-correction arrives with the credibility of having caught itself, so it
+    /// gets less scrutiny than the assertion it replaces.
+    async fn changes(&self, page: Page, filter: Option<&ListFilter>, selector: Option<&Selector>)
         -> Result<BdpResult<Vec<ChangeEvent>>, BdpError> {
+        // NO LONGER SILENT. The changefeed is `pull`'s (settled by the spec owner), so `pull`'s
+        // signature governs and both options are in vocabulary via `ReadRequest`.
+        let caps = BdpScope::capabilities(self);
+        if selector.is_some() {
+            return Err(option_refusal(advertised_option(&caps, "changes", "selector"), "changes", "selector"));
+        }
+        if filter.is_some_and(|f| !f.0.is_empty()) {
+            return Err(option_refusal(advertised_option(&caps, "changes", "filter"), "changes", "filter"));
+        }
+
         let store = self.store.read().unwrap();
         let after: u64 = match (&page.after, &page.from) {
             (Some(c), _) => std::str::from_utf8(&c.0)
@@ -1149,6 +1470,12 @@ impl BdpScope for InMemScope {
     /// export = a RAM snapshot, useful to seed a cache / hybrid substrate.)
     async fn export(&self, filter: &ListFilter, selector: Option<&Selector>, revisions: bool, page: Page)
         -> Result<BdpResult<Vec<ExportRecord>>, BdpError> {
+        // DERIVED, AND IT REFUSES UP FRONT instead of forwarding into a void. The old path handed
+        // the selector to `get`, which discards it, so a projection request returned full
+        // representations under a `selector: true` advertisement.
+        if selector.is_some() {
+            return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "export"), "export"));
+        }
         let cur_ord = {
             let store = self.store.read().unwrap();
             store.log.iter().filter(|r| r.scope == self.scope_name).map(|r| r.ordinal).max().unwrap_or(0)
@@ -1214,19 +1541,37 @@ impl BdpScope for InMemScope {
                 let report = format!(r#"{{"strategy":"set-current","imported":{imported}}}"#);
                 Ok(BdpResult::ok(ImportReport(RawJson(Bytes::from(report.into_bytes())))))
             }
-            // THE CAPABILITY DUAL, not an absent op. This scope advertises
-            // `ImportCaps { history_restore: false }`, and core.lumen states the rule outright:
-            // "Each limit record is the advertise side of a dual: the matching `limit-exceeded`
-            // (422) is the enforce side."
+            // THE CAPABILITY DUAL, not an absent op — and 400, not 422.
             //
             // `not_implemented` was the wrong signal and it mattered on the wire: 501 says the OP
             // is absent, and `import` is present and advertised. A client told 501 concludes the
             // scope cannot import at all, when in fact it imports and declines exactly one mode.
-            // That also made `op/import/fault/422` unreachable — a declared fault row with no
-            // producer, because the only path to it answered a different status.
-            ImportStrategy::HistoryRestore => Err(BdpError::LimitExceeded {
-                capability: "import".into(),
-                limit: "historyRestore".into(),
+            // That reasoning stands unchanged.
+            //
+            // THE STATUS, HOWEVER, WAS WRONG, and this comment used to carry the citation that
+            // made it look right: `CoreCapabilities` (core.lumen:1646) says "Each limit record is
+            // the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce
+            // side." Read at the width of the record that covers a BOOLEAN field too, which is how
+            // this site read it. It does not survive the rest of the spec:
+            //
+            //   - core.lumen:1552 (`import`'s own normative line) scopes `limit-exceeded` to "a
+            //     request that exceeds a static capability bound, fixed by shrinking the request";
+            //   - core.lumen:688 says the same for `push`;
+            //   - D.8:2103-2106 states the membership test outright — 422 "IFF shrinking the
+            //     request fixes it";
+            //   - core.lumen:1457 works this exact shape the other way: a capability advertised
+            //     `false` faults `400` (`invalid-parameter`).
+            //
+            // `historyRestore` is a bool. No smaller stream imports under it, so it fails the test
+            // four normative lines state and the one description-level parenthetical does not
+            // reach. :1646's "(422)" predates the test (it landed at GAP-4) and is reported as a
+            // stale parenthetical, not treated as a competing ruling.
+            //
+            // NOTE WHAT THIS COSTS: `op/import/fault/422` goes back to having no producer here.
+            // That is the spec's to undeclare (a 0.2.4 task), not this subject's to keep reachable
+            // by emitting a status the spec's own test excludes.
+            ImportStrategy::HistoryRestore => Err(BdpError::InvalidParameter {
+                capability: "import.historyRestore".into(),
                 detail: "this scope advertises `historyRestore: false`; replay the stream as \
                          set-current, or import into a scope that rebuilds revision chains"
                     .into(),
@@ -1251,7 +1596,47 @@ impl BdpScope for InMemScope {
     /// `Ok` carrying a settled `Outcome`. Collapsing the two would erase the only distinction
     /// that says whether the operation ran.
     /// pull — read a channel's events (core.lumen#pull).
-    async fn pull(&self, channel: &ResourceId, page: Page, _filter: Option<&ListFilter>, selector: Option<&Selector>)
+    /// `_filter` IS THE FIELD I DID NOT LOOK AT, and it has the defect I had just finished
+    /// removing from `selector` two arguments to its left.
+    ///
+    /// MEASURED: this scope advertises `PullCaps { filter: false, .. }` (:1070), and `_filter` is
+    /// underscore-bound and never read below. So a filter supplied to `pull` is DROPPED SILENTLY —
+    /// 200, the unfiltered feed, no error — which is the same shape as the selector drop I fixed
+    /// in this file an hour ago, on the same operation.
+    ///
+    /// I ENUMERATED THE SELECTOR POPULATION AND CALLED IT THE POPULATION. Six selector-bearing
+    /// reads, carefully listed, every one checked — and `filter` is a second advertised capability
+    /// riding the same methods, which my census never asked about. A peer hit the identical trap
+    /// on the identical pair in her own tree the same afternoon ("the field I never looked at —
+    /// I'd spent the whole exchange on the selector"), which is what sent me back here. Two of us
+    /// independently scoped a census to the flag under discussion.
+    ///
+    /// THE OTHER DROP IS `changes` (:1311, `ChangesCaps { filter: false }`). `list` and `export`
+    /// both bind their filter and use it, so the silent-drop population is exactly these two.
+    ///
+    /// NOT FIXED, and the grounding is genuinely thinner here than it was for the selector.
+    /// core.lumen:1457 gives the selector a general sentence — "a scope advertising
+    /// `selector: false` faults a `select` request `400` (`invalid-parameter`)" — and there is no
+    /// per-op equivalent for `filter`. THAT REST ON A READING, NOT ON AN ABSENCE, and the first
+    /// version of this note got the evidence wrong while getting the conclusion right.
+    ///
+    /// I wrote "(checked, empty)". My pattern was `filter: false\|`filter`` and it returns 0 —
+    /// which is a fact about the pattern. `filter.*advertis` and `advertises .*filter` return SIX
+    /// lines (:412 aliases overlay, :1106 write-guards-are-preconditions, :1174 delete's
+    /// `?precondition=`, :1282 DU wire encoding, :1546 import's bulk-write description, :2012 the
+    /// CLI-matching params note). I read all six: none is a per-op filter capability sentence. So
+    /// the conclusion survives, and it survives because the lines were READ — "empty" and "nothing
+    /// on point" are different claims and only the second supports this. A peer caught it by
+    /// re-running my search with a wider pattern, which is the fourth time today a search term of
+    /// mine was simply my hypothesis.
+    ///
+    /// fe690ac8's message says
+    /// the Filter vocabulary is scope-wide, advertised once via `ListCaps.conditions`, which makes
+    /// a per-op `filter` flag's meaning less settled rather than more. A ruling has been relayed
+    /// that would cover it (an unsupported option answers a plain 400) but its text is not in, so
+    /// picking a status here would be answering an unruled cell by editing. Recorded, held with
+    /// `changes`, `revisions` and `resolve`.
+    async fn pull(&self, channel: &ResourceId, page: Page, filter: Option<&ListFilter>, selector: Option<&Selector>)
         -> Result<BdpResult<Vec<RawJson>>, BdpError> {
         let d = self.channel_descriptor(channel)?;
         let (direction, floor) = (d.direction, d.floor);
@@ -1260,12 +1645,28 @@ impl BdpScope for InMemScope {
         if direction == "sink" {
             return Err(BdpError::ChannelNotPullable { channel: channel.clone(), direction });
         }
+        // 400, and this is the case the spec itself works: core.lumen:1457 rules `select` under
+        // `ExportCaps.selector: false` a `400` (`invalid-parameter`) — "the capability is
+        // advertised, so a client reads it and omits `select` rather than being refused" — and
+        // says selector support is advertised per-op, `pull` among them. The exact parallel.
+        //
+        // `pull` DECLARES [400, 404, 405, 410] and no 422 at all (core.openapi.json), so the old
+        // mapping was an undeclared fault independently of the membership test.
+        // DERIVED, NOT HARDCODED. The refusal below is unchanged in effect — this scope
+        // advertises `selector: false` — but it was previously unconditional, so it was right only
+        // because the flag happened to say `false`. Honest by accident, in the path I held up to
+        // two peers as the correct one.
         if selector.is_some() {
-            return Err(BdpError::LimitExceeded {
-                capability: "pull".into(),
-                limit: "selector".into(),
-                detail: "this scope advertises `selector: false` on pull".into(),
-            });
+            return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "pull"), "pull"));
+        }
+        // THE FILTER IS IN `pull`'s VOCABULARY, which is the fact that decides this. `fn pull` takes
+        // `(channel, request: ReadRequest)` and `ReadRequest` carries `filter?: Filter` and
+        // `select?: selector` (core.lumen, merged), so both ride the signature transitively. D.8
+        // draws the line by VOCABULARY, not by advertisement — so a filter here is
+        // `invalid-parameter`, never `malformed-request`.
+        if filter.is_some_and(|f| !f.0.is_empty()) {
+            let caps = BdpScope::capabilities(self);
+            return Err(option_refusal(advertised_option(&caps, "pull", "filter"), "pull", "filter"));
         }
 
         let after: u64 = match (&page.after, &page.from) {
@@ -1499,12 +1900,21 @@ impl BdpScope for InMemScope {
     /// stay findable via `causedBy`, so undoing them here would be wrong even where it were possible.
     async fn cancel(&self, async_result: ResourceId) -> Result<BdpResult<ResourceId>, BdpError> {
         if async_result.rev.is_some() {
-            return Err(BdpError::Unprocessable(
-                "cancel takes `unpinned<AsyncResult>`: it carries no revision guard, and declares \
-                 no 412 to report one failing. A pinned handle is refused rather than honoured as \
-                 a precondition the declaration excludes."
+            // A pinned handle is an INVALID PARAMETER, not a malformed body: the request parses
+            // and the argument is simply one the declared signature forbids. Moved off
+            // `Unprocessable` with the rest, because that variant now means "did not parse".
+            //
+            // STILL UNDECLARED AT ANY STATUS, and that is the point of saying so here: `cancel`
+            // declares [404, 409] — neither 400 nor 422 — so this refusal has no declared row to
+            // land on whichever code it carries. The declaration question above is unchanged by
+            // this move; 400 is the least-wrong carrier, not an answer to it.
+            return Err(BdpError::InvalidParameter {
+                capability: "cancel".into(),
+                detail: "cancel takes `unpinned<AsyncResult>`: it carries no revision guard, and \
+                         declares no 412 to report one failing. A pinned handle is refused rather \
+                         than honoured as a precondition the declaration excludes."
                     .into(),
-            ));
+            });
         }
 
         // Read the handle's state under a read guard, then release it before committing — the
@@ -1583,8 +1993,22 @@ impl BdpScope for InMemScope {
     /// that revision faults `410` carrying it. **Whether `revisions` ought to enumerate tombstones
     /// is not settled by anything normative** — the section carries zero `/// normative:` lines —
     /// so this is flagged rather than resolved, and no case asserts either way.
-    async fn revisions(&self, resource: &ResourceId, _selector: Option<&Selector>, page: Page)
+    async fn revisions(&self, resource: &ResourceId, selector: Option<&Selector>, page: Page)
         -> Result<BdpResult<Vec<Representation>>, BdpError> {
+        // `select?: selector` IS DECLARED ON `fn revisions` DIRECTLY (core.lumen, merged) while
+        // `RevisionsCaps` is `{ }` — nothing can advertise it. D.8:2076-2083 names exactly this:
+        // "a `select` on a read whose caps carry no `selector`" is `invalid-parameter`, because a
+        // missing advertisement "does not change the fault, only a client's ability to predict
+        // it". So the refusal carries the BARE OP as its capability: there is no field to look up,
+        // and saying `revisions.selector` would send a client after one that does not exist.
+        if selector.is_some() {
+            let caps = BdpScope::capabilities(self);
+            return Err(option_refusal(
+                advertised_option(&caps, "revisions", "selector"),
+                "revisions",
+                "selector",
+            ));
+        }
         let store = self.store.read().unwrap();
         let scope = self.scope_str(&resource.scope);
         let id = resource.id.0.to_string();

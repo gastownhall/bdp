@@ -40,6 +40,13 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+/// The TS `bdptest` subsumption ledger: which TS cases are ported, dropped or still pending.
+pub mod subsumption;
+
+/// The HTTP binding's own Problem codes — the second producer, which the trait-level probe
+/// constructed from `BdpError` variants cannot reach.
+pub mod http_problem_codes;
+
 /// One row of the tier-1 coverage surface: either a primitive operation, or a declared fault
 /// (an HTTP `>=400` response) on that operation.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,6 +75,25 @@ pub const CORE_OPENAPI: &str =
 
 /// Derive the tier-1 denominator from the pinned OpenAPI: one `Op` per operation and one `Fault`
 /// per declared `>=400` response. This is the set the gate measures coverage against.
+/// The spec version, READ from the generated document rather than written here.
+///
+/// The report used to print a hand-written `v0.2.3` directly beneath a comment explaining that a
+/// pinned provenance line had gone stale in every component and that "nothing hand-written here
+/// can be more current than" the tree. The comment's own argument condemned the line beneath it,
+/// and the one component it kept is the one about to rot — 0.2.4 is the active target.
+///
+/// This is also the missing half of a peer's instrument design: a number should not leave without
+/// the coordinate it was derived at. The denominator was already live; its coordinate was not.
+pub fn spec_version() -> String {
+    let doc: serde_json::Value =
+        serde_json::from_str(CORE_OPENAPI).expect("specs/generated/openapi/core.openapi.json parses");
+    doc.get("info")
+        .and_then(|i| i.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+        .expect("the generated OpenAPI carries info.version")
+}
+
 pub fn denominator() -> BTreeSet<SurfaceId> {
     let doc: serde_json::Value =
         serde_json::from_str(CORE_OPENAPI).expect("specs/generated/openapi/core.openapi.json parses");
@@ -715,6 +741,29 @@ pub const UNCARRIED_INPUTS: &[(&str, &str, &str)] = &[
 ///   * the signature — `fn`, `command` or `idempotent command`, one parameter per line at four
 ///     spaces, up to the `) ->` return.
 ///
+/// HAND-ROLLED, NOT REGEX, AND THERE IS A MEASURED REASON TO KEEP IT THAT WAY. A peer's census
+/// of her own tree printed "NONE advertised" from three successive instruments, all three
+/// empty-by-construction, because `git grep -E` does not support `\s`. Measured here, and it is
+/// WORSE than "POSIX ERE has no `\s`": on this machine `grep -E 'a\sb'` matches, while
+/// `git grep -E 'fn\sunadvertised'` returns 0 against a file where the plain string matches 1.
+/// So the hazard is not the standard, it is that `git grep` carries its own engine — a pattern
+/// verified in one tool returns silently empty in the other, which is exactly what happens in the
+/// ORDINARY workflow: validate interactively with `grep -E`, wire it into a repo-wide
+/// `git grep -E`, and it breaks at the step after you believe you have validated it.
+///
+/// THE COMPLETE MATRIX, measured on this machine against a file where the plain string matches 1:
+///   grep -E     'fn\sunadvertised'   -> 1   works
+///   git grep -E 'fn\sunadvertised'   -> 0   SILENTLY EMPTY
+///   git grep -P 'fn\sunadvertised'   -> 1   works
+///   git grep -F 'fn unadvertised'    -> 1   control
+/// So `-P` is the fix where `\s` is wanted under `git grep`, and `-E` is the one combination that
+/// lies. A peer supplied the `-P` arm; it is the half that turns the warning into a remedy.
+/// The habit that separates "absent" from "unmatchable", and it is one command: when a search
+/// returns EMPTY and the answer matters, re-run the same pattern against something you KNOW is
+/// present. If that is also empty, the instrument is broken rather than the tree. This gate's
+/// parsers are hand-rolled so that a gate claim never rests on a shell regex, and nothing in
+/// `conformance/gate` or the repo's CI scripts uses `\s` in either tool (checked).
+///
 /// A `request?: ReadRequest` parameter is EXCLUDED as the documented expansion into
 /// `after`/`from`/`limit`/`format`. The type is what decides that, never the name: `call` also has
 /// a parameter called `request` and its type is `Request`, the invocation payload, which has to be
@@ -891,6 +940,57 @@ fn signature_params(op: &str) -> Vec<(String, String)> {
 /// `code` is normative WIRE OUTPUT: core.lumen:853 makes it a BDP extension member carrying a
 /// stable problem-type URI (`tag:bdp.dev,2026:problem/<code>`), one per code. So a code is a thing
 /// the wire emits, and a client branches on it.
+/// Every `*Caps` record in core.lumen with its REQUIRED field names (those without a `?`).
+///
+/// Returned keyed by the WIRE name a capability is advertised under -- `ListCaps` -> `list` --
+/// which is the convention `WireCapability`'s `#[serde(rename)]` follows. Spec field names are
+/// camelCase and so are the wire's, so the names compare directly.
+///
+/// WHY THIS EXISTS: an external contributor (Chris Sells, #442 comment 7142885377) reported that
+/// a checker omitted `ListCaps.compactFilter` from its key arrays, so a scope OMITTING a
+/// spec-required capability field was wrongly accepted. The TypeScript estate had a single test
+/// for that one field; it was deleted with the clause-census retirement. This generalises it: the
+/// requirement is derived from the spec for EVERY caps record, so the next omitted field is caught
+/// without anyone writing a second test.
+pub fn required_caps_fields() -> Vec<(String, Vec<String>)> {
+    let mut out: Vec<(String, Vec<String>)> = Vec::new();
+    let mut cur: Option<(String, Vec<String>)> = None;
+    for line in CORE_LUMEN.lines() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("type ") {
+            if let Some((name, _)) = rest.split_once(" = {") {
+                let name = name.trim();
+                if let Some(stem) = name.strip_suffix("Caps") {
+                    if !stem.is_empty() {
+                        cur = Some((stem.to_ascii_lowercase(), Vec::new()));
+                        continue;
+                    }
+                }
+            }
+        }
+        if line.starts_with('}') {
+            if let Some(rec) = cur.take() {
+                out.push(rec);
+            }
+            continue;
+        }
+        if let Some((_, fields)) = cur.as_mut() {
+            // `name:` is required; `name?:` is optional. Skip doc lines and anything else.
+            if let Some(colon) = t.find(':') {
+                let head = &t[..colon];
+                if !head.is_empty()
+                    && head.chars().all(|c| c.is_ascii_alphanumeric() || c == '?')
+                    && head.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+                    && !head.ends_with('?')
+                {
+                    fields.push(head.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 pub fn problem_codes() -> Vec<String> {
     let (block, _) = d9_catalogue();
     let mut out: Vec<String> = Vec::new();
@@ -955,9 +1055,100 @@ pub fn orphan_codes() -> Vec<String> {
 ///
 /// A justification that instead cites an OPEN QUESTION expires the moment the question closes, and
 /// NOTHING WATCHES PROSE. `validation-failed` carried "the open question behind #453's patch/409"
-/// after Donna had already ruled it 409: claim still true, reasoning false, and no guard able to
+/// after that question was believed ruled: claim still true, reasoning false, and no guard able to
 /// tell the difference. So an entry resting on a question states the condition that closes it,
 /// which dates the entry and lets a reader check instead of trusting the sentence.
+///
+/// AND THE LESSON ATE ITSELF. The illustration above said "after Donna had already ruled it 409"
+/// — stated as fact, with no PR, commit, quote or date, in the very paragraph arguing that an
+/// entry must let a reader check instead of trusting the sentence. The spec owner later paused a
+/// live ruling partly on the strength of it. Traced: that claim entered at 97670eb2, a commit of
+/// MINE, whose author field reads `Donna Box` because every session in this fleet commits under
+/// one account — so authorship distinguishes nothing and the provenance is unrecoverable. The
+/// attribution is withdrawn as evidence in the entry below.
+///
+/// THE SHARED ACCOUNT IS WHAT MAKES THIS UNFALSIFIABLE, which is worth naming once here: an
+/// attribution to the owner cannot be checked against the one signal git offers. So in this
+/// crate, "the owner ruled X" needs a PR number, a commit the owner alone could have made, or a
+/// quotation — and absent one it is my inference wearing the owner's name.
+///
+/// SWEPT, RATHER THAN LEFT AS A PRINCIPLE. Every owner-attribution across `conformance/` measured
+/// against that bar — six sites, two distinct states:
+///
+///   THE CENSUS HAD TWO BUCKETS AND THE REAL STRUCTURE HAS THREE. A peer checked the merge paths
+///   and the commits I had called "sourced" arrived on `lydia/*` branches — fe690ac8 via
+///   `lydia/rc3-exportcaps-selector`, ae703386 via PR #460 from `lydia/rc3-vocab-405-422`,
+///   ea2495c6 the same. Verified here. So quoting a commit message sources the CLAIM'S EXISTENCE,
+///   its date and its author — and NOT the authority behind it.
+///
+///   RELAYED IN WRITING (1), the bucket I was missing:
+///     gate/tests/gate.rs ~3636  cites fe690ac8 and quotes "Donna ruled (a): ExportCaps gains a
+///                               `selector` field". That is the SPEC OWNER recording a ruling she
+///                               received, on her own branch, dated and immutable. Much stronger
+///                               than my unsourced prose — she holds delegated authority for
+///                               spec shape — and weaker than the owner's own signature. Chain:
+///                               owner → spec owner → commit message → me, with one relay.
+///
+///   SOURCED (1):
+///     gate/tests/gate.rs ~3771  quotes the approved document directly ("Status: APPROVED by
+///                               Donna"). An artefact that exists and can be opened.
+///
+///   AND THE HOUSE RULE MAKES THE WHOLE PRACTICE WRONG-SHAPED, not just unsourced.
+///   `specs/AGENTS.md:44` — "Do not record who decided something, or when, in the file." Its
+///   scope is the specification tree, so these conformance comments are not in violation; but the
+///   principle is plainly the house style and it dissolves the problem rather than managing it.
+///   CITE THE CLAUSE, NOT THE PERSON. A normative line can be checked by anyone at any time; an
+///   attribution cannot be checked at all under a shared account. Going forward the four unsourced
+///   ones get re-expressed as the clause they rest on, or dropped.
+///
+///   I ALSO NEARLY REPORTED THAT AGENTS.md DID NOT EXIST. `ls AGENTS.md` at the repo root found
+///   nothing and I read that as absence; it is at `specs/AGENTS.md`. One location searched,
+///   reported as a repo-wide fact — the same empty-search-as-absence shape as the filter grep,
+///   twice in one session.
+///
+///   TWO INSTRUMENTS, ONE BLEED, AND IT PRODUCED A FALSE POSITIVE AND FALSE NEGATIVES AT ONCE.
+///   Building the selector-flag table, a Python regex `type (\w+Caps) = \{(.*?)\n\}` and then a
+///   `grep -A8 … | sed -n '1,/^}/p'` BOTH reported `RevisionsCaps` as carrying a `selector`. It
+///   does not: `type RevisionsCaps = { }` (core.lumen:1783) is a ONE-LINE record, so there is no
+///   closing-brace LINE to stop at, and each pattern ran past it into the next record and
+///   collected `ExportCaps.selector`. The same bleed simultaneously LOST `GetCaps` and
+///   `ExportCaps` as entries of their own.
+///
+///   What caught it was a prior READING disagreeing with a new instrument — I had read
+///   `RevisionsCaps` as empty hours earlier, so the output contradicted something already known.
+///   Without that the table would have told a peer her `get`-is-the-only-gap claim was wrong and
+///   that `revisions` was misclassified. A delimiter-based parser needs a record whose delimiter
+///   is on its own line, and a one-line record silently has none.
+///
+///   THE TABLE, read rather than matched: `GetCaps`, `ListCaps`, `PullCaps` and `ExportCaps` carry
+///   a `selector`; `RevisionsCaps` is empty; `AliasCaps` is `{ ...: any }`; `ChangesCaps` is not in
+///   core.lumen at all. Of the four, only `get` declares no 400 ([404,410]) — so the spec owner's
+///   0.2.4 scoping is right.
+///
+///   AND NOTHING I ACTED ON DEPENDS ON THE RELAYED LEG, which is worth stating because it was
+///   the leg I leaned on rhetorically. Advertising `ExportCaps.selector` (8fdc9651) rests on two
+///   facts I measured myself: the generated OpenAPI REQUIRES the field, and this subject honours
+///   nothing it would need to lie about. The "authorized under the freeze" argument came from
+///   fe690ac8's message and is the weakest of the three — the action stands without it.
+///
+///   UNSOURCED (4 sites, 2 rulings):
+///     "Donna's advertised⟹implemented ruling" — 5 occurrences across bdp-protocol's client.rs,
+///       server.rs and wire.rs, with NO PR, commit or quotation at any site. It is load-bearing
+///       prose: it is the stated rationale for proxying the backing scope's real capabilities.
+///     gate/tests/gate.rs ~2214 "Donna ruled that a history export refuses projection while a
+///       current-state one honours it" — #450 is referenced NEARBY, but as a dependency ("both of
+///       B's branches are unreachable until #450"), not as the ruling's source.
+///
+/// WHAT THAT DOES AND DOES NOT MEAN. It does NOT make either ruling false — both may be real and
+/// received in conversation; what is missing is the ability of a later reader to check. And unlike
+/// the 409, neither is being used to overturn anything: advertised⟹implemented is close to a
+/// tautology for a conformance subject, and the proxying design it justifies is right on its own
+/// merits. So they are MARKED, not withdrawn. The rule going forward: none of the four may be
+/// cited as authority against a ruling relayed with better grounding, and if one is ever needed
+/// for that, source it first or drop it.
+///
+/// The asymmetry worth remembering: I found the 409 only because a peer tried to ACT on it. The
+/// other four have sat unexamined because nothing yet depended on them.
 ///
 /// THE TWO TIERS MATTER, and collapsing them would overstate the finding. For some, D.8 describes
 /// the CONDITION under a status without ever writing the code beside it, so the repair is one line

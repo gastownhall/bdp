@@ -389,9 +389,12 @@ impl<S: BdpScope> Server<S> {
     /// `POST /{channel}/-/push` — append events to a channel.
     ///
     /// `application/jsonl` IS FIXED on the request, exactly as on `import`: core.lumen#push carries
-    /// `request = { contentType = "application/jsonl" }`. A wrong media type is `400` and not `415`
-    /// for the same reason as import — `push` declares `[405, 409, 422]` and names no 415, so
-    /// answering one would put a status on the wire that no denominator row carries.
+    /// `request = { contentType = "application/jsonl" }`. A wrong media type is `400` here, and the
+    /// reason this comment used to give — "`push` declares `[405, 409, 422]` and names no 415" —
+    /// is REFUTED: declared sets are not closed. D.8's 405 row requires a 405 from `patch`, whose
+    /// declared set has none, so a closed reading would make obedience non-conformant. See
+    /// `import_wrong_media_type_400` in the gate for the full construction. The `400` stands as
+    /// this binding's unruled choice, not as a conclusion from the declaration.
     async fn do_push(&self, req: &HttpRequest, channel_seg: &str) -> HttpResponse {
         const JSONL: &str = "application/jsonl";
         let media_type = req
@@ -517,8 +520,18 @@ impl<S: BdpScope> Server<S> {
         //    refuses `select`/`where` together; half the refusal was missing, so `?select=` was
         //    accepted and silently dropped — the caller's projection vanishing with a `200`, which
         //    is the defect the `after`/`limit` comment below was written about.
-        // 2. `export` DECLARES EXACTLY ONE FAULT, `400`. A `501` from here is a status the
-        //    generated contract does not publish, so the refusal was itself a divergence.
+        // 2. THE `501` WAS WRONG, AND THE REASON THIS COMMENT GAVE WAS ALSO WRONG. It read:
+        //    "`export` DECLARES EXACTLY ONE FAULT, `400`; a `501` from here is a status the
+        //    generated contract does not publish, so the refusal was itself a divergence." That is
+        //    the closed-set reading, and `problem = { status = [...] }` is not closed -- D.8's own
+        //    last row is "4xx/5xx any fault, carried at the Problem's own status", and D.8 requires
+        //    a 405 from `patch` whose declared set omits 405. Absence from the enumeration never
+        //    forbade the status.
+        //    RE-GROUNDED POSITIVELY, which is what the conclusion actually needs: refusing a
+        //    parameter is a DECLINE, and D.8 (:2057-2062) puts a decline the op can state at `400`
+        //    (`invalid-parameter`) -- so `400` is right because a rule REQUIRES it here, not
+        //    because a list failed to mention `501`. Category (1) under the test recorded on
+        //    `import_wrong_media_type_400`: load-bearing on closure, conclusion re-groundable.
         //
         // I had a tidier design — `400` for a history export (the spec refuses projection) and
         // `501` for a current-state one (ruling B says honour it, this binding cannot) — and the
@@ -1163,24 +1176,44 @@ fn parse_limit(req: &HttpRequest) -> Result<Option<u32>, HttpResponse> {
     }
 }
 
-/// The ENFORCE side of the capability dual, read off `capabilities()` and never hard-coded.
+/// The ENFORCE side of the capability dual, read off `capabilities()` and never hard-coded. A
+/// guard whose field is advertised FALSE is refused — not honored anyway, and not answered `501`,
+/// which says the whole op is absent.
 ///
-/// core.lumen states the rule on `CoreCapabilities`: "Each limit record is the advertise side of a
-/// dual: the matching `limit-exceeded` (422) is the enforce side." So a guard whose field is
-/// advertised FALSE must be refused, and refused as `422 limit-exceeded` naming the bound — not
-/// honored anyway, and not answered `501`, which says the whole op is absent.
+/// IT IS `400 invalid-parameter`, NOT `422 limit-exceeded`, and this helper used to carry the
+/// citation that made 422 look right: `CoreCapabilities` (core.lumen:1646), "Each limit record is
+/// the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side." Four
+/// normative lines say otherwise for a BOOLEAN field — core.lumen:688 and :1552 both scope
+/// `limit-exceeded` to a request "that exceeds a static capability bound, fixed by shrinking the
+/// request"; D.8:2103-2106 states the membership test outright; and core.lumen:1457 works this
+/// exact shape as `400` (`invalid-parameter`). `ifMatch: false` is a bool: no smaller request
+/// succeeds, so dropping the guard is not shrinking it.
 ///
-/// THIS IS NOT THE SAME FAULT AS AN OUT-OF-VOCABULARY GUARD, and the two sit a few lines apart in
-/// this file deliberately. `If-None-Match` on `patch` is `400`: `ifAbsent` is not a field of
-/// `PatchCaps` at all, so no advertisement could have offered or refused it and the request names
-/// something the operation does not define. `If-Match` on a `put` advertising `ifMatch: false` is
-/// `422`: the field EXISTS, this scope says it does not support it, and the caller fixes the
-/// request by dropping the guard. A binding that collapsed them would tell a client to stop using
-/// a parameter that is simply unavailable here.
-fn unadvertised(op: &str, limit: &str, detail: &str) -> HttpResponse {
-    problem_response(&p::BdpError::LimitExceeded {
-        capability: op.into(),
-        limit: limit.into(),
+/// AND D.8 STATES THIS SPLIT VERBATIM, which is a better carrier than the derivation this comment
+/// originally gave. core.lumen:2078-2082: "The line is therefore drawn by the caps record, not by
+/// the sentence — in an operation's vocabulary and advertised false is a decline it can state,
+/// outside its vocabulary is malformed." I reached the same split from :1457's selector precedent
+/// plus the D.9 vocabulary argument and did not find this line until afterwards; a reader is owed
+/// the direct carrier, not my route to it.
+///
+/// THE DISTINCTION THIS HELPER USED TO DRAW BY STATUS IS NOW DRAWN BY CODE, and it survives
+/// intact — both sides verified in this file, not assumed:
+///
+///   - an OUT-OF-VOCABULARY guard is `400 malformed-request` (server.rs:908-925 and :971-987):
+///     `ifAbsent` is a field of `PutCaps` and of NEITHER `PatchCaps` NOR `DeleteCaps`, so on a
+///     patch it is an input the operation does not define, and no advertisement could ever have
+///     offered or refused it;
+///   - an ADVERTISED-FALSE guard is `400 invalid-parameter` (here): the field EXISTS, this scope
+///     says it does not support it, and a client can read that from discovery before asking.
+///
+/// A client still branches on the two — it just reads `code`, which it had to read anyway to tell
+/// `invalid-parameter` from the other producers of 400 on these ops.
+///
+/// `capability` carries `<op>.<field>` so the member names the flag a caller can look up in
+/// discovery, the same key shape the gate's `required_caps_fields()` uses.
+fn unadvertised(op: &str, field: &str, detail: &str) -> HttpResponse {
+    problem_response(&p::BdpError::InvalidParameter {
+        capability: format!("{op}.{field}"),
         detail: detail.into(),
     })
 }

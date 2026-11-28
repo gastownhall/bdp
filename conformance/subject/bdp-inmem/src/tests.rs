@@ -311,18 +311,37 @@ async fn istype_subtype_prefix() {
     assert_eq!(s.list(&interior, Page::default()).await.unwrap().value.unwrap().len(), 0, "exact interior matches no stored bead");
 }
 
+/// A condition kind outside the advertised set is `InvalidParameter`, NOT `LimitExceeded`.
+///
+/// The old name and assertion said `limit-exceeded`, on the reading that an advertised condition
+/// SET is a bound you can exceed. D.8's membership test (core.lumen:2103-2106) admits 422 "IFF
+/// shrinking the request fixes it", and no shorter filter satisfies an unsupported kind — dropping
+/// the condition is not shrinking it. `list` also declares only `[400]`, so the old status had no
+/// declared row at all.
 #[tokio::test]
-async fn list_unadvertised_condition_is_limit_exceeded() {
+async fn list_unadvertised_condition_is_invalid_parameter() {
     let s = scope();
     s.put(ResourceId::head(Scope::This, Id("a".into())), body("Task", r#"{"tags":["x"]}"#), Guards::default()).await.unwrap();
-    // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains. A Contains condition is
-    // within the advertised `list` op but exceeds its advertised condition set → over-limit.
+    // in-mem advertises Compare/Matches/Has/Missing/IsType — NOT Contains.
     let filter = ListFilter(vec![ListCondition::Contains {
         field: FieldPath(vec!["body".into(), "tags".into()]),
         value: RawJson(Bytes::from(b"\"x\"".to_vec())),
     }]);
-    let r = s.list(&filter, Page::default()).await;
-    assert!(matches!(r, Err(BdpError::LimitExceeded { .. })), "unadvertised condition kind -> LimitExceeded; got {r:?}");
+    match s.list(&filter, Page::default()).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(
+            capability, "list.conditions",
+            "the refusal must name the discovery field a client can read to predict it"
+        ),
+        other => panic!("unadvertised condition kind -> InvalidParameter; got {other:?}"),
+    }
+    // AND THE ADVERTISED KINDS STILL WORK. Without this the assertion above passes for a `list`
+    // that refuses every filter, which is the failure the single-arm version could not see.
+    let ok = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".into(), "tags".into()]) }]);
+    assert_eq!(
+        s.list(&ok, Page::default()).await.unwrap().value.unwrap().len(),
+        1,
+        "an ADVERTISED condition kind must still match"
+    );
 }
 
 // --- changes: the changefeed (the append-log tailed by a cursor) ---
@@ -441,29 +460,31 @@ async fn honest_unadvertised_ops_are_not_implemented() {
 ///
 /// It asserted `import(HistoryRestore) -> not_implemented` under the title "unadvertised OPS are
 /// not_implemented". But `import` is advertised and implemented; what is advertised false is one
-/// FIELD of its limit record, `ImportCaps { history_restore: false }`. core.lumen states the rule:
-/// "Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the
-/// enforce side."
+/// FIELD of its limit record, `ImportCaps { history_restore: false }`.
 ///
-/// The two signals say different things to a client. `not_implemented` (501) means the scope cannot
-/// import at all; `limit-exceeded` (422) means it imports and declines exactly one mode, and names
-/// which in `capability`/`limit` so the caller can shrink the request. The old assertion was
-/// defending the first answer under a name that described a different rule — a test that names the
-/// old behaviour in its title will defend it, so it is re-derived under the new rule rather than
-/// deleted, and the absent-op half above keeps its three genuine cases.
+/// THE OP/MODE DISTINCTION IS THE POINT AND IT SURVIVES; only the status moved. `not_implemented`
+/// (501) means the scope cannot import at all; a 400 `invalid-parameter` naming
+/// `import.historyRestore` means it imports and declines exactly one mode, and names which so the
+/// caller can read it from discovery instead of guessing.
+///
+/// IT WAS 422 UNTIL THE RC3 FAULT-VOCABULARY PASS, and this doc used to carry the citation that
+/// justified it: `CoreCapabilities` (core.lumen:1646), "the matching `limit-exceeded` (422) is the
+/// enforce side". `historyRestore` is a bool, and D.8:2103-2106 admits 422 only "IFF shrinking the
+/// request fixes it" — no smaller stream imports under a flag that is off. See the note at the
+/// producer in `bdp-inmem/src/lib.rs` for the four normative lines against that parenthetical.
 #[tokio::test]
-async fn an_unadvertised_import_mode_is_limit_exceeded_not_unimplemented() {
+async fn an_unadvertised_import_mode_is_invalid_parameter_not_unimplemented() {
     let s = scope();
     match s.import(&[], ImportStrategy::HistoryRestore).await {
-        Err(BdpError::LimitExceeded { capability, limit, .. }) => {
-            assert_eq!(capability, "import", "the refusal must name the op it bounds");
-            assert_eq!(limit, "historyRestore", "and the field of the limit record it refuses");
-        }
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(
+            capability, "import.historyRestore",
+            "the refusal must name the op AND the field of its limit record"
+        ),
         Ok(r) if r.not_implemented => panic!(
             "history-restore answered not_implemented; `import` IS advertised and implemented, so \
              501 tells a client the scope cannot import at all"
         ),
-        other => panic!("expected LimitExceeded for an unadvertised import mode, got {other:?}"),
+        other => panic!("expected InvalidParameter for an unadvertised import mode, got {other:?}"),
     }
     // THE OP ITSELF STILL WORKS, which is the half that makes the distinction observable: a scope
     // that refused every import would satisfy the match above.
@@ -473,4 +494,161 @@ async fn an_unadvertised_import_mode_is_limit_exceeded_not_unimplemented() {
     ];
     let ok = s.import(&framed, ImportStrategy::SetCurrent).await.expect("set-current import");
     assert!(!ok.not_implemented, "set-current import must work on a scope that advertises import");
+}
+
+// ---- the advertisement must GOVERN, not coincide -------------------------------------------
+
+/// `advertised_selector` READS the flag, and the test drives BOTH values.
+///
+/// Driving only the advertised value is precisely how the original defect stayed invisible: all
+/// six selector-bearing reads hardcoded their answer, three of them agreed with their flag by
+/// coincidence, and every test here exercised only the agreeing value. So this asserts the
+/// function DISCRIMINATES rather than that it returns the right answer once.
+#[test]
+fn advertised_selector_reads_the_flag_and_discriminates() {
+    for op in ["get", "pull", "export"] {
+        let on = vec![
+            PrimitiveCapabilities::Get(GetCaps { selector: true }),
+            PrimitiveCapabilities::Pull(PullCaps { sse: false, jsonl: false, filter: false, selector: true }),
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: true }),
+        ];
+        let off = vec![
+            PrimitiveCapabilities::Get(GetCaps { selector: false }),
+            PrimitiveCapabilities::Pull(PullCaps { sse: false, jsonl: false, filter: false, selector: false }),
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: false }),
+        ];
+        assert!(advertised_selector(&on, op), "{op}: advertised true must read as true");
+        assert!(!advertised_selector(&off, op), "{op}: advertised false must read as false");
+    }
+    // AN UNADVERTISED OP DEFAULTS TO FALSE -- the safe direction (refuse, never silently
+    // decline to project). Pinned so the default cannot drift to `true` unnoticed.
+    assert!(!advertised_selector(&[], "get"), "an absent advertisement must not read as true");
+}
+
+/// The `true` arm is REACHABLE and refuses loudly rather than lying.
+///
+/// Cited by name from `selector_refusal`'s doc, so it has to exist: a doc that names a test which
+/// does not exist reads as coverage and is worse than no citation. The arm matters because this
+/// subject implements no projection at all -- a scope advertising `selector: true` would return
+/// FULL representations under a projection request with a 200, which is the failure mode the whole
+/// change exists to remove.
+#[test]
+fn the_true_arm_refuses_loudly_rather_than_lying() {
+    match selector_refusal(true, "export") {
+        BdpError::Backend(m) => {
+            assert!(m.contains("implements no projection"), "must name WHY it refuses; got {m}");
+            assert!(m.contains("export"), "must name the op; got {m}");
+        }
+        other => panic!("a `selector: true` advertisement with no projection must fail loudly, got {other:?}"),
+    }
+    // AND THE TWO ARMS ARE DIFFERENT ERRORS. If both collapsed to one, the flag would stop
+    // mattering again and this file would still be green -- which is the original defect.
+    let off = selector_refusal(false, "export");
+    match off {
+        BdpError::InvalidParameter { ref capability, .. } => {
+            assert_eq!(capability, "export.selector", "the false arm names the flag to read")
+        }
+        other => panic!("the false arm must be InvalidParameter, got {other:?}"),
+    }
+    assert_ne!(
+        std::mem::discriminant(&selector_refusal(true, "export")),
+        std::mem::discriminant(&off),
+        "the arms must stay distinguishable, or the advertisement stops governing"
+    );
+}
+
+/// A selector is REFUSED, not dropped, on the reads core.lumen:1457 names.
+///
+/// Before this, `get` took `_selector` and discarded it: 200, a full representation, no error. The
+/// assertion is on the REFUSAL, because a silent drop is indistinguishable from success and no
+/// test here could see it.
+#[tokio::test]
+async fn a_selector_is_refused_rather_than_dropped() {
+    let s = scope();
+    let id = ResourceId::head(Scope::This, Id("sel".into()));
+    s.put(id.clone(), body("Task", r#"{"a":1}"#), Guards::default()).await.unwrap();
+    let sel = Selector(RawJson(Bytes::from(br#"{"include":["/properties/a"]}"#.to_vec())));
+
+    match s.get(&id, Some(&sel)).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "get.selector"),
+        other => panic!("get must refuse a selector under `selector: false`, got {other:?}"),
+    }
+    match s.export(&ListFilter(vec![]), Some(&sel), false, Page::default()).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "export.selector"),
+        other => panic!("export must refuse a selector under `selector: false`, got {other:?}"),
+    }
+
+    // AND THE OP STILL WORKS WITHOUT ONE. Without this the refusals above are satisfied by a
+    // scope that refuses every read -- the anti-vacuity arm.
+    assert!(s.get(&id, None).await.unwrap().value.is_some(), "get must still work with no selector");
+    assert!(
+        !s.export(&ListFilter(vec![]), None, false, Page::default()).await.unwrap().value.unwrap().is_empty(),
+        "export must still work with no selector"
+    );
+}
+
+/// EVERY UNHONOURED READ OPTION IS REFUSED, and the capability it names depends on whether a flag
+/// exists to look up.
+///
+/// D.8:2076-2083 (merged) settles the status and code for all of these: an option IN the
+/// operation's vocabulary and unsupported declines `invalid-parameter`, whether it is advertised
+/// `false` or advertised at no granularity at all. The vocabulary is what decides, not the
+/// advertisement — which is why `pull`'s filter belongs here: `fn pull` takes
+/// `(channel, request: ReadRequest)` and `ReadRequest` carries `filter?` and `select?`, so both
+/// ride the signature transitively.
+///
+/// THE TWO CAPABILITY SHAPES ARE THE POINT. Where a caps field exists the refusal names
+/// `<op>.<field>` so a client can read it; where none does — `RevisionsCaps` is `{ }` — it names
+/// the bare op, because pointing at a field that does not exist is worse than pointing at nothing.
+#[tokio::test]
+async fn an_unhonoured_read_option_is_refused_and_names_what_a_client_can_look_up() {
+    let s = scope();
+    let id = ResourceId::head(Scope::This, Id("ro".into()));
+    s.put(id.clone(), body("Task", r#"{"a":1}"#), Guards::default()).await.unwrap();
+    let sel = Selector(RawJson(Bytes::from(br#"{"include":["/properties/a"]}"#.to_vec())));
+    let filt = ListFilter(vec![ListCondition::Has { field: FieldPath(vec!["body".into()]) }]);
+
+    // A caps field EXISTS for these, so the refusal names `<op>.<field>`.
+    match s.changes(Page::default(), None, Some(&sel)).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "changes.selector"),
+        other => panic!("changes must refuse a selector, got {other:?}"),
+    }
+    match s.changes(Page::default(), Some(&filt), None).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "changes.filter"),
+        other => panic!("changes must refuse a filter, got {other:?}"),
+    }
+
+    // NO caps field exists for `revisions.select` — `RevisionsCaps` is `{ }` — so the bare op.
+    match s.revisions(&id, Some(&sel), Page::default()).await {
+        Err(BdpError::InvalidParameter { capability, detail }) => {
+            assert_eq!(capability, "revisions", "no flag exists, so do not name one");
+            assert!(
+                detail.contains("no capability field advertises it"),
+                "the detail must say WHY it is unpredictable; got {detail}"
+            );
+        }
+        other => panic!("revisions must refuse a selector, got {other:?}"),
+    }
+
+    // `resolve` NAMES ITS OWN FLAG, not the one belonging to the op it forwards to. The behaviour
+    // was already a refusal (via `get`); the defect was that it named `get.selector` and so leaked
+    // the forwarding into a member clients read.
+    match s.resolve(&[id.clone()], Some(&sel)).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(
+            capability, "resolve.selector",
+            "must name the flag a client reads for `resolve`, never the forwarded-to op's"
+        ),
+        other => panic!("resolve must refuse a selector, got {other:?}"),
+    }
+
+    // AND THE OPS STILL WORK WITHOUT THE OPTION. Without this every assertion above is satisfied
+    // by a scope that refuses these reads outright.
+    assert!(
+        s.changes(Page::default(), None, None).await.is_ok(),
+        "changes must still work with no filter and no selector"
+    );
+    assert!(
+        s.revisions(&id, None, Page::default()).await.is_ok(),
+        "revisions must still work with no selector"
+    );
 }

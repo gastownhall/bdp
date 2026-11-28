@@ -135,15 +135,21 @@ async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<S
     // Codes this subject emits that D.9 does not register. Registered so the gate is green on the
     // known set and red on a new one; the spec-side spelling is named where one exists, because
     // that is the repair, not a rename of the registry.
-    // THREE ENTRIES LEFT THIS LIST BY BEING FIXED, not by being re-judged: `not-found`,
+    // FOUR ENTRIES LEFT THIS LIST BY BEING FIXED, not by being re-judged: `not-found`,
     // `erased` and `already-exists` were near-misses of D.9's `resource-not-found`,
     // `resource-erased` and `identity-taken`, and the subject now emits the canonical spellings.
     // D.9 is the registry and needed no ruling for that -- the same reasoning as bringing the
     // subject to the frozen wire. The staleness guard below is what told me: it failed naming all
     // three the moment the rename landed, which is the only reason this list is not now a false
     // claim about its own subject.
+    //
+    // THE FOURTH WAS `unprocessable`, and it left differently -- not renamed but RETIRED. The RC3
+    // fault-vocabulary pass moved `BdpError::Unprocessable` from (422, `unprocessable`) to
+    // (400, `malformed-request`), so the code is no longer emitted at all and D.9 never needed to
+    // grow for it. The staleness guard failed naming it within one run of the move, which is the
+    // second time this guard has been the thing that noticed; a register of known gaps is a false
+    // claim the moment one closes, and nothing else in the tree reads this list.
     const REGISTERED: &[(&str, &str)] = &[
-        ("unprocessable", "not in D.9; the 422 bound case is `limit-exceeded`, so this is a second unregistered 422"),
         ("channel-closed", "not in D.9 and not named anywhere in core.lumen"),
         ("already-settled", "not in D.9; cancel's declared 409 state conflict has no registered code"),
         ("backend", "not in D.9; a 500 code, and D.8 has no 5xx row beyond the 4xx/5xx catch-all"),
@@ -1765,6 +1771,26 @@ async fn raw_problem(
             format!("the {} Problem body carries no `code` member: {doc}", resp.status)
         })?
         .to_string();
+    // THE BODY'S `status` IS A COPY AND MUST EQUAL THE STATUS LINE, which governs. RFC 9457 has
+    // the body member mirror the response status, and the spec owner ruled the status LINE
+    // normative — so every assertion in this file keys on `resp.status` above, correctly and by
+    // construction rather than by luck.
+    //
+    // WHAT THAT LEFT UNCHECKED, flagged to me by a peer: nothing here compared the two, so a
+    // subject whose body disagreed with its own status line passed every case silently. The
+    // assertion is cheap and belongs with the read rather than in a case, because it is a property
+    // of EVERY fault response and not of any one row.
+    if let Some(in_body) = doc.get("status").and_then(serde_json::Value::as_u64) {
+        if in_body != u64::from(resp.status) {
+            return Err(format!(
+                "the Problem body says `status: {in_body}` while the response status line is {} — \
+                 the line governs and is what this gate asserts, so the copy disagreeing with it \
+                 is invisible to every other case here. A client branching on the body would take \
+                 a different path from one branching on the line: {doc}",
+                resp.status
+            ));
+        }
+    }
     Ok((resp.status, code))
 }
 
@@ -2021,12 +2047,62 @@ async fn import_truncated_stream_400(host: &str) -> Result<Vec<SurfaceId>, Strin
 
 /// A request that is not `application/jsonl` → 400. Claims the SAME row as the truncation case.
 ///
-/// `400` RATHER THAN `415`, decided by the declared fault set and not by analogy: `import` declares
-/// `[400, 409, 422]` and names no 415, while `patch` declares 415 and gets it. Answering 415 here
-/// would put a status on the wire that no denominator row carries, which is worse than a coarse
-/// one. rc2 (#448) is what makes this checkable at all — it added the
-/// `request = { contentType = "application/jsonl" }` core.lumen was missing, so there is now one
-/// acceptable type instead of a lenient reading.
+/// `400` IS THIS SUBJECT'S CHOICE, NOT A RULING — and the reason this case used to give is refuted.
+///
+/// It read: "decided by the declared fault set — `import` declares `[400, 409, 422]` and names no
+/// 415". That treats `problem = { status = [...] }` as a CLOSED set, and it is not one. A peer
+/// constructed the contradiction instead of searching for a clause, which is why it settles:
+///   - D.8's own 405 row (core.lumen:2084) requires "patch where a Scope offers no patch";
+///   - `patch`'s declared set (core.lumen:1134) is `[400,404,409,410,412,415,422]` — NO 405;
+///   - core.lumen:1615 is normative that an un-offered primitive is refused
+///     `capability-not-supported`, which D.8 binds to 405.
+/// If declared sets were closed, a scope OBEYING 1615 would be non-conformant for obeying it. They
+/// are what the generated OpenAPI enumerates — the annotation is literally `openapi = {...}` — and
+/// D.8's last row is an explicit catch-all: "4xx/5xx any fault ... carried at the Problem's own
+/// status".
+///
+/// The second clause was weaker than it looked too: "answering 415 would put a status on the wire
+/// that no denominator row carries" is a cost to THIS INSTRUMENT, not evidence about the spec, and
+/// it should not be what decides wire behaviour. Choosing the subject's answer so the gate can see
+/// it is backwards.
+///
+/// SO WHAT THIS CASE IS: a regression pin on THIS subject's answer, not a normative verdict. A
+/// conformant implementation may answer 415 here — the cleanroom does — and this case would fail
+/// it, which is why it must not be cited as a conformance result against another implementation
+/// until the choice is ruled. `import` carries `request = { contentType = "application/jsonl" }`
+/// with no 415 in its fault set, so "should import declare 415?" is a live question for the spec
+/// owner. rc2 (#448) added that `contentType`, which is what makes the media type checkable at all.
+///
+/// THE RETRACTION IS INCOMPLETE, AND SAYING SO HERE IS THE POINT. I retracted this premise in two
+/// places by matching the WORDING I had used ("declares no 415"). A sweep by MEANING finds about a
+/// dozen more comments reasoning from "`X` declares no `Y`" -- including `server.rs`'s export note,
+/// which says "`export` DECLARES EXACTLY ONE FAULT, `400`; a `501` from here is a status the
+/// generated contract does not publish, so the refusal was itself a divergence". Same premise,
+/// different words, missed by my own search.
+///
+/// A MECHANICAL SWEEP WOULD BE ITS OWN ERROR, so this is recorded rather than done. Many of those
+/// comments use the declaration CORROBORATIVELY beside a substantive argument -- `cancel` takes
+/// `unpinned<AsyncResult>`, so its missing `412` agrees with a fact the TYPE already establishes.
+/// Replacing those wholesale would destroy correct reasoning to remove incorrect reasoning.
+///
+/// THE TEST, per site: delete the sentence about the declared set. If the conclusion still stands
+/// on what is left, the citation was corroborative. If it collapses, it was the premise.
+///
+/// AND THE CORRECTION TO THAT TEST, which is a peer's and is better than my version: SURVIVING THE
+/// DELETION MAKES A CITATION CORROBORATIVE, NOT HARMLESS. I first wrote that the corroborative ones
+/// were "sound" and needed nothing. That is wrong, because a reader takes the stated reason as the
+/// reason. A bare "`X` declares no `Y`, so ..." reads as closure whether or not the conclusion
+/// needs closure, and the refuted inference is the one a reader will carry away.
+///
+/// So the sort is THREE ways, not two:
+///   1. LOAD-BEARING on closure -- defective. The conclusion must be re-grounded or withdrawn.
+///   2. CORROBORATIVE as evidence of DESIGN INTENT -- sound, but it must say so. "the spec author
+///      declared no `412` here, consistent with `unpinned<AsyncResult>` carrying no revision to
+///      pin" is the same fact read legitimately; the bare form is not.
+///   3. CORROBORATIVE AND REDUNDANT -- delete it; it only invites the closure reading.
+/// The peer found an instance of (1) in her own tree by this test, in a comment she had written up
+/// as a lesson about being careful with lists -- and she found it after her OWN wording sweep came
+/// back with two irrelevant hits, which is what sent her looking by meaning.
 async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     match raw_status(host, "POST", "/-/import", ctype("application/json"), b"[]").await? {
         400 => Ok(vec![fault("import", 400)]),
@@ -2034,18 +2110,23 @@ async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, Strin
     }
 }
 
-/// `?strategy=history-restore` against a scope advertising `historyRestore: false` → 422
-/// `limit-exceeded`. Covers op/import/fault/422.
+/// `?strategy=history-restore` against a scope advertising `historyRestore: false` → 400
+/// `invalid-parameter`.
 ///
-/// THE CAPABILITY DUAL, stated in core.lumen as a rule rather than a courtesy: "Each limit record
-/// is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side." So a
-/// scope that advertises `historyRestore: false` must REFUSE the mode, and refuse it as 422.
+/// IT COVERS NO NEW ROW, and that is a deliberate downgrade. It used to be the only producer of
+/// op/import/fault/422; after the RC3 fault-vocabulary ruling the refusal is 400, a row already
+/// covered by `import_truncated_stream_400`. So this case is now a BEHAVIOUR pin, not a coverage
+/// one, and op/import/fault/422 is uncovered and registered in RESIDUAL. Saying so here matters:
+/// the old doc line read "Covers op/import/fault/422", and a reader checking which case holds that
+/// row would have been sent to a case that no longer does.
 ///
-/// IT ANSWERED 501 UNTIL NOW, and that is why this row had no producer. 501 says the OP is absent;
-/// `import` is advertised and present, and declines exactly one mode. A client told 501 concludes
-/// the scope cannot import at all. The fix is in the reference, not here — this case is what holds
-/// it.
-async fn import_history_restore_is_refused_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+/// THE DUAL ITSELF IS UNCHANGED AND STILL THE POINT. A scope advertising `historyRestore: false`
+/// must REFUSE the mode rather than honour it, and must not answer 501 — 501 says the OP is
+/// absent, while `import` is advertised, present, and declines exactly one mode. Only the status
+/// of the refusal moved, because `historyRestore` is a bool and no smaller stream succeeds under
+/// it (core.lumen:2103-2106). Both wrong answers are kept as distinct arms below, because they
+/// fail for different reasons and a reader of the failure needs to know which.
+async fn import_history_restore_is_refused_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     let framed = br#"{"Begin":{"cursor":"c0"}}
 {"End":{"count":0}}
 "#;
@@ -2053,12 +2134,22 @@ async fn import_history_restore_is_refused_422(host: &str) -> Result<Vec<Surface
         raw_problem(host, "POST", "/-/import?strategy=history-restore", ctype("application/jsonl"), framed)
             .await?;
     match status {
-        422 if code == "limit-exceeded" => Ok(vec![fault("import", 422)]),
-        422 => Err(format!("422 but the code was {code}, not limit-exceeded")),
+        400 if code == "invalid-parameter" => Ok(vec![fault("import", 400)]),
+        400 => Err(format!(
+            "400 but the code was `{code}`, not `invalid-parameter`. The status alone is not the \
+             assertion: a malformed body answers 400 too, and after the RC3 ruling the CODE is the \
+             only thing distinguishing an advertised-false refusal from one"
+        )),
+        422 => Err(format!(
+            "history-restore answered 422 (`{code}`). That was correct until the RC3 ruling; \
+             `historyRestore` is a bool, so no smaller stream succeeds and 422's membership test \
+             (core.lumen:2103-2106) excludes it"
+        )),
         501 => Err("history-restore answered 501; it is an advertised limit on a PRESENT op, so \
-                    the dual requires 422 limit-exceeded"
+                    the dual requires a refusal that names the capability, not one that says the \
+                    whole op is absent"
             .into()),
-        s => Err(format!("expected 422 limit-exceeded for an unadvertised import mode, got {s}")),
+        s => Err(format!("expected 400 invalid-parameter for an unadvertised import mode, got {s}")),
     }
 }
 
@@ -3089,6 +3180,104 @@ async fn pull_with_an_invalid_limit_400(r: &RemoteScope, host: &str) -> Result<V
     }
 }
 
+/// `pull` IS THE ONE READ THAT ADMITS `sse`, and the stub must say so with its STATUS.
+///
+/// [[core.lumen#Transport]] is normative: "`sse` transport is valid ONLY on a live source (pull); a
+/// snapshot read (list/query/revisions/export) refuses `format=sse` and faults `400`". The snapshot
+/// half is covered by `the_format_header_refusals`, which walks `list`, `revisions` and `export`.
+///
+/// WITHOUT THIS CASE THAT COVERAGE IS HONEST BY ACCIDENT. A binding that refused `sse` on EVERY op
+/// passes every existing `format` arm, because no case asks the one op where `sse` is legal. Those
+/// refusals prove `sse` is rejected somewhere; only this proves it is rejected for the right reason.
+///
+/// WHAT THIS CASE PINS IS CURRENT BEHAVIOUR, AND CURRENT BEHAVIOUR IS WRONG. Read this before
+/// citing it: the `501` below is a regression pin on a frozen wire, not a conformant answer.
+///
+/// The first version of this comment weighed three outcomes and chose `501` as "the honest stub",
+/// rejecting `400 invalid-parameter` as "the SNAPSHOT answer, applied to the op the spec exempts by
+/// name". That rejection was right about the route and wrong about the destination. There is a
+/// SECOND route to `400` that it never considered, and it is the one that applies:
+///
+///   - [[core.lumen#PullCaps]] (main, :1712-1721) carries `sse: bool`, `jsonl: bool`, `filter` and
+///     `selector`. So `sse` is IN `pull`'s capability vocabulary -- not an exemption from a
+///     snapshot rule, a capability this op advertises.
+///   - `InMemScope` advertises `PullCaps { sse: false, jsonl: false, .. }`.
+///   - D.8 (:2057-2062): "in an operation's vocabulary and advertised false is a decline it can
+///     state, outside its vocabulary is malformed. Both `malformed-request` and `invalid-parameter`
+///     resolve here" -- at `400`.
+///
+/// So an advertised-false transport is a STATABLE DECLINE: `400 invalid-parameter`. That is the
+/// same reasoning the spec owner ruled for `ExportCaps.selector`, and she extended it in the same
+/// breath to "`get`/`list`/`pull`'s selector-false by the shared register rule". `PullCaps.sse`
+/// needs no new ruling and, unlike `ExportCaps.selector`, it already exists on main.
+///
+/// I rejected `400` because of a reason I imagined for it rather than the reason that applied.
+///
+/// AND THE BINDING HAS IT INVERTED, which is the tell this is a defect and not a choice. In
+/// `do_pull`'s one `match`: an UNKNOWN token (out of vocabulary) answers `400 invalid-parameter`,
+/// while `jsonl` and `sse` (in vocabulary, advertised false) answer `501`. D.8 puts the statable
+/// decline at `400` and the out-of-vocabulary input at malformed -- so the harsher, undeclared
+/// status is going to the two cases with the gentler answer, and both arms are wrong in opposite
+/// directions. The `jsonl` arm carries the same defect for the same reason.
+///
+/// CLAIMS NO ROW: `501` is not among `pull`'s declared faults (`[400,404,405,410]`), and on the
+/// correct answer it would claim `op/pull/fault/400`, which is already covered.
+/// NOT FIXED HERE: the core wire is frozen at 0.2.3-rc1 and this changes two arms of a live
+/// response. CLOSES WHEN: post-freeze, both arms answer `400 invalid-parameter` and this case
+/// asserts that instead. The separate question of whether `501` is declared per-op or
+/// protocol-wide survives for the paths where `501` is still right -- see
+/// `http_problem_codes::HTTP_CODES_WITHOUT_A_REGISTER_ENTRY`, entry `not-implemented` (b).
+async fn pull_is_the_one_read_that_admits_sse(
+    r: &RemoteScope,
+    host: &str,
+) -> Result<Vec<SurfaceId>, String> {
+    seed_channel(r, "ch-sse", "duplex", serde_json::json!({})).await?;
+    let fmt = |v: &str| vec![("format".to_string(), v.to_string())];
+
+    // The CODE is pinned alongside the status: `501` alone would not tell "this transport is
+    // declined" from any other unimplemented thing on the same path.
+    let (status, code) = raw_problem(host, "GET", "/ch-sse/-/pull", fmt("sse"), b"").await?;
+    match (status, code.as_str()) {
+        (501, "not-implemented") => {}
+        (200, _) => {
+            return Err("`pull` with `format: sse` answered 200 — the caller asked for a live \
+                        stream and was served a window. That is the silent substitution the \
+                        `format` header exists to prevent, and it is invisible to a client that \
+                        trusts the status."
+                .into())
+        }
+        (400, c) => {
+            return Err(format!(
+                "`pull` with `format: sse` answered 400 / `{c}`, which is the SNAPSHOT answer. \
+                 [[core.lumen#Transport]] exempts `pull` by name — sse is valid ONLY on a live \
+                 source — and a uniform `refuse_format` over every read produces exactly this."
+            ))
+        }
+        (s, c) => {
+            return Err(format!(
+                "`pull` with `format: sse` answered {s} / `{c}`; expected 501 `not-implemented`. \
+                 See this case's note on whether 501 is declared per-op."
+            ))
+        }
+    }
+
+    // THE DISCRIMINATOR. Without it the arm above also passes for a `pull` that is broken for every
+    // `format`, and then the refusal says nothing about the transport.
+    for ok in ["page", ""] {
+        let h = if ok.is_empty() { Vec::new() } else { fmt(ok) };
+        let st = raw_status(host, "GET", "/ch-sse/-/pull", h, b"").await?;
+        if st != 200 {
+            return Err(format!(
+                "`pull` with format {:?} answered {st}, so the `sse` refusal above says nothing \
+                 about the transport — this op declines every `format`",
+                if ok.is_empty() { "absent" } else { ok }
+            ));
+        }
+    }
+
+    Ok(Vec::new())
+}
+
 
 // ---- the capability duals, against a subject that advertises a BOUND ---------------------------
 
@@ -3108,7 +3297,7 @@ async fn pull_with_an_invalid_limit_400(r: &RemoteScope, host: &str) -> Result<V
 /// no advertisement could offer or refuse it. `If-Match` on a `put` advertising `ifMatch: false` is
 /// `422`: the field exists, this scope declines it, and the caller fixes the request by dropping
 /// the guard. Status alone cannot tell those apart on an op that declares both — the `code` can.
-async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+async fn the_capability_duals_are_refused_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     let mut covered = Vec::new();
 
     // A proposed id against `clientProposedId: false`.
@@ -3126,14 +3315,22 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
     )
     .await?;
     match (status, code.as_str()) {
-        (422, "limit-exceeded") => covered.push(fault("create", 422)),
+        (400, "invalid-parameter") => covered.push(fault("create", 400)),
         (201, _) => {
             return Err("a caller-proposed id was ACCEPTED by a scope advertising \
                         `clientProposedId: false`; the dual requires it refused, and silently \
                         minting a different id hands back a Location the caller never asked for"
                 .into())
         }
-        (s, c) => return Err(format!("expected 422 limit-exceeded for a proposed id, got {s} / {c}")),
+        (400, c) => {
+            return Err(format!(
+                "a proposed id was refused 400 with code `{c}`, not `invalid-parameter`. After the \
+                 RC3 ruling the code is the whole assertion: an out-of-vocabulary input answers \
+                 400 too, and collapsing the two tells a client to stop using a parameter that is \
+                 merely unavailable here"
+            ))
+        }
+        (s, c) => return Err(format!("expected 400 invalid-parameter for a proposed id, got {s} / {c}")),
     }
 
     // Seed through the path that the restricted scope DOES advertise, so the put/patch cases are
@@ -3161,27 +3358,37 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
         headers.push(("if-match".into(), "some-rev".into()));
         let (status, code) = raw_problem(host, method, target, headers, body).await?;
         match (status, code.as_str()) {
-            (422, "limit-exceeded") => covered.push(fault(op_name, 422)),
+            (400, "invalid-parameter") => covered.push(fault(op_name, 400)),
             (412, _) => {
                 return Err(format!(
                     "{op_name} answered 412 for an If-Match against `ifMatch: false`. 412 says the \
                      guard was EVALUATED and failed, so the caller retries with a fresher rev for \
-                     ever; the dual requires 422, which says the guard is not offered here"
+                     ever; the dual requires a refusal that says the guard is not offered here"
+                ))
+            }
+            (400, c) => {
+                return Err(format!(
+                    "If-Match on {op_name} was refused 400 with code `{c}`, not \
+                     `invalid-parameter`"
                 ))
             }
             (s, c) => {
                 return Err(format!(
-                    "expected 422 limit-exceeded for If-Match on {op_name}, got {s} / {c}"
+                    "expected 400 invalid-parameter for If-Match on {op_name}, got {s} / {c}"
                 ))
             }
         }
     }
 
-    // THE OUT-OF-VOCABULARY GUARD STILL ANSWERS 400 ON THE SAME SUBJECT, which is what stops this
-    // case being satisfied by a binding that 422s every header it does not like.
+    // THE DISCRIMINATING ARM, AND IT MOVED FROM THE STATUS TO THE CODE. It used to read "the
+    // out-of-vocabulary guard still answers 400", which discriminated only while the duals above
+    // answered 422. Both are 400 now, so that check would pass for a binding that answered
+    // `invalid-parameter` to every header it dislikes — the exact collapse the old comment warned
+    // against, and it would have passed silently in this very commit. The code is now the
+    // assertion, and it is asserted to DIFFER from the duals' code, not merely to be some value.
     let mut headers = ctype("application/json-patch+json");
     headers.push(("if-none-match".into(), "*".into()));
-    let (status, _) = raw_problem(
+    let (status, code) = raw_problem(
         host,
         "PATCH",
         "/dual-target",
@@ -3192,9 +3399,17 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
     if status != 400 {
         return Err(format!(
             "`If-None-Match` on patch answered {status}; `ifAbsent` is not a field of `PatchCaps` \
-             at all, so it is an input patch does not define (400) and NOT an unadvertised bound \
-             (422). Collapsing them tells a client to stop using a parameter that is merely \
-             unavailable here"
+             at all, so it is an input patch does not define, and D.8 names 400 for that"
+        ));
+    }
+    if code != "malformed-request" {
+        return Err(format!(
+            "`If-None-Match` on patch answered 400 `{code}`; `ifAbsent` is not a field of \
+             `PatchCaps` at all, so NO advertisement could ever have offered or refused it — that \
+             is `malformed-request`, not `invalid-parameter`. Emitting the same code as the \
+             advertised-false duals above would leave a client unable to tell a parameter this \
+             scope declines from one the operation does not define, which is the distinction this \
+             whole case exists to hold."
         ));
     }
 
@@ -3381,6 +3596,401 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
     ("put", 400),
 ];
 
+/// EVERY SPEC-REQUIRED CAPABILITY FIELD MUST BE ADVERTISED. Claims no row -- this is advertisement
+/// conformance, not a fault.
+///
+/// WHY IT EXISTS, and it is not this lane's idea. An external contributor (Chris Sells, #442
+/// comment 7142885377) reported that a checker had omitted `ListCaps.compactFilter` from its key
+/// arrays, so a valid `compactFilter: false` threw AND a scope omitting the spec-REQUIRED field was
+/// wrongly accepted. The TypeScript estate carried one test for that one field. It was deleted with
+/// the clause-census retirement (`adbbdb20`, 20 tests, 290 lines), covered nowhere else, and would
+/// have ridden into RC3 silently on all three PRs.
+///
+/// SO THIS IS THE GENERAL FORM RATHER THAN A PORT. The requirement is DERIVED from core.lumen for
+/// every `*Caps` record -- a field without a `?` is required -- and checked against what this
+/// subject actually serialises. Porting the single test would have protected one field; deriving
+/// the rule protects the next one too, which is the difference between the spec carrying the rule
+/// and a suite carrying one instance of it.
+///
+/// AND IT FAILS HERE TODAY, which is the honest reason this case exists rather than a relocation:
+/// censusing all spec caps fields against this subject found exactly ONE required field absent, and
+/// it is `ListCaps.compactFilter` -- the very field Chris reported. This subject IS a scope omitting
+/// a spec-required capability field. Adding it changes the `/sys/capabilities` payload, which is
+/// wire behaviour under the rc1 freeze, so the field is registered below and fixed post-freeze.
+/// THE FREEZE COORDINATE, STATED ONCE AND BY SHA. Entries below cite "the 0.2.3-rc1 freeze" by
+/// tag, and a tag is not a coordinate — `git tag -f` repoints it, so a tag-only reference is a
+/// claim that depends on nobody having moved it, which no later reader can check.
+///
+///     `bdp-core-0.2.3-rc1` = `33dc2f2e`, 2026-11-24.
+///
+/// Read by sha for that reason. Stated HERE ONCE rather than inlined at all seven mention sites,
+/// because seven copies of a coordinate are seven things to keep true: the other mentions refer to
+/// the freeze as a POLICY by name, which is stable, and this is the one line that says where it
+/// is. The form is borrowed from a peer's header that had the whole discipline a fortnight before
+/// either of us reconstructed it — dated, sha-backed, and saying WHY it reads by sha.
+const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
+    (
+        "list",
+        "compactFilter",
+        "core.lumen:1693-1703 declares `ListCaps.compactFilter: bool` REQUIRED (no `?`); this \
+         subject's `ListCaps` is { conditions, selector, sort, max_limit } and the wire encodes \
+         only those four. The exact omission Chris Sells reported against the TS checker. NOT \
+         FIXED: adding it changes the discovery payload, which is wire behaviour under the \
+         0.2.3-rc1 freeze. CLOSES WHEN: post-freeze, `ListCaps` gains `compact_filter` and the \
+         wire encodes it.",
+    ),
+    // TWO MECHANISMS, SIX ENTRIES. Deriving the rule rather than porting Chris's single test found
+    // both immediately; neither has any equivalent check anywhere.
+    //
+    // (a) A SPEC-REQUIRED FIELD ADVERTISED UNDER THE WRONG NAME. core.lumen calls the capability
+    //     `ifRevision`; `If-Match` is its HEADER spelling (`ifRevision = { in = "header",
+    //     name = "If-Match" }`). This subject's caps struct is `if_match` and the wire renames it
+    //     to `ifMatch`, so a client looking for the field the spec names cannot find it. This is
+    //     the same vocabulary error I made in prose all day today before measuring the record --
+    //     except here it is on the wire, where a client pays for it.
+    ("put", "ifRevision", "advertised as `ifMatch` (the header spelling). Spec field is `ifRevision`. NOT FIXED: renaming a discovery member is wire behaviour under the 0.2.3-rc1 freeze. CLOSES WHEN: post-freeze, the caps field and its wire name are `ifRevision`."),
+    ("patch", "ifRevision", "as `put` -- advertised as `ifMatch`, spec field is `ifRevision`."),
+    ("delete", "ifRevision", "as `put` -- advertised as `ifMatch`, spec field is `ifRevision`."),
+    // (b) A SPEC-REQUIRED FIELD ABSENT ENTIRELY. `precondition: bool` (a `Filter` precondition) is
+    //     required on all three write caps records and is in neither the caps struct nor the wire.
+    //     So a scope cannot say whether it honours `?precondition=`, and a client cannot ask.
+    ("put", "precondition", "`PutCaps.precondition: bool` is REQUIRED and absent from both the caps struct and the wire. NOT FIXED: adding a discovery member is wire behaviour under the freeze. CLOSES WHEN: post-freeze, `PutCaps` carries `precondition` and the wire encodes it."),
+    ("patch", "precondition", "as `put` -- `PatchCaps.precondition: bool` required, absent from struct and wire."),
+    ("delete", "precondition", "as `put` -- `DeleteCaps.precondition: bool` required, absent from struct and wire."),
+    // (c) THE EIGHTH ENTRY CLOSED, AND THE REMAINING SEVEN ARE HELD ON A NARROWER GROUND THAN I
+    //     FIRST WROTE. `ExportCaps.selector` was registered here and is now ADVERTISED, because
+    //     holding it was never a freeze question at all -- it was my conflating two different
+    //     kinds of additive member.
+    //
+    //     THE DISTINCTION, measured rather than taken on a peer's reading, since the reading
+    //     happened to unblock me and the grant direction is the one that goes unchecked:
+    //       * `export.selector` is AUTHORIZED. fe690ac8's message reads "Donna ruled (a):
+    //         ExportCaps gains a `selector` field" and "only the ExportCaps schema gains a field
+    //         (the authorized wire change)". I read that message myself.
+    //       * It is also REQUIRED by main -- which is why the guard below fires on it.
+    //       * And `selector: true` is TRUE of this subject: `bdp-inmem`'s `export` forwards the
+    //         selector to `get` on the current-state branch. Measured, not assumed.
+    //     Advertising a field that is authorized AND required AND honoured is CONFORMANCE, not an
+    //     exception. There was no exception to take, so my caution was aimed at a thing that did
+    //     not exist. The three `precondition` absences, `list.compactFilter` and the three
+    //     `ifRevision` renames have NO such authorizing commit, which is the property that
+    //     separates them -- so they stay held and the freeze question stays open for them alone.
+    //
+    //     WHAT MY ORIGINAL ENTRY GOT RIGHT, and it is only the process half: taking the exception
+    //     for the one case that unblocked my own gate, in the same commit, would have been a rule
+    //     written to permit what I wanted. Reverting and registering bought the time to find out
+    //     that the premise was wrong. The conclusion was wrong and the process was right, and
+    //     those are separable.
+    //
+    //     SURFACE-MATCHED, CHECKED: fe690ac8 is a CAPABILITY RECORD field -- discovery/advertise
+    //     side, the same surface as every remaining entry here. It would NOT carry to the fault
+    //     wire; a peer nearly borrowed it for a Problem EXTENSION MEMBER and stopped herself,
+    //     which is the right line. Advertise-side and fault-side are two freeze questions.
+    //
+    //     STILL OWED ON `export`, and NOT closed by advertising the flag: main requires a
+    //     `--revisions` export to REFUSE `where`/`select` outright (400), and this subject's
+    //     revisions branch silently ignores them; `ExportBegin.partial` is absent entirely. Both
+    //     are behaviour, both are mine, both are separate changes.
+];
+
+async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
+    let required = bdp_gate::required_caps_fields();
+    if required.len() < 8 {
+        return Err(format!(
+            "only {} caps records parsed from core.lumen -- the parse is not finding the records \
+             and every check below passes vacuously",
+            required.len()
+        ));
+    }
+    let known: BTreeSet<(&str, &str)> =
+        CAPS_FIELDS_NOT_ADVERTISED.iter().map(|(w, f, _)| (*w, *f)).collect();
+
+    let mut advertised_any = false;
+    let mut gaps: Vec<String> = Vec::new();
+    let mut stale: Vec<String> = Vec::new();
+
+    for cap in r.capabilities() {
+        let Some(wire) = bdp_protocol::wire::WireCapability::from_trait(&cap) else { continue };
+        let json = serde_json::to_value(&wire).map_err(|e| format!("serialise capability: {e}"))?;
+        // The enum is externally tagged: {"list": { ...fields... }}.
+        let Some((name, body)) = json.as_object().and_then(|o| o.iter().next()) else { continue };
+        let Some(body) = body.as_object() else { continue };
+        let Some((_, fields)) = required.iter().find(|(rec, _)| rec == name) else { continue };
+        advertised_any = true;
+        for f in fields {
+            let present = body.contains_key(f.as_str());
+            let registered = known.contains(&(name.as_str(), f.as_str()));
+            if !present && !registered {
+                gaps.push(format!("{name}.{f}"));
+            }
+            if present && registered {
+                stale.push(format!("{name}.{f}"));
+            }
+        }
+    }
+
+    if !advertised_any {
+        return Err("no advertised capability matched a spec caps record, so this case checked \
+                    nothing -- the wire name and the record stem have stopped agreeing"
+            .into());
+    }
+    if !gaps.is_empty() {
+        return Err(format!(
+            "spec-REQUIRED capability field(s) this subject does not advertise: {gaps:?}. A scope \
+             omitting a required field is the defect Chris Sells reported (#442 comment \
+             7142885377). Either advertise it, or register it in CAPS_FIELDS_NOT_ADVERTISED with \
+             the reason and a CLOSES WHEN."
+        ));
+    }
+    if !stale.is_empty() {
+        return Err(format!(
+            "CAPS_FIELDS_NOT_ADVERTISED registers field(s) this subject NOW advertises: {stale:?} \
+             -- the entry is a false claim; remove it in the change that closed it."
+        ));
+    }
+    Ok(Vec::new())
+}
+
+/// SETTLED, AND THE SUBJECT NOW CONFORMS. These four rows lost their producer when the RC3
+/// fault-vocabulary ruling landed in this subject: each was covered only by a case asserting
+/// `(422, limit-exceeded)` for an advertised-false BOOLEAN, and every such site now answers
+/// `(400, invalid-parameter)`. They are UNCOVERED, registered in `RESIDUAL`, and pinned here so
+/// the move cannot silently reverse.
+///
+/// THE QUESTION THIS REGISTER WAS OPENED FOR IS CLOSED, AND IT CLOSED IN THE SPEC, NOT BY RELAY.
+/// D.8's 422 line on main now states the membership test outright (core.lumen:2103-2106): a fault
+/// belongs at 422 "IFF shrinking the request fixes it; a well-formed body that is simply unusable
+/// … is 400, not 422". That is the `shrink` reading, in the normative text, reached by reading the
+/// artefact rather than by accepting the relay that announced it — which is the threshold the
+/// chronology below says I failed to apply the first time.
+///
+/// WHAT REMAINS OPEN IS A DIFFERENT, SMALLER THING: `CoreCapabilities` (core.lumen:1646) still
+/// says "Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is
+/// the enforce side" — and read at the width of the RECORD that covers a boolean field too, which
+/// is how this subject read it. It does not compete with the test: it is a `description:`
+/// annotation, while :688, :1552 and D.8's blocks are `normative:` lines, and its parenthetical
+/// predates the test (it landed at GAP-4, 3f884d3f). Carried to the spec owner as a stale
+/// parenthetical. I nearly reported it as a self-contradicting spec, which it is not.
+///
+/// The ruling as implemented: `limit-exceeded` (422) is a request exceeding a STATIC CAPABILITY
+/// BOUND, fixed by SHRINKING -- stated on main at core.lumen:688, :1552, :2082 and :2103-2106. An
+/// advertised-false BOOLEAN option on an offered primitive is 400 `invalid-parameter`; a primitive
+/// absent is 405 `capability-not-supported`. The three are disjoint.
+///
+/// THE CHRONOLOGY BELOW IS KEPT AS THE RECORD OF HOW THE QUESTION WAS GOT WRONG, not as a live
+/// dispute. Read it for the method, not for the status of the cell.
+///
+/// THE SUBTRACTION IS CONTINGENT, NOT SETTLED, AND THIS IS THE CORRECTION THAT MATTERS. The
+/// ruling above reached me as the spec owner's relay. I verified its SPEC grounds myself (four
+/// statements) and then recorded the consequence in this artefact -- which is the wrong threshold.
+/// My own rule: a relay clears a low bar to unblock a decision I own, and a high bar for a claim I
+/// write down. Verifying the spec text is not the high bar, because the question is not only what
+/// the clause says.
+///
+/// WHAT I HAD NOT CHECKED: `bdp-primitives`' `LimitExceeded` doc (:710-718) attributes this
+/// mapping to DONNA, and names the disputed cell explicitly -- "a batch past `max_batch`, a `List`
+/// condition kind not advertised, A SELECTOR WHEN `selector:false`" -- so the attributed ruling
+/// covers advertised-false booleans, not merely over-bound requests. A peer found the same conflict
+/// in her tree first; mine is the same shape.
+///
+/// THE RECORD EXISTS -- IN THE OTHER REPOSITORY -- AND I HAD THAT WRONG. The doc cites
+/// `bdp-protocol/LIMIT-EXCEEDED.md`, which has never existed in THIS repository (not in the tree,
+/// not in any branch's history). I reported that as "the cited record does not exist", which was
+/// true of this repo and false as a claim about the attribution: a peer found it at
+/// `crates/bdp-protocol/LIMIT-EXCEEDED.md` in `donnabox/bdp-rs`, and I then read it there myself
+/// rather than taking her quotes. 125 lines, and it resolves:
+///   - line 3 and section 6: "Status: APPROVED by Donna", "Donna ruled: APPROVED (shape =
+///     `BdpError` variant; wire = `422` + `limit-exceeded`)".
+///   - section 1 lists the cases BY NAME, the disputed cell among them: "a `selector` supplied
+///     when the advertised cap is `selector:false`", and "a `list` condition kind not in the
+///     advertised `conditions` set".
+///   - section 7, Alternatives considered: "`400` / `413` as the status. `400` is too generic to
+///     key reactions on ... A dedicated `code` at `422` covers all limit kinds uniformly."
+/// So `400` was on the table, by name, and was REJECTED in an approved decision that covers this
+/// cell explicitly. The newer ruling does not fill a gap; as relayed it reverses a considered call.
+/// So the citation dangles only HERE, which is a defect in this tree -- a cross-repo path that
+/// resolves nowhere in the repo quoting it -- and not evidence about the ruling.
+///
+/// AND THE ONE FACT THAT MAKES THIS A REVISIT RATHER THAN A STANDOFF -- stated carefully, because
+/// my first version of it was dated, confident and WRONG IN ITS MECHANISM. A peer caught it.
+///
+/// Approval `2b493b98`: 2026-11-14T07:28Z. D.8's statable-decline line (`96c21581`): 2026-11-24.
+/// (The approval is 2026-11-13 23:28 PST -- 32 minutes before midnight -- which is why she dated
+/// it 11-13 and I dated it 11-14. Same instant, unstated frame; a date is a coordinate too, and
+/// this one sits half an hour from flipping. Give the timestamp, not the interval.)
+///
+/// WHAT I CLAIMED: that section 7 rejected `400` because no dedicated code existed at 400 for this
+/// condition, and one does now -- which reads as `invalid-parameter` being NEW. It is not. First
+/// appearance of the string: 2026-11-16 in `core.lumen`, 2026-10-15 across `specs/`, 2026-08-28 in
+/// the repo. It predates the approval by two and a half months. The 11-16 date -- three days after
+/// the approval, exactly what the argument needed -- is an artefact of `core.lumen` being the newer
+/// Lumen-ified file, not of the code being new. ONE FILE IS A COORDINATE, NOT A POPULATION, and
+/// each widening moved the date earlier.
+///
+/// WHAT ACTUALLY CHANGED, which is narrower and still sufficient: not the code's existence but the
+/// RULE ASSIGNING IT. Before 2026-11-24 nothing specified `400` for an advertised-false option;
+/// D.8's clause does. Section 7's objection was that `400` is "too generic to key reactions on",
+/// and a rule that makes 400 the specified answer HERE answers that objection -- the code merely
+/// existing never would have. So the ground for rejecting the alternative moved after the
+/// alternative was rejected, by assignment rather than by invention.
+/// That also composes without loss, which is why it is worth putting this way: a genuine numeric
+/// bound keeps `limit-exceeded` at 422 WITH its `capability`/`limit` fields naming the bound --
+/// everything section 7 wanted -- and advertised-false takes `invalid-parameter` at 400. Each gets
+/// a dedicated code; nothing section 7 argued for is given up. Still not ours to rule.
+///
+/// AND THE WHOLE DISPUTE REDUCES TO ONE WORD, which is the form to put to the owner because she
+/// can answer it without relitigating anything and without anyone having been wrong:
+///
+///   IS 422's MEMBERSHIP TEST "ADJUST" OR "SHRINK"?
+///     the approval (2026-11-14) -- "the op exists, ADJUST the request and retry" (its section 1,
+///       and again later: "fall back when it should adjust and retry"). Omitting a `select` IS
+///       adjusting the request, so advertised-false -> 422 follows.
+///     core.lumen :688, :1532, :2060, :2082 -- "fixed by SHRINKING the request", four times.
+///       Omitting a header shrinks nothing, so advertised-false -> not 422.
+///
+/// Adjust: the approval stands as written, and the selector ruling plus #460/#461 revisit. Shrink:
+/// advertised-false is 400, and the approval's own case list narrows to the genuinely numeric ones.
+///
+/// THE CHRONOLOGY, MEASURED, because it decides who inherited what and no one's summary of it has
+/// been right yet -- mine included, twice:
+///   2026-11-13/14  LIMIT-EXCEEDED.md APPROVED (`2b493b98`, 07:28Z). Its test: ADJUST.
+///   2026-11-17     "fixed by shrinking" enters core.lumen (`2993e979`) -- but SCOPED TO PUSH, in
+///                  the normative line distinguishing `limit-exceeded` from backpressure. Not the
+///                  general definition.
+///   2026-11-19     this subject imports the ADJUST test (`ee95366a`, the gate scaffold). Correct
+///                  at the time: the general 422 row had not narrowed.
+///   2026-11-23     D.8's GENERAL 422 row gains the shrink wording (`4f27896f`, "reconcile
+///                  declared fault surface with producers"). THIS is the narrowing.
+///   2026-11-24     D.8's statable-decline clause (`96c21581`) gives 400 a specified home.
+///   2026-11-25     I add the SHRINK test to `bdp-primitives` (`039867d5`, "channels: pull and
+///                  push, end to end"), eight lines from the ADJUST test, unreconciled.
+///
+/// So the approval was consistent with the spec as it stood. The general definition narrowed ten
+/// days later, in a commit whose own headline is "reconcile ... with producers" -- and it did not
+/// reconcile the approval's section 1 case list, nor the 24 sites across two trees authored to it.
+/// The last line is mine: I introduced this tree's contradiction two days ago, in a commit
+/// headlined as a coverage gain, by reaching for the spec's narrower test to justify a 405 without
+/// noticing the broader one eight lines above justifying a 422.
+///
+/// A peer dated the narrowing to 2026-11-24 in her crate and read it as an import that failed to
+/// reconcile; in this tree the stale import is the ADJUST side and the narrowing is 11-23. Same
+/// shape, different members -- which is why the dates belong here rather than in a summary.
+///
+/// TWO LANDMARKS, NOT ONE, AND ONLY THE FIRST REMOVES 422. Both peers have collapsed these into a
+/// single "ten days", which understates the case:
+///   11-23 (`4f27896f`) narrowed the 422 DEFINITION to shrinkable bounds. This is what takes
+///         advertised-false OUT of 422's scope, and it is load-bearing on its own.
+///   11-24 (`96c21581`) gave 400 a SPECIFIED code for the condition. This answers section 7's
+///         "too generic" objection, but by itself it would only add an option -- 422 would remain
+///         available, and the approval could stand.
+/// Carrying only 11-24 to the owner argues that 400 became viable. Carrying 11-23 argues that 422
+/// stopped applying. The second is the question; the first is the remedy.
+///
+/// AND THE APPROVAL'S OWN LEADING NUMERIC EXAMPLE HAS NO SPEC CARRIER. Section 1 offers "a
+/// `resolve`/`apply` batch past the advertised `maxBatch` / `maxWrites`" as the paradigm 422.
+/// Measured: `maxWrites`, `max_writes` and `ApplyCaps` appear in NO `.lumen`, `.md` or `.json`
+/// under this repo -- packs included -- and exist only in the Rust subject
+/// (`bdp-primitives`: `ApplyCaps { max_writes, acyclicity }`). `apply` is not a Core op at all;
+/// core.lumen declares no `fn apply` and no `operationId = "apply"`.
+/// So of the approval's two numeric exemplars, one is `maxBatch` and the other is a field no spec
+/// defines. The spec owner cited it back to me as "your tested maxWrites core" -- it is neither
+/// core nor specified, and a reader told "numeric bounds like `maxWrites` keep 422" would infer a
+/// populated class of legitimate 422s. There is exactly one: `PushCaps.maxBatch`.
+///
+/// A DENOMINATOR ROW LEFT AND CAME BACK ON 2026-11-23, AND THE GENERATED ARTEFACT CARRIED IT. The
+/// same commit that narrowed the 422 definition also stripped `400` from `import`'s declared set.
+/// A peer found both endpoints and could not find the restoring commit, because `git log -S`
+/// tracks a string's COUNT and `operationId = "import"` never changes count -- only the bracket
+/// contents do. `-G` finds it:
+///   2026-11-16  `81cba84e`  import: [400,409,422]
+///   2026-11-23  `4f27896f`  import: [409,422]        <- 400 REMOVED (the 422-narrowing commit)
+///   2026-11-23  `c83944fd`  import: [400,409,422]    <- RESTORED, same day, 14 commits later
+///   2026-11-26  `3cc6f4eb`  import: [400,409,422]    (the pin, and still so on main)
+/// And the generated OpenAPI this gate derives its denominator from carried the removal, not just
+/// the source: `['409','422']` at `4f27896f`, `['400','409','422']` at `c83944fd`. So the surface
+/// really did lose `op/import/fault/400` for that span.
+///
+/// WHICH MAKES 2026-11-23 A DAY WHEN "THE DENOMINATOR" IS NOT A NUMBER. Inside that same 14-commit
+/// window sits `47bc779c`, "ruling D -- undeclare 413/414, 54 -> 47 rows". The surface moved
+/// repeatedly within one day, in both directions. Any coverage figure dated 11-23 needs its commit,
+/// not its date -- a date is not a fine enough coordinate when the thing measured changes several
+/// times inside it.
+///
+/// Nothing published here is affected: this gate derives the denominator live, and every figure in
+/// this file was computed at HEAD today, where the row is present. Checked rather than assumed,
+/// because the row is claimed by `import_truncated_stream_400` and `import_wrong_media_type_400`
+/// and would have had no denominator entry to claim during the window.
+///
+/// THE APPROVED DOCUMENT IS SELF-CONSISTENT ON ITS OWN TEST -- it never states a shrinkability
+/// test. The spec owner reported it as internally inconsistent, citing
+/// `bdp-primitives/src/lib.rs:724-726`, which excludes channel-direction from 422 because "there
+/// is no smaller request that would succeed -- which is the test `limit-exceeded` is for", eight
+/// lines after routing `selector:false` TO 422. That inconsistency is real and verified, and it is
+/// OURS: this doc imported the approval's adjust test for the routing and core.lumen's shrink test
+/// for the exclusion. Mixing two sources manufactured a contradiction that neither source has.
+///
+/// AND THE DANGLING-CITATION POINT IS WITHDRAWN TWICE OVER. I reported it, corrected it after
+/// reading the record in the other repo, and then received it back from the spec owner as
+/// "dangling citation confirmed" -- she had verified it in the same repository where I made the
+/// mistake, while my correction was still queued to her. Nobody added evidence; the claim returned
+/// wearing a second name. A peer confirming a claim you made, in the tree you made it in, is not
+/// corroboration.
+///
+/// SO THIS IS A CONFLICT TO SURFACE, NOT A DEFECT TO BOOK. Two readings of one cell, one of them
+/// attributed to the owner, and a subject authored to the older one. The figure below is printed
+/// as CONTINGENT for that reason: subtracting the rows presumes the newer reading wins, and that
+/// is exactly the call a conformance gate must not make for itself.
+///
+/// I ALSO NEARLY CLEARED THIS TREE. Grepping for Donna attributions near 422, the first hit
+/// (`wire.rs:591`) is only the error-to-status MAPPING -- "request over its advertised limits" --
+/// which is compatible with the newer ruling, and I was ready to report no conflict here. The
+/// SECOND hit carries the condition list. Reading to the width of the question would have cost one
+/// more line.
+///
+/// Every row below WAS covered by a case driving an advertised-false BOOLEAN and asserting
+/// `(422, limit-exceeded)`. Those sites now answer 400, so the rows are uncovered and this
+/// register asserts that they are -- it stopped being a subtraction from a mechanical ratio and
+/// became a REGRESSION PIN, which can now fail in both directions.
+///
+/// THE DISCRIMINATOR IS `op/push/fault/422`, DELIBERATELY ABSENT, and it is now asserted POSITIVELY.
+/// Its case drives a batch of 5 against `maxBatch: 4` -- a numeric bound, shrinkable, so 422 is
+/// correct there and the row must STAY covered. Over-applying the ruling to the one real bound is
+/// the plausible wrong way to make this change, and nothing else in the tree would catch it: every
+/// other 422 assertion was flipped, so a blanket flip compiles and leaves 105 tests green.
+///
+/// AND THE REACHABILITY QUESTION IS ANSWERED, MEASURED: none of these four rows has a reachable
+/// 422 producer in Core, so rewriting the cases cannot recover them. The complete population of
+/// numeric fields across every `*Caps` record in core.lumen is FOUR, and only one of them faults:
+///   `PushCaps.maxBatch`   (:1785) -- "fixed by shrinking the request"      -> 422. THE ONLY ONE.
+///   `PushCaps.window`     (:1787) -- backpressure, "not an error" (:688)   -> no fault
+///   `ImportCaps.window`   (:1778) -- backpressure, "not an error" (:1532)  -> no fault
+///   `ListCaps.maxLimit`   (:1703) -- "returns maxLimit items + a resume cursor, NEVER" (:622)
+///                                                                          -> silently capped
+/// `CreateCaps`, `PutCaps` and `PatchCaps` carry no numeric field at all, and `ImportCaps`' only
+/// one is soft backpressure. `ScopeCapabilities` has none either, so D.8's other 422 producer --
+/// "a guard past a scope limit" -- names no advertised carrier anywhere; that phrase is itself a
+/// gap, since D.8 says the one request-context max it alludes to "has no capability field to carry
+/// it".
+///
+/// I nearly reported `import/422` as RECOVERABLE via `ImportCaps.window`, on the reasoning that a
+/// numeric field can be exceeded. Reading what a breach of it MEANS stopped that: it is declared
+/// soft and not an error. A numeric type is not a faulting bound, and the comfortable answer here
+/// was the wrong one.
+///
+/// DONE: each site answers 400 `invalid-parameter`. STILL OPEN, and it is now the only thing left
+/// on this cell: whether `create`/`put`/`patch`/`import` should declare a 422 at all, since
+/// nothing in Core can produce one for them -- the four-numeric-field census above is the
+/// evidence. That is a DENOMINATOR question for four rows, not a case-writing one. If they are
+/// undeclared the surface drops by four and these rows leave the grid rather than sitting
+/// uncovered in it; until then they are uncovered and counted, which is why the honest figure did
+/// not move when the subject was fixed. THE SPEC OWNER'S, NOT THIS GATE'S.
+const MOVED_OFF_422_BY_THE_RC3_RULING: &[(&str, &str)] = &[
+    ("op/create/fault/422", "`clientProposedId: bool` advertised false (CreateCaps). A boolean, not a bound."),
+    ("op/put/fault/422", "`ifRevision` / `ifAbsent: bool` advertised false (PutCaps). Booleans, not bounds."),
+    ("op/patch/fault/422", "`ifRevision: bool` advertised false (PatchCaps). A boolean, not a bound."),
+    ("op/import/fault/422", "`historyRestore: bool` advertised false (ImportCaps). A boolean, not a bound; its case cites core.lumen:1626's dual clause verbatim."),
+];
+
 /// A subject that ADVERTISES every primitive and IMPLEMENTS none. `get` is the one mandatory trait
 /// method, so it answers the not-implemented signal explicitly; everything else falls through to the
 /// trait default, which does the same. Advertising the full set is the point: it makes the subject
@@ -3428,7 +4038,7 @@ async fn run_cases(addr: String, restricted_addr: String) {
         "capability duals (restricted subject)",
         &mut covered,
         &mut failures,
-        the_capability_duals_are_refused_422(&restricted_addr),
+        the_capability_duals_are_refused_400(&restricted_addr),
     )
     .await;
 
@@ -3445,10 +4055,89 @@ async fn run_cases(addr: String, restricted_addr: String) {
     // a live measurement is worse than no claim, because it reads as the measurement's source.
     // The denominator is read from the working tree at run time, so the tree IS the pin; `git
     // rev-parse HEAD` names it, and nothing hand-written here can be more current than that.
-    eprintln!("spec version: v0.2.3 (tier-1 surface)");
+    // READ, NOT WRITTEN. The hand-written `v0.2.3` that stood here contradicted the comment
+    // above it, and 0.2.4 is the active target — so it was a stale claim waiting for a date.
+    eprintln!("spec version: v{} (tier-1 surface, read from info.version)", bdp_gate::spec_version());
     eprintln!("denominator source: specs/generated/openapi/core.openapi.json (live, drift-gated)");
     eprintln!("surface: {} rows, derived at run time, not pinned here", denom.len());
     eprintln!("coverage: {}/{} surface rows", covered_in_denom.len(), denom.len());
+    // WHAT THIS RATIO IS NOT. The denominator is the faults the generated OpenAPI DECLARES. The
+    // spec also REQUIRES statuses that no declared set carries: D.8's 405 row (core.lumen:2084)
+    // demands "patch where a Scope offers no patch", `patch` declares no 405, and core.lumen:1615
+    // makes the refusal normative via `capability-not-supported`. Such a row cannot enter this
+    // denominator, so no case can claim it and a full ratio would not report it.
+    // 51/51 would therefore mean "every DECLARED fault is exercised", never "conformant".
+    eprintln!(
+        "  NB: declared faults only — the spec requires statuses outside this set (e.g. patch/405 \
+         per D.8:2084 + core.lumen:1615), which no row here can carry"
+    );
+    // THE FIGURE ABOVE IS NOW THE HONEST ONE. It was printed as CONTINGENT until the RC3
+    // fault-vocabulary ruling landed: four rows were covered only by cases asserting 422 for an
+    // advertised-false boolean, so the mechanical ratio counted coverage the ruling misclassified.
+    // Those sites answer 400 now, the rows are genuinely uncovered, and the ratio dropped to meet
+    // the figure that was already being published with a caveat. Nothing was re-labelled — the
+    // subject moved.
+    let moved: BTreeSet<String> =
+        MOVED_OFF_422_BY_THE_RC3_RULING.iter().map(|(r, _)| r.to_string()).collect();
+    let covered_names: BTreeSet<String> =
+        covered_in_denom.iter().map(|r| r.to_string()).collect();
+
+    // (a) THE CASE SUITE DID NOT RE-REGISTER THE ROW -- and this arm guards the SUITE, not the
+    //     subject, which is worth stating because the message below reads as though it catches
+    //     both. MEASURED: breaking the subject (pointing `unadvertised()` back at 422) does NOT
+    //     reach this assertion. The duals case errors out instead, records no rows, and the 422
+    //     never enters `covered`. The only route here is a CASE asserting 422 for one of these
+    //     four ops and returning the row -- most likely a ported case written against the old
+    //     rule -- and that route was probed by inserting the row directly, which fired. So:
+    //     subject regressions are caught by `capability duals` and `import/400 history-restore`;
+    //     this arm catches a case that re-books the row.
+    let regressed: Vec<&String> = moved.intersection(&covered_names).collect();
+    assert!(
+        regressed.is_empty(),
+        "{} row(s) in MOVED_OFF_422_BY_THE_RC3_RULING are covered again: {:?}. A covering case \
+         asserts 422 for an advertised-false capability, which the RC3 ruling makes 400 — either a \
+         site regressed or the ruling was reversed, and neither is a thing a case may do quietly.",
+        regressed.len(),
+        regressed
+    );
+
+    // (b) EACH MOVED ROW CARRIES A RECORDED BLOCKER. Losing a producer legitimately is not licence
+    //     to leave the row unexplained: it is uncovered and in the denominator until the spec
+    //     undeclares it, and a reader is owed the reason at the row.
+    let unregistered: Vec<&String> = moved
+        .iter()
+        .filter(|r| !RESIDUAL.iter().any(|(row, _)| *row == r.as_str()))
+        .collect();
+    assert!(
+        unregistered.is_empty(),
+        "{} row(s) moved off 422 are absent from RESIDUAL: {:?}. They are uncovered and still \
+         declared, so each needs its blocker recorded or the uncovered list reads as unexamined.",
+        unregistered.len(),
+        unregistered
+    );
+
+    // (c) THE ONE REAL BOUND SURVIVED, asserted positively. This is the arm that discriminates:
+    //     a blanket flip of every 422 in the tree compiles, leaves the subject's own tests green,
+    //     and satisfies (a) and (b) above. Only this fails.
+    assert!(
+        covered_names.contains("op/push/fault/422"),
+        "`op/push/fault/422` is no longer covered. Its case drives a batch over `maxBatch`, a real \
+         numeric bound that shrinking fixes, so 422 is CORRECT there — it is the one 422 the RC3 \
+         ruling preserves. Losing it means the ruling was applied as a blanket condemnation of the \
+         status rather than as the classification it is."
+    );
+    assert!(
+        !moved.contains("op/push/fault/422"),
+        "`op/push/fault/422` must NOT be listed in MOVED_OFF_422_BY_THE_RC3_RULING: see above."
+    );
+    eprintln!(
+        "  the RC3 fault-vocabulary ruling moved {} row(s) off 422 (now uncovered, see RESIDUAL); \
+         `op/push/fault/422` is asserted STILL COVERED as the discriminator:",
+        moved.len()
+    );
+    for (row, why) in MOVED_OFF_422_BY_THE_RC3_RULING {
+        eprintln!("    - {row}: {why}");
+    }
     let mut covered_sorted: Vec<&SurfaceId> = covered_in_denom.iter().copied().collect();
     covered_sorted.sort();
     eprintln!("  covered: {}", render(&covered_sorted));
@@ -3486,14 +4175,32 @@ async fn run_cases(addr: String, restricted_addr: String) {
         unexplained.len(),
         unexplained
     );
+    // THE STALENESS GUARD FIRED CORRECTLY AND EXPLAINED ITSELF WRONGLY, which is worse than not
+    // firing because the reader is sent somewhere there is nothing to find. A registered row
+    // leaves `uncovered` for TWO reasons: a case started covering it, or the row left the
+    // DENOMINATOR because the spec undeclared it. The old message asserted the first for both and
+    // told the reader to "remove it in the change that covered the row" — for an undeclared row
+    // there is no such change, and the surface shrank instead. Two rows are ruled to leave this
+    // way (patch/409, delete/409), so this was about to mislead on a known event.
+    let denom_ids: BTreeSet<String> = denom.iter().map(|r| r.to_string()).collect();
     let expired: Vec<&String> = registered_ids.difference(&uncovered_ids).collect();
+    let (undeclared, now_covered): (Vec<&&String>, Vec<&&String>) =
+        expired.iter().partition(|r| !denom_ids.contains(r.as_str()));
     assert!(
-        expired.is_empty(),
+        undeclared.is_empty(),
+        "RESIDUAL records {} row(s) that have LEFT THE DECLARED SURFACE: {:?}.\n\
+         These are not covered — the spec undeclared them, so the denominator shrank and the entry \
+         describes a row that no longer exists. Remove the entry; do NOT look for a covering case.",
+        undeclared.len(),
+        undeclared
+    );
+    assert!(
+        now_covered.is_empty(),
         "RESIDUAL still records {} row(s) as unreachable that are now COVERED: {:?}.\n\
          The blocker closed and the entry is a false claim — remove it in the change that covered \
          the row.",
-        expired.len(),
-        expired
+        now_covered.len(),
+        now_covered
     );
 
     // fail-if-no-coverage — blocking only under BDP_GATE_STRICT while tier-1 is still being filled.
@@ -3715,6 +4422,20 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
         pull_with_an_invalid_limit_400(&remote, &addr),
     )
     .await;
+    record(
+        "pull format=sse (the one legal sse read)",
+        &mut covered,
+        &mut failures,
+        pull_is_the_one_read_that_admits_sse(&remote, &addr),
+    )
+    .await;
+    record(
+        "every spec-required caps field is advertised",
+        &mut covered,
+        &mut failures,
+        every_required_caps_field_is_advertised(&remote),
+    )
+    .await;
     record("import", &mut covered, &mut failures, import_round_trips_an_export(&remote)).await;
     record("import/400 truncated", &mut covered, &mut failures, import_truncated_stream_400(&addr)).await;
     record(
@@ -3725,10 +4446,10 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     )
     .await;
     record(
-        "import/422 history-restore",
+        "import/400 history-restore",
         &mut covered,
         &mut failures,
-        import_history_restore_is_refused_422(&addr),
+        import_history_restore_is_refused_400(&addr),
     )
     .await;
     record(
@@ -3863,6 +4584,24 @@ const RESIDUAL: &[(&str, &str)] = &[
          Donna rules undeclare, or a capability field is added.",
     ),
     (
+        // RULED (relayed 2026-11-27; spec text pending): patch/409 and delete/409 are UNDECLARED.
+        // Recorded as a dated relay rather than attributed — `specs/AGENTS.md:44` says not to
+        // record who decided, and an attribution cannot be checked under a shared account anyway,
+        // so what matters is the CONSEQUENCE and what closes it.
+        //
+        // THE RULING NAMES TWO OF THESE THREE, AND THIS ENTRY IS THE THIRD. The three are grouped
+        // above as "one shape" — a declared 409 with no Core producer pinned at 409 — and that
+        // grouping makes it easy to read the ruling as closing all of them. It does not reach
+        // `import/409`, whose blocker is different: import absorbs collisions at 200 rather than
+        // faulting, so it has no producer for a different reason than patch and delete do.
+        //
+        // NOTHING TO DO HERE YET. The undeclare is a denominator move behind the rc1 freeze
+        // (batched into the 0.2.4 declare/undeclare pass with the unreachable-422s and the
+        // `get`-400 declaration). This gate derives its surface live from the generated OpenAPI,
+        // so when the undeclare lands those two rows vanish, the surface drops 51 -> 49, and the
+        // staleness guard above fires on their now-dead entries — by the LEFT THE DECLARED SURFACE
+        // arm, which exists because this event was foreseeable and the old message would have sent
+        // the reader hunting for a covering case that never existed.
         "op/import/fault/409",
         "NO REQUEST-LEVEL PRODUCER, and the spec owner leans UNDECLARE. Import's only conflict \
          notion is the per-record `Conflicted` fate, which counts toward `acceptedThrough` and rides \
@@ -3876,6 +4615,70 @@ const RESIDUAL: &[(&str, &str)] = &[
          be a request 409. Nothing names one, and the importId's job is described as keeping imports \
          from crossing, not as faulting when they do. CLOSES WHEN: Donna rules undeclare, or that \
          cross-import fault is named.",
+    ),
+    // ---- the four rows the RC3 fault-vocabulary ruling emptied ----------------------------
+    // ONE BLOCKER, FOUR ROWS, AND IT IS A DENOMINATOR QUESTION. Each of these was covered by a
+    // case asserting `(422, limit-exceeded)` for an advertised-false BOOLEAN; those sites now
+    // answer `(400, invalid-parameter)` per the ruling, so each row lost its only producer.
+    //
+    // THE LOAD-BEARING REASON IS D.8's "IFF", NOT THE NUMERIC-FIELD CENSUS, and I had it the weak
+    // way round when these entries were first written. The census (in
+    // MOVED_OFF_422_BY_THE_RC3_RULING) shows `push`/`maxBatch` is Core's only faulting numeric
+    // bound and none of these four ops has one -- but that is a claim about ONE PRODUCER CLASS,
+    // capability bounds, offered as a claim about the whole ROW. The row-level claim comes from
+    // D.8:2103-2106 instead: 422 admits a fault "IFF shrinking the request fixes it". An IFF is
+    // exclusive, so NO producer of ANY class can legitimately reach 422 on an operation with no
+    // shrinkable bound -- not a schema violation, not a guard, not anything later invented.
+    //
+    // WHAT MADE ME LOOK: the TS suite asserts `validation-failed` at 422 (25 real 422 references
+    // across 10 files, enumerated; `transactional-fresh-depth-installed.test.ts:762-766` makes the
+    // pairing explicit), and this subject emits `validation-failed` at 409. That is a producer
+    // for `create`'s 422 that has nothing to do with capability bounds, and the census-based
+    // reason could not see it. `validation-failed` appears in core.lumen exactly ONCE, in D.9's
+    // vocabulary at :2119, bound to NO status -- so the divergence is real and unruled. The IFF
+    // settles which side is excluded: a schema violation is not fixed by shrinking, so 422 is
+    // wrong for it, while D.8's 409 line (:2084-2085, "also some Problems") leaves an unnamed slot
+    // this subject's 409 sits in. Conclusion unchanged, reason replaced.
+    //
+    // So each row is either undeclared by the spec or permanently uncovered, and only the spec
+    // owner can choose.
+    (
+        "op/create/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING, and no producer of any class can reach it. \
+         `CreateCaps.clientProposedId` is a bool, so its refusal is 400 `invalid-parameter` \
+         (server.rs `unadvertised`), and `CreateCaps` carries no numeric field for anything to \
+         exceed -- but the row-level reason is D.8:2103-2106's IFF, which admits only faults \
+         shrinking fixes. NOTE THE NEAR MISS: the TS suite asserts `validation-failed` at 422 on \
+         create, which IS a producer the capability-bound census cannot see; the IFF excludes it \
+         (a schema violation is not fixed by shrinking) and this subject answers 409, where D.8's \
+         `also some Problems` leaves room. `validation-failed` is bound to no status anywhere in \
+         core.lumen, so that divergence is unruled and carried up. CLOSES WHEN: the spec owner \
+         undeclares `create`'s 422, or names a shrinkable bound for it.",
+    ),
+    (
+        "op/put/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `PutCaps.ifMatch`/`ifAbsent` are bools -> 400, `PutCaps` \
+         carries no numeric field, and D.8:2103-2106's IFF closes the row to every other producer \
+         class. CLOSES WHEN: as `create` -- undeclared, or a shrinkable bound named.",
+    ),
+    (
+        "op/patch/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `PatchCaps.ifMatch` is a bool -> 400. `PatchCaps` \
+         carries no numeric field. NOTE this row has now been wrong TWICE for different reasons: \
+         it was first recorded covered by a case that never exercised a capability bound at all \
+         (see the note above at op/patch/fault/409's neighbour), then covered by the \
+         advertised-false path the ruling reclassifies -- which is why the reason here is \
+         D.8:2103-2106's IFF and not another enumeration of producers I happened to be near. \
+         CLOSES WHEN: as `create`.",
+    ),
+    (
+        "op/import/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `ImportCaps.historyRestore` is a bool -> 400. \
+         `ImportCaps`' only numeric field is `window`, which core.lumen:1552 declares SOFT \
+         backpressure and \"not an error\" -- I nearly reported this row recoverable through it, \
+         on the reasoning that a numeric field can be exceeded; a numeric TYPE is not a faulting \
+         bound. The IFF at D.8:2103-2106 reaches the same answer without needing the census to be \
+         complete. CLOSES WHEN: as `create`.",
     ),
 ];
 
@@ -3892,4 +4695,26 @@ fn render(rows: &[&SurfaceId]) -> String {
         return "(none)".into();
     }
     rows.iter().map(|r| r.to_string()).collect::<Vec<_>>().join(", ")
+}
+
+
+/// The reported spec version is READ from the generated document, not written in the report.
+///
+/// WHAT THIS CATCHES AND WHAT IT CANNOT, stated because the limit is real: it compares
+/// `spec_version()` against the document, so a re-hardcoded `"0.2.3"` would pass TODAY and fail
+/// the day the spec moves to 0.2.4. That is the moment the rot matters, so the test is useful —
+/// but it is not a same-day guard, and calling it one would be the kind of coverage claim that
+/// stops anyone looking. The previous hand-written line survived three surface changes precisely
+/// because nothing compared it to anything.
+#[test]
+fn the_reported_spec_version_is_read_from_the_document() {
+    let doc: serde_json::Value = serde_json::from_str(bdp_gate::CORE_OPENAPI)
+        .expect("the generated OpenAPI parses");
+    let from_doc = doc["info"]["version"].as_str().expect("info.version is a string");
+    assert_eq!(
+        bdp_gate::spec_version(),
+        from_doc,
+        "the reported version must come from the document's `info.version`, not from a literal"
+    );
+    assert!(!from_doc.is_empty(), "a blank version would print as `v` and read as a formatting bug");
 }
