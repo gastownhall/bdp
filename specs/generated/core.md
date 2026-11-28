@@ -1240,6 +1240,8 @@ An RFC 9457 problem document — what a `fault` carries, and the body of a faili
 
 > **Normative.** The fault model. Every primitive returns its declared value on success or faults with a Problem — delivered out of band as the HTTP non-2xx response (RFC 9457), never part of the declared return type; a fault is orthogonal to the value. Only `call` additionally carries a declared failure (`Outcome.failure`, HTTP 409) — an operation's own "no". The data primitives have none: a read returns a `rep` or faults. A Problem is the universal fault channel, not the `E` of a `Result`.
 
+> **Normative.** The HTTP status line is the NORMATIVE status of a fault; `Problem.status` is a copy that MUST equal it, and where the two disagree the HTTP status governs — a conformance assertion about a fault's status reads the HTTP status line, not the body member.
+
 ```lumen
 type Problem = {
   type:      AbsoluteUri,
@@ -2365,7 +2367,9 @@ type Capabilities = {
 
 ### `CoreCapabilities`
 
-The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side. These are the core primitives that advertise in the core record; `call` and `cancel` (operations) advertise under their own packages, not here (§3.3).
+The `core` package's advertised primitives, à la carte — a primitive is supported iff its field is present, and its value carries that primitive's limits. `get` is always present (the floor). Each NUMERIC limit record advertises a dual with `limit-exceeded` (422), enforced by the shrink test (§D.8); a BOOLEAN capability advertised `false` is not such a dual — requesting the option it governs declines `400` (`invalid-parameter`), not `422`. These are the core primitives that advertise in the core record; `call` and `cancel` (operations) advertise under their own packages, not here (§3.3).
+
+> **Normative.** An advertised capability value GOVERNS behaviour; it is not decorative. A scope MUST act on what it advertises — honour an option it advertises support for, and decline the request `400` when it advertises `false` — and MUST NOT silently ignore the parameter and return an unqualified success. A discovery flag a client cannot rely on to predict the outcome is a conformance defect, not a nicety.
 
 ```lumen
 type CoreCapabilities = {
@@ -2946,19 +2950,35 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
   200  get / put / patch / list / revisions / pull success; call → outcome success
   201  create success, and a call whose Operation `creates` — Location: the new URL
   202  call ?mode=async — Location: the AsyncResult URL; body: no outcome yet
-  400  `malformed-request` / `invalid-parameter` — a malformed or invalid request. Three
-       shapes reach it. A BAD BODY: unparseable JSON, a patch that is not a JSON-Patch array,
-       a truncated export. AN INVALID PARAMETER VALUE. Or A WRITE GUARD THE OPERATION DOES
-       NOT DEFINE — `If-None-Match: *` on `patch` or `delete`, whose [[core.lumen#PatchCaps]]
-       and [[core.lumen#DeleteCaps]] carry no `ifAbsent` field at all (only
-       [[core.lumen#PutCaps]] does). The last is `malformed-request` and not a capability
-       decline because no field exists that could advertise it either way: an out-of-vocabulary
-       guard is not an advertised option carrying a bad value, it is an input the operation
-       does not have. The line is therefore drawn by the caps record, not by the sentence —
-       in an operation's vocabulary and advertised false is a decline it can state, outside its
-       vocabulary is malformed. DISTINCT from `422` (a request exceeding an advertised
-       capability bound — `limit-exceeded` — fixed by shrinking). Both `malformed-request`
-       and `invalid-parameter` resolve here.
+  400  `malformed-request` / `invalid-parameter` / `validation-failed` — a malformed or
+       invalid request. Shapes that reach it. A BAD BODY (`malformed-request`): unparseable
+       JSON, a patch that is not a JSON-Patch array, a truncated export. AN INVALID PARAMETER
+       VALUE (`invalid-parameter`) — INCLUDING A DECLARED OPTION THE SCOPE DOES NOT SUPPORT,
+       advertised at no finer granularity: a filter sub-operator (`in` / `glob` / `regex`)
+       under an advertised kind, a `select` on a read whose caps carry no `selector`, a per-op
+       `filter` with no advertisement, an import `idRoot`. BDP deliberately does not advertise
+       support at this sub-capability granularity — a client sends and may be declined rather
+       than discovery carrying every sub-option — so a missing advertisement does not change
+       the fault, only a client's ability to predict it: the option is IN the operation's
+       vocabulary and simply unsupported, so it declines `invalid-parameter`, not malformed.
+       ("Declared" means the operation's SIGNATURE — the normative source for an input; a
+       signature-declared option is subject to this rule even where the op's `openapi`
+       annotation omits it, that omission being a declaration divergence the drift check
+       catches, not a behaviour exemption.)
+       A VALIDATION FAILURE (`validation-failed`): a well-formed body whose values violate a
+       declared constraint — excluded from `422` by the shrink test (shrinking a bad value does
+       not fix it) and from `409` (no identity conflict). Or A WRITE GUARD THE OPERATION DOES
+       NOT DEFINE (`malformed-request`) — `If-None-Match: *` on `patch` or `delete`, whose
+       [[core.lumen#PatchCaps]] and [[core.lumen#DeleteCaps]] carry no `ifAbsent` field at all
+       (only [[core.lumen#PutCaps]] does): an out-of-vocabulary guard is not an advertised
+       option carrying a bad value, it is an input the operation does not have. The line is
+       drawn by VOCABULARY, not by whether a caps field advertises the option: an input IN the
+       operation's vocabulary — advertised `false`, OR unsupported with no advertisement at that
+       granularity — is a decline it can state (`invalid-parameter`, or `validation-failed` for
+       a constraint breach); only an input OUTSIDE the vocabulary is `malformed-request`.
+       DISTINCT from `422` (a request exceeding an advertised capability bound —
+       `limit-exceeded` — fixed by shrinking). `malformed-request`, `invalid-parameter` and
+       `validation-failed` all resolve here.
   409  call → a declared failure (ruled); any id collision — `create` fail-if-exists OR
        `put` + `If-None-Match: *` (`identity-taken`); also some Problems
   412  a failed guard on put / patch / delete — a stale `If-Match` (`revision-mismatch`)

@@ -1,19 +1,48 @@
 // =============================================================================
 // memory.lumen — the Memory pack (the resource / relationship model)
 // =============================================================================
-// A BDP pack modelling arbitrary knowledge (Memory), obligations (Constraint),
-// assessments (Evaluation), and reified conformance claims (Conformance) on the
-// 0.2.3 resource model. Companion to the Issue and stdlib packs.
+// A BDP pack modelling arbitrary knowledge (Memory), obligations (the Constraint
+// family), assessments (Evaluation) and reified conformance claims (Conformance)
+// on the 0.2.3 resource model, with §2 deriving the command surface. Companion
+// to the Issue and stdlib packs; a sibling of issue.lumen in form.
 //
-// PRINCIPLES (as issue.lumen):
-//   1. Model before commands. §1 models the resources completely; a command
-//      surface is a thin pass over them, authored later, not here.
-//   2. Refinement via `is`. A subtype refines its parent with `type X is T`;
-//      `abstract type` marks a parent that is not directly instantiated — only
-//      its concrete leaves are. The type graph is OPEN: a closed/exhaustive set
-//      is a modelling intent, not an enforced closure.
-//   3. Relationships are refs. A pointer from one resource to another is an
-//      owned `ref<T>` property; there is no Link.
+// This is a PORT of the preview-3 ("v0.1", now end-of-lifed) Memory pack onto the
+// 0.2.3 model. Preview 3 wrote its relationships as a markdown Link/edge DSL;
+// here they are first-class `rel<F, T>` RELATIONSHIP RESOURCES (core `rel`), the
+// same construct the Issue pack uses for `Dependency` — NOT the obsolete
+// graph-mode edge model.
+//
+// SOURCE OF AUTHORITY. [[memory-cli.md]] is the design intent for WHAT
+// relationships exist and their semantics (endpoints, ownership, cardinality,
+// acyclicity). Its generic Link-creation CLI (`bd link create --type …` and the
+// `bd memory …` facades defined over it) is SUPERSEDED and is NOT the authority
+// for the command surface. A `rel<F, T>` relationship IS a resource, so §2
+// follows the current 0.2.3 resource model and the issue.lumen pattern: a
+// relationship is created, deleted and read with the core primitives (and the
+// pack commands below), exactly as `issue.lumen` creates a `Dependency` through
+// `addDependency` + `create`, never through a generic link-create CLI.
+//
+// PRINCIPLES — why it is shaped this way (as issue.lumen):
+//   1. Model before commands. §1 models the Memory and the relationships
+//      completely; §2's commands are a thin surface over that model, never the
+//      reverse.
+//   2. Relationships are relationship RESOURCES. A relationship between two beads
+//      is a `rel<F, T>` — a bead with its own identity, revision history and
+//      provenance (core §rel). The five Memory relationships (References,
+//      SupersededBy, Requires, Defines, SubjectTo) are concrete relationship
+//      types; the §2.B pack commands CREATE them over the core `create` primitive
+//      (as `issue.lumen`'s `addDependency` creates a `Dependency`), and the §2.C
+//      reads TRAVERSE them. A bare `ref<T>` in a body field is data, not a
+//      relationship.
+//   3. Owned vs unowned follows core referential integrity. An OWNED Link's write
+//      revises its source, not its target (SupersededBy, Requires, Defines,
+//      SubjectTo); plain References is UNOWNED and revises neither endpoint. The
+//      ≤1-cardinality pointers of preview 3 (`supersededBy`, `definedBy`) are the
+//      COMPUTED reverse-lookup projections of the owning Links — revision-
+//      transparent, never authored fields.
+//   4. Compat by rendering. The trained `bd memory …` names render over this
+//      model; output format is the orthogonal `--output-format`, never a
+//      semantic — so no signature here mentions it.
 // =============================================================================
 
 /// description: Markdown text — a nominal string (lowers to a nominal over string).
@@ -28,37 +57,114 @@ type markdown is string
 // §1.1  Memory — arbitrary knowledge (root; OPEN, directly instantiable)
 // -----------------------------------------------------------------------------
 
-/// description: Memory — a unit of arbitrary knowledge. Plain memories exist and packs refine subtypes.
-/// normative: `supersededBy` is a ≤1 replacement pointer; its chains are acyclic. `references` are
-/// normative: context pointers to any resource; they carry no further semantics.
+/// description: Memory — a unit of arbitrary knowledge. Plain memories exist and the Constraint/Evaluation/Conformance packs refine subtypes. `title`/`status` are the named-content labels; `body` is Markdown and MAY be empty.
+/// normative: A Memory holds NO relationship fields. Its context pointers, its replacement and (for the Constraint subtypes) its obligations are `rel<F, T>` Links (§1.3), not fields here. `createdAt`/`revision`/provenance live on the core envelope, not in the body.
+/// normative: `supersededBy` is COMPUTED — the projection of this Memory's ≤1 outgoing `SupersededBy` Link (§1.3.2). It is revision-transparent: reading it never advances the Memory's revision, emits no event and never enters its content hash. Absent when the Memory has no successor.
 type Memory is Bead {
-  body:          markdown,
-  references?:   set<ref<resource>>,          // context pointers (unique by ref)
-  supersededBy?: ref<Memory> { acyclic },     // ≤1 replacement; chains acyclic
+  /// cli.flag: --title
+  title?:  string { minLength: 1 },
+  /// cli.flag: --body
+  body:    markdown,                       // Markdown; may be empty
+  /// cli.flag: --status
+  status?: string { minLength: 1 },        // descriptive label; adds no workflow transition
+
+  // -- computed: the ≤1 outgoing replacement, projected from the owning Link --
+  computed supersededBy: ref<SupersededBy>,
 }
 
 
 // -----------------------------------------------------------------------------
-// §1.2  Constraint — an obligation (abstract; four concrete subtypes)
+// §1.2  The Constraint family — obligations (abstract; four concrete subtypes)
 // -----------------------------------------------------------------------------
+// A Constraint is a kind of Memory. Its obligations — what it requires, what
+// defines it, what it governs — are Links (§1.3), not fields. `definedBy` is the
+// COMPUTED projection of its ≤1 incoming `Defines` Link.
 
-/// description: Constraint — an obligation. Abstract: only the concrete subtypes below are instantiated.
-/// normative: `requires` are prerequisite constraints; `definedBy` is a ≤1 defining parent; `appliesTo`
-/// normative: are the resources this constraint governs. These are three SEPARATE props (no family).
+/// description: Constraint — an obligation expressed as a Memory. Abstract: only the concrete subtypes below are instantiated (creation requires a concrete Type; a read may select the family through the abstract name).
+/// normative: `definedBy` is COMPUTED — the ≤1 incoming `Defines` Link that makes this Constraint a defining child of a parent (§1.3.4). Revision-transparent; absent when the Constraint has no defining parent.
 abstract type Constraint is Memory {
-  requires?:  set<ref<Constraint>>,           // prerequisite constraints
-  definedBy?: ref<Constraint>,                // ≤1 defining parent
-  appliesTo?: set<ref<resource>>,             // targets this constraint governs
+  // -- computed: the ≤1 defining parent, projected from the owning Defines Link --
+  computed definedBy: ref<Defines>,
 }
+/// description: Policy — an independently maintained rule (e.g. a data-handling policy).
 type Policy is Constraint {}
+/// description: Requirement — a necessary condition, often a defining child of a Specification.
 type Requirement is Constraint {}
+/// description: Scenario — an expected-behaviour case, often a defining child of a Specification.
 type Scenario is Constraint {}
+/// description: Specification — a composite Constraint decomposed into defining Requirements and Scenarios.
 type Specification is Constraint {}
 
 
 // -----------------------------------------------------------------------------
-// §1.3  Evaluation — an assessment over a subject group
+// §1.3  The relationship Links — `rel<F, T>` resources
 // -----------------------------------------------------------------------------
+// Five concrete relationship types. Each is a bead: it has its own identity,
+// revision history and provenance; its `source`/`target` are structural, and its
+// named content (`title`/`body`/`status`) are ordinary body properties (core §rel).
+// Creating, re-typing or deleting a Link is a delete+create of the Link resource
+// and does NOT touch a non-owning endpoint's revision; delete is a tombstone.
+
+// §1.3.1  References — unowned context pointer
+/// description: References — a context pointer from a Bead to a useful resource. UNOWNED: a write revises neither endpoint. The canonical "this bead refers to that one".
+/// normative: Endpoint eligibility is CORRELATED, not arbitrary: Memory→Memory, Memory→Issue, Issue→Memory, or any Bead→Constraint. The parent target is `resource`; the eligible pairs are a writer-enforced restriction this signature cannot narrow. NOT `unique` — parallel References over one pair coexist (separate calls do not deduplicate) and cycles are allowed; a self-Link (source = target by identity) is refused. Unowned ⇒ no source-revision guard.
+type References is rel<Bead, resource> {
+  /// cli.flag: --title
+  title?:  string { minLength: 1 },
+  /// cli.flag: --body
+  body?:   markdown,
+  /// cli.flag: --status
+  status?: string { minLength: 1 },
+}
+
+// §1.3.2  SupersededBy — owned replacement, ≤1 outgoing, acyclic
+/// description: SupersededBy — normative succession: OLD (source) has been replaced by NEW (target); readers should follow NEW for current guidance. OWNED by OLD: recording it revises OLD, not NEW. Both endpoints are distinct Memory identities.
+/// normative: A source has AT MOST ONE outgoing SupersededBy Link — an existing one refuses a second even when it names the same NEW; it is not a per-pair uniqueness but a per-SOURCE cardinality of one, so `Memory.supersededBy` (§1.1) projects it as a single ref. The replacement graph is ACYCLIC. Recording succession does not approve NEW, change status, rewrite SubjectTo declarations or erase history; OLD stays readable and its References are unchanged.
+type SupersededBy is acyclic rel<Memory, Memory> {
+  /// cli.flag: --title
+  title?:  string { minLength: 1 },
+  /// cli.flag: --body
+  body?:   markdown,
+  /// cli.flag: --status
+  status?: string { minLength: 1 },
+}
+
+// §1.3.3  Requires — owned Constraint→Constraint dependency, cyclic
+/// description: Requires — a necessary-dependency Link between two Constraints: SOURCE's obligations include TARGET, which is maintained independently. OWNED by SOURCE. Stating the dependency neither executes either Constraint nor proves satisfaction.
+/// normative: A Requires CYCLE through distinct Constraint identities is PERMITTED (a read must terminate repeated expansion while preserving its selected edges); a same-identity self-Link is refused. Owned ⇒ a source-revision guard is accepted.
+type Requires is rel<Constraint, Constraint> {
+  /// cli.flag: --title
+  title?:  string { minLength: 1 },
+  /// cli.flag: --body
+  body?:   markdown,
+  /// cli.flag: --status
+  status?: string { minLength: 1 },
+}
+
+// §1.3.4  Defines — a refinement of Requires: owned, ≤1 incoming, acyclic
+/// description: Defines — PARENT (source) decomposes into CHILD (target) as a defining part; a refinement of `Requires` (a defining dependency is a necessary one). OWNED by PARENT. Matches `Specification defines Requirement|Scenario`.
+/// normative: `is Requires` — a Defines Link IS a Requires Link for family reads. A child identity has AT MOST ONE live incoming Defines Link (a second refuses even from the same parent), so `Constraint.definedBy` (§1.2) projects it as a single ref. The Defines graph is ACYCLIC. Defining children does not assert they exhaust the parent's obligations; the parent's own body still applies. `acyclic` restipulates `rel<Constraint, Constraint>`.
+type Defines is Requires, acyclic rel<Constraint, Constraint> {}
+
+// §1.3.5  SubjectTo — owned governance declaration, Bead→Constraint
+/// description: SubjectTo — a declaration that SUBJECT (source) is governed by CONSTRAINT (target). SOURCE may be any Bead whose installed Type and writer support ownership of this Link; the target is a Constraint. OWNED by SUBJECT (under its installed ownership declaration).
+/// normative: Endpoint eligibility: source is a Bead that declares ownership support (e.g. native Issue support in the Issue Type and writer); target is a Constraint or admitted refinement. A same-identity self-Link is refused. Recording a declaration neither executes the Constraint, establishes compliance nor changes readiness. Owned ⇒ a source-revision guard is accepted where ownership is installed.
+type SubjectTo is rel<Bead, Constraint> {
+  /// cli.flag: --title
+  title?:  string { minLength: 1 },
+  /// cli.flag: --body
+  body?:   markdown,
+  /// cli.flag: --status
+  status?: string { minLength: 1 },
+}
+
+
+// -----------------------------------------------------------------------------
+// §1.4  Evaluation — an assessment over a subject group
+// -----------------------------------------------------------------------------
+// Type-only (no CLI surface in [[memory-cli.md]] yet): carried from the model so
+// Conformance (§1.5) has an owning assessment to name. `subjects` is a group, not
+// a SubjectTo governance declaration — the two are distinct concerns.
 
 /// description: Evaluation — an assessment over a NONEMPTY group of subject resources.
 type Evaluation is Memory {
@@ -67,16 +173,252 @@ type Evaluation is Memory {
 
 
 // -----------------------------------------------------------------------------
-// §1.4  Conformance — a reified claim (abstract; three concrete subtypes)
+// §1.5  Conformance — a reified claim (abstract; three concrete subtypes)
 // -----------------------------------------------------------------------------
+// Type-only (no CLI surface yet). A Conformance is a CLAIM with its own identity
+// and provenance, so it is a bead — NOT a SubjectTo Link nor a bare edge. It
+// names the Constraint it claims about and the Evaluation that owns the subjects.
 
-/// description: Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a
-/// normative: bare edge). Abstract: only the concrete subtypes below are instantiated. `constraint` is what
-/// normative: it claims about; `evaluation` is the owning assessment (which names the subjects).
+/// description: Conformance — a reified CLAIM with its own identity and provenance (a bead, not a Link). Abstract: only the concrete subtypes below are instantiated. `constraint` is what it claims about; `evaluation` is the owning assessment (which names the subjects).
 abstract type Conformance is Bead {
   constraint: ref<Constraint>,
   evaluation: ref<Evaluation>,
 }
+/// description: Addresses — the Evaluation engages the Constraint (claim of relevance, not yet a verdict).
 type Addresses is Conformance {}
+/// description: Satisfies — the Evaluation finds the Constraint satisfied.
 type Satisfies is Conformance {}
+/// description: Violates — the Evaluation finds the Constraint violated.
 type Violates is Conformance {}
+
+
+// #############################################################################
+// §2. The command surface — derived from §1
+// #############################################################################
+// As issue.lumen: the generic verbs (§2.A) ARE core primitives and are NOT
+// redefined; §2.0 is the error model; §2.B creates the relationship resources;
+// §2.C is the relationship reads. Queries are `fn` (safe); writes are `command`.
+// The signatures model the SHAPE — representative parameters, not every field —
+// and share the named-content inputs (`title`/`body`/`status`) and, on an owned
+// relationship, the `ifSourceRevision` guard. The relationship SEMANTICS are
+// [[memory-cli.md]]'s; the command FORM follows the 0.2.3 resource model and
+// issue.lumen, not memory-cli.md's superseded link-create CLI.
+//
+// CLI MOUNT: this pack mounts at `bd memory` — `cli.mount: "/memory"` — so its
+// ops render as `bd memory reference` / `bd memory requires`; `remember` /
+// `recall` / `memories` / `forget` are RETAINED as top-level compatibility
+// aliases (§2.A). `cli.mount` is a PACK-level hint, stated here in prose until the
+// pack-machinery spec defines a package-declaration anchor.
+
+// -----------------------------------------------------------------------------
+// §2.A  Generic verbs → core primitives (rendered, never redefined)
+// -----------------------------------------------------------------------------
+//   remember  → create(Memory)              recall    → get(ref<Memory>):body
+//   memories   → list(Memory, where?)        update    → patch(ref<Memory>, …)
+//   forget     → delete(ref<Memory>)         show      → get(ref<Memory>)
+// `remember`/`recall`/`memories`/`forget` are the canonical Memory spellings of
+// the existing top-level commands; both paths share one handler. A generic verb
+// gains no Memory-specific behaviour — behaviour lives in §2.B/§2.C. `recall`
+// projects the body (a `get` selector); `memories` is a summary `list`. Ordinary
+// Bead CRUD is the core primitives', not re-specified; a relationship, being a
+// resource, is likewise created/deleted/read with those primitives — §2.B adds a
+// pack command only where there is relationship behaviour beyond a bare `create`
+// (endpoint eligibility, self-link, cardinality, acyclicity).
+
+// -----------------------------------------------------------------------------
+// §2.0  The error model — primitives fault; operations declare a Result<T, E>
+// -----------------------------------------------------------------------------
+// As issue.lumen §2.0: a PRIMITIVE returns its value or faults with a `Problem`
+// (not-found, conflict, precondition — e.g. a stale `ifSourceRevision` guard is a
+// precondition fault, not a domain `E`). A relationship-creation `command` with
+// its own domain "no" declares `Result<T, E>`: `T` is the created `rep<X>`, `E` is
+// that op's DOMAIN refusals (business rules only). Safe reads (`fn`) read-or-fault
+// and carry no domain `E`.
+
+/// description: Domain refusals of `createReference`.
+type ReferenceError = "ineligible-endpoints" | "self-link"
+/// description: Domain refusals of `supersedeMemory`.
+type SupersedeError = "existing-successor" | "would-cycle" | "ineligible-endpoint"
+/// description: Domain refusals of `createRequires`.
+type RequiresError  = "ineligible-endpoints" | "self-link"
+/// description: Domain refusals of `createDefines` (≤1 incoming; acyclic).
+type DefinesError   = "existing-definer" | "would-cycle" | "ineligible-endpoints"
+/// description: Domain refusals of `createSubjectTo`.
+type SubjectToError = "ineligible-target" | "self-link" | "ownership-unsupported"
+
+// -----------------------------------------------------------------------------
+// §2.B  Relationship-creation commands — CREATE a `rel<F, T>` resource
+// -----------------------------------------------------------------------------
+// Each creates one concrete relationship resource via the core `create`
+// primitive and enforces that type's invariants (endpoint eligibility, self-link,
+// cardinality, acyclicity), returning the created `rep<X>` or a domain refusal —
+// the issue.lumen `addDependency` pattern, a pack command over a `rel` resource,
+// NOT a facade over a generic link-create CLI. Each takes the two endpoints and
+// the shared named-content inputs; an owned relationship also takes
+// `ifSourceRevision` (an optimistic-concurrency guard on the owning source).
+
+/// description: Create a References Link from a Bead to useful context (unowned; §1.3.1). Eligible pairs only; a self-Link refuses; no owner guard. `bd memory reference`. (`memory/reference`.)
+/// cli.name: "reference"
+command createReference(
+    /// cli.positional: 0
+    source: ref<Bead>,
+    /// cli.positional: 1
+    /// cli.flag: --to
+    target: ref<resource>,
+    title?:  string,
+    body?:   markdown,
+    status?: string
+  ) -> Result<rep<References>, ReferenceError>
+
+/// description: Record that OLD is superseded by NEW — creates the ≤1 outgoing, acyclic `SupersededBy` Link owned by OLD (§1.3.2). `bd memory supersede`. (`memory/supersede`.)
+/// cli.name: "supersede"
+command supersedeMemory(
+    /// cli.positional: 0
+    old: ref<Memory>,
+    /// cli.positional: 1
+    /// cli.flag: --to
+    new: ref<Memory>,
+    /// cli.flag: --if-source-revision
+    ifSourceRevision?: Rev,
+    title?:  string,
+    body?:   markdown,
+    status?: string
+  ) -> Result<rep<SupersededBy>, SupersedeError>
+
+/// description: Record that one Constraint requires another — creates the owned, cyclic `Requires` Link (§1.3.3). `bd memory requires`. (`memory/requires`.)
+/// cli.name: "requires"
+command createRequires(
+    /// cli.positional: 0
+    source: ref<Constraint>,
+    /// cli.positional: 1
+    /// cli.flag: --to
+    target: ref<Constraint>,
+    /// cli.flag: --if-source-revision
+    ifSourceRevision?: Rev,
+    title?:  string,
+    body?:   markdown,
+    status?: string
+  ) -> Result<rep<Requires>, RequiresError>
+
+/// description: Add a Constraint as a defining child of another — creates the owned, ≤1-incoming, acyclic `Defines` Link (§1.3.4). `bd memory defines`. (`memory/defines`.)
+/// cli.name: "defines"
+command createDefines(
+    /// cli.positional: 0
+    parent: ref<Constraint>,
+    /// cli.positional: 1
+    /// cli.flag: --to
+    child: ref<Constraint>,
+    /// cli.flag: --if-source-revision
+    ifSourceRevision?: Rev,
+    title?:  string,
+    body?:   markdown,
+    status?: string
+  ) -> Result<rep<Defines>, DefinesError>
+
+/// description: Declare that a Bead is subject to a Constraint — creates the owned `SubjectTo` Link (§1.3.5). Source must install ownership support. `bd memory subject-to`. (`memory/subject-to`.)
+/// cli.name: "subject-to"
+command createSubjectTo(
+    /// cli.positional: 0
+    subject: ref<Bead>,
+    /// cli.positional: 1
+    /// cli.flag: --to
+    constraint: ref<Constraint>,
+    /// cli.flag: --if-source-revision
+    ifSourceRevision?: Rev,
+    title?:  string,
+    body?:   markdown,
+    status?: string
+  ) -> Result<rep<SubjectTo>, SubjectToError>
+
+// -----------------------------------------------------------------------------
+// §2.C  Relationship reads — bounded traversals over the Links
+// -----------------------------------------------------------------------------
+// Each read requires one or more roots and returns a bounded, consistent tree
+// view; the signature models the REACHED nodes. `--depth N` bounds the eight
+// ordinary family traversals (default a 1000-hop bound); `referenced-by`,
+// `supersedes`, `required-by`, `defined-by` and `subjects` are DIRECT (one hop,
+// no `--depth`), and `constraints` is a staged SubjectTo-then-Requires bound.
+// All are safe (`fn`); none floats pins or transfers one subject's governing
+// rules onto another under shared expansion.
+
+// References (§1.3.1)
+/// description: The direct-and-onward context of a Bead — the resources reached by following References from the root(s), to `depth`. (`memory/references`.)
+/// cli.name: "references"
+fn listReferences(
+    /// cli.positional: 0
+    root:   ref<Bead>,
+    /// cli.flag: --depth
+    depth?: integer
+  ) -> [ Resource ]
+
+/// description: The Beads that directly reference the root — the incoming References (one hop). (`memory/referenced-by`.)
+/// cli.name: "referenced-by"
+fn listReferencedBy(
+    /// cli.positional: 0
+    root: ref<Bead>
+  ) -> [ rep<Bead> ]
+
+// SupersededBy (§1.3.2)
+/// description: The replacement path from a Memory — the acyclic SupersededBy chain of successors, followed to `depth`. (`memory/successor`.)
+/// cli.name: "successor"
+fn getSuccessorChain(
+    /// cli.positional: 0
+    root:   ref<Memory>,
+    /// cli.flag: --depth
+    depth?: integer
+  ) -> [ rep<Memory> ]
+
+/// description: The Memories directly superseded BY the root — the incoming SupersededBy Links (one hop). (`memory/supersedes`.)
+/// cli.name: "supersedes"
+fn listSupersedes(
+    /// cli.positional: 0
+    root: ref<Memory>
+  ) -> [ rep<Memory> ]
+
+// Requires / Defines (§1.3.3, §1.3.4)
+/// description: A Constraint's requirements — the Constraints reached by following Requires (Defines included, as a Requires refinement) from the root(s), to `depth`. (`memory/requirements`.)
+/// cli.name: "requirements"
+fn listRequirements(
+    /// cli.positional: 0
+    root:   ref<Constraint>,
+    /// cli.flag: --depth
+    depth?: integer
+  ) -> [ rep<Constraint> ]
+
+/// description: The Constraints that directly require the root — the incoming Requires Links (one hop). (`memory/required-by`.)
+/// cli.name: "required-by"
+fn listRequiredBy(
+    /// cli.positional: 0
+    root: ref<Constraint>
+  ) -> [ rep<Constraint> ]
+
+/// description: A Constraint's definition — its defining children over the Defines subgraph, to `depth` (Defines children shown before other Requires dependencies). (`memory/definition`.)
+/// cli.name: "definition"
+fn getDefinition(
+    /// cli.positional: 0
+    root:   ref<Constraint>,
+    /// cli.flag: --depth
+    depth?: integer
+  ) -> [ rep<Constraint> ]
+
+/// description: The ≤1 defining parent of a Constraint — the incoming Defines Link (one hop; 0 or 1). (`memory/defined-by`.)
+/// cli.name: "defined-by"
+fn getDefiningParent(
+    /// cli.positional: 0
+    root: ref<Constraint>
+  ) -> [ rep<Constraint> ]
+
+// SubjectTo (§1.3.5)
+/// description: The obligations explicitly governing a subject — the Constraints reached from the subject over SubjectTo, then those Constraints' Requires (a staged bound, not one generic traversal). (`memory/constraints`.)
+/// cli.name: "constraints"
+fn listConstraints(
+    /// cli.positional: 0
+    subject: ref<Bead>
+  ) -> [ rep<Constraint> ]
+
+/// description: The subjects directly subject to a Constraint — the incoming SubjectTo Links (one hop, direct only). (`memory/subjects`.)
+/// cli.name: "subjects"
+fn listSubjects(
+    /// cli.positional: 0
+    constraint: ref<Constraint>
+  ) -> [ rep<Bead> ]

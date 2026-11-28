@@ -1,4 +1,400 @@
 {
   "pack": "memory",
-  "callables": []
+  "callables": [
+    {
+      "path": "memory/reference",
+      "operation": "createReference",
+      "safe": false,
+      "idempotent": false,
+      "cli": "reference",
+      "summary": "Create a References Link from a Bead to useful context (unowned; §1.3.1)",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Bead>",
+          "required": true
+        },
+        {
+          "name": "target",
+          "type": "ref<resource>",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "rep<References>",
+      "errors": [
+        "ReferenceError"
+      ]
+    },
+    {
+      "path": "memory/supersede",
+      "operation": "supersedeMemory",
+      "safe": false,
+      "idempotent": false,
+      "cli": "supersede",
+      "summary": "Record that OLD is superseded by NEW — creates the ≤1 outgoing, acyclic `SupersededBy` Link owned by OLD (§1.3.2)",
+      "parameters": [
+        {
+          "name": "old",
+          "type": "ref<Memory>",
+          "required": true
+        },
+        {
+          "name": "new",
+          "type": "ref<Memory>",
+          "required": true
+        },
+        {
+          "name": "ifSourceRevision",
+          "type": "Rev",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "rep<SupersededBy>",
+      "errors": [
+        "SupersedeError"
+      ]
+    },
+    {
+      "path": "memory/requires",
+      "operation": "createRequires",
+      "safe": false,
+      "idempotent": false,
+      "cli": "requires",
+      "summary": "Record that one Constraint requires another — creates the owned, cyclic `Requires` Link (§1.3.3)",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "target",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "ifSourceRevision",
+          "type": "Rev",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "rep<Requires>",
+      "errors": [
+        "RequiresError"
+      ]
+    },
+    {
+      "path": "memory/defines",
+      "operation": "createDefines",
+      "safe": false,
+      "idempotent": false,
+      "cli": "defines",
+      "summary": "Add a Constraint as a defining child of another — creates the owned, ≤1-incoming, acyclic `Defines` Link (§1.3.4)",
+      "parameters": [
+        {
+          "name": "parent",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "child",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "ifSourceRevision",
+          "type": "Rev",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "rep<Defines>",
+      "errors": [
+        "DefinesError"
+      ]
+    },
+    {
+      "path": "memory/subject-to",
+      "operation": "createSubjectTo",
+      "safe": false,
+      "idempotent": false,
+      "cli": "subject-to",
+      "summary": "Declare that a Bead is subject to a Constraint — creates the owned `SubjectTo` Link (§1.3.5)",
+      "parameters": [
+        {
+          "name": "subject",
+          "type": "ref<Bead>",
+          "required": true
+        },
+        {
+          "name": "constraint",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "ifSourceRevision",
+          "type": "Rev",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "markdown",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": "rep<SubjectTo>",
+      "errors": [
+        "SubjectToError"
+      ]
+    },
+    {
+      "path": "memory/references",
+      "operation": "listReferences",
+      "safe": true,
+      "idempotent": false,
+      "cli": "references",
+      "summary": "The direct-and-onward context of a Bead — the resources reached by following References from the root(s), to `depth`",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Bead>",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ Resource ]"
+    },
+    {
+      "path": "memory/referenced-by",
+      "operation": "listReferencedBy",
+      "safe": true,
+      "idempotent": false,
+      "cli": "referenced-by",
+      "summary": "The Beads that directly reference the root — the incoming References (one hop)",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Bead>",
+          "required": true
+        }
+      ],
+      "returns": "[ rep<Bead> ]"
+    },
+    {
+      "path": "memory/successor",
+      "operation": "getSuccessorChain",
+      "safe": true,
+      "idempotent": false,
+      "cli": "successor",
+      "summary": "The replacement path from a Memory — the acyclic SupersededBy chain of successors, followed to `depth`",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Memory>",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Memory> ]"
+    },
+    {
+      "path": "memory/supersedes",
+      "operation": "listSupersedes",
+      "safe": true,
+      "idempotent": false,
+      "cli": "supersedes",
+      "summary": "The Memories directly superseded BY the root — the incoming SupersededBy Links (one hop)",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Memory>",
+          "required": true
+        }
+      ],
+      "returns": "[ rep<Memory> ]"
+    },
+    {
+      "path": "memory/requirements",
+      "operation": "listRequirements",
+      "safe": true,
+      "idempotent": false,
+      "cli": "requirements",
+      "summary": "A Constraint's requirements — the Constraints reached by following Requires (Defines included, as a Requires refinement) from the root(s), t",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Constraint> ]"
+    },
+    {
+      "path": "memory/required-by",
+      "operation": "listRequiredBy",
+      "safe": true,
+      "idempotent": false,
+      "cli": "required-by",
+      "summary": "The Constraints that directly require the root — the incoming Requires Links (one hop)",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Constraint>",
+          "required": true
+        }
+      ],
+      "returns": "[ rep<Constraint> ]"
+    },
+    {
+      "path": "memory/definition",
+      "operation": "getDefinition",
+      "safe": true,
+      "idempotent": false,
+      "cli": "definition",
+      "summary": "A Constraint's definition — its defining children over the Defines subgraph, to `depth` (Defines children shown before other Requires depend",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Constraint>",
+          "required": true
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "returns": "[ rep<Constraint> ]"
+    },
+    {
+      "path": "memory/defined-by",
+      "operation": "getDefiningParent",
+      "safe": true,
+      "idempotent": false,
+      "cli": "defined-by",
+      "summary": "The ≤1 defining parent of a Constraint — the incoming Defines Link (one hop; 0 or 1)",
+      "parameters": [
+        {
+          "name": "root",
+          "type": "ref<Constraint>",
+          "required": true
+        }
+      ],
+      "returns": "[ rep<Constraint> ]"
+    },
+    {
+      "path": "memory/constraints",
+      "operation": "listConstraints",
+      "safe": true,
+      "idempotent": false,
+      "cli": "constraints",
+      "summary": "The obligations explicitly governing a subject — the Constraints reached from the subject over SubjectTo, then those Constraints' Requires (",
+      "parameters": [
+        {
+          "name": "subject",
+          "type": "ref<Bead>",
+          "required": true
+        }
+      ],
+      "returns": "[ rep<Constraint> ]"
+    },
+    {
+      "path": "memory/subjects",
+      "operation": "listSubjects",
+      "safe": true,
+      "idempotent": false,
+      "cli": "subjects",
+      "summary": "The subjects directly subject to a Constraint — the incoming SubjectTo Links (one hop, direct only)",
+      "parameters": [
+        {
+          "name": "constraint",
+          "type": "ref<Constraint>",
+          "required": true
+        }
+      ],
+      "returns": "[ rep<Bead> ]"
+    }
+  ]
 }

@@ -1164,23 +1164,6 @@ pub fn orphan_codes() -> Vec<String> {
 pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
     ("unauthenticated", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 401 row"),
     ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
-    (
-        "validation-failed",
-        "no status row and no producing condition in the TEXT. THIS ENTRY'S OWN 409 ATTRIBUTION IS \
-         UNSOURCED AND IS WITHDRAWN AS EVIDENCE. It read \"Donna has since RULED it 409, so the \
-         question is CLOSED\" — no PR, no commit, no quote, no date. Traced: the sentence entered \
-         at 97670eb2 (2026-11-26 14:19:28 -0800), a commit of MINE, and the author field says \
-         `Donna Box <dbox@boxenllc.com>` because every session in this fleet commits under one \
-         account — my own commits today carry the same author, so authorship distinguishes \
-         nothing. `validation-failed` appears in core.lumen exactly once (D.9's vocabulary, :2119) \
-         with no status, and the CHANGELOG does not mention it. So the provenance is \
-         unrecoverable, and a 400 ruling relayed directly today has STRICTLY BETTER grounding than \
-         this line. It must not be used to reverse one. WHAT SURVIVES, and it is independent of \
-         any prior ruling: at 409 this code is the producer that would close #453's patch/409 and \
-         delete/409; at 400 those rows stay orphaned and get undeclared instead. That DENOMINATOR \
-         CONSEQUENCE is worth the owner's attention on its own merits. CLOSES WHEN: the owner \
-         pins a status for `validation-failed` in D.8, whichever it is.",
-    ),
     ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
     ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
     ("type-not-installed", "no status entry names it; Types-profile condition with no Core landing"),
@@ -1939,7 +1922,7 @@ mod tests {
         // obligations, 19 registered", the 70-strong backlog I sized by reading — was computed over
         // a population that had since moved. A floor is exactly the shape that survives the change
         // it exists to report.
-        const OBLIGATIONS: usize = 96;
+        const OBLIGATIONS: usize = 98;
         assert!(
             found.len() == OBLIGATIONS,
             "parsed {} obligations, expected {OBLIGATIONS}. {} The ledger, the backlog sizing and \
