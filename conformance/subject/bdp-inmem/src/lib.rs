@@ -1516,8 +1516,21 @@ impl BdpScope for InMemScope {
     ///
     /// NOT FIXED, and the grounding is genuinely thinner here than it was for the selector.
     /// core.lumen:1457 gives the selector a general sentence — "a scope advertising
-    /// `selector: false` faults a `select` request `400` (`invalid-parameter`)" — and there is NO
-    /// per-op equivalent for `filter` anywhere in core.lumen (checked). fe690ac8's message says
+    /// `selector: false` faults a `select` request `400` (`invalid-parameter`)" — and there is no
+    /// per-op equivalent for `filter`. THAT REST ON A READING, NOT ON AN ABSENCE, and the first
+    /// version of this note got the evidence wrong while getting the conclusion right.
+    ///
+    /// I wrote "(checked, empty)". My pattern was `filter: false\|`filter`` and it returns 0 —
+    /// which is a fact about the pattern. `filter.*advertis` and `advertises .*filter` return SIX
+    /// lines (:412 aliases overlay, :1106 write-guards-are-preconditions, :1174 delete's
+    /// `?precondition=`, :1282 DU wire encoding, :1546 import's bulk-write description, :2012 the
+    /// CLI-matching params note). I read all six: none is a per-op filter capability sentence. So
+    /// the conclusion survives, and it survives because the lines were READ — "empty" and "nothing
+    /// on point" are different claims and only the second supports this. A peer caught it by
+    /// re-running my search with a wider pattern, which is the fourth time today a search term of
+    /// mine was simply my hypothesis.
+    ///
+    /// fe690ac8's message says
     /// the Filter vocabulary is scope-wide, advertised once via `ListCaps.conditions`, which makes
     /// a per-op `filter` flag's meaning less settled rather than more. A ruling has been relayed
     /// that would cover it (an unsupported option answers a plain 400) but its text is not in, so
