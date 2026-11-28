@@ -722,6 +722,21 @@ pub const UNCARRIED_INPUTS: &[(&str, &str, &str)] = &[
 ///   * the signature — `fn`, `command` or `idempotent command`, one parameter per line at four
 ///     spaces, up to the `) ->` return.
 ///
+/// HAND-ROLLED, NOT REGEX, AND THERE IS A MEASURED REASON TO KEEP IT THAT WAY. A peer's census
+/// of her own tree printed "NONE advertised" from three successive instruments, all three
+/// empty-by-construction, because `git grep -E` does not support `\s`. Measured here, and it is
+/// WORSE than "POSIX ERE has no `\s`": on this machine `grep -E 'a\sb'` matches, while
+/// `git grep -E 'fn\sunadvertised'` returns 0 against a file where the plain string matches 1.
+/// So the hazard is not the standard, it is that `git grep` carries its own engine — a pattern
+/// verified in one tool returns silently empty in the other, which is exactly what happens when
+/// someone moves a working pattern between them.
+///
+/// The habit that separates "absent" from "unmatchable", and it is one command: when a search
+/// returns EMPTY and the answer matters, re-run the same pattern against something you KNOW is
+/// present. If that is also empty, the instrument is broken rather than the tree. This gate's
+/// parsers are hand-rolled so that a gate claim never rests on a shell regex, and nothing in
+/// `conformance/gate` or the repo's CI scripts uses `\s` in either tool (checked).
+///
 /// A `request?: ReadRequest` parameter is EXCLUDED as the documented expansion into
 /// `after`/`from`/`limit`/`format`. The type is what decides that, never the name: `call` also has
 /// a parameter called `request` and its type is `Request`, the invocation payload, which has to be
