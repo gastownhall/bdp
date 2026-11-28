@@ -39,7 +39,7 @@ The ledger records each obligation's state, not a count. A new normative line th
 # Part II — The gate contract
 
 **Authored by Connie (conformance-suite lead).** Derived from the gate code at `gastownhall/bdp` main
-`07ca0bed`, 2026-11-24 — the pin where the figures below are measured, with #428/#434/#435/#437/#432/#438
+`07ca0bed`, 2026-11-24 — the pin where the figures below are measured. **They are a dated record, not current state**, and they have moved a long way since: 70 tests → 114, coverage 30/50 → 44/51 as of 2026-11-28. The live figures are printed by the gate itself (`cargo test -p bdp-gate -- --nocapture`), which derives its surface from the generated OpenAPI and reads the spec version from `info.version` — so nothing here needs re-dating, and this line deliberately does not claim to be current, with #428/#434/#435/#437/#432/#438
 all landed. The fault-table rulings have moved the denominator in steps: 54 → 47 (ruling D, #437) → 48
 (`import/400`, #432) → 50 (`patch/400` + `delete/400`, #438), and it is still moving — read §7 for how to
 re-derive the current figures rather than trusting this date. Everything lives under `conformance/`.
