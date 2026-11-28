@@ -4142,14 +4142,32 @@ async fn run_cases(addr: String, restricted_addr: String) {
         unexplained.len(),
         unexplained
     );
+    // THE STALENESS GUARD FIRED CORRECTLY AND EXPLAINED ITSELF WRONGLY, which is worse than not
+    // firing because the reader is sent somewhere there is nothing to find. A registered row
+    // leaves `uncovered` for TWO reasons: a case started covering it, or the row left the
+    // DENOMINATOR because the spec undeclared it. The old message asserted the first for both and
+    // told the reader to "remove it in the change that covered the row" — for an undeclared row
+    // there is no such change, and the surface shrank instead. Two rows are ruled to leave this
+    // way (patch/409, delete/409), so this was about to mislead on a known event.
+    let denom_ids: BTreeSet<String> = denom.iter().map(|r| r.to_string()).collect();
     let expired: Vec<&String> = registered_ids.difference(&uncovered_ids).collect();
+    let (undeclared, now_covered): (Vec<&&String>, Vec<&&String>) =
+        expired.iter().partition(|r| !denom_ids.contains(r.as_str()));
     assert!(
-        expired.is_empty(),
+        undeclared.is_empty(),
+        "RESIDUAL records {} row(s) that have LEFT THE DECLARED SURFACE: {:?}.\n\
+         These are not covered — the spec undeclared them, so the denominator shrank and the entry \
+         describes a row that no longer exists. Remove the entry; do NOT look for a covering case.",
+        undeclared.len(),
+        undeclared
+    );
+    assert!(
+        now_covered.is_empty(),
         "RESIDUAL still records {} row(s) as unreachable that are now COVERED: {:?}.\n\
          The blocker closed and the entry is a false claim — remove it in the change that covered \
          the row.",
-        expired.len(),
-        expired
+        now_covered.len(),
+        now_covered
     );
 
     // fail-if-no-coverage — blocking only under BDP_GATE_STRICT while tier-1 is still being filled.
@@ -4533,6 +4551,24 @@ const RESIDUAL: &[(&str, &str)] = &[
          Donna rules undeclare, or a capability field is added.",
     ),
     (
+        // RULED (relayed 2026-11-27; spec text pending): patch/409 and delete/409 are UNDECLARED.
+        // Recorded as a dated relay rather than attributed — `specs/AGENTS.md:44` says not to
+        // record who decided, and an attribution cannot be checked under a shared account anyway,
+        // so what matters is the CONSEQUENCE and what closes it.
+        //
+        // THE RULING NAMES TWO OF THESE THREE, AND THIS ENTRY IS THE THIRD. The three are grouped
+        // above as "one shape" — a declared 409 with no Core producer pinned at 409 — and that
+        // grouping makes it easy to read the ruling as closing all of them. It does not reach
+        // `import/409`, whose blocker is different: import absorbs collisions at 200 rather than
+        // faulting, so it has no producer for a different reason than patch and delete do.
+        //
+        // NOTHING TO DO HERE YET. The undeclare is a denominator move behind the rc1 freeze
+        // (batched into the 0.2.4 declare/undeclare pass with the unreachable-422s and the
+        // `get`-400 declaration). This gate derives its surface live from the generated OpenAPI,
+        // so when the undeclare lands those two rows vanish, the surface drops 51 -> 49, and the
+        // staleness guard above fires on their now-dead entries — by the LEFT THE DECLARED SURFACE
+        // arm, which exists because this event was foreseeable and the old message would have sent
+        // the reader hunting for a covering case that never existed.
         "op/import/fault/409",
         "NO REQUEST-LEVEL PRODUCER, and the spec owner leans UNDECLARE. Import's only conflict \
          notion is the per-record `Conflicted` fate, which counts toward `acceptedThrough` and rides \
