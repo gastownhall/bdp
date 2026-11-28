@@ -3597,6 +3597,17 @@ const SCOPE_INDEPENDENT_ROWS: &[(&str, u16)] = &[
 /// it is `ListCaps.compactFilter` -- the very field Chris reported. This subject IS a scope omitting
 /// a spec-required capability field. Adding it changes the `/sys/capabilities` payload, which is
 /// wire behaviour under the rc1 freeze, so the field is registered below and fixed post-freeze.
+/// THE FREEZE COORDINATE, STATED ONCE AND BY SHA. Entries below cite "the 0.2.3-rc1 freeze" by
+/// tag, and a tag is not a coordinate — `git tag -f` repoints it, so a tag-only reference is a
+/// claim that depends on nobody having moved it, which no later reader can check.
+///
+///     `bdp-core-0.2.3-rc1` = `33dc2f2e`, 2026-11-24.
+///
+/// Read by sha for that reason. Stated HERE ONCE rather than inlined at all seven mention sites,
+/// because seven copies of a coordinate are seven things to keep true: the other mentions refer to
+/// the freeze as a POLICY by name, which is stable, and this is the one line that says where it
+/// is. The form is borrowed from a peer's header that had the whole discipline a fortnight before
+/// either of us reconstructed it — dated, sha-backed, and saying WHY it reads by sha.
 const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
     (
         "list",
