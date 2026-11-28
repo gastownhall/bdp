@@ -812,11 +812,36 @@ fn rhs_text(v: &RawJson) -> String {
 /// the same defect:
 ///   - an unadvertised condition KIND is a capability this scope declines by advertisement, the
 ///     case D.8's membership test and core.lumen:1457 settle;
-///   - an unwired SUB-OPTION (`In`, `Glob`, `Regex`) is this implementation failing to honour
-///     something it DOES advertise, because `ListCaps.conditions` advertises kinds and has no
-///     field for sub-options. There is no advertised `false` for a client to read, so the scope
-///     cannot be predicted here. THAT IS A SPEC GAP, not a status question, and it is recorded
-///     for Lydia rather than papered over: the status is the least-wrong carrier, not a ruling.
+///   - an unwired SUB-OPTION (`In`, `Glob`, `Regex`) is a THIRD CLASS that D.8's dichotomy does
+///     not reach, and the code it should carry is UNRULED.
+///
+/// D.8:2071-2083 splits 400 two ways: "in an operation's vocabulary and advertised false is a
+/// decline it can state" (`invalid-parameter`), "outside its vocabulary is malformed"
+/// (`malformed-request`), its example being `If-None-Match` on `patch`, where `PatchCaps` carries
+/// no `ifAbsent` field AND `ifAbsent` is not a parameter of `patch`. Both properties hold there, so
+/// that example cannot tell the two readings of the rule apart.
+///
+/// THESE THREE SITES SEPARATE THEM, and the declared text is unambiguous:
+///   core.lumen:1286  `compare { field, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value }`
+///   core.lumen:1288  `matches { field, pattern, using: "substring"|"glob"|"regex" }`
+///   core.lumen:1726  `ConditionKind = "compare" | "matches" | ... | "isType"`
+/// So `"in"`, `"glob"` and `"regex"` are DECLARED members of a DECLARED parameter of a DECLARED
+/// operation — squarely IN `list`'s vocabulary, which by D.8's sentence excludes `malformed-request`.
+/// But `ListCaps.conditions: [ConditionKind]` advertises at KIND granularity only; there is no caps
+/// field at `op`/`using` granularity, which by D.8's field-exists reasoning excludes
+/// `invalid-parameter`. In-vocabulary and unadvertisable: both arms of the dichotomy refuse it.
+///
+/// A CONDITION KIND IS NOT IN THIS CLASS, and that is the line. `contains`, `containsAny` and
+/// `excludes` are `ConditionKind` members that `ListCaps.conditions` CAN advertise, so refusing one
+/// is a decline the scope can state — `invalid-parameter`, which is what the catch-all below emits.
+/// Same record, two populations, two answers.
+///
+/// NOT RE-POINTED ON MY OWN DERIVATION. `invalid-parameter` stays as the carrier because moving it
+/// would be answering an unruled cell by editing, and the derivation above is mine. THE FIX IS
+/// PROBABLY NOT A STATUS AT ALL: Lydia's stated reason for adding `ExportCaps.selector` was that
+/// without it "a scope that did not project had to refuse while claiming an advertised absence it
+/// had no field to advertise" — which is this class exactly, and the remedy she chose was to ADD
+/// THE FIELD. A sub-option advertisement would do the same here. Carried to her as that.
 fn matches_condition(
     props: &serde_json::Value,
     meta: &serde_json::Value,
