@@ -1186,6 +1186,39 @@ impl BdpScope for InMemScope {
     /// top-level provenance (no body). Mirrors pg.
     /// DEFECT, MEASURED AND UNFIXED: this silently DROPS a requested `filter` and `selector`.
     ///
+    /// AND IT IS ONE INSTANCE OF A BIGGER ONE. I first reported this as `changes` being wrong
+    /// where `pull` was right. That contrast is FALSE, and I had stated it to two peers before
+    /// measuring it. The capability record is DECORATIVE in this subject: across the three
+    /// selector-governed reads, NONE reads the flag it advertises. Every mention of `PullCaps`,
+    /// `ExportCaps` and `ChangesCaps` in this file is a construction inside `capabilities()`
+    /// (:1010, :1027, :1029) — there is no third kind of mention.
+    ///
+    ///   `pull`     advertises `selector: false`, refuses UNCONDITIONALLY (:1412). Right answer,
+    ///              and right only because the flag happens to be `false`. Honest by accident:
+    ///              set it `true` and `pull` still refuses.
+    ///   `export`   advertises `selector: true`, honours UNCONDITIONALLY (:1300 forwards to
+    ///              `get`). Also right only by coincidence, and the INVERSE failure — set it
+    ///              `false` and `export` keeps projecting, silently, exactly as `changes` does.
+    ///   `changes`  advertises `selector: false`, drops it silently. The one case where the
+    ///              coincidence does not save the answer.
+    ///
+    /// SO THE FLAG AND THE BEHAVIOUR AGREE BY COINCIDENCE IN ALL THREE, and two of the three
+    /// coincidences are currently favourable. That is a worse defect than a wrong status on one
+    /// path, because it means the advertisement cannot be trusted anywhere in this subject — and
+    /// it is invisible to any test that only drives the advertised value, which is every test
+    /// here. It is the shape I have recorded as honest-by-accident, in the one place I would have
+    /// sworn I had checked.
+    ///
+    /// IT ALSO WEAKENS MY OWN 8fdc9651. I advertised `ExportCaps.selector: true` and justified it
+    /// as "measured, not aspirational — export forwards the selector to `get`". The forwarding is
+    /// real, so the VALUE is right; but nothing derives it, so the justification was a statement
+    /// about today's coincidence dressed as a statement about the code. The fix for all three is
+    /// the same and it is the one #461 chose for `ExportCaps.selector`: READ THE FIELD.
+    ///
+    /// Not fixed here for the reason below — stopping the silence requires choosing a fault — but
+    /// `export` and `pull` are fixable WITHOUT that ruling, because both already have their
+    /// answer and only need to derive it from the flag instead of hardcoding it.
+    ///
     /// This scope advertises `ChangesCaps { filter: false, selector: false }` (see
     /// `capabilities()`), and both parameters are `_`-prefixed and never read below. So a client
     /// that asks for a projection gets `200` with FULL representations and no error — the request
