@@ -1240,6 +1240,8 @@ An RFC 9457 problem document — what a `fault` carries, and the body of a faili
 
 > **Normative.** The fault model. Every primitive returns its declared value on success or faults with a Problem — delivered out of band as the HTTP non-2xx response (RFC 9457), never part of the declared return type; a fault is orthogonal to the value. Only `call` additionally carries a declared failure (`Outcome.failure`, HTTP 409) — an operation's own "no". The data primitives have none: a read returns a `rep` or faults. A Problem is the universal fault channel, not the `E` of a `Result`.
 
+> **Normative.** The HTTP status line is the NORMATIVE status of a fault; `Problem.status` is a copy that MUST equal it, and where the two disagree the HTTP status governs — a conformance assertion about a fault's status reads the HTTP status line, not the body member.
+
 ```lumen
 type Problem = {
   type:      AbsoluteUri,
@@ -2959,6 +2961,10 @@ BDP is an HTTP protocol; this binding is normative. core.lumen is the home of al
        than discovery carrying every sub-option — so a missing advertisement does not change
        the fault, only a client's ability to predict it: the option is IN the operation's
        vocabulary and simply unsupported, so it declines `invalid-parameter`, not malformed.
+       ("Declared" means the operation's SIGNATURE — the normative source for an input; a
+       signature-declared option is subject to this rule even where the op's `openapi`
+       annotation omits it, that omission being a declaration divergence the drift check
+       catches, not a behaviour exemption.)
        A VALIDATION FAILURE (`validation-failed`): a well-formed body whose values violate a
        declared constraint — excluded from `422` by the shrink test (shrinking a bad value does
        not fix it) and from `409` (no identity conflict). Or A WRITE GUARD THE OPERATION DOES

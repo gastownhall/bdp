@@ -856,6 +856,7 @@ type Outcome<T, E> = union {
 /// description: An RFC 9457 problem document — what a `fault` carries, and the body of a failing response from the data primitives.
 /// normative: `type`, `title`, `status`, `detail` and `instance` are the RFC 9457 standard members; `code` and `retry` are BDP EXTENSION members (RFC 9457 permits extension members). `type` is a stable, machine-readable problem-type URI identifier (`tag:bdp.dev,2026:problem/<code>`, one per `code` — Appendix D.9), not a bare token. A `tag:` URI (RFC 4151) identifies without being dereferenceable, which RFC 9457 §3.1.1 permits.
 /// normative: The fault model. Every primitive returns its declared value on success or faults with a Problem — delivered out of band as the HTTP non-2xx response (RFC 9457), never part of the declared return type; a fault is orthogonal to the value. Only `call` additionally carries a declared failure (`Outcome.failure`, HTTP 409) — an operation's own "no". The data primitives have none: a read returns a `rep` or faults. A Problem is the universal fault channel, not the `E` of a `Result`.
+/// normative: The HTTP status line is the NORMATIVE status of a fault; `Problem.status` is a copy that MUST equal it, and where the two disagree the HTTP status governs — a conformance assertion about a fault's status reads the HTTP status line, not the body member.
 type Problem = {
   /// description: A URI naming the problem kind.
   type:      AbsoluteUri,
@@ -2080,6 +2081,10 @@ type PushCaps = {
 //        than discovery carrying every sub-option — so a missing advertisement does not change
 //        the fault, only a client's ability to predict it: the option is IN the operation's
 //        vocabulary and simply unsupported, so it declines `invalid-parameter`, not malformed.
+//        ("Declared" means the operation's SIGNATURE — the normative source for an input; a
+//        signature-declared option is subject to this rule even where the op's `openapi`
+//        annotation omits it, that omission being a declaration divergence the drift check
+//        catches, not a behaviour exemption.)
 //        A VALIDATION FAILURE (`validation-failed`): a well-formed body whose values violate a
 //        declared constraint — excluded from `422` by the shrink test (shrinking a bad value does
 //        not fix it) and from `409` (no identity conflict). Or A WRITE GUARD THE OPERATION DOES
