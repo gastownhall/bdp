@@ -581,6 +581,20 @@ impl WireProblem {
                         format!("{fromprop}: {detail}")
                     }
                 };
+                // QUEUED CONFORMANCE CHANGE, 409 -> 400: `validation-failed` has been RULED to 400
+                // (relayed, spec text not in yet — so this is recorded, not acted on). When it
+                // lands, this arm and the client reconstruction at client.rs:335 both move, and
+                // `create`/`put`'s declared 409 loses a producer.
+                //
+                // ALL THREE IMPLEMENTATIONS WERE WRONG, which is the part worth keeping. This
+                // subject emits 409, the cleanroom emits 409, and the TS suite asserts 422 across
+                // 25 references. I offered the two 409s to the spec owner as near-agreement; she
+                // declined to "ratify 409" on the grounds that my 409 rested on D.8:2084-2085's
+                // "also some Problems" — an open SLOT, not an assignment — and that the positive
+                // assignment had to be made rather than inferred. She was right, and the reason
+                // generalises: our two trees were authored by sessions in one fleet reading one
+                // spec, so they are ONE READING IMPLEMENTED TWICE, not two readings agreeing. The
+                // ruling went to a status neither of us had.
                 (409, "validation-failed", "Constraint violation", Some(msg))
             }
             // THE WRONG CHANNEL DIRECTION IS 405, and the spec names both codes. D.8: "405 pull /
