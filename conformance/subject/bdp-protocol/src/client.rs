@@ -317,6 +317,27 @@ fn page_protocol(cursor: &Option<String>, head: Option<bool>) -> p::ProtocolMeta
     }
 }
 
+/// A declared input this binding has no wire encoding for — REFUSED, never dropped.
+///
+/// THE PATTERN WAS ALREADY HERE, APPLIED TO ONE INPUT OF THREE. `export` refuses a non-empty
+/// `filter` with exactly this shape ("this binding carries no `where` encoding, so a filtered
+/// `export` cannot be forwarded") and then discarded its `selector` and its whole `page`
+/// silently. Whoever wrote that method knew an uncarryable input must be refused and did it once.
+///
+/// WHY SILENCE IS THE WORST OPTION HERE, and it is not the same argument as the server-side one:
+/// a client that drops an input returns `200` with data that does not answer the request, and the
+/// caller cannot tell. There is no status to get wrong because nothing is sent — so this needs no
+/// spec ruling at all. It is a statement about this client's honesty, not about the protocol.
+///
+/// `Backend` is the carrier because the fault is in the CLIENT, not in the request or the server:
+/// the caller's input was legal and this binding is the thing that cannot express it.
+fn uncarried(op: &str, what: &str) -> p::BdpError {
+    p::BdpError::Backend(format!(
+        "this binding carries no `{what}` encoding, so a `{op}` supplying one cannot be forwarded \
+         — refusing rather than dropping it and returning an answer to a different request"
+    ))
+}
+
 fn error_from(status: u16, body: &[u8], rid: &p::ResourceId) -> p::BdpError {
     let prob = serde_json::from_slice::<WireProblem>(body).ok();
     let code = prob.as_ref().map(|pb| pb.code.as_str());
@@ -428,8 +449,11 @@ impl BdpScope for RemoteScope {
     async fn get(
         &self,
         r: &p::ResourceId,
-        _selector: Option<&p::Selector>,
+        selector: Option<&p::Selector>,
     ) -> Result<p::BdpResult<p::Representation>, p::BdpError> {
+        if selector.is_some() {
+            return Err(uncarried("get", "select"));
+        }
         let target = target_for(&r.id, r.rev.as_ref());
         let resp = self.request("GET", &target, vec![], vec![]).await?;
         if resp.status == 200 {
@@ -699,8 +723,19 @@ impl BdpScope for RemoteScope {
     /// NO `format` HEADER IS SENT, deliberately: `jsonl` is the only transport this binding
     /// implements, and asking for one it would refuse would make the client the reason a case
     /// fails. When `page` lands, this is where the header goes.
-    async fn pull(&self, channel: &p::ResourceId, page: p::Page, _filter: Option<&p::ListFilter>, _selector: Option<&p::Selector>)
+    async fn pull(&self, channel: &p::ResourceId, page: p::Page, filter: Option<&p::ListFilter>, selector: Option<&p::Selector>)
         -> Result<p::BdpResult<Vec<p::RawJson>>, p::BdpError> {
+        if selector.is_some() {
+            return Err(uncarried("pull", "select"));
+        }
+        if filter.is_some_and(|f| !f.0.is_empty()) {
+            return Err(uncarried("pull", "where"));
+        }
+        // `page.from` IS A THIRD SILENT DROP and easy to miss beside the other two: `after` and
+        // `limit` are both encoded below, so the page LOOKS carried. An ordinal start is not.
+        if page.from.is_some() {
+            return Err(uncarried("pull", "from"));
+        }
         let mut q = Vec::new();
         if let Some(c) = &page.after {
             q.push(format!("after={}", String::from_utf8_lossy(&c.0)));
@@ -764,8 +799,17 @@ impl BdpScope for RemoteScope {
         }
     }
 
-   async fn export(&self, filter: &p::ListFilter, _selector: Option<&p::Selector>, revisions: bool, _page: p::Page)
+   async fn export(&self, filter: &p::ListFilter, selector: Option<&p::Selector>, revisions: bool, page: p::Page)
         -> Result<p::BdpResult<Vec<p::ExportRecord>>, p::BdpError> {
+        if selector.is_some() {
+            return Err(uncarried("export", "select"));
+        }
+        // THE RESUME CURSOR, and dropping it is the most consequential of these: `export` is the
+        // backup path and the spec resumes it by cut `Cursor`, so a silently ignored `after`
+        // restarts a resumed export from the beginning and the caller is told nothing.
+        if page.after.is_some() || page.from.is_some() || page.limit.is_some() {
+            return Err(uncarried("export", "after/from/limit"));
+        }
         if !filter.0.is_empty() {
             return Err(p::BdpError::Backend(
                 "this binding carries no `where` encoding, so a filtered `export` cannot be forwarded"
@@ -787,8 +831,11 @@ impl BdpScope for RemoteScope {
     /// `get`'s `410`, which `revisions` does not declare, so this client never synthesises an
     /// `Erased` from a `revisions` response. Mapping a 404 to anything other than `NotFound` would
     /// invent a distinction the wire does not carry.
-    async fn revisions(&self, resource: &p::ResourceId, _selector: Option<&p::Selector>, page: p::Page)
+    async fn revisions(&self, resource: &p::ResourceId, selector: Option<&p::Selector>, page: p::Page)
         -> Result<p::BdpResult<Vec<p::Representation>>, p::BdpError> {
+        if selector.is_some() {
+            return Err(uncarried("revisions", "select"));
+        }
         // Same omission as `list` had: `after` was dropped, so paging a long history re-read the
         // oldest revisions for ever.
         let mut q: Vec<String> = Vec::new();
@@ -1145,5 +1192,125 @@ mod fault_round_trip_tests {
             p::BdpError::Backend(_) => {}
             other => panic!("a 400 with an unmapped code must not become a structured fault: {other:?}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod uncarried_input_tests {
+    use super::*;
+
+    /// A `RemoteScope` that will never be dialled. The guards under test fire BEFORE any request,
+    /// so no server is needed — and that is the point: the refusal is a property of the binding,
+    /// not of what a server answers.
+    fn dead_scope() -> RemoteScope {
+        RemoteScope::with_capabilities(
+            "127.0.0.1:1",
+            p::ScopeCapabilities {
+                storage_classes: Vec::new(),
+                revision_model: p::RevisionModel::Versioned,
+                id_model: p::IdModel::Permanent,
+            },
+            Vec::new(),
+        )
+        .expect("a bare authority parses")
+    }
+
+    fn sel() -> p::Selector {
+        p::Selector(p::RawJson(bytes::Bytes::from_static(br#"{"include":["/properties/a"]}"#)))
+    }
+
+    /// EVERY INPUT THIS BINDING CANNOT CARRY IS REFUSED, NOT DROPPED.
+    ///
+    /// Four methods discarded a `selector` into `_selector` and returned 200 with an answer to a
+    /// different request. `pull` also dropped `page.from` while encoding `after` and `limit`, so
+    /// the page LOOKED carried, and `export` dropped its whole `page` — the resume cursor on the
+    /// backup path, which silently restarts a resumed export.
+    ///
+    /// The pattern is not new: `export` already refused a non-empty `filter` in exactly this shape.
+    /// It was applied to one uncarryable input of three in the same function.
+    #[tokio::test]
+    async fn an_uncarryable_input_is_refused_rather_than_dropped() {
+        let s = dead_scope();
+        let rid = p::ResourceId::head(p::Scope::This, p::Id(std::sync::Arc::from("r")));
+        let ch = p::ResourceId::head(p::Scope::This, p::Id(std::sync::Arc::from("c")));
+        let sel = sel();
+
+        let cases: Vec<(&str, p::BdpError)> = vec![
+            ("get/select", s.get(&rid, Some(&sel)).await.expect_err("get must refuse")),
+            (
+                "pull/select",
+                s.pull(&ch, p::Page::default(), None, Some(&sel)).await.expect_err("pull must refuse"),
+            ),
+            (
+                "pull/where",
+                s.pull(
+                    &ch,
+                    p::Page::default(),
+                    Some(&p::ListFilter(vec![p::ListCondition::Has {
+                        field: p::FieldPath(vec!["body".into()]),
+                    }])),
+                    None,
+                )
+                .await
+                .expect_err("pull must refuse a filter"),
+            ),
+            (
+                "pull/from",
+                s.pull(&ch, p::Page { from: Some(p::Ordinal(1)), ..Default::default() }, None, None)
+                    .await
+                    .expect_err("pull must refuse an ordinal start"),
+            ),
+            (
+                "export/select",
+                s.export(&p::ListFilter(vec![]), Some(&sel), false, p::Page::default())
+                    .await
+                    .expect_err("export must refuse"),
+            ),
+            (
+                "export/page",
+                s.export(
+                    &p::ListFilter(vec![]),
+                    None,
+                    false,
+                    p::Page { limit: Some(10), ..Default::default() },
+                )
+                .await
+                .expect_err("export must refuse a page"),
+            ),
+            (
+                "revisions/select",
+                s.revisions(&rid, Some(&sel), p::Page::default())
+                    .await
+                    .expect_err("revisions must refuse"),
+            ),
+        ];
+
+        for (name, err) in cases {
+            match err {
+                p::BdpError::Backend(m) => assert!(
+                    m.contains("cannot be forwarded"),
+                    "{name}: must name the uncarryable input; got {m}"
+                ),
+                other => panic!("{name}: expected the binding's own refusal, got {other:?}"),
+            }
+        }
+    }
+
+    /// THE DISCRIMINATING ARM: without those inputs the call is ATTEMPTED and fails on the dead
+    /// address instead.
+    ///
+    /// Without this, every assertion above is satisfied by a binding that refuses everything —
+    /// and since the scope cannot be dialled, every call errors either way. This is the only thing
+    /// separating "the guard fired" from "nothing works here".
+    #[tokio::test]
+    async fn a_carryable_request_is_attempted_rather_than_refused() {
+        let s = dead_scope();
+        let rid = p::ResourceId::head(p::Scope::This, p::Id(std::sync::Arc::from("r")));
+        let err = s.get(&rid, None).await.expect_err("127.0.0.1:1 refuses connections");
+        let msg = format!("{err:?}");
+        assert!(
+            !msg.contains("cannot be forwarded"),
+            "a request with no uncarryable input must reach the transport, not the guard; got {msg}"
+        );
     }
 }
