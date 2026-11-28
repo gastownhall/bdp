@@ -812,32 +812,53 @@ fn rhs_text(v: &RawJson) -> String {
 /// the same defect:
 ///   - an unadvertised condition KIND is a capability this scope declines by advertisement, the
 ///     case D.8's membership test and core.lumen:1457 settle;
-///   - an unwired SUB-OPTION (`In`, `Glob`, `Regex`) is a THIRD CLASS that D.8's dichotomy does
-///     not reach, and the code it should carry is UNRULED.
+///   - an unwired SUB-OPTION (`In`, `Glob`, `Regex`) is UNRULED, and TWO OF THE THREE READINGS
+///     MAKE THE CARRIER BELOW WRONG. Saying that first, because it is the direction that costs
+///     me: an earlier version of this note called it "a class D.8's dichotomy does not reach",
+///     which framed the gap so that my own `invalid-parameter` survived it by default. It does
+///     not survive by default.
 ///
-/// D.8:2071-2083 splits 400 two ways: "in an operation's vocabulary and advertised false is a
-/// decline it can state" (`invalid-parameter`), "outside its vocabulary is malformed"
-/// (`malformed-request`), its example being `If-None-Match` on `patch`, where `PatchCaps` carries
-/// no `ifAbsent` field AND `ifAbsent` is not a parameter of `patch`. Both properties hold there, so
-/// that example cannot tell the two readings of the rule apart.
+/// D.8:2071-2083 lists THREE shapes reaching 400 — a bad body, AN INVALID PARAMETER VALUE, and a
+/// write guard the operation does not define — then justifies the third: "no field exists that
+/// could advertise it either way … The line is therefore drawn by the caps record, not by the
+/// sentence — in an operation's vocabulary and advertised false is a decline it can state, outside
+/// its vocabulary is malformed."
 ///
-/// THESE THREE SITES SEPARATE THEM, and the declared text is unambiguous:
+/// THE "THEREFORE" IS SCOPED TO THE GUARD CASE, which is the whole difficulty. D.8's example
+/// (`If-None-Match` on `patch`) has BOTH properties at once — `PatchCaps` has no `ifAbsent` field
+/// AND `ifAbsent` is not a parameter of `patch` — so it cannot discriminate "no caps field" from
+/// "not in the signature", and the generalizing sentence was written where the two coincide.
+/// Whether it extends to a value that is DECLARED but unadvertisable is exactly the open question.
+///
+/// Three readings, and only the first leaves this code as it stands:
+///   (i)   shape 2, "an invalid parameter value" → `invalid-parameter`. Weakest of the three:
+///         `"glob"` is not an invalid value, it is a valid one this scope cannot run.
+///   (ii)  the caps-record sentence extends → no field at `op`/`using` granularity →
+///         `malformed-request`. THIS MAKES THE CARRIER BELOW WRONG.
+///   (iii) an advertised KIND binds all its declared members → supporting `"in"` is not optional,
+///         so the refusal is not a fault at all but a SUBJECT GAP: implement them, or stop
+///         advertising `compare`/`matches`. THIS MAKES THE CARRIER BELOW WRONG TOO, and more
+///         deeply — there would be no fault to classify.
+///
+/// The declared text that forces the question, none of it in dispute:
 ///   core.lumen:1286  `compare { field, op: "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"in", value }`
 ///   core.lumen:1288  `matches { field, pattern, using: "substring"|"glob"|"regex" }`
 ///   core.lumen:1726  `ConditionKind = "compare" | "matches" | ... | "isType"`
 /// So `"in"`, `"glob"` and `"regex"` are DECLARED members of a DECLARED parameter of a DECLARED
-/// operation — squarely IN `list`'s vocabulary, which by D.8's sentence excludes `malformed-request`.
-/// But `ListCaps.conditions: [ConditionKind]` advertises at KIND granularity only; there is no caps
-/// field at `op`/`using` granularity, which by D.8's field-exists reasoning excludes
-/// `invalid-parameter`. In-vocabulary and unadvertisable: both arms of the dichotomy refuse it.
+/// operation, while `ListCaps.conditions: [ConditionKind]` advertises at KIND granularity only,
+/// with no caps field at `op`/`using` granularity. In-vocabulary by the signature, unadvertisable
+/// by the caps record — and D.8 names the caps record as the discriminator, which is why (ii) is
+/// the stronger reading of the text and (i), the one this code implements, is the weaker.
 ///
 /// A CONDITION KIND IS NOT IN THIS CLASS, and that is the line. `contains`, `containsAny` and
 /// `excludes` are `ConditionKind` members that `ListCaps.conditions` CAN advertise, so refusing one
 /// is a decline the scope can state — `invalid-parameter`, which is what the catch-all below emits.
 /// Same record, two populations, two answers.
 ///
-/// NOT RE-POINTED ON MY OWN DERIVATION. `invalid-parameter` stays as the carrier because moving it
-/// would be answering an unruled cell by editing, and the derivation above is mine. THE FIX IS
+/// NOT RE-POINTED ON MY OWN DERIVATION, and that is a decision about PROCESS, not a defence of
+/// (i). `invalid-parameter` stays only because moving it would answer an unruled cell by editing,
+/// on a reading that is mine — the same ground on which a peer declined to re-flip 12 sites in her
+/// tree on her derivation plus my message. If the ruling picks (ii) or (iii), this carrier changes. THE FIX IS
 /// PROBABLY NOT A STATUS AT ALL: Lydia's stated reason for adding `ExportCaps.selector` was that
 /// without it "a scope that did not project had to refuse while claiming an advertised absence it
 /// had no field to advertise" — which is this class exactly, and the remedy she chose was to ADD
