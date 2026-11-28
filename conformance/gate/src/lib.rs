@@ -1036,9 +1036,22 @@ pub fn orphan_codes() -> Vec<String> {
 ///
 /// A justification that instead cites an OPEN QUESTION expires the moment the question closes, and
 /// NOTHING WATCHES PROSE. `validation-failed` carried "the open question behind #453's patch/409"
-/// after Donna had already ruled it 409: claim still true, reasoning false, and no guard able to
+/// after that question was believed ruled: claim still true, reasoning false, and no guard able to
 /// tell the difference. So an entry resting on a question states the condition that closes it,
 /// which dates the entry and lets a reader check instead of trusting the sentence.
+///
+/// AND THE LESSON ATE ITSELF. The illustration above said "after Donna had already ruled it 409"
+/// — stated as fact, with no PR, commit, quote or date, in the very paragraph arguing that an
+/// entry must let a reader check instead of trusting the sentence. The spec owner later paused a
+/// live ruling partly on the strength of it. Traced: that claim entered at 97670eb2, a commit of
+/// MINE, whose author field reads `Donna Box` because every session in this fleet commits under
+/// one account — so authorship distinguishes nothing and the provenance is unrecoverable. The
+/// attribution is withdrawn as evidence in the entry below.
+///
+/// THE SHARED ACCOUNT IS WHAT MAKES THIS UNFALSIFIABLE, which is worth naming once here: an
+/// attribution to the owner cannot be checked against the one signal git offers. So in this
+/// crate, "the owner ruled X" needs a PR number, a commit the owner alone could have made, or a
+/// quotation — and absent one it is my inference wearing the owner's name.
 ///
 /// THE TWO TIERS MATTER, and collapsing them would overstate the finding. For some, D.8 describes
 /// the CONDITION under a status without ever writing the code beside it, so the repair is one line
@@ -1056,10 +1069,20 @@ pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
     ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
     (
         "validation-failed",
-        "no status row and no producing condition in the TEXT. This used to cite \"the open \
-         question behind #453's patch/409\" — Donna has since RULED it 409, so the question is \
-         CLOSED and only the lowering is outstanding. CLOSES WHEN: `validation-failed` appears on \
-         D.8's 409 row.",
+        "no status row and no producing condition in the TEXT. THIS ENTRY'S OWN 409 ATTRIBUTION IS \
+         UNSOURCED AND IS WITHDRAWN AS EVIDENCE. It read \"Donna has since RULED it 409, so the \
+         question is CLOSED\" — no PR, no commit, no quote, no date. Traced: the sentence entered \
+         at 97670eb2 (2026-11-26 14:19:28 -0800), a commit of MINE, and the author field says \
+         `Donna Box <dbox@boxenllc.com>` because every session in this fleet commits under one \
+         account — my own commits today carry the same author, so authorship distinguishes \
+         nothing. `validation-failed` appears in core.lumen exactly once (D.9's vocabulary, :2119) \
+         with no status, and the CHANGELOG does not mention it. So the provenance is \
+         unrecoverable, and a 400 ruling relayed directly today has STRICTLY BETTER grounding than \
+         this line. It must not be used to reverse one. WHAT SURVIVES, and it is independent of \
+         any prior ruling: at 409 this code is the producer that would close #453's patch/409 and \
+         delete/409; at 400 those rows stay orphaned and get undeclared instead. That DENOMINATOR \
+         CONSEQUENCE is worth the owner's attention on its own merits. CLOSES WHEN: the owner \
+         pins a status for `validation-failed` in D.8, whichever it is.",
     ),
     ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
     ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
