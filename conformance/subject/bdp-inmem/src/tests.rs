@@ -495,3 +495,94 @@ async fn an_unadvertised_import_mode_is_invalid_parameter_not_unimplemented() {
     let ok = s.import(&framed, ImportStrategy::SetCurrent).await.expect("set-current import");
     assert!(!ok.not_implemented, "set-current import must work on a scope that advertises import");
 }
+
+// ---- the advertisement must GOVERN, not coincide -------------------------------------------
+
+/// `advertised_selector` READS the flag, and the test drives BOTH values.
+///
+/// Driving only the advertised value is precisely how the original defect stayed invisible: all
+/// six selector-bearing reads hardcoded their answer, three of them agreed with their flag by
+/// coincidence, and every test here exercised only the agreeing value. So this asserts the
+/// function DISCRIMINATES rather than that it returns the right answer once.
+#[test]
+fn advertised_selector_reads_the_flag_and_discriminates() {
+    for op in ["get", "pull", "export"] {
+        let on = vec![
+            PrimitiveCapabilities::Get(GetCaps { selector: true }),
+            PrimitiveCapabilities::Pull(PullCaps { sse: false, jsonl: false, filter: false, selector: true }),
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: true }),
+        ];
+        let off = vec![
+            PrimitiveCapabilities::Get(GetCaps { selector: false }),
+            PrimitiveCapabilities::Pull(PullCaps { sse: false, jsonl: false, filter: false, selector: false }),
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: false }),
+        ];
+        assert!(advertised_selector(&on, op), "{op}: advertised true must read as true");
+        assert!(!advertised_selector(&off, op), "{op}: advertised false must read as false");
+    }
+    // AN UNADVERTISED OP DEFAULTS TO FALSE -- the safe direction (refuse, never silently
+    // decline to project). Pinned so the default cannot drift to `true` unnoticed.
+    assert!(!advertised_selector(&[], "get"), "an absent advertisement must not read as true");
+}
+
+/// The `true` arm is REACHABLE and refuses loudly rather than lying.
+///
+/// Cited by name from `selector_refusal`'s doc, so it has to exist: a doc that names a test which
+/// does not exist reads as coverage and is worse than no citation. The arm matters because this
+/// subject implements no projection at all -- a scope advertising `selector: true` would return
+/// FULL representations under a projection request with a 200, which is the failure mode the whole
+/// change exists to remove.
+#[test]
+fn the_true_arm_refuses_loudly_rather_than_lying() {
+    match selector_refusal(true, "export") {
+        BdpError::Backend(m) => {
+            assert!(m.contains("implements no projection"), "must name WHY it refuses; got {m}");
+            assert!(m.contains("export"), "must name the op; got {m}");
+        }
+        other => panic!("a `selector: true` advertisement with no projection must fail loudly, got {other:?}"),
+    }
+    // AND THE TWO ARMS ARE DIFFERENT ERRORS. If both collapsed to one, the flag would stop
+    // mattering again and this file would still be green -- which is the original defect.
+    let off = selector_refusal(false, "export");
+    match off {
+        BdpError::InvalidParameter { ref capability, .. } => {
+            assert_eq!(capability, "export.selector", "the false arm names the flag to read")
+        }
+        other => panic!("the false arm must be InvalidParameter, got {other:?}"),
+    }
+    assert_ne!(
+        std::mem::discriminant(&selector_refusal(true, "export")),
+        std::mem::discriminant(&off),
+        "the arms must stay distinguishable, or the advertisement stops governing"
+    );
+}
+
+/// A selector is REFUSED, not dropped, on the reads core.lumen:1457 names.
+///
+/// Before this, `get` took `_selector` and discarded it: 200, a full representation, no error. The
+/// assertion is on the REFUSAL, because a silent drop is indistinguishable from success and no
+/// test here could see it.
+#[tokio::test]
+async fn a_selector_is_refused_rather_than_dropped() {
+    let s = scope();
+    let id = ResourceId::head(Scope::This, Id("sel".into()));
+    s.put(id.clone(), body("Task", r#"{"a":1}"#), Guards::default()).await.unwrap();
+    let sel = Selector(RawJson(Bytes::from(br#"{"include":["/properties/a"]}"#.to_vec())));
+
+    match s.get(&id, Some(&sel)).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "get.selector"),
+        other => panic!("get must refuse a selector under `selector: false`, got {other:?}"),
+    }
+    match s.export(&ListFilter(vec![]), Some(&sel), false, Page::default()).await {
+        Err(BdpError::InvalidParameter { capability, .. }) => assert_eq!(capability, "export.selector"),
+        other => panic!("export must refuse a selector under `selector: false`, got {other:?}"),
+    }
+
+    // AND THE OP STILL WORKS WITHOUT ONE. Without this the refusals above are satisfied by a
+    // scope that refuses every read -- the anti-vacuity arm.
+    assert!(s.get(&id, None).await.unwrap().value.is_some(), "get must still work with no selector");
+    assert!(
+        !s.export(&ListFilter(vec![]), None, false, Page::default()).await.unwrap().value.unwrap().is_empty(),
+        "export must still work with no selector"
+    );
+}

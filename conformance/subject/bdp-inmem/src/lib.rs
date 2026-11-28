@@ -795,6 +795,62 @@ fn text_of(v: &serde_json::Value) -> Option<String> {
     }
 }
 
+/// The advertised selector flag for one read, READ rather than hardcoded.
+///
+/// This exists because the advertisement was DECORATIVE: across six selector-bearing reads, not
+/// one consulted the flag it published. Two happened to agree with it and one did not, so the
+/// fault was invisible to every test here — they all drive only the advertised value, so no arm
+/// ever disagreed.
+///
+/// SCOPED TO THE THREE READS THE SPEC NAMES. core.lumen:1457 establishes that `get`/`list`/`pull`
+/// advertise their own selector per-op and then states generally that "a scope advertising
+/// `selector: false` faults a `select` request `400` (`invalid-parameter`)". That reaches `get`,
+/// `pull` and `export`. It does NOT reach `changes` (not a declared operation), `revisions`
+/// (`RevisionsCaps {}` carries no selector field at all) or `resolve` (also not among the 13
+/// declared operationIds) — those are the unruled class, recorded and left alone rather than
+/// answered by my picking a status for them.
+///
+/// Takes the caps SLICE rather than `&self` so both arms can be unit-tested without a scope whose
+/// advertisement is hardcoded — the arm-with-no-path problem, avoided by construction.
+///
+/// Defaulting an unadvertised op to `false` is the SAFE direction: refuse rather than silently
+/// decline to project.
+fn advertised_selector(caps: &[PrimitiveCapabilities], op: &str) -> bool {
+    caps.iter()
+        .find_map(|c| match (op, c) {
+            ("get", PrimitiveCapabilities::Get(x)) => Some(x.selector),
+            ("pull", PrimitiveCapabilities::Pull(x)) => Some(x.selector),
+            ("export", PrimitiveCapabilities::Export(x)) => Some(x.selector),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
+
+/// What a supplied selector gets, given what the scope ADVERTISES for that read.
+///
+/// Both arms are errors, and that is the honest state of this subject rather than an oversight:
+/// it implements NO projection anywhere. `get` discards its selector, and there is no projection
+/// helper in this crate — so there is no arm in which a selector can be honoured.
+///
+/// THE `true` ARM IS NOT DEAD CODE AND IS NOT A SHRUG. A scope advertising `selector: true` here
+/// would be claiming a capability that does not exist, and the failure mode it replaces is the
+/// dangerous one: returning full representations under a projection request, with a 200. Failing
+/// loudly makes a future flag flip a visible error instead of a silent lie. It is reachable and
+/// pinned by `the_true_arm_refuses_loudly_rather_than_lying` below.
+fn selector_refusal(advertised: bool, op: &str) -> BdpError {
+    if advertised {
+        return BdpError::Backend(format!(
+            "{op} advertises `selector: true`, but this subject implements no projection at all — \
+             `get` discards its selector and there is no projection helper. Refusing loudly rather \
+             than returning full representations under a projection request."
+        ));
+    }
+    BdpError::InvalidParameter {
+        capability: format!("{op}.selector"),
+        detail: format!("this scope advertises `selector: false` on {op}"),
+    }
+}
+
 /// The RHS text of a `Compare`/condition value (mirrors pg `json_scalar_text`).
 fn rhs_text(v: &RawJson) -> String {
     match serde_json::from_slice::<serde_json::Value>(&v.0) {
@@ -1019,12 +1075,14 @@ impl BdpScope for InMemScope {
             // prove the binding does not conflate them: a batch of 3 is deferred-in-part and
             // SUCCEEDS, a batch of 5 is refused.
             PrimitiveCapabilities::Push(PushCaps { max_batch: Some(4), window: Some(2) }),
-            // `selector: true` IS MEASURED, NOT ASPIRATIONAL: the current-state branch of
-            // `export` forwards the selector to `get`, so a projection is honoured. The revisions
-            // branch ignores it — but main refuses `select` on a `--revisions` export outright
-            // (400), so that is an unconditional refusal this subject still owes, not a reason to
-            // advertise the flag false. Registered separately in the gate.
-            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: true }),
+            // `selector: false`, AND THE `true` I PUT HERE AN HOUR AGO WAS FALSE. I justified it
+            // as "measured, not aspirational — `export` forwards the selector to `get`". The
+            // forwarding is real and it is not the claim; the claim was that a projection is
+            // HONOURED, and that needed reading `get`. `get` (:1053) discards its selector and
+            // there is no projection helper anywhere in this subject, so `export` forwards into a
+            // void. I verified one link of a two-link chain and reported the chain, stopping at
+            // the first thing that confirmed the value I wanted to advertise.
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: false }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
             // `async_supported: true` — `?mode=async` now MINTS an `AsyncResult` and answers 202
@@ -1050,7 +1108,13 @@ impl BdpScope for InMemScope {
         ]
     }
 
-    async fn get(&self, r: &ResourceId, _selector: Option<&Selector>) -> Result<BdpResult<Representation>, BdpError> {
+    async fn get(&self, r: &ResourceId, selector: Option<&Selector>) -> Result<BdpResult<Representation>, BdpError> {
+        // DERIVED, NOT HARDCODED. This used to take `_selector` and drop it: a client asking for a
+        // projection got 200 with a full representation and no error, which is worse than a wrong
+        // status because it cannot be observed.
+        if selector.is_some() {
+            return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "get"), "get"));
+        }
         let store = self.store.read().unwrap();
         let scope = self.scope_str(&r.scope);
         let id = r.id.0.to_string();
@@ -1306,6 +1370,12 @@ impl BdpScope for InMemScope {
     /// export = a RAM snapshot, useful to seed a cache / hybrid substrate.)
     async fn export(&self, filter: &ListFilter, selector: Option<&Selector>, revisions: bool, page: Page)
         -> Result<BdpResult<Vec<ExportRecord>>, BdpError> {
+        // DERIVED, AND IT REFUSES UP FRONT instead of forwarding into a void. The old path handed
+        // the selector to `get`, which discards it, so a projection request returned full
+        // representations under a `selector: true` advertisement.
+        if selector.is_some() {
+            return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "export"), "export"));
+        }
         let cur_ord = {
             let store = self.store.read().unwrap();
             store.log.iter().filter(|r| r.scope == self.scope_name).map(|r| r.ordinal).max().unwrap_or(0)
@@ -1442,11 +1512,12 @@ impl BdpScope for InMemScope {
         //
         // `pull` DECLARES [400, 404, 405, 410] and no 422 at all (core.openapi.json), so the old
         // mapping was an undeclared fault independently of the membership test.
+        // DERIVED, NOT HARDCODED. The refusal below is unchanged in effect — this scope
+        // advertises `selector: false` — but it was previously unconditional, so it was right only
+        // because the flag happened to say `false`. Honest by accident, in the path I held up to
+        // two peers as the correct one.
         if selector.is_some() {
-            return Err(BdpError::InvalidParameter {
-                capability: "pull.selector".into(),
-                detail: "this scope advertises `selector: false` on pull".into(),
-            });
+            return Err(selector_refusal(advertised_selector(&BdpScope::capabilities(self), "pull"), "pull"));
         }
 
         let after: u64 = match (&page.after, &page.from) {
