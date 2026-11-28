@@ -670,7 +670,7 @@ type Page<T> = {
 /// bdp = { kind = "primitive", primitive = "pull" }
 /// description: Read a Channel — the changefeed (well-known `/sys/changes`) or a declared stream — as a `source<T>` (a LIVE feed) of its `pullSchema` events. `--format` picks the transport (`page` windowed / `jsonl` bulk / `sse` live); one Cursor spans all three. `sse` is valid here because `pull` is the one live-feed read.
 /// normative: Valid on a `source`/`duplex` channel; a `sink`-only channel faults `channel-not-pullable`. Faults `cursor-expired` below the retention floor.
-/// normative: A channel is a resource (`rep<Channel>`, [[core.lumen#Channel]]), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-pruned`/`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
+/// normative: A channel is a resource (`rep<Channel>`, [[core.lumen#Channel]]), so its absence and retirement resolve as `get`'s do: `pull` of an ABSENT channel faults `404` (`resource-not-found`), and `pull` of a RETIRED channel faults `410` (`resource-erased`) — distinct from `cursor-expired`, the other `410` (below the retention floor). Offering `pull` advertises the operation, not a channel inventory; which channels exist is discovered per-channel.
 /// openapi = { operationId = "pull", method = "GET", pathItem = "channel", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, from = { in = "query", schema = "Ordinal", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400,404,405,410] } }
 fn pull(
     /// description: The channel to read — the changefeed or a declared stream.
@@ -1426,13 +1426,16 @@ type ExportRecord = ExportBegin | Resource | ExportEnd
 
 ## ExportBegin
 /// description: The opening line — the Scope and the cursor the export was cut at (where a consumer resumes the changefeed). Told apart from a Resource line by `kind`.
+/// normative: `partial: true` marks an export that is NOT a faithful backup — a current-state projection (the op's `where`/`select` applied), whose bodies may be narrowed and whose resource set may be filtered. A true backup omits `partial`: the default current-state export with no `where`/`select`, and every `--revisions` export. A consumer reads `partial` from this opening line before applying any record; [[core.lumen#import]] REFUSES a `partial` stream as a source (`400`), since a projected export cannot faithfully seed or restore a scope.
 type ExportBegin = {
   /// description: The discriminator that tells a begin line from a resource line.
   kind:   "export-begin",
   /// description: The scope this export covers.
   scope:  AbsoluteHttpUrl,
   /// description: The cut the export was taken at — where a consumer resumes the changefeed.
-  cursor: Cursor
+  cursor: Cursor,
+  /// description: Present and `true` only when this export is a projection, not a faithful backup (the op's `where`/`select` was applied to a current-state read). Omitted ⇒ complete and unprojected, so an unlabelled stream is byte-identical to one taken without the field.
+  partial?: bool
 }
 
 ## ExportEnd
@@ -1450,15 +1453,17 @@ type ExportEnd = {
 /// bdp = { kind = "primitive", primitive = "export" }
 /// description: Bulk read of a scope — a `jsonl` BACKUP STREAM (`ExportBegin`, one resource line each, `ExportEnd`); `export` is the one read that is not windowed, so `format` other than `jsonl` faults `400`. Current state by default, `--revisions` emits every revision in order (a true backup: createdAt, every committedAt, the previousRevision chain survive). Selection ⊆ Filter. Reads from the authoritative revision store, so it is a backup even when the live changefeed is compacted. Consistent as of a cut Cursor.
 /// normative: `export` honors only `after`, `limit` and `format` of `request` ([[core.lumen#ReadRequest]]); `request.filter`, `request.select` and `request.from` are rejected `400` — filtering and projection are the op's own `where`/`select`, and a snapshot resumes by cut `Cursor`, not a fresh ordinal. The success media type is `application/jsonl` — `export` is jsonl-native, self-framed by `ExportBegin`/`ExportEnd`; `format` other than `jsonl` (including `page`) faults `400`, since a backup is a stream, not a windowed `Page`.
+/// normative: `where`/`select` are the op's projection and are legal ONLY on a current-state export. A `--revisions` (history) export REFUSES either (`400`): a true backup is neither filtered nor projected, so every revision and the `previousRevision` chain survive intact. A current-state export that carries `where`/`select` IS a projection, not a faithful backup, so its `ExportBegin` sets `partial: true` ([[core.lumen#ExportBegin]]); an unprojected current-state export, and every `--revisions` export, omits `partial`.
+/// normative: `select` is honored iff the scope advertises it ([[core.lumen#ExportCaps]] `selector`), exactly as `get`/`list`/`pull` advertise their own selector per-op — selector support MAY differ across reads. A scope advertising `selector: false` faults a `select` request `400` (`invalid-parameter`): the capability is advertised, so a client reads it and omits `select` rather than being refused.
 /// openapi = { operationId = "export", method = "GET", pathItem = "scope", tags = ["Core"], params = { after = { in = "query", schema = "Cursor", required = false }, limit = { in = "query", schema = "number", required = false }, format = { in = "header", schema = "Transport", required = false } }, success = { status = 200 }, problem = { status = [400] } }
 fn export(
     /// description: The scope to back up.
     scope:      Scope,
-    /// description: Restrict the export to matching resources (see [[core.lumen#Filter]]).
+    /// description: Restrict the export to matching resources — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` (see [[core.lumen#Filter]], [[core.lumen#ExportBegin]]).
     where?:     Filter,
-    /// description: Project each exported resource.
+    /// description: Project each exported resource — current-state only; refused `400` on a `--revisions` export, and setting it marks the result `partial` ([[core.lumen#ExportBegin]]). Honored iff the scope advertises [[core.lumen#ExportCaps]] `selector`; a scope advertising `selector: false` faults `400`.
     select?:    selector,
-    /// description: Emit every revision in order (a true backup) instead of current state.
+    /// description: Emit every revision in order (a true backup) instead of current state. A `--revisions` export refuses `where`/`select` (`400`) and never sets `partial`.
     revisions?: bool,
     /// description: Streaming controls — resume cursor, limit, and the transport (`jsonl` only — `export` is a bulk backup stream, not a windowed read). See [[core.lumen#ReadRequest]].
     request?:   ReadRequest
@@ -1477,6 +1482,20 @@ type ImportStrategy = {
   idRoot?:     string
 }
 
+## ImportConflict
+/// description: One rejected import record. Keyed on its stream `ordinal` (always present, always unique); `id` and `revision` are optional context, absent when the record was malformed before its id could be read.
+/// normative: A conflict is keyed on the stream `ordinal`, never on `id`. An id-keyed list cannot represent two distinct records that fail at one id, nor a record malformed before its id is parsed (which has no id to key on); the stream ordinal is the only total, always-present key, so `id`/`revision` ride as optional context when known. This is a property of what the list must represent, independent of any implementation.
+type ImportConflict = {
+  /// description: The stream ordinal of the rejected record — its position in the export.
+  ordinal:   Ordinal,
+  /// description: The resource id, when the record parsed far enough to carry one.
+  id?:       ref<any>,
+  /// description: The record's revision, when known — context for a revision conflict.
+  revision?: Rev,
+  /// description: Why the record was rejected.
+  reason:    string
+}
+
 ## ImportReport
 /// description: The import tally — counts and any conflicted records. It is the `tallies` of the final [[core.lumen#ImportAck]] (the call that consumes `ExportEnd`); the old terminal whole-batch report folds here. Also returned directly by pack ops that summarize a bulk load.
 type ImportReport = {
@@ -1484,8 +1503,8 @@ type ImportReport = {
   imported:  integer,
   /// description: How many records were skipped as already present (content `dedup`).
   skipped:   integer,
-  /// description: Rejected records, each by its id and the reason.
-  conflicts: [ { id: ref<any>, reason: string } ]
+  /// description: Rejected records ([[core.lumen#ImportConflict]]) — each keyed by stream ordinal, with id/revision as context.
+  conflicts: [ ImportConflict ]
 }
 
 ## ImportResult
@@ -1497,8 +1516,8 @@ type ImportResult = union {
   Deduped    { ordinal: Ordinal }
   /// description: Not processed on this call (backpressure); re-offer the tail from `acceptedThrough + 1` after `retryAfter`.
   Deferred
-  /// description: Hard per-record reject — the record was PROCESSED (it counts toward `acceptedThrough`) but not applied; resume never re-offers it.
-  Conflicted { ordinal: Ordinal, reason: string }
+  /// description: Hard per-record reject — the record was PROCESSED (it counts toward `acceptedThrough`) but not applied; resume never re-offers it. Carries the [[core.lumen#ImportConflict]] shape (same `ordinal` key, same optional id/revision context), so the per-record fate and the folded [[core.lumen#ImportReport]] tally never disagree on what a conflict is.
+  Conflicted { ordinal: Ordinal, id?: ref<any>, revision?: Rev, reason: string }
 }
 
 ## ImportAck
@@ -1526,6 +1545,7 @@ type ImportId is string
 /// bdp = { kind = "primitive", primitive = "import" }
 /// description: The bulk write path — put/create under If-Match with id remap; a history file is replayed in commit order to rebuild the chain (history-restore), else it sets current state. Not a filter op. Push-style and resumable: the importer sends the records, the scope accepts a prefix and defers the rest under backpressure, acks `acceptedThrough`, and the importer re-offers the deferred tail from `acceptedThrough + 1`. Resume is an advertised capability ([[core.lumen#ImportCaps]] `window`); a minimal scope keeps one-shot import (one ack, already `complete`).
 /// normative: `import` is a bulk WRITE (put/create), not a filter/read; a history file is replayed in commit order (history-restore), otherwise it sets current state.
+/// normative: `import` REFUSES (`400`) a stream whose opening `ExportBegin` carries `partial: true` ([[core.lumen#ExportBegin]]) — a projected or filtered export is not a faithful source and cannot seed or restore a scope. The refusal is read off the first record, before any resource is applied.
 /// normative: Import is RESUMABLE over ABSOLUTE record ordinals. A record's ordinal is `fromOrdinal + its index` in the delivered `records` array (`fromOrdinal` omitted ⇒ `1`), so the stream position survives chunking across requests even though each array restarts at index 0; `importId` names the session the scope keys `acceptedThrough` on, and a one-shot import omits both. `import` is non-blocking: the scope processes a prefix up to its current admission `credit` (advertised as `window`), marks the remainder `Deferred`, and returns `acceptedThrough` (the high-water ordinal PROCESSED) with `credit` and an optional `retryAfter`. The importer holds the deferred tail and re-offers from `acceptedThrough + 1` (`fromOrdinal = acceptedThrough + 1`); a record whose absolute ordinal is `≤ acceptedThrough` is a benign no-op reported `Deduped`, never a fault. This resume-idempotency is the model's own, not the caller's strategy.
 /// normative: `acceptedThrough` is the last PROCESSED record — applied OR rejected — NOT the last success. A `Conflicted` record counts toward `acceptedThrough`, so resume SKIPS it and never re-offers it; a dropped-and-resumed import converges to the same per-record fates as one uninterrupted call.
 /// normative: TWO idempotencies ride import and MUST NOT be conflated. Resume-idempotency is protocol-level: a re-offered ordinal ≤ `acceptedThrough` is a no-op, independent of content. Content `dedup` ([[core.lumen#ImportStrategy]]) is a merge strategy: a record whose resource is already present is skipped. Both surface as `Deduped`, but the first is keyed on the stream ordinal and the second on resource presence — they coincide only by accident.
@@ -1766,7 +1786,9 @@ type RevisionsCaps = { }
 /// description: Limits advertised for `export`.
 type ExportCaps = {
   /// description: Whether the export can include prior revisions (history), not only the current state.
-  revisions: bool
+  revisions: bool,
+  /// description: Whether a `select` projection is honored on the export — advertised per-op, as `get`/`list`/`pull` advertise their own.
+  selector:  bool
 }
 
 ## ImportCaps
@@ -2078,22 +2100,27 @@ type PushCaps = {
 //        or a length-related `400`.
 //   415  a direct `patch` body whose media type is not `application/json-patch+json` (a
 //        body-form patch under `application/vnd.bdp.envelope+json` is exempt)
-//   422  a request exceeding an advertised capability bound — a batch over `maxBatch`,
-//        or a guard past a scope limit (`limit-exceeded`); fixed by shrinking the request
+//   422  `limit-exceeded` — a request exceeding an advertised capability bound (a batch over
+//        `maxBatch`, or a guard past a scope limit). MEMBERSHIP TEST: a fault belongs at 422
+//        IFF shrinking the request fixes it; a well-formed body that is simply unusable (a
+//        projected export offered as a restore source) is 400, not 422.
 //   404  `resource-not-found` — `get` of an absent resource, or `pull` of an absent channel; an unknown action to the right of the `/-/` fence
-//   405  pull / push on the wrong channel direction; patch where a Scope offers no patch
-//   410  `resource-pruned` / `resource-erased` — `get` of a pruned/erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
+//   405  `channel-not-pullable` / `channel-not-pushable` — pull / push on the wrong channel
+//        direction; `capability-not-supported` — patch where a Scope offers no patch, or any
+//        un-offered primitive (an un-offered primitive is declined here, never 501)
+//   410  `resource-erased` — `get` of an erased resource, or `pull` of a retired channel; `cursor-expired` — `pull` below the retention floor
 //   4xx/5xx  any fault — the body is the Problem, carried at the Problem's own status
 //
 // --- D.9 Problem codes (BDP extension member `code`; stable `type` URIs) -----
 //   `code`/`retry` are BDP extension members, not RFC 9457 core; each code has a stable
 //   problem-type URI `tag:bdp.dev,2026:problem/<code>` carried in the Problem `type` member.
 //   malformed-request · invalid-parameter · unauthenticated · forbidden ·
-//   resource-not-found · resource-pruned · resource-erased · revision-mismatch ·
+//   resource-not-found · resource-erased · revision-mismatch ·
 //   precondition-failed · identity-taken · validation-failed · type-not-installed ·
 //   cursor-expired · request-too-large · limit-exceeded · rate-limited ·
 //   temporarily-unavailable · capability-not-supported · callable-not-found ·
-//   callable-unavailable · mode-not-supported · mode-refused
+//   callable-unavailable · mode-not-supported · mode-refused ·
+//   channel-not-pullable · channel-not-pushable
 
 
 // #############################################################################
@@ -2150,6 +2177,6 @@ type PushCaps = {
 // Discovery advertises, per scope: the primitives offered; whether history / patch /
 // push are offered; which storage classes `create` accepts; which invocation modes are
 // refused; the max request-context size; and where the changefeed is. A request that
-// needs an un-offered capability is refused `capability-not-supported`; an optional
-// feature is never half-present.
+// needs an un-offered primitive is refused `capability-not-supported`; an optional
+// feature is never half-present (an advertised-false option is declined at 400, not here).
 // =============================================================================
