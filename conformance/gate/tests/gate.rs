@@ -1771,6 +1771,26 @@ async fn raw_problem(
             format!("the {} Problem body carries no `code` member: {doc}", resp.status)
         })?
         .to_string();
+    // THE BODY'S `status` IS A COPY AND MUST EQUAL THE STATUS LINE, which governs. RFC 9457 has
+    // the body member mirror the response status, and the spec owner ruled the status LINE
+    // normative — so every assertion in this file keys on `resp.status` above, correctly and by
+    // construction rather than by luck.
+    //
+    // WHAT THAT LEFT UNCHECKED, flagged to me by a peer: nothing here compared the two, so a
+    // subject whose body disagreed with its own status line passed every case silently. The
+    // assertion is cheap and belongs with the read rather than in a case, because it is a property
+    // of EVERY fault response and not of any one row.
+    if let Some(in_body) = doc.get("status").and_then(serde_json::Value::as_u64) {
+        if in_body != u64::from(resp.status) {
+            return Err(format!(
+                "the Problem body says `status: {in_body}` while the response status line is {} — \
+                 the line governs and is what this gate asserts, so the copy disagreeing with it \
+                 is invisible to every other case here. A client branching on the body would take \
+                 a different path from one branching on the line: {doc}",
+                resp.status
+            ));
+        }
+    }
     Ok((resp.status, code))
 }
 
