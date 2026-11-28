@@ -973,13 +973,6 @@ pub fn orphan_codes() -> Vec<String> {
 pub const CODES_WITHOUT_A_WIRE_HOME: &[(&str, &str)] = &[
     ("unauthenticated", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 401 row"),
     ("forbidden", "HYPHENLESS, so the old parser never saw it: no status entry names it; D.8 has no 403 row"),
-    (
-        "validation-failed",
-        "no status row and no producing condition in the TEXT. This used to cite \"the open \
-         question behind #453's patch/409\" — Donna has since RULED it 409, so the question is \
-         CLOSED and only the lowering is outstanding. CLOSES WHEN: `validation-failed` appears on \
-         D.8's 409 row.",
-    ),
     ("rate-limited", "implies 429; D.8 has no 429 entry at all"),
     ("temporarily-unavailable", "implies 503; D.8 has no 5xx entry beyond the 4xx/5xx catch-all"),
     ("type-not-installed", "no status entry names it; Types-profile condition with no Core landing"),
@@ -1738,7 +1731,7 @@ mod tests {
         // obligations, 19 registered", the 70-strong backlog I sized by reading — was computed over
         // a population that had since moved. A floor is exactly the shape that survives the change
         // it exists to report.
-        const OBLIGATIONS: usize = 96;
+        const OBLIGATIONS: usize = 97;
         assert!(
             found.len() == OBLIGATIONS,
             "parsed {} obligations, expected {OBLIGATIONS}. {} The ledger, the backlog sizing and \
