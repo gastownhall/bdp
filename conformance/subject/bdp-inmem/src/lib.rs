@@ -834,7 +834,14 @@ fn rhs_text(v: &RawJson) -> String {
 ///   (i)   shape 2, "an invalid parameter value" → `invalid-parameter`. Weakest of the three:
 ///         `"glob"` is not an invalid value, it is a valid one this scope cannot run.
 ///   (ii)  the caps-record sentence extends → no field at `op`/`using` granularity →
-///         `malformed-request`. THIS MAKES THE CARRIER BELOW WRONG.
+///         `malformed-request`. THIS MAKES THE CARRIER BELOW WRONG, and it is the reading with
+///         the only NORMATIVE text behind it. Measured: `invalid-parameter` appears ZERO times in
+///         ae703386's diff and twice in its commit MESSAGE, and the one code-relevant line that
+///         diff does add says "declined at 400, not here" without choosing between the two 400
+///         codes. So the competing naming lives in a message, not in the artefact — authority is
+///         real (it is the owner's), but ae703386 deliberated the 405 boundary and named
+///         `invalid-parameter` as its contrast case, never weighing a declared-but-unadvertisable
+///         input. Wording reaching further than deliberation, again, and this time against me.
 ///   (iii) an advertised KIND binds all its declared members → supporting `"in"` is not optional,
 ///         so the refusal is not a fault at all but a SUBJECT GAP: implement them, or stop
 ///         advertising `compare`/`matches`. THIS MAKES THE CARRIER BELOW WRONG TOO, and more
