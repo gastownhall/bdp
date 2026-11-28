@@ -7,7 +7,7 @@
       "type": "string"
     },
     "Memory": {
-      "description": "Memory — a unit of arbitrary knowledge. Plain memories exist and packs refine subtypes.",
+      "description": "Memory — a unit of arbitrary knowledge. Plain memories exist and the Constraint/Evaluation/Conformance packs refine subtypes. `title`/`status` are the named-content labels; `body` is Markdown and MAY be empty.",
       "allOf": [
         {
           "$ref": "core.schema.json#/$defs/Bead"
@@ -15,29 +15,31 @@
         {
           "type": "object",
           "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
             "body": {
               "$ref": "#/$defs/markdown"
             },
-            "references": {
-              "type": "array",
-              "items": {
-                "$ref": "core.schema.json#/$defs/ResourceRef"
-              },
-              "uniqueItems": true
+            "status": {
+              "type": "string",
+              "minLength": 1
             },
             "supersededBy": {
               "$ref": "core.schema.json#/$defs/ResourceRef"
             }
           },
           "required": [
-            "body"
+            "body",
+            "supersededBy"
           ],
           "additionalProperties": false
         }
       ]
     },
     "Constraint": {
-      "description": "Constraint — an obligation. Abstract: only the concrete subtypes below are instantiated.",
+      "description": "Constraint — an obligation expressed as a Memory. Abstract: only the concrete subtypes below are instantiated (creation requires a concrete Type; a read may select the family through the abstract name).",
       "allOf": [
         {
           "$ref": "#/$defs/Memory"
@@ -45,29 +47,19 @@
         {
           "type": "object",
           "properties": {
-            "requires": {
-              "type": "array",
-              "items": {
-                "$ref": "core.schema.json#/$defs/ResourceRef"
-              },
-              "uniqueItems": true
-            },
             "definedBy": {
               "$ref": "core.schema.json#/$defs/ResourceRef"
-            },
-            "appliesTo": {
-              "type": "array",
-              "items": {
-                "$ref": "core.schema.json#/$defs/ResourceRef"
-              },
-              "uniqueItems": true
             }
           },
+          "required": [
+            "definedBy"
+          ],
           "additionalProperties": false
         }
       ]
     },
     "Policy": {
+      "description": "Policy — an independently maintained rule (e.g. a data-handling policy).",
       "allOf": [
         {
           "$ref": "#/$defs/Constraint"
@@ -80,6 +72,7 @@
       ]
     },
     "Requirement": {
+      "description": "Requirement — a necessary condition, often a defining child of a Specification.",
       "allOf": [
         {
           "$ref": "#/$defs/Constraint"
@@ -92,6 +85,7 @@
       ]
     },
     "Scenario": {
+      "description": "Scenario — an expected-behaviour case, often a defining child of a Specification.",
       "allOf": [
         {
           "$ref": "#/$defs/Constraint"
@@ -104,6 +98,7 @@
       ]
     },
     "Specification": {
+      "description": "Specification — a composite Constraint decomposed into defining Requirements and Scenarios.",
       "allOf": [
         {
           "$ref": "#/$defs/Constraint"
@@ -111,6 +106,89 @@
         {
           "type": "object",
           "properties": {},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "References": {
+      "description": "References — a context pointer from a Bead to a useful resource. UNOWNED: a write revises neither endpoint. The canonical \"this bead refers to that one\".",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/rel"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "body": {
+              "$ref": "#/$defs/markdown"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SupersededBy": {
+      "description": "SupersededBy — normative succession: OLD (source) has been replaced by NEW (target); readers should follow NEW for current guidance. OWNED by OLD: recording it revises OLD, not NEW. Both endpoints are distinct Memory identities.",
+      "$comment": "UNLOWERED: acyclic rel<Memory, Memory> {\n  title?:  string { minLength: 1 },\n  body?:   markdown,\n  status?: string { minLength: 1 },\n}"
+    },
+    "Requires": {
+      "description": "Requires — a necessary-dependency Link between two Constraints: SOURCE's obligations include TARGET, which is maintained independently. OWNED by SOURCE. Stating the dependency neither executes either Constraint nor proves satisfaction.",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/rel"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "body": {
+              "$ref": "#/$defs/markdown"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Defines": {
+      "description": "Defines — PARENT (source) decomposes into CHILD (target) as a defining part; a refinement of `Requires` (a defining dependency is a necessary one). OWNED by PARENT. Matches `Specification defines Requirement|Scenario`.",
+      "$comment": "UNLOWERED: Requires, acyclic rel<Constraint, Constraint> {}"
+    },
+    "SubjectTo": {
+      "description": "SubjectTo — a declaration that SUBJECT (source) is governed by CONSTRAINT (target). SOURCE may be any Bead whose installed Type and writer support ownership of this Link; the target is a Constraint. OWNED by SUBJECT (under its installed ownership declaration).",
+      "allOf": [
+        {
+          "$ref": "core.schema.json#/$defs/rel"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "body": {
+              "$ref": "#/$defs/markdown"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "additionalProperties": false
         }
       ]
@@ -141,7 +219,7 @@
       ]
     },
     "Conformance": {
-      "description": "Conformance — a reified CLAIM with its own identity and provenance, so it is a bead (not a",
+      "description": "Conformance — a reified CLAIM with its own identity and provenance (a bead, not a Link). Abstract: only the concrete subtypes below are instantiated. `constraint` is what it claims about; `evaluation` is the owning assessment (which names the subjects).",
       "allOf": [
         {
           "$ref": "core.schema.json#/$defs/Bead"
@@ -165,6 +243,7 @@
       ]
     },
     "Addresses": {
+      "description": "Addresses — the Evaluation engages the Constraint (claim of relevance, not yet a verdict).",
       "allOf": [
         {
           "$ref": "#/$defs/Conformance"
@@ -177,6 +256,7 @@
       ]
     },
     "Satisfies": {
+      "description": "Satisfies — the Evaluation finds the Constraint satisfied.",
       "allOf": [
         {
           "$ref": "#/$defs/Conformance"
@@ -189,6 +269,7 @@
       ]
     },
     "Violates": {
+      "description": "Violates — the Evaluation finds the Constraint violated.",
       "allOf": [
         {
           "$ref": "#/$defs/Conformance"
@@ -198,6 +279,44 @@
           "properties": {},
           "additionalProperties": false
         }
+      ]
+    },
+    "ReferenceError": {
+      "description": "Domain refusals of `createReference`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link"
+      ]
+    },
+    "SupersedeError": {
+      "description": "Domain refusals of `supersedeMemory`.",
+      "enum": [
+        "existing-successor",
+        "would-cycle",
+        "ineligible-endpoint"
+      ]
+    },
+    "RequiresError": {
+      "description": "Domain refusals of `createRequires`.",
+      "enum": [
+        "ineligible-endpoints",
+        "self-link"
+      ]
+    },
+    "DefinesError": {
+      "description": "Domain refusals of `createDefines` (≤1 incoming; acyclic).",
+      "enum": [
+        "existing-definer",
+        "would-cycle",
+        "ineligible-endpoints"
+      ]
+    },
+    "SubjectToError": {
+      "description": "Domain refusals of `createSubjectTo`.",
+      "enum": [
+        "ineligible-target",
+        "self-link",
+        "ownership-unsupported"
       ]
     }
   }
