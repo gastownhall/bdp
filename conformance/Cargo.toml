@@ -1,10 +1,15 @@
 # The BDP conformance GATE workspace (Rust, wire-level) — the lockstep merge gate.
 #
 # Self-contained: one `cargo build` / `cargo test`, mainstream deps, no Node / DB / network.
-# Pin: core spec v0.2.3 = gastownhall/bdp main @488a2d01 (merged commits, never draft tips). The gate
-# (member `gate`) derives its coverage denominator LIVE from specs/generated/openapi/core.openapi.json,
-# so the denominator tracks the spec instead of a frozen copy. `reference` stays pin-agnostic (it
-# serves whatever InMemScope implements).
+# NO SPEC PIN HERE, AND THE MECHANISM IS THE POINT. This line read "Pin: core spec v0.2.3 =
+# gastownhall/bdp main @488a2d01" for five days while main moved to 7567dd8f -- a dated claim with
+# nothing to keep it true, in the first thing a reader of this workspace sees. Deleting the claim
+# beats refreshing it when there is no mechanism to maintain it.
+#
+# The gate (member `gate`) derives its coverage denominator LIVE from
+# specs/generated/openapi/core.openapi.json and reports the spec version read from that document's
+# `info.version`, so the tree IS the pin and `git rev-parse HEAD` names it. `reference` stays
+# pin-agnostic (it serves whatever InMemScope implements).
 #
 # subject/ holds the SUBJECT UNDER TEST — the in-memory BDP scope plus the framework-free HTTP
 # server/client the cases drive. It was once called `vendor/`, which was the wrong name: it implied
