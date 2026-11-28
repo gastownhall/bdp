@@ -135,15 +135,21 @@ async fn every_emittable_problem_code_is_registered(_host: &str) -> Result<Vec<S
     // Codes this subject emits that D.9 does not register. Registered so the gate is green on the
     // known set and red on a new one; the spec-side spelling is named where one exists, because
     // that is the repair, not a rename of the registry.
-    // THREE ENTRIES LEFT THIS LIST BY BEING FIXED, not by being re-judged: `not-found`,
+    // FOUR ENTRIES LEFT THIS LIST BY BEING FIXED, not by being re-judged: `not-found`,
     // `erased` and `already-exists` were near-misses of D.9's `resource-not-found`,
     // `resource-erased` and `identity-taken`, and the subject now emits the canonical spellings.
     // D.9 is the registry and needed no ruling for that -- the same reasoning as bringing the
     // subject to the frozen wire. The staleness guard below is what told me: it failed naming all
     // three the moment the rename landed, which is the only reason this list is not now a false
     // claim about its own subject.
+    //
+    // THE FOURTH WAS `unprocessable`, and it left differently -- not renamed but RETIRED. The RC3
+    // fault-vocabulary pass moved `BdpError::Unprocessable` from (422, `unprocessable`) to
+    // (400, `malformed-request`), so the code is no longer emitted at all and D.9 never needed to
+    // grow for it. The staleness guard failed naming it within one run of the move, which is the
+    // second time this guard has been the thing that noticed; a register of known gaps is a false
+    // claim the moment one closes, and nothing else in the tree reads this list.
     const REGISTERED: &[(&str, &str)] = &[
-        ("unprocessable", "not in D.9; the 422 bound case is `limit-exceeded`, so this is a second unregistered 422"),
         ("channel-closed", "not in D.9 and not named anywhere in core.lumen"),
         ("already-settled", "not in D.9; cancel's declared 409 state conflict has no registered code"),
         ("backend", "not in D.9; a 500 code, and D.8 has no 5xx row beyond the 4xx/5xx catch-all"),
@@ -2084,18 +2090,23 @@ async fn import_wrong_media_type_400(host: &str) -> Result<Vec<SurfaceId>, Strin
     }
 }
 
-/// `?strategy=history-restore` against a scope advertising `historyRestore: false` → 422
-/// `limit-exceeded`. Covers op/import/fault/422.
+/// `?strategy=history-restore` against a scope advertising `historyRestore: false` → 400
+/// `invalid-parameter`.
 ///
-/// THE CAPABILITY DUAL, stated in core.lumen as a rule rather than a courtesy: "Each limit record
-/// is the advertise side of a dual: the matching `limit-exceeded` (422) is the enforce side." So a
-/// scope that advertises `historyRestore: false` must REFUSE the mode, and refuse it as 422.
+/// IT COVERS NO NEW ROW, and that is a deliberate downgrade. It used to be the only producer of
+/// op/import/fault/422; after the RC3 fault-vocabulary ruling the refusal is 400, a row already
+/// covered by `import_truncated_stream_400`. So this case is now a BEHAVIOUR pin, not a coverage
+/// one, and op/import/fault/422 is uncovered and registered in RESIDUAL. Saying so here matters:
+/// the old doc line read "Covers op/import/fault/422", and a reader checking which case holds that
+/// row would have been sent to a case that no longer does.
 ///
-/// IT ANSWERED 501 UNTIL NOW, and that is why this row had no producer. 501 says the OP is absent;
-/// `import` is advertised and present, and declines exactly one mode. A client told 501 concludes
-/// the scope cannot import at all. The fix is in the reference, not here — this case is what holds
-/// it.
-async fn import_history_restore_is_refused_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+/// THE DUAL ITSELF IS UNCHANGED AND STILL THE POINT. A scope advertising `historyRestore: false`
+/// must REFUSE the mode rather than honour it, and must not answer 501 — 501 says the OP is
+/// absent, while `import` is advertised, present, and declines exactly one mode. Only the status
+/// of the refusal moved, because `historyRestore` is a bool and no smaller stream succeeds under
+/// it (core.lumen:2103-2106). Both wrong answers are kept as distinct arms below, because they
+/// fail for different reasons and a reader of the failure needs to know which.
+async fn import_history_restore_is_refused_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     let framed = br#"{"Begin":{"cursor":"c0"}}
 {"End":{"count":0}}
 "#;
@@ -2103,12 +2114,22 @@ async fn import_history_restore_is_refused_422(host: &str) -> Result<Vec<Surface
         raw_problem(host, "POST", "/-/import?strategy=history-restore", ctype("application/jsonl"), framed)
             .await?;
     match status {
-        422 if code == "limit-exceeded" => Ok(vec![fault("import", 422)]),
-        422 => Err(format!("422 but the code was {code}, not limit-exceeded")),
+        400 if code == "invalid-parameter" => Ok(vec![fault("import", 400)]),
+        400 => Err(format!(
+            "400 but the code was `{code}`, not `invalid-parameter`. The status alone is not the \
+             assertion: a malformed body answers 400 too, and after the RC3 ruling the CODE is the \
+             only thing distinguishing an advertised-false refusal from one"
+        )),
+        422 => Err(format!(
+            "history-restore answered 422 (`{code}`). That was correct until the RC3 ruling; \
+             `historyRestore` is a bool, so no smaller stream succeeds and 422's membership test \
+             (core.lumen:2103-2106) excludes it"
+        )),
         501 => Err("history-restore answered 501; it is an advertised limit on a PRESENT op, so \
-                    the dual requires 422 limit-exceeded"
+                    the dual requires a refusal that names the capability, not one that says the \
+                    whole op is absent"
             .into()),
-        s => Err(format!("expected 422 limit-exceeded for an unadvertised import mode, got {s}")),
+        s => Err(format!("expected 400 invalid-parameter for an unadvertised import mode, got {s}")),
     }
 }
 
@@ -3256,7 +3277,7 @@ async fn pull_is_the_one_read_that_admits_sse(
 /// no advertisement could offer or refuse it. `If-Match` on a `put` advertising `ifMatch: false` is
 /// `422`: the field exists, this scope declines it, and the caller fixes the request by dropping
 /// the guard. Status alone cannot tell those apart on an op that declares both — the `code` can.
-async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceId>, String> {
+async fn the_capability_duals_are_refused_400(host: &str) -> Result<Vec<SurfaceId>, String> {
     let mut covered = Vec::new();
 
     // A proposed id against `clientProposedId: false`.
@@ -3274,14 +3295,22 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
     )
     .await?;
     match (status, code.as_str()) {
-        (422, "limit-exceeded") => covered.push(fault("create", 422)),
+        (400, "invalid-parameter") => covered.push(fault("create", 400)),
         (201, _) => {
             return Err("a caller-proposed id was ACCEPTED by a scope advertising \
                         `clientProposedId: false`; the dual requires it refused, and silently \
                         minting a different id hands back a Location the caller never asked for"
                 .into())
         }
-        (s, c) => return Err(format!("expected 422 limit-exceeded for a proposed id, got {s} / {c}")),
+        (400, c) => {
+            return Err(format!(
+                "a proposed id was refused 400 with code `{c}`, not `invalid-parameter`. After the \
+                 RC3 ruling the code is the whole assertion: an out-of-vocabulary input answers \
+                 400 too, and collapsing the two tells a client to stop using a parameter that is \
+                 merely unavailable here"
+            ))
+        }
+        (s, c) => return Err(format!("expected 400 invalid-parameter for a proposed id, got {s} / {c}")),
     }
 
     // Seed through the path that the restricted scope DOES advertise, so the put/patch cases are
@@ -3309,27 +3338,37 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
         headers.push(("if-match".into(), "some-rev".into()));
         let (status, code) = raw_problem(host, method, target, headers, body).await?;
         match (status, code.as_str()) {
-            (422, "limit-exceeded") => covered.push(fault(op_name, 422)),
+            (400, "invalid-parameter") => covered.push(fault(op_name, 400)),
             (412, _) => {
                 return Err(format!(
                     "{op_name} answered 412 for an If-Match against `ifMatch: false`. 412 says the \
                      guard was EVALUATED and failed, so the caller retries with a fresher rev for \
-                     ever; the dual requires 422, which says the guard is not offered here"
+                     ever; the dual requires a refusal that says the guard is not offered here"
+                ))
+            }
+            (400, c) => {
+                return Err(format!(
+                    "If-Match on {op_name} was refused 400 with code `{c}`, not \
+                     `invalid-parameter`"
                 ))
             }
             (s, c) => {
                 return Err(format!(
-                    "expected 422 limit-exceeded for If-Match on {op_name}, got {s} / {c}"
+                    "expected 400 invalid-parameter for If-Match on {op_name}, got {s} / {c}"
                 ))
             }
         }
     }
 
-    // THE OUT-OF-VOCABULARY GUARD STILL ANSWERS 400 ON THE SAME SUBJECT, which is what stops this
-    // case being satisfied by a binding that 422s every header it does not like.
+    // THE DISCRIMINATING ARM, AND IT MOVED FROM THE STATUS TO THE CODE. It used to read "the
+    // out-of-vocabulary guard still answers 400", which discriminated only while the duals above
+    // answered 422. Both are 400 now, so that check would pass for a binding that answered
+    // `invalid-parameter` to every header it dislikes — the exact collapse the old comment warned
+    // against, and it would have passed silently in this very commit. The code is now the
+    // assertion, and it is asserted to DIFFER from the duals' code, not merely to be some value.
     let mut headers = ctype("application/json-patch+json");
     headers.push(("if-none-match".into(), "*".into()));
-    let (status, _) = raw_problem(
+    let (status, code) = raw_problem(
         host,
         "PATCH",
         "/dual-target",
@@ -3340,9 +3379,17 @@ async fn the_capability_duals_are_refused_422(host: &str) -> Result<Vec<SurfaceI
     if status != 400 {
         return Err(format!(
             "`If-None-Match` on patch answered {status}; `ifAbsent` is not a field of `PatchCaps` \
-             at all, so it is an input patch does not define (400) and NOT an unadvertised bound \
-             (422). Collapsing them tells a client to stop using a parameter that is merely \
-             unavailable here"
+             at all, so it is an input patch does not define, and D.8 names 400 for that"
+        ));
+    }
+    if code != "malformed-request" {
+        return Err(format!(
+            "`If-None-Match` on patch answered 400 `{code}`; `ifAbsent` is not a field of \
+             `PatchCaps` at all, so NO advertisement could ever have offered or refused it — that \
+             is `malformed-request`, not `invalid-parameter`. Emitting the same code as the \
+             advertised-false duals above would leave a client unable to tell a parameter this \
+             scope declines from one the operation does not define, which is the distinction this \
+             whole case exists to hold."
         ));
     }
 
@@ -3579,6 +3626,26 @@ const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
     ("put", "precondition", "`PutCaps.precondition: bool` is REQUIRED and absent from both the caps struct and the wire. NOT FIXED: adding a discovery member is wire behaviour under the freeze. CLOSES WHEN: post-freeze, `PutCaps` carries `precondition` and the wire encodes it."),
     ("patch", "precondition", "as `put` -- `PatchCaps.precondition: bool` required, absent from struct and wire."),
     ("delete", "precondition", "as `put` -- `DeleteCaps.precondition: bool` required, absent from struct and wire."),
+    // (c) A SPEC-REQUIRED FIELD THAT ARRIVED AFTER THE FREEZE, and the eighth entry is the one
+    //     that makes the freeze question worth asking. `ExportCaps.selector: bool` landed on main
+    //     in RC3 (core.lumen:1786-1790) and the RC3 merges changed the generated wire schema with
+    //     it, so the spec's own wire moved while this subject's is held at 0.2.3-rc1.
+    //
+    //     I ADVERTISED IT, THEN REVERTED. `selector: true` would have been TRUE, not aspirational
+    //     -- `bdp-inmem`'s `export` forwards the selector to `get` on the current-state branch, so
+    //     a projection really is honoured -- and it unblocked this very guard, which is exactly
+    //     why it deserved a second look. Adding a discovery member is the same class of change the
+    //     three entries above are held for; taking the exception for the one case that unblocked
+    //     me, in the same commit, would have been a rule written to permit what I wanted.
+    //
+    //     THE QUESTION IS WORTH MORE THAN THIS ENTRY, so it goes to Donna rather than being
+    //     decided here: does the rc1 wire freeze cover an ADDITIVE member with `#[serde(default)]`
+    //     -- which an old client ignores and a new client reads as `false` against an old scope --
+    //     or only a BREAKING change? `ifRevision` above is a rename and breaking either way. If
+    //     additive is exempt, FOUR of these eight entries close immediately (`list.compactFilter`,
+    //     three `precondition`s) and this one with them; if not, all eight hold and the subject is
+    //     consistent. Nothing in between.
+    ("export", "selector", "`ExportCaps.selector: bool` is REQUIRED on main (RC3) and absent from both the caps struct and the wire. The subject DOES honour `select` on a current-state export (measured: `bdp-inmem` export forwards it to `get`), so this is a discovery gap, not a behaviour gap. NOT FIXED: adding a discovery member is wire behaviour under the 0.2.3-rc1 freeze, the same ground the entries above are held on. CLOSES WHEN: Donna rules whether an additive `#[serde(default)]` member is exempt from the freeze -- which closes four of these eight at once -- or post-freeze."),
 ];
 
 async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {
@@ -3639,12 +3706,34 @@ async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<
     Ok(Vec::new())
 }
 
-/// Rows whose ONLY covering case asserts a status the 2026-11-27 ruling makes WRONG.
+/// SETTLED, AND THE SUBJECT NOW CONFORMS. These four rows lost their producer when the RC3
+/// fault-vocabulary ruling landed in this subject: each was covered only by a case asserting
+/// `(422, limit-exceeded)` for an advertised-false BOOLEAN, and every such site now answers
+/// `(400, invalid-parameter)`. They are UNCOVERED, registered in `RESIDUAL`, and pinned here so
+/// the move cannot silently reverse.
 ///
-/// The ruling: `limit-exceeded` (422) is for a request exceeding a STATIC CAPABILITY BOUND, fixed
-/// by SHRINKING the request -- stated four times on main (core.lumen:688, :1532, :2060, :2082). An
+/// THE QUESTION THIS REGISTER WAS OPENED FOR IS CLOSED, AND IT CLOSED IN THE SPEC, NOT BY RELAY.
+/// D.8's 422 line on main now states the membership test outright (core.lumen:2103-2106): a fault
+/// belongs at 422 "IFF shrinking the request fixes it; a well-formed body that is simply unusable
+/// … is 400, not 422". That is the `shrink` reading, in the normative text, reached by reading the
+/// artefact rather than by accepting the relay that announced it — which is the threshold the
+/// chronology below says I failed to apply the first time.
+///
+/// WHAT REMAINS OPEN IS A DIFFERENT, SMALLER THING: `CoreCapabilities` (core.lumen:1646) still
+/// says "Each limit record is the advertise side of a dual: the matching `limit-exceeded` (422) is
+/// the enforce side" — and read at the width of the RECORD that covers a boolean field too, which
+/// is how this subject read it. It does not compete with the test: it is a `description:`
+/// annotation, while :688, :1552 and D.8's blocks are `normative:` lines, and its parenthetical
+/// predates the test (it landed at GAP-4, 3f884d3f). Carried to the spec owner as a stale
+/// parenthetical. I nearly reported it as a self-contradicting spec, which it is not.
+///
+/// The ruling as implemented: `limit-exceeded` (422) is a request exceeding a STATIC CAPABILITY
+/// BOUND, fixed by SHRINKING -- stated on main at core.lumen:688, :1552, :2082 and :2103-2106. An
 /// advertised-false BOOLEAN option on an offered primitive is 400 `invalid-parameter`; a primitive
 /// absent is 405 `capability-not-supported`. The three are disjoint.
+///
+/// THE CHRONOLOGY BELOW IS KEPT AS THE RECORD OF HOW THE QUESTION WAS GOT WRONG, not as a live
+/// dispute. Read it for the method, not for the status of the cell.
 ///
 /// THE SUBTRACTION IS CONTINGENT, NOT SETTLED, AND THIS IS THE CORRECTION THAT MATTERS. The
 /// ruling above reached me as the spec owner's relay. I verified its SPEC grounds myself (four
@@ -3813,15 +3902,16 @@ async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<
 /// SECOND hit carries the condition list. Reading to the width of the question would have cost one
 /// more line.
 ///
-/// Every row below is covered by a case that drives an advertised-false BOOLEAN and asserts
-/// `(422, limit-exceeded)`. The case passes -- the frozen subject really does answer that -- so the
-/// mechanical ratio counts the row. But coverage through a path the ruling misclassifies is not
-/// coverage of the declared fault, so the honest figure subtracts them.
+/// Every row below WAS covered by a case driving an advertised-false BOOLEAN and asserting
+/// `(422, limit-exceeded)`. Those sites now answer 400, so the rows are uncovered and this
+/// register asserts that they are -- it stopped being a subtraction from a mechanical ratio and
+/// became a REGRESSION PIN, which can now fail in both directions.
 ///
-/// THE DISCRIMINATOR IS `op/push/fault/422`, DELIBERATELY ABSENT. Its case drives a batch of 5
-/// against `maxBatch: 4` -- a numeric bound, shrinkable, so 422 is correct there and the row
-/// stands. If this list condemned every 422 it would be a blanket, not a classification; one
-/// surviving 422 is what shows the line was drawn by the ruling rather than by the status.
+/// THE DISCRIMINATOR IS `op/push/fault/422`, DELIBERATELY ABSENT, and it is now asserted POSITIVELY.
+/// Its case drives a batch of 5 against `maxBatch: 4` -- a numeric bound, shrinkable, so 422 is
+/// correct there and the row must STAY covered. Over-applying the ruling to the one real bound is
+/// the plausible wrong way to make this change, and nothing else in the tree would catch it: every
+/// other 422 assertion was flipped, so a blanket flip compiles and leaves 105 tests green.
 ///
 /// AND THE REACHABILITY QUESTION IS ANSWERED, MEASURED: none of these four rows has a reachable
 /// 422 producer in Core, so rewriting the cases cannot recover them. The complete population of
@@ -3842,12 +3932,14 @@ async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<
 /// soft and not an error. A numeric type is not a faulting bound, and the comfortable answer here
 /// was the wrong one.
 ///
-/// CLOSES WHEN: post-freeze, each site answers 400 `invalid-parameter`; and SEPARATELY, the spec
-/// owner rules whether `create`/`put`/`patch`/`import` should declare a 422 at all, since nothing
-/// in Core can currently produce one for them. That is a denominator question for four rows, not a
-/// case-writing one -- if they are undeclared, the surface drops to 47 and these rows leave the
-/// grid rather than sitting uncovered in it.
-const COVERED_BY_A_RULED_WRONG_STATUS: &[(&str, &str)] = &[
+/// DONE: each site answers 400 `invalid-parameter`. STILL OPEN, and it is now the only thing left
+/// on this cell: whether `create`/`put`/`patch`/`import` should declare a 422 at all, since
+/// nothing in Core can produce one for them -- the four-numeric-field census above is the
+/// evidence. That is a DENOMINATOR question for four rows, not a case-writing one. If they are
+/// undeclared the surface drops by four and these rows leave the grid rather than sitting
+/// uncovered in it; until then they are uncovered and counted, which is why the honest figure did
+/// not move when the subject was fixed. THE SPEC OWNER'S, NOT THIS GATE'S.
+const MOVED_OFF_422_BY_THE_RC3_RULING: &[(&str, &str)] = &[
     ("op/create/fault/422", "`clientProposedId: bool` advertised false (CreateCaps). A boolean, not a bound."),
     ("op/put/fault/422", "`ifRevision` / `ifAbsent: bool` advertised false (PutCaps). Booleans, not bounds."),
     ("op/patch/fault/422", "`ifRevision: bool` advertised false (PatchCaps). A boolean, not a bound."),
@@ -3901,7 +3993,7 @@ async fn run_cases(addr: String, restricted_addr: String) {
         "capability duals (restricted subject)",
         &mut covered,
         &mut failures,
-        the_capability_duals_are_refused_422(&restricted_addr),
+        the_capability_duals_are_refused_400(&restricted_addr),
     )
     .await;
 
@@ -3932,41 +4024,64 @@ async fn run_cases(addr: String, restricted_addr: String) {
         "  NB: declared faults only — the spec requires statuses outside this set (e.g. patch/405 \
          per D.8:2084 + core.lumen:1615), which no row here can carry"
     );
-    // AND THE HONEST FIGURE, which is lower than the mechanical one. See
-    // `COVERED_BY_A_RULED_WRONG_STATUS`: four rows are covered only by cases asserting 422 for an
-    // advertised-false boolean, which the ruling makes 400. The cases pass against the frozen
-    // subject, so the ratio above counts them; coverage through a misclassified path is not
-    // coverage of the declared fault.
-    let disputed: BTreeSet<String> =
-        COVERED_BY_A_RULED_WRONG_STATUS.iter().map(|(r, _)| r.to_string()).collect();
+    // THE FIGURE ABOVE IS NOW THE HONEST ONE. It was printed as CONTINGENT until the RC3
+    // fault-vocabulary ruling landed: four rows were covered only by cases asserting 422 for an
+    // advertised-false boolean, so the mechanical ratio counted coverage the ruling misclassified.
+    // Those sites answer 400 now, the rows are genuinely uncovered, and the ratio dropped to meet
+    // the figure that was already being published with a caveat. Nothing was re-labelled — the
+    // subject moved.
+    let moved: BTreeSet<String> =
+        MOVED_OFF_422_BY_THE_RC3_RULING.iter().map(|(r, _)| r.to_string()).collect();
     let covered_names: BTreeSet<String> =
         covered_in_denom.iter().map(|r| r.to_string()).collect();
-    let stale: Vec<&String> = disputed.difference(&covered_names).collect();
+
+    // (a) THE MOVE HELD. A row back in `covered` means some site answers 422 for an
+    //     advertised-false boolean again.
+    let regressed: Vec<&String> = moved.intersection(&covered_names).collect();
     assert!(
-        stale.is_empty(),
-        "COVERED_BY_A_RULED_WRONG_STATUS names {} row(s) that are no longer covered at all: {:?}. \
-         The entry is a false claim — if the case was rewritten or removed, settle the entry in the \
-         same change.",
-        stale.len(),
-        stale
+        regressed.is_empty(),
+        "{} row(s) in MOVED_OFF_422_BY_THE_RC3_RULING are covered again: {:?}. A covering case \
+         asserts 422 for an advertised-false capability, which the RC3 ruling makes 400 — either a \
+         site regressed or the ruling was reversed, and neither is a thing a case may do quietly.",
+        regressed.len(),
+        regressed
+    );
+
+    // (b) EACH MOVED ROW CARRIES A RECORDED BLOCKER. Losing a producer legitimately is not licence
+    //     to leave the row unexplained: it is uncovered and in the denominator until the spec
+    //     undeclares it, and a reader is owed the reason at the row.
+    let unregistered: Vec<&String> = moved
+        .iter()
+        .filter(|r| !RESIDUAL.iter().any(|(row, _)| *row == r.as_str()))
+        .collect();
+    assert!(
+        unregistered.is_empty(),
+        "{} row(s) moved off 422 are absent from RESIDUAL: {:?}. They are uncovered and still \
+         declared, so each needs its blocker recorded or the uncovered list reads as unexamined.",
+        unregistered.len(),
+        unregistered
+    );
+
+    // (c) THE ONE REAL BOUND SURVIVED, asserted positively. This is the arm that discriminates:
+    //     a blanket flip of every 422 in the tree compiles, leaves the subject's own tests green,
+    //     and satisfies (a) and (b) above. Only this fails.
+    assert!(
+        covered_names.contains("op/push/fault/422"),
+        "`op/push/fault/422` is no longer covered. Its case drives a batch over `maxBatch`, a real \
+         numeric bound that shrinking fixes, so 422 is CORRECT there — it is the one 422 the RC3 \
+         ruling preserves. Losing it means the ruling was applied as a blanket condemnation of the \
+         status rather than as the classification it is."
     );
     assert!(
-        !disputed.contains("op/push/fault/422"),
-        "`op/push/fault/422` must NOT be listed: its case drives a batch over `maxBatch`, a real \
-         numeric bound, so 422 is correct there. Listing it would make this register a blanket \
-         condemnation of 422 rather than a classification."
+        !moved.contains("op/push/fault/422"),
+        "`op/push/fault/422` must NOT be listed in MOVED_OFF_422_BY_THE_RC3_RULING: see above."
     );
     eprintln!(
-        "CONTINGENT coverage: {}/{} — {} row(s) subtracted IF the advertised-false ruling stands. \
-         NOT yet the honest figure: it rests on a RULING CONFLICT that is Donna's to settle (see \
-         COVERED_BY_A_RULED_WRONG_STATUS). Quote {}/{} with that caveat, never bare.",
-        covered_in_denom.len() - disputed.len(),
-        denom.len(),
-        disputed.len(),
-        covered_in_denom.len() - disputed.len(),
-        denom.len()
+        "  the RC3 fault-vocabulary ruling moved {} row(s) off 422 (now uncovered, see RESIDUAL); \
+         `op/push/fault/422` is asserted STILL COVERED as the discriminator:",
+        moved.len()
     );
-    for (row, why) in COVERED_BY_A_RULED_WRONG_STATUS {
+    for (row, why) in MOVED_OFF_422_BY_THE_RC3_RULING {
         eprintln!("    - {row}: {why}");
     }
     let mut covered_sorted: Vec<&SurfaceId> = covered_in_denom.iter().copied().collect();
@@ -4259,10 +4374,10 @@ async fn collect_cases(addr: String) -> (BTreeSet<SurfaceId>, Vec<String>) {
     )
     .await;
     record(
-        "import/422 history-restore",
+        "import/400 history-restore",
         &mut covered,
         &mut failures,
-        import_history_restore_is_refused_422(&addr),
+        import_history_restore_is_refused_400(&addr),
     )
     .await;
     record(
@@ -4410,6 +4525,42 @@ const RESIDUAL: &[(&str, &str)] = &[
          be a request 409. Nothing names one, and the importId's job is described as keeping imports \
          from crossing, not as faulting when they do. CLOSES WHEN: Donna rules undeclare, or that \
          cross-import fault is named.",
+    ),
+    // ---- the four rows the RC3 fault-vocabulary ruling emptied ----------------------------
+    // ONE BLOCKER, FOUR ROWS, AND IT IS A DENOMINATOR QUESTION. Each of these was covered by a
+    // case asserting `(422, limit-exceeded)` for an advertised-false BOOLEAN; those sites now
+    // answer `(400, invalid-parameter)` per the ruling, so each row lost its only producer. They
+    // are not recoverable by writing a better case: the numeric-field census in
+    // MOVED_OFF_422_BY_THE_RC3_RULING shows `push`/`maxBatch` is the only faulting numeric bound
+    // in Core, and none of these four ops has one. So the row is either undeclared by the spec or
+    // permanently uncovered, and only the spec owner can choose.
+    (
+        "op/create/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `CreateCaps.clientProposedId` is a bool, so its refusal \
+         is 400 `invalid-parameter` (server.rs `unadvertised`); `CreateCaps` carries no numeric \
+         field at all, so nothing in it can be exceeded. CLOSES WHEN: the spec owner undeclares \
+         `create`'s 422, or names a Core numeric bound for it.",
+    ),
+    (
+        "op/put/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `PutCaps.ifMatch`/`ifAbsent` are bools -> 400. `PutCaps` \
+         carries no numeric field. CLOSES WHEN: as `create` -- undeclared, or a numeric bound named.",
+    ),
+    (
+        "op/patch/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `PatchCaps.ifMatch` is a bool -> 400. `PatchCaps` \
+         carries no numeric field. NOTE this row has now been wrong TWICE for different reasons: \
+         it was first recorded covered by a case that never exercised a capability bound at all \
+         (see the note above at op/patch/fault/409's neighbour), then covered by the \
+         advertised-false path the ruling reclassifies. CLOSES WHEN: as `create`.",
+    ),
+    (
+        "op/import/fault/422",
+        "NO PRODUCER AFTER THE RC3 RULING. `ImportCaps.historyRestore` is a bool -> 400. \
+         `ImportCaps`' only numeric field is `window`, which core.lumen:1552 declares SOFT \
+         backpressure and \"not an error\" -- I nearly reported this row recoverable through it, \
+         on the reasoning that a numeric field can be exceeded; a numeric TYPE is not a faulting \
+         bound. CLOSES WHEN: as `create`.",
     ),
 ];
 
