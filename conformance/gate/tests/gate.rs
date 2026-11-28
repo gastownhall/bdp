@@ -3646,13 +3646,33 @@ const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
     //     additive advertisement member post-freeze once, and the RC3 merges carried it into the
     //     generated wire schema.
     //
-    //     WHICH MAKES THE HOLD SELF-DEFEATING AT THIS ONE ENTRY, and that is worth saying against
-    //     my own decision: this guard fires BECAUSE the spec now requires the field. Holding the
-    //     gap under the freeze means this subject is knowingly non-conformant to current main in
-    //     order to honour a freeze that current main already moved past. The revert was still
-    //     right as PROCESS -- taking the exception for the one case that unblocked me is not mine
-    //     to do -- but the likely answer is "additive is exempt", and the entry should not pretend
-    //     the question is open in both directions.
+    //     BUT IT IS AN AUTHORIZED EXCEPTION, NOT A PRECEDENT, and I had this wrong in the
+    //     direction that suited me. I measured fe690ac8's DATES and DIFF and never read its
+    //     MESSAGE, which says: "Donna ruled (a): ExportCaps gains a `selector` field", and
+    //     "only the ExportCaps schema gains a field (the authorized wire change)". So the field
+    //     did not go in because additive members escape the freeze; it went in because the owner
+    //     authorized that specific change under it. One authorized exception is not a general
+    //     licence, and reading an authorization that names `ExportCaps.selector` onto
+    //     `revisions`/`conditions`/`import` extends it past what it weighed.
+    //
+    //     THE SHAPE IS THE ONE I SPENT THE DAY CATCHING IN OTHERS, including the mirror of it in
+    //     the same hour: a peer cited ae703386's MESSAGE for something its DIFF does not say, and
+    //     I corrected her; here I cited fe690ac8's DIFF while its MESSAGE carried the fact that
+    //     decided it. Diff and message are two artefacts and a citation to either is a claim
+    //     about only that one.
+    //
+    //     AND MY PREVIOUS CORRECTION HERE MADE THE ENTRY WORSE. It said "the entry should not
+    //     pretend the question is open in both directions" -- closing a direction that is open,
+    //     having flagged this entry originally for being one-directional. An over-correction in
+    //     my own favour is still a one-directional entry; it just points the other way.
+    //
+    //     WHAT SURVIVES: the hold IS self-defeating at this entry, and that argument stands on its
+    //     own -- this guard fires BECAUSE main now requires the field, so holding the gap leaves
+    //     this subject knowingly non-conformant to main in order to honour a freeze main moved
+    //     past under authorization. The revert stands as PROCESS. The question is genuinely open
+    //     two ways: (i) additive advertisement members are exempt, opening the route for the whole
+    //     class, or (ii) each needs its own authorization as `selector` got. Only (i) resolves the
+    //     non-conformance without a further ruling.
     //
     //     THE QUESTION IS WORTH MORE THAN THIS ENTRY, so it goes to Donna rather than being
     //     decided here: does the rc1 wire freeze cover an ADDITIVE member with `#[serde(default)]`
