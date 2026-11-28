@@ -4035,8 +4035,15 @@ async fn run_cases(addr: String, restricted_addr: String) {
     let covered_names: BTreeSet<String> =
         covered_in_denom.iter().map(|r| r.to_string()).collect();
 
-    // (a) THE MOVE HELD. A row back in `covered` means some site answers 422 for an
-    //     advertised-false boolean again.
+    // (a) THE CASE SUITE DID NOT RE-REGISTER THE ROW -- and this arm guards the SUITE, not the
+    //     subject, which is worth stating because the message below reads as though it catches
+    //     both. MEASURED: breaking the subject (pointing `unadvertised()` back at 422) does NOT
+    //     reach this assertion. The duals case errors out instead, records no rows, and the 422
+    //     never enters `covered`. The only route here is a CASE asserting 422 for one of these
+    //     four ops and returning the row -- most likely a ported case written against the old
+    //     rule -- and that route was probed by inserting the row directly, which fired. So:
+    //     subject regressions are caught by `capability duals` and `import/400 history-restore`;
+    //     this arm catches a case that re-books the row.
     let regressed: Vec<&String> = moved.intersection(&covered_names).collect();
     assert!(
         regressed.is_empty(),
