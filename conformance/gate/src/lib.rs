@@ -1074,6 +1074,38 @@ pub fn orphan_codes() -> Vec<String> {
 ///     gate/tests/gate.rs ~3771  quotes the approved document directly ("Status: APPROVED by
 ///                               Donna"). An artefact that exists and can be opened.
 ///
+///   AND THE HOUSE RULE MAKES THE WHOLE PRACTICE WRONG-SHAPED, not just unsourced.
+///   `specs/AGENTS.md:44` — "Do not record who decided something, or when, in the file." Its
+///   scope is the specification tree, so these conformance comments are not in violation; but the
+///   principle is plainly the house style and it dissolves the problem rather than managing it.
+///   CITE THE CLAUSE, NOT THE PERSON. A normative line can be checked by anyone at any time; an
+///   attribution cannot be checked at all under a shared account. Going forward the four unsourced
+///   ones get re-expressed as the clause they rest on, or dropped.
+///
+///   I ALSO NEARLY REPORTED THAT AGENTS.md DID NOT EXIST. `ls AGENTS.md` at the repo root found
+///   nothing and I read that as absence; it is at `specs/AGENTS.md`. One location searched,
+///   reported as a repo-wide fact — the same empty-search-as-absence shape as the filter grep,
+///   twice in one session.
+///
+///   TWO INSTRUMENTS, ONE BLEED, AND IT PRODUCED A FALSE POSITIVE AND FALSE NEGATIVES AT ONCE.
+///   Building the selector-flag table, a Python regex `type (\w+Caps) = \{(.*?)\n\}` and then a
+///   `grep -A8 … | sed -n '1,/^}/p'` BOTH reported `RevisionsCaps` as carrying a `selector`. It
+///   does not: `type RevisionsCaps = { }` (core.lumen:1783) is a ONE-LINE record, so there is no
+///   closing-brace LINE to stop at, and each pattern ran past it into the next record and
+///   collected `ExportCaps.selector`. The same bleed simultaneously LOST `GetCaps` and
+///   `ExportCaps` as entries of their own.
+///
+///   What caught it was a prior READING disagreeing with a new instrument — I had read
+///   `RevisionsCaps` as empty hours earlier, so the output contradicted something already known.
+///   Without that the table would have told a peer her `get`-is-the-only-gap claim was wrong and
+///   that `revisions` was misclassified. A delimiter-based parser needs a record whose delimiter
+///   is on its own line, and a one-line record silently has none.
+///
+///   THE TABLE, read rather than matched: `GetCaps`, `ListCaps`, `PullCaps` and `ExportCaps` carry
+///   a `selector`; `RevisionsCaps` is empty; `AliasCaps` is `{ ...: any }`; `ChangesCaps` is not in
+///   core.lumen at all. Of the four, only `get` declares no 400 ([404,410]) — so the spec owner's
+///   0.2.4 scoping is right.
+///
 ///   AND NOTHING I ACTED ON DEPENDS ON THE RELAYED LEG, which is worth stating because it was
 ///   the leg I leaned on rhetorically. Advertising `ExportCaps.selector` (8fdc9651) rests on two
 ///   facts I measured myself: the generated OpenAPI REQUIRES the field, and this subject honours
