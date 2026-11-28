@@ -3626,69 +3626,40 @@ const CAPS_FIELDS_NOT_ADVERTISED: &[(&str, &str, &str)] = &[
     ("put", "precondition", "`PutCaps.precondition: bool` is REQUIRED and absent from both the caps struct and the wire. NOT FIXED: adding a discovery member is wire behaviour under the freeze. CLOSES WHEN: post-freeze, `PutCaps` carries `precondition` and the wire encodes it."),
     ("patch", "precondition", "as `put` -- `PatchCaps.precondition: bool` required, absent from struct and wire."),
     ("delete", "precondition", "as `put` -- `DeleteCaps.precondition: bool` required, absent from struct and wire."),
-    // (c) A SPEC-REQUIRED FIELD THAT ARRIVED AFTER THE FREEZE, and the eighth entry is the one
-    //     that makes the freeze question worth asking. `ExportCaps.selector: bool` landed on main
-    //     in RC3 (core.lumen:1786-1790) and the RC3 merges changed the generated wire schema with
-    //     it, so the spec's own wire moved while this subject's is held at 0.2.3-rc1.
+    // (c) THE EIGHTH ENTRY CLOSED, AND THE REMAINING SEVEN ARE HELD ON A NARROWER GROUND THAN I
+    //     FIRST WROTE. `ExportCaps.selector` was registered here and is now ADVERTISED, because
+    //     holding it was never a freeze question at all -- it was my conflating two different
+    //     kinds of additive member.
     //
-    //     I ADVERTISED IT, THEN REVERTED. `selector: true` would have been TRUE, not aspirational
-    //     -- `bdp-inmem`'s `export` forwards the selector to `get` on the current-state branch, so
-    //     a projection really is honoured -- and it unblocked this very guard, which is exactly
-    //     why it deserved a second look. Adding a discovery member is the same class of change the
-    //     three entries above are held for; taking the exception for the one case that unblocked
-    //     me, in the same commit, would have been a rule written to permit what I wanted.
+    //     THE DISTINCTION, measured rather than taken on a peer's reading, since the reading
+    //     happened to unblock me and the grant direction is the one that goes unchecked:
+    //       * `export.selector` is AUTHORIZED. fe690ac8's message reads "Donna ruled (a):
+    //         ExportCaps gains a `selector` field" and "only the ExportCaps schema gains a field
+    //         (the authorized wire change)". I read that message myself.
+    //       * It is also REQUIRED by main -- which is why the guard below fires on it.
+    //       * And `selector: true` is TRUE of this subject: `bdp-inmem`'s `export` forwards the
+    //         selector to `get` on the current-state branch. Measured, not assumed.
+    //     Advertising a field that is authorized AND required AND honoured is CONFORMANCE, not an
+    //     exception. There was no exception to take, so my caution was aimed at a thing that did
+    //     not exist. The three `precondition` absences, `list.compactFilter` and the three
+    //     `ifRevision` renames have NO such authorizing commit, which is the property that
+    //     separates them -- so they stay held and the freeze question stays open for them alone.
     //
-    //     AND THE PRECEDENT IS ALREADY DATED, which reframes the question from "may we?" to "was
-    //     this already decided?". Measured: the freeze tag `bdp-core-0.2.3-rc1` is 33dc2f2e
-    //     (2026-11-24 09:03:11 -0800), `rc2` is acb7aa67 (2026-11-25 14:25:25), and
-    //     `ExportCaps.selector` was added to core.lumen at fe690ac8 (2026-11-26 14:11:14) as a
-    //     `+ selector:  bool` line -- AFTER BOTH TAGS. So the spec owner has already added an
-    //     additive advertisement member post-freeze once, and the RC3 merges carried it into the
-    //     generated wire schema.
+    //     WHAT MY ORIGINAL ENTRY GOT RIGHT, and it is only the process half: taking the exception
+    //     for the one case that unblocked my own gate, in the same commit, would have been a rule
+    //     written to permit what I wanted. Reverting and registering bought the time to find out
+    //     that the premise was wrong. The conclusion was wrong and the process was right, and
+    //     those are separable.
     //
-    //     BUT IT IS AN AUTHORIZED EXCEPTION, NOT A PRECEDENT, and I had this wrong in the
-    //     direction that suited me. I measured fe690ac8's DATES and DIFF and never read its
-    //     MESSAGE, which says: "Donna ruled (a): ExportCaps gains a `selector` field", and
-    //     "only the ExportCaps schema gains a field (the authorized wire change)". So the field
-    //     did not go in because additive members escape the freeze; it went in because the owner
-    //     authorized that specific change under it. One authorized exception is not a general
-    //     licence, and reading an authorization that names `ExportCaps.selector` onto
-    //     `revisions`/`conditions`/`import` extends it past what it weighed.
+    //     SURFACE-MATCHED, CHECKED: fe690ac8 is a CAPABILITY RECORD field -- discovery/advertise
+    //     side, the same surface as every remaining entry here. It would NOT carry to the fault
+    //     wire; a peer nearly borrowed it for a Problem EXTENSION MEMBER and stopped herself,
+    //     which is the right line. Advertise-side and fault-side are two freeze questions.
     //
-    //     THE SHAPE IS THE ONE I SPENT THE DAY CATCHING IN OTHERS, including the mirror of it in
-    //     the same hour: a peer cited ae703386's MESSAGE for something its DIFF does not say, and
-    //     I corrected her; here I cited fe690ac8's DIFF while its MESSAGE carried the fact that
-    //     decided it. Diff and message are two artefacts and a citation to either is a claim
-    //     about only that one.
-    //
-    //     AND MY PREVIOUS CORRECTION HERE MADE THE ENTRY WORSE. It said "the entry should not
-    //     pretend the question is open in both directions" -- closing a direction that is open,
-    //     having flagged this entry originally for being one-directional. An over-correction in
-    //     my own favour is still a one-directional entry; it just points the other way.
-    //
-    //     WHAT SURVIVES: the hold IS self-defeating at this entry, and that argument stands on its
-    //     own -- this guard fires BECAUSE main now requires the field, so holding the gap leaves
-    //     this subject knowingly non-conformant to main in order to honour a freeze main moved
-    //     past under authorization. The revert stands as PROCESS. The question is genuinely open
-    //     two ways: (i) additive advertisement members are exempt, opening the route for the whole
-    //     class, or (ii) each needs its own authorization as `selector` got. Only (i) resolves the
-    //     non-conformance without a further ruling.
-    //
-    //     SURFACE-MATCHED, CHECKED: fe690ac8 is a CAPABILITY RECORD field, which is the
-    //     discovery/advertise side -- the same surface as every entry in this register (three
-    //     `ifRevision` renames, three `precondition` absences, `list.compactFilter`,
-    //     `export.selector`). So citing it here is on-surface. It would NOT carry to the fault
-    //     wire: a peer nearly borrowed it for a Problem EXTENSION MEMBER and stopped herself,
-    //     which is the right line -- advertise-side and fault-side are two freeze questions.
-    //
-    //     THE QUESTION IS WORTH MORE THAN THIS ENTRY, so it goes to Donna rather than being
-    //     decided here: does the rc1 wire freeze cover an ADDITIVE member with `#[serde(default)]`
-    //     -- which an old client ignores and a new client reads as `false` against an old scope --
-    //     or only a BREAKING change? `ifRevision` above is a rename and breaking either way. If
-    //     additive is exempt, FOUR of these eight entries close immediately (`list.compactFilter`,
-    //     three `precondition`s) and this one with them; if not, all eight hold and the subject is
-    //     consistent. Nothing in between.
-    ("export", "selector", "`ExportCaps.selector: bool` is REQUIRED on main (RC3) and absent from both the caps struct and the wire. The subject DOES honour `select` on a current-state export (measured: `bdp-inmem` export forwards it to `get`), so this is a discovery gap, not a behaviour gap. NOT FIXED: adding a discovery member is wire behaviour under the 0.2.3-rc1 freeze, the same ground the entries above are held on. CLOSES WHEN: Donna rules whether an additive `#[serde(default)]` member is exempt from the freeze -- which closes four of these eight at once -- or post-freeze."),
+    //     STILL OWED ON `export`, and NOT closed by advertising the flag: main requires a
+    //     `--revisions` export to REFUSE `where`/`select` outright (400), and this subject's
+    //     revisions branch silently ignores them; `ExportBegin.partial` is absent entirely. Both
+    //     are behaviour, both are mine, both are separate changes.
 ];
 
 async fn every_required_caps_field_is_advertised(r: &RemoteScope) -> Result<Vec<SurfaceId>, String> {

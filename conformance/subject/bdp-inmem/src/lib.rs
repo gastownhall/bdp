@@ -1019,7 +1019,12 @@ impl BdpScope for InMemScope {
             // prove the binding does not conflate them: a batch of 3 is deferred-in-part and
             // SUCCEEDS, a batch of 5 is refused.
             PrimitiveCapabilities::Push(PushCaps { max_batch: Some(4), window: Some(2) }),
-            PrimitiveCapabilities::Export(ExportCaps { revisions: true }),
+            // `selector: true` IS MEASURED, NOT ASPIRATIONAL: the current-state branch of
+            // `export` forwards the selector to `get`, so a projection is honoured. The revisions
+            // branch ignores it — but main refuses `select` on a `--revisions` export outright
+            // (400), so that is an unconditional refusal this subject still owes, not a reason to
+            // advertise the flag false. Registered separately in the gate.
+            PrimitiveCapabilities::Export(ExportCaps { revisions: true, selector: true }),
             PrimitiveCapabilities::Import(ImportCaps { history_restore: false }),
             PrimitiveCapabilities::Changes(ChangesCaps { sse: false, jsonl: false, filter: false, selector: false }),
             // `async_supported: true` — `?mode=async` now MINTS an `AsyncResult` and answers 202

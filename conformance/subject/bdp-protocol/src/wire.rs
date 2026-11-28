@@ -697,7 +697,7 @@ pub enum WireCapability {
     #[serde(rename = "pull")]
     Pull { #[serde(default)] sse: bool, #[serde(default)] jsonl: bool, #[serde(default)] filter: bool, #[serde(default)] selector: bool },
     #[serde(rename = "export")]
-    Export { #[serde(default)] revisions: bool },
+    Export { #[serde(default)] revisions: bool, #[serde(default)] selector: bool },
     #[serde(rename = "create")]
     Create {
         #[serde(rename = "serverAllocatesId", default)] server_allocates_id: bool,
@@ -785,7 +785,7 @@ impl WireCapability {
             },
             C::Changes(x) => WireCapability::Changes { sse: x.sse, jsonl: x.jsonl, filter: x.filter, selector: x.selector },
             C::Pull(x) => WireCapability::Pull { sse: x.sse, jsonl: x.jsonl, filter: x.filter, selector: x.selector },
-            C::Export(x) => WireCapability::Export { revisions: x.revisions },
+            C::Export(x) => WireCapability::Export { revisions: x.revisions, selector: x.selector },
             C::Create(x) => WireCapability::Create { server_allocates_id: x.server_allocates_id, client_proposed_id: x.client_proposed_id },
             C::Put(c) => WireCapability::Put { if_match: c.if_match, if_absent: c.if_absent },
             C::Patch(x) => WireCapability::Patch { if_match: x.if_match },
@@ -816,7 +816,7 @@ impl WireCapability {
             }),
             WireCapability::Changes { sse, jsonl, filter, selector } => PrimitiveCapabilities::Changes(ChangesCaps { sse, jsonl, filter, selector }),
             WireCapability::Pull { sse, jsonl, filter, selector } => PrimitiveCapabilities::Pull(PullCaps { sse, jsonl, filter, selector }),
-            WireCapability::Export { revisions } => PrimitiveCapabilities::Export(ExportCaps { revisions }),
+            WireCapability::Export { revisions, selector } => PrimitiveCapabilities::Export(ExportCaps { revisions, selector }),
             WireCapability::Create { server_allocates_id, client_proposed_id } => PrimitiveCapabilities::Create(CreateCaps { server_allocates_id, client_proposed_id }),
             WireCapability::Put { if_match, if_absent } => PrimitiveCapabilities::Put(PutCaps { if_match, if_absent }),
             WireCapability::Patch { if_match } => PrimitiveCapabilities::Patch(PatchCaps { if_match }),

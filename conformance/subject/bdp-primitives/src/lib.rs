@@ -569,7 +569,11 @@ pub struct PushCaps {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct ExportCaps { pub revisions: bool }
+/// `selector` joined this record in RC3 (core.lumen:1786-1790) and main REQUIRES it: "Whether a
+/// `select` projection is honored on the export — advertised per-op, as `get`/`list`/`pull`
+/// advertise their own." A scope advertising `selector: false` faults a `select` request 400
+/// `invalid-parameter` (core.lumen:1457).
+pub struct ExportCaps { pub revisions: bool, pub selector: bool }
 
 #[derive(Clone, Debug, Default)]
 pub struct CreateCaps { pub server_allocates_id: bool, pub client_proposed_id: bool }
